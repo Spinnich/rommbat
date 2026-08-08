@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RomMBat.Tests</RootNamespace>
+    <AssemblyName>RomMBat.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RomMBat.Core\RomMBat.Core.csproj" />
+    <ProjectReference Include="..\..\src\RomM.Client\RomM.Client.csproj" />
+  </ItemGroup>
+
+  <!--
+    Fixtures are byte-exact captures from a real RetroBat install. Copied rather than
+    embedded so a failing test can be diffed against the file on disk.
+  -->
+  <ItemGroup>
+    <!-- Update, not Include: the SDK's default None glob already covers these. -->
+    <None Update="fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

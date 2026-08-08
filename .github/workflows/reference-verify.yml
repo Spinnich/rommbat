@@ -1,0 +1,38 @@
+name: Verify reference data
+
+# reference/verify.py re-derives every upstream number docs/PLAN.md quotes from the
+# vendored files. A failure here means an upstream fact moved, or that someone
+# hand-edited a vendored artifact. Either way the fix is to revisit docs/PLAN.md,
+# not to update the expected number. See reference/README.md.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - reference/**
+      - docs/PLAN.md
+      - .github/workflows/reference-verify.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reference-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify
+        working-directory: reference
+        run: python3 verify.py

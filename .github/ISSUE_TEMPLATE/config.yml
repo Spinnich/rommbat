@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: RomM Discord
+    url: https://discord.gg/invite/romm
+    about: Questions, setup help, and general discussion.
+  - name: RomM documentation
+    url: https://docs.romm.app
+    about: Docs for the RomM server itself, including the device sync protocol.
+  - name: RetroBat wiki
+    url: https://wiki.retrobat.org
+    about: Docs for RetroBat itself, including per-system BIOS requirements.

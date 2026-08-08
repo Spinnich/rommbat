@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RomM.Client</RootNamespace>
+    <AssemblyName>RomM.Client</AssemblyName>
+    <Description>
+      RomM API client. DTOs are generated from a pinned /openapi.json; pairing,
+      resumable download and sync negotiation are hand-written.
+    </Description>
+  </PropertyGroup>
+
+  <!--
+    No project references. This assembly knows nothing about RetroBat, SQLite or the
+    local filesystem, and the dependency direction is one-way:
+    Agent/UI -> RomMBat.Core -> RomM.Client.
+  -->
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomMBat.Tests" />
+  </ItemGroup>
+
+</Project>
