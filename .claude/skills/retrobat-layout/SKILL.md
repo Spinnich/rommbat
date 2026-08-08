@@ -53,7 +53,7 @@ has independent state sets per core.
 **editing an emulator INI is pointless: it gets clobbered on the next boot.** Write the
 option instead. Precedence (`emulatorlauncher/Program.cs`):
 
-```
+```text
 es_settings.cfg -> global.<key> -> <system>.<key> -> <system>["<rom filename>"].<key>
 ```
 
