@@ -1,0 +1,85 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{cs,csx}]
+indent_size = 4
+max_line_length = 120
+
+[*.{csproj,props,targets,config,nuspec,xml,cfg}]
+indent_size = 2
+
+# Windows-native. Must match .gitattributes, or every checkout looks dirty.
+[*.{bat,cmd,ps1,sln}]
+end_of_line = crlf
+
+[*.sln]
+indent_style = tab
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Vendored upstream files. Never reformatted, so drift stays visible in a diff.
+[reference/**]
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+end_of_line = unset
+
+[LICENSE]
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+
+# ---------------------------------------------------------------------------
+# C# conventions
+# ---------------------------------------------------------------------------
+
+[*.cs]
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:warning
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = false:silent
+dotnet_style_prefer_conditional_expression_over_return = false:silent
+
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel.required_prefix = _
+dotnet_naming_style.underscore_camel.capitalization = camel_case
+
+# CA1062: null checks on public parameters. Noisy in a nullable-enabled tree.
+dotnet_diagnostic.CA1062.severity = none
+
+# CA1848: LoggerMessage delegates. Worth revisiting once logging exists.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1303: literal strings passed to logging calls. English-only, see CLAUDE.md.
+dotnet_diagnostic.CA1303.severity = none
+
+# IDE0058: unused expression values. Fires on fluent builder calls.
+dotnet_diagnostic.IDE0058.severity = none
+
+# CA1031: catching System.Exception. The agent must never crash a game launch,
+# so the hook path catches broadly on purpose.
+dotnet_diagnostic.CA1031.severity = suggestion
+
+# ---------------------------------------------------------------------------
+# Test projects
+# ---------------------------------------------------------------------------
+
+[tests/**/*.cs]
+# Test names read as sentences: Resolves_snes_to_the_snes_folder.
+dotnet_diagnostic.CA1707.severity = none
+# Assertions deliberately discard results.
+dotnet_diagnostic.CA1806.severity = none

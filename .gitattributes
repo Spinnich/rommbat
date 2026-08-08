@@ -1,0 +1,22 @@
+* text=auto eol=lf
+
+# Windows-native files. RetroBat's EmulationStation runs these through cmd.exe, and a
+# hook .bat with LF endings is a class of bug nobody enjoys finding at game-launch time.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.sln text eol=crlf
+
+# Vendored upstream artifacts and captured fixtures are byte-exact. Normalising them
+# would hide drift and break hash comparisons.
+reference/** -text
+tests/**/fixtures/** -text
+
+# Generated. Collapsed in diffs and excluded from language statistics.
+**/Generated/** linguist-generated=true
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.7z binary

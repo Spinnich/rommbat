@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RomMBat.Core</RootNamespace>
+    <AssemblyName>RomMBat.Core</AssemblyName>
+    <Description>
+      Local state and everything that knows RetroBat's disk layout: the SQLite store,
+      the outbox, root discovery, config readers and writers, mapping and sync.
+    </Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RomM.Client\RomM.Client.csproj" />
+  </ItemGroup>
+
+  <!--
+    data/retrobat/*.json (platforms, save directories, save shapes) are shipped tables
+    read at runtime. They arrive with the milestones that derive them, M0 and M2.
+    Embedding them keeps a single-file publish self-contained and avoids resolving a
+    path to find them, but that is not settled yet.
+  -->
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomMBat.Tests" />
+  </ItemGroup>
+
+</Project>

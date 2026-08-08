@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RomMBat.UI</RootNamespace>
+    <!-- The es_menu entry launches this name. -->
+    <AssemblyName>RomMBat</AssemblyName>
+    <Description>
+      Full-screen gamepad-navigable front end, launched from EmulationStation.
+    </Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!--
+    The UI framework is chosen in M7. Avalonia (cross-platform, gamepad-friendly) and
+    WPF (Windows-only, matches RetroBat's own tooling) are both live, so no UI package
+    is referenced and OutputType stays Exe rather than WinExe until then. Presentation
+    owns no logic, which is what makes deferring cheap: set resolution, mapping,
+    conflict handling and the outbox all live in RomMBat.Core.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\RomMBat.Core\RomMBat.Core.csproj" />
+  </ItemGroup>
+
+</Project>

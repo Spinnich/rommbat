@@ -1,0 +1,72 @@
+name: Build
+
+# Compiles the solution and runs the unit suite. Windows is the target platform and
+# the only one the tree is guaranteed to build on, since RomMBat publishes win-x64
+# self-contained. The publish step is not run here; see release.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore -warnaserror
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --logger "console;verbosity=normal"
+
+  # A self-contained single-file publish is the shipped artefact, so a compile that
+  # succeeds but cannot be published is not a green build.
+  publish-check:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - name: Publish agent
+        run: >
+          dotnet publish src/RomMBat.Agent
+          -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true
+          -o publish/agent
+
+      - name: Publish UI
+        run: >
+          dotnet publish src/RomMBat.UI
+          -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true
+          -o publish/ui
+
+      - name: Upload artefacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rommbat-win-x64
+          path: publish/
+          retention-days: 7

@@ -1,0 +1,33 @@
+{
+  // Prompted on first open of the workspace. See CONTRIBUTING.md.
+  "recommendations": [
+    // C# language service, debugging and test discovery. Reads .editorconfig
+    // directly, so the C# conventions there apply as you type.
+    "ms-dotnettools.csharp",
+
+    // Solution explorer and richer test UX on top of the above. Optional: its
+    // licence is free for individuals and open source work but not for larger
+    // organisations, so ms-dotnettools.csharp alone is enough to contribute.
+    "ms-dotnettools.csdevkit",
+
+    // Surfaces the linters in .trunk/trunk.yaml inline, at the versions CI
+    // pins. The trunk-fmt-pre-commit and trunk-check-pre-push actions are
+    // disabled, so without this nothing checks the tree until the push lands.
+    "trunk.io",
+
+    // reference/verify.py, which gates the vendored upstream data.
+    "ms-python.python",
+
+    // Applies .editorconfig to the non-C# files, notably the crlf rule for
+    // .bat, .cmd, .ps1 and .sln that .gitattributes depends on.
+    "editorconfig.editorconfig"
+  ],
+
+  // Trunk already runs prettier and markdownlint at pinned versions. Running a
+  // second copy formats to whatever the extension bundles, which produces
+  // diffs that trunk check then rejects.
+  "unwantedRecommendations": [
+    "esbenp.prettier-vscode",
+    "davidanson.vscode-markdownlint"
+  ]
+}

@@ -1,0 +1,217 @@
+# RomMBat
+
+Sync a self-hosted [RomM](https://github.com/rommapp/romm) library with a
+[RetroBat](https://github.com/RetroBat-Official) install on Windows.
+
+RomMBat pulls a chosen subset of ROMs, metadata, media and BIOS down into RetroBat's
+native folder layout, and pushes saves, states and play sessions back up. **RomM is the
+authority, RetroBat is the player**, so the same collection stays coherent across a
+RetroBat machine, the RomM web UI, and RomM's other clients.
+
+The name is a portmanteau of RomM and RetroBat that lands close to "wombat". The mascot
+is a wombat.
+
+> [!WARNING]
+>
+> **Pre-release. Nothing works yet.** The repository currently holds the design of
+> record ([docs/PLAN.md](docs/PLAN.md)) and this scaffolding. See
+> [Status](#status) for what is and is not built.
+
+## Why
+
+RetroBat has no concept of a remote library. Today the only way to get a RomM library
+onto a RetroBat box is to copy files by hand, and nothing carries saves, states or
+playtime back. RomMBat closes both directions without forking RetroBat and without any
+change to RomM: it integrates purely through RetroBat's existing folder and script seams,
+and through the companion-app protocol RomM already ships.
+
+## What it does
+
+|              |                                                                                                                                               |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pull**     | ROMs, `gamelist.xml` metadata, box art / video / manuals, and BIOS, into `roms/<system>/` and `bios/`                                         |
+| **Push**     | Battery saves, save states and play sessions, back into RomM                                                                                  |
+| **Curate**   | Sync Sets: a named scope (collection, smart collection, platform, or a saved filter) plus a policy (max games, max bytes, ordering, eviction) |
+| **Offline**  | Everything works with the server unreachable and reconciles on reconnect                                                                      |
+| **Portable** | Lives entirely inside the RetroBat tree, survives a drive-letter change and a move to another PC                                              |
+
+### Four constraints that shape the whole design
+
+1. **Offline-first.** RomMBat runs on handheld Windows gaming PCs that are away from the
+   RomM instance for days. Local SQLite is the source of truth; the network is optional.
+   The EmulationStation `game-start` and `game-end` hooks run inside the game launch path,
+   so they append to a durable local journal and exit in milliseconds, never opening a
+   socket. A short-lived agent flushes the outbox when the server is reachable.
+2. **Libraries reach 100,000+ games**, so the catalog is never mirrored. Online browsing
+   is a thin paged client over the API; offline browsing shows the local subset. ROM
+   content is strictly opt-in and bounded by a disk budget with eviction.
+3. **Curation via Sync Sets.** A 100k library is unnavigable from a couch with a gamepad,
+   so the device holds a curated slice, and the set definitions roam with the RomM device
+   record.
+4. **Portable-first.** Nothing outside the RetroBat tree: no `%APPDATA%`, no registry, no
+   Windows service, no scheduled task, no admin rights, no machine-wide .NET requirement.
+   No absolute path is ever persisted.
+
+## Requirements
+
+|          | Minimum     | Notes                                                            |
+| -------- | ----------- | ---------------------------------------------------------------- |
+| RetroBat | 8.2         | Checked from `build.ini` at startup                              |
+| RomM     | 5.1.0       | Checked from `GET /api/heartbeat` at startup                     |
+| Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
+| .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
+
+Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
+it warns and continues.
+
+### Filesystem
+
+A portable RetroBat often lives on exFAT or FAT32, which reaches into the design:
+
+- **FAT32 cannot hold a file larger than 4 GB.** Plenty of PS2, GameCube and Wii images
+  exceed that, so RomMBat detects the filesystem up front and skips or refuses oversized
+  ROMs rather than failing mid-write. **Use exFAT or NTFS for any library containing disc
+  images.**
+- **FAT and exFAT store coarser modification timestamps than NTFS.** RomMBat compares on
+  content hash first and uses mtime only as an ordering tiebreak.
+
+## Authentication and scopes
+
+**Device pairing is the only authentication path.** No password entry, no token pasting,
+no OAuth flow. A gamepad is a terrible keyboard, and the pairing flow exists precisely so
+the credential never has to be typed: RomMBat shows an 8-character code and a QR, you
+approve it in the RomM web UI, and the token is written into the RetroBat tree.
+
+The only thing you ever have to type is the server URL.
+
+When you approve the pairing request, RomM lets you choose which scopes to grant. Grant
+these, and nothing else:
+
+| Scope                                | Needed for                                        | Without it                        |
+| ------------------------------------ | ------------------------------------------------- | --------------------------------- |
+| `roms.read`                          | Browsing and downloading ROMs                     | Nothing works                     |
+| `platforms.read`                     | Platform list, folder mapping                     | Nothing works                     |
+| `collections.read`                   | Collection and smart-collection sync sets         | Only platform and filter scopes   |
+| `firmware.read`                      | BIOS sync                                         | BIOS must be copied manually      |
+| `assets.read`                        | Pulling saves and states down                     | Push-only                         |
+| `assets.write`                       | Pushing saves and states up                       | Pull-only, local saves stay local |
+| `devices.read` / `devices.write`     | Device identity, sync negotiation, roaming config | No save sync at all               |
+| `roms.user.read` / `roms.user.write` | Play sessions, last-played, favourites            | No playtime tracking              |
+| `me.read`                            | Reading own account details during pairing        | Pairing fails                     |
+
+**RomMBat never needs any of these, and should never be granted them:** `users.read`,
+`users.write`, `roms.write`, `platforms.write`, `tasks.run`, `logs.read`. A RomMBat token
+carrying one of those is over-scoped. A token can never exceed its owner's own scopes, so
+an over-granted token usually means an admin paired the device rather than a purpose-made
+account.
+
+Granting less than RomMBat asks for is supported: it reads the granted set back and
+degrades by feature, telling you what is off, rather than throwing errors at you later.
+
+> [!NOTE]
+>
+> On a portable install, **the token at rest is only as protected as the drive.** Windows
+> DPAPI is not usable here: it binds the ciphertext to one machine or one user profile,
+> which would make the drive undecryptable on the next PC. RomMBat defaults portable
+> installs to a scoped, expiring token, offers an optional passphrase, and makes
+> re-pairing cheap. See [SECURITY.md](SECURITY.md).
+
+## Status
+
+RomMBat is built in milestones, and platforms are certified one at a time after the
+framework works end to end. Nothing below is shipped yet.
+
+| Milestone | Scope                                                                                    | State       |
+| --------- | ---------------------------------------------------------------------------------------- | ----------- |
+| M0        | Probes against a real RetroBat install; findings recorded in `docs/retrobat-findings.md` | Not started |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                              | Not started |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                      | Not started |
+| M3        | Content sync, resumable downloads, disk budget and eviction                              | Not started |
+| M4        | `gamelist.xml` generation and media                                                      | Not started |
+| M5        | BIOS and firmware                                                                        | Not started |
+| M6        | Offline-first save, state and playtime sync                                              | Not started |
+| M7        | Gamepad UI (framework choice deferred to this milestone)                                 | Not started |
+| M8        | Packaging, docs, release                                                                 | Not started |
+
+### Platform certification
+
+A platform counts as supported only after a nine-point checklist passes against a real
+install, recorded in `docs/platforms/<system>.md`. Certification is per RetroBat system,
+never per aggregate: "RetroArch works" is unverifiable, because each libretro core has its
+own save naming, state directory and BIOS requirements.
+
+| Wave | Systems                                                                                      | Status      |
+| ---- | -------------------------------------------------------------------------------------------- | ----------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Not started |
+| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Not started |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | Not started |
+| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Not started |
+| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Not started |
+
+### Compatibility
+
+Every release names the RomM and RetroBat versions it was tested against. Adding a row
+here is part of shipping.
+
+| RomMBat    | RomM tested | RetroBat tested | Notes                                         |
+| ---------- | ----------- | --------------- | --------------------------------------------- |
+| unreleased | 5.1.0       | 8.2.0           | Baseline targets, not yet verified end to end |
+
+## Repository layout
+
+```text
+src/RomM.Client       API client. DTOs generated from /openapi.json, plus hand-written
+                      pairing, resumable download and sync negotiation
+src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
+src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
+src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)
+tests/RomMBat.Tests   xUnit
+
+docs/PLAN.md          The design of record. Read this before anything else
+docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
+docs/platforms/       One certification record per RetroBat system
+reference/            Vendored upstream data plus a script that re-derives every number
+data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
+.claude/skills/       Task-scoped guides for agents working in this repository
+```
+
+## Building
+
+```bash
+dotnet build
+dotnet test
+dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
+
+trunk fmt && trunk check        # lint
+cd reference && ./refresh.sh    # refresh vendored upstream data and verify
+```
+
+Full setup, including how to point at a RomM instance and stand up a throwaway RetroBat,
+is in [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+> [!IMPORTANT]
+>
+> **RomMBat is developed primarily with Claude Code, and AI assistance must be disclosed
+> in every pull request.** This norm comes from RomM and RomMBat inherits it. It matters
+> more here, not less.
+
+## Related projects
+
+| Project                                                       | What it is                                            |
+| ------------------------------------------------------------- | ----------------------------------------------------- |
+| [RomM](https://github.com/rommapp/romm)                       | The self-hosted ROM manager RomMBat syncs against     |
+| [RetroBat](https://github.com/RetroBat-Official/retrobat)     | The Windows retro-gaming distro RomMBat installs into |
+| [Grout](https://github.com/rommapp/grout)                     | RomM client for Linux handheld custom firmware        |
+| [Playnite plugin](https://github.com/rommapp/playnite-plugin) | RomM client for Playnite on desktop                   |
+
+## Licence
+
+[GPL-3.0](LICENSE), matching the Playnite plugin and Argosy.
+
+RomMBat is not affiliated with either project's maintainers. It ships no ROMs, no BIOS
+files and no copyrighted content; it moves files between a server you run and a device
+you own.

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RomMBat.Agent</RootNamespace>
+    <!-- The ES hook .bat files invoke this name; changing it breaks installed hooks. -->
+    <AssemblyName>rommbat-agent</AssemblyName>
+    <Description>
+      Short-lived console agent. Subcommands: pair, sync, game-start, game-end, flush,
+      status. The game-* subcommands are journal-only and never open a socket.
+    </Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\RomMBat.Core\RomMBat.Core.csproj" />
+  </ItemGroup>
+
+</Project>

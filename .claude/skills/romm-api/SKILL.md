@@ -1,0 +1,97 @@
+---
+name: romm-api
+description: Calling the RomM API from RomMBat - device pairing auth, the endpoints a sync client needs, required scopes, and the API's non-obvious traps. Use whenever writing or changing code in RomM.Client, choosing an endpoint, or debugging a 401/403/409.
+---
+
+# RomM API
+
+The backend is the contract. Generate DTOs from the instance's `/openapi.json` (served at
+the **root**, not under `/api`). The published docs at docs.romm.app have drifted from the
+server on exactly the payloads this client needs most, so never code from them.
+
+## Auth: device pairing only
+
+No password entry, no token pasting, not `POST /api/client-tokens/exchange`. A gamepad is
+a terrible keyboard and the pairing flow exists to avoid typing a credential.
+
+1. `POST /api/auth/device/init` (unauthenticated) with `{client_device_identifier, name,
+client, platform, client_version, requested_scopes}` returns `{device_code, user_code,
+verification_path, verification_path_complete, expires_in: 600, interval: 5}`.
+2. Show `user_code` plus a QR of **the configured origin joined with
+   `verification_path_complete`**. The server returns a relative path on purpose and stays
+   origin-agnostic, so joining is the client's job.
+3. Poll `POST /api/auth/device/token` with `{device_code}` at `interval`, handling
+   `authorization_pending`, `slow_down`, `access_denied`, `expired_token`.
+
+The code is **8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`**, not 8 digits. I, L, O,
+0 and 1 are excluded. The server normalises hyphens, spaces and case, so display it
+grouped (`ABCD-EFGH`).
+
+Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
+restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing.
+
+**Identity is `client_device_identifier`**, a GUID stored in the tree. Pairing looks the
+device up with `get_device_by_client_identifier` and records no host details, which is what
+makes a portable install survive moving between machines. **Do not call `POST /api/devices`
+with `mac_address`/`hostname`**: its fingerprint dedup matches on MAC alone and would
+collide with other clients.
+
+Handle a narrowed grant: the approver can reduce `approved_scopes`, and `/token` returns
+what was actually granted. Degrade by feature, never 403 later. Treat 401 as expected, not
+exceptional: keep the database and outbox, return to pairing, resume after re-pair.
+
+CSRF does not apply when an `Authorization` header is present.
+
+## Scopes
+
+Needed: `roms.read`, `platforms.read`, `collections.read`, `firmware.read`, `assets.read`,
+`assets.write`, `devices.read`, `devices.write`, `roms.user.read`, `roms.user.write`,
+`me.read`.
+
+Never needed, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
+`platforms.write`, `tasks.run`, `logs.read`.
+
+## Endpoints that matter
+
+| Need                     | Call                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                       |
+| Platforms                | `GET /api/platforms?updated_after=`                                            |
+| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                             |
+| Deletion reconcile       | `GET /api/roms/identifiers`                                                    |
+| Match local files        | `GET /api/roms/by-hash?md5_hash=`                                              |
+| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                         |
+| Firmware                 | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}` |
+| Save negotiation         | `POST /api/sync/negotiate`                                                     |
+| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=`               |
+| Save download ack        | `POST /api/saves/{id}/downloaded`                                              |
+| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                |
+| Playtime                 | `POST /api/play-sessions`                                                      |
+| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                         |
+
+## Traps
+
+- **Always** pass `with_char_index=false&with_filter_values=false&with_rom_id_index=false`
+  to `/api/roms`. Each sidecar scans the whole library.
+- **Never read `rom_ids` from a collection response.** `BaseCollectionSchema.rom_ids` is a
+  full `set[int]` present even on the list endpoint, so `GET /api/collections` on a large
+  instance returns every membership of every collection. Page
+  `GET /api/roms?collection_id=` instead.
+- **Send `Range: bytes=0-` on every ROM download.** Multi-file ROMs only take the
+  resumable cached-zip path when a Range header is present; otherwise they arrive as a
+  non-resumable mod_zip stream.
+- **`crc_hash` for compressed ROMs is the CRC of the uncompressed content.** Do not compare
+  it against downloaded bytes.
+- **Saves pair on `(rom_id, slot)`.** A null slot means "archival manual upload" and
+  negotiates as `upload` forever. Always send a stable, non-null slot.
+- **The server renames uploaded saves** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`. Persist the
+  `file_name` from the response, not the one you sent.
+- **Asset uploads are capped at 512 MiB** and rejected with 413 before the body is spooled.
+- **States are not in the negotiate protocol.** `POST /api/states` has no slot, device or
+  conflict detection. Best-effort only.
+- **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
+  membership; playtime lives in play sessions.
+- **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and
+  `sync:*` events are emitted to a `user:{id}` room nothing ever joins. Poll REST.
+- **`is_verified` on firmware is unreliable here.** See `platform-mapping` and the BIOS
+  section of the plan: it misses 94 of the 157 md5s RetroBat requires.
