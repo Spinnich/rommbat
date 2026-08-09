@@ -61,12 +61,21 @@ CSRF does not apply when an `Authorization` header is present.
 
 ## Scopes
 
-Needed: `roms.read`, `platforms.read`, `collections.read`, `firmware.read`, `assets.read`,
-`assets.write`, `devices.read`, `devices.write`, `roms.user.read`, `roms.user.write`,
-`me.read`.
+**Two roles. Do not conflate them.**
 
-Never needed, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
+| Role                                   | Scopes                                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The **device** (what RomMBat requests) | `me.read`, `roms.read`, `platforms.read`, `collections.read`, `firmware.read`, `assets.read`, `assets.write`, `devices.read`, `devices.write`, `roms.user.*` |
+| The **approver** (test harness only)   | `me.read` and `me.write`, nothing else. Its **account** needs the device set, since that is what caps `allowed_scopes`                                       |
+
+Never needed by either, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
 `platforms.write`, `tasks.run`, `logs.read`.
+
+`me.write` is **not** a device scope and RomMBat never asks for it. `/approve` and `/deny`
+require it, so only a harness token carries it. A token without it fails the route guard
+with a bare 403 `Forbidden` before the code is looked up; a scope-subset rejection instead
+says `Approved scopes exceed what's allowed for this user`. The route guard checks the
+**token's** scopes, `allowed_scopes` is computed from the **account's**.
 
 ## Endpoints that matter
 

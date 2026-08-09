@@ -169,9 +169,9 @@ the same network before you start.
 
 For **automated** tests, you do not need browser automation.
 `GET /api/auth/device/pending/{user_code}` and `POST /api/auth/device/approve` are ordinary
-protected routes needing `me.read` and `me.write`, so a harness holding a pre-made token
-can play the approving user and drive the real flow headlessly. Do it that way rather than
-adding a token-injection backdoor, so the shipped client keeps exactly one auth path.
+protected routes, so a harness holding a pre-made token can play the approving user and
+drive the real flow headlessly. Do it that way rather than adding a token-injection
+backdoor, so the shipped client keeps exactly one auth path.
 
 That harness is `tests/RomMBat.Tests/Support/ApprovingUser.cs`, and `LivePairingTests` drives
 it. Those tests skip unless both variables are set, so a clone with no server still runs
@@ -179,13 +179,33 @@ green:
 
 ```powershell
 $env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
-$env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."   # needs me.read and me.write
+$env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
 dotnet test
 ```
 
-**Point them at the disposable instance.** They create and re-pair devices, which is exactly
-what the production instance should never see. Neither value belongs in a file the
-repository tracks.
+**The approver token is not a RomMBat token, and the README scopes table does not apply to
+it.** That table is what a RomMBat _device_ requests, and RomMBat never needs `me.write`.
+The approving user is the other side of the same flow, and `/approve` and `/deny` are both
+`@protected_route(..., [Scope.ME_WRITE])`. So:
+
+|                               | Scopes                                     |
+| ----------------------------- | ------------------------------------------ |
+| The approver **token**        | `me.read` and `me.write`, and nothing else |
+| The **account** it belongs to | All eleven from the README table           |
+
+The split is because `allowed_scopes` is computed from `request.user.oauth_scopes`, the
+account's permissions, while the route guard checks the token's. A token missing `me.write`
+fails with a bare 403 `Forbidden` **before** the code is even looked up, which is how you
+tell it apart from a scope-subset rejection: the latter says
+`Approved scopes exceed what's allowed for this user`. An account short of the eleven fails
+later and differently, on `Assert.Empty(completion.Scopes.Degradations)`.
+
+RomM's `WRITE_SCOPES` tier covers all eleven, so an ordinary non-admin account at write
+level is enough. No admin account is needed and none should be used.
+
+**Point them at the disposable instance.** Each approval creates a `Device` row and a bound
+`ClientToken` under the approver's account, and the suite pairs four times over. Neither
+value belongs in a file the repository tracks; `.env` at the repo root is gitignored.
 
 ### Pairing by hand, without a UI
 

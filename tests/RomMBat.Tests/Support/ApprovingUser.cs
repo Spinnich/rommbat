@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using RomM.Client;
 
 namespace RomMBat.Tests.Support;
 
@@ -22,23 +23,34 @@ internal sealed class ApprovingUser : IDisposable
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
+    private readonly Uri _origin;
 
     public ApprovingUser(Uri origin, string accessToken)
     {
+        _origin = origin;
         _http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) })
         {
-            BaseAddress = origin,
             Timeout = TimeSpan.FromSeconds(30),
         };
 
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
     }
 
+    /// <summary>
+    /// Joins a path onto the origin the same way the client does.
+    /// </summary>
+    /// <remarks>
+    /// Not <see cref="HttpClient.BaseAddress"/> with a relative URI: that drops a subpath
+    /// unless the base ends in a slash, so an instance behind a reverse proxy at
+    /// <c>/romm</c> would silently be called at the root.
+    /// </remarks>
+    private Uri Resolve(string path) => RomMConnection.JoinOrigin(_origin, path);
+
     /// <summary>Reads the approval screen's view of a pending request.</summary>
     public async Task<PendingRequest> ReadPendingAsync(string userCode, CancellationToken cancellationToken = default)
     {
         using var response = await _http
-            .GetAsync(new Uri($"api/auth/device/pending/{userCode}", UriKind.Relative), cancellationToken)
+            .GetAsync(Resolve($"api/auth/device/pending/{userCode}"), cancellationToken)
             .ConfigureAwait(false);
 
         response.EnsureSuccessStatusCode();
@@ -63,7 +75,7 @@ internal sealed class ApprovingUser : IDisposable
     {
         using var response = await _http
             .PostAsJsonAsync(
-                new Uri("api/auth/device/approve", UriKind.Relative),
+                Resolve("api/auth/device/approve"),
                 new
                 {
                     user_code = userCode,
@@ -83,7 +95,7 @@ internal sealed class ApprovingUser : IDisposable
     {
         using var response = await _http
             .PostAsJsonAsync(
-                new Uri("api/auth/device/deny", UriKind.Relative),
+                Resolve("api/auth/device/deny"),
                 new { user_code = userCode },
                 SerializerOptions,
                 cancellationToken)

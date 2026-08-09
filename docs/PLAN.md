@@ -766,7 +766,18 @@ verification_path, verification_path_complete, expires_in: 600, interval: 5}`.
 **Document the scopes precisely, so nobody over-grants.** A user staring at an approval
 screen with no guidance will either tick everything or tick too little. Publish this table
 in the README and mirror it on the pairing screen itself, naming the exact feature each
-scope buys and what breaks without it:
+scope buys and what breaks without it.
+
+**Two roles, two scope sets, and conflating them costs an hour.** Everything below is what
+the **device** requests. Approving a request is the other half of the flow and needs
+`me.write`, which the device deliberately never asks for. In the web UI that comes from the
+approver's session, so it never surfaces; it only bites when approval is driven by an API
+token, as the integration harness does. A token missing `me.write` fails the route guard
+with a bare 403 `Forbidden` **before** the code is looked up, which is what distinguishes it
+from a scope-subset rejection (`Approved scopes exceed what's allowed for this user`). Note
+also that `allowed_scopes` is computed from `request.user.oauth_scopes`, the **account's**
+permissions, while the route guard checks the **token's**, so the two are checked
+independently.
 
 | Scope                                | Needed for                                        | Without it                        |
 | ------------------------------------ | ------------------------------------------------- | --------------------------------- |

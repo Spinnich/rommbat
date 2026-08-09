@@ -191,6 +191,12 @@ user. That harness lives in the test project on purpose. Putting approval or tok
 into the shipped client would give it a second auth-adjacent surface, and the whole point of
 pairing being the only path is that there is exactly one.
 
+**That token is not a RomMBat token.** `/approve` and `/deny` are `[Scope.ME_WRITE]` routes,
+and `me.write` is a scope RomMBat itself never requests, so the harness token needs
+`me.read` plus `me.write` and nothing else. Its **account** separately needs the full device
+scope set, because `allowed_scopes` is computed from the account's permissions rather than
+the token's. See DEVELOPER_SETUP.md section 3.
+
 ---
 
 ## 3. Reference data and bundled tables

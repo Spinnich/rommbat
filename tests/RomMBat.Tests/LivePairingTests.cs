@@ -16,8 +16,21 @@ namespace RomMBat.Tests;
 /// environment and never from the repository.
 /// <code>
 /// ROMMBAT_TEST_SERVER=https://your-romm-instance
-/// ROMMBAT_TEST_APPROVER_TOKEN=rmm_...      # needs me.read and me.write
+/// ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 /// </code>
+/// <para>
+/// <b>The approver token is not a RomMBat token</b>, and the README scopes table does not
+/// apply to it. That table is what a device requests; RomMBat never asks for
+/// <c>me.write</c>. The token here needs <c>me.read</c> and <c>me.write</c> and nothing
+/// else, because <c>/approve</c> and <c>/deny</c> are <c>[Scope.ME_WRITE]</c> routes. Its
+/// <b>account</b> separately needs every scope in that table, because <c>allowed_scopes</c>
+/// is computed from <c>request.user.oauth_scopes</c> and caps what can be granted.
+/// </para>
+/// <para>
+/// The two fail differently: a token without <c>me.write</c> gives a bare 403 before the
+/// code is looked up, while an account short of the device scopes gets that far and fails
+/// on <c>Assert.Empty(completion.Scopes.Degradations)</c>.
+/// </para>
 /// These create and update devices, so point them at the <b>disposable</b> instance from
 /// DEVELOPER_SETUP.md section 3, never the production one.
 /// </remarks>
