@@ -12,6 +12,10 @@
 reference/** -text
 tests/**/fixtures/** -text
 
+# The pinned OpenAPI schema is served bytes, and its sha256 is published. Line-ending
+# normalisation would change the hash.
+src/RomM.Client/openapi/romm-*.json -text
+
 # Generated. Collapsed in diffs and excluded from language statistics.
 **/Generated/** linguist-generated=true
 

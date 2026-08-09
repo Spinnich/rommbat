@@ -35,12 +35,16 @@ unexpected.
 
 ```bash
 dotnet restore
+dotnet tool restore    # once per clone: NSwag, for regenerating the API DTOs
 dotnet build
 dotnet test
 ```
 
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
+
+`dotnet tool restore` is only needed if you are moving the pinned OpenAPI schema. The
+generated DTOs are committed, so nothing generates at build time.
 
 ### Publish
 
@@ -131,12 +135,21 @@ You will need it for:
 
 ### Pin the schema
 
-Generate DTOs from a **known RomM version** and check the generated output in, so an
-upstream deploy cannot silently change the contract mid-session.
+Already pinned, and it does not come from either of the instances above.
+`src/RomM.Client/openapi/romm-5.1.0.json` is a byte-exact `/openapi.json` (served at the
+root, not under `/api`) from a server reporting **5.1.0**, the minimum RomMBat supports, so
+the generated DTOs describe the oldest server the client claims to work with. It was pulled
+from the project's public demo, which means anyone can reproduce it without an account and
+without a hostname that would have to be scrubbed from a diff.
 
 ```bash
-curl -s https://your-romm-instance/openapi.json -o openapi.json    # served at the root, not under /api
+cd src/RomM.Client/openapi && ./generate.sh    # only when deliberately moving the pin
 ```
+
+Moving the pin is a compatibility decision, not a refresh: it changes which server version
+the DTOs describe and moves a row in the README compatibility table with it. Read
+[`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md) first, including
+why the schema is normalised before NSwag sees it.
 
 The published RomM docs have drifted from the server. **The backend is the contract**; the
 schema is generated from it, and the docs are a hint. See
@@ -156,9 +169,90 @@ the same network before you start.
 
 For **automated** tests, you do not need browser automation.
 `GET /api/auth/device/pending/{user_code}` and `POST /api/auth/device/approve` are ordinary
-protected routes needing `me.read` and `me.write`, so a harness holding a pre-made token
-can play the approving user and drive the real flow headlessly. Do it that way rather than
-adding a token-injection backdoor, so the shipped client keeps exactly one auth path.
+protected routes, so a harness holding a pre-made token can play the approving user and
+drive the real flow headlessly. Do it that way rather than adding a token-injection
+backdoor, so the shipped client keeps exactly one auth path.
+
+That harness is `tests/RomMBat.Tests/Support/ApprovingUser.cs`, and `LivePairingTests` drives
+it. Those tests skip unless both variables are set, so a clone with no server still runs
+green. Keep them in a `.env` at the repository root, which `.gitignore` already covers:
+
+```bash
+ROMMBAT_TEST_SERVER=https://your-romm-instance
+ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+```
+
+Then source it for the run. `dotnet test` reads the process environment and nothing loads
+`.env` on its own, so this is deliberate every time rather than ambient:
+
+```bash
+set -a; . ./.env; set +a; dotnet test
+set -a; . ./.env; set +a; dotnet test --filter "FullyQualifiedName~LivePairingTests"
+```
+
+```powershell
+# PowerShell, if you prefer not to keep the file
+$env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
+$env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
+dotnet test
+```
+
+**When these start failing, check the token first.** It is a `ClientToken` like any other,
+so it expires on whatever `expires_in` it was created with and can be revoked from the RomM
+UI. A revoked or lapsed token fails on `ReadPendingAsync` with a 401 rather than the 403
+that means a missing scope.
+
+**The approver token is not a RomMBat token, and the README scopes table does not apply to
+it.** That table is what a RomMBat _device_ requests, and RomMBat never needs `me.write`.
+The approving user is the other side of the same flow, and `/approve` and `/deny` are both
+`@protected_route(..., [Scope.ME_WRITE])`. So:
+
+|                               | Scopes                                     |
+| ----------------------------- | ------------------------------------------ |
+| The approver **token**        | `me.read` and `me.write`, and nothing else |
+| The **account** it belongs to | All eleven from the README table           |
+
+The split is because `allowed_scopes` is computed from `request.user.oauth_scopes`, the
+account's permissions, while the route guard checks the token's. A token missing `me.write`
+fails with a bare 403 `Forbidden` **before** the code is even looked up, which is how you
+tell it apart from a scope-subset rejection: the latter says
+`Approved scopes exceed what's allowed for this user`. An account short of the eleven fails
+later and differently, on `Assert.Empty(completion.Scopes.Degradations)`.
+
+RomM's `WRITE_SCOPES` tier covers all eleven, so an ordinary non-admin account at write
+level is enough. No admin account is needed and none should be used.
+
+**Run them under a dedicated non-admin account.** That, not the choice of instance, is what
+keeps them safe: devices and client tokens are per-user rows, so an account of their own
+cannot reach anyone else's data. The disposable instance is still the easier place to work,
+but a real instance with a purpose-made account is a legitimate setup.
+
+**The suite cleans up after itself**, in `PairingLitter` via `IAsyncLifetime.DisposeAsync`:
+each test deletes the devices it created and revokes the tokens bound to them, and a test
+fails if it cannot. That matters because every approval mints a genuine `rmm_` credential
+carrying all eleven device scopes, whose local copy dies with the temp tree. Without
+teardown a suite run leaves one set behind every time, and they accumulate.
+
+The ordering inside teardown is forced by which credential holds what: only the token a
+pairing just issued has `devices.write`, and only the approver can revoke tokens. So token
+ids are captured first, devices deleted second, revocation last.
+
+Neither environment value belongs in a file the repository tracks; `.env` at the repo root
+is gitignored.
+
+### Pairing by hand, without a UI
+
+The gamepad UI is chosen in M7, so the pairing surface today is the console agent, ASCII QR
+included:
+
+```powershell
+dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
+dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
+```
+
+`--root` is only needed when the agent is not running from inside the tree. Add `--protect`
+to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
+reachability probe.
 
 ---
 

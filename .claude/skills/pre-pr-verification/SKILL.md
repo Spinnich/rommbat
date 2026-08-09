@@ -19,7 +19,9 @@ update the expected number.**
 
 ## Invariants worth re-checking by hand
 
-- No absolute path reaches the database. There is a static check; confirm it ran.
+- No absolute path reaches the database. Three layers enforce it (the `RelativePath` type,
+  a `CHECK` on every path column, and `LocalStoreTests` binding the two to one table of bad
+  values). A new path column needs its `CHECK` and a row in that test.
 - No emulator INI was written. Configuration goes through `es_settings.cfg`.
 - Nothing was written outside the RetroBat tree.
 - No secret, token or instance URL is in the diff.

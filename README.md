@@ -13,10 +13,10 @@ is a wombat.
 
 > [!WARNING]
 >
-> **Pre-release. Nothing works yet.** No application code ships yet. What the repository
-> holds today is the design of record ([docs/PLAN.md](docs/PLAN.md)), the measurements
-> that corrected it ([docs/retrobat-findings.md](docs/retrobat-findings.md)), the throwaway
-> probes that produced them, and this scaffolding. See [Status](#status).
+> **Pre-release, and not yet useful.** Pairing, device identity and the local store work;
+> nothing syncs yet. The repository also holds the design of record
+> ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
+> ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
 ## Why
 
@@ -111,6 +111,15 @@ carrying one of those is over-scoped. A token can never exceed its owner's own s
 an over-granted token usually means an admin paired the device rather than a purpose-made
 account.
 
+> [!NOTE]
+>
+> **`me.write` is on neither list, and that is deliberate.** This table is what a RomMBat
+> **device** asks for. Approving the request is the other half of the flow and needs
+> `me.write`, because `POST /api/auth/device/approve` requires it. Approving in the web UI
+> uses your logged-in session, so there is nothing extra to grant and this never comes up.
+> It only matters if you drive approval with an API token, which is a developer concern:
+> see [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md) section 3.
+
 Granting less than RomMBat asks for is supported: it reads the granted set back and
 degrades by feature, telling you what is off, rather than throwing errors at you later.
 
@@ -119,18 +128,33 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 > On a portable install, **the token at rest is only as protected as the drive.** Windows
 > DPAPI is not usable here: it binds the ciphertext to one machine or one user profile,
 > which would make the drive undecryptable on the next PC. RomMBat defaults portable
-> installs to a scoped, expiring token, offers an optional passphrase, and makes
-> re-pairing cheap. See [SECURITY.md](SECURITY.md).
+> installs to a scoped, expiring token and makes re-pairing cheap. `rommbat-agent pair
+--protect` adds AES-GCM under a passphrase you type, at the cost of unattended syncing:
+> nothing can decrypt the token without you typing it again. See [SECURITY.md](SECURITY.md).
+
+### Pairing from the console
+
+Until the gamepad UI lands in M7, pairing runs from the agent, QR included:
+
+```powershell
+emulators\rommbat\rommbat-agent.exe pair --server https://your-romm-instance
+emulators\rommbat\rommbat-agent.exe status
+```
+
+The server URL is the only thing you type, and it is remembered afterwards. Scan the QR or
+enter the 8-character code in the RomM web UI. The code lasts 10 minutes; press **R** for a
+new one, **Q** to quit. `status --offline` skips the reachability probe and answers entirely
+from local state.
 
 ## Status
 
 RomMBat is built in milestones, and platforms are certified one at a time after the
-framework works end to end. No application code is shipped yet.
+framework works end to end.
 
 | Milestone | Scope                                                                                                               | State                                                                       |
 | --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | Not started                                                                 |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet     |
 | M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | Not started                                                                 |
 | M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                 |
 | M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                 |
@@ -171,15 +195,23 @@ own save naming, state directory and BIOS requirements.
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested  | RetroBat tested    | Notes                                                      |
-| ---------- | ------------ | ------------------ | ---------------------------------------------------------- |
-| unreleased | 5.1.1-beta.1 | 8.2.0-stable-win64 | M0 measured against these; nothing verified end to end yet |
+| RomMBat    | RomM tested         | RetroBat tested    | Notes                                                               |
+| ---------- | ------------------- | ------------------ | ------------------------------------------------------------------- |
+| unreleased | 5.1.0, 5.1.1-beta.1 | 8.2.0-stable-win64 | API DTOs are generated from a pinned RomM **5.1.0** `/openapi.json` |
+
+The pinned schema is the minimum supported version on purpose, so the generated DTOs
+describe the oldest server the client claims to work with. Moving the pin is a compatibility
+decision and moves a row in this table with it; see
+[`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md).
 
 ## Repository layout
 
 ```text
 src/RomM.Client       API client. DTOs generated from /openapi.json, plus hand-written
                       pairing, resumable download and sync negotiation
+src/RomM.Client/openapi
+                      The pinned schema, the generator config, and why the pin is where
+                      it is. Generated output is committed under Generated/
 src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
 src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
 src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)

@@ -13,6 +13,20 @@
     <ProjectReference Include="..\RomM.Client\RomM.Client.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="QRCoder" />
+  </ItemGroup>
+
+  <!--
+    Migrations are embedded rather than copied, so a single-file publish carries them and
+    nothing has to resolve a path to find the schema. They are ordered by resource name, so
+    the NNN- prefix is load-bearing.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Store\Migrations\*.sql" />
+  </ItemGroup>
+
   <!--
     data/retrobat/*.json (platforms, save directories, save shapes) are shipped tables
     read at runtime. They arrive with the milestones that derive them, M0 and M2.

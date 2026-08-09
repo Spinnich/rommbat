@@ -38,8 +38,11 @@ RetroBat runs from a USB drive and moves between machines.
 - **Nothing outside the tree.** No `%APPDATA%`, no registry, no service, no scheduled task,
   no admin rights. Database, logs, outbox and device identity all live under the install.
 - **Never persist an absolute path.** Store relative to the RetroBat root, resolve at point
-  of use. A drive letter changing from `E:` to `F:` must be a non-event. There is a build
-  check for this; do not defeat it.
+  of use. A drive letter changing from `E:` to `F:` must be a non-event. Three layers
+  enforce it and none of them is optional: the `RelativePath` type is the only path shape a
+  store API accepts, every path column carries a `CHECK` constraint, and a test drives the
+  same table of bad values through both. `RetroBatInstall.Resolve` and `.Relativize` are the
+  only places the two representations convert.
 - **Find the root relative to the executable.** Walk up from `AppContext.BaseDirectory` to a
   marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no `build.ini`; the version
   lives in `system/version.info`. From a hook, `%~dp0..\..\..\` reaches `emulationstation/`
@@ -66,6 +69,14 @@ RetroBat runs from a USB drive and moves between machines.
 - **No DPAPI.** `CurrentUser` binds ciphertext to a profile on one machine, `LocalMachine`
   to that machine; either makes the drive undecryptable on the next PC. On a portable
   install the token is only as protected as the drive, so default to a scoped, expiring
-  token, offer an optional passphrase, and make re-pairing cheap.
+  token, offer an optional passphrase (`TokenProtector`, AES-GCM over PBKDF2), and make
+  re-pairing cheap. A passphrase-protected install cannot flush unattended; say so rather
+  than pretending the option is free.
+- **Identity is a file, not a row.** The `client_device_identifier` GUID lives in
+  `emulators/rommbat/device.id` so it outlives the database. A rebuilt store must not become
+  a second device in the RomM UI.
+- **The local store is SQLite with `PRAGMA user_version` migrations.** Add a new
+  `Store/Migrations/NNN-*.sql`; never edit `001`. A database from a newer build is refused,
+  because a portable stick may have met one.
 - **Long paths.** Deep portable paths plus long ROM names plus `images/` siblings can cross
   `MAX_PATH`. Use long-path-aware APIs and `\\?\` prefixes where needed.
