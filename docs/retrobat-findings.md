@@ -1158,6 +1158,25 @@ Present at the root of a stock install: `retrobat.ini`, `emulationstation/`, `ro
 (`retrobat.ini`, `emulationstation/`, `roms/`) is sound; `build.ini` must be dropped from any
 marker list it appears in.
 
+### The registry fallback exists, and is exactly as stale as the plan assumes
+
+Checked while building M1, not during M0, and recorded here because the code cites it.
+RetroBat does write a registry key:
+
+```text
+HKCU\Software\RetroBat
+    LatestKnownInstallPath    REG_SZ    K:\RetroBat\
+    InstallRootUrl            REG_SZ    http://www.retrobat.ovh/repo/win64
+    InstallRootUrlNew         REG_SZ    http://www.retrobat.org/repo/win64
+```
+
+`K:` is the letter the probe 7 stick ended on, which is the whole point: the value records
+where an install was **last seen**, per Windows user, on one machine. On a portable drive it
+is stale the moment the letter changes, and on the second host of probe 7 it would not have
+existed at all. So it is usable only as the last-resort fallback the plan already calls for,
+after walking up from `AppContext.BaseDirectory`, and the value has to be re-checked against
+the root markers before it is trusted.
+
 ### The hook path arithmetic in the plan is off by one
 
 Hooks live at `emulationstation/.emulationstation/scripts/<event>/`. The shipped

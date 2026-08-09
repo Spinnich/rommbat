@@ -11,9 +11,31 @@
   </PropertyGroup>
 
   <!--
-    No runtime dependencies yet. Session 1 is scaffolding only, and the packages the
-    plan calls for (Microsoft.Data.Sqlite, QRCoder, the UI framework chosen in M7)
-    land with the milestone that needs them, not before.
+    Microsoft.Data.Sqlite, not EF Core: the schema is hand-written SQL applied by an
+    ordered migration list, and nothing here needs a change tracker. The package bundles
+    the e_sqlite3 native library, which single-file publish carries.
+  -->
+  <ItemGroup Label="Local store">
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.2" />
+    <!--
+      Transitive pin. Microsoft.Data.Sqlite 10.0.2 still pulls the 2.1.11 native library,
+      which carries GHSA-2m69-gcr7-jv3q (a vulnerable bundled SQLite). 2.1.12 is the first
+      version outside the advisory's range and is a native-binary bump only, so it stays on
+      the managed API the rest of the 2.1 line exposes. Drop this once the SDK package
+      moves past it.
+    -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+  </ItemGroup>
+
+  <!-- QRCoder is MIT and pure managed, so it survives self-contained single-file publish. -->
+  <ItemGroup Label="Pairing">
+    <PackageVersion Include="QRCoder" Version="1.6.0" />
+  </ItemGroup>
+
+  <!--
+    The UI framework is chosen in M7 and no package for it exists anywhere in the tree
+    until then. NSwag is a local dotnet tool (.config/dotnet-tools.json), not a package
+    reference: generated output is committed, so nothing generates at build time.
   -->
 
   <!--
@@ -25,6 +47,11 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!--
+      Runtime skipping, for the tests that need a live RomM. A clone with no server must
+      still run green, and a silently-passing stub would be worse than a skip.
+    -->
+    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.23" />
   </ItemGroup>
 
 </Project>

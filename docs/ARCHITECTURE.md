@@ -9,9 +9,9 @@ this file needs fixing.
 
 > [!NOTE]
 >
-> Written at scaffolding time, ahead of the code. Sections marked **(proposed)** are
-> design intent that M0 can still overturn; sections without that marker are settled by
-> the plan. `docs/retrobat-findings.md` amends both once M0 lands.
+> Written at scaffolding time, ahead of the code, and amended as milestones land.
+> `docs/retrobat-findings.md` records the measurements that corrected it, and supersedes
+> any number quoted here.
 
 ---
 
@@ -64,15 +64,28 @@ the other way, the design is wrong.
 
 The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
 
-- **DTOs are generated** from the instance's `/openapi.json` (served at the root, not
-  under `/api`), pinned to a known RomM version and checked in. The published docs have
-  drifted from the server, so the backend is the contract.
-- **Hand-written where codegen does badly:** the device pairing poll loop, resumable
-  downloads, multipart save upload, sync negotiation.
-- Every call takes a `CancellationToken` and a short connect timeout. The budget comes
-  from M0 experiment 6, which measures how long an unreachable LAN address takes to fail.
+- **DTOs are generated** from `/openapi.json` (served at the root, not under `/api`),
+  pinned to a known RomM version and checked in. The published docs have drifted from the
+  server, so the backend is the contract. **NSwag**, contracts only: it emits plain POCOs
+  with `System.Text.Json` attributes and no runtime package of its own, where Kiota would
+  generate a request-builder API over `Microsoft.Kiota.Abstractions` that owns the
+  `HttpClient`. Owning the handler is not negotiable here; see the connect timeout below.
+  The pin, the normalisation step it needs, and how to move it are in
+  [`src/RomM.Client/openapi/README.md`](../src/RomM.Client/openapi/README.md).
+- **Everything else is hand-written** over a client-owned handler: the device pairing poll
+  loop, resumable downloads, multipart save upload, sync negotiation.
+- Every call takes a `CancellationToken`, and **`SocketsHttpHandler.ConnectTimeout` is set
+  explicitly on every handler**, because nothing sets it by default and an absent host on
+  the local subnet otherwise stalls for 21 seconds (M0 probe 6b). 2 s is the interactive
+  budget. `HttpClient.Timeout` is set too, for a different reason: it bounds the body, so it
+  cannot be the reachability lever.
+- **A timeout and a user cancellation are the same exception type.** Both surface as
+  `TaskCanceledException` and differ only in the inner exception, so every failure goes
+  through `RomMTransportErrors.Classify` rather than a bare `catch`. A naive catch reports
+  every offline server as a user action.
 - **Never throws on 401.** An expired or revoked token is an expected state, not an
-  exception, and it must never cost data. See §6.
+  exception, and it must never cost data. Authenticated calls return `RomMResponse<T>`
+  carrying `Unauthorized` or `Forbidden`; only transport failures throw. See §6.
 
 Prior art to mine, not copy wholesale: the Playnite plugin's `Models/RomM/*` for DTO
 shapes and `Downloads/DownloadQueueController.cs` for the queue. Its `RomMRegisterDevice`
@@ -100,25 +113,37 @@ Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, the
 There is no daemon, because a portable install cannot register a service or a scheduled
 task.
 
-| Subcommand   | Network   | Notes                                                                                    |
-| ------------ | --------- | ---------------------------------------------------------------------------------------- |
-| `pair`       | yes       | Device pairing, for headless setup                                                       |
-| `sync`       | yes       | Resolve sets, pull content, media and BIOS                                               |
-| `game-start` | **never** | Append a start record and exit. Best-effort only: ES does not fire it for most real roms |
-| `game-end`   | **never** | The real trigger. Read the launch from `emulatorLauncher.log`, close the record, exit    |
-| `flush`      | yes       | Drain the outbox if the server is reachable                                              |
-| `status`     | no        | Report local state, for support and for scripts                                          |
+| Subcommand   | Network       | Notes                                                                                 |
+| ------------ | ------------- | ------------------------------------------------------------------------------------- |
+| `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                       |
+| `sync`       | yes           | Resolve sets, pull content, media and BIOS                                            |
+| `game-start` | **never**     | Append a start record and exit                                                        |
+| `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit             |
+| `flush`      | yes           | Drain the outbox if the server is reachable                                           |
+| `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts |
+
+`pair` and `status` are implemented. The rest exit 70 until their milestone.
 
 `game-start` and `game-end` run inside the game launch path. They must not open a socket and
 must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
 delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **do run
 concurrently**, with each other and across events.
 
-**`game-start` cannot be relied on.** ES never fires it when the gamelist `<name>` contains
-a space, which covers nearly every real rom. `game-end` fires reliably, including on crash.
-So the journal is built the other way round: **`game-end` triggers, and
-`emulationstation/emulatorLauncher.log` supplies the rom path, system, emulator and core**
-that the hook arguments omit. See `docs/retrobat-findings.md` probe 1.
+**`game-start` does fire, and the hooks ship as an executable.** An earlier reading here
+said ES never fires `game-start` for a name containing a space. M0 probe 7b overturned it:
+ES fires the event and logs `executing:` for every script in the folder, and the failure was
+**per interpreter**, not per event. A `.bat` never starts once any argument is quoted,
+because the `batfile` association is `cmd /c "%1" %*`; a `.ps1` never starts once the name
+contains a parenthesis, because ES builds `powershell <script> <args>` with no `-File`. An
+`.exe` received all three arguments intact on a real No-Intro name, and on the second host
+in probe 7 an `.exe` was the **only** form that ran at all.
+
+So the hooks are the agent executable, and `game-start` is usable. Two things still hold.
+`game-end` also fires with **no** preceding `game-start`, including for ES-menu launches and
+for launches that failed, so an orphan `game-end` is normal rather than a fault. And the
+hook is never told the system, emulator or core, so
+**`emulationstation/emulatorLauncher.log` remains the source for the launch facts**. See
+`docs/retrobat-findings.md` probes 1 and 7b.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
@@ -153,7 +178,18 @@ finished.
 The highest-value suite is the **offline simulation**: drive the whole client against a
 stubbed handler that can be switched to "unreachable" mid-operation, and assert that every
 operation either completes locally or queues, and that a later flush is idempotent under
-replay and partial failure.
+replay and partial failure. It exists as `OfflineSimulationTests` over
+`Support/StubRomMServer`, whose unreachable mode throws exactly what `SocketsHttpHandler`
+throws on a connect timeout, because that shape is the thing the code has to tell apart from
+a user cancellation.
+
+Anything needing a live RomM is a `SkippableFact` gated on environment variables, so a clone
+with no server still runs green. Those tests drive the **real** pairing flow headlessly:
+`GET /api/auth/device/pending/{user_code}` and `POST /api/auth/device/approve` are ordinary
+protected routes, so `Support/ApprovingUser` holds a pre-made token and plays the approving
+user. That harness lives in the test project on purpose. Putting approval or token injection
+into the shipped client would give it a second auth-adjacent surface, and the whole point of
+pairing being the only path is that there is exactly one.
 
 ---
 
@@ -181,33 +217,79 @@ users add custom ones.
 
 ## 4. The local store
 
-SQLite, inside the RetroBat tree. **(proposed)** shape, settled properly in M1.
+SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
+table below exists from schema version 1, including the ones only later milestones write to,
+so each milestone has somewhere honest to write from the moment it starts. The schema lives
+in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
-One rule governs the whole schema: **no column ever holds an absolute path.** Everything
-is relative to the RetroBat root and resolved at the point of use. There is a static check
-that fails the build if an absolute path reaches the database, and it exists because a
-drive letter changing from `E:` to `F:` must be a non-event.
+| Table             | Holds                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| `device`          | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token   |
+| `local_sequence`  | Singleton: the monotonic counter the outbox and journal share                                                |
+| `local_file`      | Relative path, resolved folder, `rom_id`, size, md5/sha1/crc, mtime, last verified, synced or adopted        |
+| `sync_set`        | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                           |
+| `sync_set_member` | Resolved membership per set, with departed members kept so drift between runs is visible                     |
+| `platform_map`    | Resolved folder per RomM platform, and **which layer resolved it**                                           |
+| `outbox`          | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number |
+| `journal`         | Hook events, correlated later against `emulatorLauncher.log`                                                 |
+| `game_id_binding` | Learned Game ID to `rom_id` bindings, for class C and D attribution                                          |
+| `sync_cursor`     | Per-endpoint cursors and `updated_after` watermarks                                                          |
+| `clock`           | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                   |
 
-| Table             | Holds                                                                                                           |
-| ----------------- | --------------------------------------------------------------------------------------------------------------- |
-| `device`          | The `client_device_identifier` GUID, the RomM `device_id`, granted scopes, server origin                        |
-| `local_file`      | Relative path, resolved folder, `rom_id`, size, md5/sha1, mtime, last verified                                  |
-| `sync_set`        | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                              |
-| `sync_set_member` | Resolved membership per set, so drift between runs is visible                                                   |
-| `platform_map`    | Resolved folder per RomM platform, and **which layer resolved it**                                              |
-| `outbox`          | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number    |
-| `journal`         | Launch records: `game-end` hook events joined to `emulatorLauncher.log` lines, plus any `game-start` that fired |
-| `game_id_binding` | Learned Game ID to `rom_id` bindings, for class C and D attribution                                             |
-| `sync_cursor`     | Per-endpoint cursors and `updated_after` watermarks                                                             |
-| `clock`           | Last observed server `Date`, measured skew, last successful contact                                             |
+### No column ever holds an absolute path
+
+Everything is relative to the RetroBat root and resolved at the point of use, because a
+drive letter changing from `E:` to `F:` must be a non-event. M0 probe 7 moved a stick
+G: to D: to K: across two machines, so this is measured rather than theoretical.
+
+An earlier draft of this document promised a **static check that fails the build**. That is
+not what was built, and this is what replaced it, because a Roslyn analyser can only see
+literals while the real risk is a runtime value:
+
+1. **A type, not a convention.** `RomMBat.Core.Paths.RelativePath` is the only path shape any
+   store API accepts. It rejects rooted, drive-qualified, UNC and `..`-escaping values at
+   construction, so an absolute path cannot reach the database through a typed call.
+2. **A `CHECK` constraint on every path column**, spelled out in the migration rather than
+   generated, so it is visible in the schema an operator can read with `.schema`. This is the
+   layer that holds for raw SQL, a hand-edited database, or a future migration that forgets.
+3. **A test that binds the two together.** `LocalStoreTests` drives the same table of
+   rejected values through both, so the type and the constraint cannot drift apart, and CI
+   builds with `-warnaserror` and runs it.
+
+`RetroBatInstall.Resolve` is the single place a stored path becomes an absolute one, and
+`RetroBatInstall.Relativize` is the single place an absolute one becomes storable. The
+boundary that forces the second is the ES hooks, which receive an absolute rom path in `$1`.
+
+### How the schema is versioned
+
+**SQLite's own `PRAGMA user_version`**, with an append-only list of embedded SQL scripts
+applied in order. Each runs inside one transaction that also bumps the version, so an
+interrupted upgrade is a no-op rather than a half-applied schema, which matters when the
+database is on a stick that can be pulled.
+
+Not EF Core: the schema is hand-written SQL carrying real invariants and nothing here needs
+a change tracker or a design-time toolchain. Not a migrations table either: `user_version`
+is a single integer in the file header that updates atomically with the transaction that
+earned it.
+
+**A database written by a newer RomMBat is refused, not opened.** On a portable drive that
+is a real case, not a defensive one: the stick may have been used with a newer build on
+another PC.
 
 ### Why the sequence number exists
 
 A handheld with a flat RTC produces timestamps that lose every conflict. Each outbox entry
-carries a monotonic local sequence number alongside its wall clock. On first successful
-contact, local time is compared against the server response `Date` header; if skew exceeds
-a threshold, RomMBat warns and offers to re-stamp the outbox. Ordering survives a wrong
-clock; correctness of the wall clock does not have to be assumed.
+carries a monotonic local sequence number alongside its wall clock, drawn from a counter the
+journal shares, so entries in the two are orderable against each other. On first successful
+contact, local time is compared against the server response `Date` header; past
+`ClockSkew.WarnThreshold` (30 s) RomMBat warns and offers to re-stamp the outbox. Ordering
+survives a wrong clock; correctness of the wall clock does not have to be assumed.
+
+Any check for "this timestamp is in the future" carries at least
+`ClockSkew.FilesystemTimestampTolerance` (2 s). M0 probe 7 measured FAT32 **and exFAT**
+storing mtimes to 2 seconds and rounding **up**, so a freshly written save is legitimately
+stamped ahead of the clock that wrote it, and without the tolerance every FAT install would
+look like it had a broken clock.
 
 ### Why the journal is separate from the outbox
 
@@ -241,9 +323,34 @@ So:
 - Re-pairing with the same identifier updates the existing device rather than duplicating
   it, which is what makes "move the drive to another PC" a non-event.
 
+The GUID lives in **`emulators/rommbat/device.id`**, a plain text file, and is mirrored into
+the `device` table. The file is the authority on purpose: identity has to outlive the
+database, or a rebuilt store would turn into a second device in the RomM UI.
+
 Sync-set definitions persist to the free-form `Device.sync_config` dict via
 `PUT /api/devices/{id}`, so a reimaged or re-paired device gets its configuration back and
 the config is visible from the RomM web UI.
+
+### The token at rest
+
+**DPAPI is unavailable.** `DataProtectionScope.CurrentUser` binds the ciphertext to one user
+profile on one machine and `LocalMachine` binds it to that machine, so either makes the drive
+undecryptable on the next PC. M0 probe 7 moved a stick between two machines under two
+different Windows users, which is precisely the case that has to keep working.
+
+So the honest position is that **on a portable install the token is only as protected as the
+drive**, and that is what the docs say rather than implying otherwise. The mitigations are
+the ones RomM's own guidance recommends:
+
+| Default                                                               | Optional                                              |
+| --------------------------------------------------------------------- | ----------------------------------------------------- |
+| Stored as written inside the tree, with a scoped and expiring token   | AES-GCM under a PBKDF2-SHA256 key from a passphrase   |
+| Re-pairing is cheap, so a lost drive is revoked rather than recovered | `--protect` on `pair`; the passphrase is never stored |
+
+The passphrase is a real trade, not a free win: a passphrase-protected install cannot flush
+its outbox unattended, because nothing can decrypt the token without someone typing it. The
+KDF iteration count is stored with the ciphertext so it can be raised without stranding an
+existing database.
 
 ---
 
@@ -356,6 +463,7 @@ the ID out of the ROM is the fallback.
 | You are adding                                   | Start in                                   | Load the skill           |
 | ------------------------------------------------ | ------------------------------------------ | ------------------------ |
 | An API call                                      | `RomM.Client`                              | `romm-api`               |
+| A table or column                                | `Store/Migrations/NNN-*.sql`, never 001    | `offline-and-portable`   |
 | Anything reading or writing the RetroBat tree    | `RomMBat.Core`                             | `retrobat-layout`        |
 | A platform mapping fix                           | `data/retrobat/platforms.json` plus a test | `platform-mapping`       |
 | Save or state handling                           | `RomMBat.Core`                             | `save-sync`              |

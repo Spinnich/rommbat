@@ -5,9 +5,19 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 
 # RomM API
 
-The backend is the contract. Generate DTOs from the instance's `/openapi.json` (served at
-the **root**, not under `/api`). The published docs at docs.romm.app have drifted from the
-server on exactly the payloads this client needs most, so never code from them.
+The backend is the contract. DTOs are generated from `/openapi.json` (served at the
+**root**, not under `/api`) and **committed**, pinned to RomM 5.1.0, the minimum supported
+version. The published docs at docs.romm.app have drifted from the server on exactly the
+payloads this client needs most, so never code from them.
+
+- The pin, the generator, and why the schema is normalised first:
+  `src/RomM.Client/openapi/README.md`. Regenerate only when deliberately moving the pin.
+- **`SocketsHttpHandler.ConnectTimeout` is set explicitly on every handler** (2 s
+  interactive). Nothing sets it by default and an unreachable LAN host stalls 21 s.
+- **Never `catch (TaskCanceledException)` bare.** A connect timeout and a user cancellation
+  are the same type; route everything through `RomMTransportErrors.Classify`.
+- **401 and 403 are results, not exceptions.** Authenticated calls return `RomMResponse<T>`.
+  Only transport failures throw (`RomMUnreachableException`).
 
 ## Auth: device pairing only
 
@@ -21,7 +31,14 @@ verification_path, verification_path_complete, expires_in: 600, interval: 5}`.
    `verification_path_complete`**. The server returns a relative path on purpose and stays
    origin-agnostic, so joining is the client's job.
 3. Poll `POST /api/auth/device/token` with `{device_code}` at `interval`, handling
-   `authorization_pending`, `slow_down`, `access_denied`, `expired_token`.
+   `authorization_pending`, `slow_down`, `access_denied`, `expired_token`. **Every one of
+   those arrives as HTTP 400 with the reason in `detail`**, so none of them is an exception;
+   429 is the rate limit and also not a failure. `DevicePairing.AwaitApprovalAsync` owns the
+   loop.
+
+Token expiry is the **approver's** choice, not the client's: `expires_in` is a field on
+`/approve` and accepts only `30d`, `90d`, `1y` or `never`. The client reads `expires_at`
+back off `/token` and stores it.
 
 The code is **8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`**, not 8 digits. I, L, O,
 0 and 1 are excluded. The server normalises hyphens, spaces and case, so display it

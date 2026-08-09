@@ -35,12 +35,16 @@ unexpected.
 
 ```bash
 dotnet restore
+dotnet tool restore    # once per clone: NSwag, for regenerating the API DTOs
 dotnet build
 dotnet test
 ```
 
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
+
+`dotnet tool restore` is only needed if you are moving the pinned OpenAPI schema. The
+generated DTOs are committed, so nothing generates at build time.
 
 ### Publish
 
@@ -131,12 +135,21 @@ You will need it for:
 
 ### Pin the schema
 
-Generate DTOs from a **known RomM version** and check the generated output in, so an
-upstream deploy cannot silently change the contract mid-session.
+Already pinned, and it does not come from either of the instances above.
+`src/RomM.Client/openapi/romm-5.1.0.json` is a byte-exact `/openapi.json` (served at the
+root, not under `/api`) from a server reporting **5.1.0**, the minimum RomMBat supports, so
+the generated DTOs describe the oldest server the client claims to work with. It was pulled
+from the project's public demo, which means anyone can reproduce it without an account and
+without a hostname that would have to be scrubbed from a diff.
 
 ```bash
-curl -s https://your-romm-instance/openapi.json -o openapi.json    # served at the root, not under /api
+cd src/RomM.Client/openapi && ./generate.sh    # only when deliberately moving the pin
 ```
+
+Moving the pin is a compatibility decision, not a refresh: it changes which server version
+the DTOs describe and moves a row in the README compatibility table with it. Read
+[`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md) first, including
+why the schema is normalised before NSwag sees it.
 
 The published RomM docs have drifted from the server. **The backend is the contract**; the
 schema is generated from it, and the docs are a hint. See
@@ -159,6 +172,34 @@ For **automated** tests, you do not need browser automation.
 protected routes needing `me.read` and `me.write`, so a harness holding a pre-made token
 can play the approving user and drive the real flow headlessly. Do it that way rather than
 adding a token-injection backdoor, so the shipped client keeps exactly one auth path.
+
+That harness is `tests/RomMBat.Tests/Support/ApprovingUser.cs`, and `LivePairingTests` drives
+it. Those tests skip unless both variables are set, so a clone with no server still runs
+green:
+
+```powershell
+$env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
+$env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."   # needs me.read and me.write
+dotnet test
+```
+
+**Point them at the disposable instance.** They create and re-pair devices, which is exactly
+what the production instance should never see. Neither value belongs in a file the
+repository tracks.
+
+### Pairing by hand, without a UI
+
+The gamepad UI is chosen in M7, so the pairing surface today is the console agent, ASCII QR
+included:
+
+```powershell
+dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
+dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
+```
+
+`--root` is only needed when the agent is not running from inside the tree. Add `--protect`
+to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
+reachability probe.
 
 ---
 

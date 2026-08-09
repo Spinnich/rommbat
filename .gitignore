@@ -510,6 +510,10 @@ outbox/
 probe-output/
 retrobat-capture/
 
+# The 3.0-shaped copy of the pinned schema that NSwag consumes. Derived on every
+# run; the pinned romm-*.json and the generated output are what is committed.
+openapi-normalized.tmp.json
+
 # Trunk's local cache
 .trunk/*out
 .trunk/*logs

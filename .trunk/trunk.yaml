@@ -41,6 +41,13 @@ lint:
     - linters: [ALL]
       paths:
         - tests/**/fixtures/**
+    # The pinned OpenAPI schema is a byte-exact copy of what a RomM server served, and
+    # the DTOs beside it are NSwag output. Reformatting either would make the sha256 in
+    # src/RomM.Client/openapi/README.md a lie and hide real drift in a diff.
+    - linters: [ALL]
+      paths:
+        - src/RomM.Client/openapi/romm-*.json
+        - src/RomM.Client/Generated/**
 actions:
   disabled:
     - trunk-announce

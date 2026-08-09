@@ -1,0 +1,45 @@
+{
+  "runtime": "Net100",
+  "documentGenerator": {
+    "fromDocument": {
+      "json": "",
+      "url": "$(SchemaPath)",
+      "output": null,
+      "newLineBehavior": "Auto"
+    }
+  },
+  "codeGenerators": {
+    "openApiToCSharpClient": {
+      "generateClientClasses": false,
+      "generateClientInterfaces": false,
+      "generateDtoTypes": true,
+      "generateOptionalParameters": false,
+      "namespace": "RomM.Client.Generated",
+      "jsonLibrary": "SystemTextJson",
+      "generateNullableReferenceTypes": true,
+      "generateOptionalPropertiesAsNullable": true,
+      "requiredPropertiesMustBeDefined": false,
+      "dateType": "System.DateTimeOffset",
+      "dateTimeType": "System.DateTimeOffset",
+      "timeSpanType": "System.TimeSpan",
+      "arrayType": "System.Collections.Generic.ICollection",
+      "arrayInstanceType": "System.Collections.Generic.List",
+      "dictionaryType": "System.Collections.Generic.IDictionary",
+      "dictionaryInstanceType": "System.Collections.Generic.Dictionary",
+      "arrayBaseType": "System.Collections.ObjectModel.Collection",
+      "dictionaryBaseType": "System.Collections.Generic.Dictionary",
+      "classStyle": "Poco",
+      "generateDefaultValues": true,
+      "generateDataAnnotations": false,
+      "generateJsonMethods": false,
+      "enforceFlagEnums": false,
+      "inlineNamedDictionaries": false,
+      "inlineNamedTuples": true,
+      "inlineNamedArrays": false,
+      "generateImmutableArrayProperties": false,
+      "generateImmutableDictionaryProperties": false,
+      "excludedTypeNames": [],
+      "output": "../Generated/RomMApiSchema.g.cs"
+    }
+  }
+}

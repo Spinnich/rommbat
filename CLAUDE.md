@@ -34,7 +34,7 @@ is only its index.
 
 ---
 
-## Four rules that override intuition
+## Six rules that override intuition
 
 Each of these is a decision an agent will otherwise get backwards, and each is expensive
 to unwind later.
@@ -49,6 +49,14 @@ to unwind later.
    `batocera-systems.json` on **md5 only**.
 4. **The ES hooks never touch the network.** They run inside the game-launch path. They
    append to a local journal and exit; a background pass flushes later.
+
+Two more that only bite once there is code:
+
+5. **Set `SocketsHttpHandler.ConnectTimeout` on every handler.** Nothing sets it by default
+   and an unreachable LAN host stalls for 21 s. Then classify the failure: a timeout and a
+   user cancellation are both `TaskCanceledException` and differ only in the inner exception.
+6. **Generated DTOs are committed, never generated at build time.** Regenerate only when
+   deliberately moving the pinned schema version, and review the diff.
 
 ---
 
@@ -122,6 +130,9 @@ dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
 cd reference && ./refresh.sh    # refresh vendored upstream data + verify
 trunk fmt && trunk check        # lint
+
+# Only when deliberately moving the pinned RomM schema version. Needs `dotnet tool restore`.
+cd src/RomM.Client/openapi && ./generate.sh
 ```
 
 Setup, including how to point at a RomM instance and stand up a throwaway RetroBat, is in
