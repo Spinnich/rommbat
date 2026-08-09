@@ -175,13 +175,32 @@ backdoor, so the shipped client keeps exactly one auth path.
 
 That harness is `tests/RomMBat.Tests/Support/ApprovingUser.cs`, and `LivePairingTests` drives
 it. Those tests skip unless both variables are set, so a clone with no server still runs
-green:
+green. Keep them in a `.env` at the repository root, which `.gitignore` already covers:
+
+```bash
+ROMMBAT_TEST_SERVER=https://your-romm-instance
+ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+```
+
+Then source it for the run. `dotnet test` reads the process environment and nothing loads
+`.env` on its own, so this is deliberate every time rather than ambient:
+
+```bash
+set -a; . ./.env; set +a; dotnet test
+set -a; . ./.env; set +a; dotnet test --filter "FullyQualifiedName~LivePairingTests"
+```
 
 ```powershell
+# PowerShell, if you prefer not to keep the file
 $env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
 $env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
 dotnet test
 ```
+
+**When these start failing, check the token first.** It is a `ClientToken` like any other,
+so it expires on whatever `expires_in` it was created with and can be revoked from the RomM
+UI. A revoked or lapsed token fails on `ReadPendingAsync` with a 401 rather than the 403
+that means a missing scope.
 
 **The approver token is not a RomMBat token, and the README scopes table does not apply to
 it.** That table is what a RomMBat _device_ requests, and RomMBat never needs `me.write`.
@@ -203,9 +222,23 @@ later and differently, on `Assert.Empty(completion.Scopes.Degradations)`.
 RomM's `WRITE_SCOPES` tier covers all eleven, so an ordinary non-admin account at write
 level is enough. No admin account is needed and none should be used.
 
-**Point them at the disposable instance.** Each approval creates a `Device` row and a bound
-`ClientToken` under the approver's account, and the suite pairs four times over. Neither
-value belongs in a file the repository tracks; `.env` at the repo root is gitignored.
+**Run them under a dedicated non-admin account.** That, not the choice of instance, is what
+keeps them safe: devices and client tokens are per-user rows, so an account of their own
+cannot reach anyone else's data. The disposable instance is still the easier place to work,
+but a real instance with a purpose-made account is a legitimate setup.
+
+**The suite cleans up after itself**, in `PairingLitter` via `IAsyncLifetime.DisposeAsync`:
+each test deletes the devices it created and revokes the tokens bound to them, and a test
+fails if it cannot. That matters because every approval mints a genuine `rmm_` credential
+carrying all eleven device scopes, whose local copy dies with the temp tree. Without
+teardown a suite run leaves one set behind every time, and they accumulate.
+
+The ordering inside teardown is forced by which credential holds what: only the token a
+pairing just issued has `devices.write`, and only the approver can revoke tokens. So token
+ids are captured first, devices deleted second, revocation last.
+
+Neither environment value belongs in a file the repository tracks; `.env` at the repo root
+is gitignored.
 
 ### Pairing by hand, without a UI
 

@@ -90,6 +90,48 @@ internal sealed class ApprovingUser : IDisposable
         response.EnsureSuccessStatusCode();
     }
 
+    /// <summary>
+    /// Lists the client tokens on the approver's account. Needs <c>me.read</c>.
+    /// </summary>
+    public async Task<IReadOnlyList<ClientTokenSummary>> ListTokensAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var response = await _http
+            .GetAsync(Resolve("api/client-tokens"), cancellationToken)
+            .ConfigureAwait(false);
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<List<ClientTokenSummary>>(SerializerOptions, cancellationToken)
+            .ConfigureAwait(false)
+            ?? [];
+    }
+
+    /// <summary>
+    /// Revokes a client token. Needs <c>me.write</c>.
+    /// </summary>
+    /// <remarks>
+    /// Used by teardown. Every approval mints a real credential carrying the full RomMBat
+    /// scope set, and the client's own copy dies with the temp tree, so a suite that does
+    /// not revoke leaves live tokens behind on whatever instance it ran against.
+    /// </remarks>
+    public async Task RevokeTokenAsync(int tokenId, CancellationToken cancellationToken = default)
+    {
+        using var response = await _http
+            .DeleteAsync(Resolve($"api/client-tokens/{tokenId}"), cancellationToken)
+            .ConfigureAwait(false);
+
+        // Already gone is the outcome teardown wanted, and deleting a device can take its
+        // bound token with it.
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return;
+        }
+
+        response.EnsureSuccessStatusCode();
+    }
+
     /// <summary>Declines a request, for the access_denied path.</summary>
     public async Task DenyAsync(string userCode, CancellationToken cancellationToken = default)
     {
@@ -105,6 +147,14 @@ internal sealed class ApprovingUser : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+
+    /// <summary>One client token on the approver's account, as the list endpoint reports it.</summary>
+    public sealed record ClientTokenSummary(
+        int Id,
+        string Name,
+        IReadOnlyList<string> Scopes,
+        string? Expires_at,
+        string? Device_id);
 
     /// <summary>What the approval screen is shown about a pending request.</summary>
     /// <param name="Allowed_scopes">

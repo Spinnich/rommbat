@@ -31,11 +31,21 @@ namespace RomMBat.Tests;
 /// code is looked up, while an account short of the device scopes gets that far and fails
 /// on <c>Assert.Empty(completion.Scopes.Degradations)</c>.
 /// </para>
-/// These create and update devices, so point them at the <b>disposable</b> instance from
-/// DEVELOPER_SETUP.md section 3, never the production one.
+/// <para>
+/// These create devices and mint real tokens, and clean both up in
+/// <see cref="DisposeAsync"/>. Run them under a <b>dedicated non-admin account</b>: devices
+/// and client tokens are per-user rows, so that is what keeps them off anyone else's data.
+/// See DEVELOPER_SETUP.md section 3.
+/// </para>
 /// </remarks>
-public class LivePairingTests
+public class LivePairingTests : IAsyncLifetime
 {
+    /// <summary>
+    /// Undone after every test. xUnit builds a fresh instance per test, so each one cleans
+    /// up only what it created.
+    /// </summary>
+    private readonly PairingLitter _litter = new();
+
     private const string ServerVariable = "ROMMBAT_TEST_SERVER";
     private const string TokenVariable = "ROMMBAT_TEST_APPROVER_TOKEN";
 
@@ -44,6 +54,29 @@ public class LivePairingTests
     private static string? ApproverToken => Environment.GetEnvironmentVariable(TokenVariable);
 
     private static bool IsConfigured => !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(ApproverToken);
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    /// <summary>
+    /// Deletes the devices and revokes the tokens this test created.
+    /// </summary>
+    /// <remarks>
+    /// Not optional politeness. Each approval mints a real credential with the full RomMBat
+    /// scope set, and without this a suite run leaves one set behind every time.
+    /// </remarks>
+    public async Task DisposeAsync()
+    {
+        if (!IsConfigured || _litter.IsEmpty)
+        {
+            return;
+        }
+
+        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!);
+
+        Assert.True(
+            problems.Count == 0,
+            "Live test litter was left on the server: " + string.Join("; ", problems));
+    }
 
     [SkippableFact]
     public async Task Pairing_end_to_end_yields_a_token_that_survives_a_restart()
@@ -169,6 +202,19 @@ public class LivePairingTests
         Assert.True(completion.Scopes.Allows(RomMFeature.Library));
         Assert.False(completion.Scopes.Allows(RomMFeature.SavePush));
         Assert.NotEmpty(completion.Scopes.Degradations);
+
+        // The remedy the client prints is "pair again and grant the missing scopes", so
+        // exercise it: the same identifier, a wider grant, the same device, no degradations.
+        var widened = await ApproveWhilePollingAsync(
+            pairing,
+            connection,
+            await pairing.BeginAsync(connection, "RomMBat integration test (narrowed)"),
+            RomMScopes.Requested);
+
+        Assert.True(widened.IsPaired);
+        Assert.Equal(completion.RomMDeviceId, widened.RomMDeviceId);
+        Assert.Empty(widened.Scopes.Degradations);
+        Assert.Equal(RomMScopes.Requested.Order(StringComparer.Ordinal), widened.Scopes.All);
     }
 
     [SkippableFact]
@@ -201,7 +247,7 @@ public class LivePairingTests
     /// Starts polling, has the harness approve out of band, and waits for the client to
     /// notice, which is exactly the shape of the real flow.
     /// </summary>
-    private static async Task<PairingCompletion> ApproveWhilePollingAsync(
+    private async Task<PairingCompletion> ApproveWhilePollingAsync(
         PairingService pairing,
         RomMConnection connection,
         PairingSession session,
@@ -221,6 +267,15 @@ public class LivePairingTests
         var pollTask = pairing.CompleteAsync(connection, session);
         await approver.ApproveAsync(session.UserCode, grantable, session.DeviceName);
 
-        return await pollTask;
+        var completion = await pollTask;
+
+        if (completion.IsPaired && completion.RomMDeviceId is not null)
+        {
+            // Tracked with the raw token, because that is the only credential in play
+            // carrying devices.write and so the only one that can delete the device.
+            _litter.Track(completion.RomMDeviceId, pairing.UnlockToken(null), completion.Scopes.All);
+        }
+
+        return completion;
     }
 }
