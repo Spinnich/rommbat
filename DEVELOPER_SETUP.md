@@ -71,6 +71,26 @@ What each one settles is listed in [reference/README.md](reference/README.md). T
 whose contents the design actually depends on are vendored under `reference/`, so you can
 work offline, but the full checkouts are worth having for the code around them.
 
+### Turn the git hooks on, once per clone
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Git will not use a checked-in hook until it is told where to look, and `core.hooksPath` is
+local config, so every clone has to do this. Today it installs one `pre-push` hook that
+refuses direct pushes to `main` and tells you to branch instead.
+
+**It is a habit, not a security control**, and it is bypassable on purpose:
+
+```bash
+ALLOW_MAIN_PUSH=1 git push
+```
+
+The reason it exists locally at all is that GitHub does not offer branch protection or
+rulesets on private repositories on the Free plan, so there is nothing enforcing this
+server-side. Replace it with a ruleset if the repository goes public.
+
 ---
 
 ## 3. Point at a RomM instance

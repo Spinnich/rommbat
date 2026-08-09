@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Refuse direct pushes to main.
+#
+# GitHub cannot enforce this for us: branch protection and rulesets are both
+# unavailable on private repositories on the Free plan, so the guard lives here.
+# It is local and bypassable by design, and it is a habit, not a security control.
+# Replace it with a server-side ruleset if the repository ever goes public or the
+# account moves to Pro.
+
+set -uo pipefail
+
+protected='refs/heads/main'
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+	[ "$remote_ref" = "$protected" ] || continue
+
+	if [ "${ALLOW_MAIN_PUSH:-}" = '1' ]; then
+		echo 'pre-push: ALLOW_MAIN_PUSH=1 set, pushing to main anyway.' >&2
+		continue
+	fi
+
+	cat >&2 <<'MSG'
+
+pre-push: refusing to push directly to main.
+
+  Branch instead, so the CI workflows (build, trunk-check, reference-verify)
+  get a chance to run before anything lands:
+
+      git switch -c my-change
+      git push -u origin my-change
+      gh pr create --fill
+
+  If you really mean to push straight to main:
+
+      ALLOW_MAIN_PUSH=1 git push
+
+MSG
+	exit 1
+done
+
+exit 0
