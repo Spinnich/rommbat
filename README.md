@@ -13,9 +13,10 @@ is a wombat.
 
 > [!WARNING]
 >
-> **Pre-release. Nothing works yet.** The repository currently holds the design of
-> record ([docs/PLAN.md](docs/PLAN.md)) and this scaffolding. See
-> [Status](#status) for what is and is not built.
+> **Pre-release. Nothing works yet.** No application code ships yet. What the repository
+> holds today is the design of record ([docs/PLAN.md](docs/PLAN.md)), the measurements
+> that corrected it ([docs/retrobat-findings.md](docs/retrobat-findings.md)), the throwaway
+> probes that produced them, and this scaffolding. See [Status](#status).
 
 ## Why
 
@@ -39,9 +40,11 @@ and through the companion-app protocol RomM already ships.
 
 1. **Offline-first.** RomMBat runs on handheld Windows gaming PCs that are away from the
    RomM instance for days. Local SQLite is the source of truth; the network is optional.
-   The EmulationStation hooks run inside the game launch path, so they append to a durable
-   local journal and exit in milliseconds, never opening a socket. A short-lived agent
-   flushes the outbox when the server is reachable.
+   The EmulationStation hooks sit in the game launch path, so they append to a durable
+   local journal and exit, never opening a socket. Measured: they do not block the launch,
+   the emulator starts about 30 ms later regardless, but they do run **concurrently**, so
+   the journal has to survive interleaved writers. A short-lived agent flushes the outbox
+   when the server is reachable.
 2. **Libraries reach 100,000+ games**, so the catalog is never mirrored. Online browsing
    is a thin paged client over the API; offline browsing shows the local subset. ROM
    content is strictly opt-in and bounded by a disk budget with eviction.
@@ -70,10 +73,13 @@ A portable RetroBat often lives on exFAT or FAT32, which reaches into the design
 
 - **FAT32 cannot hold a file larger than 4 GB.** Plenty of PS2, GameCube and Wii images
   exceed that, so RomMBat detects the filesystem up front and skips or refuses oversized
-  ROMs rather than failing mid-write. **Use exFAT or NTFS for any library containing disc
-  images.**
-- **FAT and exFAT store coarser modification timestamps than NTFS.** RomMBat compares on
-  content hash first and uses mtime only as an ordering tiebreak.
+  ROMs rather than failing mid-write. Windows reports the overrun as "There is not enough
+  space on the disk" even with plenty free, so RomMBat never passes that message on. **Use
+  exFAT or NTFS for any library containing disc images.**
+- **FAT32 and exFAT both store modification times to 2 seconds, rounded up.** Measured, and
+  exFAT is no finer than FAT32 despite its format allowing it. A freshly written save can
+  therefore read as up to 2 seconds in the future. RomMBat compares on content hash first
+  and uses mtime only as an ordering tiebreak, with tolerance for that skew.
 
 ## Authentication and scopes
 
@@ -119,19 +125,31 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 ## Status
 
 RomMBat is built in milestones, and platforms are certified one at a time after the
-framework works end to end. Nothing below is shipped yet.
+framework works end to end. No application code is shipped yet.
 
-| Milestone | Scope                                                                                                               | State                                                                             |
-| --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | Mostly done: 1, 4, 6, 7 complete; 5 all but the gamelist ceiling; 2 and 3 partial |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | Not started                                                                       |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | Not started                                                                       |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                       |
-| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                       |
-| M5        | BIOS and firmware                                                                                                   | Not started                                                                       |
-| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                       |
-| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                       |
-| M8        | Packaging, docs, release                                                                                            | Not started                                                                       |
+| Milestone | Scope                                                                                                               | State                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | Not started                                                                 |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | Not started                                                                 |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                 |
+| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                 |
+| M5        | BIOS and firmware                                                                                                   | Not started                                                                 |
+| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                 |
+| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                 |
+| M8        | Packaging, docs, release                                                                                            | Not started                                                                 |
+
+### Known upstream issues
+
+M0 found three RetroBat bugs rather than facts to design around. All are open, all are
+worked around, and each is re-checked every release, because a fix upstream changes what
+RomMBat should do rather than just closing a ticket.
+
+| Issue                                                                                      | What it costs                                                                       |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [retrobat#249](https://github.com/RetroBat-Official/retrobat/issues/249)                   | ES event scripts do not run once an argument is quoted, so **hooks must be `.exe`** |
+| [emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336) | Flycast writes save states to a different directory than the one declared           |
+| [emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337) | BizHawk crashes unless the launcher is passed `-core`                               |
 
 ### Platform certification
 
@@ -153,9 +171,9 @@ own save naming, state directory and BIOS requirements.
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested | RetroBat tested | Notes                                         |
-| ---------- | ----------- | --------------- | --------------------------------------------- |
-| unreleased | 5.1.0       | 8.2.0           | Baseline targets, not yet verified end to end |
+| RomMBat    | RomM tested  | RetroBat tested    | Notes                                                      |
+| ---------- | ------------ | ------------------ | ---------------------------------------------------------- |
+| unreleased | 5.1.1-beta.1 | 8.2.0-stable-win64 | M0 measured against these; nothing verified end to end yet |
 
 ## Repository layout
 
@@ -168,10 +186,14 @@ src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)
 tests/RomMBat.Tests   xUnit
 
 docs/PLAN.md          The design of record. Read this before anything else
+docs/retrobat-findings.md
+                      What a real RetroBat install actually does, measured, plus the
+                      contradiction table naming every place the plan was wrong
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
+tools/m0-probes/      Throwaway probes, kept so every measured number is reproducible
 .claude/skills/       Task-scoped guides for agents working in this repository
 ```
 
@@ -182,9 +204,12 @@ dotnet build
 dotnet test
 dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
-trunk fmt && trunk check        # lint
+trunk fmt && trunk check        # lint, from WSL on Windows
 cd reference && ./refresh.sh    # refresh vendored upstream data and verify
 ```
+
+Trunk has no Windows-native CLI, so run it under WSL. [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)
+gives the exact command and a fallback for docs-only changes.
 
 Full setup, including how to point at a RomM instance and stand up a throwaway RetroBat,
 is in [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).
