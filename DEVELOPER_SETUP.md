@@ -158,13 +158,17 @@ cleanest way to test the portable-move requirement and the first-run install pat
    Copy-Item -Recurse D:\retrobat-pristine D:\retrobat-test
    ```
 
-Confirm the version you are testing against. RomMBat reads it from `build.ini` at startup
-and refuses below the minimum:
+Confirm the version you are testing against. RomMBat reads it from `system/version.info` at
+startup and refuses below the minimum:
 
 ```powershell
-Select-String -Path D:\retrobat-test\build.ini -Pattern retrobat_version
-# retrobat_version=8.2.0
+Get-Content D:\retrobat-test\system\version.info
+# 8.2.0-stable-win64
 ```
+
+There is no `build.ini` in RetroBat 8.2; M0 confirmed it does not exist anywhere in the
+tree. Note the channel and architecture suffix, which has to be split off before the
+version is compared.
 
 ### Content
 
@@ -194,6 +198,22 @@ trunk fmt && trunk check
 cd reference && python3 verify.py
 ```
 
+**Trunk has no Windows-native CLI, so run it from WSL**, which is what its own install
+instructions assume. From PowerShell:
+
+```powershell
+wsl -d Ubuntu -- bash -lc "cd '/mnt/d/path/to/rommbat' && trunk fmt && trunk check"
+```
+
+`trunk check` with no arguments checks modified files only; add `--all` before a release.
+If WSL is not an option, the markdown half can be reproduced with the versions pinned in
+`.trunk/trunk.yaml`, which is enough for a docs-only change but is not a substitute:
+
+```powershell
+npx prettier@3.7.4 --write <files>
+npx markdownlint-cli@0.45.0 -c .trunk/configs/.markdownlint.yaml <files>
+```
+
 `verify.py` re-derives every upstream number `docs/PLAN.md` quotes. **A drift there means
 an upstream fact moved, so the fix is to revisit the plan, not to update the expected
 number.** Never hand-edit a vendored file under `reference/`; use `./refresh.sh` and
@@ -212,12 +232,14 @@ cd reference && ./refresh.sh
 ## 6. Where things live at runtime
 
 Everything RomMBat owns lives inside the RetroBat tree. Nothing goes to `%APPDATA%`, the
-registry, a service or a scheduled task. The exact subdirectory is settled by M0
-experiment 4; the working assumption is:
+registry, a service or a scheduled task. **M0 probe 4 settled the subdirectory and it is
+not a free choice**: a `.menu` entry resolves its executable under `emulators\` and
+`emulatorLauncher` refuses `..\` escapes, so anything launched from the ES menu must live
+there.
 
 ```text
 <RetroBat root>/
-  plugins/rommbat/
+  emulators/rommbat/      forced by the .menu path rules, see retrobat-findings.md probe 4
     rommbat-agent.exe
     RomMBat.exe
     rommbat.db            SQLite: file index, sync sets, outbox, cursors
@@ -226,12 +248,18 @@ experiment 4; the working assumption is:
     outbox/
   roms/<system>/          ROMs, gamelist.xml, images/, videos/, manuals/
   bios/                   firmware, at the paths batocera-systems.json specifies
-  saves/                  emulator save output
-  emulationstation/.emulationstation/
-    es_settings.cfg       RetroBat options, including the per-game override form
-    es_savestates.cfg     per-emulator save-state schema
-    scripts/<event>/      the .bat hooks
-  system/es_menu/         the ES menu entry that launches RomMBat.exe
+  saves/<system>/<emulator>/   emulator save output, two levels deep
+  emulationstation/
+    emulatorLauncher.exe  what %~dp0..\..\..\ from a hook resolves to
+    .emulationstation/
+      es_settings.cfg     RetroBat options, including the per-game override form
+      es_savestates.cfg   per-emulator save-state schema
+      es_features.cfg     the per-game option definitions (memory cards, VMUs)
+      scripts/<event>/    the .bat hooks; reach the root with %~dp0..\..\..\..\
+  system/es_menu/
+    rommbat.menu          line 1 the exe path, relative to emulators/
+    gamelist.xml          must also carry a <game> entry or the app shows as a filename
+  system/version.info     the version string, e.g. 8.2.0-stable-win64
 ```
 
 When you are done with a test run, delete the copied tree. That is the whole uninstall.

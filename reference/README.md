@@ -46,5 +46,5 @@ projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
 
 ## Snapshot
 
-Captured 2026-08-08 against RetroBat 8.2.0 (`build.ini: retrobat_version=8.2.0`) and
+Captured 2026-08-08 against RetroBat 8.2.0 (`system/version.info: 8.2.0-stable-win64`) and
 `rommapp/romm` master.
