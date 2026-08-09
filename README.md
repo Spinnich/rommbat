@@ -39,9 +39,9 @@ and through the companion-app protocol RomM already ships.
 
 1. **Offline-first.** RomMBat runs on handheld Windows gaming PCs that are away from the
    RomM instance for days. Local SQLite is the source of truth; the network is optional.
-   The EmulationStation `game-start` and `game-end` hooks run inside the game launch path,
-   so they append to a durable local journal and exit in milliseconds, never opening a
-   socket. A short-lived agent flushes the outbox when the server is reachable.
+   The EmulationStation hooks run inside the game launch path, so they append to a durable
+   local journal and exit in milliseconds, never opening a socket. A short-lived agent
+   flushes the outbox when the server is reachable.
 2. **Libraries reach 100,000+ games**, so the catalog is never mirrored. Online browsing
    is a thin paged client over the API; offline browsing shows the local subset. ROM
    content is strictly opt-in and bounded by a disk budget with eviction.
@@ -56,7 +56,7 @@ and through the companion-app protocol RomM already ships.
 
 |          | Minimum     | Notes                                                            |
 | -------- | ----------- | ---------------------------------------------------------------- |
-| RetroBat | 8.2         | Checked from `build.ini` at startup                              |
+| RetroBat | 8.2         | Checked from `system/version.info` at startup                    |
 | RomM     | 5.1.0       | Checked from `GET /api/heartbeat` at startup                     |
 | Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
 | .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
@@ -121,17 +121,17 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 RomMBat is built in milestones, and platforms are certified one at a time after the
 framework works end to end. Nothing below is shipped yet.
 
-| Milestone | Scope                                                                                    | State       |
-| --------- | ---------------------------------------------------------------------------------------- | ----------- |
-| M0        | Probes against a real RetroBat install; findings recorded in `docs/retrobat-findings.md` | Not started |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                              | Not started |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                      | Not started |
-| M3        | Content sync, resumable downloads, disk budget and eviction                              | Not started |
-| M4        | `gamelist.xml` generation and media                                                      | Not started |
-| M5        | BIOS and firmware                                                                        | Not started |
-| M6        | Offline-first save, state and playtime sync                                              | Not started |
-| M7        | Gamepad UI (framework choice deferred to this milestone)                                 | Not started |
-| M8        | Packaging, docs, release                                                                 | Not started |
+| Milestone | Scope                                                                                                               | State                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | Mostly done: 1, 4, 6, 7 complete; 5 all but the gamelist ceiling; 2 and 3 partial |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | Not started                                                                       |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | Not started                                                                       |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                       |
+| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                       |
+| M5        | BIOS and firmware                                                                                                   | Not started                                                                       |
+| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                       |
+| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                       |
+| M8        | Packaging, docs, release                                                                                            | Not started                                                                       |
 
 ### Platform certification
 

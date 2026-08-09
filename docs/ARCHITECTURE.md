@@ -89,7 +89,7 @@ the one with all the interesting invariants.
 | Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary |
 | Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                             |
 | Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                              |
-| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `build.ini` (version)                                                                       |
+| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                       |
 | RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic                                                                                                       |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                      |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                             |
@@ -100,21 +100,29 @@ Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, the
 There is no daemon, because a portable install cannot register a service or a scheduled
 task.
 
-| Subcommand   | Network   | Notes                                           |
-| ------------ | --------- | ----------------------------------------------- |
-| `pair`       | yes       | Device pairing, for headless setup              |
-| `sync`       | yes       | Resolve sets, pull content, media and BIOS      |
-| `game-start` | **never** | Append a start record to the journal and exit   |
-| `game-end`   | **never** | Close the open record and exit                  |
-| `flush`      | yes       | Drain the outbox if the server is reachable     |
-| `status`     | no        | Report local state, for support and for scripts |
+| Subcommand   | Network   | Notes                                                                                    |
+| ------------ | --------- | ---------------------------------------------------------------------------------------- |
+| `pair`       | yes       | Device pairing, for headless setup                                                       |
+| `sync`       | yes       | Resolve sets, pull content, media and BIOS                                               |
+| `game-start` | **never** | Append a start record and exit. Best-effort only: ES does not fire it for most real roms |
+| `game-end`   | **never** | The real trigger. Read the launch from `emulatorLauncher.log`, close the record, exit    |
+| `flush`      | yes       | Drain the outbox if the server is reachable                                              |
+| `status`     | no        | Report local state, for support and for scripts                                          |
 
-`game-start` and `game-end` run inside the game launch path. They must not open a socket,
-must not wait on a lock, and must finish inside the budget M0 experiment 1 measures.
-Everything else is deferred to `flush`.
+`game-start` and `game-end` run inside the game launch path. They must not open a socket and
+must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
+delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **do run
+concurrently**, with each other and across events.
+
+**`game-start` cannot be relied on.** ES never fires it when the gamelist `<name>` contains
+a space, which covers nearly every real rom. `game-end` fires reliably, including on crash.
+So the journal is built the other way round: **`game-end` triggers, and
+`emulationstation/emulatorLauncher.log` supplies the rom path, system, emulator and core**
+that the hook arguments omit. See `docs/retrobat-findings.md` probe 1.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
-process exits rather than queueing.
+process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
+hook execution is the normal case.
 
 ### `src/RomMBat.UI`
 
@@ -180,18 +188,18 @@ is relative to the RetroBat root and resolved at the point of use. There is a st
 that fails the build if an absolute path reaches the database, and it exists because a
 drive letter changing from `E:` to `F:` must be a non-event.
 
-| Table             | Holds                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------ |
-| `device`          | The `client_device_identifier` GUID, the RomM `device_id`, granted scopes, server origin                     |
-| `local_file`      | Relative path, resolved folder, `rom_id`, size, md5/sha1, mtime, last verified                               |
-| `sync_set`        | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                           |
-| `sync_set_member` | Resolved membership per set, so drift between runs is visible                                                |
-| `platform_map`    | Resolved folder per RomM platform, and **which layer resolved it**                                           |
-| `outbox`          | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number |
-| `journal`         | Raw `game-start` / `game-end` records written by the hooks                                                   |
-| `game_id_binding` | Learned Game ID to `rom_id` bindings, for class C and D attribution                                          |
-| `sync_cursor`     | Per-endpoint cursors and `updated_after` watermarks                                                          |
-| `clock`           | Last observed server `Date`, measured skew, last successful contact                                          |
+| Table             | Holds                                                                                                           |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- |
+| `device`          | The `client_device_identifier` GUID, the RomM `device_id`, granted scopes, server origin                        |
+| `local_file`      | Relative path, resolved folder, `rom_id`, size, md5/sha1, mtime, last verified                                  |
+| `sync_set`        | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                              |
+| `sync_set_member` | Resolved membership per set, so drift between runs is visible                                                   |
+| `platform_map`    | Resolved folder per RomM platform, and **which layer resolved it**                                              |
+| `outbox`          | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number    |
+| `journal`         | Launch records: `game-end` hook events joined to `emulatorLauncher.log` lines, plus any `game-start` that fired |
+| `game_id_binding` | Learned Game ID to `rom_id` bindings, for class C and D attribution                                             |
+| `sync_cursor`     | Per-endpoint cursors and `updated_after` watermarks                                                             |
+| `clock`           | Last observed server `Date`, measured skew, last successful contact                                             |
 
 ### Why the sequence number exists
 

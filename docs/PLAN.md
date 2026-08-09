@@ -101,8 +101,10 @@ Guardrails that follow from this:
   `smart_collection_id=` / `virtual_collection_id=`) instead.
 - Use the `/identifiers` endpoints (`/api/roms/identifiers` and friends) for deletion
   reconciliation rather than re-pulling full rows.
-- `gamelist.xml` only ever contains locally present ROMs. A 100k-entry gamelist would
-  make EmulationStation unusable.
+- `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
+  large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. The cap exists
+  because 100,000 entries cannot be navigated with a gamepad, which is principle 3's
+  argument, and because a gamelist is a mirror of what is on disk.
 - Warn before a set resolves to more than a configurable game count or byte size.
 
 ### 3. Curation, so the device shows what the user cares about
@@ -136,18 +138,29 @@ a drive-letter change and a move to a different PC.**
 
 - **Nothing outside the tree.** No `%APPDATA%`, no `%LOCALAPPDATA%`, no registry keys, no
   Windows service, no scheduled task, no admin rights, no machine-wide .NET requirement.
-  Everything lands under `RetroBat/plugins/rommbat/` (or wherever M0 experiment 4 says is
-  idiomatic), including the SQLite database, logs, and the outbox.
+  Everything lands under **`RetroBat/emulators/rommbat/`**, including the SQLite database,
+  logs, and the outbox.
+
+  **M0 settled this location, and it is not a free choice.** A `system/es_menu/*.menu`
+  entry resolves its executable path under `emulators\`, and `emulatorLauncher` refuses
+  `..\` escapes outright (`[Generator] Failed. path is null`, exit 204). An app installed
+  anywhere else cannot be launched from the ES menu at all. See
+  [retrobat-findings.md](retrobat-findings.md), probe 4.
+
 - **Never persist an absolute path.** The local file index, sync-set definitions and
   outbox entries all store paths **relative to the RetroBat root**. Resolve to absolute
   only at the moment of use. A drive letter that shifts from `E:` to `F:` must be a
-  non-event.
+  non-event. Note the ES hooks receive an **absolute** rom path in `$1`, so relativising at
+  that boundary is mandatory work, not an optimisation.
 - **Find the root relative to the executable**, walking up from `AppContext.BaseDirectory`
-  and confirming with a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry
-  and fixed-path lookups are a last-resort fallback for a fixed install, never the primary
-  path. The ES hook `.bat` files use the same trick RetroBat's own scripts use:
-  `%~dp0..\..\..\` relative to the hook's location, as seen in
-  `.emulationstation/scripts/start/updatestores.bat`.
+  and confirming with a marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no
+  `build.ini`; the version file is `system/version.info`. Registry and fixed-path lookups
+  are a last-resort fallback for a fixed install, never the primary path. The ES hook
+  `.bat` files use the same trick RetroBat's own scripts use, as seen in
+  `.emulationstation/scripts/start/updatestores.bat`, but **mind the depth**: a hook lives
+  at `.emulationstation/scripts/<event>/`, so `%~dp0..\..\..\` reaches `emulationstation/`
+  (where `emulatorLauncher.exe` lives) and reaching the RetroBat root takes a fourth level,
+  `%~dp0..\..\..\..\`.
 - **Device identity follows the drive, not the host.** This is the subtle one, and the
   backend has a trap in it. `POST /api/devices` dedups via
   `db_device_handler.get_device_by_fingerprint`, which matches on **`mac_address` alone**
@@ -172,11 +185,21 @@ a drive-letter change and a move to a different PC.**
   - **FAT32 cannot hold a file larger than 4 GB.** Plenty of PS2, GameCube and Wii images
     exceed that. Detect the filesystem, and when it is FAT32 either skip oversized ROMs
     with a clear explanation or refuse the sync set outright rather than failing mid-write.
-  - **FAT and exFAT store coarser modification timestamps than NTFS** (FAT32 is
-    2-second granularity). Any conflict logic that leans on mtime equality will produce
-    both false matches and spurious conflicts. Treat `content_hash` as the primary
-    comparison and mtime only as an ordering tiebreak, and never assume a round-tripped
-    mtime comes back bit-identical.
+    M0 measured the failure: `IOException`, Win32 112 `ERROR_DISK_FULL`, message **"There is
+    not enough space on the disk"**, raised on a volume with 14.6 GB free. **Never surface
+    that message**; it sends the user to delete files that are not the problem. Compare
+    `fs_size_bytes` against the target filesystem before the download starts.
+  - **FAT and exFAT store coarser modification timestamps than NTFS**, and M0 measured
+    **exFAT to be no better than FAT32: 2 seconds on both**, even though exFAT's format
+    allows 10 ms. Any conflict logic that leans on mtime equality will produce both false
+    matches and spurious conflicts. Treat `content_hash` as the primary comparison and mtime
+    only as an ordering tiebreak, and never assume a round-tripped mtime comes back
+    bit-identical.
+  - **A FAT timestamp rounds up, so it lands in the future.** A file written at 08:03:16.097
+    is stored as 08:03:18.000, up to 2 seconds ahead of the clock that wrote it. The
+    clock-skew check in principle 1 must carry at least a 2-second tolerance before treating
+    a future timestamp as a bad RTC, and files written inside one 2-second window are not
+    orderable by mtime at all.
   - No ACLs and no symlinks on FAT/exFAT, so neither can be part of any design.
 - **Token at rest is a real exposure on a portable drive.** DPAPI is the usual answer on
   Windows and it is unavailable to us: `DataProtectionScope.CurrentUser` binds the
@@ -201,8 +224,8 @@ a drive-letter change and a move to a different PC.**
 
 ### RomM already ships a companion-app protocol
 
-All of this is on `rommapp/romm` master today. Verified against the local checkout at
-`/home/dustin-minnich/romm`, not just the docs.
+All of this is on `rommapp/romm` master today. Verified against a local checkout of the
+source, not just the docs.
 
 | Concern            | Endpoint / file                                                                                 |
 | ------------------ | ----------------------------------------------------------------------------------------------- |
@@ -226,21 +249,25 @@ backend as the contract.
 
 ### RetroBat's integration seams (no fork needed)
 
-| Seam                                                  | Use                                                       |
-| ----------------------------------------------------- | --------------------------------------------------------- |
-| `roms/<system>/`                                      | Where ROMs land; folder names come from `es_systems.cfg`  |
-| `roms/<system>/gamelist.xml`                          | Metadata ES reads directly                                |
-| `roms/<system>/images`, `videos`, `manuals`           | Media siblings ES expects (per the RetroBat wiki)         |
-| `saves/`                                              | Emulator save output                                      |
-| `bios/`                                               | BIOS/firmware, flat at the root with few exceptions       |
-| `emulationstation/.emulationstation/scripts/<event>/` | ES event hooks; RetroBat already drives these with `.bat` |
-| `system/es_menu/*.menu`                               | How RetroBat registers launchable apps in the ES menu     |
+| Seam                                                  | Use                                                                           |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `roms/<system>/`                                      | Where ROMs land; folder names come from `es_systems.cfg`                      |
+| `roms/<system>/gamelist.xml`                          | Metadata ES reads directly                                                    |
+| `roms/<system>/images`, `videos`, `manuals`           | Media siblings ES expects (per the RetroBat wiki)                             |
+| `saves/`                                              | Emulator save output                                                          |
+| `bios/`                                               | BIOS/firmware, flat at the root with few exceptions                           |
+| `emulationstation/.emulationstation/scripts/<event>/` | ES event hooks. RetroBat drives these with `.bat`; RomMBat must use an `.exe` |
+| `system/es_menu/*.menu`                               | How RetroBat registers launchable apps in the ES menu                         |
 
 ES events include `start`, `game-start`, `game-end`, `game-selected`, `system-selected`,
 `quit`, `shutdown`, `sleep`, `wake`, `update-gamelists`. RetroBat ships
 `.emulationstation/scripts/start/updatestores.bat` and
 `.emulationstation/scripts/update-gamelists/updatestores.bat`, which proves the `.bat`
-path works.
+path works **for a script that takes no arguments**. It does not generalise: M0 measured a
+`.bat` failing to start at all once ES quotes an argument, which it does for any value
+containing a space. Nine event folders exist on disk; `game-selected` and `system-selected`
+fire (ES logs them on every navigation move, with system, rom path and display name) but
+ship no folder.
 
 RetroBat's **Content Downloader is not an extension point.** It is an XML feed of
 `<repository><name/><url/></repository>` pointing at static content packages with no
@@ -286,7 +313,7 @@ Suggested skills, mirroring how RomM splits its own:
   `rom_ids`, save slots, the server renaming uploads), and how to regenerate from
   `/openapi.json`.
 - `retrobat-layout` - the folder tree, `es_systems.cfg`, `es_savestates.cfg`,
-  `es_settings.cfg` precedence, hook `.bat` conventions, and the rule that RetroBat
+  `es_settings.cfg` precedence, hook conventions, and the rule that RetroBat
   options are written, never emulator INIs.
 - `platform-mapping` - the slug divergence, the layered resolution chain, how to add or
   correct a mapping.
@@ -325,10 +352,17 @@ there and does not need to: point the client at an existing instance over the LA
 ### Version compatibility is declared, checked, and visible
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Start at
-**RetroBat 8.2** (current: `build.ini` carries `retrobat_version=8.2.0`) and **RomM 5.1.0**.
+**RetroBat 8.2** and **RomM 5.1.0**.
 
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
-  RetroBat version from `build.ini` in the tree.
+  RetroBat version from **`system/version.info`** in the tree.
+- **There is no `build.ini`.** M0 confirmed it does not exist anywhere in a RetroBat 8.2
+  tree. `system/version.info` is a single line carrying a channel and architecture suffix,
+  `8.2.0-stable-win64`, so it is not a bare semantic version and must be split on `-`
+  before comparison.
+- **Both version strings can carry prerelease suffixes.** The instance M0 measured against
+  reported `5.1.1-beta.1`. A comparison that assumes three numeric components will throw on
+  real-world values from either side.
 - Below minimum: refuse with a clear message naming both versions. Above but untested:
   warn and continue.
 - Gate features on version rather than assuming, so a newer RomM adding a field does not
@@ -344,8 +378,44 @@ Every RomMBat release states the minimum RomM and RetroBat versions it supports.
 
 ## M0: spike first, before writing the app
 
-Seven experiments on a real RetroBat install. Each can reshape a later milestone. Record
-findings in `docs/retrobat-findings.md`.
+Seven experiments on a real RetroBat install. Each can reshape a later milestone. Findings
+are recorded in **[retrobat-findings.md](retrobat-findings.md)**, which is the source of
+truth for every measured number and supersedes any figure quoted elsewhere in this plan.
+
+**Status: all seven answered**, measured against RetroBat 8.2.0-stable-win64 and RomM
+5.1.1-beta.1, and the second host's hook failure is resolved. What is left is blocked on
+hardware, not effort: `bizhawk` needs a gamepad attached, and `bigpemu` and `openmsx` need
+Jaguar and MSX roms. Findings amended this document in thirty-six places;
+the amendments are inline below and in the sections they affect, and the findings document
+carries the full contradiction table. Reproduce any of it with the scripts in
+`tools/m0-probes/`.
+
+The six results that moved the design most:
+
+- **A hook must be an `.exe`, and this is the big one.** ES fires every event and logs
+  `executing:` for every script in the folder, but neither scripted form survives an ordinary
+  filename. A `.bat` never starts once any argument is quoted, because the `batfile`
+  association is `cmd /c "%1" %*` and cmd's quote-stripping rule mangles the line; one space
+  anywhere is enough. A `.ps1` never starts once the name contains a parenthesis, because ES
+  builds `powershell <script> <args>` with no `-File`, making it an implicit `-Command` that
+  reparses the tail as code. An `.exe` hook receives all three arguments intact on a real
+  No-Intro name. So `game-start` is usable, the earlier "ES never fires it" reading was
+  wrong, and RomMBat's hooks ship as the agent exe rather than as `.bat` files.
+- **Hooks do not block game launch.** `emulatorLauncher` started 30 ms after the
+  `game-start` hook fired, three times out of three, while that hook still had 8 seconds of
+  deliberate sleep ahead of it. The hook path is not latency-constrained. It _is_
+  concurrency-constrained: hooks overlap freely, and three `game-end` hooks were observed in
+  flight at once.
+- **The install location is forced.** `.menu` executable paths resolve under `emulators\`
+  and `..\` escapes are refused, so RomMBat lives at `emulators/rommbat/`, not `plugins/`.
+- **An unreachable LAN host takes 21 seconds to fail** and a default `HttpClient` inherits
+  every millisecond of it, so `ConnectTimeout` must be set explicitly everywhere.
+- **The gamelist ceiling is a fiction.** ES loads 100,000 entries in 2.07 s for 419 MB, so
+  the per-system cap M4 enforces is about what a person can navigate with a gamepad, not
+  about what ES can parse.
+- **exFAT is no gentler than FAT32 on timestamps**: 2-second granularity on both, rounded
+  **up**, which stamps a freshly written save as much as 2 seconds in the future. Every
+  mtime comparison and the clock-skew check have to carry that tolerance.
 
 1. **ES script hook arguments on Windows.** Batocera documents `game-start` as `$1` rom
    path, `$2` basename, `$3` system, `$4` emulator, `$5` core, and `game-end` as taking
@@ -353,6 +423,41 @@ findings in `docs/retrobat-findings.md`.
    blocks game launch and for how long**, and whether `game-end` fires on crash and on ES
    exit. Write an echo-to-log `.bat` in each event folder and capture the output. The
    blocking answer sets the hard budget for the hook path.
+
+   **Answered.** Hooks do **not** block: the launcher started 30 ms after the hook fired,
+   three times out of three, against an 8 s hook sleep. RetroBat passes **three** arguments
+   to `game-start`, not five: `$1` absolute rom path, `$2` and `$3` (both `2048` for the
+   game tested, so their identities are still ambiguous), and `$4`/`$5` **empty**. The
+   system, emulator and core are given to `emulatorLauncher` and **withheld from the hook**,
+   which breaks the `{emulator}:{core}:{slot}` slot derivation in M6. `game-end` takes no
+   arguments and **also fires with no preceding `game-start`**, including for ES-menu
+   launches and for launches that failed. Hooks run **concurrently**; three `game-end`
+   hooks were observed in flight simultaneously. Every script in an event folder runs, in
+   alphabetical order, so installing beside `updatestores.bat` works. `game-end` **does**
+   fire when the emulator is killed (exit code 1), within 66 ms, as promptly as on a clean
+   exit.
+
+   **And the finding that reshapes M6, now with its mechanism.** A `.bat` hook does not run
+   for a game whose gamelist `<name>` contains a space, confirmed by crossover. Probe 7b then
+   isolated why, by turning ES's own debug logging on: ES fires the event, resolves the
+   scripts and logs `executing:` for each one, so nothing fails on ES's side of the boundary.
+   The failure is **per interpreter**, and it is reproducible outside EmulationStation:
+
+   | Hook form | Fails when                                    | Mechanism                                                                                                                                          |
+   | --------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `.bat`    | any argument is quoted, so any space anywhere | ShellExecute uses the `batfile` association `cmd /c "%1" %*`, and cmd's quote-stripping rule mangles a line whose arguments carry their own quotes |
+   | `.ps1`    | the name contains `(`, `)` or `,`             | ES builds `powershell <script> <args>` with no `-File`, so it is an implicit `-Command` and PowerShell reparses the tail as code                   |
+   | `.exe`    | not observed to fail                          | no interpreter in the path; arguments arrive through normal `CommandLineToArgvW` splitting                                                         |
+
+   Measured against `Gradius 2 (Japan, Europe) (En) (Wii U Virtual Console).zip`, the worst
+   realistic case: both `.bat` files and the `.ps1` stayed silent, and the `.exe` received
+   `ARGC=3` with every argument intact. **So hooks ship as an exe.** Even so, prefer
+   `emulatorLauncher.log` for the launch facts, since the hook is never told the system,
+   emulator or core, and a `.ps1` that does run receives the display name split across
+   arguments. Filed upstream as
+   [RetroBat-Official/retrobat#249](https://github.com/RetroBat-Official/retrobat/issues/249),
+   which still describes only the `.bat` symptom and understates the scope.
+
 2. **Save file locations and shapes.** Map, per system, where RetroBat's emulators
    actually write saves, and classify each into the four shapes in M6 (one file, several
    files, directory per game, shared container). Produce `data/retrobat/save_directories.json`
@@ -363,29 +468,211 @@ findings in `docs/retrobat-findings.md`.
    folder), that setting `<system>["<rom>"].<key>` in `es_settings.cfg` survives an ES
    restart and is honoured by `emulatorlauncher`, and what Flycast does with Dreamcast
    VMUs, which is the one class-D case still unverified.
+
+   **Answered.** The tree is **`saves/<system>/<emulator>/`**, not `saves/<system>/`,
+   and there are also emulator-named folders at the _top_ level (`saves/dolphin/` beside
+   `saves/gamecube/dolphin-emu/`). **Flycast writes four port-keyed VMU files**
+   (`flycast/vmu/vmu_save_A1.bin` through `D1`), shared by every game, so Dreamcast is class
+   D by default, but `es_features.cfg` declares **`flycast_vmupergame`**, which converts it
+   for **port 1 only**. Two class-D cases missing from the M6 table: megacd's shared
+   `4Mbit_cart.brm` and xbox's `eeprom.bin` + `xbox_hdd.qcow2`. `es_savestates.cfg` is
+   byte-identical to the vendored copy but has four parser traps, including **`libretro`
+   declaring no slot bounds at all** and **`desmume`'s `<image>` being identical to its
+   `<file>`**.
+
+   **And the answer the class-D conversion story depends on: the per-game
+   `es_settings.cfg` override works.** `emulatorlauncher` honours
+   `<system>["<rom filename>"].<key>`, it outranks the system-scoped key, it stays scoped to
+   the one rom, and it survives ES rewriting the file, which ES does only when a setting
+   actually changed that session. Two constraints came with it. **The key must carry the rom
+   extension**: `ports["gong"]` is ignored where `ports["gong.libretro"]` takes effect, and
+   the failure is silent, so build the key from `fs_name`. And **ES prunes any setting whose
+   value equals its own default**, so a key written at its stock value will simply vanish.
+   Custom keys are unaffected; ES preserved a deliberately nonsense one intact.
+
+   **PPSSPP's two state directories are also resolved, and neither is stale.** RetroBat
+   mirrors PPSSPP's native `psp/PPSSPP_STATE/<GAMEID>_<ver>_<slot>.ppst` into the declared
+   `psp/ppsspp/<rom filename>_<slot>.ppst` about 120 ms after each save, while the emulator
+   is still running, and writes a `.txt` sidecar holding the native basename as the mapping
+   between the two schemes. **The ES-facing directory is the authoritative one**: ES passes
+   `-state_slot` and `-state_file` naming it, and the launcher hands that path to the
+   emulator as `--state=`, so a state RomMBat writes there does reach the game. Two
+   consequences: the `.txt` is part of the state and must be synced with it, and **the
+   mirrored `<image>` screenshot is racy** (observed correct, zero-byte, and absent across
+   three saves, because the watcher copies before PPSSPP has finished writing it), so
+   `screenshotFile` must be treated as best-effort.
+
+   **Twelve of the thirteen emulators have now been launched and eleven driven to a real save
+   state.** `libretro`, `ppsspp`, `duckstation`, `pcsx2`, `dolphin`, `flycast` and `gopher64`
+   were already installed; `desmume`, `mupen64`, `jgenesis`, `bizhawk` and `openmsx` were
+   downloaded on demand. Only `bigpemu` resisted: it installs and runs, but its save state is
+   reachable only through a gamepad-driven overlay menu, so its template is unverified.
+   Results:
+   - **The `<file>` template was correct for all eleven.** Filenames can be trusted, with one
+     collision: **DeSmuME's `{{romfilename}}.ds{{slot0}}` also matches its own `.dsv` battery
+     save** if the slot is expanded as a wildcard, so anchor the slot as a single digit.
+   - **BizHawk is the clearest case of the mirroring model.** Natively it writes to
+     `emulators/bizhawk/sstates/<system>/<internal title>.<core>.QuickSave0.State`, **outside
+     the saves tree**, and RetroBat mirrors that into the declared, core-scoped
+     `saves/nes/bizhawk/sstates/NesHawk/<rom filename>.QuickSave0.State` with a `.txt` giving
+     the mapping. Deleting the native copy and relaunching rebuilt it from the ES-facing one.
+     A `.State.rap` sibling stays native-only and does not round-trip.
+   - **Two `<directory>` declarations are wrong.** RetroBat's own launcher writes
+     `Dreamcast.SavestatePath = saves/dreamcast/reicast/states` while the file declares
+     `{{system}}/flycast/sstates`, which exists and stays empty; and **`openmsx` writes to
+     `bios/openmsx/savestates/`**, a different top-level tree from the declared
+     `saves/msx1/openmsx`, which also stayed empty. So `<directory>` must be cross-checked
+     against the emulator's generated config, and an empty declared directory must never be
+     read as "this game has no states".
+   - **The `.txt` sidecar is written unconditionally, not only where naming differs.**
+     `jgenesis` and `desmume` both wrote one containing the rom filename itself, so its
+     presence proves nothing; its content is the mapping and travels with the state.
+   - **`<image>` is absent more often than present**, so `screenshotFile` is best-effort
+     everywhere.
+   - A manual save is mirrored **live**, within about 120 ms; an autosave state appears **at
+     exit**. `libretro` needs no mirroring at all, since RetroArch is pointed straight at the
+     declared path via `savestate_directory`.
+
+   Two obstacles met on the way are design input in their own right. **`bizhawk` installs and
+   then crashes** in `BizhawkGenerator.CreateControllerConfiguration` unless the launcher is
+   passed **`-core`**, because `inputPortNb[core]` is an unguarded dictionary lookup;
+   EmulationStation always supplies one, direct invocation does not, so **anything RomMBat
+   launches must pass `-core`**. And **installing an emulator on demand raises a modal dialog
+   with no title and no timeout** ("The emulator '\<name\>' is not installed. Install now?"),
+   which blocks the launch indefinitely: three launchers were found still waiting on it seven
+   hours later. Anything that launches a game programmatically has to expect both, and must
+   not record a play session for a launch that never happened.
+
+   **Flycast's per-game VMU converts, but not into class A.** With
+   `dreamcast["<rom>.chd"].flycast_vmupergame=1`, `emu.cfg` flips to `PerGameVmu = yes` and a
+   new `flycast/vmu/T40217N_vmu_save_A1.bin` appears live, while the shared
+   `vmu_save_A1.bin` is left untouched. **`T40217N` is the disc's serial, not the rom
+   filename**, so unlike DuckStation's `PerGameFileTitle` this cannot be addressed from
+   `fs_name`; attribution needs the serial or the launch window.
+
+   Also measured, and it changes M6's change-detection: **launching a PS2 game rewrites both
+   shared memory cards without any in-game save**, and a Dreamcast launch rewrites the shared
+   VMU the same way, so mtime cannot decide whether a class-D container needs uploading.
+   Content hashing is mandatory there.
+
 3. **Library refresh.** Determine how to make ES pick up newly added ROMs without a full
    restart, and whether writing `gamelist.xml` while ES is running is safe (ES may
    overwrite on exit). Check the `update-gamelists` hook and the `-updatestores` pattern
    in `emulatorlauncher.exe`.
+
+   **Answered, and the mechanism is not the one this item guesses at.** `-updatestores`
+   drives `batocera-store.exe` and has nothing to do with gamelists; `emulatorLauncher` has
+   no gamelist switch at all, and ES's own CLI is startup-only. **EmulationStation instead
+   runs an HTTP API on `127.0.0.1:1234`**, and `GET /reloadgames` makes it rescan roms and
+   re-read gamelists live. It works with `PublicWebAccess` at its default, because that
+   setting gates only non-local callers, so **no user configuration change is needed**.
+   Also available: `/systems`, `/systems/<system>/games`, `/caps` (version), `/quit`,
+   `/emukill`, `POST /launch`.
+
+   Writing `gamelist.xml` under a running ES is **safe if followed by `/reloadgames`**. ES
+   holds a stale in-memory model (proven: a rename on disk was invisible until reload) and
+   rewrites the file on exit, merging in place rather than regenerating, so comments and
+   element order survive. Write then reload and the edit persists; write without reloading
+   and ES's stale model would land on top.
+
 4. **Install discovery and app registration, portable-first.** Confirm that walking up
    from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`,
    `roms/`) reliably locates the root on both a portable and a fixed install, and find
    the idiomatic place inside the tree for a third-party tool to live. Confirm the
    minimum viable `system/es_menu/*.menu` entry, and whether it tolerates a **relative**
    executable path. Confirm the `%~dp0..\..\..\` pattern works from a hook `.bat`.
+
+   **Answered, and it changed the layout.** A `.menu` executable path is **required** to be
+   relative, is resolved under **`emulators\`**, and `..\` escapes are **refused**
+   (`[Generator] Failed. path is null`, exit 204). So RomMBat installs to
+   `emulators/rommbat/`, not `plugins/rommbat/`. The launched process gets its own directory
+   as CWD, and `.bat` targets work as well as `.exe`. A "minimum viable" entry is **two**
+   files: the `.menu` plus a `<game>` element in `system/es_menu/gamelist.xml`, because
+   `es_menu` is an ordinary ES system whose roms are `.menu` files, parsed by
+   `emulatorLauncher` rather than by ES. The `%~dp0` pattern works but needs **four** levels
+   to reach the root, not three. Root markers confirmed present: `retrobat.ini`,
+   `emulationstation/`, `roms/`, `saves/`, `bios/`, `system/`, `emulators/`, `user/`. No
+   `build.ini`.
+
 5. **Scale probe.** Point the client at the largest available RomM instance and measure:
    `GET /api/roms` page latency with the sidecar flags off versus on, the size of a
    `GET /api/collections` response, and how large a `gamelist.xml` EmulationStation can
    load before browsing degrades. These numbers set the default page size, the sync-set
    warning thresholds, and the per-system gamelist cap.
+
+   **Answered** against an 83,131 rom library. There are **four** default-on sidecar
+   flags, not three, and they are a **flat ~841 KB resent on every page** rather than a
+   per-page cost, dominated by `with_rom_id_index` (582 KB) and `with_filter_values`
+   (280 KB). Server time is unaffected, so fetch them once and disable them thereafter.
+   Default page size **250 with sidecars off**; a full walk of 83k roms then takes about
+   14 minutes, so incremental sync via `updated_after` is the normal path. A **single**
+   `GET /api/collections` entry returned **715 KB**, 99% of it two inlined arrays of
+   cover-art paths at two sizes, one per member rom, with no pagination available.
+
+   **And the gamelist ceiling is not where this plan feared it was.** A synthetic
+   **100,000-entry** gamelist (65 MB) in one system loads in **2.07 s** from a cold ES start
+   and costs **419 MB** of working set, against 1.67 s and 211 MB for a 200-entry floor:
+   roughly **2 MB per 1,000 entries**, with startup essentially flat to 25k. Repeating it
+   with a real image file per entry cost **0.9 s more and no extra memory**, so ES decodes
+   artwork lazily while browsing. `GET /reloadgames` answers in 1-2 ms and does the work
+   afterwards; the change is visible **1.1 s** later at 100k. **So the per-system gamelist
+   cap is a gamepad-navigability decision, not a technical ceiling**, and the claim under
+   core principle 2 that a 100k gamelist "would make EmulationStation unusable" is withdrawn.
+   What this does not measure is on-screen scroll smoothness, which ES exposes no way to read.
+
 6. **Offline behaviour of the host.** Confirm what happens to a running sync when Wi-Fi
    drops mid-download, and how long a `GET /api/heartbeat` to an unreachable LAN address
    takes to fail. That timeout is the budget for every reachability check in the UI.
+
+   **Answered.** An absent host on the local subnet takes **21 seconds** to fail, every
+   time, and a default `HttpClient` inherits all of it.
+   `SocketsHttpHandler.ConnectTimeout` caps it precisely; **2 s is the recommended
+   interactive budget**, against a measured 39 ms connect to a healthy instance.
+   `HttpClient.Timeout` is the wrong lever because it bounds the body too. A timeout and a
+   user cancellation both surface as `TaskCanceledException` and differ only in the inner
+   exception, so naive `catch (TaskCanceledException)` mislabels every offline server as a
+   user action. Downloads **are** resumable: `Accept-Ranges`, `ETag`, correct `If-Range`
+   handling (a stale validator returns a full 200 rather than a corrupt splice), and a
+   kill-and-resume produced a byte-identical file.
+
 7. **Portable move test.** Install to a USB drive, pair, sync a couple of games, then
    change the drive letter and plug the drive into a second machine. Nothing may break:
    not root discovery, not the local file index, not the ES menu entry, not the hooks,
    not the device identity. Record the drive's filesystem and its mtime granularity, and
    note whether RetroBat itself stores any absolute paths that would constrain us.
+
+   **Passed, after a rerun.** The stick went G: to D: (second PC, different Windows user) to K:. Root
+   discovery, launching, and writes back to the stick all worked on the second machine and
+   after every letter change. RetroBat's live config holds **no absolute paths at all**: of
+   5,636 config files, only 9 contain one, and every one is either MAME software-list
+   metadata or a stale developer path baked into a `system/templates/` file that
+   `emulatorlauncher` regenerates anyway (`F:\RetroBat-Wip\...` being the giveaway).
+
+   **No hook produced any output on the second machine at first**, not even `start`, while ES
+   demonstrably ran and rewrote a gamelist there. The rerun with three hook forms installed
+   side by side explains it: **that host cannot launch a `.bat` or a `.ps1`, only an `.exe`**.
+   All four events fired there and the exe recorded every one, while neither script form
+   produced anything, including for the three events that pass no arguments. Every hook was a
+   `.bat` on the first visit, hence total silence. `--home` was passed correctly and the
+   volume was writable, so neither of those explains it. **Both causes are named and neither
+   is security software**: Notepad++'s installer had replaced the `batfile` association
+   (`HKCR\.bat` = `Notepad++_file`), and the PowerShell execution policy is the default
+   `Restricted`. Defender, AppLocker and removable-media policy are all clean there, and an
+   unsigned exe ran from the stick under Smart App Control. **This is the strongest single
+   argument for shipping hooks as executables**, and "the hooks may simply not run here"
+   remains a state RomMBat must detect and report.
+
+   **The filesystem constraints were measured separately**, on a second stick formatted
+   FAT32 then exFAT, since the RetroBat stick is NTFS. Three results, and two of them change
+   the design. **FAT32's 4 GB ceiling reports itself as `ERROR_DISK_FULL`, "There is not
+   enough space on the disk", on a volume with 14.6 GB free**, so that message must never
+   reach the user and the check has to be a pre-flight against `fs_size_bytes`. **exFAT
+   stores modification times exactly as coarsely as FAT32, 2 seconds**, despite its format
+   allowing 10 ms, so the two are interchangeable for timestamp purposes. And **the rounding
+   is up**: six files written across 1.7 s all carried one identical mtime, and every one of
+   them was stamped **later than the clock that wrote it**, by up to 2 seconds. The FAT
+   local-time DST hazard did **not** appear: local time round-tripped exactly in both winter
+   and summer, with UTC converted using the offset in force on that date.
 
 ---
 
@@ -687,6 +974,13 @@ cleanly.
 - **Merge, never clobber.** ES writes user edits (favourite, playcount, lastplayed,
   hidden) back into the same file. Read the existing gamelist, update only the fields
   RomMBat owns, preserve the rest, and write atomically via temp file plus rename.
+- **Then call `GET http://127.0.0.1:1234/reloadgames`.** M0 measured that ES holds a stale
+  in-memory model until asked to reload, and rewrites `gamelist.xml` from that model on
+  exit. Write-then-reload makes the edit stick **and** shows it immediately without a
+  restart; writing without reloading risks ES serialising its stale copy over the top. ES
+  merges in place rather than regenerating, so comments and element order survive, and it
+  writes no `<game>` entry for a rom it has no metadata for. The API answers only while ES
+  runs, so give the call a short timeout and carry on if it fails.
 - Generating the gamelist client-side is correct here. RomM's
   `POST /api/export/gamelist-xml` writes into the _server's_ library folders, which is a
   different machine.
@@ -745,10 +1039,66 @@ failing silently at launch, and BIOS is fetched before that platform's ROMs.
 The milestone with the most protocol nuance. Read `backend/endpoints/sync.py` and
 `backend/endpoints/saves.py` before writing code.
 
-- **The hooks are journal-only.** `game-start` appends a start record;
-  `game-end` closes it. No HTTP, no blocking, no waiting on a lock. Budget from M0
-  experiment 1. The hooks resolve the agent through `%~dp0..\..\..\`, never an absolute
-  path, so they keep working when the drive letter changes.
+- **The hooks are journal-only.** `game-start` appends a start record; `game-end` closes it.
+  No HTTP, no waiting on a lock.
+
+  **M0 changed the reason, not the rule.** Hooks do **not** block game launch: ES spawns
+  event scripts fire-and-forget and `emulatorLauncher` started 30 ms after the hook fired,
+  three times out of three, against a deliberate 8 second hook sleep. So the constraint is
+  not latency. It is **concurrency**: hooks overlap freely, and three `game-end` hooks were
+  observed in flight at once, interleaving their writes to the same file. The journal must
+  therefore survive interleaved appends from separate processes, and the lock file below is
+  mandatory rather than defensive.
+
+  The hooks resolve the agent relative to their own location, never an absolute path, so
+  they keep working when the drive letter changes. Mind the depth: three levels reaches
+  `emulationstation/`, so the agent at `emulators/rommbat/` is four levels up plus
+  `emulators\rommbat\`. An exe hook takes that from its own module path, which ES sets as
+  the working directory too, though nothing should depend on the working directory: a `.bat`
+  hook is given its own folder as CWD while a `.ps1` hook is given ES's home.
+
+- **`game-end` cannot identify its game, and may not have one.** It receives **zero**
+  arguments, so it can only be paired with the preceding `game-start` in the journal. It
+  also fires **without** a preceding `game-start`: ES-menu launches produce one, and so do
+  launches that fail outright. **RomMBat's own exit will fire `game-end`**, since it is
+  launched from that menu. An orphan `game-end` must be discarded, not attributed to
+  whatever ran last.
+- **`game-start` works, but only for an `.exe` hook.** M0 first read this as "ES never fires
+  `game-start` for a game whose `<name>` contains a space". ES's own debug log refutes that:
+  it fires the event and logs `executing:` for every script. What fails is the handoff to an
+  interpreter, and it fails for `.bat` on any quoted argument and for `.ps1` on any
+  parenthesis, both reproducible outside ES. An `.exe` hook received a full No-Intro name as
+  three intact arguments. So the journal may open on `game-start` provided the hook is the
+  agent exe. `game-end` is unaffected in every form and fires reliably, including on crashes.
+- **Source the launch facts from `emulationstation/emulatorLauncher.log` instead.** It is
+  written on every launch, timestamped to the millisecond, and is the only durable in-tree
+  source that carries the rom path **together with** `-system`, `-emulator` and `-core`,
+  which the hook withholds in any case (`$4` and `$5` arrive empty). That single source
+  solves both problems at once. Measured on a real install at **268 KB for 5 weeks and 70
+  launches**, with a two-file rotation (`emulatorLauncher.log` plus `.log.old`), so the
+  parser must read both and tolerate a rotation between reads.
+
+  Design the journal as: **`game-end` is the trigger, `emulatorLauncher.log` is the data.**
+  That holds even though an exe `game-start` hook is reliable, because the hook is never told
+  the system, emulator or core, and because `game-end` fires in cases that have no
+  `game-start` at all. Use `game-start` to open the record and to corroborate, not as the
+  source of truth.
+
+  The hook's argument signature is `$1` absolute rom path, `$2` rom basename, `$3` gamelist
+  display name, and an exe hook receives all three intact. Batocera documents `$3` as the
+  system; that is wrong for RetroBat, and the system is not passed at all.
+
+- **Do not assume the hooks run on every host.** In the M0 portable-move test the tree worked
+  perfectly on a second machine while **no hook produced anything**. The rerun found the
+  reason: that host cannot launch a `.bat`, because Notepad++'s installer took the `batfile`
+  association, nor a `.ps1`, because the execution policy is the default `Restricted`. Every
+  hook was a `.bat` at the time. An exe hook fires all four events there. How often this
+  happens is unknown and not worth guessing from one machine in a sample of two; what matters
+  is that **both failures are completely silent**, so when hooks produce nothing, check the
+  association and the execution policy before concluding the events did not fire. Ship
+  executables, and still
+  write a heartbeat from the `start` hook, notice when play data exists with no corresponding
+  hook activity, and report that state instead of silently losing every play session.
 - **The flush has no daemon to live in.** A portable install cannot register a service or
   a scheduled task, so the outbox is flushed by a short-lived agent process invoked from
   the `start`, `game-end` and `quit` hooks, and by the UI while it runs. Design for
@@ -809,7 +1159,23 @@ Two cautions. RetroBat's own wiki carries a danger notice that states "will brea
 emulator is updated", so record the emulator, core and version alongside every state and
 never restore one produced by a different version onto a machine silently. And the
 `libretro` entry's directory is core-scoped (`{{system}}/libretro.{{core}}`), so the same
-game has independent state sets per core.
+game has independent state sets per core. RetroArch confirms this itself at launch:
+`[Override] Redirecting save state to "...\saves\megadrive\libretro.genesis_plus_gx\<rom>.state"`.
+
+**M0 parsed the shipped file and found four traps a parser written from the description
+above would hit.** The live file is byte-identical to the vendored copy, and defines 13
+emulators, which bounds state-sync coverage to those 13 rather than to the 244 declared
+systems.
+
+| Emulator   | Trap                                                                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `libretro` | **Declares no `firstslot`/`lastslot` at all**, so "it yields the slot bounds" is false for the single most important entry. A default is required |
+| `desmume`  | **`<image>` and `<file>` are the identical template**, so uploading `<image>` as `screenshotFile` would upload the state itself                   |
+| `bigpemu`  | `firstslot="001"` is a zero-padded string, and `lastslot="999"` needs three digits while the template uses two-digit `{{slot2d}}`                 |
+| `bizhawk`  | **Also core-scoped** (`{{system}}/bizhawk/sstates/{{core}}`), not just `libretro`                                                                 |
+
+A commented-out `<core name="..." enabled="false"/>` mechanism ships disabled; the parser
+must tolerate `<core>` children appearing, since a user can enable them.
 
 **Battery and internal saves are the hard half.** Classify each platform, store it in
 `data/retrobat/save_shapes.json` next to the save-directory map, and handle per class:
@@ -819,23 +1185,78 @@ game has independent state sets per core.
 | A     | One file per game                  | RetroArch `.srm`/`.sav`/`.eep`, most standalone                                                                                       | Direct 1:1 map to a `Save`. Slot `{emulator}:battery`                                                              |
 | B     | Several files per game             | `.srm` + `.rtc`, ScummVM `.s00`…`.s99`                                                                                                | Either one slot per file, or bundle as class C. Prefer per-file slots when the set is small and stable             |
 | C     | Directory per game                 | PPSSPP `PSP/SAVEDATA/<GAMEID>/`, RPCS3 `savedata/<TITLEID>/`, Cemu, Citra, Wii NAND `title/00010000/<id>/data/`, MAME `nvram/<game>/` | Bundle to a single archive, following `grout/sync/zip_save.go`, which already handles the multi-directory PSP case |
-| D     | One container shared by many games | PCSX2 `Mcd001.ps2` (default), Dreamcast VMU                                                                                           | Convert to per-game via a RetroBat option. See below                                                               |
+| D     | One container shared by many games | PCSX2 `Mcd001.ps2` (default), Dreamcast VMU, **megacd `4Mbit_cart.brm`**, **xbox `eeprom.bin` + `xbox_hdd.qcow2`**                    | Convert to per-game via a RetroBat option where one exists. See below                                              |
+
+**The save tree is two levels deep, not one.** M0 inventoried a real install: saves live at
+**`saves/<system>/<emulator>/`**, and only libretro battery saves land loose at
+`saves/<system>/*.srm`. There are also **emulator-named folders at the top level**
+(`saves/dolphin/`, `saves/mesen/`, `saves/psxmame/`, `saves/amiga/`) sitting beside the
+system folders, so `saves/dolphin/User/GC/SRAM.USA.raw` and
+`saves/gamecube/dolphin-emu/User/GC/` coexist. Any path parser that assumes the first
+segment is a system name will mis-attribute these. `data/retrobat/save_directories.json`
+has to model both levels.
+
+Two shapes observed that the table above did not predict: **saturn writes `.bcr` _and_
+`.bkr` per game** (class B), and **megacd is B and D simultaneously**, with per-game `.brm`
+plus `.srm` alongside a shared 512 KB `4Mbit_cart.brm`. **MAME is the friendly class C
+case**: `saves/mame/nvram/<shortname>/` across 1231 directories, where the short name _is_
+the rom basename, so attribution needs no Game ID lookup at all. **RPCS3 is the hostile
+one**: 32,451 files under `saves/ps3/rpcs3/`, which makes any recursive content hash a real
+performance problem.
 
 **Class D is a configuration problem, and RetroBat already has the switch.** A shared
 memory card holds saves for twenty games, so it cannot be attributed to a `rom_id`. But
 the emulators all support per-game virtual memory cards, and RetroBat exposes each as an
 option that `emulatorlauncher` reads at launch:
 
-| Emulator           | Option                    | Default                            | Per-game result                                                               |
-| ------------------ | ------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| DuckStation (PS1)  | `duckstation_memcardtype` | **already `PerGameTitle`**         | one `.mcd` per game under `saves/<system>/duckstation/memcards/`              |
-| Dolphin (GameCube) | `dolphin_slotA`           | **already GCI folder** (`SlotA=8`) | individual `.gci` files under `GCIFolderAPath`                                |
-| PCSX2 (PS2)        | `pcsx2_slot1_memory`      | shared `Mcd001.ps2`                | `game` names the card after the ROM basename; `folder` gives a folder memcard |
+M0 read the real option definitions out of `es_features.cfg`. All four exist, and the
+choice lists are wider than the plan assumed:
+
+| Emulator            | Option                    | Choices in `es_features.cfg`                                | Set it to              | Why                                                                      |
+| ------------------- | ------------------------- | ----------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------ |
+| DuckStation (PS1)   | `duckstation_memcardtype` | `PerGameTitle`, `Shared`, **`PerGameFileTitle`**, `PerGame` | **`PerGameFileTitle`** | names the card after the **rom file**, which is what RomMBat matches on  |
+| PCSX2 (PS2)         | `pcsx2_slot1_memory`      | `standard`, `folder`, **`game`**                            | **`game`**             | names the card after the rom basename                                    |
+| Dolphin (GameCube)  | `dolphin_slotA`           | **`8`** (GCI folder), `1` (memory card)                     | **`8`**                | already the stock default                                                |
+| Flycast (Dreamcast) | `flycast_vmupergame`      | switch (`switchauto`, so unset by default)                  | **on**                 | per-game VMU, **port 1 only**, and keyed by **disc serial** not filename |
+
+**Prefer `PerGameFileTitle` over `PerGameTitle` for DuckStation.** The plan previously
+treated the stock `PerGameTitle` as sufficient. It is not the best choice: `PerGameTitle`
+names the card after DuckStation's _internal database title_, which need not match the rom
+filename, while `PerGameFileTitle` names it after the file. Filename-keyed cards collapse
+class D straight into ordinary class-A attribution; title-keyed cards do not.
+
+**Watch out for `dolphin_sync_saves`**, also in `es_features.cfg`: "RetroBat will sync
+dolphin and libretro-dolphin saves folders." That is RetroBat moving save files between two
+locations behind our back. Detect it and account for it before treating either location as
+authoritative.
 
 So PS1 and GameCube are **already per-game in a stock RetroBat**, and the class-D list is
 much shorter than it first appears. PS2 needs one option flipped. The earlier framing of
 "detect and steer the user" understated what is achievable: RomMBat can make these
 platforms syncable itself.
+
+**M0 qualified both of those claims.**
+
+- **PS1 is only per-game when DuckStation is the selected emulator.** The install measured
+  runs libretro for `psx` and writes plain `saves/psx/*.srm`, which is class A and fine, but
+  it is a different code path from the DuckStation memcard one. The emulator choice per
+  system decides which shape applies, so shape is a property of `(system, emulator)`, not of
+  the system alone.
+- **Flycast's per-game VMU is keyed by the disc serial, not the rom file.** M0 drove it:
+  with the option on, `emu.cfg` flips to `PerGameVmu = yes` and Bangai-O produces
+  `saves/dreamcast/flycast/vmu/T40217N_vmu_save_A1.bin` while the shared `vmu_save_A1.bin`
+  goes untouched. `T40217N` is the disc's product number; `Bangai-O (USA).chd` appears
+  nowhere in the path. **So Dreamcast does not collapse into class A the way DuckStation
+  does** - the key cannot be built from `fs_name`, and attribution needs either the serial
+  read out of the image or the launch window from `emulatorLauncher.log`. Per-game and
+  shared VMUs also share one directory, so both shapes are present at once.
+- **GameCube's GCI folder is per-game but messier than 1:1.** Observed:
+  `saves/gamecube/dolphin-emu/User/GC/USA/01-GALE-SuperSmashBros0110290334.gci`. There is a
+  **region subdirectory** in the path, **one game can produce several `.gci` files**
+  (`69-GXBE-game1.ssx.gci` and `69-GXBE-settings.ssx.gci`), and Dolphin **soft-deletes with
+  a `.gci.deleted` suffix** that must be excluded or it syncs as a live save. Naming is
+  `<makercode>-<gamecode>-<internal name>.gci`, keyed by game code, so the attribution route
+  below is still required.
 
 **Set the RetroBat option, never the emulator INI.** `emulatorlauncher` regenerates each
 emulator's config from these options on every launch (`Duckstation.Generator.cs`,
@@ -852,12 +1273,26 @@ Writing `ps2["Game (USA).iso"].pcsx2_slot1_memory = game` makes PCSX2 use a card
 after the ROM, and PCSX2's per-game naming then makes attribution trivial: the card is
 named after the ROM file, so ordinary class-A filename matching works.
 
-Four things to keep honest about this:
+**M0 measured this rather than assuming it** (`tools/m0-probes/probe2-per-game-override.ps1`).
+The per-game key is honoured by `emulatorlauncher`, outranks the system-scoped key, and
+affects only its own ROM. **The key must include the ROM's extension**, exactly as written
+above: the same option under a bare stem is ignored, and it is ignored silently, with the
+emulator launching normally and continuing to write to the shared container. Build the key
+from RomM's `fs_name`.
+
+Five things to keep honest about this:
 
 - **It mutates the user's RetroBat configuration**, so it is opt-in, explained, and
   reversible. Never flip it silently.
 - **ES owns `es_settings.cfg` and rewrites it on exit**, the same hazard as `gamelist.xml`
-  in M4. Merge rather than clobber, write while ES is idle, and write atomically.
+  in M4. Merge rather than clobber, write while ES is idle, and write atomically. M0
+  narrowed this: ES only writes the file when a setting **changed** that session, and when
+  it does, it preserves keys it does not recognise, so the override itself is durable. The
+  hazard is ordinary two-writer contention, not ES eating the key.
+- **ES prunes any setting whose value equals its own default.** An entry written at the
+  stock value disappears on the next rewrite (`Language=en_US` vanished, `fr_FR` survived).
+  Custom keys have no default to match and are kept. Never read a missing entry as evidence
+  the user reverted something.
 - **Switching modes strands existing saves** inside the old shared container, where the
   game will no longer look for them. Either migrate (parse the container and extract the
   per-game saves) or refuse to switch until the user has been warned clearly. Migration is
@@ -867,7 +1302,28 @@ Four things to keep honest about this:
   so where the option is offered.
 
 Dolphin's `.gci` files are named by game code rather than ROM filename, so those still need
-the attribution route below. Dreamcast VMU handling is unverified and is an M0 item.
+the attribution route below.
+
+**Dreamcast VMU is no longer unverified, and it does convert.** By default Flycast writes
+four files keyed by **controller port**, not by game:
+
+```text
+saves/dreamcast/flycast/vmu/vmu_save_A1.bin   (also B1, C1, D1)
+```
+
+Every game shares them and nothing in the path identifies a game. But `es_features.cfg`
+declares **`flycast_vmupergame`**: "PER GAME VMU. When enabled, each game will have its own
+VMU **in port 1**." So Dreamcast joins the convertible set rather than the unsyncable one,
+with the caveat that **only port 1 becomes per-game**; ports B, C and D stay shared and
+remain unattributable.
+
+M0 then drove the option, and the conversion is real but lands one bucket lower than hoped.
+The new file is **`T40217N_vmu_save_A1.bin`**, named for the disc's product number rather
+than for `Bangai-O (USA).chd`, and it appears in the same directory as the shared files
+while those go untouched. **So a converted Dreamcast VMU is Game-ID-keyed, exactly like the
+class-C cases**, and it needs the attribution routes immediately below rather than the
+filename match that DuckStation's `PerGameFileTitle` allows. Detecting the conversion is
+easy at least: the shared file stops being written and a serial-prefixed sibling appears.
 
 Whatever remains genuinely shared after all this is reported as "not syncable, here is
 why" rather than silently ignored.
@@ -905,8 +1361,9 @@ previous copy aside until the next successful sync.
 - Optionally `PUT /api/roms/{id}/props?update_last_played=true`. Note there is no
   `is_favorite` and no `playtime` field on rom props; favourites are collection
   membership, and playtime lives entirely in play sessions.
-- Install the hook `.bat` files idempotently, appending to any existing scripts rather
-  than replacing them, and uninstall cleanly.
+- Install the hook executables idempotently, adding a file beside any existing scripts
+  rather than replacing them, and uninstall cleanly. They are `.exe`, not `.bat`: M0
+  measured both scripted forms failing to start on ordinary rom names.
 
 **Done when:** with the server unplugged, play three games, exit, plug back in, and all
 three saves plus all three play sessions land in RomM in one flush; then play the same
@@ -1136,8 +1593,9 @@ Paste this into Claude Code from an empty directory:
 >    logs, outbox, device identity. No `%APPDATA%`, no registry, no service, no scheduled
 >    task, no admin rights. **Never persist an absolute path**; store paths relative to
 >    the RetroBat root and resolve at point of use. Locate the root by walking up from
->    `AppContext.BaseDirectory` to a marker file, and have the ES hook `.bat` files use
->    `%~dp0..\..\..\` the way RetroBat's own `updatestores.bat` does. Do not use DPAPI for
+>    `AppContext.BaseDirectory` to a marker file, and have the ES hook executables resolve
+>    relatively the way RetroBat's own `updatestores.bat` does, remembering that reaching
+>    the root from a hook takes four levels, not three. Do not use DPAPI for
 >    the token; it binds ciphertext to one machine or user profile and would make the
 >    drive undecryptable on the next PC. Assume the filesystem may be exFAT or FAT32,
 >    which means a hard 4 GB file ceiling on FAT32 and coarser mtimes than NTFS, so

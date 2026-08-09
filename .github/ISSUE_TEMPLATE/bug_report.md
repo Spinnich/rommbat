@@ -29,7 +29,7 @@ If applicable, add screenshots to help explain your problem.
 **Versions**
 
 - RomMBat version:
-- RetroBat version (from `retrobat.ini` / `build.ini`):
+- RetroBat version (from `system/version.info`):
 - RomM version (from the RomM web UI footer, or `GET /api/heartbeat`):
 - Windows version:
 
@@ -46,7 +46,7 @@ The RetroBat system folder involved, if any (`snes`, `ps2`, `mame`, ...), and th
 RomM platform slug it was synced from.
 
 **Logs**
-Attach `plugins/rommbat/logs/` from your RetroBat tree if you can.
+Attach `emulators/rommbat/logs/` from your RetroBat tree if you can.
 Redact your RomM server URL and never paste an `rmm_` token.
 
 **Additional context**

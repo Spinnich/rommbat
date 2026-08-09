@@ -9,16 +9,16 @@ RomMBat integrates purely through seams RetroBat already has. **Do not fork Retr
 
 ## Tree
 
-| Path                                  | Use                                                     |
-| ------------------------------------- | ------------------------------------------------------- | -------- | ---------------------------------------- |
-| `roms/<system>/`                      | ROMs. Folder names come from `es_systems.cfg`           |
-| `roms/<system>/gamelist.xml`          | Metadata ES reads directly                              |
-| `roms/<system>/images                 | videos                                                  | manuals` | Media siblings, named after the ROM file |
-| `saves/`                              | Emulator save output                                    |
-| `bios/`                               | BIOS and firmware, flat at the root with few exceptions |
-| `emulationstation/.emulationstation/` | ES home: `es_settings.cfg`, `scripts/`, themes          |
-| `system/es_menu/*.menu`               | How RetroBat registers launchable apps in the ES menu   |
-| `build.ini`                           | `retrobat_version=`, used for the compatibility gate    |
+| Path                                        | Use                                                     |
+| ------------------------------------------- | ------------------------------------------------------- |
+| `roms/<system>/`                            | ROMs. Folder names come from `es_systems.cfg`           |
+| `roms/<system>/gamelist.xml`                | Metadata ES reads directly                              |
+| `roms/<system>/images`, `videos`, `manuals` | Media siblings, named after the ROM file                |
+| `saves/`                                    | Emulator save output                                    |
+| `bios/`                                     | BIOS and firmware, flat at the root with few exceptions |
+| `emulationstation/.emulationstation/`       | ES home: `es_settings.cfg`, `scripts/`, themes          |
+| `system/es_menu/*.menu`                     | How RetroBat registers launchable apps in the ES menu   |
+| `system/version.info`                       | The version, used for the compatibility gate            |
 
 Locate the root by walking up from `AppContext.BaseDirectory` to a marker
 (`retrobat.ini`, `emulationstation/`, `roms/`). Registry lookups are a fallback for fixed
@@ -47,6 +47,41 @@ Parse it. Never hardcode state paths. `<image>` maps onto RomM's optional `scree
 Note the `libretro` entry is core-scoped (`{{system}}/libretro.{{core}}`), so the same game
 has independent state sets per core.
 
+**Trust `<file>`, verify `<directory>`.** Across the seven installed emulators M0 drove, every
+`<file>` template was correct and one `<directory>` was not: **`flycast` writes
+`dreamcast/reicast/states`, not the declared `dreamcast/flycast/sstates`**, which exists and
+stays empty. RetroBat's own launcher config (`emulators/flycast/emu.cfg`,
+`Dreamcast.SavestatePath`) disagrees with its own `es_savestates.cfg`. So never read an empty
+declared directory as "this game has no states", and cross-check against the emulator's
+generated config where it matters.
+
+**The declared directory is otherwise the one to use even when the emulator writes elsewhere.**
+An emulator may write under its own naming, with RetroBat mirroring into the declared path
+about 120 ms later while the game is still running (PPSSPP:
+`psp/PPSSPP_STATE/<GAMEID>_<ver>_<slot>.ppst` mirrored to
+`psp/ppsspp/<rom filename>_<slot>.ppst`). ES passes the launcher `-state_slot` and
+`-state_file` naming the **declared** path, and the launcher hands it to the emulator, so a
+state written there is loaded. A manual save mirrors live; an autosave state appears only at
+exit. `libretro` needs no mirroring, since RetroArch is pointed at the declared path directly
+via `savestate_directory`.
+
+Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
+unconditionally (some hold nothing but the rom filename), and it belongs with the state. See
+`save-sync` for the unreliable `<image>`.
+
+**A declaration is not an installation.** Six of the thirteen emulators in `es_savestates.cfg`
+had no executable on a real, well-used install: RetroBat downloads emulators on demand. Check
+for the binary before promising state sync for a system.
+
+**And installation is not launchability.** Launching an uninstalled emulator raises a modal
+"install now?" dialog with **no window title and no timeout**, which blocks that launch
+indefinitely; launchers were found still waiting on it seven hours later. And **`bizhawk`
+crashes in `BizhawkGenerator.CreateControllerConfiguration` when the launcher is invoked
+without `-core`** (`inputPortNb[core]` is unguarded), which ES never does but a direct
+invocation easily does, so **always pass `-core` when driving `emulatorLauncher` yourself**.
+Both failures leave the launcher hung or gone with no game started, so detect them from the
+launcher rather than recording a play session that did not happen.
+
 ## es_settings.cfg is how you configure emulators
 
 `emulatorlauncher` regenerates each emulator's INI from ES options at every launch, so
@@ -57,30 +92,92 @@ option instead. Precedence (`emulatorlauncher/Program.cs`):
 es_settings.cfg -> global.<key> -> <system>.<key> -> <system>["<rom filename>"].<key>
 ```
 
-That last form is a real per-game override. Useful keys:
+That last form is a real per-game override, measured in M0: `emulatorlauncher` honours it, it
+outranks the system key, and it affects only its own rom. **Write the rom filename with its
+extension** (`ps2["Game (USA).iso"].pcsx2_slot1_memory`). A bare stem is ignored **silently**,
+so build the key from `fs_name` and never from a stripped name.
 
-| Key                       | Effect                                           | Stock default                  |
-| ------------------------- | ------------------------------------------------ | ------------------------------ |
-| `duckstation_memcardtype` | PS1 memory card mode                             | already `PerGameTitle`         |
-| `dolphin_slotA`           | GameCube slot A device                           | already GCI folder (`SlotA=8`) |
-| `pcsx2_slot1_memory`      | PS2 card: `game` names it after the ROM basename | shared `Mcd001.ps2`            |
+Keys read from the live `es_features.cfg`, with the value RomMBat should set:
 
-**ES rewrites `es_settings.cfg` on exit**, exactly like `gamelist.xml`. Merge rather than
-clobber, write while ES is idle, write atomically. Changing a user's emulator config is
-opt-in and reversible.
+| Key                       | Choices                                                 | Set to                 | Why                                    |
+| ------------------------- | ------------------------------------------------------- | ---------------------- | -------------------------------------- |
+| `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | **`PerGameFileTitle`** | keys the card by **rom filename**      |
+| `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`game`**             | names the card after the rom basename  |
+| `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | **`8`**                | already the stock default              |
+| `flycast_vmupergame`      | switch, unset by default                                | **on**                 | per-game VMU, port 1, **serial-keyed** |
+
+Prefer `PerGameFileTitle` over the stock `PerGameTitle`: the latter keys the card by
+DuckStation's internal database title, which need not match the rom filename RomMBat matches
+on. Also watch `dolphin_sync_saves`, which has RetroBat copying saves between the dolphin and
+libretro-dolphin folders on its own.
+
+**ES rewrites `es_settings.cfg` on exit, but only when a setting changed that session.** A
+start-and-quit, and even a session that launched a game, leave it untouched. When ES does
+rewrite it, it **keeps keys it does not recognise** (a nonsense per-game key survived
+intact), so the override is durable. Still merge rather than clobber, write while ES is idle,
+and write atomically, for the ordinary reason that two writers share the file.
+
+**ES prunes any setting equal to its own default** on that rewrite, so an entry written at
+the stock value disappears. Never read a missing entry as the user having reverted something.
+
+`GET http://127.0.0.1:1234/quit` closes ES cleanly **only when no game is running**. With an
+emulator up, `/quit` and `/emukill` both return 200 and do nothing. Poll for the process to
+exit rather than trusting the response. Changing a user's emulator config is opt-in and
+reversible.
 
 ## Event hooks
 
-`.emulationstation/scripts/<event>/*.bat`. Events include `start`, `game-start`,
-`game-end`, `game-selected`, `system-selected`, `quit`, `shutdown`, `sleep`, `wake`,
-`update-gamelists`. RetroBat ships its own `.bat` hooks, so the mechanism is proven.
+`.emulationstation/scripts/<event>/`. Nine folders ship: `start`, `game-start`, `game-end`,
+`quit`, `shutdown`, `sleep`, `wake`, `update-gamelists`, `reboot`. ES also fires
+`game-selected` and `system-selected` on every navigation move, with no folder for either.
 
-Hooks resolve the agent through `%~dp0..\..\..\`, never an absolute path, matching
-RetroBat's own `updatestores.bat`.
+**Write the hook as an `.exe`, never a `.bat`.** RetroBat's own `updatestores.bat` works only
+because it takes no arguments. M0 measured both scripted forms failing to start on ordinary
+rom names, silently and with no error anywhere:
 
-**Hooks run inside the game-launch path.** They append to the local journal and exit. No
-HTTP, no blocking, no lock waits. Confirm the exact arguments and blocking behaviour
-against `docs/retrobat-findings.md` rather than assuming the Batocera convention.
+| Form   | Fails when                           | Why                                                                                      |
+| ------ | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `.bat` | any argument is quoted, so any space | ShellExecute uses `cmd /c "%1" %*`, whose quote-stripping rule mangles the line          |
+| `.ps1` | the name contains `(`, `)` or `,`    | ES omits `-File`, so it is an implicit `-Command` and PowerShell parses the tail as code |
+| `.exe` | not observed                         | arguments arrive through normal `CommandLineToArgvW` splitting                           |
+
+Hooks resolve the agent relative to their own location, never an absolute path. **Mind the
+depth**: a hook sits at `.emulationstation/scripts/<event>/`, so three levels up lands in
+`emulationstation/` (where `emulatorLauncher.exe` lives) and reaching the RetroBat root takes
+four. The agent is four levels up plus `emulators\rommbat\`. Do not rely on the working
+directory; it differs by hook form.
+
+**M0 measured the hook behaviour; do not assume the Batocera convention.** See
+`docs/retrobat-findings.md` probe 1. The load-bearing results:
+
+- **Hooks do not block game launch.** The launcher starts ~30 ms after the hook fires,
+  regardless of how long the hook runs. They are fire-and-forget.
+- **They do run concurrently**, with each other and across events. Three `game-end` hooks
+  were seen in flight at once, interleaving writes to one file. A lock file is mandatory and
+  the journal must survive interleaved appends from separate processes.
+- **`game-start` fires for every game**, contrary to an earlier reading. It is the `.bat`
+  that never starts when the display name contains a space. An exe hook is unaffected.
+- **Take the launch facts from `emulationstation/emulatorLauncher.log` anyway**, with
+  `game-end` as the trigger. It carries rom path, `-system`, `-emulator` and `-core` with a
+  millisecond timestamp and rotates across two files, and the hook is told none of those
+  three. Open the journal record on `game-start`, but do not source facts from it.
+- **`game-start` gets three arguments, not five**: `$1` absolute rom path, `$2` rom
+  basename, `$3` gamelist display name. `$4` and `$5` are **empty**, so the **system,
+  emulator and core are not available to the hook** even though `emulatorLauncher` receives
+  all three. Batocera documents `$3` as the system; that is wrong here.
+- **ES logs its scripting decisions only at `LogLevel=debug`** in `es_settings.cfg`, and
+  logs `executing:` even for a process that never starts. Useful for diagnosis, not proof
+  of execution.
+- **A host can be unable to run a script at all.** In the M0 portable-move test the tree
+  worked on a second PC while no hook produced anything. Two causes there, both silent:
+  **Notepad++'s installer had taken the `.bat` association** (`HKCR\.bat` = `Notepad++_file`),
+  and the PowerShell execution policy was the default **`Restricted`**. An `.exe` hook fires
+  all four events there. This is the strongest reason the hook is an exe. Detect and report
+  the state anyway; never assume silence means nothing was played.
+- **`game-end` gets none, and fires without a matching `game-start`** for ES-menu launches
+  and for failed launches. RomMBat's own exit produces one. Discard orphans.
+- **Every script in an event folder runs**, alphabetically, so install beside
+  `updatestores.bat` rather than replacing it.
 
 ## gamelist.xml
 
@@ -88,3 +185,39 @@ ES writes user edits (favourite, playcount, lastplayed, hidden) back into the sa
 Merge, never clobber; write atomically via temp file plus rename; include only locally
 present ROMs. **Key generation by resolved folder, not by platform**, because two RomM
 platforms can share one folder.
+
+**After writing, call `GET http://127.0.0.1:1234/reloadgames`.** M0 measured that ES keeps a
+stale in-memory model until asked to reload, and rewrites `gamelist.xml` from that model when
+it exits. Write-then-reload makes the edit stick and takes effect immediately; write without
+reloading and ES can serialise its stale copy over you. ES merges in place rather than
+regenerating, so comments and element order survive, and it writes no `<game>` entry for a
+rom it has no metadata for.
+
+**`/reloadgames` returns in 1-2 ms and does the work afterwards**, so its response is not a
+completion signal. Time to the change being visible was 269 ms for a 200-entry list and
+1.1 s for 100,000. Poll `/systems` (a few KB, carries `totalGames`) rather than
+`/systems/<system>/games`, which serialises the whole library.
+
+**Size is not the constraint you would expect.** ES loaded a 100,000-entry, 65 MB gamelist
+in 2.07 s from a cold start for 419 MB of working set, roughly 2 MB per 1,000 entries, and
+2.93 s with a real image file per entry. Cap a gamelist because nobody can navigate 100,000
+entries with a gamepad, not because ES cannot parse it.
+
+## The EmulationStation HTTP API
+
+ES serves an API on `127.0.0.1:1234` whenever it is running. It works on loopback with the
+`PublicWebAccess` setting untouched, because that setting gates only non-local callers, so
+using it requires no change to the user's configuration.
+
+| Route                     | Method | Use                                                |
+| ------------------------- | ------ | -------------------------------------------------- |
+| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart      |
+| `/systems`                | GET    | Systems as JSON, including `totalGames`            |
+| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`             |
+| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`           |
+| `/quit`                   | GET    | Close ES cleanly, before writing `es_settings.cfg` |
+| `/emukill`                | GET    | Kill the running emulator                          |
+| `/launch`                 | POST   | Launch a game; rom path as the raw body            |
+
+`POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
+answers while ES is running, so every call needs a short timeout and a no-ES fallback.

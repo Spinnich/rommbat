@@ -41,14 +41,27 @@ RetroBat runs from a USB drive and moves between machines.
   of use. A drive letter changing from `E:` to `F:` must be a non-event. There is a build
   check for this; do not defeat it.
 - **Find the root relative to the executable.** Walk up from `AppContext.BaseDirectory` to a
-  marker. Hooks use `%~dp0..\..\..\`.
+  marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no `build.ini`; the version
+  lives in `system/version.info`. From a hook, `%~dp0..\..\..\` reaches `emulationstation/`
+  and the **root needs a fourth level**, `%~dp0..\..\..\..\`.
+- **The app installs at `emulators/rommbat/`, not `plugins/`.** M0 measured this: a
+  `system/es_menu/*.menu` entry resolves its executable under `emulators\` and
+  `emulatorLauncher` refuses `..\` escapes outright. Anywhere else cannot be menu-launched.
 - **Identity follows the drive.** A GUID in the tree sent as `client_device_identifier`.
   Never MAC or hostname. See `romm-api`.
-- **The filesystem may be exFAT or FAT32.**
+- **The filesystem may be exFAT or FAT32.** All of this is measured, not assumed; see
+  `docs/retrobat-findings.md`, probe 7.
   - FAT32 cannot hold a file over 4 GB, which excludes many PS2/GameCube/Wii images. Detect
-    and refuse cleanly rather than failing mid-write.
-  - FAT and exFAT store coarser mtimes than NTFS (FAT32 is 2-second granularity), so
-    `content_hash` is the primary comparison and mtime only a tiebreak.
+    and refuse cleanly rather than failing mid-write. The write fails with Win32 112
+    `ERROR_DISK_FULL`, **"There is not enough space on the disk"**, on a volume with plenty
+    free, so **never surface that message**: compare `fs_size_bytes` up front instead.
+  - **exFAT is no finer than FAT32: 2-second mtime granularity on both.** Its format allows
+    10 ms; Windows does not use it. `content_hash` is the primary comparison and mtime only a
+    tiebreak.
+  - **FAT rounds mtime up**, so a file is stamped up to 2 s **later** than it was written,
+    and files written inside one 2-second window share an identical mtime. Give any
+    "timestamp is in the future" skew check a 2-second tolerance, and never order class-B
+    files by mtime.
   - No ACLs, no symlinks. Neither can be part of any design.
 - **No DPAPI.** `CurrentUser` binds ciphertext to a profile on one machine, `LocalMachine`
   to that machine; either makes the drive undecryptable on the next PC. On a portable
