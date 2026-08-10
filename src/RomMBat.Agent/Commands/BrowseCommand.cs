@@ -1,3 +1,4 @@
+using RomMBat.Core;
 using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
@@ -55,7 +56,7 @@ internal static class BrowseCommand
         var page = response.Value!;
         foreach (var row in page.Items)
         {
-            Console.WriteLine($"{row.Id,8}  {row.PlatformSlug,-14} {SetResolver.FormatBytes(row.SizeBytes),9}  {row.DisplayName}");
+            Console.WriteLine($"{row.Id,8}  {row.PlatformSlug,-14} {ByteSize.Format(row.SizeBytes),9}  {row.DisplayName}");
         }
 
         Console.WriteLine();

@@ -23,6 +23,8 @@ internal static class Program
         "sets",       // define what this device syncs, and resolve it
         "platforms",  // the mapping surface: list, map, unmap
         "browse",     // one page of the catalog, to show the pager working
+        "budget",     // how much of this drive RomMBat may use
+        "evict",      // free space, dry run unless --apply
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
         "flush",      // drain the outbox if the server is reachable
@@ -62,6 +64,9 @@ internal static class Program
                 "sets" => await SetsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "platforms" => await PlatformsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "browse" => await BrowseCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "sync" => await SyncCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "budget" => await BudgetCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "evict" => await EvictCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }
@@ -95,7 +100,9 @@ internal static class Program
         Console.Error.WriteLine("  sets        list | add | show | remove | resolve sync sets");
         Console.Error.WriteLine("  platforms   list | map | unmap the RomM to RetroBat folder mapping");
         Console.Error.WriteLine("  browse      Print one page of the catalog");
-        Console.Error.WriteLine("  sync        Not implemented yet (M3-M5)");
+        Console.Error.WriteLine("  sync        Resolve a set and pull its ROMs into the tree");
+        Console.Error.WriteLine("  budget      Show or set how much of this drive RomMBat may use");
+        Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
         Console.Error.WriteLine("  game-start  Not implemented yet (M6)");
         Console.Error.WriteLine("  game-end    Not implemented yet (M6)");
         Console.Error.WriteLine("  flush       Not implemented yet (M6)");
@@ -105,6 +112,9 @@ internal static class Program
         Console.Error.WriteLine("  --server <url>    The RomM origin. Remembered after the first pairing");
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
-        Console.Error.WriteLine("  --offline         status only: skip the reachability probe");
+        Console.Error.WriteLine("  --offline         status, sync: work from local state without the server");
+        Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
+        Console.Error.WriteLine("  --apply           evict: actually remove. Without it, nothing is deleted");
+        Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
     }
 }

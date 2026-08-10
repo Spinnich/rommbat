@@ -103,6 +103,18 @@ internal sealed class LiveSession(LocalStore store, string deviceId, Uri origin,
 
     public string DeviceId => deviceId;
 
+    /// <summary>The origin this session paired against.</summary>
+    public Uri Origin => origin;
+
+    /// <summary>
+    /// The device token, for a test that has to build its own request.
+    /// </summary>
+    /// <remarks>
+    /// Content downloads are measured on headers (<c>Range</c>, <c>ETag</c>, <c>Content-Range</c>)
+    /// that no typed response surfaces, so those tests hold the credential directly.
+    /// </remarks>
+    public string Token => token;
+
     public RomMConnection Connection { get; } =
         new(new RomMClientOptions { Origin = origin, AccessToken = token });
 

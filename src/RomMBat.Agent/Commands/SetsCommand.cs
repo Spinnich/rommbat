@@ -1,3 +1,4 @@
+using RomMBat.Core;
 using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
@@ -54,7 +55,7 @@ internal static class SetsCommand
             Console.WriteLine($"{set.Name}");
             Console.WriteLine($"  scope:     {SyncSetStore.ScopeText(set.Scope)} {set.ScopeValue}");
             Console.WriteLine($"  policy:    {DescribePolicy(set)}");
-            Console.WriteLine($"  resolves:  {games} games, {SetResolver.FormatBytes(bytes)}");
+            Console.WriteLine($"  resolves:  {games} games, {ByteSize.Format(bytes)}");
             Console.WriteLine($"  last run:  {(set.LastResolvedAt is { } at ? at.ToUniversalTime().ToString("u", CultureInfo.InvariantCulture) : "never")}");
 
             if (set.LastResolutionSummary is { } summary)
@@ -209,12 +210,12 @@ internal static class SetsCommand
         Console.WriteLine($"  scope:    {SyncSetStore.ScopeText(set.Scope)} {set.ScopeValue}");
         Console.WriteLine($"  policy:   {DescribePolicy(set)}");
         Console.WriteLine($"  resolved: {(set.LastResolvedAt is { } at ? at.ToUniversalTime().ToString("u", CultureInfo.InvariantCulture) : "never")}");
-        Console.WriteLine($"  contents: {games} games, {SetResolver.FormatBytes(bytes)}");
+        Console.WriteLine($"  contents: {games} games, {ByteSize.Format(bytes)}");
         Console.WriteLine();
 
         foreach (var member in members)
         {
-            Console.WriteLine($"  {member.Position,4}. {member.DisplayName}  [{member.Folder}/{member.FsName}, {SetResolver.FormatBytes(member.SizeBytes)}]");
+            Console.WriteLine($"  {member.Position,4}. {member.DisplayName}  [{member.Folder}/{member.FsName}, {ByteSize.Format(member.SizeBytes)}]");
         }
 
         var departed = context.Store.SyncSets.Members(set.Id, MemberState.Departed);
@@ -243,29 +244,42 @@ internal static class SetsCommand
         return ExitCode.Ok;
     }
 
+    /// <summary>
+    /// Picks the sets a verb applies to: the one named, or all of them.
+    /// </summary>
+    /// <remarks>
+    /// Shared with <c>sync</c> and <c>evict</c>, which take a set name the same way.
+    /// </remarks>
+    internal static IReadOnlyList<SyncSetDefinition>? Select(AgentContext context, string? name)
+    {
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            var named = context.Store.SyncSets.Find(name);
+            if (named is not null)
+            {
+                return [named];
+            }
+
+            Console.Error.WriteLine($"No sync set named '{name}'.");
+            return null;
+        }
+
+        var all = context.Store.SyncSets.List();
+        if (all.Count > 0)
+        {
+            return all;
+        }
+
+        Console.Error.WriteLine("No sync sets defined. Add one with 'sets add'.");
+        return null;
+    }
+
     private static async Task<int> ResolveAsync(AgentContext context, CommandLine command, CancellationToken cancellationToken)
     {
-        IReadOnlyList<SyncSetDefinition> sets;
-
-        if (command.Positional.Count > 1)
+        var sets = Select(context, command.Positional.Count > 1 ? command.Positional[1] : null);
+        if (sets is null)
         {
-            var named = context.Store.SyncSets.Find(command.Positional[1]);
-            if (named is null)
-            {
-                Console.Error.WriteLine($"No sync set named '{command.Positional[1]}'.");
-                return ExitCode.Usage;
-            }
-
-            sets = [named];
-        }
-        else
-        {
-            sets = context.Store.SyncSets.List();
-            if (sets.Count == 0)
-            {
-                Console.Error.WriteLine("No sync sets defined. Add one with 'sets add'.");
-                return ExitCode.Usage;
-            }
+            return ExitCode.Usage;
         }
 
         using var connection = context.Authenticate(command, Console.Error, out var exitCode);
@@ -274,6 +288,25 @@ internal static class SetsCommand
             return exitCode;
         }
 
+        var resolved = await ResolveSetsAsync(context, connection, sets, cancellationToken).ConfigureAwait(false);
+        await PushConfigAsync(context, command, cancellationToken).ConfigureAwait(false);
+        return resolved;
+    }
+
+    /// <summary>
+    /// Walks each set's scope and records what it resolves to.
+    /// </summary>
+    /// <remarks>
+    /// Shared with <c>sync</c>, which re-resolves before it decides what to fetch, because
+    /// smart-collection membership drifts server-side and syncing a stale membership would pull
+    /// games the set no longer contains.
+    /// </remarks>
+    internal static async Task<int> ResolveSetsAsync(
+        AgentContext context,
+        RomMConnection connection,
+        IReadOnlyList<SyncSetDefinition> sets,
+        CancellationToken cancellationToken)
+    {
         var install = EsSystemsFile.Load(context.Install);
         var resolver = new SetResolver(install, new PlatformResolver(install, context.Store.PlatformMap.Overrides()));
         var worst = ExitCode.Ok;
@@ -309,7 +342,6 @@ internal static class SetsCommand
             worst = Math.Max(worst, Report(context, set, resolution, endpoint, pager, walkStartedAt));
         }
 
-        await PushConfigAsync(context, command, cancellationToken).ConfigureAwait(false);
         return worst;
     }
 
@@ -417,7 +449,7 @@ internal static class SetsCommand
         var parts = new List<string>
         {
             set.MaxGames is { } games ? $"max {games} games" : "no game cap",
-            set.MaxBytes is { } bytes ? $"max {SetResolver.FormatBytes(bytes)}" : "no size cap",
+            set.MaxBytes is { } bytes ? $"max {ByteSize.Format(bytes)}" : "no size cap",
             $"ordered by {SyncSetStore.OrderingText(set.Ordering)}",
         };
 
@@ -433,6 +465,8 @@ internal static class SetsCommand
     {
         MemberState.ExcludedExtension => "skipped, format not supported by this system",
         MemberState.ExcludedUnmapped => "skipped, no RetroBat folder for their platform",
+        MemberState.ExcludedMultiFile => "skipped, held as several files which this version cannot sync yet",
+        MemberState.ExcludedFilesystemLimit => "skipped, too large for this drive's filesystem",
         MemberState.ExcludedOverCount => "past the game cap",
         MemberState.ExcludedOverBytes => "past the byte budget",
         MemberState.Departed => "no longer in the scope",
@@ -446,7 +480,7 @@ internal static class SetsCommand
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
 
     /// <summary>Reads a byte budget written the way people write one: 8GB, 500MB, 1024.</summary>
-    private static long? ParseBytes(string? value)
+    internal static long? ParseBytes(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

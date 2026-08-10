@@ -1,6 +1,7 @@
 using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
+using RomMBat.Core.Content;
 using RomMBat.Core.Mapping;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
@@ -59,6 +60,12 @@ public sealed record SetResolution
     public IReadOnlyDictionary<string, int> UnmappedPlatforms { get; init; } =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Games RomM holds as several files, which v1 does not sync.</summary>
+    public int MultiFile { get; init; }
+
+    /// <summary>Games the target filesystem cannot hold, which today means over 4 GB on FAT32.</summary>
+    public int TooLargeForFilesystem { get; init; }
+
     /// <summary>Folders the members land in. Two RomM platforms can share one.</summary>
     public IReadOnlyList<string> Folders { get; init; } = [];
 
@@ -115,15 +122,22 @@ public sealed class SetResolver
 
     private readonly EsSystemsFile _install;
     private readonly PlatformResolver _platforms;
+    private readonly FilesystemLimits _limits;
     private readonly Dictionary<int, PlatformResolution> _resolutionCache = [];
 
-    public SetResolver(EsSystemsFile install, PlatformResolver platforms)
+    /// <param name="limits">
+    /// What the target volume can hold. Supplied here rather than at download time because a
+    /// ROM FAT32 cannot store is not a member of the set: counting it towards the budget and
+    /// then refusing it would leave a set that never reaches its own target.
+    /// </param>
+    public SetResolver(EsSystemsFile install, PlatformResolver platforms, FilesystemLimits? limits = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(platforms);
 
         _install = install;
         _platforms = platforms;
+        _limits = limits ?? FilesystemLimits.Unconstrained;
     }
 
     /// <summary>Builds the query one set resolves through.</summary>
@@ -167,11 +181,23 @@ public sealed class SetResolver
         var extensionCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var unmappedCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var scanned = 0;
+        var multiFile = 0;
+        var tooLarge = 0;
         RomMResponse<RomPage>? failure = null;
 
         foreach (var row in carried ?? [])
         {
-            Carry(row, selector, excluded, extensionCounts, unmappedCounts);
+            switch (Carry(row, selector, excluded, extensionCounts, unmappedCounts))
+            {
+                case MemberState.ExcludedMultiFile:
+                    multiFile++;
+                    break;
+                case MemberState.ExcludedFilesystemLimit:
+                    tooLarge++;
+                    break;
+                default:
+                    break;
+            }
         }
 
         while (!pager.IsComplete)
@@ -210,10 +236,27 @@ public sealed class SetResolver
                     continue;
                 }
 
+                // Checked before the extension, because a multi-file ROM has no extension to
+                // judge and reporting it as an unsupported format would send someone to fix
+                // the wrong thing.
+                if (row.HasMultipleFiles)
+                {
+                    multiFile++;
+                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedMultiFile, resolvedAt));
+                    continue;
+                }
+
                 if (!Accepts(resolution.Folder, row.FsExtension))
                 {
                     Count(extensionCounts, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
                     excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, resolvedAt));
+                    continue;
+                }
+
+                if (!_limits.CanHold(row.SizeBytes))
+                {
+                    tooLarge++;
+                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFilesystemLimit, resolvedAt));
                     continue;
                 }
 
@@ -245,6 +288,8 @@ public sealed class SetResolver
             OverBytes = selector.OverBytes,
             ExcludedExtensions = extensionCounts,
             UnmappedPlatforms = unmappedCounts,
+            MultiFile = multiFile,
+            TooLargeForFilesystem = tooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
             Problem = failure?.Message,
         };
@@ -259,7 +304,7 @@ public sealed class SetResolver
 
         var parts = new List<string>
         {
-            $"{resolution.Members.Count} games, {FormatBytes(resolution.Bytes)}",
+            $"{resolution.Members.Count} games, {ByteSize.Format(resolution.Bytes)}",
         };
 
         if (resolution.Folders.Count > 0)
@@ -285,6 +330,18 @@ public sealed class SetResolver
             parts.Add($"{skippedUnmapped} skipped, no RetroBat folder for {string.Join(", ", resolution.UnmappedPlatforms.Keys.Order(StringComparer.Ordinal))}");
         }
 
+        // Named as multi-file rather than as a format problem: the format is not what is wrong
+        // with a .bin/.cue set, and saying so would send someone to re-import it for nothing.
+        if (resolution.MultiFile > 0)
+        {
+            parts.Add($"{resolution.MultiFile} skipped, held as several files which this version cannot sync yet");
+        }
+
+        if (resolution.TooLargeForFilesystem > 0)
+        {
+            parts.Add($"{resolution.TooLargeForFilesystem} skipped, too large for this drive's filesystem");
+        }
+
         if (resolution.OverCount > 0)
         {
             parts.Add($"{resolution.OverCount} past the game cap");
@@ -301,22 +358,6 @@ public sealed class SetResolver
         }
 
         return string.Join("; ", parts);
-    }
-
-    /// <summary>Bytes as something a person reads, in the units a ROM library uses.</summary>
-    public static string FormatBytes(long bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double value = bytes;
-        var unit = 0;
-
-        while (value >= 1024 && unit < units.Length - 1)
-        {
-            value /= 1024;
-            unit++;
-        }
-
-        return string.Create(CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
     }
 
     private (string? Folder, bool NeedsChoice, IReadOnlyList<string> Candidates) ResolveFolder(
@@ -345,7 +386,8 @@ public sealed class SetResolver
         _install.TryGetFolder(folder, out var system) && system.Accepts(extension);
 
     /// <summary>Puts a row an earlier segment of this walk produced back where it was.</summary>
-    private static void Carry(
+    /// <returns>The state it was carried as, so the caller can keep its counts.</returns>
+    private static MemberState Carry(
         SyncSetMember row,
         BoundedSelection selector,
         List<SyncSetMember> excluded,
@@ -368,9 +410,16 @@ public sealed class SetResolver
                 excluded.Add(row);
                 break;
 
+            case MemberState.ExcludedMultiFile:
+            case MemberState.ExcludedFilesystemLimit:
+                excluded.Add(row);
+                break;
+
             default:
                 break;
         }
+
+        return row.State;
     }
 
     private static SyncSetMember Member(RomRow row, string? folder, MemberState state, DateTimeOffset resolvedAt) =>
@@ -383,6 +432,11 @@ public sealed class SetResolver
             FsName = row.FsName,
             FsExtension = row.FsExtension,
             SizeBytes = row.SizeBytes,
+
+            // Carried so a later sync can decide a file on disk is already the right one with
+            // the server switched off. Both describe the uncompressed content.
+            Md5Hash = row.Md5Hash,
+            Sha1Hash = row.Sha1Hash,
             DisplayName = row.DisplayName,
             SortKey = row.SortKey,
             RomUpdatedAt = row.UpdatedAtUtc,

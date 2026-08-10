@@ -20,6 +20,7 @@ public sealed partial class RomMConnection : IDisposable
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly HttpClient _http;
+    private readonly HttpMessageHandler _handler;
     private readonly HttpMessageHandler? _ownedHandler;
 
     /// <summary>Opens a connection over a handler this instance owns.</summary>
@@ -42,6 +43,7 @@ public sealed partial class RomMConnection : IDisposable
         ArgumentNullException.ThrowIfNull(options);
 
         Options = options;
+        _handler = handler;
         _ownedHandler = ownsHandler ? handler : null;
         _http = new HttpClient(handler, disposeHandler: false)
         {
@@ -193,6 +195,9 @@ public sealed partial class RomMConnection : IDisposable
     public void Dispose()
     {
         _http.Dispose();
+
+        // Shares the handler with _http and is only built if something downloaded.
+        _downloadHttp?.Dispose();
 
         // A caller-supplied handler outlives the connection; tests reuse one across several.
         _ownedHandler?.Dispose();
