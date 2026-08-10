@@ -333,16 +333,21 @@ public sealed class ContentPlanner
             };
         }
 
-        // No hash to compare against is not the same as a mismatch. 9% of a real library carries
-        // no md5, and re-downloading all of it every sync because of that would be worse than
-        // trusting a file of exactly the right length.
-        if (member.Md5Hash is null && member.Sha1Hash is null && info.Length == member.SizeBytes)
+        // No hash to compare against is not the same as a mismatch, and neither is a hash that
+        // cannot describe this file. 9% of a real library carries no md5, and a .7z is hashed as
+        // its own bytes while the server's hash describes the content inside it. Re-downloading
+        // either on every sync would be worse than trusting a file of exactly the right length.
+        var nothingToCompare = member.Md5Hash is null && member.Sha1Hash is null;
+
+        if (info.Length == member.SizeBytes && (nothingToCompare || !fingerprint.DescribesLibraryContent))
         {
             return step with
             {
                 Action = ContentAction.Adopt,
                 BytesToTransfer = 0,
-                Reason = "already on disk at the right size, and the server has no hash to check it against",
+                Reason = nothingToCompare
+                    ? "already on disk at the right size, and the server has no hash to check it against"
+                    : "already on disk at the right size, and this archive cannot be checked against its hash",
             };
         }
 

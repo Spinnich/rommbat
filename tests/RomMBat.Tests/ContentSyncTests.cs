@@ -121,6 +121,13 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Contains(stub.ContentRequests, request => request.Contains($"bytes={expected.Length / 3}-", StringComparison.Ordinal));
         Assert.Equal(expected.Length - (expected.Length / 3), resumed.BytesTransferred);
         Assert.False(File.Exists(part));
+
+        // The validator has to survive the transfer that died, or the resume asks the server to
+        // splice onto bytes it has no way of recognising.
+        Assert.Contains(
+            stub.ContentRequests,
+            request => request.Contains($"bytes={expected.Length / 3}-", StringComparison.Ordinal)
+                && request.Contains($"if-range={stub.ContentETag}", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -131,6 +138,7 @@ public sealed class ContentSyncTests : IDisposable
 
         var expected = stub.Content[1];
         stub.DropContentAfterBytes = expected.Length / 2;
+        var original = stub.ContentETag;
 
         await SyncAsync(stub, store);
 
@@ -142,6 +150,180 @@ public sealed class ContentSyncTests : IDisposable
 
         Assert.Equal(0, resumed.Failed);
         Assert.Equal(expected, File.ReadAllBytes(Absolute(Members(store).Single())));
+
+        // The restart path, not the resume path. Without the stored validator on the wire the
+        // server sees no If-Range, answers an ordinary 206, and this test passes either way.
+        Assert.Contains(
+            stub.ContentRequests,
+            request => request.Contains($"if-range={original}", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_part_file_that_is_already_complete_is_verified_and_renamed_rather_than_resumed()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        var expected = stub.Content[1];
+        await ResolveAsync(stub, store);
+
+        var member = Members(store).Single();
+        var part = ContentPlanner.PartFor(member.RomId);
+        var partAbsolute = _tree.Install().Resolve(part);
+
+        // What a power cut between the last byte landing and the rename leaves behind: a
+        // complete .part and a live row. Resuming it asks for a byte past the end, which is
+        // refused 416, and would be refused identically on every run after this one.
+        Directory.CreateDirectory(Path.GetDirectoryName(partAbsolute)!);
+        File.WriteAllBytes(partAbsolute, expected);
+
+        store.Downloads.Begin(new ContentDownload
+        {
+            RomId = member.RomId,
+            PartPath = part,
+            TargetPath = ContentPlanner.TargetFor(member),
+            ExpectedSize = member.SizeBytes,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(expected, File.ReadAllBytes(Absolute(member)));
+
+        // The verify and rename it never got, and nothing crossed the wire to get them.
+        Assert.Empty(stub.ContentRequests);
+        Assert.Equal(0, outcome.BytesTransferred);
+        Assert.False(File.Exists(partAbsolute));
+        Assert.Null(store.Downloads.Find(member.RomId));
+    }
+
+    [Fact]
+    public async Task A_resume_point_the_server_refuses_discards_the_partial_file_rather_than_repeating()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await ResolveAsync(stub, store);
+
+        // The server's copy shrank under a resume point the catalogue still describes as
+        // further out, so the range names a byte that no longer exists.
+        stub.Content[1] = stub.Content[1][..1024];
+
+        var member = Members(store).Single();
+        var part = ContentPlanner.PartFor(member.RomId);
+        var partAbsolute = _tree.Install().Resolve(part);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(partAbsolute)!);
+        File.WriteAllBytes(partAbsolute, new byte[2048]);
+
+        store.Downloads.Begin(new ContentDownload
+        {
+            RomId = member.RomId,
+            PartPath = part,
+            TargetPath = ContentPlanner.TargetFor(member),
+            ExpectedSize = member.SizeBytes,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var refused = await SyncAsync(stub, store);
+
+        Assert.Equal(1, refused.Failed);
+
+        // The message says the partial file is discarded, so it has to be gone. Keeping it
+        // would plan the same resume, and be refused the same way, on every run from here on.
+        Assert.False(File.Exists(partAbsolute));
+        Assert.Null(store.Downloads.Find(member.RomId));
+
+        // Proof that it broke out: the next run asks for the whole file, not for the range.
+        await SyncAsync(stub, store);
+        Assert.Contains(stub.ContentRequests, request => request.Contains("bytes=0-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_7z_is_verified_by_size_because_nothing_here_can_look_inside_it()
+    {
+        // RomM's hashes describe the content inside an archive, and reaching inside a .7z needs
+        // a dependency this milestone does not take. Comparing the archive's own bytes against a
+        // content hash refuses a correct download, and refuses it again on every later run.
+        var content = Encoding.UTF8.GetBytes(new string('7', 4096));
+        var inside = Encoding.UTF8.GetBytes(new string('R', 16400));
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Game", "Game.7z", "7z", content.Length)
+        {
+            Md5Hash = Md5(inside),
+            Sha1Hash = Sha1(inside),
+        });
+        stub.Content[1] = content;
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+
+        var recorded = Assert.Single(store.Files.List());
+        Assert.Equal(VerifiedBy.Size, recorded.VerifiedBy);
+
+        // And it stays done. The permanent-failure shape is a second run that fetches it again.
+        var second = await SyncAsync(stub, store);
+        Assert.True(second.IsNoOp);
+        Assert.Equal(1, second.AlreadyPresent);
+    }
+
+    [Fact]
+    public async Task A_multi_entry_zip_is_verified_by_size_because_it_has_no_single_content_hash()
+    {
+        // RomM's rule holds for one file in one archive. A zip holding two has no content hash
+        // to be compared against, so the plan's answer is size.
+        var archive = Zip(("Disc 1.sfc", Encoding.UTF8.GetBytes(new string('A', 2048))),
+                          ("Disc 2.sfc", Encoding.UTF8.GetBytes(new string('B', 2048))));
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Game", "Game.zip", "zip", archive.Length)
+        {
+            Md5Hash = Md5(Encoding.UTF8.GetBytes("neither entry, and not the archive either")),
+        });
+        stub.Content[1] = archive;
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+
+        var recorded = Assert.Single(store.Files.List());
+        Assert.Equal(HashScope.File, recorded.HashScope);
+        Assert.Equal(VerifiedBy.Size, recorded.VerifiedBy);
+
+        var second = await SyncAsync(stub, store);
+        Assert.True(second.IsNoOp);
+    }
+
+    [Fact]
+    public async Task A_damaged_zip_is_still_refused_rather_than_passed_on_size()
+    {
+        // The other side of the same rule: a zip that will not open is damaged, not opaque, so
+        // its file hash is still compared and the mismatch still refuses it.
+        var damaged = Encoding.UTF8.GetBytes(new string('X', 4096));
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Game", "Game.zip", "zip", damaged.Length)
+        {
+            Md5Hash = Md5(Encoding.UTF8.GetBytes("what the archive should have held")),
+        });
+        stub.Content[1] = damaged;
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Empty(store.Files.List());
+        Assert.Contains(outcome.Problems, problem => problem.Contains("md5", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -533,7 +715,7 @@ public sealed class ContentSyncTests : IDisposable
                 new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
                 DateTimeOffset.UtcNow);
 
-        var systems = Fixtures.Synthesize(("snes", ".sfc .smc .zip"));
+        var systems = Fixtures.Synthesize(("snes", ".sfc .smc .zip .7z"));
         var resolver = new SetResolver(systems, new PlatformResolver(systems));
 
         using var connection = Connect(stub);
@@ -580,14 +762,19 @@ public sealed class ContentSyncTests : IDisposable
         return stub;
     }
 
-    private static byte[] Zip(string entryName, byte[] content)
+    private static byte[] Zip(string entryName, byte[] content) => Zip((entryName, content));
+
+    private static byte[] Zip(params (string Name, byte[] Content)[] entries)
     {
         using var buffer = new MemoryStream();
 
         using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
         {
-            using var entry = archive.CreateEntry(entryName).Open();
-            entry.Write(content);
+            foreach (var (name, content) in entries)
+            {
+                using var entry = archive.CreateEntry(name).Open();
+                entry.Write(content);
+            }
         }
 
         return buffer.ToArray();

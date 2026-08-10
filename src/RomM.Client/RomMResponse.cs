@@ -15,6 +15,16 @@ public enum RomMResponseStatus
     /// <summary>403. The token is valid but was not granted the scope this call needs.</summary>
     Forbidden,
 
+    /// <summary>
+    /// 416. The resume point named a byte the server's copy does not have.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="ServerError"/> because it is the one refusal that says
+    /// something about the local file rather than about the server: retrying with the same
+    /// partial file is refused identically every time, so the file has to go.
+    /// </remarks>
+    RangeNotSatisfiable,
+
     /// <summary>Any other status the server returned.</summary>
     ServerError,
 }

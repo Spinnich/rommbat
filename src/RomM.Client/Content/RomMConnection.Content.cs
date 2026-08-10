@@ -44,12 +44,18 @@ public sealed partial class RomMConnection
     /// <param name="request">Which ROM, and where to carry on from.</param>
     /// <param name="destination">A writable, seekable stream. Its length is set by this call.</param>
     /// <param name="progress">Reported roughly every buffer, for a progress bar.</param>
+    /// <param name="onValidator">
+    /// Called with the response's <c>ETag</c> before a byte of the body is read. A transfer that
+    /// finishes has nothing to resume, so the only run that needs the validator is one that dies
+    /// partway, and by then the result this method returns will never arrive.
+    /// </param>
     /// <param name="cancellationToken">A user cancellation, which is kept distinct from a stall.</param>
     /// <exception cref="RomMUnreachableException">The transfer stalled or the link dropped.</exception>
     public async Task<RomMResponse<RomContentResult>> DownloadRomContentAsync(
         RomContentRequest request,
         Stream destination,
         IProgress<RomContentProgress>? progress = null,
+        Action<string?>? onValidator = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -96,6 +102,8 @@ public sealed partial class RomMConnection
 
         var resumed = response.StatusCode == HttpStatusCode.PartialContent;
         var restarted = request.ResumeFrom > 0 && !resumed;
+
+        onValidator?.Invoke(response.Headers.ETag?.ToString());
 
         if (restarted)
         {
@@ -400,9 +408,9 @@ public sealed partial class RomMConnection
                 detail ?? $"'{request.FsName}' is no longer on the server."),
 
             HttpStatusCode.RequestedRangeNotSatisfiable => RomMResponse.Failure<RomContentResult>(
-                RomMResponseStatus.ServerError,
+                RomMResponseStatus.RangeNotSatisfiable,
                 $"The server rejected the resume point for '{request.FsName}'. The partial file is stale "
-                    + "and will be discarded."),
+                    + "and has been discarded."),
 
             _ => RomMResponse.Failure<RomContentResult>(
                 RomMResponseStatus.ServerError,

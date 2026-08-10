@@ -256,6 +256,24 @@ public sealed class ContentSync
             File.Delete(partAbsolute);
         }
 
+        if (resumeFrom > 0 && member.SizeBytes > 0 && resumeFrom >= member.SizeBytes)
+        {
+            // The whole file is already here, because the power went out between the last byte
+            // landing and the rename. Asking to resume past the end is refused 416 on every run
+            // from here on, so what this needs is the verify and rename it never got.
+            var (finished, wrong) = Verify(partAbsolute, member);
+
+            if (wrong is null)
+            {
+                Commit(step, partAbsolute, targetAbsolute, finished!);
+                return (0, null);
+            }
+
+            SafeDelete(partAbsolute);
+            _store.Downloads.Remove(member.RomId);
+            resumeFrom = 0;
+        }
+
         var record = _store.Downloads.Begin(new ContentDownload
         {
             RomId = member.RomId,
@@ -288,22 +306,26 @@ public sealed class ContentSync
                     destination,
                     new Progress<RomContentProgress>(value =>
                         progress?.Report(new ContentSyncProgress(step, index + 1, total, value))),
+                    validator => _store.Downloads.RecordValidator(member.RomId, validator, _time.GetUtcNow()),
                     cancellationToken).ConfigureAwait(false);
             }
 
             if (!response.IsSuccess)
             {
+                if (response.Status == RomMResponseStatus.RangeNotSatisfiable)
+                {
+                    // Keeping it would resume into the same refusal forever, and the message
+                    // says it is discarded, so discard it. The next run downloads whole.
+                    SafeDelete(partAbsolute);
+                    _store.Downloads.Remove(member.RomId);
+                    return (0, response.Message);
+                }
+
                 _store.Downloads.Fail(member.RomId, response.Message ?? "the download failed", _time.GetUtcNow());
                 return (0, response.Message);
             }
 
             var transferred = response.Value!.BytesWritten;
-
-            if (response.Value.Validator is { } validator)
-            {
-                _store.Downloads.Begin(record with { Validator = validator, UpdatedAt = _time.GetUtcNow() });
-            }
-
             var verification = Verify(partAbsolute, member);
             if (verification.Problem is { } wrong)
             {
@@ -356,16 +378,22 @@ public sealed class ContentSync
 
         var fingerprint = ContentHasher.Compute(partAbsolute, member.FsName);
 
-        if (member.Md5Hash is not null && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
+        // An archive this cannot see inside is hashed as its own bytes while the server's hash
+        // describes the content, so a mismatch there is not evidence of anything and size is the
+        // check that remains. VerificationOf still records a hash that happens to agree.
+        if (fingerprint.DescribesLibraryContent)
         {
-            return (null, "the downloaded file does not match the md5 the server reported.");
-        }
+            if (member.Md5Hash is not null && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
+            {
+                return (null, "the downloaded file does not match the md5 the server reported.");
+            }
 
-        if (member.Md5Hash is null
-            && member.Sha1Hash is not null
-            && !ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash))
-        {
-            return (null, "the downloaded file does not match the sha1 the server reported.");
+            if (member.Md5Hash is null
+                && member.Sha1Hash is not null
+                && !ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash))
+            {
+                return (null, "the downloaded file does not match the sha1 the server reported.");
+            }
         }
 
         return (fingerprint, null);

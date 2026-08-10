@@ -17,6 +17,17 @@ public sealed record ContentFingerprint
     /// <summary>Whether the hashes describe the file or the single entry inside it.</summary>
     public required HashScope Scope { get; init; }
 
+    /// <summary>
+    /// True when these hashes describe the same bytes RomM's do, so comparing them means something.
+    /// </summary>
+    /// <remarks>
+    /// False for an archive whose single entry could not be reached: a <c>.7z</c>, or a
+    /// <c>.zip</c> that holds more than one file. Both are hashed as files while RomM's hashes
+    /// describe content, so a mismatch between the two says nothing about the file, and treating
+    /// it as one would refuse a correct download on every run. Verification falls back to size.
+    /// </remarks>
+    public required bool DescribesLibraryContent { get; init; }
+
     /// <summary>The length of whatever was hashed.</summary>
     public long HashedBytes { get; init; }
 
@@ -50,6 +61,8 @@ public static class ContentHasher
     /// <summary>Read in chunks, so a 4 GB ISO costs one buffer rather than its own size.</summary>
     private const int BufferSize = 1024 * 1024;
 
+    private static readonly string[] OpaqueArchiveExtensions = [".7z", ".rar"];
+
     /// <summary>
     /// Hashes a file, looking inside a single-entry zip.
     /// </summary>
@@ -64,30 +77,47 @@ public static class ContentHasher
         ArgumentException.ThrowIfNullOrWhiteSpace(absolutePath);
 
         var fileBytes = new FileInfo(absolutePath).Length;
+        var name = effectiveFileName ?? absolutePath;
 
-        if (LooksLikeZip(effectiveFileName ?? absolutePath))
+        if (LooksLikeZip(name))
         {
-            var inner = TryComputeInsideZip(absolutePath, fileBytes);
-            if (inner is not null)
+            var inside = TryComputeInsideZip(absolutePath, fileBytes);
+            if (inside.Fingerprint is not null)
             {
-                return inner;
+                return inside.Fingerprint;
             }
+
+            // A zip that opened and held more than one file has no single content hash, so its
+            // own bytes describe nothing the server stored. One that would not open at all is
+            // damaged, and there a mismatch is the answer that re-downloads it.
+            using var archive = Open(absolutePath);
+            return Hash(archive, HashScope.File, fileBytes, fileBytes, !inside.Opaque);
         }
 
         using var stream = Open(absolutePath);
-        return Hash(stream, HashScope.File, fileBytes, fileBytes);
+        return Hash(stream, HashScope.File, fileBytes, fileBytes, !LooksLikeOpaqueArchive(name));
     }
 
     /// <summary>Hashes a stream that is already open, for verifying what was just written.</summary>
     public static ContentFingerprint Compute(Stream stream, long fileBytes)
     {
         ArgumentNullException.ThrowIfNull(stream);
-        return Hash(stream, HashScope.File, fileBytes, fileBytes);
+        return Hash(stream, HashScope.File, fileBytes, fileBytes, describesLibraryContent: true);
     }
 
     /// <summary>True when the name says zip, which is the only archive this can see inside.</summary>
     public static bool LooksLikeZip(string path) =>
         Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True for an archive format RetroBat accepts that the base class library cannot read.
+    /// </summary>
+    /// <remarks>
+    /// Both appear in real <c>&lt;extension&gt;</c> sets, so both reach a sync set. Their own
+    /// bytes are not what RomM hashed and nothing here can reach what it did.
+    /// </remarks>
+    public static bool LooksLikeOpaqueArchive(string path) =>
+        OpaqueArchiveExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// True when two hashes name the same content.
@@ -102,7 +132,17 @@ public static class ContentHasher
         && !string.IsNullOrWhiteSpace(right)
         && string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
 
-    private static ContentFingerprint? TryComputeInsideZip(string absolutePath, long fileBytes)
+    /// <summary>
+    /// Hashes the one file inside a zip, and says why it could not when it could not.
+    /// </summary>
+    /// <returns>
+    /// <c>Opaque</c> is true when the archive opened but holds no single entry to hash, which is
+    /// a stated limitation rather than damage. A zip that would not open leaves it false, so the
+    /// file hash is still compared and a damaged download is still refused.
+    /// </returns>
+    private static (ContentFingerprint? Fingerprint, bool Opaque) TryComputeInsideZip(
+        string absolutePath,
+        long fileBytes)
     {
         try
         {
@@ -113,24 +153,29 @@ public static class ContentHasher
             var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).ToList();
             if (entries.Count != 1)
             {
-                return null;
+                return (null, true);
             }
 
             using var content = entries[0].Open();
-            return Hash(content, HashScope.ArchiveContent, entries[0].Length, fileBytes);
+            return (Hash(content, HashScope.ArchiveContent, entries[0].Length, fileBytes, true), false);
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException)
         {
             // A truncated or unreadable archive is hashed as a file, which will not match and
             // so will be re-downloaded. That is the right outcome for a damaged file.
-            return null;
+            return (null, false);
         }
     }
 
     private static FileStream Open(string absolutePath) =>
         new(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.SequentialScan);
 
-    private static ContentFingerprint Hash(Stream stream, HashScope scope, long hashedBytes, long fileBytes)
+    private static ContentFingerprint Hash(
+        Stream stream,
+        HashScope scope,
+        long hashedBytes,
+        long fileBytes,
+        bool describesLibraryContent)
     {
         // MD5, SHA-1 and CRC-32 are all here because RomM stores all three and none of them is
         // being used as a security primitive: the question is only whether two files are the
@@ -167,6 +212,7 @@ public static class ContentHasher
             Sha1 = Convert.ToHexString(sha1.Hash!).ToLowerInvariant(),
             Crc32 = (~crc).ToString("x8", System.Globalization.CultureInfo.InvariantCulture),
             Scope = scope,
+            DescribesLibraryContent = describesLibraryContent,
             HashedBytes = hashedBytes > 0 ? hashedBytes : read,
             FileBytes = fileBytes,
         };

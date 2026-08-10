@@ -344,7 +344,11 @@ internal sealed class StubRomMServer : HttpMessageHandler
         }
 
         var range = request.Headers.Range;
-        ContentRequests.Add($"{romId} {range?.ToString() ?? "-"}");
+        var validator = request.Headers.TryGetValues("If-Range", out var supplied) ? supplied.First() : null;
+
+        // The validator is recorded, not just acted on: a resume that never sends one still gets
+        // an ordinary 206 here, so a test that only checks the bytes cannot tell the difference.
+        ContentRequests.Add($"{romId} {range?.ToString() ?? "-"} if-range={validator ?? "-"}");
 
         var rom = Library.FirstOrDefault(candidate => candidate.Id == romId);
         if (rom is null || !Content.TryGetValue(romId, out var body))
@@ -366,7 +370,6 @@ internal sealed class StubRomMServer : HttpMessageHandler
         }
 
         var from = range?.Ranges.FirstOrDefault()?.From ?? 0;
-        var validator = request.Headers.TryGetValues("If-Range", out var supplied) ? supplied.First() : null;
         var stale = validator is not null && !string.Equals(validator, ContentETag, StringComparison.Ordinal);
 
         if (stale || from == 0 || range is null)

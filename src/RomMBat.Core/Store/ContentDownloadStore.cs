@@ -118,6 +118,36 @@ public sealed class ContentDownloadStore
         return downloads;
     }
 
+    /// <summary>
+    /// Stores the validator the response carried, without disturbing the attempt count.
+    /// </summary>
+    /// <remarks>
+    /// Written when the headers arrive rather than when the body ends. A transfer that completes
+    /// has its row deleted by the commit that follows, so recording it at the end would only ever
+    /// write it to a row about to go; the row that needs it is the one an interrupted transfer
+    /// leaves behind, and that transfer never reaches its own end.
+    /// </remarks>
+    public void RecordValidator(int romId, string? validator, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(validator))
+        {
+            return;
+        }
+
+        using var command = _connection
+            .Command(
+                """
+                UPDATE content_download
+                SET validator = $validator, updated_at = $now
+                WHERE rom_id = $romId;
+                """)
+            .With("$validator", validator)
+            .With("$now", SqliteValues.ToText(now))
+            .With("$romId", romId);
+
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>Records that an attempt failed, keeping the partial file for the next one.</summary>
     public void Fail(int romId, string error, DateTimeOffset now)
     {

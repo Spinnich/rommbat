@@ -1036,7 +1036,16 @@ the rollout order below can be derived rather than hand-maintained.
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
   and stated limitation rather than an oversight, and the fix is one package away when it
-  earns its place.
+  earns its place. **`.rar` is in the same position**, and appears in real `<extension>` sets
+  alongside `.7z`, so it degrades the same way.
+- **An archive the code cannot see inside is hashed as a file, and that hash is evidence only
+  when it agrees.** A `.7z`, a `.rar` and a multi-entry `.zip` are all hashed as their own
+  bytes while the server's hash describes content, so a mismatch between the two says nothing
+  and must not refuse the file: treating it as a mismatch fails a correct download, deletes
+  it, and repeats the whole transfer on every run after that. **This governs adoption as much
+  as verification**, or a user whose library is `.7z` re-downloads all of it every sync. A
+  `.zip` that will not open at all is damaged rather than opaque, and there the mismatch
+  stands and the file is refused.
 - Enforce the per-set and global disk budget. **Two bounds, not one**: the budget counts what
   RomMBat downloaded, and a free-space floor covers the drive as a whole. Counting a user's
   own library against the budget would leave the app permanently over its cap, unable to fetch
@@ -1069,6 +1078,17 @@ the rollout order below can be derived rather than hand-maintained.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished
   file is renamed into place only after it verifies.
+- **A `.part` that is already complete is verified and renamed, never resumed.** The body is
+  flushed before the verify and the rename, so the power-cut window this whole design exists
+  for leaves a complete, correct partial file and a live row. Asking to resume from the end of
+  it is answered **416**, identically on every run, and the file that would have verified is
+  never offered to the check that would have passed it. A resume point the server does refuse
+  discards the partial file rather than keeping it, because keeping it plans the same refused
+  request forever, and the message already tells the user it was discarded.
+- **The `If-Range` validator is recorded when the response headers arrive, not when the body
+  ends.** A transfer that finishes has its row deleted by the commit that follows it, so a
+  validator written at the end is only ever written to a row that is about to go. The row that
+  needs one belongs to the transfer that died, and that transfer never reaches its own end.
 - **Detect the target filesystem before writing.** On FAT32, refuse or skip ROMs above
   4 GB with a clear message rather than failing partway through a large write; that is
   **3.05%** of a real library. Removable media is also slow and prone to disconnection, so
