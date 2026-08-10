@@ -4,6 +4,10 @@ name: Verify reference data
 # vendored files. A failure here means an upstream fact moved, or that someone
 # hand-edited a vendored artifact. Either way the fix is to revisit docs/PLAN.md,
 # not to update the expected number. See reference/README.md.
+#
+# The bundled platform map is derived from the same vendored files, so it is checked
+# here too: nothing else would notice data/retrobat/platforms.json drifting from the
+# generator that owns it.
 
 on:
   push:
@@ -12,6 +16,8 @@ on:
     paths:
       - reference/**
       - docs/PLAN.md
+      - data/retrobat/platforms.json
+      - tools/build-platform-map.py
       - .github/workflows/reference-verify.yml
 
 permissions:
@@ -36,3 +42,6 @@ jobs:
       - name: Verify
         working-directory: reference
         run: python3 verify.py
+
+      - name: Check the bundled platform map is what its generator emits
+        run: python3 tools/build-platform-map.py --check

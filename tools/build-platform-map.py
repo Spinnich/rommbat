@@ -57,7 +57,6 @@ STALE_KEYS = {
     "socrates": None,  # no RetroBat system
     "videopacplus": None,  # no RetroBat system
     "vis": None,  # no RetroBat system
-    "export": None,  # not a mapping: scan.gamelist.export, caught by a loose seed parse
 }
 
 # Slugs that must never resolve on their own. Arcade ROM names are romset-versioned, so the

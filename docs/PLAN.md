@@ -1755,7 +1755,7 @@ Paste this into Claude Code from an empty directory:
 >
 > Do not treat that YAML as the answer. RetroBat ships 240 systems and RomM knows 457
 > platform slugs, but the YAML holds only 167 pairs: 91 RetroBat systems (37%) are
-> unmapped, normalization rescues just 16 of them, 19 entries point at folder names
+> unmapped, normalization rescues just 16 of them, 18 entries point at folder names
 > RetroBat's own `system/configgen/systems_names.lst` does not contain (`astrocde` vs
 > `astrocade`, `ps` vs `psx`, `segacd` vs `megacd`), and 13 RomM slugs fan out to several
 > folders (`arcade` alone hits ten). `libretro_slug` is a DAT name and `family_slug` is a

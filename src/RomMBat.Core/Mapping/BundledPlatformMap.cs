@@ -70,8 +70,14 @@ public sealed class BundledPlatformMap
     /// </remarks>
     public bool RequiresExplicitChoice(string? slug, out string why)
     {
+        if (slug is not null && _requiresChoice.TryGetValue(slug, out var found))
+        {
+            why = found;
+            return true;
+        }
+
         why = string.Empty;
-        return slug is not null && _requiresChoice.TryGetValue(slug, out why!);
+        return false;
     }
 
     private static BundledPlatformMap LoadEmbedded()
