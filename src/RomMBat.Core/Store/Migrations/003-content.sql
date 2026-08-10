@@ -173,9 +173,9 @@ CREATE TABLE content_download (
 -- 3. Install-wide settings
 -- ---------------------------------------------------------------------------
 
--- Free-form on purpose: the keys are owned by the code that reads them, and roam through
--- Device.sync_config alongside the set definitions so a re-paired device gets its budget
--- back. M3 writes content.max_bytes and content.free_space_floor_bytes.
+-- Free-form on purpose: the keys are owned by the code that reads them. Install-local, unlike
+-- the set definitions: sync_config does not carry them, so a re-paired device starts back at
+-- unlimited. M3 writes content.max_bytes and content.free_space_floor_bytes.
 CREATE TABLE setting (
   key        TEXT PRIMARY KEY CHECK (length(trim(key)) > 0),
   value      TEXT,

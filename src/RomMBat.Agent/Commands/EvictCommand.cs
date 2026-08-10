@@ -30,7 +30,7 @@ internal static class EvictCommand
         }
 
         var planner = new EvictionPlanner(context.Store);
-        var requested = SetsCommand.ParseBytes(command.Value("bytes"));
+        var requested = ByteSize.Parse(command.Value("bytes"));
         var plan = planner.Plan(requested);
 
         if (plan.BytesToFree <= 0)

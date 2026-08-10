@@ -7,9 +7,12 @@ namespace RomMBat.Core.Store;
 /// Install-wide settings, keyed by a dotted name.
 /// </summary>
 /// <remarks>
-/// Free-form on purpose: the keys are owned by the code that reads them, and they roam
-/// through <c>Device.sync_config</c> alongside the set definitions, so a re-paired device
-/// gets its budget back rather than silently reverting to unlimited.
+/// Free-form on purpose: the keys are owned by the code that reads them.
+/// <para>
+/// Install-local, and only that: <see cref="Sync.RoamingSyncConfig"/> carries the set
+/// definitions and the platform overrides, not these, so a re-paired device starts back at
+/// unlimited until its budget is set again.
+/// </para>
 /// <para>
 /// A set's own byte cap lives on <c>sync_set</c>, because it belongs to that set. What lives
 /// here is what applies to the install: the global budget and the free-space floor.

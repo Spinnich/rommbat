@@ -151,7 +151,7 @@ internal static class SetsCommand
             Scope = scope,
             ScopeValue = value,
             MaxGames = ParseInt(command.Value("max-games")),
-            MaxBytes = ParseBytes(command.Value("max-bytes")),
+            MaxBytes = ByteSize.Parse(command.Value("max-bytes")),
             Ordering = SyncSetStore.ParseOrdering(command.Value("order")),
             FolderOverride = folder,
         };
@@ -478,32 +478,6 @@ internal static class SetsCommand
 
     private static int? ParseInt(string? value) =>
         int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
-
-    /// <summary>Reads a byte budget written the way people write one: 8GB, 500MB, 1024.</summary>
-    internal static long? ParseBytes(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var text = value.Trim().ToUpperInvariant();
-        var multiplier = 1L;
-
-        foreach (var (suffix, scale) in new[] { ("TB", 1L << 40), ("GB", 1L << 30), ("MB", 1L << 20), ("KB", 1L << 10) })
-        {
-            if (text.EndsWith(suffix, StringComparison.Ordinal))
-            {
-                multiplier = scale;
-                text = text[..^suffix.Length].Trim();
-                break;
-            }
-        }
-
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number)
-            ? (long)(number * multiplier)
-            : null;
-    }
 
     private static int Usage(string message)
     {

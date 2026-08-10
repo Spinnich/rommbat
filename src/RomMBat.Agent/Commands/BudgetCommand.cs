@@ -39,7 +39,7 @@ internal static class BudgetCommand
                 context.Store.Settings.Set(SettingStore.ContentMaxBytes, (string?)null, now);
                 changed = true;
             }
-            else if (SetsCommand.ParseBytes(value) is { } bytes && bytes > 0)
+            else if (ByteSize.Parse(value) is { } bytes && bytes > 0)
             {
                 context.Store.Settings.Set(SettingStore.ContentMaxBytes, bytes, now);
                 changed = true;
@@ -53,7 +53,7 @@ internal static class BudgetCommand
 
         if (command.Has("free-floor"))
         {
-            if (SetsCommand.ParseBytes(command.Value("free-floor")) is { } floor && floor >= 0)
+            if (ByteSize.Parse(command.Value("free-floor")) is { } floor && floor >= 0)
             {
                 context.Store.Settings.Set(SettingStore.FreeSpaceFloorBytes, floor, now);
                 changed = true;

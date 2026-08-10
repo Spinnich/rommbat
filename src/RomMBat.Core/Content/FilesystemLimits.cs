@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace RomMBat.Core.Content;
 
 /// <summary>
@@ -111,18 +109,6 @@ public sealed record FilesystemLimits
         MaximumFileSizeBytes is not { } maximum || sizeBytes <= maximum;
 
     /// <summary>
-    /// Why a file was refused, in words that name the real problem.
-    /// </summary>
-    /// <remarks>
-    /// Deliberately does not mention free space, which is what the operating system's own
-    /// message says and what makes it useless here.
-    /// </remarks>
-    public string ExplainRefusal(string fsName, long sizeBytes) =>
-        $"'{fsName}' is {Bytes(sizeBytes)} and this drive is formatted {Format}, which cannot hold a file "
-            + $"larger than {Bytes(MaximumFileSizeBytes ?? 0)}. Reformat the drive as NTFS or exFAT, or leave "
-            + "this game out of the set.";
-
-    /// <summary>
     /// True when two timestamps are indistinguishable on this volume.
     /// </summary>
     /// <remarks>
@@ -133,20 +119,5 @@ public sealed record FilesystemLimits
     {
         var difference = (left - right).Duration();
         return difference <= (TimestampGranularity > TimeSpan.Zero ? TimestampGranularity : TimeSpan.FromSeconds(1));
-    }
-
-    private static string Bytes(long bytes)
-    {
-        string[] units = ["B", "KB", "MB", "GB", "TB"];
-        double value = bytes;
-        var unit = 0;
-
-        while (value >= 1024 && unit < units.Length - 1)
-        {
-            value /= 1024;
-            unit++;
-        }
-
-        return string.Create(CultureInfo.InvariantCulture, $"{value:0.#} {units[unit]}");
     }
 }
