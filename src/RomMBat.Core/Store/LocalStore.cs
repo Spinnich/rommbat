@@ -43,6 +43,9 @@ public sealed class LocalStore : IDisposable
         Device = new DeviceStore(connection);
         Clock = new ClockStore(connection);
         Outbox = new OutboxStore(connection, this);
+        SyncSets = new SyncSetStore(connection);
+        PlatformMap = new PlatformMapStore(connection);
+        Cursors = new SyncCursorStore(connection);
     }
 
     /// <summary>The schema version this build expects.</summary>
@@ -62,6 +65,15 @@ public sealed class LocalStore : IDisposable
     public ClockStore Clock { get; }
 
     public OutboxStore Outbox { get; }
+
+    /// <summary>Sync set definitions and what each one last resolved to.</summary>
+    public SyncSetStore SyncSets { get; }
+
+    /// <summary>RomM platform to RetroBat folder, and where each answer came from.</summary>
+    public PlatformMapStore PlatformMap { get; }
+
+    /// <summary>Where each endpoint's incremental sync starts, and where a walk stopped.</summary>
+    public SyncCursorStore Cursors { get; }
 
     /// <summary>Opens the store inside a located RetroBat install, creating it if needed.</summary>
     public static LocalStore Open(RetroBatInstall install)
@@ -198,27 +210,65 @@ public sealed class LocalStore : IDisposable
                     + "Upgrade RomMBat rather than letting an older one write to it.");
         }
 
-        foreach (var migration in Migrations.Where(m => m.Version > current))
+        var pending = Migrations.Where(m => m.Version > current).ToList();
+        if (pending.Count == 0)
         {
-            using var transaction = _connection.BeginTransaction();
+            return;
+        }
 
-            using (var command = _connection.CreateCommand())
+        // SQLite cannot add a CHECK to an existing column, so a migration that tightens one
+        // rebuilds the table. Dropping a parent with foreign keys on runs an implicit DELETE
+        // that cascades into its children, which would take the membership with it, and the
+        // pragma is a no-op inside a transaction. Off for the run, and every migration is
+        // checked before its transaction commits.
+        Execute("PRAGMA foreign_keys = OFF;");
+
+        try
+        {
+            foreach (var migration in pending)
             {
-                command.Transaction = transaction;
-                command.CommandText = migration.Sql;
-                command.ExecuteNonQuery();
+                using var transaction = _connection.BeginTransaction();
+
+                using (var command = _connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = migration.Sql;
+                    command.ExecuteNonQuery();
+                }
+
+                EnsureReferencesIntact(transaction, migration);
+
+                using (var version = _connection.CreateCommand())
+                {
+                    version.Transaction = transaction;
+
+                    // PRAGMA takes no parameters, and the value is an int from our own list.
+                    version.CommandText = $"PRAGMA user_version = {migration.Version};";
+                    version.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
             }
+        }
+        finally
+        {
+            Execute("PRAGMA foreign_keys = ON;");
+        }
+    }
 
-            using (var version = _connection.CreateCommand())
-            {
-                version.Transaction = transaction;
+    /// <summary>Refuses to commit a migration that left a row pointing at a parent that is gone.</summary>
+    private void EnsureReferencesIntact(SqliteTransaction transaction, Migration migration)
+    {
+        using var command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = "PRAGMA foreign_key_check;";
 
-                // PRAGMA takes no parameters, and the value is an int from our own list.
-                version.CommandText = $"PRAGMA user_version = {migration.Version};";
-                version.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
+        using var reader = command.ExecuteReader();
+        if (reader.Read())
+        {
+            throw new LocalStoreVersionException(
+                $"Migration {migration.Version} left orphaned rows in '{reader.GetString(0)}'. The "
+                    + "database was not changed.");
         }
     }
 

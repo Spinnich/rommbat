@@ -1,8 +1,28 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace RomMBat.Tests.Support;
+
+/// <summary>One ROM in the stub library, carrying only what the slim row reads.</summary>
+/// <param name="SizeBytes">
+/// A <see cref="long"/> deliberately, so a test can serve a 4 GB ISO. The generated
+/// <c>SimpleRomSchema</c> holds this as an <see cref="int"/> and would fail on one.
+/// </param>
+internal sealed record StubRom(
+    int Id,
+    int PlatformId,
+    string PlatformSlug,
+    string PlatformFsSlug,
+    string Name,
+    string FsName,
+    string Extension,
+    long SizeBytes,
+    string UpdatedAt = "2026-01-01T00:00:00");
+
+/// <summary>One platform in the stub library.</summary>
+internal sealed record StubPlatform(int Id, string Slug, string FsSlug, string Name);
 
 /// <summary>
 /// A stand-in RomM server that can be switched to unreachable mid-operation.
@@ -23,6 +43,7 @@ internal sealed class StubRomMServer : HttpMessageHandler
 {
     private readonly Queue<Func<HttpResponseMessage>> _tokenResponses = new();
     private readonly List<string> _requestLog = [];
+    private readonly List<string> _queryLog = [];
 
     /// <summary>Flip to false to make every subsequent call fail as a connect timeout.</summary>
     public bool IsReachable { get; set; } = true;
@@ -50,6 +71,49 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     /// <summary>Every path this handler was asked for, in order.</summary>
     public IReadOnlyList<string> RequestLog => _requestLog;
+
+    /// <summary>Every full URI, in order, so a test can assert on query parameters.</summary>
+    public IReadOnlyList<string> QueryLog => _queryLog;
+
+    /// <summary>
+    /// The ROMs <c>GET /api/roms</c> serves, in id order.
+    /// </summary>
+    /// <remarks>
+    /// Paged with <c>limit</c> and <c>offset</c> and filtered by <c>platform_ids</c> and
+    /// <c>search_term</c>, which is enough to exercise resumption and scope selection. The
+    /// sidecars are never included, which is also what a test asserts about the client.
+    /// </remarks>
+    public IList<StubRom> Library { get; } = [];
+
+    /// <summary>What <c>GET /api/platforms</c> answers with.</summary>
+    public IList<StubPlatform> Platforms { get; } = [];
+
+    /// <summary>The <c>sync_config</c> last written by <c>PUT /api/devices/{id}</c>.</summary>
+    public JsonElement? StoredSyncConfig { get; set; }
+
+    /// <summary>Fails the next <c>GET /api/roms</c> with this status, once.</summary>
+    public HttpStatusCode? NextRomsStatus { get; set; }
+
+    /// <summary>
+    /// Serves this many pages of <c>GET /api/roms</c> and then fails one, once.
+    /// </summary>
+    /// <remarks>
+    /// A walk that dies at its first request never had anything to resume. Interrupting it
+    /// partway is what exercises the resume path.
+    /// </remarks>
+    public int? FailRomsAfterPages { get; set; }
+
+    /// <summary>
+    /// Reports this as <c>total</c> instead of the real match count.
+    /// </summary>
+    /// <remarks>
+    /// Lets a three-row stub claim to be an 83,000 ROM library, which is how the refusal of
+    /// an uncapped scope is tested without building one.
+    /// </remarks>
+    public int? TotalOverride { get; set; }
+
+    /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
+    public int RomPagesServed { get; private set; }
 
     /// <summary>How many times the token endpoint was polled.</summary>
     public int TokenPolls { get; private set; }
@@ -109,6 +173,7 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
         var path = request.RequestUri?.AbsolutePath ?? string.Empty;
         _requestLog.Add(path);
+        _queryLog.Add(request.RequestUri?.ToString() ?? string.Empty);
 
         // Checked before the token queue so a mid-flight switch takes effect immediately,
         // which is the case this whole class exists to exercise.
@@ -157,7 +222,104 @@ internal sealed class StubRomMServer : HttpMessageHandler
             return Json(HttpStatusCode.OK, DeviceIds.Select(id => new { id, name = "stub", user_id = 1 }).ToArray());
         }
 
+        if (path.Contains("/api/devices/", StringComparison.Ordinal))
+        {
+            return await DeviceAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (path.EndsWith("/api/platforms", StringComparison.Ordinal))
+        {
+            return Json(HttpStatusCode.OK, Platforms.Select(platform => new
+            {
+                id = platform.Id,
+                slug = platform.Slug,
+                fs_slug = platform.FsSlug,
+                name = platform.Name,
+                display_name = platform.Name,
+                rom_count = Library.Count(rom => rom.PlatformId == platform.Id),
+            }).ToArray());
+        }
+
+        if (path.EndsWith("/api/roms", StringComparison.Ordinal))
+        {
+            return Roms(request.RequestUri);
+        }
+
         return Detail(HttpStatusCode.NotFound, "Not Found");
+    }
+
+    private async Task<HttpResponseMessage> DeviceAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.Method == HttpMethod.Put)
+        {
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(body);
+
+            StoredSyncConfig = document.RootElement.TryGetProperty("sync_config", out var config)
+                ? config.Clone()
+                : null;
+        }
+
+        var id = request.RequestUri!.AbsolutePath.Split('/')[^1];
+        return Json(HttpStatusCode.OK, new
+        {
+            id,
+            name = "stub",
+            user_id = 1,
+            sync_config = StoredSyncConfig,
+        });
+    }
+
+    private HttpResponseMessage Roms(Uri? uri)
+    {
+        if (NextRomsStatus is { } status)
+        {
+            NextRomsStatus = null;
+            return Detail(status, "roms refused");
+        }
+
+        if (FailRomsAfterPages is { } after && RomPagesServed >= after)
+        {
+            FailRomsAfterPages = null;
+            return Detail(HttpStatusCode.BadGateway, "roms refused");
+        }
+
+        RomPagesServed++;
+
+        var query = System.Web.HttpUtility.ParseQueryString(uri?.Query ?? string.Empty);
+        var limit = int.TryParse(query["limit"], out var parsedLimit) ? parsedLimit : 50;
+        var offset = int.TryParse(query["offset"], out var parsedOffset) ? parsedOffset : 0;
+        var platform = query["platform_ids"];
+        var search = query["search_term"];
+
+        var matching = Library
+            .Where(rom => platform is null || rom.PlatformId.ToString(CultureInfo.InvariantCulture) == platform)
+            .Where(rom => search is null || rom.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(rom => rom.Id)
+            .ToList();
+
+        var items = matching.Skip(offset).Take(limit).Select(rom => new
+        {
+            id = rom.Id,
+            platform_id = rom.PlatformId,
+            platform_slug = rom.PlatformSlug,
+            platform_fs_slug = rom.PlatformFsSlug,
+            platform_display_name = rom.PlatformSlug,
+            fs_name = rom.FsName,
+            fs_extension = rom.Extension,
+            fs_size_bytes = rom.SizeBytes,
+            name = rom.Name,
+            name_sort_key = rom.Name,
+            updated_at = rom.UpdatedAt,
+        }).ToArray();
+
+        return Json(HttpStatusCode.OK, new
+        {
+            items,
+            total = TotalOverride ?? matching.Count,
+            limit,
+            offset,
+        });
     }
 
     private static TaskCanceledException Timeout() =>

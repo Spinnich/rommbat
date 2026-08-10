@@ -10,6 +10,28 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 | `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | M0 probe 2, generated from a real install                                    | M6         |
 | `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                    | M6         |
 
+## `platforms.json` is generated, and is only layer 3 of five
+
+Regenerate with `python tools/build-platform-map.py`, or check it is current with
+`--check`. It is embedded into `RomMBat.Core` at build time, so a single-file publish
+carries it and nothing resolves a path to find it. **Edit the generator, not the JSON.**
+
+Three corrections are applied to the seed, all derived rather than typed: the seed is keyed
+folder to slug and this file is the inverse; 2 seed keys naming folders RetroBat renamed are
+renamed (`astrocde` to `astrocade`, `bbc` to `bbcmicro`) and 16 naming folders RetroBat has
+no equivalent for are dropped; and `arcade` is marked as needing an explicit per-sync-set
+choice rather than resolving. Every correction is listed in the file's own `_corrections`
+key, so the diff is reviewable.
+
+Ordering inside a slug decides which folder wins when several are present, and it is derived
+so regenerating cannot silently reshuffle a user's targets: exact slug match first, then the
+shortest name, then alphabetical.
+
+**A slug is the lookup key here, not an identity.** RomM does not keep slugs unique: a real
+123-platform library carried 72 distinct slugs, because every system has an `-unofficial`
+twin sharing one. The local platform map is keyed by `fs_slug`, which RomM does constrain
+unique.
+
 ## The two save tables depart from Grout in two ways, deliberately
 
 Grout's `cfw/*/data/save_directories.json` keys by **RomM slug** and its values are one
@@ -57,8 +79,8 @@ Platform resolution runs in layers, and the bundled table is only the third of f
 ## Why the table is not just the upstream YAML inverted
 
 Measured against RetroBat's `systems_names.lst` and RomM's `UniversalPlatformSlug`:
-240 RetroBat systems, 457 RomM slugs, but only 168 explicit pairs in the YAML. 91
-RetroBat systems (37%) are unmapped, normalization rescues 16 of them, 19 YAML entries
+240 RetroBat systems, 457 RomM slugs, but only 167 explicit pairs in the YAML. 91
+RetroBat systems (37%) are unmapped, normalization rescues 16 of them, 18 YAML entries
 name folders RetroBat does not have (`astrocde` vs `astrocade`, `ps` vs `psx`, `segacd`
 vs `megacd`), and 13 RomM slugs fan out to several folders, `arcade` alone to ten.
 
@@ -67,8 +89,9 @@ the plan rather than the expected value.
 
 ## Changing a mapping
 
-Mapping changes need a test. There is a checked-in regression asserting that every
-bundled mapping resolves to a folder that exists in `systems_names.lst`, that
-multi-folder slugs resolve deterministically against a fixture `es_systems.cfg`, and
-that two platforms sharing a folder produce one merged gamelist rather than two
-competing writes. Load the `platform-mapping` skill first.
+Mapping changes need a test. `PlatformMappingTests` asserts that every bundled mapping
+resolves to a folder that exists in `systems_names.lst`, that multi-folder slugs resolve
+deterministically against a fixture `es_systems.cfg`, that `arcade` never resolves on its
+own, and that two platforms sharing one slug stay two platforms. The gamelist half of that
+last case, two platforms in one folder producing one merged gamelist rather than two
+competing writes, arrives with M4. Load the `platform-mapping` skill first.

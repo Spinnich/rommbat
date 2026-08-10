@@ -20,6 +20,9 @@ internal static class Program
     [
         "pair",       // device pairing, for headless setup
         "sync",       // resolve sets, pull content, media and BIOS
+        "sets",       // define what this device syncs, and resolve it
+        "platforms",  // the mapping surface: list, map, unmap
+        "browse",     // one page of the catalog, to show the pager working
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
         "flush",      // drain the outbox if the server is reachable
@@ -56,6 +59,9 @@ internal static class Program
             {
                 "pair" => await PairCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "status" => await StatusCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "sets" => await SetsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "platforms" => await PlatformsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "browse" => await BrowseCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }
@@ -86,7 +92,10 @@ internal static class Program
         Console.Error.WriteLine("Subcommands");
         Console.Error.WriteLine("  pair        Pair this install with a RomM server");
         Console.Error.WriteLine("  status      Report local state, and probe the server unless --offline");
-        Console.Error.WriteLine("  sync        Not implemented yet (M2-M5)");
+        Console.Error.WriteLine("  sets        list | add | show | remove | resolve sync sets");
+        Console.Error.WriteLine("  platforms   list | map | unmap the RomM to RetroBat folder mapping");
+        Console.Error.WriteLine("  browse      Print one page of the catalog");
+        Console.Error.WriteLine("  sync        Not implemented yet (M3-M5)");
         Console.Error.WriteLine("  game-start  Not implemented yet (M6)");
         Console.Error.WriteLine("  game-end    Not implemented yet (M6)");
         Console.Error.WriteLine("  flush       Not implemented yet (M6)");

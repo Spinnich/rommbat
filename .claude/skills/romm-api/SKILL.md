@@ -45,7 +45,9 @@ The code is **8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`**, not 8 digit
 grouped (`ABCD-EFGH`).
 
 Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
-restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing.
+restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing. **The init
+limit binds the test suite too:** one pairing per live test exceeds it, so live tests share
+one pairing per class.
 
 **Identity is `client_device_identifier`**, a GUID stored in the tree. Pairing looks the
 device up with `get_device_by_client_identifier` and records no host details, which is what
@@ -98,7 +100,19 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 ## Traps
 
 - **Always** pass `with_char_index=false&with_filter_values=false&with_rom_id_index=false`
-  to `/api/roms`. Each sidecar scans the whole library.
+  to `/api/roms`; they cost a flat 841 KB per request. Keep `with_total=true`: it is an
+  integer, costs nothing, and bounds a resumable walk. Page size 250, `order_by=id&order_dir=asc`
+  so a ROM added mid-walk lands past the cursor instead of shifting every later page.
+- **`fs_size_bytes` is an `int32` in the generated DTOs.** The pinned schema declares a bare
+  `integer`, so `SimpleRomSchema`, `PlatformSchema` and `RomFileSchema` all overflow.
+  `GET /api/platforms` fails to deserialize on the **first** platform of a real library. Use
+  `RomM.Client.Catalog.RomRow` and `PlatformRow`, which are slim and carry `long`.
+- **`platform.slug` is not unique; `fs_slug` and `id` are.** 123 platforms, 72 slugs, on a
+  real instance: every system has an `-unofficial` twin. Never key anything by slug.
+- **`PUT /api/devices/{id}` takes only the fields you are changing.** The generated
+  `DeviceUpdatePayload` serializes unset properties as explicit nulls and the server answers
+  **500** with a plain-text body. Send a bare `{"sync_config": {...}}`, and merge into what
+  is already there so another client's keys survive.
 - **Never read `rom_ids` from a collection response.** `BaseCollectionSchema.rom_ids` is a
   full `set[int]` present even on the list endpoint, so `GET /api/collections` on a large
   instance returns every membership of every collection. Page

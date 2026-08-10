@@ -28,11 +28,14 @@
   </ItemGroup>
 
   <!--
-    data/retrobat/*.json (platforms, save directories, save shapes) are shipped tables
-    read at runtime. They arrive with the milestones that derive them, M0 and M2.
-    Embedding them keeps a single-file publish self-contained and avoids resolving a
-    path to find them, but that is not settled yet.
+    data/retrobat/*.json are shipped tables read at runtime. Embedded for the same reason
+    the migrations are: a single-file publish carries them and nothing has to resolve a
+    path to find them. The link name is what the resource name is built from, so moving
+    one breaks the lookup in the class that reads it.
   -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\retrobat\platforms.json" Link="data\retrobat\platforms.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="RomMBat.Tests" />

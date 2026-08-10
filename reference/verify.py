@@ -25,13 +25,38 @@ def norm(s):
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
+def read_seed(path):
+    """Parse system.platforms out of the seed YAML, scanning by indentation.
+
+    Splitting on the first "platforms:" and matching every four-space key also picks up
+    scan.gamelist.export, which is a boolean and not a platform. tools/build-platform-map.py
+    reads the block the same way, so the two agree on what a pair is.
+    """
+    mapping = {}
+    in_system = in_platforms = False
+
+    for line in path.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+
+        indent = len(line) - len(line.lstrip())
+
+        if indent == 0:
+            in_system, in_platforms = line.startswith("system:"), False
+        elif in_system and indent == 2:
+            in_platforms = line.strip() == "platforms:"
+        elif in_system and in_platforms and indent == 4:
+            pair = re.fullmatch(r"\s{4}([A-Za-z0-9_\-.]+):\s*([A-Za-z0-9_\-.]+)\s*", line)
+            if pair:
+                mapping[pair.group(1)] = pair.group(2)
+
+    return mapping
+
+
 def main():
     systems = {l.strip() for l in (HERE / "systems_names.lst").read_text().splitlines() if l.strip()}
 
-    body = (HERE / "config.batocera-retrobat.yml").read_text().split("platforms:", 1)[1]
-    mapping = dict(
-        re.findall(r"^\s{4}([A-Za-z0-9_\-.]+):\s*([A-Za-z0-9_\-.]+)\s*$", body, re.M)
-    )
+    mapping = read_seed(HERE / "config.batocera-retrobat.yml")
 
     slugs_file = HERE / "romm-slugs.txt"
     if not slugs_file.exists():
@@ -41,7 +66,7 @@ def main():
     print("\nPlatform mapping")
     check("RetroBat systems", len(systems), 240)
     check("RomM known platform slugs", len(slugs), 457)
-    check("Explicit pairs in the YAML", len(mapping), 168)
+    check("Explicit pairs in the YAML", len(mapping), 167)
 
     unmapped = sorted(systems - set(mapping))
     check("RetroBat systems with no mapping", len(unmapped), 91)
@@ -52,7 +77,7 @@ def main():
         sum(1 for f in unmapped if norm(f) in by_norm),
         16,
     )
-    check("YAML entries naming folders RetroBat lacks", len(set(mapping) - systems), 19)
+    check("YAML entries naming folders RetroBat lacks", len(set(mapping) - systems), 18)
 
     fanout = {}
     for folder, slug in mapping.items():

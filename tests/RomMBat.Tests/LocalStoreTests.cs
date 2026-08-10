@@ -35,6 +35,23 @@ public class LocalStoreTests
         ("game_id_binding", "rom_relative_path"),
     ];
 
+    /// <summary>
+    /// Columns that hold a single name and must never be handed a path at all.
+    /// </summary>
+    /// <remarks>
+    /// The neighbouring half of the same rule. These are not relative paths, so
+    /// <see cref="RelativePath"/> does not guard them, and a path smuggled into one would
+    /// still end up concatenated into a real location later. Each carries a CHECK rejecting
+    /// both separators and a drive colon.
+    /// </remarks>
+    private static readonly (string Table, string Column)[] NameColumns =
+    [
+        ("sync_set_member", "folder"),
+        ("sync_set_member", "fs_name"),
+        ("platform_map", "folder"),
+        ("sync_set", "folder_override"),
+    ];
+
     [Fact]
     public void A_fresh_database_lands_at_the_expected_schema_version()
     {
@@ -136,6 +153,88 @@ public class LocalStoreTests
         {
             InsertPath(store, table, column, "roms/snes/Gradius 2 (Japan, Europe) (En).zip");
         }
+    }
+
+    [Theory]
+    [InlineData("roms/snes/Game.sfc")]
+    [InlineData("roms\\snes\\Game.sfc")]
+    [InlineData("C:/roms/snes")]
+    [InlineData("/roms/snes")]
+    [InlineData("")]
+    public void A_name_column_refuses_anything_shaped_like_a_path(string value)
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        foreach (var (table, column) in NameColumns)
+        {
+            var exception = Record.Exception(() => InsertName(store, table, column, value));
+
+            Assert.True(
+                exception is SqliteException,
+                $"{table}.{column} accepted '{value}', which is a path where a name belongs");
+        }
+    }
+
+    [Fact]
+    public void An_m1_database_upgrades_without_losing_a_row()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        // A v1 file with something in every table 002 rebuilds. Two of those rebuilds drop a
+        // table another one references, and with foreign keys on that would cascade the
+        // membership away rather than carry it across.
+        using (var seed = new SqliteConnection($"Data Source={path}"))
+        {
+            seed.Open();
+            Execute(seed, ReadMigration("001-initial.sql"));
+            Execute(
+                seed,
+                """
+                INSERT INTO sync_set (id, name, scope_kind, scope_value, created_at, updated_at)
+                VALUES (7, 'favourites', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_set_member (sync_set_id, rom_id, state, resolved_at)
+                VALUES (7, 42, 'member', '2026-01-01T00:00:00Z');
+
+                INSERT INTO platform_map (romm_platform_slug, romm_platform_id, folder, resolved_by, updated_at)
+                VALUES ('gb', 9, 'gb', 'user', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_cursor (endpoint, updated_after) VALUES ('roms', '2026-01-01T00:00:00Z');
+
+                PRAGMA user_version = 1;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var set = Assert.Single(store.SyncSets.List());
+        Assert.Equal("favourites", set.Name);
+        Assert.Null(set.FolderOverride);
+
+        var member = Assert.Single(store.SyncSets.Members(set.Id));
+        Assert.Equal(42, member.RomId);
+
+        // platform_map is rekeyed onto fs_slug, which is the identifier RomM keeps unique.
+        Assert.Equal(["gb"], QueryStrings(store, "SELECT romm_fs_slug FROM platform_map;"));
+        Assert.Equal(["roms"], QueryStrings(store, "SELECT endpoint FROM sync_cursor;"));
+    }
+
+    [Fact]
+    public void A_name_column_accepts_an_ordinary_name()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        InsertName(store, "sync_set_member", "folder", "snes");
+        InsertName(store, "platform_map", "folder", "megadrive-msu");
+        InsertName(store, "sync_set_member", "fs_name", "Gradius 2 (Japan, Europe) (En).zip");
+        InsertName(store, "sync_set", "folder_override", "fbneo");
     }
 
     [Fact]
@@ -290,6 +389,76 @@ public class LocalStoreTests
         };
 
         command.Parameters.AddWithValue("$path", value);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Inserts a value into a name column, with the row's other required fields filled in.
+    /// </summary>
+    /// <remarks>
+    /// Each insert gets a fresh rom id, so a rejected value and an accepted one cannot
+    /// collide on the primary key and turn a CHECK failure into a uniqueness failure.
+    /// </remarks>
+    private static void InsertName(LocalStore store, string table, string column, string value)
+    {
+        using var command = store.Connection.CreateCommand();
+
+        // Table and column both come from a constant in this file, never from input, and each
+        // pair gets its own statement so the column under test is never also filled in as a
+        // fixed value. SQLite accepts a duplicated column in an INSERT and keeps the first.
+        command.CommandText = (table, column) switch
+        {
+            ("sync_set_member", "folder") =>
+                """
+                INSERT INTO sync_set (name, scope_kind, scope_value, created_at, updated_at)
+                VALUES ('set-' || abs(random()), 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                INSERT INTO sync_set_member (sync_set_id, rom_id, platform_slug, fs_name, folder,
+                                             display_name, sort_key, resolved_at)
+                VALUES (last_insert_rowid(), abs(random()), 'snes', 'Game.sfc', $name,
+                        'Game', 'Game', '2026-01-01T00:00:00Z');
+                """,
+            ("sync_set_member", "fs_name") =>
+                """
+                INSERT INTO sync_set (name, scope_kind, scope_value, created_at, updated_at)
+                VALUES ('set-' || abs(random()), 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                INSERT INTO sync_set_member (sync_set_id, rom_id, platform_slug, fs_name, folder,
+                                             display_name, sort_key, resolved_at)
+                VALUES (last_insert_rowid(), abs(random()), 'snes', $name, 'snes',
+                        'Game', 'Game', '2026-01-01T00:00:00Z');
+                """,
+            ("platform_map", "folder") =>
+                """
+                INSERT INTO platform_map (romm_fs_slug, romm_platform_slug, folder, resolved_by, updated_at)
+                VALUES ('slug-' || abs(random()), 'snes', $name, 'user', '2026-01-01T00:00:00Z');
+                """,
+            ("sync_set", "folder_override") =>
+                """
+                INSERT INTO sync_set (name, scope_kind, scope_value, folder_override, created_at, updated_at)
+                VALUES ('set-' || abs(random()), 'platform', '1', $name,
+                        '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                """,
+            _ => throw new ArgumentOutOfRangeException(nameof(table)),
+        };
+
+        command.Parameters.AddWithValue("$name", value);
+        command.ExecuteNonQuery();
+    }
+
+    private static string ReadMigration(string fileName)
+    {
+        var assembly = typeof(LocalStore).Assembly;
+        var name = $"RomMBat.Core.Store.Migrations.{fileName}";
+
+        using var stream = assembly.GetManifestResourceStream(name)
+            ?? throw new InvalidOperationException($"Migration resource '{name}' is missing from the assembly.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    private static void Execute(SqliteConnection connection, string sql)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = sql;
         command.ExecuteNonQuery();
     }
 

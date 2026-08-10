@@ -30,6 +30,16 @@ Read the **live** copy, not the vendored template: it reflects that machine's ac
 configuration. Each `<system>` carries `<name>`, `<fullname>`, `<manufacturer>`,
 `<hardware>`, `<release>`, `<path>`, `<extension>` and `<command>`.
 
+**The folder is `<path>`, not `<name>`.** They are different vocabularies and five systems
+in the shipped 8.2.0 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
+`casloopy` to `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for
+`ghostship` and `starship`, so `<name>` is not even unique. Four entries own no folder under
+`roms/` (`library`, `screenshots`, `kodi`, and `retrobat` at `system/es_menu`) and `mess`
+declares no path; none is a sync target. `~` expands to `<root>/emulationstation`, so the
+ubiquitous `~\..\roms\<folder>` resolves to `<root>/roms/<folder>`. Match
+case-insensitively, and parse it as XML: `arcade` and `kodi` sit inside comments, which a
+regex over `<system>` would wrongly pick up.
+
 `<extension>` is a **sync filter**. Syncing a file the emulator cannot launch produces the
 worst failure this app has: a game that appears in ES, looks right, and dies on launch.
 

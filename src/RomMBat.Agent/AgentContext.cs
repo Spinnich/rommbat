@@ -111,6 +111,41 @@ internal sealed class AgentContext : IDisposable
             UserAgent = $"RomMBat/{Core.Identity.PairingService.ClientVersion()}",
         });
 
+    /// <summary>
+    /// Opens a connection carrying the stored token, or explains why it cannot.
+    /// </summary>
+    /// <remarks>
+    /// A missing or unreadable token is <see cref="ExitCode.NotPaired"/> rather than an
+    /// error: an expiring token is the recommended default here, so re-pairing is a normal
+    /// step and not a fault.
+    /// </remarks>
+    public RomMConnection? Authenticate(CommandLine command, TextWriter error, out int exitCode)
+    {
+        exitCode = ExitCode.Ok;
+
+        var device = Store.Device.Read();
+        if (device?.ServerOrigin is null || device.Token is null)
+        {
+            error.WriteLine("This install is not paired. Run 'rommbat-agent pair' first.");
+            exitCode = ExitCode.NotPaired;
+            return null;
+        }
+
+        string token;
+        try
+        {
+            token = new Core.Identity.PairingService(Install, Store).UnlockToken(command.Value("passphrase"));
+        }
+        catch (Core.Identity.TokenUnlockException ex)
+        {
+            error.WriteLine(ex.Message);
+            exitCode = ExitCode.NotPaired;
+            return null;
+        }
+
+        return ConnectAuthenticated(device.ServerOrigin, token);
+    }
+
     /// <summary>Opens a connection carrying the stored token.</summary>
     public static RomMConnection ConnectAuthenticated(Uri origin, string accessToken) =>
         new(new RomMClientOptions

@@ -26,11 +26,17 @@ section of `docs/PLAN.md` needs revisiting.
 | ------------------------------------------ | ------------------ |
 | RetroBat systems                           | 240                |
 | RomM known platform slugs                  | 457                |
-| Explicit pairs in the YAML                 | 168                |
+| Explicit pairs in the YAML                 | 167                |
 | RetroBat systems with no mapping           | 91 (37%)           |
 | Of those, resolved by normalization alone  | 16                 |
-| YAML entries naming folders RetroBat lacks | 19                 |
+| YAML entries naming folders RetroBat lacks | 18                 |
 | RomM slugs mapping to several folders      | 13 (`arcade` → 10) |
+
+The pair and stale counts read 168 and 19 until M2. `verify.py` split the YAML on the first
+`platforms:` and matched every key indented four spaces, which also catches
+`scan.gamelist.export`, a boolean rather than a platform. It now walks the block by
+indentation, the same way `tools/build-platform-map.py` does, so the two agree on what a
+pair is. **This was a parser fault here, not drift upstream.**
 
 **Firmware knowledge barely overlaps**
 

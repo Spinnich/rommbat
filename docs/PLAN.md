@@ -237,7 +237,7 @@ source, not just the docs.
 | Playtime           | `backend/endpoints/play_sessions.py`                                                            |
 | Save/state I/O     | `backend/endpoints/saves.py`, `backend/endpoints/states.py`                                     |
 | ES gamelist export | `backend/endpoints/export.py`, `backend/utils/gamelist_exporter.py`                             |
-| Platform map       | `examples/config.batocera-retrobat.yml` (168 pairs, a starting point, not an answer: see below) |
+| Platform map       | `examples/config.batocera-retrobat.yml` (167 pairs, a starting point, not an answer: see below) |
 | Schema for codegen | `GET /openapi.json` (served at the root, not under `/api`)                                      |
 
 Published references: [Client API Tokens](https://docs.romm.app/latest/developers/client-api-tokens/)
@@ -823,16 +823,60 @@ erroring; and every subsequent milestone can be developed with the server switch
 
 ### M2: catalog browsing and sync sets
 
-- Paged browse over `GET /api/roms?...&limit=<from M0>&offset=` with `search_term` and
-  filters, always with the three sidecar flags off. No full-library mirror, ever.
+- Paged browse over `GET /api/roms?...&limit=250&offset=`, with `with_char_index`,
+  `with_rom_id_index` and `with_filter_values` off on every page. `with_total` stays on: M0
+  probe 5 measured it at zero bytes while the other three cost a flat 841 KB per request,
+  and it is what lets an interrupted walk know how far it has left to go. No full-library
+  mirror, ever.
+- Incremental by `updated_after`, recorded in `sync_cursor`. A full walk is a first-run or
+  repair operation, takes about 14 minutes on 83k ROMs, and must resume from a recorded
+  offset rather than restart.
 - Sync set model: scope (collection / smart collection / virtual collection / platform /
   saved filter) plus policy (max games, max bytes, ordering, eviction rules).
+- **The caps select in two stages, because one stage cannot be both bounded and independent
+  of arrival order.** A worst-first buffer keeps the ordering-best candidates, then one pass
+  over that buffer in the set's own order takes each candidate that still fits. Dropping the
+  ordering-worst as a budget fills, on its own, throws away small games a later ordering-best
+  candidate would have left room for, and makes the answer depend on the order the ROMs
+  happened to be imported in. A game cap bounds the buffer exactly. A byte budget does not,
+  since a candidate the budget turns away lets a later one in, so the buffer falls back to
+  the same 50,000 ceiling an uncapped scope is refused above. That ceiling, not the library
+  size, is what a resolve holds.
+- **An interrupted walk accumulates; only a completed one decides.** Each segment writes its
+  rows stamped with the walk's start and reads back what earlier segments found, so the caps
+  apply to the walk rather than to each segment. Membership is only retired when the walk
+  finishes: a departure is an eviction candidate, and half a walk is not evidence that
+  anything left. Exclusions are deleted rather than departed, being a fact about the last
+  resolution rather than something on disk.
 - Resolve sets by paging `GET /api/roms?<scope>`, **not** by reading `rom_ids` from a
   collection payload.
-- Re-resolve every set on every sync so smart-collection drift is picked up.
-- Persist set definitions to `Device.sync_config` via `PUT /api/devices/{id}`.
+- Re-resolve every set on every sync so smart-collection drift is picked up. A member that
+  left the scope becomes an eviction candidate, never an immediate delete.
+- Persist set definitions to `Device.sync_config` via `PUT /api/devices/{id}`, sending
+  **only** `sync_config`. See the API traps below: the full update payload is a 500.
+- **Do not use the generated DTOs for the paged read.** `SimpleRomSchema` and
+  `PlatformSchema` both hold `fs_size_bytes` as an `int32`, which the pinned schema forces
+  by declaring it a bare `integer`. Measured against a live instance, `GET /api/platforms`
+  fails to deserialize on the first platform, and a 15.7 GB Switch title would do the same
+  to a page of ROMs. `RomM.Client.Catalog.RomRow` and `PlatformRow` are hand-written slim
+  rows carrying `long`, and they also avoid parsing seventy fields per ROM across 333 pages.
+
   **Done when:** a user can define "my SNES favourites, max 40 games, 8 GB" and see exactly
   which games it resolves to, without the client ever holding the whole library in memory.
+
+#### Three API facts that decide the data model, measured against a live instance
+
+- **`platform.slug` is not unique; `fs_slug` and `id` are.** A real 123-platform library
+  carried only **72 distinct slugs**, because every system has an `-unofficial` twin sharing
+  one (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). Anything keyed by slug
+  silently loses 51 of those 123 platforms and leaves the unofficial sets unmappable, so the
+  platform map is keyed by `fs_slug`. The slug stays as the bundled table's lookup key.
+- **`PUT /api/devices/{id}` must carry only the fields being changed.** Sending the full
+  `DeviceUpdatePayload` shape, whose unset properties serialize as explicit nulls, answers
+  **500 Internal Server Error** with a plain-text body. The same request carrying only
+  `sync_config` answers 200 and leaves name, platform and client version intact.
+- **`POST /api/auth/device/init` is 10/min/IP**, which the live test suite hits on its own
+  once several tests each pair. Live catalog tests share one pairing per class.
 
 #### Platform mapping is a feature, not a lookup table
 
@@ -845,12 +889,17 @@ the shipped YAML" would fail on roughly a third of a real install. Measured agai
 | ------------------------------------------------------------- | ------ |
 | RetroBat systems                                              | 240    |
 | RomM known platform slugs                                     | 457    |
-| Explicit pairs in `examples/config.batocera-retrobat.yml`     | 168    |
+| Explicit pairs in `examples/config.batocera-retrobat.yml`     | 167    |
 | **RetroBat systems with no mapping (37%)**                    | **91** |
 | Of those, resolved by case/punctuation normalization alone    | 16     |
 | Still unresolved after normalization                          | 75     |
-| Shipped mappings pointing at folders RetroBat no longer lists | 19     |
+| Shipped mappings pointing at folders RetroBat no longer lists | 18     |
 | RomM slugs mapping to **more than one** RetroBat folder       | 13     |
+
+The pair and stale counts were 168 and 19 until M2 built the table from the same file.
+`reference/verify.py` split the YAML on the first `platforms:` and matched every key at four
+spaces, which also catches `scan.gamelist.export`, a boolean and not a platform. Both the
+script and this table now read the block by indentation. Nothing upstream moved.
 
 Concretely: the YAML says `astrocde`, `bbc`, `ps` and `segacd` where RetroBat's own list
 says `astrocade`, `bbcmicro`, `psx` and `megacd`. Normalization catches easy drift like
@@ -877,9 +926,10 @@ So resolve in layers, and make the unresolved remainder a visible, editable surf
    roams. Always wins.
 2. **`platform.fs_slug` matched against `es_systems.cfg`.** When someone's RomM library is
    already laid out Batocera-style, `fs_slug` _is_ the RetroBat folder name and no
-   translation is needed. Try this before any table.
+   translation is needed. Try this before any table. On the live instance M2 was built
+   against, this layer alone answered most of the 123 platforms.
 3. **Bundled `data/retrobat/platforms.json`**, seeded from the YAML but corrected against
-   `systems_names.lst` (fix the 19 stale entries) and shaped as slug → **ordered list** of
+   `systems_names.lst` (fix the 18 stale entries) and shaped as slug → **ordered list** of
    folders, following `grout/cfw/batocera/data/platforms.json`. Where a slug maps to
    several folders, the first present in the target's `es_systems.cfg` wins, and the user
    can change it.
@@ -911,8 +961,16 @@ worst failure mode this app has: a game that appears in EmulationStation, looks 
 and dies on launch. So the accepted-extension list is a **sync filter**, not a display
 detail, and RetroBat is the only authority on it.
 
-`es_systems.cfg` carries it per system, and it is read from the live install rather than
-bundled, because it reflects that machine's actual emulator configuration:
+**The folder is `<path>`, not `<name>`.** They are different vocabularies and the shipped
+8.2.0 file disagrees on five systems: `gw` writes to `gameandwatch`, `powerbomberman` to
+`pb`, `casloopy` to `loopy`, `Windows` to `windows`, and `starship` appears **twice**, once
+for `ghostship` and once for `starship`. Keying on `<name>` loses a system outright and
+mismatches four more. Four further entries own no folder under `roms/` at all (`library`,
+`screenshots`, `kodi` and the `retrobat` menu system) and one, `mess`, declares no path;
+none of them is a sync target. Match folders case-insensitively, because the file does not.
+
+`es_systems.cfg` carries the extension list per system, and it is read from the live install
+rather than bundled, because it reflects that machine's actual emulator configuration:
 
 ```xml
 <system>
@@ -1514,7 +1572,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
   sync-set resolution and eviction ordering, outbox replay idempotency. Fixtures from a
   real install, checked in.
 - **Mapping coverage, as a checked-in regression:** assert every bundled mapping resolves
-  to a folder that exists in `systems_names.lst` (this catches the 19 stale entries today
+  to a folder that exists in `systems_names.lst` (this catches the 18 stale entries today
   and will catch future drift), assert the multi-folder slugs resolve deterministically
   given a fixture `es_systems.cfg`, and assert that two platforms sharing a folder produce
   one merged gamelist rather than two competing writes. Track the unmapped count as a
@@ -1696,8 +1754,8 @@ Paste this into Claude Code from an empty directory:
 > `examples/config.batocera-retrobat.yml` as a **seed** for the platform map.
 >
 > Do not treat that YAML as the answer. RetroBat ships 240 systems and RomM knows 457
-> platform slugs, but the YAML holds only 168 pairs: 91 RetroBat systems (37%) are
-> unmapped, normalization rescues just 16 of them, 19 entries point at folder names
+> platform slugs, but the YAML holds only 167 pairs: 91 RetroBat systems (37%) are
+> unmapped, normalization rescues just 16 of them, 18 entries point at folder names
 > RetroBat's own `system/configgen/systems_names.lst` does not contain (`astrocde` vs
 > `astrocade`, `ps` vs `psx`, `segacd` vs `megacd`), and 13 RomM slugs fan out to several
 > folders (`arcade` alone hits ten). `libretro_slug` is a DAT name and `family_slug` is a
