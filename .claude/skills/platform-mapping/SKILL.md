@@ -15,14 +15,29 @@ Reproduce with `cd reference && ./refresh.sh`.
 | ------------------------------------------------ | ---------------------------- |
 | RetroBat systems                                 | 240                          |
 | RomM known platform slugs                        | 457                          |
-| Explicit pairs in `config.batocera-retrobat.yml` | 168                          |
+| Explicit pairs in `config.batocera-retrobat.yml` | 167                          |
 | RetroBat systems with no mapping                 | 91 (37%)                     |
 | Of those, resolved by normalization              | 16                           |
-| YAML entries naming folders RetroBat lacks       | 19                           |
+| YAML entries naming folders RetroBat lacks       | 18                           |
 | RomM slugs mapping to several folders            | 13 (`arcade` fans out to 10) |
 
 Known-stale YAML entries: `astrocde`/`astrocade`, `bbc`/`bbcmicro`, `ps`/`psx`,
 `segacd`/`megacd`.
+
+## Two identity traps, both measured live
+
+**`platform.slug` is not unique. `fs_slug` and `id` are.** A real 123-platform library
+carried **72 distinct slugs**, because every system has an `-unofficial` twin sharing one
+(`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). The local `platform_map` is keyed
+by `fs_slug`; the slug is only the bundled table's lookup key. Key the map by slug and 51 of
+those 123 platforms disappear, and nobody can point the unofficial set anywhere else.
+
+**`es_systems.cfg` `<name>` is not the folder. `<path>` is.** Five systems disagree in the
+shipped 8.2.0 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `casloopy` to
+`loopy`, `Windows` to `windows`, and `starship` is used **twice**, for `ghostship` and
+`starship`. Four more entries own no folder under `roms/` (`library`, `screenshots`, `kodi`,
+and `retrobat` at `system/es_menu`) and `mess` declares no path at all; none is a sync
+target. Match folders case-insensitively, and take the folder from the resolved `<path>`.
 
 ## No authoritative source exists
 
@@ -34,7 +49,8 @@ Known-stale YAML entries: `astrocde`/`astrocade`, `bbc`/`bbcmicro`, `ps`/`psx`,
 
 ## Resolution chain
 
-1. **User override** from the mapping screen, persisted in `Device.sync_config`. Always wins.
+1. **User override** from the mapping screen, keyed by `fs_slug` and persisted in
+   `Device.sync_config`. Always wins.
 2. **`platform.fs_slug`** matched against the live `es_systems.cfg`. When the server is
    already Batocera-shaped, `fs_slug` _is_ the folder name.
 3. **Bundled `data/retrobat/platforms.json`**, slug to an **ordered list** of folders. First
@@ -63,6 +79,9 @@ Known-stale YAML entries: `astrocde`/`astrocade`, `bbc`/`bbcmicro`, `ps`/`psx`,
 
 ## Adding or fixing a mapping
 
-Edit `data/retrobat/platforms.json`, then run the mapping regression, which asserts every
-bundled mapping resolves to a folder that exists in `systems_names.lst` and that multi-folder
-slugs resolve deterministically against a fixture `es_systems.cfg`.
+Edit `tools/build-platform-map.py`, not the JSON: `data/retrobat/platforms.json` is
+generated from the seed and regenerating overwrites a hand edit. Then run
+`python tools/build-platform-map.py` and the mapping regression, which asserts every bundled
+mapping resolves to a folder that exists in `systems_names.lst`, that multi-folder slugs
+resolve deterministically against a fixture `es_systems.cfg`, and that `arcade` never
+resolves on its own.

@@ -13,8 +13,9 @@ is a wombat.
 
 > [!WARNING]
 >
-> **Pre-release, and not yet useful.** Pairing, device identity and the local store work;
-> nothing syncs yet. The repository also holds the design of record
+> **Pre-release, and not yet useful.** Pairing, device identity, the local store, catalog
+> browsing, platform mapping and sync sets work; **no content is downloaded yet**, which is
+> M3. The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
@@ -151,17 +152,17 @@ from local state.
 RomMBat is built in milestones, and platforms are certified one at a time after the
 framework works end to end.
 
-| Milestone | Scope                                                                                                               | State                                                                       |
-| --------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet     |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | Not started                                                                 |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                 |
-| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                 |
-| M5        | BIOS and firmware                                                                                                   | Not started                                                                 |
-| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                 |
-| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                 |
-| M8        | Packaging, docs, release                                                                                            | Not started                                                                 |
+| Milestone | Scope                                                                                                               | State                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                             |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                 |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                                             |
+| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                                             |
+| M5        | BIOS and firmware                                                                                                   | Not started                                                                                             |
+| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                                             |
+| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                             |
+| M8        | Packaging, docs, release                                                                                            | Not started                                                                                             |
 
 ### Known upstream issues
 
