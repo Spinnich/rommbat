@@ -43,6 +43,9 @@ public sealed class LocalStore : IDisposable
         Device = new DeviceStore(connection);
         Clock = new ClockStore(connection);
         Outbox = new OutboxStore(connection, this);
+        SyncSets = new SyncSetStore(connection);
+        PlatformMap = new PlatformMapStore(connection);
+        Cursors = new SyncCursorStore(connection);
     }
 
     /// <summary>The schema version this build expects.</summary>
@@ -62,6 +65,15 @@ public sealed class LocalStore : IDisposable
     public ClockStore Clock { get; }
 
     public OutboxStore Outbox { get; }
+
+    /// <summary>Sync set definitions and what each one last resolved to.</summary>
+    public SyncSetStore SyncSets { get; }
+
+    /// <summary>RomM platform to RetroBat folder, and where each answer came from.</summary>
+    public PlatformMapStore PlatformMap { get; }
+
+    /// <summary>Where each endpoint's incremental sync starts, and where a walk stopped.</summary>
+    public SyncCursorStore Cursors { get; }
 
     /// <summary>Opens the store inside a located RetroBat install, creating it if needed.</summary>
     public static LocalStore Open(RetroBatInstall install)

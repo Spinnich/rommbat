@@ -31,4 +31,21 @@
     <None Update="fixtures\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!--
+    Linked rather than copied, so the mapping regression runs against the same bytes the
+    reference data and the generator do. Duplicating them into fixtures/ would let the copy
+    drift from the file the numbers were derived from, which is the one thing that must not
+    happen here.
+  -->
+  <ItemGroup>
+    <None Include="..\..\reference\es_systems.cfg" Link="fixtures\es_systems.template.cfg"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\reference\systems_names.lst" Link="fixtures\systems_names.lst"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\probe-output\es_systems.json" Link="fixtures\es_systems.live.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\data\retrobat\platforms.json" Link="fixtures\platforms.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

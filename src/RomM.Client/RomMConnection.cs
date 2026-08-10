@@ -15,7 +15,7 @@ namespace RomM.Client;
 /// <see cref="SocketsHttpHandler.ConnectTimeout"/> has to be set explicitly on every
 /// instance and nothing sets it by default. See M0 probe 6b.
 /// </remarks>
-public sealed class RomMConnection : IDisposable
+public sealed partial class RomMConnection : IDisposable
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
@@ -227,7 +227,7 @@ public sealed class RomMConnection : IDisposable
         return new Uri(new Uri(basePath, UriKind.Absolute), relativePath.TrimStart('/'));
     }
 
-    private async Task<RomMResponse<T>> GetAuthenticatedAsync<T>(string path, CancellationToken cancellationToken)
+    internal async Task<RomMResponse<T>> GetAuthenticatedAsync<T>(string path, CancellationToken cancellationToken)
     {
         if (!IsAuthenticated)
         {
