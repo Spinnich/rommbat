@@ -29,7 +29,10 @@ the source of truth; the network is optional, probed with a short-timeout
 - **No daemon exists.** A portable install cannot register a service or scheduled task, so
   the flush is a short-lived process invoked from `start`, `game-end` and `quit` hooks and
   from the UI, guarded by a lock file in the tree. One pass, then exit.
-- Partial downloads survive power loss: write `.part`, verify, rename.
+- Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
+  under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave
+  a half-written file in a folder EmulationStation scans and offers to launch. Only a
+  verified file is renamed into `roms/`.
 
 ## Portable
 

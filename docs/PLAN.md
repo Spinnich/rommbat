@@ -99,8 +99,11 @@ Guardrails that follow from this:
   on a large instance returns every membership of every collection in one payload.
   Resolve membership by paging `GET /api/roms?collection_id=` (or
   `smart_collection_id=` / `virtual_collection_id=`) instead.
-- Use the `/identifiers` endpoints (`/api/roms/identifiers` and friends) for deletion
-  reconciliation rather than re-pulling full rows.
+- Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
+  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
+  answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
+  in under 1.5 s. Deletion of content is reconciled through set re-resolution instead; see
+  M3 and finding 81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. The cap exists
   because 100,000 entries cannot be navigated with a gamepad, which is principle 3's
@@ -1001,25 +1004,59 @@ the rollout order below can be derived rather than hand-maintained.
 
 ### M3: content sync and the disk budget
 
-- Download `GET /api/roms/{id}/content/{fs_name}` **always sending `Range: bytes=0-`**.
-  Single-file ROMs stream via nginx and resume natively; multi-file ROMs only take the
-  resumable cached-zip path when a `Range` header is present, otherwise they arrive as a
-  non-resumable mod_zip stream.
+- Download `GET /api/roms/{id}/content/{fs_name}` with **`Range: bytes=0-` on single-file
+  ROMs only**. That answers 206 with a `Content-Range` and an `ETag`, and resumes cleanly.
+  **Sending any `Range` on a multi-file ROM is refused 403 by nginx** (measured: `bytes=0-`,
+  a bounded range and a mid-file range alike), and the plain request that does work carries
+  no `ETag` and no `Accept-Ranges`, so a multi-file download is not resumable by any header.
+  The earlier reading, that a `Range` header is what selects a resumable cached-zip path, is
+  withdrawn. See findings 78 and 79.
+- **Multi-file ROMs are out of scope for v1, and M2's extension filter already excludes
+  them.** Every multi-file ROM carries an empty `fs_extension` and every extensionless ROM
+  is multi-file, 105 of 105 both ways in a 2,000-ROM sample, so none has ever reached a sync
+  set. M3 makes that honest rather than incidental: they get their own exclusion state and
+  are reported as multi-file, not as an unsupported format, because telling someone their
+  `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
+  milestone has to build is extraction: the served zip is the only form on offer, its
+  `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
+  it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
 - Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
-  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded.
-- Verify by size and hash, but note: for ROMs stored compressed, `crc_hash` is the CRC of
-  the _uncompressed_ content, so do not compare it against downloaded bytes.
+  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
+  answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
+  files and is never a library-wide sweep.
+- **All three of `md5_hash`, `sha1_hash` and `crc_hash` describe the _uncompressed_
+  content**, not only `crc_hash` as this plan previously said. A `.zip` reports the hashes of
+  the file inside it. So verification hashes inside a single-entry archive, adoption does the
+  same to a local one, and comparing an archive's own bytes against `md5_hash` is always
+  wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
+  so. See finding 80.
+- **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
+  size when the server has none, and reports which check it made.
 - Enforce the per-set and global disk budget. Eviction is a first-class operation with a
   dry-run: show what would be removed before removing it, and refuse to evict anything
   with unflushed local saves.
-- Reconcile deletions against `GET /api/roms/identifiers`.
+- **Reconcile deletions through re-resolution, not through `GET /api/roms/identifiers`.**
+  That endpoint answers **504 after 300 s** on 83,131 ROMs and takes no parameters, so it can
+  be neither scoped nor paged, and the reconcile it was supposed to drive would never
+  complete on the libraries this project exists for. Every ROM RomMBat holds belongs to a
+  set, and M2 already marks a member a completed walk no longer finds as `departed`, which is
+  the same fact arriving by a cheaper route. The endpoint is still attempted under a short
+  budget, because it is quick on a small library, and its answer is a cross-check for
+  orphans rather than the mechanism. See finding 81.
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
+  **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
+  power loss cannot leave a partial file in a folder EmulationStation scans. The finished
+  file is renamed into place only after it verifies.
 - **Detect the target filesystem before writing.** On FAT32, refuse or skip ROMs above
-  4 GB with a clear message rather than failing partway through a large write. Removable
-  media is also slow and prone to disconnection, so surface throughput and fail gracefully
-  on a yanked drive.
+  4 GB with a clear message rather than failing partway through a large write; that is
+  **3.05%** of a real library. Removable media is also slow and prone to disconnection, so
+  surface throughput and fail gracefully on a yanked drive.
 - Compare by `content_hash` first and mtime second, since exFAT and FAT32 store coarser
   timestamps than NTFS and a mtime round-trip is not bit-stable across filesystems.
+- **The download needs its own request timeout.** `RomMClientOptions.RequestTimeout` bounds
+  the whole response body, so the 30 s that suits an API call would abort every large ROM.
+  Downloads run with no overall deadline and a stall watchdog on the read loop instead, and
+  still classify the failure: a yanked drive and a user cancelling must not read alike.
 
 **Done when:** a set syncs to completion, a second run is a no-op **including after the
 drive letter changes**, an interrupted download resumes, exceeding the budget evicts

@@ -86,8 +86,8 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 | Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                       |
 | Platforms                | `GET /api/platforms?updated_after=`                                            |
 | ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                             |
-| Deletion reconcile       | `GET /api/roms/identifiers`                                                    |
-| Match local files        | `GET /api/roms/by-hash?md5_hash=`                                              |
+| Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale    |
+| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                         |
 | Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                         |
 | Firmware                 | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}` |
 | Save negotiation         | `POST /api/sync/negotiate`                                                     |
@@ -117,11 +117,22 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   full `set[int]` present even on the list endpoint, so `GET /api/collections` on a large
   instance returns every membership of every collection. Page
   `GET /api/roms?collection_id=` instead.
-- **Send `Range: bytes=0-` on every ROM download.** Multi-file ROMs only take the
-  resumable cached-zip path when a Range header is present; otherwise they arrive as a
-  non-resumable mod_zip stream.
-- **`crc_hash` for compressed ROMs is the CRC of the uncompressed content.** Do not compare
-  it against downloaded bytes.
+- **Send `Range: bytes=0-` on a single-file ROM download, and never on a multi-file one.**
+  Single-file answers 206 with an `ETag` (nginx's `hex(mtime)-hex(size)`) and resumes; a
+  stale `If-Range` returns a full 200 rather than a corrupt splice. **Any `Range` on a
+  multi-file ROM is refused 403 by nginx**, and the plain request that works carries no
+  `ETag` and no `Accept-Ranges`, so multi-file is not resumable at all. Multi-file ROMs are
+  identifiable before the request: `has_multiple_files`, and equivalently an empty
+  `fs_extension`.
+- **`md5_hash`, `sha1_hash` and `crc_hash` all describe the _uncompressed_ content**, not
+  just the CRC. A `.zip` reports the hashes of the file inside it, so hash inside a
+  single-entry archive rather than over its bytes. Only 91% of ROMs carry an md5 and 96% a
+  sha1, so verification must degrade to size and say so.
+- **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504
+  after 300 s on an 83k library; the platform and collection siblings answer in under 1.5 s.
+  Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
+  133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
+  hit, so neither is a sweep.
 - **Saves pair on `(rom_id, slot)`.** A null slot means "archival manual upload" and
   negotiates as `upload` forever. Always send a stable, non-null slot.
 - **The server renames uploaded saves** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`. Persist the
