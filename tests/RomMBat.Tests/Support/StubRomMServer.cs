@@ -95,6 +95,15 @@ internal sealed class StubRomMServer : HttpMessageHandler
     public HttpStatusCode? NextRomsStatus { get; set; }
 
     /// <summary>
+    /// Serves this many pages of <c>GET /api/roms</c> and then fails one, once.
+    /// </summary>
+    /// <remarks>
+    /// A walk that dies at its first request never had anything to resume. Interrupting it
+    /// partway is what exercises the resume path.
+    /// </remarks>
+    public int? FailRomsAfterPages { get; set; }
+
+    /// <summary>
     /// Reports this as <c>total</c> instead of the real match count.
     /// </summary>
     /// <remarks>
@@ -267,6 +276,12 @@ internal sealed class StubRomMServer : HttpMessageHandler
         {
             NextRomsStatus = null;
             return Detail(status, "roms refused");
+        }
+
+        if (FailRomsAfterPages is { } after && RomPagesServed >= after)
+        {
+            FailRomsAfterPages = null;
+            return Detail(HttpStatusCode.BadGateway, "roms refused");
         }
 
         RomPagesServed++;

@@ -230,9 +230,14 @@ internal static class SetsCommand
 
         foreach (var exclusion in context.Store.SyncSets.Exclusions(set.Id))
         {
+            // Only the format exclusion is about the extension. Listing them beside the
+            // unmapped group reads as though the format were the problem there too.
+            var formats = exclusion.State == MemberState.ExcludedExtension && exclusion.Extensions.Count > 0
+                ? $" ({string.Join(", ", exclusion.Extensions.Select(extension => "." + extension))})"
+                : string.Empty;
+
             Console.WriteLine();
-            Console.WriteLine($"  {exclusion.Count} {Describe(exclusion.State)}"
-                + (exclusion.Extensions.Count > 0 ? $" ({string.Join(", ", exclusion.Extensions.Select(e => "." + e))})" : string.Empty));
+            Console.WriteLine($"  {exclusion.Count} {Describe(exclusion.State)}{formats}");
         }
 
         return ExitCode.Ok;
@@ -240,14 +245,27 @@ internal static class SetsCommand
 
     private static async Task<int> ResolveAsync(AgentContext context, CommandLine command, CancellationToken cancellationToken)
     {
-        var sets = command.Positional.Count > 1
-            ? [context.Store.SyncSets.Find(command.Positional[1])!]
-            : context.Store.SyncSets.List();
+        IReadOnlyList<SyncSetDefinition> sets;
 
-        if (sets.Count == 0 || sets[0] is null)
+        if (command.Positional.Count > 1)
         {
-            Console.Error.WriteLine("No sync set to resolve.");
-            return ExitCode.Usage;
+            var named = context.Store.SyncSets.Find(command.Positional[1]);
+            if (named is null)
+            {
+                Console.Error.WriteLine($"No sync set named '{command.Positional[1]}'.");
+                return ExitCode.Usage;
+            }
+
+            sets = [named];
+        }
+        else
+        {
+            sets = context.Store.SyncSets.List();
+            if (sets.Count == 0)
+            {
+                Console.Error.WriteLine("No sync sets defined. Add one with 'sets add'.");
+                return ExitCode.Usage;
+            }
         }
 
         using var connection = context.Authenticate(command, Console.Error, out var exitCode);
@@ -264,12 +282,21 @@ internal static class SetsCommand
         {
             var endpoint = $"roms:set:{set.Id}";
             var cursor = context.Store.Cursors.BeginWalk(endpoint, DateTimeOffset.UtcNow);
-            var pager = new RomPager(connection, SetResolver.QueryFor(set), startOffset: cursor.ResumeOffset ?? 0);
+            var startOffset = cursor.ResumeOffset ?? 0;
+            var pager = new RomPager(connection, SetResolver.QueryFor(set), startOffset: startOffset);
+
+            // Every row this walk writes is stamped with the walk's start, so a segment can
+            // tell what this walk has already found from what the last one left behind.
+            var walkStartedAt = cursor.WalkStartedAt ?? DateTimeOffset.UtcNow;
+            var carried = startOffset > 0
+                ? context.Store.SyncSets.MembersFrom(set.Id, walkStartedAt)
+                : [];
 
             SetResolution resolution;
             try
             {
-                resolution = await resolver.ResolveAsync(set, pager, DateTimeOffset.UtcNow, cancellationToken)
+                resolution = await resolver
+                    .ResolveAsync(set, pager, walkStartedAt, carried, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (RomMUnreachableException ex)
@@ -279,7 +306,7 @@ internal static class SetsCommand
                 return ExitCode.Offline;
             }
 
-            worst = Math.Max(worst, Report(context, set, resolution, endpoint, pager));
+            worst = Math.Max(worst, Report(context, set, resolution, endpoint, pager, walkStartedAt));
         }
 
         await PushConfigAsync(context, command, cancellationToken).ConfigureAwait(false);
@@ -291,12 +318,14 @@ internal static class SetsCommand
         SyncSetDefinition set,
         SetResolution resolution,
         string endpoint,
-        RomPager pager)
+        RomPager pager,
+        DateTimeOffset walkStartedAt)
     {
         var now = DateTimeOffset.UtcNow;
 
         if (resolution.Outcome is ResolutionOutcome.Refused or ResolutionOutcome.NeedsFolderChoice)
         {
+            context.Store.Cursors.AbandonWalk(endpoint, now);
             Console.Error.WriteLine($"{set.Name}: {resolution.Problem}");
 
             if (resolution.Outcome == ResolutionOutcome.NeedsFolderChoice)
@@ -307,13 +336,18 @@ internal static class SetsCommand
             return ExitCode.Refused;
         }
 
+        var complete = resolution.Outcome == ResolutionOutcome.Resolved;
+
+        // A segment of a walk is an accumulator, not a statement about what the set holds, so
+        // only a completed walk retires the rows it did not find.
         context.Store.SyncSets.ReplaceMembers(
             set.Id,
             [.. resolution.Members, .. resolution.Excluded],
             resolution.Summary,
-            now);
+            walkStartedAt,
+            complete);
 
-        if (resolution.Outcome == ResolutionOutcome.Interrupted)
+        if (!complete)
         {
             context.Store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, now);
             Console.Error.WriteLine($"{set.Name}: {resolution.Summary}");

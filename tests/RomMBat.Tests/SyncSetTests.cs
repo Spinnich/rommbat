@@ -331,6 +331,163 @@ public class SyncSetTests : IDisposable
     }
 
     [Fact]
+    public async Task Resolving_twice_over_an_unchanged_library_changes_nothing()
+    {
+        using var stub = SnesLibrary(3);
+        stub.Library.Add(new StubRom(4, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
+
+        using var connection = Connect(stub);
+        var set = Add(new SyncSetDefinition { Name = "steady", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
+
+        await ResolveSegment(set, connection, Now);
+        await ResolveSegment(set, connection, Now.AddMinutes(1));
+
+        // The no-op re-sync check, one milestone early: a second resolve over a library that
+        // did not move must not depart anyone or double-count what it skipped.
+        Assert.Equal(3, _store.SyncSets.Members(set.Id).Count);
+        Assert.Empty(_store.SyncSets.Members(set.Id, MemberState.Departed));
+
+        var exclusions = _store.SyncSets.Exclusions(set.Id);
+        Assert.Single(exclusions);
+        Assert.Equal(1, exclusions[0].Count);
+    }
+
+    [Fact]
+    public async Task An_exclusion_stops_being_reported_once_the_rom_leaves_the_scope()
+    {
+        using var stub = SnesLibrary(2);
+        stub.Library.Add(new StubRom(3, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
+
+        using var connection = Connect(stub);
+        var set = Add(new SyncSetDefinition { Name = "cleaning", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
+
+        await ResolveSegment(set, connection, Now);
+        Assert.Equal(MemberState.ExcludedExtension, _store.SyncSets.Exclusions(set.Id)[0].State);
+
+        // The user deletes the unplayable disc image in RomM. The reason it was skipped is a
+        // fact about the last resolution, so it has to go with it rather than be reported
+        // forever against a game that is no longer in the scope.
+        stub.Library.RemoveAt(2);
+        await ResolveSegment(set, connection, Now.AddMinutes(1));
+
+        Assert.Empty(_store.SyncSets.Exclusions(set.Id));
+    }
+
+    [Fact]
+    public async Task A_walk_that_resumes_holds_both_of_its_segments()
+    {
+        using var stub = SnesLibrary(10);
+        using var connection = Connect(stub);
+
+        var set = Add(new SyncSetDefinition { Name = "resuming", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
+
+        // The server drops out after the first page, which is the case resume_offset exists
+        // for. The segment already read is an accumulator, not the membership.
+        stub.FailRomsAfterPages = 1;
+        var first = await ResolveSegment(set, connection, Now, pageSize: 4);
+
+        Assert.Equal(ResolutionOutcome.Interrupted, first.Outcome);
+        Assert.Equal(4, _store.Cursors.Read($"roms:set:{set.Id}")!.ResumeOffset);
+
+        var second = await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4);
+
+        Assert.Equal(ResolutionOutcome.Resolved, second.Outcome);
+        Assert.Equal(10, _store.SyncSets.Members(set.Id).Count);
+        Assert.Empty(_store.SyncSets.Members(set.Id, MemberState.Departed));
+        Assert.Equal(
+            [.. Enumerable.Range(1, 10).Select(id => $"Game {id:0000}")],
+            _store.SyncSets.Members(set.Id).Select(member => member.DisplayName));
+    }
+
+    [Fact]
+    public async Task A_cap_applies_to_the_whole_walk_rather_than_to_each_segment()
+    {
+        using var stub = SnesLibrary(10);
+        using var connection = Connect(stub);
+
+        var set = Add(new SyncSetDefinition
+        {
+            Name = "capped",
+            Scope = CatalogScopeKind.Platform,
+            ScopeValue = "1",
+            MaxGames = 6,
+        });
+
+        stub.FailRomsAfterPages = 1;
+        await ResolveSegment(set, connection, Now, pageSize: 4);
+        await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4);
+
+        // Six, not six per segment, and the six the ordering actually asks for.
+        var members = _store.SyncSets.Members(set.Id);
+        Assert.Equal(6, members.Count);
+        Assert.Equal("Game 0001", members[0].DisplayName);
+        Assert.Equal("Game 0006", members[^1].DisplayName);
+    }
+
+    [Fact]
+    public async Task A_byte_budget_ignores_the_order_the_roms_were_imported_in()
+    {
+        // Same three games, same names, same sizes. Only the rom ids differ, which is the
+        // order an id-ascending walk delivers them in.
+        var byName = new StubRomMServer();
+        byName.Library.Add(new StubRom(1, 1, "snes", "snes", "A", "A.sfc", "sfc", 9_000));
+        byName.Library.Add(new StubRom(2, 1, "snes", "snes", "B", "B.sfc", "sfc", 9_500));
+        byName.Library.Add(new StubRom(3, 1, "snes", "snes", "C", "C.sfc", "sfc", 1_000));
+
+        var byImport = new StubRomMServer();
+        byImport.Library.Add(new StubRom(1, 1, "snes", "snes", "C", "C.sfc", "sfc", 1_000));
+        byImport.Library.Add(new StubRom(2, 1, "snes", "snes", "B", "B.sfc", "sfc", 9_500));
+        byImport.Library.Add(new StubRom(3, 1, "snes", "snes", "A", "A.sfc", "sfc", 9_000));
+
+        using (byName)
+        using (byImport)
+        {
+            var set = Add(new SyncSetDefinition
+            {
+                Name = "budget",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "1",
+                MaxBytes = 10_000,
+            });
+
+            using var first = Connect(byName);
+            using var second = Connect(byImport);
+
+            var ordered = await Resolve(set, first);
+            var shuffled = await Resolve(set, second);
+
+            // B is the one that does not fit alongside A. Dropping the ordering-worst as the
+            // budget filled would instead have thrown C away before B ever arrived.
+            Assert.Equal(["A", "C"], ordered.Members.Select(member => member.DisplayName));
+            Assert.Equal(["A", "C"], shuffled.Members.Select(member => member.DisplayName));
+            Assert.Equal(10_000, shuffled.Bytes);
+            Assert.Equal(1, shuffled.OverBytes);
+        }
+    }
+
+    [Fact]
+    public async Task A_rom_larger_than_the_whole_budget_is_never_selected()
+    {
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Huge", "Huge.sfc", "sfc", 20_000));
+        stub.Library.Add(new StubRom(2, 1, "snes", "snes", "Small", "Small.sfc", "sfc", 1_000));
+
+        using var connection = Connect(stub);
+        var set = Add(new SyncSetDefinition
+        {
+            Name = "budget",
+            Scope = CatalogScopeKind.Platform,
+            ScopeValue = "1",
+            MaxBytes = 10_000,
+        });
+
+        var resolution = await Resolve(set, connection);
+
+        Assert.Equal(["Small"], resolution.Members.Select(member => member.DisplayName));
+        Assert.Equal(1, resolution.OverBytes);
+    }
+
+    [Fact]
     public async Task An_interrupted_walk_records_where_to_resume()
     {
         using var stub = SnesLibrary(10);
@@ -356,6 +513,22 @@ public class SyncSetTests : IDisposable
         // Resuming continues from the recorded offset rather than restarting.
         var resumed = _store.Cursors.BeginWalk(endpoint, Now.AddMinutes(1));
         Assert.Equal(4, resumed.ResumeOffset);
+    }
+
+    [Fact]
+    public void Abandoning_a_walk_leaves_the_incremental_cursor_alone()
+    {
+        _store.Cursors.BeginWalk("roms", Now);
+        _store.Cursors.AbandonWalk("roms", Now.AddSeconds(2));
+
+        var cursor = _store.Cursors.Read("roms");
+
+        // A refusal read nothing, so there is nothing to resume and nothing to advance. A
+        // walk left in flight here would pin walk_started_at for every later run.
+        Assert.NotNull(cursor);
+        Assert.False(cursor.HasWalkInFlight);
+        Assert.Null(cursor.WalkStartedAt);
+        Assert.Null(cursor.UpdatedAfter);
     }
 
     [Fact]
@@ -418,6 +591,55 @@ public class SyncSetTests : IDisposable
         var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
 
         return await resolver.ResolveAsync(set, new RomPager(connection, SetResolver.QueryFor(set), pageSize), Now);
+    }
+
+    /// <summary>
+    /// One segment of a walk, driven the way <c>sets resolve</c> drives it.
+    /// </summary>
+    /// <remarks>
+    /// The cursor, the carry and the sweep only make sense together, so anything about
+    /// resuming or about what survives a re-resolve has to go through all three rather than
+    /// through the resolver on its own.
+    /// </remarks>
+    private async Task<SetResolution> ResolveSegment(
+        SyncSetDefinition set,
+        RomMConnection connection,
+        DateTimeOffset now,
+        int pageSize = 250)
+    {
+        var endpoint = $"roms:set:{set.Id}";
+        var cursor = _store.Cursors.BeginWalk(endpoint, now);
+        var startOffset = cursor.ResumeOffset ?? 0;
+        var walkStartedAt = cursor.WalkStartedAt ?? now;
+
+        IReadOnlyList<SyncSetMember> carried = startOffset > 0
+            ? _store.SyncSets.MembersFrom(set.Id, walkStartedAt)
+            : [];
+
+        var install = Fixtures.LoadEsSystems();
+        var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
+        var pager = new RomPager(connection, SetResolver.QueryFor(set), pageSize, startOffset);
+
+        var resolution = await resolver.ResolveAsync(set, pager, walkStartedAt, carried);
+        var complete = resolution.Outcome == ResolutionOutcome.Resolved;
+
+        _store.SyncSets.ReplaceMembers(
+            set.Id,
+            [.. resolution.Members, .. resolution.Excluded],
+            resolution.Summary,
+            walkStartedAt,
+            complete);
+
+        if (complete)
+        {
+            _store.Cursors.CompleteWalk(endpoint, now);
+        }
+        else
+        {
+            _store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, now);
+        }
+
+        return resolution;
     }
 
     private static RomMConnection Connect(StubRomMServer stub) =>

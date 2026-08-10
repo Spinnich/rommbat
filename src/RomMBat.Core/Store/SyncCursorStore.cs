@@ -185,6 +185,34 @@ public sealed class SyncCursorStore
         command.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// Closes a walk that read nothing, leaving <c>updated_after</c> where it was.
+    /// </summary>
+    /// <remarks>
+    /// A refusal is not an interrupted walk. Nothing was read, so there is nothing to resume,
+    /// and leaving the walk in flight would pin <c>walk_started_at</c> at the first refusal
+    /// for every run after it.
+    /// </remarks>
+    public void AbandonWalk(string endpoint, DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(endpoint);
+
+        using var command = _connection
+            .Command(
+                """
+                UPDATE sync_cursor
+                SET resume_offset   = NULL,
+                    walk_started_at = NULL,
+                    walk_total      = NULL,
+                    last_run_at     = $now
+                WHERE endpoint = $endpoint;
+                """)
+            .With("$now", SqliteValues.ToText(now))
+            .With("$endpoint", endpoint);
+
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>Throws away the incremental cursor, so the next run walks everything again.</summary>
     public void Reset(string endpoint)
     {

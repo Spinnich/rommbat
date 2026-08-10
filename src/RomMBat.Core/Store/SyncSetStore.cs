@@ -89,9 +89,13 @@ public sealed record SyncSetMember
 
     public required string SortKey { get; init; }
 
+    /// <summary>The rom's own <c>updated_at</c> in RomM, which is what a 'recent' set sorts on.</summary>
+    public DateTimeOffset? RomUpdatedAt { get; init; }
+
     /// <summary>Rank in the set's ordering, or null when excluded.</summary>
     public int? Position { get; init; }
 
+    /// <summary>The start of the walk that produced this row, not when the row was written.</summary>
     public DateTimeOffset ResolvedAt { get; init; }
 }
 
@@ -111,6 +115,12 @@ public sealed class SyncSetStore
     private const string SelectColumns = """
         id, name, scope_kind, scope_value, max_games, max_bytes, ordering, eviction_policy,
         enabled, folder_override, created_at, updated_at, last_resolved_at, last_resolution_summary
+        """;
+
+    private const string MemberColumns = """
+        SELECT rom_id, state, folder, platform_slug, fs_name, fs_extension, size_bytes,
+               display_name, sort_key, rom_updated_at, position, resolved_at
+        FROM sync_set_member
         """;
 
     private readonly SqliteConnection _connection;
@@ -208,55 +218,58 @@ public sealed class SyncSetStore
     }
 
     /// <summary>
-    /// Replaces a set's membership with what this resolution produced.
+    /// Records what one walk of a set's scope resolved to.
     /// </summary>
     /// <remarks>
-    /// Rows the resolution did not mention become <see cref="MemberState.Departed"/> rather
-    /// than disappearing, so the next sync can offer them for eviction instead of silently
-    /// deleting content the user still has on disk.
+    /// <paramref name="resolvedAt"/> is the walk's start, not the moment of the call, and
+    /// every row this walk writes carries it. A walk that was interrupted and resumed calls
+    /// this once per segment with the same value, so the rows the first segment found are not
+    /// mistaken for rows an earlier walk left behind.
+    /// <para>
+    /// The sweep only runs when <paramref name="complete"/> is true, because a segment of a
+    /// walk is not a statement about what the set contains. A member the completed walk did
+    /// not find becomes <see cref="MemberState.Departed"/> rather than disappearing, so the
+    /// next sync can offer it for eviction instead of silently deleting content the user
+    /// still has on disk. An exclusion is deleted outright: it is a fact about the last
+    /// resolution rather than something on disk, and keeping it would go on reporting a
+    /// skipped game that has left the scope.
+    /// </para>
     /// </remarks>
     public void ReplaceMembers(
         long syncSetId,
         IReadOnlyList<SyncSetMember> members,
         string summary,
-        DateTimeOffset now)
+        DateTimeOffset resolvedAt,
+        bool complete = true)
     {
         ArgumentNullException.ThrowIfNull(members);
 
-        using var transaction = _connection.BeginTransaction();
+        var stamp = SqliteValues.ToText(resolvedAt);
 
-        using (var depart = _connection.Command(
-            """
-            UPDATE sync_set_member SET state = 'departed', position = NULL
-            WHERE sync_set_id = $id AND state = 'member';
-            """)
-            .With("$id", syncSetId))
-        {
-            depart.Transaction = transaction;
-            depart.ExecuteNonQuery();
-        }
+        using var transaction = _connection.BeginTransaction();
 
         using (var upsert = _connection.Command(
             """
             INSERT INTO sync_set_member (
               sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
-              size_bytes, display_name, sort_key, position, resolved_at
+              size_bytes, display_name, sort_key, rom_updated_at, position, resolved_at
             )
             VALUES (
               $setId, $romId, $state, $folder, $slug, $fsName, $extension,
-              $size, $displayName, $sortKey, $position, $now
+              $size, $displayName, $sortKey, $romUpdatedAt, $position, $resolvedAt
             )
             ON CONFLICT (sync_set_id, rom_id) DO UPDATE SET
-              state        = excluded.state,
-              folder       = excluded.folder,
-              platform_slug = excluded.platform_slug,
-              fs_name      = excluded.fs_name,
-              fs_extension = excluded.fs_extension,
-              size_bytes   = excluded.size_bytes,
-              display_name = excluded.display_name,
-              sort_key     = excluded.sort_key,
-              position     = excluded.position,
-              resolved_at  = excluded.resolved_at;
+              state          = excluded.state,
+              folder         = excluded.folder,
+              platform_slug  = excluded.platform_slug,
+              fs_name        = excluded.fs_name,
+              fs_extension   = excluded.fs_extension,
+              size_bytes     = excluded.size_bytes,
+              display_name   = excluded.display_name,
+              sort_key       = excluded.sort_key,
+              rom_updated_at = excluded.rom_updated_at,
+              position       = excluded.position,
+              resolved_at    = excluded.resolved_at;
             """))
         {
             upsert.Transaction = transaction;
@@ -275,42 +288,76 @@ public sealed class SyncSetStore
                     .With("$size", member.SizeBytes)
                     .With("$displayName", member.DisplayName)
                     .With("$sortKey", member.SortKey)
+                    .With("$romUpdatedAt", SqliteValues.ToTextOrNull(member.RomUpdatedAt))
                     .With("$position", SqliteValues.OrNull(member.Position))
-                    .With("$now", SqliteValues.ToText(now));
+                    .With("$resolvedAt", stamp);
 
                 upsert.ExecuteNonQuery();
             }
         }
 
-        using (var stamp = _connection.Command(
+        if (complete)
+        {
+            using var depart = _connection.Command(
+                """
+                UPDATE sync_set_member SET state = 'departed', position = NULL
+                WHERE sync_set_id = $id AND state = 'member' AND resolved_at <> $resolvedAt;
+
+                DELETE FROM sync_set_member
+                WHERE sync_set_id = $id AND state LIKE 'excluded_%' AND resolved_at <> $resolvedAt;
+                """)
+                .With("$id", syncSetId)
+                .With("$resolvedAt", stamp);
+
+            depart.Transaction = transaction;
+            depart.ExecuteNonQuery();
+        }
+
+        using (var summarize = _connection.Command(
             """
             UPDATE sync_set
-            SET last_resolved_at = $now, last_resolution_summary = $summary, updated_at = $now
+            SET last_resolved_at = $resolvedAt, last_resolution_summary = $summary, updated_at = $resolvedAt
             WHERE id = $id;
             """)
-            .With("$now", SqliteValues.ToText(now))
+            .With("$resolvedAt", stamp)
             .With("$summary", summary)
             .With("$id", syncSetId))
         {
-            stamp.Transaction = transaction;
-            stamp.ExecuteNonQuery();
+            summarize.Transaction = transaction;
+            summarize.ExecuteNonQuery();
         }
 
         transaction.Commit();
+    }
+
+    /// <summary>
+    /// The members one walk has already selected, for a run that is resuming that walk.
+    /// </summary>
+    /// <remarks>
+    /// Selection state does not survive the process, so a resumed walk has to be given back
+    /// what the interrupted segment kept. Without it each segment applies the set's caps to
+    /// its own slice, and a 40-game set resolves 40 twice.
+    /// </remarks>
+    public IReadOnlyList<SyncSetMember> MembersFrom(long syncSetId, DateTimeOffset resolvedAt)
+    {
+        using var command = _connection
+            .Command($"{MemberColumns} WHERE sync_set_id = $id AND state = 'member' AND resolved_at = $resolvedAt;")
+            .With("$id", syncSetId)
+            .With("$resolvedAt", SqliteValues.ToText(resolvedAt));
+
+        using var reader = command.ExecuteReader();
+        return ReadMembers(reader);
     }
 
     /// <summary>Reads back a set's membership, ordered as the set orders it.</summary>
     public IReadOnlyList<SyncSetMember> Members(long syncSetId, MemberState? state = MemberState.Member)
     {
         var filter = state is null ? string.Empty : " AND state = $state";
-        using var command = _connection.Command(
-            $"""
-            SELECT rom_id, state, folder, platform_slug, fs_name, fs_extension, size_bytes,
-                   display_name, sort_key, position, resolved_at
-            FROM sync_set_member
-            WHERE sync_set_id = $id{filter}
-            ORDER BY position IS NULL, position, sort_key;
-            """)
+        using var command = _connection
+            .Command($"""
+                {MemberColumns} WHERE sync_set_id = $id{filter}
+                ORDER BY position IS NULL, position, sort_key;
+                """)
             .With("$id", syncSetId);
 
         if (state is { } wanted)
@@ -319,27 +366,7 @@ public sealed class SyncSetStore
         }
 
         using var reader = command.ExecuteReader();
-
-        var members = new List<SyncSetMember>();
-        while (reader.Read())
-        {
-            members.Add(new SyncSetMember
-            {
-                RomId = (int)reader.GetInt64(0),
-                State = ParseState(reader.GetString(1)),
-                Folder = reader.GetStringOrNull(2),
-                PlatformSlug = reader.GetString(3),
-                FsName = reader.GetString(4),
-                FsExtension = reader.GetStringOrNull(5),
-                SizeBytes = reader.GetInt64(6),
-                DisplayName = reader.GetString(7),
-                SortKey = reader.GetString(8),
-                Position = (int?)reader.GetInt64OrNull(9),
-                ResolvedAt = reader.GetTimestampOrNull(10) ?? default,
-            });
-        }
-
-        return members;
+        return ReadMembers(reader);
     }
 
     /// <summary>What the set holds now: how many games and how many bytes.</summary>
@@ -451,6 +478,31 @@ public sealed class SyncSetStore
         "excluded_over_bytes" => MemberState.ExcludedOverBytes,
         _ => MemberState.Member,
     };
+
+    private static List<SyncSetMember> ReadMembers(SqliteDataReader reader)
+    {
+        var members = new List<SyncSetMember>();
+        while (reader.Read())
+        {
+            members.Add(new SyncSetMember
+            {
+                RomId = (int)reader.GetInt64(0),
+                State = ParseState(reader.GetString(1)),
+                Folder = reader.GetStringOrNull(2),
+                PlatformSlug = reader.GetString(3),
+                FsName = reader.GetString(4),
+                FsExtension = reader.GetStringOrNull(5),
+                SizeBytes = reader.GetInt64(6),
+                DisplayName = reader.GetString(7),
+                SortKey = reader.GetString(8),
+                RomUpdatedAt = reader.GetTimestampOrNull(9),
+                Position = (int?)reader.GetInt64OrNull(10),
+                ResolvedAt = reader.GetTimestampOrNull(11) ?? default,
+            });
+        }
+
+        return members;
+    }
 
     private static SyncSetDefinition ReadSet(SqliteDataReader reader) => new()
     {

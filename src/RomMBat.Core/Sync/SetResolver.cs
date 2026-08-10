@@ -78,15 +78,17 @@ public sealed record SetResolution
 /// membership is a cache of the last answer and never the answer.
 /// <para>
 /// <b>Memory is bounded by the set, never by the library.</b> One page of 250 rows is in
-/// flight at a time and nothing accumulates the catalog. What is held is the resolved set
-/// itself, which is capped at <c>max_games</c> when there is one; an uncapped scope larger
-/// than <see cref="UncappedScopeLimit"/> is refused rather than silently accumulated.
+/// flight at a time and nothing accumulates the catalog. What is held is a buffer of the
+/// ordering-best candidates, capped at <c>max_games</c> for a set with only a game cap and
+/// at <see cref="UncappedScopeLimit"/> otherwise, so a resolve holds the same ceiling
+/// whether the library has 5,000 ROMs or 83,000.
 /// </para>
 /// <para>
-/// <b>The caps are greedy, not a knapsack.</b> Candidates are kept in the set's ordering and
-/// the ordering-worst is dropped when a cap is exceeded, so the result is the best-ordered
-/// subset that fits. It does not search for a combination that would pack the budget more
-/// tightly, and it does not depend on the order pages arrive in.
+/// <b>The caps are greedy, not a knapsack.</b> The buffer is walked in the set's own order
+/// and a candidate is taken when it still fits, so the result is the best-ordered subset
+/// that fits. It does not search for a combination that would pack the budget more tightly.
+/// Both halves are order-independent by construction: the ordering-best N of a stream does
+/// not depend on the stream's order, and the pass over the buffer sees one fixed order.
 /// </para>
 /// </remarks>
 public sealed class SetResolver
@@ -141,10 +143,20 @@ public sealed class SetResolver
     /// Supplied rather than built here so a caller can start it at a recorded offset and
     /// continue an interrupted walk.
     /// </param>
+    /// <param name="resolvedAt">
+    /// The walk's start. Every row it produces is stamped with it, including the rows an
+    /// earlier segment of the same walk already wrote.
+    /// </param>
+    /// <param name="carried">
+    /// What earlier segments of this same walk resolved to, read back from the store. The
+    /// caps apply to the whole walk rather than to each segment, and selection state does not
+    /// survive the process, so a resumed run has to be handed back what it had.
+    /// </param>
     public async Task<SetResolution> ResolveAsync(
         SyncSetDefinition set,
         RomPager pager,
-        DateTimeOffset now,
+        DateTimeOffset resolvedAt,
+        IReadOnlyList<SyncSetMember>? carried = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(set);
@@ -156,6 +168,11 @@ public sealed class SetResolver
         var unmappedCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var scanned = 0;
         RomMResponse<RomPage>? failure = null;
+
+        foreach (var row in carried ?? [])
+        {
+            Carry(row, selector, excluded, extensionCounts, unmappedCounts);
+        }
 
         while (!pager.IsComplete)
         {
@@ -189,18 +206,18 @@ public sealed class SetResolver
                 if (resolution.Folder is null)
                 {
                     Count(unmappedCounts, row.PlatformSlug);
-                    excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, null, now));
+                    excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
                     continue;
                 }
 
                 if (!Accepts(resolution.Folder, row.FsExtension))
                 {
                     Count(extensionCounts, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
-                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, null, now));
+                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, resolvedAt));
                     continue;
                 }
 
-                selector.Offer(row, resolution.Folder);
+                selector.Offer(Member(row, resolution.Folder, MemberState.Member, resolvedAt));
             }
         }
 
@@ -208,7 +225,7 @@ public sealed class SetResolver
         var members = new List<SyncSetMember>(selected.Count);
         for (var index = 0; index < selected.Count; index++)
         {
-            members.Add(Member(selected[index].Row, selected[index].Folder, MemberState.Member, index + 1, now));
+            members.Add(selected[index] with { Position = index + 1, ResolvedAt = resolvedAt });
         }
 
         var outcome = failure is not null || !pager.IsComplete
@@ -327,7 +344,36 @@ public sealed class SetResolver
     private bool Accepts(string folder, string? extension) =>
         _install.TryGetFolder(folder, out var system) && system.Accepts(extension);
 
-    private static SyncSetMember Member(RomRow row, string? folder, MemberState state, int? position, DateTimeOffset now) =>
+    /// <summary>Puts a row an earlier segment of this walk produced back where it was.</summary>
+    private static void Carry(
+        SyncSetMember row,
+        BoundedSelection selector,
+        List<SyncSetMember> excluded,
+        Dictionary<string, int> extensionCounts,
+        Dictionary<string, int> unmappedCounts)
+    {
+        switch (row.State)
+        {
+            case MemberState.Member:
+                selector.Offer(row);
+                break;
+
+            case MemberState.ExcludedExtension:
+                Count(extensionCounts, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
+                excluded.Add(row);
+                break;
+
+            case MemberState.ExcludedUnmapped:
+                Count(unmappedCounts, row.PlatformSlug);
+                excluded.Add(row);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private static SyncSetMember Member(RomRow row, string? folder, MemberState state, DateTimeOffset resolvedAt) =>
         new()
         {
             RomId = row.Id,
@@ -339,8 +385,8 @@ public sealed class SetResolver
             SizeBytes = row.SizeBytes,
             DisplayName = row.DisplayName,
             SortKey = row.SortKey,
-            Position = position,
-            ResolvedAt = now,
+            RomUpdatedAt = row.UpdatedAtUtc,
+            ResolvedAt = resolvedAt,
         };
 
     private static void Count(Dictionary<string, int> counts, string key) =>
@@ -371,88 +417,140 @@ public sealed class SetResolver
     /// Keeps the ordering-best candidates that fit inside the set's caps.
     /// </summary>
     /// <remarks>
-    /// A priority queue ordered worst-first, so exceeding a cap is one dequeue. That bounds
-    /// what is held to the cap itself plus the candidate being considered, which is what lets
-    /// a 40-game set be resolved out of an 83,000 ROM library without ever holding it.
+    /// Two stages, because one alone cannot be both bounded and independent of the order the
+    /// pages arrive in. A worst-first priority queue holds the ordering-best candidates and
+    /// nothing else, which is what lets a 40-game set be resolved out of an 83,000 ROM
+    /// library without ever holding it. Then one pass over that buffer, in the set's order,
+    /// takes each candidate that still fits.
+    /// <para>
+    /// Dropping the ordering-worst as the budget is exceeded, without the second stage, is
+    /// not the same answer: a late ordering-best candidate evicts small ones that would have
+    /// fitted alongside it, and the result then depends on the order the ROMs happened to be
+    /// imported in.
+    /// </para>
+    /// <para>
+    /// The buffer is <c>max_games</c> when that is the only cap, because the answer cannot
+    /// then reach past the ordering-best <c>max_games</c> candidates. A byte budget can reach
+    /// further, since a candidate the budget turns away lets a later one in, so the buffer
+    /// falls back to <see cref="UncappedScopeLimit"/>: the ceiling an uncapped scope is
+    /// refused above, and the most this holds regardless of library size.
+    /// </para>
     /// </remarks>
     private sealed class BoundedSelection
     {
         private readonly SyncSetDefinition _set;
-        private readonly PriorityQueue<Candidate, Candidate> _kept;
-        private long _bytes;
+        private readonly PriorityQueue<SyncSetMember, SyncSetMember> _buffer;
+        private readonly int _limit;
 
         public BoundedSelection(SyncSetDefinition set)
         {
             _set = set;
+            _limit = set.MaxBytes.HasValue ? UncappedScopeLimit : set.MaxGames ?? UncappedScopeLimit;
 
             // Inverted, so the queue hands back the item the set wants least.
             var order = SetOrder(set.Ordering);
-            _kept = new PriorityQueue<Candidate, Candidate>(
-                Comparer<Candidate>.Create((left, right) => order.Compare(right, left)));
+            _buffer = new PriorityQueue<SyncSetMember, SyncSetMember>(
+                Comparer<SyncSetMember>.Create((left, right) => order.Compare(right, left)));
         }
 
         public int OverCount { get; private set; }
 
         public int OverBytes { get; private set; }
 
-        public void Offer(RomRow row, string folder)
+        public void Offer(SyncSetMember candidate)
         {
-            var candidate = new Candidate(row, folder);
-            _kept.Enqueue(candidate, candidate);
-            _bytes += row.SizeBytes;
-
-            while (_set.MaxGames is { } maxGames && _kept.Count > maxGames)
+            // A ROM larger than the whole budget can never be selected, whatever it displaces.
+            if (_set.MaxBytes is { } maxBytes && candidate.SizeBytes > maxBytes)
             {
-                Drop();
-                OverCount++;
+                OverBytes++;
+                return;
             }
 
-            while (_set.MaxBytes is { } maxBytes && _bytes > maxBytes && _kept.Count > 0)
+            _buffer.Enqueue(candidate, candidate);
+
+            if (_buffer.Count > _limit)
             {
-                Drop();
-                OverBytes++;
+                _buffer.Dequeue();
+                Turned();
             }
         }
 
-        public List<Candidate> Drain()
+        public List<SyncSetMember> Drain()
         {
-            var kept = new List<Candidate>(_kept.Count);
-            while (_kept.TryDequeue(out var candidate, out _))
+            var ordered = new List<SyncSetMember>(_buffer.Count);
+            while (_buffer.TryDequeue(out var candidate, out _))
             {
-                kept.Add(candidate);
+                ordered.Add(candidate);
             }
 
-            // Drained worst first, so reversing leaves the set in its own order.
-            kept.Reverse();
+            // Drained worst first, so reversing leaves the buffer in the set's own order.
+            ordered.Reverse();
+
+            var kept = new List<SyncSetMember>(ordered.Count);
+            var bytes = 0L;
+
+            foreach (var candidate in ordered)
+            {
+                if (_set.MaxGames is { } maxGames && kept.Count >= maxGames)
+                {
+                    OverCount++;
+                    continue;
+                }
+
+                if (_set.MaxBytes is { } maxBytes && bytes + candidate.SizeBytes > maxBytes)
+                {
+                    OverBytes++;
+                    continue;
+                }
+
+                kept.Add(candidate);
+                bytes += candidate.SizeBytes;
+            }
+
             return kept;
         }
 
-        private void Drop() => _bytes -= _kept.Dequeue().Row.SizeBytes;
+        /// <summary>
+        /// Counts a candidate the buffer had no room for, against whichever cap set its size.
+        /// </summary>
+        /// <remarks>
+        /// A set with neither cap never gets here: a scope that large is refused before the
+        /// first page is read.
+        /// </remarks>
+        private void Turned()
+        {
+            if (_set.MaxBytes.HasValue)
+            {
+                OverBytes++;
+            }
+            else
+            {
+                OverCount++;
+            }
+        }
 
         /// <summary>The set's own order: negative means the left one comes first.</summary>
-        private static Comparer<Candidate> SetOrder(SetOrdering ordering) =>
-            Comparer<Candidate>.Create((left, right) => ordering switch
+        private static Comparer<SyncSetMember> SetOrder(SetOrdering ordering) =>
+            Comparer<SyncSetMember>.Create((left, right) => ordering switch
             {
-                SetOrdering.SizeAscending => Then(left.Row.SizeBytes.CompareTo(right.Row.SizeBytes), left, right),
-                SetOrdering.SizeDescending => Then(right.Row.SizeBytes.CompareTo(left.Row.SizeBytes), left, right),
+                SetOrdering.SizeAscending => Then(left.SizeBytes.CompareTo(right.SizeBytes), left, right),
+                SetOrdering.SizeDescending => Then(right.SizeBytes.CompareTo(left.SizeBytes), left, right),
                 SetOrdering.RecentlyUpdated => Then(Updated(right).CompareTo(Updated(left)), left, right),
                 _ => ByName(left, right),
             });
 
-        private static int Then(int primary, Candidate left, Candidate right) =>
+        private static int Then(int primary, SyncSetMember left, SyncSetMember right) =>
             primary != 0 ? primary : ByName(left, right);
 
         // Falls through to the rom id so the order is total. Without it, two games with the
         // same name and size would swap places between runs and churn the membership.
-        private static int ByName(Candidate left, Candidate right)
+        private static int ByName(SyncSetMember left, SyncSetMember right)
         {
-            var byName = string.Compare(left.Row.SortKey, right.Row.SortKey, StringComparison.OrdinalIgnoreCase);
-            return byName != 0 ? byName : left.Row.Id.CompareTo(right.Row.Id);
+            var byName = string.Compare(left.SortKey, right.SortKey, StringComparison.OrdinalIgnoreCase);
+            return byName != 0 ? byName : left.RomId.CompareTo(right.RomId);
         }
 
-        private static DateTimeOffset Updated(Candidate candidate) =>
-            candidate.Row.UpdatedAtUtc ?? DateTimeOffset.MinValue;
+        private static DateTimeOffset Updated(SyncSetMember candidate) =>
+            candidate.RomUpdatedAt ?? DateTimeOffset.MinValue;
     }
-
-    private readonly record struct Candidate(RomRow Row, string Folder);
 }
