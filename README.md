@@ -147,6 +147,32 @@ enter the 8-character code in the RomM web UI. The code lasts 10 minutes; press 
 new one, **Q** to quit. `status --offline` skips the reachability probe and answers entirely
 from local state.
 
+### Syncing content
+
+```powershell
+rommbat-agent.exe sets add "snes favourites" --scope platform --value snes --max-games 40 --max-bytes 8GB
+rommbat-agent.exe budget --max 64GB          # how much of this drive RomMBat may use
+rommbat-agent.exe sync --dry-run             # what it would fetch, and what it would not
+rommbat-agent.exe sync                       # fetch it
+rommbat-agent.exe evict                      # what would go to get back inside the budget
+rommbat-agent.exe evict --apply              # actually remove it
+```
+
+`sync` re-resolves each set first, because smart-collection membership drifts server-side,
+then prints a plan before doing anything. A second run of an unchanged set downloads nothing
+and says so. `sync --dry-run` and `sync --offline` both work with the server unreachable,
+answering from what the store already holds.
+
+**Nothing is deleted without `evict --apply`.** Eviction never removes a file RomMBat did not
+download, and never one whose saves have not reached the server.
+
+Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
+several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server
+serves it as an archive that cannot be resumed and whose hashes describe neither the archive
+nor its contents. And on a FAT32 drive, anything over 4 GB is left out before the download
+starts, because the write would otherwise fail with an error message about disk space on a
+drive with plenty free.
+
 ## Status
 
 RomMBat is built in milestones, and platforms are certified one at a time after the
@@ -157,7 +183,7 @@ framework works end to end.
 | M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                             |
 | M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                 |
 | M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | Not started                                                                                             |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance |
 | M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                                             |
 | M5        | BIOS and firmware                                                                                                   | Not started                                                                                             |
 | M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                                             |

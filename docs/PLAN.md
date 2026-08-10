@@ -1032,9 +1032,31 @@ the rollout order below can be derived rather than hand-maintained.
   so. See finding 80.
 - **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
   size when the server has none, and reports which check it made.
-- Enforce the per-set and global disk budget. Eviction is a first-class operation with a
-  dry-run: show what would be removed before removing it, and refuse to evict anything
-  with unflushed local saves.
+- **Only `.zip` can be looked inside**, because it is the one archive format the base class
+  library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
+  size alone and says so. RetroBat accepts both formats for many systems, so this is a real
+  and stated limitation rather than an oversight, and the fix is one package away when it
+  earns its place.
+- Enforce the per-set and global disk budget. **Two bounds, not one**: the budget counts what
+  RomMBat downloaded, and a free-space floor covers the drive as a whole. Counting a user's
+  own library against the budget would leave the app permanently over its cap, unable to fetch
+  and unable to evict its way out, because it must never delete a file it did not download.
+- Eviction is a first-class operation and a dry-run by default: it shows what would be
+  removed before anything is, and refuses to evict anything with unflushed local saves.
+  **Two of the plan's three eviction policies cannot be honoured yet, and the code says so
+  rather than ignoring them.** "Keep favourites" needs a fact RomM does not carry on a ROM
+  (favourites are collection membership) and "keep the last N played" needs the play sessions
+  M6 owns. What M3 can order by is real: departures first, then games no set claims, then the
+  lowest-ranked members of a set, with the ROM id breaking every tie so a dry-run and the run
+  that follows it agree.
+- **What M6 has to connect to the save guard.** Eviction asks `SaveGuard` before removing
+  anything, and today it answers from the two seams migration 001 already declared: an unsent
+  `outbox` row for that ROM, and an `open` `journal` entry naming its path. It fails closed,
+  so an unreadable store refuses rather than assumes. What it cannot yet see is a save file
+  sitting on disk that nothing has ever uploaded, because attributing a file under `saves/` to
+  a ROM needs the save shapes M6 owns. **When M6 lands, the guard grows a third question and
+  this is the place it goes**; until then the gap is covered by eviction never touching a file
+  RomMBat did not download.
 - **Reconcile deletions through re-resolution, not through `GET /api/roms/identifiers`.**
   That endpoint answers **504 after 300 s** on 83,131 ROMs and takes no parameters, so it can
   be neither scoped nor paged, and the reconcile it was supposed to drive would never
@@ -1144,6 +1166,15 @@ failing silently at launch, and BIOS is fetched before that platform's ROMs.
 
 The milestone with the most protocol nuance. Read `backend/endpoints/sync.py` and
 `backend/endpoints/saves.py` before writing code.
+
+**M3 left a seam here that has to be connected, and it is the one where being wrong destroys
+data.** Eviction asks `RomMBat.Core.Content.SaveGuard` before removing any ROM, and today
+that guard can only answer from an unsent `outbox` row or an `open` `journal` entry, because
+attributing a file under `saves/` to a ROM needs the save shapes this milestone defines. Once
+they exist, the guard grows a third question, "is there a save on disk that has never been
+uploaded", and eviction stops depending on the outbox having been written first. Until then
+the gap is covered by eviction never touching a file RomMBat did not download, which is a
+mitigation and not an answer.
 
 - **The hooks are journal-only.** `game-start` appends a start record; `game-end` closes it.
   No HTTP, no waiting on a lock.

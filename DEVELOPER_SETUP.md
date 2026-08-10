@@ -254,6 +254,23 @@ dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
 to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
 reachability probe.
 
+### Pulling content, without filling your disk
+
+```powershell
+dotnet run --project src/RomMBat.Agent -- sets add snes --scope platform --value snes --max-games 5 --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- budget --max 2GB --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- sync --dry-run --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- sync --root D:\retrobat-test
+```
+
+Start with a small `--max-games` and a `--max-bytes` against a real library, because the
+default is the whole platform. `sync --dry-run` prints the plan and writes nothing, and it
+works offline, so it is the cheap way to see what a set would cost before it costs it.
+
+`evict` is a dry run unless you pass `--apply`, and it is the only command in the agent that
+deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by
+hand is safe, and the next sync starts that ROM again.
+
 ---
 
 ## 4. Stand up a throwaway RetroBat

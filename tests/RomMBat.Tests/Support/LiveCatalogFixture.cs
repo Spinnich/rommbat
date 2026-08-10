@@ -68,7 +68,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime, IDisposable
 
         var token = pairing.UnlockToken(null);
         _litter.Track(completion.RomMDeviceId!, token, completion.Scopes.All);
-        _session = new LiveSession(_store, completion.RomMDeviceId!, origin, token);
+        _session = new LiveSession(_store, completion.RomMDeviceId!, origin, token) { Install = install };
     }
 
     /// <summary>xUnit calls <see cref="DisposeAsync"/>; this exists so the analyzer agrees.</summary>
@@ -105,6 +105,9 @@ internal sealed class LiveSession(LocalStore store, string deviceId, Uri origin,
 
     /// <summary>The origin this session paired against.</summary>
     public Uri Origin => origin;
+
+    /// <summary>The throwaway tree this session's store lives in, for tests that write files.</summary>
+    public required RomMBat.Core.Paths.RetroBatInstall Install { get; init; }
 
     /// <summary>
     /// The device token, for a test that has to build its own request.

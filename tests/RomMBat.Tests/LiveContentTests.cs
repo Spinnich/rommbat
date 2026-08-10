@@ -6,6 +6,9 @@ using RomM.Client;
 using RomM.Client.Catalog;
 using RomM.Client.Content;
 using RomMBat.Core.Content;
+using RomMBat.Core.Mapping;
+using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -156,7 +159,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             await File.WriteAllBytesAsync(temporary, bytes);
             var fingerprint = ContentHasher.Compute(temporary, rom.FsName);
 
-            Assert.Equal(RomMBat.Core.Store.HashScope.ArchiveContent, fingerprint.Scope);
+            Assert.Equal(HashScope.ArchiveContent, fingerprint.Scope);
             Assert.Equal(rom.Md5Hash, fingerprint.Md5, ignoreCase: true);
         }
         finally
@@ -210,6 +213,83 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         {
             Assert.NotEmpty(identifiers);
         }
+    }
+
+    [SkippableFact]
+    public async Task A_real_set_syncs_to_completion_and_the_second_run_is_a_no_op()
+    {
+        Skip.IfNot(IsConfigured);
+
+        var session = fixture.Session;
+        var systems = Fixtures.LoadEsSystems();
+        var resolver = new PlatformResolver(systems);
+
+        var platforms = await session.Connection.ListPlatformsAsync();
+        Skip.If(platforms.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
+        Assert.True(platforms.IsSuccess, platforms.Message);
+
+        var candidate = platforms.Value!
+            .Where(platform => platform.RomCount > 0)
+            .FirstOrDefault(platform => resolver
+                .Resolve(new RomMPlatform(platform.Id, platform.Slug, platform.FsSlug, platform.Label))
+                .IsApplied);
+
+        Skip.If(candidate is null, "No platform on this instance both has ROMs and maps to a folder.");
+
+        // Two games, smallest first. This runs against someone's real library, so the set is
+        // deliberately the smallest thing that can still prove the milestone's done-when.
+        var set = session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "live content",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = candidate!.Id.ToString(CultureInfo.InvariantCulture),
+                MaxGames = 2,
+                Ordering = SetOrdering.SizeAscending,
+            },
+            DateTimeOffset.UtcNow);
+
+        var resolution = await new SetResolver(systems, resolver).ResolveAsync(
+            set,
+            new RomPager(session.Connection, SetResolver.QueryFor(set)),
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
+        Skip.If(resolution.Members.Count == 0, "The chosen platform resolved to nothing syncable.");
+
+        session.Store.SyncSets.ReplaceMembers(
+            set.Id,
+            [.. resolution.Members, .. resolution.Excluded],
+            resolution.Summary,
+            DateTimeOffset.UtcNow);
+
+        var members = session.Store.SyncSets.Members(set.Id);
+        var planner = new ContentPlanner(session.Install, session.Store);
+        var outcome = await new ContentSync(session.Install, session.Store, session.Connection)
+            .ApplyAsync(planner.Plan(set, members));
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(members.Count, outcome.Downloaded);
+
+        foreach (var member in members)
+        {
+            var path = session.Install.Resolve(ContentPlanner.TargetFor(member));
+            Assert.True(File.Exists(path), $"{member.FsName} did not land on disk.");
+            Assert.Equal(member.SizeBytes, new FileInfo(path).Length);
+        }
+
+        // Every file verified against a hash the server gave us, not merely against its length.
+        Assert.All(
+            session.Store.Files.List(),
+            file => Assert.True(
+                file.VerifiedBy is VerifiedBy.Md5 or VerifiedBy.Sha1,
+                $"{file.FileName} was only verified by {file.VerifiedBy}."));
+
+        // The milestone's done-when: a second run writes nothing and says so.
+        var second = planner.Plan(set, session.Store.SyncSets.Members(set.Id));
+
+        Assert.True(second.IsNoOp);
+        Assert.Contains("nothing to do", second.Summary, StringComparison.Ordinal);
     }
 
     /// <summary>The smallest single-file ROM that carries an md5, optionally of one format.</summary>
