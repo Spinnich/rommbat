@@ -68,7 +68,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime, IDisposable
 
         var token = pairing.UnlockToken(null);
         _litter.Track(completion.RomMDeviceId!, token, completion.Scopes.All);
-        _session = new LiveSession(_store, completion.RomMDeviceId!, origin, token);
+        _session = new LiveSession(_store, completion.RomMDeviceId!, origin, token) { Install = install };
     }
 
     /// <summary>xUnit calls <see cref="DisposeAsync"/>; this exists so the analyzer agrees.</summary>
@@ -102,6 +102,21 @@ internal sealed class LiveSession(LocalStore store, string deviceId, Uri origin,
     public LocalStore Store => store;
 
     public string DeviceId => deviceId;
+
+    /// <summary>The origin this session paired against.</summary>
+    public Uri Origin => origin;
+
+    /// <summary>The throwaway tree this session's store lives in, for tests that write files.</summary>
+    public required RomMBat.Core.Paths.RetroBatInstall Install { get; init; }
+
+    /// <summary>
+    /// The device token, for a test that has to build its own request.
+    /// </summary>
+    /// <remarks>
+    /// Content downloads are measured on headers (<c>Range</c>, <c>ETag</c>, <c>Content-Range</c>)
+    /// that no typed response surfaces, so those tests hold the credential directly.
+    /// </remarks>
+    public string Token => token;
 
     public RomMConnection Connection { get; } =
         new(new RomMClientOptions { Origin = origin, AccessToken = token });

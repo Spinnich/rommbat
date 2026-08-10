@@ -50,6 +50,46 @@ public sealed record RomRow
     [JsonPropertyName("fs_size_bytes")]
     public long SizeBytes { get; init; }
 
+    /// <summary>
+    /// The md5 of this ROM's <b>uncompressed</b> content, or null.
+    /// </summary>
+    /// <remarks>
+    /// All three hash fields describe the content rather than the stored file, which the plan
+    /// previously said only of <see cref="CrcHash"/>. Measured: a 1,025-byte <c>.zip</c>
+    /// reports the hashes of the 16,400-byte <c>.nes</c> inside it, and a <c>.chd</c> reports
+    /// the hashes of its own bytes. So comparing an archive's own bytes against this is always
+    /// wrong.
+    /// <para>
+    /// Null is ordinary. Of 1,895 single-file ROMs sampled from a real library, 91.0% carried
+    /// an md5 and 96.3% a sha1, so verification has to degrade to size for the rest.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("md5_hash")]
+    public string? Md5Hash { get; init; }
+
+    [JsonPropertyName("sha1_hash")]
+    public string? Sha1Hash { get; init; }
+
+    /// <summary>The CRC-32 of the uncompressed content, as lower-case hex.</summary>
+    [JsonPropertyName("crc_hash")]
+    public string? CrcHash { get; init; }
+
+    /// <summary>
+    /// True when RomM holds this ROM as several files and would serve it as a zip.
+    /// </summary>
+    /// <remarks>
+    /// Decides the download before it is made: any <c>Range</c> header on a multi-file ROM is
+    /// refused 403 by nginx, so the header that makes a single-file download resumable breaks
+    /// this one outright. v1 does not sync them at all.
+    /// <para>
+    /// It travels with an empty <see cref="FsExtension"/>: 105 of 105 multi-file ROMs sampled
+    /// were extensionless and every extensionless ROM was multi-file. The flag is read rather
+    /// than the extension, because the flag is what states the fact.
+    /// </para>
+    /// </remarks>
+    [JsonPropertyName("has_multiple_files")]
+    public bool HasMultipleFiles { get; init; }
+
     [JsonPropertyName("name")]
     public string? Name { get; init; }
 

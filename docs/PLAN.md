@@ -99,8 +99,11 @@ Guardrails that follow from this:
   on a large instance returns every membership of every collection in one payload.
   Resolve membership by paging `GET /api/roms?collection_id=` (or
   `smart_collection_id=` / `virtual_collection_id=`) instead.
-- Use the `/identifiers` endpoints (`/api/roms/identifiers` and friends) for deletion
-  reconciliation rather than re-pulling full rows.
+- Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
+  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
+  answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
+  in under 1.5 s. Deletion of content is reconciled through set re-resolution instead; see
+  M3 and finding 81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. The cap exists
   because 100,000 entries cannot be navigated with a gamepad, which is principle 3's
@@ -1001,25 +1004,101 @@ the rollout order below can be derived rather than hand-maintained.
 
 ### M3: content sync and the disk budget
 
-- Download `GET /api/roms/{id}/content/{fs_name}` **always sending `Range: bytes=0-`**.
-  Single-file ROMs stream via nginx and resume natively; multi-file ROMs only take the
-  resumable cached-zip path when a `Range` header is present, otherwise they arrive as a
-  non-resumable mod_zip stream.
+- Download `GET /api/roms/{id}/content/{fs_name}` with **`Range: bytes=0-` on single-file
+  ROMs only**. That answers 206 with a `Content-Range` and an `ETag`, and resumes cleanly.
+  **Sending any `Range` on a multi-file ROM is refused 403 by nginx** (measured: `bytes=0-`,
+  a bounded range and a mid-file range alike), and the plain request that does work carries
+  no `ETag` and no `Accept-Ranges`, so a multi-file download is not resumable by any header.
+  The earlier reading, that a `Range` header is what selects a resumable cached-zip path, is
+  withdrawn. See findings 78 and 79.
+- **Multi-file ROMs are out of scope for v1, and M2's extension filter already excludes
+  them.** Every multi-file ROM carries an empty `fs_extension` and every extensionless ROM
+  is multi-file, 105 of 105 both ways in a 2,000-ROM sample, so none has ever reached a sync
+  set. M3 makes that honest rather than incidental: they get their own exclusion state and
+  are reported as multi-file, not as an unsupported format, because telling someone their
+  `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
+  milestone has to build is extraction: the served zip is the only form on offer, its
+  `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
+  it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
 - Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
-  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded.
-- Verify by size and hash, but note: for ROMs stored compressed, `crc_hash` is the CRC of
-  the _uncompressed_ content, so do not compare it against downloaded bytes.
-- Enforce the per-set and global disk budget. Eviction is a first-class operation with a
-  dry-run: show what would be removed before removing it, and refuse to evict anything
-  with unflushed local saves.
-- Reconcile deletions against `GET /api/roms/identifiers`.
+  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
+  answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
+  files and is never a library-wide sweep.
+- **All three of `md5_hash`, `sha1_hash` and `crc_hash` describe the _uncompressed_
+  content**, not only `crc_hash` as this plan previously said. A `.zip` reports the hashes of
+  the file inside it. So verification hashes inside a single-entry archive, adoption does the
+  same to a local one, and comparing an archive's own bytes against `md5_hash` is always
+  wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
+  so. See finding 80.
+- **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
+  size when the server has none, and reports which check it made.
+- **Only `.zip` can be looked inside**, because it is the one archive format the base class
+  library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
+  size alone and says so. RetroBat accepts both formats for many systems, so this is a real
+  and stated limitation rather than an oversight, and the fix is one package away when it
+  earns its place. **`.rar` is in the same position**, and appears in real `<extension>` sets
+  alongside `.7z`, so it degrades the same way.
+- **An archive the code cannot see inside is hashed as a file, and that hash is evidence only
+  when it agrees.** A `.7z`, a `.rar` and a multi-entry `.zip` are all hashed as their own
+  bytes while the server's hash describes content, so a mismatch between the two says nothing
+  and must not refuse the file: treating it as a mismatch fails a correct download, deletes
+  it, and repeats the whole transfer on every run after that. **This governs adoption as much
+  as verification**, or a user whose library is `.7z` re-downloads all of it every sync. A
+  `.zip` that will not open at all is damaged rather than opaque, and there the mismatch
+  stands and the file is refused.
+- Enforce the per-set and global disk budget. **Two bounds, not one**: the budget counts what
+  RomMBat downloaded, and a free-space floor covers the drive as a whole. Counting a user's
+  own library against the budget would leave the app permanently over its cap, unable to fetch
+  and unable to evict its way out, because it must never delete a file it did not download.
+- Eviction is a first-class operation and a dry-run by default: it shows what would be
+  removed before anything is, and refuses to evict anything with unflushed local saves.
+  **Two of the plan's three eviction policies cannot be honoured yet, and the code says so
+  rather than ignoring them.** "Keep favourites" needs a fact RomM does not carry on a ROM
+  (favourites are collection membership) and "keep the last N played" needs the play sessions
+  M6 owns. What M3 can order by is real: departures first, then games no set claims, then the
+  lowest-ranked members of a set, with the ROM id breaking every tie so a dry-run and the run
+  that follows it agree.
+- **What M6 has to connect to the save guard.** Eviction asks `SaveGuard` before removing
+  anything, and today it answers from the two seams migration 001 already declared: an unsent
+  `outbox` row for that ROM, and an `open` `journal` entry naming its path. It fails closed,
+  so an unreadable store refuses rather than assumes. What it cannot yet see is a save file
+  sitting on disk that nothing has ever uploaded, because attributing a file under `saves/` to
+  a ROM needs the save shapes M6 owns. **When M6 lands, the guard grows a third question and
+  this is the place it goes**; until then the gap is covered by eviction never touching a file
+  RomMBat did not download.
+- **Reconcile deletions through re-resolution, not through `GET /api/roms/identifiers`.**
+  That endpoint answers **504 after 300 s** on 83,131 ROMs and takes no parameters, so it can
+  be neither scoped nor paged, and the reconcile it was supposed to drive would never
+  complete on the libraries this project exists for. Every ROM RomMBat holds belongs to a
+  set, and M2 already marks a member a completed walk no longer finds as `departed`, which is
+  the same fact arriving by a cheaper route. The endpoint is still attempted under a short
+  budget, because it is quick on a small library, and its answer is a cross-check for
+  orphans rather than the mechanism. See finding 81.
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
+  **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
+  power loss cannot leave a partial file in a folder EmulationStation scans. The finished
+  file is renamed into place only after it verifies.
+- **A `.part` that is already complete is verified and renamed, never resumed.** The body is
+  flushed before the verify and the rename, so the power-cut window this whole design exists
+  for leaves a complete, correct partial file and a live row. Asking to resume from the end of
+  it is answered **416**, identically on every run, and the file that would have verified is
+  never offered to the check that would have passed it. A resume point the server does refuse
+  discards the partial file rather than keeping it, because keeping it plans the same refused
+  request forever, and the message already tells the user it was discarded.
+- **The `If-Range` validator is recorded when the response headers arrive, not when the body
+  ends.** A transfer that finishes has its row deleted by the commit that follows it, so a
+  validator written at the end is only ever written to a row that is about to go. The row that
+  needs one belongs to the transfer that died, and that transfer never reaches its own end.
 - **Detect the target filesystem before writing.** On FAT32, refuse or skip ROMs above
-  4 GB with a clear message rather than failing partway through a large write. Removable
-  media is also slow and prone to disconnection, so surface throughput and fail gracefully
-  on a yanked drive.
+  4 GB with a clear message rather than failing partway through a large write; that is
+  **3.05%** of a real library. Removable media is also slow and prone to disconnection, so
+  surface throughput and fail gracefully on a yanked drive.
 - Compare by `content_hash` first and mtime second, since exFAT and FAT32 store coarser
   timestamps than NTFS and a mtime round-trip is not bit-stable across filesystems.
+- **The download needs its own request timeout.** `RomMClientOptions.RequestTimeout` bounds
+  the whole response body, so the 30 s that suits an API call would abort every large ROM.
+  Downloads run with no overall deadline and a stall watchdog on the read loop instead, and
+  still classify the failure: a yanked drive and a user cancelling must not read alike.
 
 **Done when:** a set syncs to completion, a second run is a no-op **including after the
 drive letter changes**, an interrupted download resumes, exceeding the budget evicts
@@ -1107,6 +1186,15 @@ failing silently at launch, and BIOS is fetched before that platform's ROMs.
 
 The milestone with the most protocol nuance. Read `backend/endpoints/sync.py` and
 `backend/endpoints/saves.py` before writing code.
+
+**M3 left a seam here that has to be connected, and it is the one where being wrong destroys
+data.** Eviction asks `RomMBat.Core.Content.SaveGuard` before removing any ROM, and today
+that guard can only answer from an unsent `outbox` row or an `open` `journal` entry, because
+attributing a file under `saves/` to a ROM needs the save shapes this milestone defines. Once
+they exist, the guard grows a third question, "is there a save on disk that has never been
+uploaded", and eviction stops depending on the outbox having been written first. Until then
+the gap is covered by eviction never touching a file RomMBat did not download, which is a
+mitigation and not an answer.
 
 - **The hooks are journal-only.** `game-start` appends a start record; `game-end` closes it.
   No HTTP, no waiting on a lock.

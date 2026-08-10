@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 
 namespace RomMBat.Tests.Support;
@@ -19,7 +20,22 @@ internal sealed record StubRom(
     string FsName,
     string Extension,
     long SizeBytes,
-    string UpdatedAt = "2026-01-01T00:00:00");
+    string UpdatedAt = "2026-01-01T00:00:00")
+{
+    /// <summary>
+    /// The md5 of the ROM's <b>uncompressed</b> content, as RomM reports it.
+    /// </summary>
+    /// <remarks>
+    /// For an archived ROM this is the hash of the file inside the archive and not of the bytes
+    /// the server sends, which is the trap the real API sets and the client has to survive.
+    /// </remarks>
+    public string? Md5Hash { get; init; }
+
+    public string? Sha1Hash { get; init; }
+
+    /// <summary>True to serve this ROM the way RomM serves a multi-file one: no ranges, ever.</summary>
+    public bool HasMultipleFiles { get; init; }
+}
 
 /// <summary>One platform in the stub library.</summary>
 internal sealed record StubPlatform(int Id, string Slug, string FsSlug, string Name);
@@ -114,6 +130,27 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
     public int RomPagesServed { get; private set; }
+
+    /// <summary>The bytes each ROM's content endpoint serves, by ROM id.</summary>
+    public IDictionary<int, byte[]> Content { get; } = new Dictionary<int, byte[]>();
+
+    /// <summary>Every content request, as <c>&lt;rom id&gt; &lt;range or "-"&gt;</c>.</summary>
+    public IList<string> ContentRequests { get; } = [];
+
+    /// <summary>
+    /// Cuts the body off after this many bytes, once.
+    /// </summary>
+    /// <remarks>
+    /// A dropped link mid-transfer, which is the case the resume path exists for and cannot be
+    /// exercised against a server that always finishes.
+    /// </remarks>
+    public int? DropContentAfterBytes { get; set; }
+
+    /// <summary>What the content endpoint reports as its <c>ETag</c>. Change it to go stale.</summary>
+    public string ContentETag { get; set; } = "\"6a45147a-1009\"";
+
+    /// <summary>What <c>GET /api/roms/identifiers</c> answers with. 504 is what a real one did.</summary>
+    public HttpStatusCode IdentifiersStatus { get; set; } = HttpStatusCode.OK;
 
     /// <summary>How many times the token endpoint was polled.</summary>
     public int TokenPolls { get; private set; }
@@ -240,6 +277,23 @@ internal sealed class StubRomMServer : HttpMessageHandler
             }).ToArray());
         }
 
+        if (path.EndsWith("/api/roms/identifiers", StringComparison.Ordinal))
+        {
+            return IdentifiersStatus == HttpStatusCode.OK
+                ? Json(HttpStatusCode.OK, Library.Select(rom => rom.Id).ToArray())
+                : Detail(IdentifiersStatus, "gateway timeout");
+        }
+
+        if (path.EndsWith("/api/roms/by-hash", StringComparison.Ordinal))
+        {
+            return ByHash(request.RequestUri);
+        }
+
+        if (path.Contains("/content/", StringComparison.Ordinal))
+        {
+            return ContentResponse(request, path);
+        }
+
         if (path.EndsWith("/api/roms", StringComparison.Ordinal))
         {
             return Roms(request.RequestUri);
@@ -270,6 +324,115 @@ internal sealed class StubRomMServer : HttpMessageHandler
         });
     }
 
+    /// <summary>
+    /// Serves ROM content the way the measured server does, traps included.
+    /// </summary>
+    /// <remarks>
+    /// Three behaviours are copied from a live instance rather than invented. A <c>Range</c>
+    /// header on a multi-file ROM is refused <b>403</b>, in every form. A single-file request
+    /// answers <b>206</b> with a <c>Content-Range</c> and an <c>ETag</c>. And a stale
+    /// <c>If-Range</c> answers <b>200</b> with the whole body rather than splicing, which is
+    /// what makes resuming safe at all.
+    /// </remarks>
+    private HttpResponseMessage ContentResponse(HttpRequestMessage request, string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var index = Array.IndexOf(segments, "content");
+        if (index <= 0 || !int.TryParse(segments[index - 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var romId))
+        {
+            return Detail(HttpStatusCode.NotFound, "Not Found");
+        }
+
+        var range = request.Headers.Range;
+        var validator = request.Headers.TryGetValues("If-Range", out var supplied) ? supplied.First() : null;
+
+        // The validator is recorded, not just acted on: a resume that never sends one still gets
+        // an ordinary 206 here, so a test that only checks the bytes cannot tell the difference.
+        ContentRequests.Add($"{romId} {range?.ToString() ?? "-"} if-range={validator ?? "-"}");
+
+        var rom = Library.FirstOrDefault(candidate => candidate.Id == romId);
+        if (rom is null || !Content.TryGetValue(romId, out var body))
+        {
+            return Detail(HttpStatusCode.NotFound, "Not Found");
+        }
+
+        // nginx refuses a ranged request for a built-on-demand zip with its own error page,
+        // not with a RomM error body. Measured for bytes=0-, a bounded range and a mid-file one.
+        if (rom.HasMultipleFiles && range is not null)
+        {
+            return new HttpResponseMessage(HttpStatusCode.Forbidden)
+            {
+                Content = new StringContent(
+                    "<html>\r\n<head><title>403 Forbidden</title></head>\r\n<body>\r\n</body>\r\n</html>\r\n",
+                    Encoding.UTF8,
+                    new System.Net.Http.Headers.MediaTypeHeaderValue("text/html")),
+            };
+        }
+
+        var from = range?.Ranges.FirstOrDefault()?.From ?? 0;
+        var stale = validator is not null && !string.Equals(validator, ContentETag, StringComparison.Ordinal);
+
+        if (stale || from == 0 || range is null)
+        {
+            // Includes the stale-validator case: the whole body, and the caller is expected to
+            // throw away whatever it had.
+            return Body(body, 0, partial: range is not null && !stale && from > 0);
+        }
+
+        return from >= body.Length
+            ? new HttpResponseMessage(HttpStatusCode.RequestedRangeNotSatisfiable)
+            : Body(body, (int)from, partial: true);
+    }
+
+    private HttpResponseMessage Body(byte[] body, int from, bool partial)
+    {
+        var slice = body.AsSpan(from).ToArray();
+        var drop = DropContentAfterBytes;
+
+        if (drop is { } cut && cut < slice.Length)
+        {
+            DropContentAfterBytes = null;
+
+            var response = new HttpResponseMessage(partial ? HttpStatusCode.PartialContent : HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new FailingStream(slice, cut)),
+            };
+
+            response.Headers.TryAddWithoutValidation("ETag", ContentETag);
+            response.Content.Headers.ContentLength = slice.Length;
+            return response;
+        }
+
+        var message = new HttpResponseMessage(partial ? HttpStatusCode.PartialContent : HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(slice),
+        };
+
+        message.Headers.TryAddWithoutValidation("ETag", ContentETag);
+        message.Headers.AcceptRanges.Add("bytes");
+
+        if (partial)
+        {
+            message.Content.Headers.ContentRange =
+                new System.Net.Http.Headers.ContentRangeHeaderValue(from, body.Length - 1, body.Length);
+        }
+
+        return message;
+    }
+
+    private HttpResponseMessage ByHash(Uri? uri)
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(uri?.Query ?? string.Empty);
+        var md5 = query["md5_hash"];
+        var sha1 = query["sha1_hash"];
+
+        var match = Library.FirstOrDefault(rom =>
+            (md5 is not null && string.Equals(rom.Md5Hash, md5, StringComparison.OrdinalIgnoreCase))
+            || (sha1 is not null && string.Equals(rom.Sha1Hash, sha1, StringComparison.OrdinalIgnoreCase)));
+
+        return match is null ? Detail(HttpStatusCode.NotFound, "Not Found") : Json(HttpStatusCode.OK, Project(match));
+    }
+
     private HttpResponseMessage Roms(Uri? uri)
     {
         if (NextRomsStatus is { } status)
@@ -298,20 +461,7 @@ internal sealed class StubRomMServer : HttpMessageHandler
             .OrderBy(rom => rom.Id)
             .ToList();
 
-        var items = matching.Skip(offset).Take(limit).Select(rom => new
-        {
-            id = rom.Id,
-            platform_id = rom.PlatformId,
-            platform_slug = rom.PlatformSlug,
-            platform_fs_slug = rom.PlatformFsSlug,
-            platform_display_name = rom.PlatformSlug,
-            fs_name = rom.FsName,
-            fs_extension = rom.Extension,
-            fs_size_bytes = rom.SizeBytes,
-            name = rom.Name,
-            name_sort_key = rom.Name,
-            updated_at = rom.UpdatedAt,
-        }).ToArray();
+        var items = matching.Skip(offset).Take(limit).Select(Project).ToArray();
 
         return Json(HttpStatusCode.OK, new
         {
@@ -321,6 +471,24 @@ internal sealed class StubRomMServer : HttpMessageHandler
             offset,
         });
     }
+
+    private static object Project(StubRom rom) => new
+    {
+        id = rom.Id,
+        platform_id = rom.PlatformId,
+        platform_slug = rom.PlatformSlug,
+        platform_fs_slug = rom.PlatformFsSlug,
+        platform_display_name = rom.PlatformSlug,
+        fs_name = rom.FsName,
+        fs_extension = rom.Extension,
+        fs_size_bytes = rom.SizeBytes,
+        md5_hash = rom.Md5Hash,
+        sha1_hash = rom.Sha1Hash,
+        has_multiple_files = rom.HasMultipleFiles,
+        name = rom.Name,
+        name_sort_key = rom.Name,
+        updated_at = rom.UpdatedAt,
+    };
 
     private static TaskCanceledException Timeout() =>
         new("The request was canceled due to the configured ConnectTimeout.", new TimeoutException());
@@ -355,4 +523,55 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     private static HttpResponseMessage Detail(HttpStatusCode status, string detail) =>
         Json(status, new { detail });
+
+    /// <summary>
+    /// A body that hands over some bytes and then dies, the way a dropped link does.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="StreamContent"/> rather than a custom <see cref="HttpContent"/>, because
+    /// the default content-read stream buffers the whole body first: the exception would then
+    /// arrive before a single byte reached the caller, and there would be no partial file to
+    /// resume, which is the entire thing being tested.
+    /// </remarks>
+    private sealed class FailingStream(byte[] body, int cut) : Stream
+    {
+        private int _position;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => body.Length;
+
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_position >= cut)
+            {
+                throw new IOException("The connection was closed before the whole body arrived.");
+            }
+
+            var take = Math.Min(count, cut - _position);
+            Array.Copy(body, _position, buffer, offset, take);
+            _position += take;
+            return take;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 }

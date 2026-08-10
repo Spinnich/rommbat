@@ -24,6 +24,8 @@ public class LocalStoreTests
         "game_id_binding",
         "sync_cursor",
         "clock",
+        "content_download",
+        "setting",
     ];
 
     /// <summary>Every column the "no absolute path" rule has to cover.</summary>
@@ -33,6 +35,8 @@ public class LocalStoreTests
         ("outbox", "relative_path"),
         ("journal", "rom_relative_path"),
         ("game_id_binding", "rom_relative_path"),
+        ("content_download", "part_path"),
+        ("content_download", "target_path"),
     ];
 
     /// <summary>
@@ -50,6 +54,8 @@ public class LocalStoreTests
         ("sync_set_member", "fs_name"),
         ("platform_map", "folder"),
         ("sync_set", "folder_override"),
+        ("local_file", "folder"),
+        ("local_file", "file_name"),
     ];
 
     [Fact]
@@ -205,6 +211,10 @@ public class LocalStoreTests
 
                 INSERT INTO sync_cursor (endpoint, updated_after) VALUES ('roms', '2026-01-01T00:00:00Z');
 
+                INSERT INTO local_file (relative_path, folder, rom_id, file_name, size_bytes, md5_hash, origin)
+                VALUES ('roms/gb/Tetris (World).zip', 'gb', 42, 'Tetris (World).zip', 4105,
+                        'fab05f70b7e480d9dee494f65b95ab52', 'adopted');
+
                 PRAGMA user_version = 1;
                 """);
         }
@@ -223,6 +233,14 @@ public class LocalStoreTests
         // platform_map is rekeyed onto fs_slug, which is the identifier RomM keeps unique.
         Assert.Equal(["gb"], QueryStrings(store, "SELECT romm_fs_slug FROM platform_map;"));
         Assert.Equal(["roms"], QueryStrings(store, "SELECT endpoint FROM sync_cursor;"));
+
+        // 003 rebuilds local_file to put a CHECK on its two name columns, so its rows are
+        // copied like everything else rather than assumed to be absent.
+        var file = Assert.Single(store.Files.List());
+        Assert.Equal(42, file.RomId);
+        Assert.Equal("fab05f70b7e480d9dee494f65b95ab52", file.Md5Hash);
+        Assert.Equal(FileOrigin.Adopted, file.Origin);
+        Assert.Equal(HashScope.File, file.HashScope);
     }
 
     [Fact]
@@ -235,6 +253,8 @@ public class LocalStoreTests
         InsertName(store, "platform_map", "folder", "megadrive-msu");
         InsertName(store, "sync_set_member", "fs_name", "Gradius 2 (Japan, Europe) (En).zip");
         InsertName(store, "sync_set", "folder_override", "fbneo");
+        InsertName(store, "local_file", "folder", "megadrive");
+        InsertName(store, "local_file", "file_name", "Gradius 2 (Japan, Europe) (En).zip");
     }
 
     [Fact]
@@ -367,6 +387,82 @@ public class LocalStoreTests
         Assert.True(ClockSkew.IsImplausiblyInTheFuture(now.AddSeconds(120), now));
     }
 
+    [Fact]
+    public void A_recorded_file_is_found_by_its_content_hash_whatever_case_it_was_written_in()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/nes/That's Whack.zip"),
+            Folder = "nes",
+            RomId = 224439,
+            FileName = "That's Whack.zip",
+            SizeBytes = 1025,
+
+            // Upper case on purpose: RomM lower-cases its hashes and nothing guarantees the
+            // next writer will, so the store normalises rather than trusting the caller.
+            Md5Hash = "DD768E2EECC95EB27E8CAE274570E04C",
+            HashScope = HashScope.ArchiveContent,
+            VerifiedBy = VerifiedBy.Md5,
+            Origin = FileOrigin.Adopted,
+        });
+
+        var found = Assert.Single(store.Files.ByMd5("dd768e2eecc95eb27e8cae274570e04c"));
+
+        Assert.Equal(224439, found.RomId);
+        Assert.Equal(HashScope.ArchiveContent, found.HashScope);
+        Assert.Equal(VerifiedBy.Md5, found.VerifiedBy);
+        Assert.Equal((1, 1025L), store.Files.Totals("nes"));
+    }
+
+    [Fact]
+    public void Restarting_a_download_keeps_the_attempt_count_rather_than_racing_the_first()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var download = new ContentDownload
+        {
+            RomId = 7,
+            PartPath = RelativePath.Create("emulators/rommbat/partial/7.part"),
+            TargetPath = RelativePath.Create("roms/snes/Game.sfc"),
+            ExpectedSize = 4105,
+            Validator = "\"6a45147a-1009\"",
+            UpdatedAt = DateTimeOffset.UtcNow,
+        };
+
+        store.Downloads.Begin(download);
+        store.Downloads.Fail(7, "the drive was removed", DateTimeOffset.UtcNow);
+        var resumed = store.Downloads.Begin(download with { Validator = "\"6a45147a-2000\"" });
+
+        Assert.Equal(2, resumed.Attempts);
+        Assert.Equal("\"6a45147a-2000\"", resumed.Validator);
+        Assert.Single(store.Downloads.List());
+
+        store.Downloads.Remove(7);
+
+        Assert.Empty(store.Downloads.List());
+    }
+
+    [Fact]
+    public void A_setting_round_trips_and_a_null_removes_it()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = DateTimeOffset.UtcNow;
+
+        store.Settings.Set(SettingStore.ContentMaxBytes, 64L * 1024 * 1024 * 1024, now);
+
+        Assert.Equal(64L * 1024 * 1024 * 1024, store.Settings.GetInt64(SettingStore.ContentMaxBytes));
+
+        store.Settings.Set(SettingStore.ContentMaxBytes, (string?)null, now);
+
+        Assert.Null(store.Settings.GetInt64(SettingStore.ContentMaxBytes));
+        Assert.Empty(store.Settings.All());
+    }
+
     private static void InsertPath(LocalStore store, string table, string column, string value)
     {
         using var command = store.Connection.CreateCommand();
@@ -385,6 +481,15 @@ public class LocalStoreTests
             "game_id_binding" =>
                 $"INSERT INTO game_id_binding (system, game_id, {column}, learned_from, learned_at) "
                     + "VALUES ('dreamcast', $path, $path, 'journal', '2026-01-01T00:00:00Z');",
+
+            // The other path column has to carry a valid value, or a rejected insert could not
+            // be attributed to the column under test.
+            "content_download" => column == "part_path"
+                ? "INSERT INTO content_download (rom_id, part_path, target_path, started_at, updated_at) "
+                    + "VALUES (abs(random()), $path, 'roms/snes/Game.sfc', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');"
+                : "INSERT INTO content_download (rom_id, part_path, target_path, started_at, updated_at) "
+                    + "VALUES (abs(random()), 'emulators/rommbat/partial/' || abs(random()) || '.part', $path, "
+                    + "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');",
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };
 
@@ -436,6 +541,16 @@ public class LocalStoreTests
                 INSERT INTO sync_set (name, scope_kind, scope_value, folder_override, created_at, updated_at)
                 VALUES ('set-' || abs(random()), 'platform', '1', $name,
                         '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+                """,
+            ("local_file", "folder") =>
+                """
+                INSERT INTO local_file (relative_path, folder, file_name)
+                VALUES ('roms/snes/' || abs(random()) || '.sfc', $name, 'Game.sfc');
+                """,
+            ("local_file", "file_name") =>
+                """
+                INSERT INTO local_file (relative_path, folder, file_name)
+                VALUES ('roms/snes/' || abs(random()) || '.sfc', 'snes', $name);
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };
