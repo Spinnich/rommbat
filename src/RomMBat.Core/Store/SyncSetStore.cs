@@ -26,6 +26,29 @@ public enum MemberState
     /// <summary>The ROM's platform has no RetroBat folder on this install.</summary>
     ExcludedUnmapped,
 
+    /// <summary>
+    /// RomM holds this ROM as several files, which v1 does not sync.
+    /// </summary>
+    /// <remarks>
+    /// Its own state rather than <see cref="ExcludedExtension"/>, because the format is not
+    /// what is wrong with it: RomM serves it as a zip built on demand, any <c>Range</c> on
+    /// that download is refused 403 by nginx, and the ROM-level hashes describe neither the
+    /// zip nor its members. Telling someone their <c>.bin</c>/<c>.cue</c> set is an
+    /// unsupported format would send them to fix the wrong thing.
+    /// </remarks>
+    ExcludedMultiFile,
+
+    /// <summary>
+    /// The target volume cannot hold a file this large, which today means over 4 GB on FAT32.
+    /// </summary>
+    /// <remarks>
+    /// Decided before the download starts. The write itself fails as Win32 112
+    /// <c>ERROR_DISK_FULL</c>, "There is not enough space on the disk", on a volume with
+    /// plenty free, and that message must never reach a user: it sends them to delete files
+    /// that are not the problem.
+    /// </remarks>
+    ExcludedFilesystemLimit,
+
     /// <summary>Past the set's game count.</summary>
     ExcludedOverCount,
 
@@ -85,6 +108,19 @@ public sealed record SyncSetMember
 
     public long SizeBytes { get; init; }
 
+    /// <summary>
+    /// What the server says this ROM's content hashes to, or null.
+    /// </summary>
+    /// <remarks>
+    /// Carried on the membership so a re-sync can decide a file on disk is already the right
+    /// one without asking the server. Both describe the <b>uncompressed</b> content, so for an
+    /// archive they are hashes of what is inside it. Null is ordinary: 9% of a real library
+    /// carries no md5 and 4% no sha1.
+    /// </remarks>
+    public string? Md5Hash { get; init; }
+
+    public string? Sha1Hash { get; init; }
+
     public required string DisplayName { get; init; }
 
     public required string SortKey { get; init; }
@@ -119,7 +155,8 @@ public sealed class SyncSetStore
 
     private const string MemberColumns = """
         SELECT rom_id, state, folder, platform_slug, fs_name, fs_extension, size_bytes,
-               display_name, sort_key, rom_updated_at, position, resolved_at
+               display_name, sort_key, rom_updated_at, position, resolved_at,
+               md5_hash, sha1_hash
         FROM sync_set_member
         """;
 
@@ -252,11 +289,13 @@ public sealed class SyncSetStore
             """
             INSERT INTO sync_set_member (
               sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
-              size_bytes, display_name, sort_key, rom_updated_at, position, resolved_at
+              size_bytes, md5_hash, sha1_hash, display_name, sort_key, rom_updated_at,
+              position, resolved_at
             )
             VALUES (
               $setId, $romId, $state, $folder, $slug, $fsName, $extension,
-              $size, $displayName, $sortKey, $romUpdatedAt, $position, $resolvedAt
+              $size, $md5, $sha1, $displayName, $sortKey, $romUpdatedAt,
+              $position, $resolvedAt
             )
             ON CONFLICT (sync_set_id, rom_id) DO UPDATE SET
               state          = excluded.state,
@@ -265,6 +304,8 @@ public sealed class SyncSetStore
               fs_name        = excluded.fs_name,
               fs_extension   = excluded.fs_extension,
               size_bytes     = excluded.size_bytes,
+              md5_hash       = excluded.md5_hash,
+              sha1_hash      = excluded.sha1_hash,
               display_name   = excluded.display_name,
               sort_key       = excluded.sort_key,
               rom_updated_at = excluded.rom_updated_at,
@@ -286,6 +327,8 @@ public sealed class SyncSetStore
                     .With("$fsName", member.FsName)
                     .With("$extension", SqliteValues.OrNull(member.FsExtension))
                     .With("$size", member.SizeBytes)
+                    .With("$md5", SqliteValues.OrNull(member.Md5Hash))
+                    .With("$sha1", SqliteValues.OrNull(member.Sha1Hash))
                     .With("$displayName", member.DisplayName)
                     .With("$sortKey", member.SortKey)
                     .With("$romUpdatedAt", SqliteValues.ToTextOrNull(member.RomUpdatedAt))
@@ -464,6 +507,8 @@ public sealed class SyncSetStore
         MemberState.Departed => "departed",
         MemberState.ExcludedExtension => "excluded_extension",
         MemberState.ExcludedUnmapped => "excluded_unmapped",
+        MemberState.ExcludedMultiFile => "excluded_multi_file",
+        MemberState.ExcludedFilesystemLimit => "excluded_filesystem_limit",
         MemberState.ExcludedOverCount => "excluded_over_count",
         MemberState.ExcludedOverBytes => "excluded_over_bytes",
         _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown member state."),
@@ -474,6 +519,8 @@ public sealed class SyncSetStore
         "departed" => MemberState.Departed,
         "excluded_extension" => MemberState.ExcludedExtension,
         "excluded_unmapped" => MemberState.ExcludedUnmapped,
+        "excluded_multi_file" => MemberState.ExcludedMultiFile,
+        "excluded_filesystem_limit" => MemberState.ExcludedFilesystemLimit,
         "excluded_over_count" => MemberState.ExcludedOverCount,
         "excluded_over_bytes" => MemberState.ExcludedOverBytes,
         _ => MemberState.Member,
@@ -498,6 +545,8 @@ public sealed class SyncSetStore
                 RomUpdatedAt = reader.GetTimestampOrNull(9),
                 Position = (int?)reader.GetInt64OrNull(10),
                 ResolvedAt = reader.GetTimestampOrNull(11) ?? default,
+                Md5Hash = reader.GetStringOrNull(12),
+                Sha1Hash = reader.GetStringOrNull(13),
             });
         }
 

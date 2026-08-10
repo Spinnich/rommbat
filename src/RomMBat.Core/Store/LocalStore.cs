@@ -46,6 +46,9 @@ public sealed class LocalStore : IDisposable
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
+        Files = new LocalFileStore(connection);
+        Downloads = new ContentDownloadStore(connection);
+        Settings = new SettingStore(connection);
     }
 
     /// <summary>The schema version this build expects.</summary>
@@ -74,6 +77,15 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Where each endpoint's incremental sync starts, and where a walk stopped.</summary>
     public SyncCursorStore Cursors { get; }
+
+    /// <summary>What is on disk, which is what makes a second sync a no-op.</summary>
+    public LocalFileStore Files { get; }
+
+    /// <summary>Downloads that started and have not finished.</summary>
+    public ContentDownloadStore Downloads { get; }
+
+    /// <summary>Install-wide settings, including the global disk budget.</summary>
+    public SettingStore Settings { get; }
 
     /// <summary>Opens the store inside a located RetroBat install, creating it if needed.</summary>
     public static LocalStore Open(RetroBatInstall install)
