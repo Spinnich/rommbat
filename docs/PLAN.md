@@ -70,6 +70,16 @@ cleanly on reconnect.**
 - Retries must be safe. Play sessions dedup server-side on truncated-to-the-second
   timestamps, and save uploads dedup on `content_hash` within a slot, so replaying a
   failed flush is idempotent. Lean on that instead of inventing an ack protocol.
+
+  **Both halves are now measured, not inferred.** A byte-identical save posted twice into the
+  same slot reuses the same row and the slot count does not move; a replayed play session
+  comes back `"status": "duplicate"` in a per-index result array with `skipped_count`
+  incremented, so the server names what it skipped rather than leaving the client to guess.
+  This is also the reason a bundled directory save's archive **must** be deterministic: an
+  archive that varies between runs defeats the dedup this principle rests on, which is
+  precisely what Freegosy does by writing a timestamp file into every bundle. See
+  [freegosy-findings.md](freegosy-findings.md), F3 and F4.
+
 - **Clock skew is a real failure mode.** A handheld with a flat RTC produces timestamps
   that lose every conflict. Record a monotonic local sequence number alongside wall
   clock; on first successful contact compare local time against the server response
@@ -287,6 +297,19 @@ as a possible distribution channel later, not as the mechanism.
 | `rommapp/grout` `cfw/*/data/save_directories.json`               | RomM slug → emulator save subdirectory list                |
 | `rommapp/grout` `cache/save_sync.go`, `cache/background_sync.go` | Sync state machine and conflict handling, already proven   |
 | RomM `backend/utils/gamelist_exporter.py`                        | Authoritative field list for the `<game>` elements to emit |
+| `abduznik/Freegosy`                                              | **Mined and closed.** See the caveat below                 |
+
+**Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
+mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.1.0 baseline, it
+is v0.5.x with one maintainer, and it targets desktop emulators, EmuDeck and RetroDECK, so
+**none of its paths is valid for RetroBat and none was taken**. What it was good for was
+pointing at save-protocol parameters this plan had never mentioned. Every claim was then
+re-asked of the live server, and several of its own answers were wrong at 5.1.x: its play
+session payload shape is a 422, its documented 409 body does not exist, and its per-device
+isolation model is not what the server does. The full ledger, including the thirteen leads
+dropped at triage and the six left open, is
+[freegosy-findings.md](freegosy-findings.md). **Treat that document as closed**; re-reading
+the client is unlikely to repay the effort.
 
 ---
 
@@ -880,6 +903,14 @@ erroring; and every subsequent milestone can be developed with the server switch
   `sync_config` answers 200 and leaves name, platform and client version intact.
 - **`POST /api/auth/device/init` is 10/min/IP**, which the live test suite hits on its own
   once several tests each pair. Live catalog tests share one pairing per class.
+- **An unknown query parameter on `/api/roms` is silently ignored, so a misspelt scope is the
+  whole library.** Measured: `platform_ids=<psx>` answers `total=9500`, while `platform_id=`
+  singular and a parameter invented on the spot both answer 200 with `total=83131`. There is
+  no 422, no warning, and no echo of what was actually applied, so **a scope typo cannot be
+  told apart from a scope that genuinely matches everything** by reading the response.
+  `CatalogQuery` sends the plural and is correct today; the cheap guard is a resolve-time
+  assertion that a scoped walk's `total` is below the library total. See
+  [freegosy-findings.md](freegosy-findings.md), F14.
 
 #### Platform mapping is a feature, not a lookup table
 
@@ -1011,15 +1042,41 @@ the rollout order below can be derived rather than hand-maintained.
   no `ETag` and no `Accept-Ranges`, so a multi-file download is not resumable by any header.
   The earlier reading, that a `Range` header is what selects a resumable cached-zip path, is
   withdrawn. See findings 78 and 79.
-- **Multi-file ROMs are out of scope for v1, and M2's extension filter already excludes
-  them.** Every multi-file ROM carries an empty `fs_extension` and every extensionless ROM
-  is multi-file, 105 of 105 both ways in a 2,000-ROM sample, so none has ever reached a sync
-  set. M3 makes that honest rather than incidental: they get their own exclusion state and
-  are reported as multi-file, not as an unsupported format, because telling someone their
+- **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
+  rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
   milestone has to build is extraction: the served zip is the only form on offer, its
   `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
   it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
+
+  **Finding 83's biconditional is half withdrawn, and the half that fails is the one a reader
+  would lean on.** It said every multi-file ROM carries an empty `fs_extension` and every
+  extensionless ROM is multi-file, 105 of 105 both ways. Re-measured over 2,000 ROMs on the
+  same instance: **every ROM flagged `has_multiple_files` does carry an empty `fs_extension`,
+  209 of 209, but only 209 of the 602 extensionless ROMs are multi-file.** The other 391 are
+  `has_nested_single_file`, an ordinary ROM stored inside a folder, and 157 of those hold
+  exactly one file. The schema carries **three** shape flags, not one:
+  `has_simple_single_file`, `has_nested_single_file`, `has_multiple_files`. An empty
+  `fs_extension` covers the last two and cannot separate them.
+
+  The code was already right: `SetResolver.cs:242` keys the exclusion on `HasMultipleFiles`,
+  never on the extension, so nothing mis-excludes today. Had anyone taken this plan at its
+  word and simplified that check to the extension test it called equivalent, 391 of 602
+  extensionless ROMs in that sample would have been wrongly excluded.
+
+  **The seam a later milestone owns is a third state, not a second.** A
+  `has_nested_single_file` ROM falls past the multi-file check into the extension check with
+  an empty `fs_extension`, matches no `<extension>` entry, and is reported as "skipped, format
+  not supported by this system" with the extension shown as `(none)`. For a Switch `.nsp`
+  sitting in a folder that is the wrong sentence, and it is exactly the failure the multi-file
+  state was added to avoid. See [freegosy-findings.md](freegosy-findings.md), F15.
+
+- **A multi-disc set is not a playlist.** Across 445 multi-file ROMs in that sample, **not one
+  carried a `.m3u` member**. Multi-disc titles are several images with the disc number in the
+  member filename and no playlist at all, so whatever builds multi-disc support has to
+  generate the `.m3u` from the member names rather than expect one in the payload. The
+  commonest multi-file shape on that library is not discs at all: it is PS3 `.pkg` plus its
+  `.rap` licence sibling. See finding F16.
 - Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
   query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
   answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
@@ -1166,9 +1223,31 @@ and must not be relied on.
 
 The flow per synced platform:
 
+**Live measurement, and it is harsher than the fixture comparison above.** Of the **49**
+md5s RetroBat requires that a real 123-platform library actually holds, `is_verified` flags
+38 and **misses 11**, and **10 arrive under a filename RetroBat does not use**
+(`segacdbios9303.bin` for `bios_cd_u.bin`, `flash.bin` for `dc_flash.bin`, `sega_100.bin` for
+`saturn_bios.bin`, `pcfxbios.bin` for `pcfx.rom`, `bios.col` for `coleco.rom`). Either join
+would have thrown away files the user has and the emulator needs. The other 108 of the 157
+are simply absent, which is the gap step 5 exists to report. See
+[freegosy-findings.md](freegosy-findings.md), F21.
+
 1. Resolve required BIOS from `batocera-systems.json` for that RetroBat system.
-2. List candidates with `GET /api/firmware?platform_id=` and join on `md5_hash`, ignoring
-   both filename and `is_verified`.
+2. Join on `md5_hash`, ignoring both filename and `is_verified`.
+
+   **Read the candidates off `GET /api/platforms`, not one `GET /api/firmware?platform_id=`
+   per platform.** The platform list inlines a complete `firmware[]` array carrying
+   `md5_hash` on every record: measured at 656 records across 79 of 123 platforms, all 656
+   with an md5, in one 424 KB response taking 0.39 s, with `firmware_count` equal to
+   `len(firmware)` on every platform and the same id set as the dedicated call. So a
+   whole-library BIOS gap report is one request rather than 79. The per-platform endpoint
+   stays the right call for a single platform, which is what a certification pass wants.
+
+   This is an inlined array on a list endpoint, the same family as the `GET /api/collections`
+   trap under core principle 2, but three orders of magnitude smaller: 424 KB for all 123
+   platforms against 715 KB for a **single** collection entry. It is a cost to note, not a
+   trap to avoid. See finding F5.
+
 3. Download matches via `GET /api/firmware/{id}/content/{file_name}` and **write to the
    path the manifest specifies**, renaming as needed. Firmware uses Starlette's
    `FileResponse`, so ranges work but there is no X-Accel path.
@@ -1275,8 +1354,45 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `file_name` from the response, not the one you sent. A 409 means the slot moved since
   the last sync; surface it and retry with `overwrite=true` only after resolution.
   Uploads are capped at 512 MiB.
-- Download: `GET /api/saves/{id}/content?device_id=&session_id=`, then
-  `POST /api/saves/{id}/downloaded` with `{device_id}` so the server records the sync.
+
+  **The name to persist and the name to write on disk are different fields.** A file written
+  under the tagged name is invisible to the emulator, which finds a battery save by matching
+  the rom name, so restoring one writes **`file_name_no_tags` plus `file_extension`** and
+  keeps `file_name` only as the server-side identity. No client-side regex is involved; the
+  server returns the untagged stem already. Freegosy hit this as its issues #42 and #28 and
+  answered it by stripping the tag by hand, which is work the response makes unnecessary.
+  See [freegosy-findings.md](freegosy-findings.md), F6.
+
+  **The 409 body carries nothing to show the user.** Measured at 5.1.1-beta.1 it is a bare
+  string, `{"detail": "Slot has a newer save since your last sync"}`, not the structured
+  `{error, message, save_id, current_save_time, device_sync_time}` other clients document. So
+  surfacing a useful conflict needs a separate fetch of the save row for its timestamp and
+  hash. The trigger is **this device's** sync record being stale for the slot, not the save
+  being newest overall: the device that uploaded the current save may upload again, while a
+  device that never synced it is refused. See finding F12.
+
+  **Decide the retention policy rather than inheriting it.** `autocleanup` defaults to false
+  and `autocleanup_limit` to 10, and a slot grows one row per genuine change forever without
+  them. Measured: `autocleanup=true&autocleanup_limit=2` held a slot at exactly two across
+  three further uploads, keeping the newest. Uploading changed content into a slot **appends**
+  a row unless `overwrite=true`, which replaces in place. This interacts with the `keep_both`
+  conflict default, since `keep_both` under an unbounded slot is how a library becomes
+  unusable. See finding F2.
+
+- Download: `GET /api/saves/{id}/content?device_id=&session_id=`**`&optimistic=false`**, then
+  `POST /api/saves/{id}/downloaded` with `{device_id}` **after the bytes are written and
+  verified**, so the server records the sync only once the device really has the save.
+
+  **`optimistic` defaults to true and that default loses saves on a flaky link.** Measured: a
+  device that had never synced a save went from `is_current: false` to `is_current: true` by
+  issuing the GET and nothing else, while the same request with `optimistic=false` left it
+  false until the ack. A download that dies mid-body therefore leaves the server believing the
+  device is current, the next negotiate answers `no_op` for that slot, and the save never comes
+  down again, silently. This is the same discipline M3 landed for ROM content, where the
+  `.part` file is verified before the rename. **The parameter and the ack have to travel
+  together**; the ack alone is decoration, because by then the record is already written. See
+  finding F1.
+
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
 - **States are not part of the negotiate protocol.** `POST /api/states` takes only
@@ -1515,6 +1631,25 @@ previous copy aside until the next successful sync.
 - Play sessions: `{rom_id, save_slot, start_time, end_time, duration_ms}`, at most 100 per
   call, `end_time` strictly after `start_time`, microseconds truncated server-side for
   dedup. A long offline binge flushes in chunks; replaying a failed chunk is safe.
+
+  **All three of those are now measured rather than read off the backend, and the payload
+  shape is an envelope.** `POST /api/play-sessions` takes
+  `{device_id, sessions: [...]}` with `device_id` **outside** the entries; a bare array of
+  entries carrying their own `device_id`, which Freegosy sends, answers 422. The response is a
+  per-index result array, `{"results": [{"index", "status", "id"}], "created_count",
+"skipped_count"}`, and a replayed session comes back `"status": "duplicate"` with
+  `skipped_count` incremented, so **a partially-failed flush is reconciled exactly rather than
+  inferred**. 101 entries answer 400 `Batch size exceeds maximum of 100`, and a reversed
+  interval answers 422 `end_time must be after start_time`. `rom_id` is genuinely optional,
+  which is not a licence to send a session without one: an orphan `game-end` is still
+  discarded. See [freegosy-findings.md](freegosy-findings.md), F4.
+
+  **This endpoint stands alone, so playtime need not wait on a save negotiation.** It works
+  with no sync session open, which matters for the agent that wakes on `game-end` with nothing
+  to negotiate: routing playtime only through `POST /api/sync/sessions/{id}/complete` couples
+  two things that the server does not couple. Use `/complete` when a session is already open
+  and the standalone route otherwise.
+
 - Optionally `PUT /api/roms/{id}/props?update_last_played=true`. Note there is no
   `is_favorite` and no `playtime` field on rom props; favourites are collection
   membership, and playtime lives entirely in play sessions.
@@ -1616,6 +1751,10 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | Huge `gamelist.xml` makes EmulationStation unusable                                                                             | Only locally present ROMs go in the gamelist; cap per system using the M0 measurement                                                                                                               |
 | ES overwrites `gamelist.xml` on exit and loses synced metadata                                                                  | M0 experiment 3; write only when ES is idle, or via the `update-gamelists` / `quit` hooks                                                                                                           |
 | Save corruption from a bad conflict resolution                                                                                  | Never auto-overwrite on 409; default to keeping both, copy aside before any overwrite                                                                                                               |
+| A save download dies mid-body and the server records the device as current, so the save never comes down again                  | Pass `optimistic=false` on `GET /api/saves/{id}/content` and send `POST /api/saves/{id}/downloaded` only after the bytes are written and verified. The default is `true` and records on request     |
+| A restored save is written under the server's tagged filename and the emulator never finds it                                   | Write `file_name_no_tags` + `file_extension`; keep `file_name` only as the server-side identity                                                                                                     |
+| A save slot grows one row per session until the user's RomM is unusable                                                         | `autocleanup=true` with an explicit `autocleanup_limit`; the defaults are off and 10, and `keep_both` conflicts compound it                                                                         |
+| A misspelt `/api/roms` filter silently resolves the whole library instead of one platform                                       | Unknown parameters are ignored with a 200, so assert at resolve time that a scoped walk's `total` is below the library total                                                                        |
 | Eviction deletes a game whose save has not synced yet                                                                           | Eviction is blocked on unflushed outbox entries for that ROM, with a dry-run preview                                                                                                                |
 | ES hook slows or hangs game launch                                                                                              | Hooks are journal-only with a hard time budget from M0; all network work happens in the background agent                                                                                            |
 | Drive letter changes and every stored path breaks                                                                               | Persist only paths relative to the RetroBat root; resolve to absolute at point of use; M0 experiment 7 proves it                                                                                    |

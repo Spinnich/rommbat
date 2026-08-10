@@ -1,11 +1,11 @@
 """F13 and F14: two ways an endpoint can answer without doing what you asked.
 
-F14 — Freegosy sends `platform_id` to /api/roms in one code path and `platform_ids` in
+F14: Freegosy sends `platform_id` to /api/roms in one code path and `platform_ids` in
 another. Only the plural is declared at 5.1.0. If the server ignores the unknown singular
 rather than rejecting it, a sync set scoped to one platform silently resolves to the whole
 library, which is the worst possible failure for M2's budget.
 
-F13 — /api/saves/identifiers takes no parameters, the same shape that made
+F13: /api/saves/identifiers takes no parameters, the same shape that made
 /api/roms/identifiers answer 504 after 300 s on this library. Whether the saves sibling
 scales decides if M6 can reconcile server-side deletions through it.
 """

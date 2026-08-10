@@ -132,7 +132,45 @@ hash, folded into one digest. The archive is transport only.
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
-- Persist the `file_name` the server returns, not the one you sent.
+  **The body is a bare string** with no save id and no timestamps, so fetch the save row if
+  you want to show the user what they are conflicting with. It fires when **this device's**
+  sync record is stale, not when the save is newest overall.
+- Persist the `file_name` the server returns, not the one you sent. **Write a different name
+  to disk**: `file_name_no_tags` + `file_extension`. A file called
+  `Game [2026-08-10_22-58-26].srm` is invisible to the emulator, which matches on the rom
+  name. The server returns the untagged stem, so no client-side regex is needed.
+- **Download with `optimistic=false`, then ack.** The parameter defaults to true and records
+  the device as current on the request rather than on receipt, so a transfer that dies
+  mid-body leaves the server sure the device has a save it does not, and the next negotiate
+  answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
+  and verified. Same discipline as M3's `.part`: verify, then commit.
+- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10.
+  Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
+  default compounds it.
 - Restores are atomic: extract to a temp directory beside the target, verify, swap, keep
   the previous copy until the next successful sync.
 - Never evict a ROM whose saves are still in the outbox.
+
+## `device_id` is bookkeeping, never a filter
+
+Both devices see the same save rows; nothing is isolated per device. What is per device is
+the sync record, exposed as `device_syncs` on a save, and **that array is empty unless the
+request carries `device_id`**. Empty therefore reads exactly like "nobody has ever synced
+this", which is why it must not be read that way. With `device_id` set it lists every device
+that has a record, the queried one first, and a device that has never synced is **absent**
+rather than `is_current: false`. Treat a missing entry as the strongest reason to pull.
+`origin_device_id` names the uploader, which is how a device recognises its own save
+returning.
+
+## Determinism is what makes replay safe
+
+Identical content uploaded twice into one slot reuses the same row, which is what makes a
+replayed flush idempotent. That only holds if the bytes are identical, so a bundled class-C
+save must produce a **byte-identical archive** for unchanged contents. Freegosy writes a
+timestamp file into every bundle specifically to defeat this dedup, and pays for it with a
+new server row on every sync of an unchanged save. Hash the logical contents, and keep the
+archive deterministic.
+
+Play sessions replay safely too, and say so: `POST /api/play-sessions` returns a per-index
+result array and marks a repeat `"status": "duplicate"`, so a partial flush is reconciled
+exactly rather than inferred. It needs no open sync session.

@@ -1,12 +1,12 @@
 """F15 and F16: what a multi-file ROM actually looks like on a real library.
 
-F15 — M3's finding 83 says every multi-file ROM carries an empty fs_extension and every
+F15: M3's finding 83 says every multi-file ROM carries an empty fs_extension and every
 extensionless ROM is multi-file, 105 of 105 both ways in a 2,000-ROM sample. Freegosy
 carries a distinct case it calls "single file foldered": files.length == 1 with an empty
 fs_extension. If those rows exist, an exclusion state that reports them as multi-file is
 telling the user something that is not quite true.
 
-F16 — Freegosy treats a multi-disc set as one ROM whose files[] holds a .m3u playlist
+F16: Freegosy treats a multi-disc set as one ROM whose files[] holds a .m3u playlist
 alongside per-disc images, and filters .cue/.ccd/.mds/.toc out as non-launchable. RomMBat's
 plan is thin on multi-disc, so this measures what the later multi-file milestone faces.
 
