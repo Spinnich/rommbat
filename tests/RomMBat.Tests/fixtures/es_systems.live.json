@@ -1,0 +1,5683 @@
+[
+  {
+    "name": "flash",
+    "path": "~\\..\\roms\\flash",
+    "extensions": [
+      ".swf"
+    ],
+    "emulators": [
+      {
+        "name": "arcadeflashweb",
+        "cores": []
+      },
+      {
+        "name": "ruffle",
+        "cores": []
+      }
+    ],
+    "fullname": "flash",
+    "platform": "computer"
+  },
+  {
+    "name": "j2me",
+    "path": "~\\..\\roms\\j2me",
+    "extensions": [
+      ".jar"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Java 2 MicroEdition",
+    "platform": "j2me"
+  },
+  {
+    "name": "mame",
+    "path": "~\\..\\roms\\mame",
+    "extensions": [
+      ".7z",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      },
+      {
+        "name": "groovymame",
+        "cores": []
+      }
+    ],
+    "fullname": "MAME",
+    "platform": "arcade"
+  },
+  {
+    "name": "hbmame",
+    "path": "~\\..\\roms\\hbmame",
+    "extensions": [
+      ".hb",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "hbmame",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "MAME Homebrew",
+    "platform": "arcade"
+  },
+  {
+    "name": "fbneo",
+    "path": "~\\..\\roms\\fbneo",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".chd",
+      ".fba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "fbneo",
+        "cores": []
+      }
+    ],
+    "fullname": "Final Burn",
+    "platform": "arcade"
+  },
+  {
+    "name": "cave",
+    "path": "~\\..\\roms\\cave",
+    "extensions": [
+      ".7z",
+      ".fba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      },
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "CAVE",
+    "platform": "arcade"
+  },
+  {
+    "name": "laseractive",
+    "path": "~\\..\\roms\\laseractive",
+    "extensions": [
+      ".mmi"
+    ],
+    "emulators": [
+      {
+        "name": "ares",
+        "cores": []
+      }
+    ],
+    "fullname": "Pioneer Laserdisc",
+    "platform": "laseractive"
+  },
+  {
+    "name": "daphne",
+    "path": "~\\..\\roms\\daphne",
+    "extensions": [
+      ".7z",
+      ".daphne",
+      ".hypseus",
+      ".rar",
+      ".squashfs"
+    ],
+    "emulators": [
+      {
+        "name": "hypseus",
+        "cores": []
+      },
+      {
+        "name": "daphne",
+        "cores": []
+      },
+      {
+        "name": "singe2",
+        "cores": []
+      }
+    ],
+    "fullname": "Laserdisc",
+    "platform": "alg, daphne, arcade"
+  },
+  {
+    "name": "singe",
+    "path": "~\\..\\roms\\singe",
+    "extensions": [
+      ".hypseus",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "hypseus",
+        "cores": []
+      },
+      {
+        "name": "singe2",
+        "cores": []
+      }
+    ],
+    "fullname": "Singe",
+    "platform": "alg, daphne, arcade"
+  },
+  {
+    "name": "actionmax",
+    "path": "~\\..\\roms\\actionmax",
+    "extensions": [
+      ".actionmax"
+    ],
+    "emulators": [
+      {
+        "name": "hypseus",
+        "cores": []
+      },
+      {
+        "name": "singe2",
+        "cores": []
+      }
+    ],
+    "fullname": "Actionmax",
+    "platform": "actionmax"
+  },
+  {
+    "name": "cps1",
+    "path": "~\\..\\roms\\cps1",
+    "extensions": [
+      ".7z",
+      ".fba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "CPS-I",
+    "platform": "arcade"
+  },
+  {
+    "name": "cps2",
+    "path": "~\\..\\roms\\cps2",
+    "extensions": [
+      ".7z",
+      ".fba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "CPS-II",
+    "platform": "arcade"
+  },
+  {
+    "name": "cps3",
+    "path": "~\\..\\roms\\cps3",
+    "extensions": [
+      ".7z",
+      ".fba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "CPS-III",
+    "platform": "arcade"
+  },
+  {
+    "name": "dice",
+    "path": "~\\..\\roms\\dice",
+    "extensions": [
+      ".dmy",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "DICE",
+    "platform": "dice, arcade"
+  },
+  {
+    "name": "neogeo",
+    "path": "~\\..\\roms\\neogeo",
+    "extensions": [
+      ".7z",
+      ".neo",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "raine",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Neo Geo",
+    "platform": "neogeo"
+  },
+  {
+    "name": "neogeocd",
+    "path": "~\\..\\roms\\neogeocd",
+    "extensions": [
+      ".7z",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".iso",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "raine",
+        "cores": []
+      }
+    ],
+    "fullname": "Neo Geo CD",
+    "platform": "neogeocd"
+  },
+  {
+    "name": "model2",
+    "path": "~\\..\\roms\\model2",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "m2emulator",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Model 2",
+    "platform": "arcade"
+  },
+  {
+    "name": "model3",
+    "path": "~\\..\\roms\\model3",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "supermodel",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Model 3",
+    "platform": "arcade"
+  },
+  {
+    "name": "atomiswave",
+    "path": "~\\..\\roms\\atomiswave",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".lst",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "flycast",
+        "cores": []
+      },
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "Atomiswave",
+    "platform": "arcade"
+  },
+  {
+    "name": "naomi",
+    "path": "~\\..\\roms\\naomi",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".dat",
+      ".lst",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "flycast",
+        "cores": []
+      },
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "Naomi",
+    "platform": "arcade"
+  },
+  {
+    "name": "naomi2",
+    "path": "~\\..\\roms\\naomi2",
+    "extensions": [
+      ".7z",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "flycast",
+        "cores": []
+      },
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "Naomi 2",
+    "platform": "arcade"
+  },
+  {
+    "name": "hikaru",
+    "path": "~\\..\\roms\\hikaru",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "Hikaru",
+    "platform": "arcade"
+  },
+  {
+    "name": "gaelco",
+    "path": "~\\..\\roms\\gaelco",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "demul",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Gaelco PowerVR",
+    "platform": "arcade"
+  },
+  {
+    "name": "chihiro",
+    "path": "~\\..\\roms\\chihiro",
+    "extensions": [
+      ".iso",
+      ".xbe"
+    ],
+    "emulators": [
+      {
+        "name": "chihiro",
+        "cores": []
+      },
+      {
+        "name": "chihiro-gun",
+        "cores": []
+      },
+      {
+        "name": "cxbx",
+        "cores": []
+      },
+      {
+        "name": "xemu",
+        "cores": []
+      },
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "Chihiro",
+    "platform": "arcade"
+  },
+  {
+    "name": "triforce",
+    "path": "~\\..\\roms\\triforce",
+    "extensions": [
+      ".7z",
+      ".cue",
+      ".iso",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "dolphin-triforce",
+        "cores": []
+      },
+      {
+        "name": "dolphin",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "Triforce",
+    "platform": "arcade"
+  },
+  {
+    "name": "lindbergh",
+    "path": "~\\..\\roms\\lindbergh",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "linuxloader",
+        "cores": []
+      },
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "Sega Lindbergh",
+    "platform": "lindbergh, arcade"
+  },
+  {
+    "name": "sg1000",
+    "path": "~\\..\\roms\\sg1000",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".gg",
+      ".rom",
+      ".sg",
+      ".sms",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "SG-1000",
+    "platform": "sg-1000"
+  },
+  {
+    "name": "multivision",
+    "path": "~\\..\\roms\\multivision",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".gg",
+      ".rom",
+      ".sg",
+      ".sms",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Multivision",
+    "platform": "multivision"
+  },
+  {
+    "name": "mastersystem",
+    "path": "~\\..\\roms\\mastersystem",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".sms",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "kega-fusion",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Master System - Mark III",
+    "platform": "mastersystem"
+  },
+  {
+    "name": "megadrive",
+    "path": "~\\..\\roms\\megadrive",
+    "extensions": [
+      ".68k",
+      ".7z",
+      ".bin",
+      ".gen",
+      ".md",
+      ".sg",
+      ".sgd",
+      ".smd",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "kega-fusion",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Megadrive - Genesis",
+    "platform": "megadrive,genesis"
+  },
+  {
+    "name": "megadrive-msu",
+    "path": "~\\..\\roms\\megadrive-msu",
+    "extensions": [
+      ".68k",
+      ".7z",
+      ".bin",
+      ".cue",
+      ".gen",
+      ".md",
+      ".sg",
+      ".sgd",
+      ".smd",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "MD-MSU",
+    "platform": "megadrive,genesis"
+  },
+  {
+    "name": "megacd",
+    "path": "~\\..\\roms\\megacd",
+    "extensions": [
+      ".7z",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".iso",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "kega-fusion",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Mega CD",
+    "platform": "megacd"
+  },
+  {
+    "name": "sega32x",
+    "path": "~\\..\\roms\\sega32x",
+    "extensions": [
+      ".32x",
+      ".7z",
+      ".bin",
+      ".md",
+      ".smd",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "kega-fusion",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "32X",
+    "platform": "sega32x"
+  },
+  {
+    "name": "saturn",
+    "path": "~\\..\\roms\\saturn",
+    "extensions": [
+      ".ccd",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".iso",
+      ".m3u",
+      ".mds",
+      ".squashfs",
+      ".toc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "yabasanshiro",
+        "cores": []
+      },
+      {
+        "name": "kronos",
+        "cores": []
+      },
+      {
+        "name": "ymir",
+        "cores": []
+      },
+      {
+        "name": "ssf",
+        "cores": []
+      }
+    ],
+    "fullname": "Saturn",
+    "platform": "saturn"
+  },
+  {
+    "name": "segastv",
+    "path": "~\\..\\roms\\segastv",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "ST-V",
+    "platform": "arcade"
+  },
+  {
+    "name": "dreamcast",
+    "path": "~\\..\\roms\\dreamcast",
+    "extensions": [
+      ".cdi",
+      ".chd",
+      ".cue",
+      ".gdi",
+      ".m3u",
+      ".mdf",
+      ".mds"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "flycast",
+        "cores": []
+      },
+      {
+        "name": "redream",
+        "cores": []
+      },
+      {
+        "name": "demul",
+        "cores": []
+      }
+    ],
+    "fullname": "Dreamcast",
+    "platform": "dreamcast"
+  },
+  {
+    "name": "fds",
+    "path": "~\\..\\roms\\fds",
+    "extensions": [
+      ".7z",
+      ".fds",
+      ".nes",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo Family Computer Disk System",
+    "platform": "fds"
+  },
+  {
+    "name": "nes",
+    "path": "~\\..\\roms\\nes",
+    "extensions": [
+      ".7z",
+      ".fds",
+      ".nes",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo Entertainment System - Famicom",
+    "platform": "nes"
+  },
+  {
+    "name": "snes",
+    "path": "~\\..\\roms\\snes",
+    "extensions": [
+      ".7z",
+      ".bsx",
+      ".dx2",
+      ".fig",
+      ".gd3",
+      ".gd7",
+      ".rom",
+      ".sfc",
+      ".smc",
+      ".swc",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "snes9x",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Super Nintendo Entertainment System",
+    "platform": "snes"
+  },
+  {
+    "name": "snes-msu1",
+    "path": "~\\..\\roms\\snes-msu1",
+    "extensions": [
+      ".m3u",
+      ".sfc",
+      ".smc",
+      ".squashfs"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "snes9x",
+        "cores": []
+      }
+    ],
+    "fullname": "Super NES MSU-1",
+    "platform": "snes-msu1"
+  },
+  {
+    "name": "sgb-msu1",
+    "path": "~\\..\\roms\\sgb-msu1",
+    "extensions": [
+      ".gb",
+      ".gbc",
+      ".squashfs"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "GameBoy MSU",
+    "platform": "gb"
+  },
+  {
+    "name": "satellaview",
+    "path": "~\\..\\roms\\satellaview",
+    "extensions": [
+      ".7z",
+      ".bs",
+      ".fig",
+      ".sfc",
+      ".smc",
+      ".st",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      }
+    ],
+    "fullname": "Satellaview",
+    "platform": "satellaview"
+  },
+  {
+    "name": "sufami",
+    "path": "~\\..\\roms\\sufami",
+    "extensions": [
+      ".7z",
+      ".bs",
+      ".fig",
+      ".sfc",
+      ".smc",
+      ".st",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      }
+    ],
+    "fullname": "SuFami Turbo",
+    "platform": "sufami"
+  },
+  {
+    "name": "virtualboy",
+    "path": "~\\..\\roms\\virtualboy",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".vb",
+      ".vboy",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Virtual Boy",
+    "platform": "virtualboy"
+  },
+  {
+    "name": "n64",
+    "path": "~\\..\\roms\\n64",
+    "extensions": [
+      ".7z",
+      ".n64",
+      ".v64",
+      ".wad",
+      ".z64",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mupen64",
+        "cores": []
+      },
+      {
+        "name": "simple64",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "project64",
+        "cores": []
+      },
+      {
+        "name": "gopher64",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo 64",
+    "platform": "n64"
+  },
+  {
+    "name": "n64recomp",
+    "path": "~\\..\\roms\\n64recomp",
+    "extensions": [
+      ".lnk"
+    ],
+    "emulators": [
+      {
+        "name": "n64recomplauncher",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo 64 Recompilation",
+    "platform": "n64"
+  },
+  {
+    "name": "n64dd",
+    "path": "~\\..\\roms\\n64dd",
+    "extensions": [
+      ".7z",
+      ".n64",
+      ".ndd",
+      ".v64",
+      ".wad",
+      ".z64",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "mupen64",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "project64",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo 64 Disk Drive",
+    "platform": "n64dd"
+  },
+  {
+    "name": "gamecube",
+    "path": "~\\..\\roms\\gamecube",
+    "extensions": [
+      ".7z",
+      ".ciso",
+      ".dol",
+      ".gcz",
+      ".iso",
+      ".json",
+      ".m3u",
+      ".rvz",
+      ".squashfs",
+      ".wad",
+      ".wbfs",
+      ".wia",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "dolphin",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "GameCube",
+    "platform": "gc"
+  },
+  {
+    "name": "wii",
+    "path": "~\\..\\roms\\wii",
+    "extensions": [
+      ".7z",
+      ".ciso",
+      ".dol",
+      ".elf",
+      ".gcz",
+      ".iso",
+      ".json",
+      ".rvz",
+      ".squashfs",
+      ".wad",
+      ".wbfs",
+      ".wia",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "dolphin",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Wii",
+    "platform": "wii"
+  },
+  {
+    "name": "wiiu",
+    "path": "~\\..\\roms\\wiiu",
+    "extensions": [
+      ".iso",
+      ".m3u",
+      ".rpx",
+      ".wua",
+      ".wud",
+      ".wux"
+    ],
+    "emulators": [
+      {
+        "name": "cemu",
+        "cores": []
+      }
+    ],
+    "fullname": "Wii U",
+    "platform": "wiiu"
+  },
+  {
+    "name": "switch",
+    "path": "~\\..\\roms\\switch",
+    "extensions": [
+      ".kip",
+      ".nca",
+      ".nro",
+      ".nso",
+      ".nsp",
+      ".xci"
+    ],
+    "emulators": [
+      {
+        "name": "eden",
+        "cores": []
+      },
+      {
+        "name": "ryujinx",
+        "cores": []
+      },
+      {
+        "name": "citron",
+        "cores": []
+      },
+      {
+        "name": "sudachi",
+        "cores": []
+      },
+      {
+        "name": "yuzu",
+        "cores": []
+      }
+    ],
+    "fullname": "Switch",
+    "platform": "switch"
+  },
+  {
+    "name": "pcengine",
+    "path": "~\\..\\roms\\pcengine",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".pce",
+      ".squashfs",
+      ".wad",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "magicengine",
+        "cores": []
+      }
+    ],
+    "fullname": "PC Engine",
+    "platform": "pcengine"
+  },
+  {
+    "name": "pcenginecd",
+    "path": "~\\..\\roms\\pcenginecd",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".ccd",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".img",
+      ".iso",
+      ".m3u",
+      ".pce",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      }
+    ],
+    "fullname": "PC Engine CD",
+    "platform": "pcenginecd"
+  },
+  {
+    "name": "supergrafx",
+    "path": "~\\..\\roms\\supergrafx",
+    "extensions": [
+      ".7z",
+      ".fba",
+      ".pce",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "magicengine",
+        "cores": []
+      }
+    ],
+    "fullname": "SuperGrafx",
+    "platform": "supergrafx"
+  },
+  {
+    "name": "pcfx",
+    "path": "~\\..\\roms\\pcfx",
+    "extensions": [
+      ".ccd",
+      ".chd",
+      ".cue",
+      ".m3u",
+      ".toc"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "PC-FX",
+    "platform": "pcfx"
+  },
+  {
+    "name": "psx",
+    "path": "~\\..\\roms\\psx",
+    "extensions": [
+      ".7z",
+      ".cbn",
+      ".ccd",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".img",
+      ".iso",
+      ".m3u",
+      ".mdf",
+      ".pbp",
+      ".squashfs",
+      ".toc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "duckstation",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "PlayStation",
+    "platform": "psx"
+  },
+  {
+    "name": "ps2",
+    "path": "~\\..\\roms\\ps2",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".chd",
+      ".cso",
+      ".gz",
+      ".iso",
+      ".m3u",
+      ".mdf",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "pcsx2",
+        "cores": []
+      },
+      {
+        "name": "pcsx2-16",
+        "cores": []
+      },
+      {
+        "name": "play",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Playstation 2",
+    "platform": "ps2"
+  },
+  {
+    "name": "ps3",
+    "path": "~\\..\\roms\\ps3",
+    "extensions": [
+      ".7z",
+      ".iso",
+      ".lnk",
+      ".m3u",
+      ".ps3",
+      ".rar",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "rpcs3",
+        "cores": []
+      }
+    ],
+    "fullname": "Playstation 3",
+    "platform": "ps3"
+  },
+  {
+    "name": "ps4",
+    "path": "~\\..\\roms\\ps4",
+    "extensions": [
+      ".lnk",
+      ".m3u",
+      ".ps4"
+    ],
+    "emulators": [
+      {
+        "name": "shadps4",
+        "cores": []
+      }
+    ],
+    "fullname": "Playstation 4",
+    "platform": "ps4"
+  },
+  {
+    "name": "xbox",
+    "path": "~\\..\\roms\\xbox",
+    "extensions": [
+      ".iso",
+      ".xbe"
+    ],
+    "emulators": [
+      {
+        "name": "xemu",
+        "cores": []
+      },
+      {
+        "name": "cxbx",
+        "cores": []
+      }
+    ],
+    "fullname": "Xbox",
+    "platform": "xbox"
+  },
+  {
+    "name": "xbox360",
+    "path": "~\\..\\roms\\xbox360",
+    "extensions": [
+      ".iso",
+      ".m3u",
+      ".xbox360",
+      ".xcp",
+      ".xex",
+      ".zar"
+    ],
+    "emulators": [
+      {
+        "name": "xenia-canary",
+        "cores": []
+      },
+      {
+        "name": "xenia-edge",
+        "cores": []
+      },
+      {
+        "name": "xenia",
+        "cores": []
+      },
+      {
+        "name": "xenia-manager",
+        "cores": []
+      }
+    ],
+    "fullname": "Xbox 360",
+    "platform": "xbox360"
+  },
+  {
+    "name": "3do",
+    "path": "~\\..\\roms\\3do",
+    "extensions": [
+      ".chd",
+      ".cue",
+      ".iso"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "phoenix",
+        "cores": []
+      }
+    ],
+    "fullname": "3DO",
+    "platform": "3do"
+  },
+  {
+    "name": "amiga500",
+    "path": "~\\..\\roms\\amiga500",
+    "extensions": [
+      ".7z",
+      ".adf",
+      ".adz",
+      ".ags",
+      ".dms",
+      ".hdf",
+      ".ipf",
+      ".lha",
+      ".m3u",
+      ".rp9",
+      ".uae",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "amigaforever",
+        "cores": []
+      },
+      {
+        "name": "winuae",
+        "cores": []
+      }
+    ],
+    "fullname": "Amiga OCS/ECS",
+    "platform": "amiga"
+  },
+  {
+    "name": "amiga1200",
+    "path": "~\\..\\roms\\amiga1200",
+    "extensions": [
+      ".7z",
+      ".adf",
+      ".adz",
+      ".dms",
+      ".hdf",
+      ".ipf",
+      ".lha",
+      ".m3u",
+      ".rp9",
+      ".uae",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "amigaforever",
+        "cores": []
+      },
+      {
+        "name": "winuae",
+        "cores": []
+      }
+    ],
+    "fullname": "Amiga AGA",
+    "platform": "amiga"
+  },
+  {
+    "name": "amiga4000",
+    "path": "~\\..\\roms\\amiga4000",
+    "extensions": [
+      ".7z",
+      ".adf",
+      ".adz",
+      ".dms",
+      ".hdf",
+      ".ipf",
+      ".lha",
+      ".m3u",
+      ".rp9",
+      ".uae",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "amigaforever",
+        "cores": []
+      },
+      {
+        "name": "winuae",
+        "cores": []
+      }
+    ],
+    "fullname": "Amiga 4000",
+    "platform": "amiga"
+  },
+  {
+    "name": "amigacd32",
+    "path": "~\\..\\roms\\amigacd32",
+    "extensions": [
+      ".7z",
+      ".ccd",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".iso",
+      ".lha",
+      ".mds",
+      ".nrg",
+      ".rp9",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "amigaforever",
+        "cores": []
+      },
+      {
+        "name": "winuae",
+        "cores": []
+      }
+    ],
+    "fullname": "Amiga CD32",
+    "platform": "amigacd32"
+  },
+  {
+    "name": "amigacdtv",
+    "path": "~\\..\\roms\\amigacdtv",
+    "extensions": [
+      ".7z",
+      ".ccd",
+      ".chd",
+      ".cso",
+      ".cue",
+      ".iso",
+      ".m3u",
+      ".mds",
+      ".nrg",
+      ".rp9",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "amigaforever",
+        "cores": []
+      },
+      {
+        "name": "winuae",
+        "cores": []
+      }
+    ],
+    "fullname": "Amiga CDTV",
+    "platform": "amigacdtv"
+  },
+  {
+    "name": "amstradcpc",
+    "path": "~\\..\\roms\\amstradcpc",
+    "extensions": [
+      ".7z",
+      ".cdt",
+      ".dsk",
+      ".kcr",
+      ".m3u",
+      ".sna",
+      ".tap",
+      ".voc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "capriceforever",
+        "cores": []
+      }
+    ],
+    "fullname": "Amstrad CPC",
+    "platform": "amstradcpc"
+  },
+  {
+    "name": "gx4000",
+    "path": "~\\..\\roms\\gx4000",
+    "extensions": [
+      ".7z",
+      ".cpr",
+      ".dsk",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "capriceforever",
+        "cores": []
+      }
+    ],
+    "fullname": "Amstrad GX4000",
+    "platform": "gx4000"
+  },
+  {
+    "name": "apple2",
+    "path": "~\\..\\roms\\apple2",
+    "extensions": [
+      ".do",
+      ".dsk",
+      ".hdv",
+      ".m3u",
+      ".nib",
+      ".po",
+      ".woz",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "applewin",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Apple II",
+    "platform": "apple2"
+  },
+  {
+    "name": "apple2gs",
+    "path": "~\\..\\roms\\apple2gs",
+    "extensions": [
+      ".2mg",
+      ".hdv",
+      ".m3u",
+      ".woz",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "gsplus",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Apple IIGS",
+    "platform": "apple2gs"
+  },
+  {
+    "name": "atari800",
+    "path": "~\\..\\roms\\atari800",
+    "extensions": [
+      ".7z",
+      ".a52",
+      ".atr",
+      ".atx",
+      ".bin",
+      ".cas",
+      ".cdm",
+      ".m3u",
+      ".rom",
+      ".xex",
+      ".xfd",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "altirra",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari 800",
+    "platform": "atari800"
+  },
+  {
+    "name": "atari2600",
+    "path": "~\\..\\roms\\atari2600",
+    "extensions": [
+      ".7z",
+      ".a26",
+      ".bin",
+      ".gz",
+      ".rom",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "stella",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari 2600",
+    "platform": "atari2600"
+  },
+  {
+    "name": "atari5200",
+    "path": "~\\..\\roms\\atari5200",
+    "extensions": [
+      ".7z",
+      ".a52",
+      ".atr",
+      ".atx",
+      ".bin",
+      ".cas",
+      ".cdm",
+      ".rom",
+      ".xex",
+      ".xfd",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "altirra",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari 5200",
+    "platform": "atari5200"
+  },
+  {
+    "name": "atari7800",
+    "path": "~\\..\\roms\\atari7800",
+    "extensions": [
+      ".7z",
+      ".a78",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari 7800",
+    "platform": "atari7800"
+  },
+  {
+    "name": "atarist",
+    "path": "~\\..\\roms\\atarist",
+    "extensions": [
+      ".7z",
+      ".dim",
+      ".gemdos",
+      ".ipf",
+      ".m3u",
+      ".msa",
+      ".st",
+      ".stx",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "hatari",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari ST",
+    "platform": "atarist"
+  },
+  {
+    "name": "xegs",
+    "path": "~\\..\\roms\\xegs",
+    "extensions": [
+      ".7z",
+      ".atr",
+      ".bin",
+      ".car",
+      ".dsk",
+      ".rom",
+      ".xfd",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      },
+      {
+        "name": "altirra",
+        "cores": []
+      }
+    ],
+    "fullname": "Atari XE Game System",
+    "platform": "atari800"
+  },
+  {
+    "name": "jaguar",
+    "path": "~\\..\\roms\\jaguar",
+    "extensions": [
+      ".7z",
+      ".abs",
+      ".bin",
+      ".cdi",
+      ".cof",
+      ".cue",
+      ".j64",
+      ".jag",
+      ".prg",
+      ".rom",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bigpemu",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "phoenix",
+        "cores": []
+      }
+    ],
+    "fullname": "Jaguar",
+    "platform": "atarijaguar"
+  },
+  {
+    "name": "jaguarcd",
+    "path": "~\\..\\roms\\jaguarcd",
+    "extensions": [
+      ".7z",
+      ".bigpimg",
+      ".cdi",
+      ".cue",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "bigpemu",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Jaguar CD",
+    "platform": "atarijaguarcd"
+  },
+  {
+    "name": "colecovision",
+    "path": "~\\..\\roms\\colecovision",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".col",
+      ".dsk",
+      ".m3u",
+      ".mx1",
+      ".mx2",
+      ".ri",
+      ".rom",
+      ".sc",
+      ".sg",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "openmsx",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      }
+    ],
+    "fullname": "ColecoVision",
+    "platform": "colecovision"
+  },
+  {
+    "name": "c16",
+    "path": "~\\..\\roms\\c16",
+    "extensions": [
+      ".7z",
+      ".d64",
+      ".m3u",
+      ".prg",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Commodore 16",
+    "platform": "c16"
+  },
+  {
+    "name": "c20",
+    "path": "~\\..\\roms\\c20",
+    "extensions": [
+      ".a0",
+      ".b0",
+      ".crt",
+      ".d64",
+      ".d81",
+      ".nib",
+      ".prg",
+      ".t64",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "VIC-20",
+    "platform": "c20"
+  },
+  {
+    "name": "c64",
+    "path": "~\\..\\roms\\c64",
+    "extensions": [
+      ".7z",
+      ".crt",
+      ".d64",
+      ".d71",
+      ".d81",
+      ".g64",
+      ".m3u",
+      ".nib",
+      ".prg",
+      ".t64",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Commodore 64",
+    "platform": "c64"
+  },
+  {
+    "name": "cplus4",
+    "path": "~\\..\\roms\\cplus4",
+    "extensions": [
+      ".7z",
+      ".d64",
+      ".m3u",
+      ".prg",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Commodore Plus4",
+    "platform": "c64"
+  },
+  {
+    "name": "pet",
+    "path": "~\\..\\roms\\pet",
+    "extensions": [
+      ".7z",
+      ".a0",
+      ".b0",
+      ".crt",
+      ".d64",
+      ".d81",
+      ".m3u",
+      ".prg",
+      ".t64",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Commodore PET",
+    "platform": "c64"
+  },
+  {
+    "name": "c128",
+    "path": "~\\..\\roms\\c128",
+    "extensions": [
+      ".7z",
+      ".d64",
+      ".d81",
+      ".lnx",
+      ".m3u",
+      ".prg",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Commodore 128",
+    "platform": "c64"
+  },
+  {
+    "name": "intellivision",
+    "path": "~\\..\\roms\\intellivision",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".int",
+      ".rom",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "jzintv",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Mattel Intellivision",
+    "platform": "intellivision"
+  },
+  {
+    "name": "aquarius",
+    "path": "~\\..\\roms\\aquarius",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Mattel Aquarius",
+    "platform": "aquarius"
+  },
+  {
+    "name": "channelf",
+    "path": "~\\..\\roms\\channelf",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".rom",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Fairchild Channel F",
+    "platform": "channelf"
+  },
+  {
+    "name": "enterprise",
+    "path": "~\\..\\roms\\enterprise",
+    "extensions": [
+      ".bas",
+      ".com",
+      ".dsk",
+      ".dtf",
+      ".img",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Enterprise",
+    "platform": "enterprise"
+  },
+  {
+    "name": "msx1",
+    "path": "~\\..\\roms\\msx1",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".col",
+      ".dsk",
+      ".m3u",
+      ".mx1",
+      ".mx2",
+      ".ogv",
+      ".ri",
+      ".rom",
+      ".sc",
+      ".sg",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "openmsx",
+        "cores": []
+      }
+    ],
+    "fullname": "MSX",
+    "platform": "msx"
+  },
+  {
+    "name": "msx2",
+    "path": "~\\..\\roms\\msx2",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".col",
+      ".dsk",
+      ".m3u",
+      ".mx1",
+      ".mx2",
+      ".ogv",
+      ".ri",
+      ".rom",
+      ".sc",
+      ".sg",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "openmsx",
+        "cores": []
+      }
+    ],
+    "fullname": "MSX2",
+    "platform": "msx"
+  },
+  {
+    "name": "msx2+",
+    "path": "~\\..\\roms\\msx2+",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".col",
+      ".dsk",
+      ".m3u",
+      ".mx1",
+      ".mx2",
+      ".ogv",
+      ".ri",
+      ".rom",
+      ".sc",
+      ".sg",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "openmsx",
+        "cores": []
+      }
+    ],
+    "fullname": "MSX2+",
+    "platform": "msx"
+  },
+  {
+    "name": "msxturbor",
+    "path": "~\\..\\roms\\msxturbor",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".col",
+      ".dsk",
+      ".m3u",
+      ".mx1",
+      ".mx2",
+      ".ogv",
+      ".ri",
+      ".rom",
+      ".sc",
+      ".sg",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "openmsx",
+        "cores": []
+      }
+    ],
+    "fullname": "MSX turbo R",
+    "platform": "msx"
+  },
+  {
+    "name": "spectravideo",
+    "path": "~\\..\\roms\\spectravideo",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".cas",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Spectravideo SV-318",
+    "platform": "spectravideo"
+  },
+  {
+    "name": "oricatmos",
+    "path": "~\\..\\roms\\oricatmos",
+    "extensions": [
+      ".dsk",
+      ".tap"
+    ],
+    "emulators": [
+      {
+        "name": "oricutron",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Oric/Atmos",
+    "platform": "oricatmos"
+  },
+  {
+    "name": "pc88",
+    "path": "~\\..\\roms\\pc88",
+    "extensions": [
+      ".d88",
+      ".m3u",
+      ".u88"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "PC-8800",
+    "platform": "pc88"
+  },
+  {
+    "name": "pc98",
+    "path": "~\\..\\roms\\pc98",
+    "extensions": [
+      ".2hd",
+      ".88d",
+      ".98d",
+      ".cmd",
+      ".cue",
+      ".d88",
+      ".d98",
+      ".dup",
+      ".fdd",
+      ".fdi",
+      ".hdd",
+      ".hdi",
+      ".hdm",
+      ".hdn",
+      ".m3u",
+      ".nhd",
+      ".tfd",
+      ".thd",
+      ".xdf",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "PC-9800",
+    "platform": "pc98"
+  },
+  {
+    "name": "samcoupe",
+    "path": "~\\..\\roms\\samcoupe",
+    "extensions": [
+      ".dsk",
+      ".mgt",
+      ".sad",
+      ".sbt"
+    ],
+    "emulators": [
+      {
+        "name": "simcoupe",
+        "cores": []
+      }
+    ],
+    "fullname": "Samcoup\u00e9",
+    "platform": "samcoupe"
+  },
+  {
+    "name": "x68000",
+    "path": "~\\..\\roms\\x68000",
+    "extensions": [
+      ".2hd",
+      ".7z",
+      ".88d",
+      ".cmd",
+      ".d88",
+      ".dim",
+      ".dup",
+      ".hdf",
+      ".hdm",
+      ".img",
+      ".m3u",
+      ".xdf",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "xm6pro",
+        "cores": []
+      }
+    ],
+    "fullname": "Sharp X68000",
+    "platform": "x68000"
+  },
+  {
+    "name": "x1",
+    "path": "~\\..\\roms\\x1",
+    "extensions": [
+      ".2d",
+      ".2hd",
+      ".7z",
+      ".88d",
+      ".cmd",
+      ".d88",
+      ".dup",
+      ".dx1",
+      ".hdm",
+      ".tfd",
+      ".xdf",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Sharp X1",
+    "platform": "x1"
+  },
+  {
+    "name": "thomson",
+    "path": "~\\..\\roms\\thomson",
+    "extensions": [
+      ".7z",
+      ".fd",
+      ".k7",
+      ".m5",
+      ".m7",
+      ".rom",
+      ".sap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Thomson - MO/TO",
+    "platform": "thomson"
+  },
+  {
+    "name": "vectrex",
+    "path": "~\\..\\roms\\vectrex",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".gam",
+      ".vec",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Vectrex",
+    "platform": "vectrex"
+  },
+  {
+    "name": "odyssey2",
+    "path": "~\\..\\roms\\odyssey2",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Odyssey\u00b2 - Videopac",
+    "platform": "odyssey2"
+  },
+  {
+    "name": "p2000t",
+    "path": "~\\..\\roms\\p2000t",
+    "extensions": [
+      ".cas",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "P2000T",
+    "platform": "p2000t"
+  },
+  {
+    "name": "vg5k",
+    "path": "~\\..\\roms\\vg5k",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "VG5000",
+    "platform": "vg5k"
+  },
+  {
+    "name": "zx81",
+    "path": "~\\..\\roms\\zx81",
+    "extensions": [
+      ".7z",
+      ".p",
+      ".rzx",
+      ".scl",
+      ".tap",
+      ".trd",
+      ".tzx",
+      ".z80",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "ZX 81",
+    "platform": "zx81"
+  },
+  {
+    "name": "zxspectrum",
+    "path": "~\\..\\roms\\zxspectrum",
+    "extensions": [
+      ".7z",
+      ".dsk",
+      ".rzx",
+      ".scl",
+      ".tap",
+      ".trd",
+      ".tzx",
+      ".z80",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "zesarux",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "ZX Spectrum",
+    "platform": "zxspectrum"
+  },
+  {
+    "name": "lynx",
+    "path": "~\\..\\roms\\lynx",
+    "extensions": [
+      ".7z",
+      ".lnx",
+      ".o",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Lynx",
+    "platform": "atarilynx"
+  },
+  {
+    "name": "gamegear",
+    "path": "~\\..\\roms\\gamegear",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".gg",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Gear",
+    "platform": "gamegear"
+  },
+  {
+    "name": "gw",
+    "path": "~\\..\\roms\\gameandwatch",
+    "extensions": [
+      ".7z",
+      ".mgw",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Game and Watch",
+    "platform": "gameandwatch"
+  },
+  {
+    "name": "gb",
+    "path": "~\\..\\roms\\gb",
+    "extensions": [
+      ".7z",
+      ".gb",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "mgba",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy",
+    "platform": "gb"
+  },
+  {
+    "name": "gb2players",
+    "path": "~\\..\\roms\\gb2players",
+    "extensions": [
+      ".7z",
+      ".gb",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy 2 Players",
+    "platform": "gb"
+  },
+  {
+    "name": "gbc",
+    "path": "~\\..\\roms\\gbc",
+    "extensions": [
+      ".7z",
+      ".gbc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "mgba",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy Color",
+    "platform": "gbc"
+  },
+  {
+    "name": "gbc2players",
+    "path": "~\\..\\roms\\gbc2players",
+    "extensions": [
+      ".7z",
+      ".gbc",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy Color 2 Players",
+    "platform": "gbc"
+  },
+  {
+    "name": "gba",
+    "path": "~\\..\\roms\\gba",
+    "extensions": [
+      ".7z",
+      ".gba",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mgba",
+        "cores": []
+      },
+      {
+        "name": "nosgba",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      },
+      {
+        "name": "jgenesis",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy Advance",
+    "platform": "gba"
+  },
+  {
+    "name": "gba2players",
+    "path": "~\\..\\roms\\gba2players",
+    "extensions": [
+      ".gba"
+    ],
+    "emulators": [
+      {
+        "name": "nosgba",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Boy Advance 2 Players",
+    "platform": "gba"
+  },
+  {
+    "name": "karaoke",
+    "path": "~\\..\\roms\\karaoke",
+    "extensions": [
+      ".cdg"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Karaoke",
+    "platform": "karaoke"
+  },
+  {
+    "name": "pokemini",
+    "path": "~\\..\\roms\\pokemini",
+    "extensions": [
+      ".7z",
+      ".min",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Pokemon-Mini",
+    "platform": "pokemini"
+  },
+  {
+    "name": "nds",
+    "path": "~\\..\\roms\\nds",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".nds",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "melonds",
+        "cores": []
+      },
+      {
+        "name": "desmume",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo DS",
+    "platform": "nds"
+  },
+  {
+    "name": "3ds",
+    "path": "~\\..\\roms\\3ds",
+    "extensions": [
+      ".3ds",
+      ".3dsx",
+      ".7z",
+      ".app",
+      ".axf",
+      ".cci",
+      ".cia",
+      ".cxi",
+      ".elf",
+      ".m3u",
+      ".squashfs",
+      ".z3dsx",
+      ".zcci",
+      ".zcia",
+      ".zcxi",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "azahar",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mandarine",
+        "cores": []
+      },
+      {
+        "name": "citra",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Nintendo 3DS",
+    "platform": "3ds"
+  },
+  {
+    "name": "psp",
+    "path": "~\\..\\roms\\psp",
+    "extensions": [
+      ".7z",
+      ".chd",
+      ".cso",
+      ".elf",
+      ".iso",
+      ".pbp",
+      ".prx",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "ppsspp",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "PlayStation Portable",
+    "platform": "psp"
+  },
+  {
+    "name": "ngp",
+    "path": "~\\..\\roms\\ngp",
+    "extensions": [
+      ".7z",
+      ".ngc",
+      ".ngp",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Neo Geo Pocket",
+    "platform": "ngp"
+  },
+  {
+    "name": "ngpc",
+    "path": "~\\..\\roms\\ngpc",
+    "extensions": [
+      ".7z",
+      ".ngc",
+      ".ngp",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Neo Geo Pocket Color",
+    "platform": "ngpc"
+  },
+  {
+    "name": "supervision",
+    "path": "~\\..\\roms\\supervision",
+    "extensions": [
+      ".7z",
+      ".sv",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Watara SuperVision",
+    "platform": "supervision"
+  },
+  {
+    "name": "wswan",
+    "path": "~\\..\\roms\\wswan",
+    "extensions": [
+      ".7z",
+      ".ws",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "WonderSwan",
+    "platform": "wonderswan"
+  },
+  {
+    "name": "wswanc",
+    "path": "~\\..\\roms\\wswanc",
+    "extensions": [
+      ".7z",
+      ".wsc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mednafen",
+        "cores": []
+      },
+      {
+        "name": "ares",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "WonderSwan Color",
+    "platform": "wonderswancolor"
+  },
+  {
+    "name": "scummvm",
+    "path": "~\\..\\roms\\scummvm",
+    "extensions": [
+      ".7z",
+      ".rar",
+      ".scummvm",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "scummvm",
+        "cores": []
+      }
+    ],
+    "fullname": "ScummVM",
+    "platform": "scummvm"
+  },
+  {
+    "name": "ports",
+    "path": "~\\..\\roms\\ports",
+    "extensions": [
+      ".libretro"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Ports",
+    "platform": "pc"
+  },
+  {
+    "name": "love",
+    "path": "~\\..\\roms\\love",
+    "extensions": [
+      ".7z",
+      ".exe",
+      ".love",
+      ".lua",
+      ".lutro",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "love",
+        "cores": []
+      }
+    ],
+    "fullname": "L\u00d6VE",
+    "platform": "lutro"
+  },
+  {
+    "name": "lutro",
+    "path": "~\\..\\roms\\lutro",
+    "extensions": [
+      ".7z",
+      ".love",
+      ".lua",
+      ".lutro",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Lutro Lua Framework",
+    "platform": "lutro"
+  },
+  {
+    "name": "devilutionx",
+    "path": "~\\..\\roms\\devilutionx",
+    "extensions": [
+      ".game",
+      ".win"
+    ],
+    "emulators": [
+      {
+        "name": "devilutionx",
+        "cores": []
+      }
+    ],
+    "fullname": "DevilutionX - Diablo Open-Source Implementation",
+    "platform": "pc"
+  },
+  {
+    "name": "easyrpg",
+    "path": "~\\..\\roms\\easyrpg",
+    "extensions": [
+      ".7z",
+      ".easyrpg",
+      ".lbd",
+      ".rar",
+      ".squashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "EasyRPG - RPG Maker 2000/2003 player",
+    "platform": "easyrpg"
+  },
+  {
+    "name": "ecwolf",
+    "path": "~\\..\\roms\\ecwolf",
+    "extensions": [
+      ".exe",
+      ".pk3"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "ECWolf",
+    "platform": "pc"
+  },
+  {
+    "name": "gemrb",
+    "path": "~\\..\\roms\\gemrb",
+    "extensions": [
+      ".auto",
+      ".bg1",
+      ".bg2",
+      ".how",
+      ".iwd",
+      ".iwd2",
+      ".pst"
+    ],
+    "emulators": [
+      {
+        "name": "gemrb",
+        "cores": []
+      }
+    ],
+    "fullname": "GemRB - Infinity Engine Open-Source Implementation",
+    "platform": "pc"
+  },
+  {
+    "name": "prboom",
+    "path": "~\\..\\roms\\prboom",
+    "extensions": [
+      ".iwad",
+      ".pwad",
+      ".wad"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "PrBoom",
+    "platform": "pc"
+  },
+  {
+    "name": "gzdoom",
+    "path": "~\\..\\roms\\gzdoom",
+    "extensions": [
+      ".gzdoom",
+      ".ipk3",
+      ".iwad",
+      ".pk3",
+      ".pwad",
+      ".wad"
+    ],
+    "emulators": [
+      {
+        "name": "gzdoom",
+        "cores": []
+      }
+    ],
+    "fullname": "GZDoom",
+    "platform": "pc"
+  },
+  {
+    "name": "raze",
+    "path": "~\\..\\roms\\raze",
+    "extensions": [
+      ".raze"
+    ],
+    "emulators": [
+      {
+        "name": "raze",
+        "cores": []
+      }
+    ],
+    "fullname": "Raze",
+    "platform": "pc"
+  },
+  {
+    "name": "doom3",
+    "path": "~\\..\\roms\\doom3",
+    "extensions": [
+      ".boom3",
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "dhewm3",
+        "cores": []
+      }
+    ],
+    "fullname": "Doom 3",
+    "platform": "windows"
+  },
+  {
+    "name": "quake",
+    "path": "~\\..\\roms\\quake",
+    "extensions": [
+      ".pak",
+      ".quake"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "vkquake",
+        "cores": []
+      }
+    ],
+    "fullname": "Quake",
+    "platform": "pc"
+  },
+  {
+    "name": "quake2",
+    "path": "~\\..\\roms\\quake2",
+    "extensions": [
+      ".pak",
+      ".quake2"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "vkquake2",
+        "cores": []
+      }
+    ],
+    "fullname": "Quake II",
+    "platform": "windows"
+  },
+  {
+    "name": "rtcw",
+    "path": "~\\..\\roms\\rtcw",
+    "extensions": [
+      ".rtcw"
+    ],
+    "emulators": [
+      {
+        "name": "rtcw",
+        "cores": []
+      }
+    ],
+    "fullname": "RealRTCW",
+    "platform": "windows"
+  },
+  {
+    "name": "halflife",
+    "path": "~\\..\\roms\\halflife",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "xash3d",
+        "cores": []
+      }
+    ],
+    "fullname": "Half-Life",
+    "platform": "windows"
+  },
+  {
+    "name": "bstone",
+    "path": "~\\..\\roms\\bstone",
+    "extensions": [
+      ".bstone"
+    ],
+    "emulators": [
+      {
+        "name": "bstone",
+        "cores": []
+      }
+    ],
+    "fullname": "Blake Stone",
+    "platform": "windows"
+  },
+  {
+    "name": "cavestory",
+    "path": "~\\..\\roms\\cavestory",
+    "extensions": [
+      ".exe",
+      ".libretro"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Cavestory",
+    "platform": "windows"
+  },
+  {
+    "name": "powerbomberman",
+    "path": "~\\..\\roms\\pb",
+    "extensions": [
+      ".pb"
+    ],
+    "emulators": [
+      {
+        "name": "powerbomberman",
+        "cores": []
+      }
+    ],
+    "fullname": "Power Bomberman",
+    "platform": "windows"
+  },
+  {
+    "name": "ikemen",
+    "path": "~\\..\\roms\\ikemen",
+    "extensions": [
+      ".game",
+      ".ikemen",
+      ".pc",
+      ".win"
+    ],
+    "emulators": [
+      {
+        "name": "ikemen",
+        "cores": []
+      }
+    ],
+    "fullname": "IKEMEN",
+    "platform": "pc"
+  },
+  {
+    "name": "mugen",
+    "path": "~\\..\\roms\\mugen",
+    "extensions": [
+      ".game",
+      ".mugen",
+      ".pc",
+      ".win"
+    ],
+    "emulators": [
+      {
+        "name": "mugen",
+        "cores": []
+      }
+    ],
+    "fullname": "MUGEN",
+    "platform": "pc"
+  },
+  {
+    "name": "openbor",
+    "path": "~\\..\\roms\\openbor",
+    "extensions": [
+      ".exe",
+      ".pak"
+    ],
+    "emulators": [
+      {
+        "name": "openbor",
+        "cores": []
+      }
+    ],
+    "fullname": "Openbor",
+    "platform": "openbor"
+  },
+  {
+    "name": "solarus",
+    "path": "~\\..\\roms\\solarus",
+    "extensions": [
+      ".solarus",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "solarus",
+        "cores": []
+      },
+      {
+        "name": "solarus2",
+        "cores": []
+      }
+    ],
+    "fullname": "Solarus",
+    "platform": "solarus"
+  },
+  {
+    "name": "teknoparrot",
+    "path": "~\\..\\roms\\teknoparrot",
+    "extensions": [
+      ".7z",
+      ".game",
+      ".parrot",
+      ".rar",
+      ".teknoparrot",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "TeknoParrot",
+    "platform": "teknoparrot, arcade"
+  },
+  {
+    "name": "zinc",
+    "path": "~\\..\\roms\\zinc",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "psxmame",
+        "cores": []
+      },
+      {
+        "name": "zinc",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Zinc",
+    "platform": "arcade"
+  },
+  {
+    "name": "namco2x6",
+    "path": "~\\..\\roms\\namco2x6",
+    "extensions": [
+      ".acgame",
+      ".m3u",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "play",
+        "cores": []
+      },
+      {
+        "name": "pcsx2x6",
+        "cores": []
+      },
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "Namco 246/256",
+    "platform": "arcade"
+  },
+  {
+    "name": "namco3xx",
+    "path": "~\\..\\roms\\namco3xx",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "teknoparrot",
+        "cores": []
+      }
+    ],
+    "fullname": "Namco 357/369",
+    "platform": "arcade"
+  },
+  {
+    "name": "dos",
+    "path": "~\\..\\roms\\dos",
+    "extensions": [
+      ".bat",
+      ".cmd",
+      ".dos",
+      ".dosbox",
+      ".dosz",
+      ".m3u8",
+      ".pc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "dosbox-staging",
+        "cores": []
+      },
+      {
+        "name": "dosbox-pure",
+        "cores": []
+      },
+      {
+        "name": "dosbox",
+        "cores": []
+      }
+    ],
+    "fullname": "DOS",
+    "platform": "pc"
+  },
+  {
+    "name": "exodos",
+    "path": "~\\..\\roms\\exodos",
+    "extensions": [
+      ".lnk"
+    ],
+    "emulators": [
+      {
+        "name": "exodos",
+        "cores": []
+      }
+    ],
+    "fullname": "eXoDOS",
+    "platform": "pc"
+  },
+  {
+    "name": "exowin3x",
+    "path": "~\\..\\roms\\exowin3x",
+    "extensions": [
+      ".lnk"
+    ],
+    "emulators": [
+      {
+        "name": "exodos",
+        "cores": []
+      }
+    ],
+    "fullname": "eXoWin3x",
+    "platform": "pc"
+  },
+  {
+    "name": "exowin9x",
+    "path": "~\\..\\roms\\exowin9x",
+    "extensions": [
+      ".lnk"
+    ],
+    "emulators": [
+      {
+        "name": "exodos",
+        "cores": []
+      }
+    ],
+    "fullname": "eXoWin9x",
+    "platform": "pc"
+  },
+  {
+    "name": "amazon",
+    "path": "~\\..\\roms\\amazon",
+    "extensions": [
+      ".bat",
+      ".lnk",
+      ".url"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "Amazon Prime Gaming",
+    "platform": "windows"
+  },
+  {
+    "name": "steam",
+    "path": "~\\..\\roms\\steam",
+    "extensions": [
+      ".bat",
+      ".url"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "Steam",
+    "platform": "windows"
+  },
+  {
+    "name": "gog",
+    "path": "~\\..\\roms\\gog",
+    "extensions": [
+      ".bat",
+      ".lnk",
+      ".url"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "GOG.com",
+    "platform": "windows"
+  },
+  {
+    "name": "epic",
+    "path": "~\\..\\roms\\epic",
+    "extensions": [
+      ".bat",
+      ".lnk",
+      ".url"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "EPIC",
+    "platform": "windows"
+  },
+  {
+    "name": "eagames",
+    "path": "~\\..\\roms\\eagames",
+    "extensions": [
+      ".bat",
+      ".lnk",
+      ".url"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "EA Games",
+    "platform": "windows"
+  },
+  {
+    "name": "Windows",
+    "path": "~\\..\\roms\\windows",
+    "extensions": [
+      ".7z",
+      ".bat",
+      ".cmd",
+      ".exe",
+      ".game",
+      ".lnk",
+      ".pc",
+      ".rar",
+      ".url",
+      ".win",
+      ".windows",
+      ".wine",
+      ".wsquashfs",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "windows",
+        "cores": []
+      }
+    ],
+    "fullname": "Windows",
+    "platform": "windows"
+  },
+  {
+    "name": "vpinball",
+    "path": "~\\..\\roms\\vpinball",
+    "extensions": [
+      ".7z",
+      ".rar",
+      ".vpx",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "vpinball",
+        "cores": []
+      }
+    ],
+    "fullname": "Visual Pinball",
+    "platform": "vpinball"
+  },
+  {
+    "name": "fpinball",
+    "path": "~\\..\\roms\\fpinball",
+    "extensions": [
+      ".7z",
+      ".fpt",
+      ".rar",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "fpinball",
+        "cores": []
+      }
+    ],
+    "fullname": "Future Pinball",
+    "platform": "fpinball"
+  },
+  {
+    "name": "pinballfx",
+    "path": "~\\..\\roms\\pinballfx",
+    "extensions": [
+      ".table"
+    ],
+    "emulators": [
+      {
+        "name": "pinballfx",
+        "cores": []
+      }
+    ],
+    "fullname": "Pinball FX",
+    "platform": "windows"
+  },
+  {
+    "name": "pinballm",
+    "path": "~\\..\\roms\\pinballm",
+    "extensions": [
+      ".table"
+    ],
+    "emulators": [
+      {
+        "name": "pinballfx",
+        "cores": []
+      }
+    ],
+    "fullname": "Pinball M",
+    "platform": "windows"
+  },
+  {
+    "name": "pinballfx2",
+    "path": "~\\..\\roms\\pinballfx2",
+    "extensions": [
+      ".pxp",
+      ".table"
+    ],
+    "emulators": [
+      {
+        "name": "pinballfx",
+        "cores": []
+      }
+    ],
+    "fullname": "Pinball FX2",
+    "platform": "windows"
+  },
+  {
+    "name": "pinballfx3",
+    "path": "~\\..\\roms\\pinballfx3",
+    "extensions": [
+      ".pxp",
+      ".table"
+    ],
+    "emulators": [
+      {
+        "name": "pinballfx",
+        "cores": []
+      }
+    ],
+    "fullname": "Pinball FX3",
+    "platform": "windows"
+  },
+  {
+    "name": "zaccariapinball",
+    "path": "~\\..\\roms\\zaccariapinball",
+    "extensions": [
+      ".table"
+    ],
+    "emulators": [
+      {
+        "name": "zaccariapinball",
+        "cores": []
+      }
+    ],
+    "fullname": "Zaccaria Pinball",
+    "platform": "windows"
+  },
+  {
+    "name": "pico8",
+    "path": "~\\..\\roms\\pico8",
+    "extensions": [
+      ".exe",
+      ".p8",
+      ".png"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "pico8",
+        "cores": []
+      }
+    ],
+    "fullname": "PICO-8",
+    "platform": "pico8"
+  },
+  {
+    "name": "tic80",
+    "path": "~\\..\\roms\\tic80",
+    "extensions": [
+      ".tic"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "TIC-80",
+    "platform": "tic80"
+  },
+  {
+    "name": "wasm4",
+    "path": "~\\..\\roms\\wasm4",
+    "extensions": [
+      ".wasm",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "WASM-4",
+    "platform": "wasm4"
+  },
+  {
+    "name": "cdi",
+    "path": "~\\..\\roms\\cdi",
+    "extensions": [
+      ".cdr",
+      ".chd",
+      ".cue",
+      ".gdi",
+      ".iso",
+      ".nrg",
+      ".toc"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Philips CD-i",
+    "platform": "cdi"
+  },
+  {
+    "name": "ngage",
+    "path": "~\\..\\roms\\ngage",
+    "extensions": [
+      ".ngage",
+      ".symbian"
+    ],
+    "emulators": [
+      {
+        "name": "eka2l1",
+        "cores": []
+      }
+    ],
+    "fullname": "N-Gage",
+    "platform": "ngage"
+  },
+  {
+    "name": "advision",
+    "path": "~\\..\\roms\\advision",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Adventure Vision",
+    "platform": "advision"
+  },
+  {
+    "name": "tvgames",
+    "path": "~\\..\\roms\\tvgames",
+    "extensions": [
+      ".7z",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "TV Games",
+    "platform": "tvgames"
+  },
+  {
+    "name": "megaduck",
+    "path": "~\\..\\roms\\megaduck",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Mega Duck",
+    "platform": "megaduck"
+  },
+  {
+    "name": "arduboy",
+    "path": "~\\..\\roms\\arduboy",
+    "extensions": [
+      ".7z",
+      ".hex",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Arduboy",
+    "platform": "arduboy"
+  },
+  {
+    "name": "uzebox",
+    "path": "~\\..\\roms\\uzebox",
+    "extensions": [
+      ".uze"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Uzebox",
+    "platform": "uzebox"
+  },
+  {
+    "name": "lowresnx",
+    "path": "~\\..\\roms\\lowresnx",
+    "extensions": [
+      ".nx"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Lowres NX",
+    "platform": "lowresnx"
+  },
+  {
+    "name": "vircon32",
+    "path": "~\\..\\roms\\vircon32",
+    "extensions": [
+      ".v32",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Vircon32",
+    "platform": "vircon32"
+  },
+  {
+    "name": "pv1000",
+    "path": "~\\..\\roms\\pv1000",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "PV-1000",
+    "platform": "pv1000"
+  },
+  {
+    "name": "bk",
+    "path": "~\\..\\roms\\bk",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Elektronika BK",
+    "platform": "bk"
+  },
+  {
+    "name": "casloopy",
+    "path": "~\\..\\roms\\loopy",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Casio Loopy",
+    "platform": "loopy"
+  },
+  {
+    "name": "crvision",
+    "path": "~\\..\\roms\\crvision",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".rom",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "CreatiVision",
+    "platform": "creativision"
+  },
+  {
+    "name": "gamecom",
+    "path": "~\\..\\roms\\gamecom",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".tgc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Game.com",
+    "platform": "gamecom"
+  },
+  {
+    "name": "gamepock",
+    "path": "~\\..\\roms\\gamepock",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Pocket Computer",
+    "platform": "gamepock"
+  },
+  {
+    "name": "gp32",
+    "path": "~\\..\\roms\\gp32",
+    "extensions": [
+      ".smc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Park 32",
+    "platform": "gp32"
+  },
+  {
+    "name": "pegasus",
+    "path": "~\\..\\roms\\pegasus",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Pegasus",
+    "platform": "pegasus"
+  },
+  {
+    "name": "cassettevision",
+    "path": "~\\..\\roms\\cassettevision",
+    "extensions": [
+      ".bin777",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Cassette Vision",
+    "platform": "cassettevision"
+  },
+  {
+    "name": "scv",
+    "path": "~\\..\\roms\\scv",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Super Cassette Vision",
+    "platform": "scv"
+  },
+  {
+    "name": "fm7",
+    "path": "~\\..\\roms\\fm7",
+    "extensions": [
+      ".1dd",
+      ".7z",
+      ".cqi",
+      ".cqm",
+      ".d77",
+      ".d88",
+      ".dfi",
+      ".dsk",
+      ".hfe",
+      ".imd",
+      ".mfi",
+      ".mfm",
+      ".t77",
+      ".td0",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "FM-7",
+    "platform": "fm7"
+  },
+  {
+    "name": "apfm1000",
+    "path": "~\\..\\roms\\apfm1000",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "APF M-1000",
+    "platform": "apfm1000"
+  },
+  {
+    "name": "bbcmicro",
+    "path": "~\\..\\roms\\bbcmicro",
+    "extensions": [
+      ".7z",
+      ".dsd",
+      ".ssd",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "BBC Micro",
+    "platform": "bbcmicro"
+  },
+  {
+    "name": "electron",
+    "path": "~\\..\\roms\\electron",
+    "extensions": [
+      ".7z",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Electron",
+    "platform": "electron"
+  },
+  {
+    "name": "adam",
+    "path": "~\\..\\roms\\adam",
+    "extensions": [
+      ".1dd",
+      ".7z",
+      ".bin",
+      ".col",
+      ".cqi",
+      ".cqm",
+      ".d77",
+      ".d88",
+      ".ddp",
+      ".dfi",
+      ".dsk",
+      ".hfe",
+      ".imd",
+      ".mfi",
+      ".mfm",
+      ".rom",
+      ".td0",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "ADAM",
+    "platform": "adam"
+  },
+  {
+    "name": "atom",
+    "path": "~\\..\\roms\\atom",
+    "extensions": [
+      ".1dd",
+      ".40t",
+      ".7z",
+      ".atm",
+      ".bin",
+      ".cqi",
+      ".cqm",
+      ".csw",
+      ".d77",
+      ".d88",
+      ".dfi",
+      ".dsk",
+      ".hfe",
+      ".imd",
+      ".mfi",
+      ".mfm",
+      ".rom",
+      ".tap",
+      ".td0",
+      ".uef",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Atom",
+    "platform": "atom"
+  },
+  {
+    "name": "archimedes",
+    "path": "~\\..\\roms\\archimedes",
+    "extensions": [
+      ".1dd",
+      ".360",
+      ".7z",
+      ".adf",
+      ".adl",
+      ".adm",
+      ".ads",
+      ".apd",
+      ".bbc",
+      ".cqi",
+      ".cqm",
+      ".d77",
+      ".d88",
+      ".dfi",
+      ".dsd",
+      ".dsk",
+      ".hfe",
+      ".ima",
+      ".imd",
+      ".img",
+      ".ipf",
+      ".jfd",
+      ".mfi",
+      ".mfm",
+      ".msa",
+      ".ssd",
+      ".st",
+      ".td0",
+      ".ufi",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Archimedes",
+    "platform": "archimedes"
+  },
+  {
+    "name": "arcadia",
+    "path": "~\\..\\roms\\arcadia",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Arcadia 2001",
+    "platform": "arcadia"
+  },
+  {
+    "name": "gmaster",
+    "path": "~\\..\\roms\\gmaster",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Game Master",
+    "platform": "gmaster"
+  },
+  {
+    "name": "astrocade",
+    "path": "~\\..\\roms\\astrocade",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Astrocade",
+    "platform": "astrocade"
+  },
+  {
+    "name": "ti99",
+    "path": "~\\..\\roms\\ti99",
+    "extensions": [
+      ".rpk",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "TI-99/4A",
+    "platform": "ti99"
+  },
+  {
+    "name": "tutor",
+    "path": "~\\..\\roms\\tutor",
+    "extensions": [
+      ".7z",
+      ".bin",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Tutor",
+    "platform": "tutor"
+  },
+  {
+    "name": "coco",
+    "path": "~\\..\\roms\\coco",
+    "extensions": [
+      ".7z",
+      ".cas",
+      ".ccc",
+      ".dsk",
+      ".rom",
+      ".wav",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      },
+      {
+        "name": "xroar",
+        "cores": []
+      }
+    ],
+    "fullname": "TRS-80 Color Computer",
+    "platform": "coco"
+  },
+  {
+    "name": "dragon32",
+    "path": "~\\..\\roms\\dragon32",
+    "extensions": [
+      ".cas",
+      ".dmk",
+      ".dsk",
+      ".jvc",
+      ".os9",
+      ".vdk",
+      ".wav"
+    ],
+    "emulators": [
+      {
+        "name": "xroar",
+        "cores": []
+      }
+    ],
+    "fullname": "Dragon 32/64",
+    "platform": "dragon32"
+  },
+  {
+    "name": "fmtowns",
+    "path": "~\\..\\roms\\fmtowns",
+    "extensions": [
+      ".cd",
+      ".chd",
+      ".cue",
+      ".d77",
+      ".d88",
+      ".game",
+      ".iso",
+      ".m3u",
+      ".xdf"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "tsugaru",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "FM Towns",
+    "platform": "fmtowns"
+  },
+  {
+    "name": "lcdgames",
+    "path": "~\\..\\roms\\lcdgames",
+    "extensions": [
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "LCD Games",
+    "platform": "lcdgames"
+  },
+  {
+    "name": "vsmile",
+    "path": "~\\..\\roms\\vsmile",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "V.Smile",
+    "platform": "vsmile"
+  },
+  {
+    "name": "camplynx",
+    "path": "~\\..\\roms\\camplynx",
+    "extensions": [
+      ".bin",
+      ".squashfs",
+      ".tap",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "jynx",
+        "cores": []
+      },
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Camputers Lynx",
+    "platform": "camplynx"
+  },
+  {
+    "name": "vc4000",
+    "path": "~\\..\\roms\\vc4000",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "VC4000",
+    "platform": "vc4000"
+  },
+  {
+    "name": "supracan",
+    "path": "~\\..\\roms\\supracan",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Super A'Can",
+    "platform": "supracan"
+  },
+  {
+    "name": "gamate",
+    "path": "~\\..\\roms\\gamate",
+    "extensions": [
+      ".bin",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Gamate",
+    "platform": "gamate"
+  },
+  {
+    "name": "sgb",
+    "path": "~\\..\\roms\\sgb",
+    "extensions": [
+      ".7z",
+      ".gb",
+      ".gbc",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mesen",
+        "cores": []
+      },
+      {
+        "name": "mgba",
+        "cores": []
+      },
+      {
+        "name": "bizhawk",
+        "cores": []
+      }
+    ],
+    "fullname": "Super Game Boy",
+    "platform": "sgb"
+  },
+  {
+    "name": "neogeo64",
+    "path": "~\\..\\roms\\neogeo64",
+    "extensions": [
+      ".7z",
+      ".zip"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      },
+      {
+        "name": "mame64",
+        "cores": []
+      }
+    ],
+    "fullname": "Hyper Neo Geo 64",
+    "platform": "arcade"
+  },
+  {
+    "name": "psvita",
+    "path": "~\\..\\roms\\psvita",
+    "extensions": [
+      ".m3u",
+      ".psvita",
+      ".vpk"
+    ],
+    "emulators": [
+      {
+        "name": "vita3k",
+        "cores": []
+      }
+    ],
+    "fullname": "PlayStation Vita",
+    "platform": "psvita"
+  },
+  {
+    "name": "bennugd",
+    "path": "~\\..\\roms\\bennugd",
+    "extensions": [
+      ".dat",
+      ".dcb"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "BennuGD",
+    "platform": "windows"
+  },
+  {
+    "name": "bsyndrome",
+    "path": "~\\..\\roms\\bsyndrome",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "bsyndrome",
+        "cores": []
+      }
+    ],
+    "fullname": "Bermuda Syndrome",
+    "platform": "pc"
+  },
+  {
+    "name": "cannonball",
+    "path": "~\\..\\roms\\cannonball",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Cannonball",
+    "platform": "pc"
+  },
+  {
+    "name": "cdogs",
+    "path": "~\\..\\roms\\cdogs",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "cdogs",
+        "cores": []
+      }
+    ],
+    "fullname": "CDogs",
+    "platform": "pc"
+  },
+  {
+    "name": "cgenius",
+    "path": "~\\..\\roms\\cgenius",
+    "extensions": [
+      ".cgenius"
+    ],
+    "emulators": [
+      {
+        "name": "cgenius",
+        "cores": []
+      }
+    ],
+    "fullname": "Commander Genius",
+    "platform": "pc"
+  },
+  {
+    "name": "corsixth",
+    "path": "~\\..\\roms\\corsixth",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "corsixth",
+        "cores": []
+      }
+    ],
+    "fullname": "CorsixTH",
+    "platform": "pc"
+  },
+  {
+    "name": "openlara",
+    "path": "~\\..\\roms\\openlara",
+    "extensions": [
+      ".croft"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "OpenLara",
+    "platform": "windows"
+  },
+  {
+    "name": "opengoal",
+    "path": "~\\..\\roms\\opengoal",
+    "extensions": [
+      ".opengoal"
+    ],
+    "emulators": [
+      {
+        "name": "opengoal",
+        "cores": []
+      }
+    ],
+    "fullname": "OpenGOAL",
+    "platform": "pc"
+  },
+  {
+    "name": "openjazz",
+    "path": "~\\..\\roms\\openjazz",
+    "extensions": [
+      ".openjazz"
+    ],
+    "emulators": [
+      {
+        "name": "openjazz",
+        "cores": []
+      }
+    ],
+    "fullname": "OpenJazz",
+    "platform": "pc"
+  },
+  {
+    "name": "pdark",
+    "path": "~\\..\\roms\\pdark",
+    "extensions": [
+      ".z64"
+    ],
+    "emulators": [
+      {
+        "name": "pdark",
+        "cores": []
+      }
+    ],
+    "fullname": "Perfect Dark",
+    "platform": "n64"
+  },
+  {
+    "name": "soh",
+    "path": "~\\..\\roms\\soh",
+    "extensions": [
+      ".n64",
+      ".z64"
+    ],
+    "emulators": [
+      {
+        "name": "soh",
+        "cores": []
+      }
+    ],
+    "fullname": "Ship of Harkinian",
+    "platform": "n64"
+  },
+  {
+    "name": "2ship",
+    "path": "~\\..\\roms\\2ship",
+    "extensions": [
+      ".n64",
+      ".z64"
+    ],
+    "emulators": [
+      {
+        "name": "2ship",
+        "cores": []
+      }
+    ],
+    "fullname": "2 Ship 2 Harkinian",
+    "platform": "n64"
+  },
+  {
+    "name": "dusklight",
+    "path": "~\\..\\roms\\dusklight",
+    "extensions": [
+      ".iso",
+      ".m3u",
+      ".rvz"
+    ],
+    "emulators": [
+      {
+        "name": "dusklight",
+        "cores": []
+      }
+    ],
+    "fullname": "DuskLight",
+    "platform": "gc"
+  },
+  {
+    "name": "sonic3-air",
+    "path": "~\\..\\roms\\sonic3-air",
+    "extensions": [
+      ".bin"
+    ],
+    "emulators": [
+      {
+        "name": "sonic3air",
+        "cores": []
+      }
+    ],
+    "fullname": "Sonic 3 AIR",
+    "platform": "pc"
+  },
+  {
+    "name": "sonic-mania",
+    "path": "~\\..\\roms\\sonic-mania",
+    "extensions": [
+      ".rsdk"
+    ],
+    "emulators": [
+      {
+        "name": "sonicmania",
+        "cores": []
+      }
+    ],
+    "fullname": "Sonic Mania",
+    "platform": "pc"
+  },
+  {
+    "name": "sonicretro",
+    "path": "~\\..\\roms\\sonicretro",
+    "extensions": [
+      ".rsdk"
+    ],
+    "emulators": [
+      {
+        "name": "sonicretro",
+        "cores": []
+      },
+      {
+        "name": "sonicretrocd",
+        "cores": []
+      }
+    ],
+    "fullname": "Sonic Retro",
+    "platform": "pc"
+  },
+  {
+    "name": "starship",
+    "path": "~\\..\\roms\\ghostship",
+    "extensions": [
+      ".z64"
+    ],
+    "emulators": [
+      {
+        "name": "ghostship",
+        "cores": []
+      }
+    ],
+    "fullname": "Ghostship",
+    "platform": "n64"
+  },
+  {
+    "name": "starship",
+    "path": "~\\..\\roms\\starship",
+    "extensions": [
+      ".z64"
+    ],
+    "emulators": [
+      {
+        "name": "starship",
+        "cores": []
+      }
+    ],
+    "fullname": "Starship",
+    "platform": "n64"
+  },
+  {
+    "name": "dinothawr",
+    "path": "~\\..\\roms\\dinothawr",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Dinothawr",
+    "platform": "pc"
+  },
+  {
+    "name": "eduke32",
+    "path": "~\\..\\roms\\eduke32",
+    "extensions": [
+      ".eduke32"
+    ],
+    "emulators": [
+      {
+        "name": "eduke32",
+        "cores": []
+      }
+    ],
+    "fullname": "Duke Nukem 3D",
+    "platform": "pc"
+  },
+  {
+    "name": "theforceengine",
+    "path": "~\\..\\roms\\theforceengine",
+    "extensions": [
+      ".game"
+    ],
+    "emulators": [
+      {
+        "name": "theforceengine",
+        "cores": []
+      }
+    ],
+    "fullname": "The Force Engine",
+    "platform": "pc"
+  },
+  {
+    "name": "superbroswar",
+    "path": "~\\..\\roms\\superbroswar",
+    "extensions": [
+      ".sbw"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Super Mario War",
+    "platform": "pc"
+  },
+  {
+    "name": "reminiscence",
+    "path": "~\\..\\roms\\reminiscence",
+    "extensions": [
+      ".rem"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "REminiscence",
+    "platform": "pc"
+  },
+  {
+    "name": "library",
+    "path": "~\\..\\library",
+    "extensions": [
+      ".avi",
+      ".bmp",
+      ".cbr",
+      ".cbz",
+      ".gif",
+      ".hdr",
+      ".jpeg",
+      ".jpg",
+      ".mkv",
+      ".mp4",
+      ".pdf",
+      ".pgm",
+      ".pic",
+      ".png",
+      ".ppm",
+      ".psd",
+      ".tga"
+    ],
+    "emulators": [],
+    "fullname": "Library",
+    "platform": "imageviewer"
+  },
+  {
+    "name": "retrobat",
+    "path": "~\\..\\system\\es_menu",
+    "extensions": [
+      ".menu"
+    ],
+    "emulators": [],
+    "fullname": "RetroBat",
+    "platform": "retrobat"
+  },
+  {
+    "name": "screenshots",
+    "path": "~\\..\\screenshots",
+    "extensions": [
+      ".bmp",
+      ".gif",
+      ".hdr",
+      ".jpeg",
+      ".jpg",
+      ".pgm",
+      ".pic",
+      ".png",
+      ".ppm",
+      ".psd",
+      ".tga"
+    ],
+    "emulators": [
+      {
+        "name": "libretro",
+        "cores": []
+      }
+    ],
+    "fullname": "Screenshots",
+    "platform": "imageviewer"
+  },
+  {
+    "name": "mess",
+    "path": "",
+    "extensions": [
+      ".fake"
+    ],
+    "emulators": [],
+    "fullname": "MESS",
+    "platform": "pc"
+  }
+]
