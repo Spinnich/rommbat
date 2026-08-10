@@ -20,6 +20,27 @@ rows that no route settled are labelled open rather than quietly promoted.
 
 The instance host is redacted throughout, per the repo rules.
 
+## The honest total
+
+35 candidates read, 13 dropped at triage, 22 probed. Of those: **11 confirmed, 4 rejected,
+1 corrected, 1 partly settled, 5 left open.** Four further traps turned up while running the
+probes and none of them was on the list.
+
+**The one that would have cost real data** is F1: `GET /api/saves/{id}/content` marks the
+device as current on the request, not on receipt, unless `optimistic=false` is passed. On a
+handheld that drops Wi-Fi mid-download, the server then believes the device holds a save it
+does not, and every later negotiate answers `no_op`. Freegosy passes `optimistic=true`
+explicitly, so it did not find this; the parameter simply led us to look.
+
+**The one that corrects something already written down as measured** is F15: `docs/PLAN.md`
+finding 83 claimed multi-file and an empty `fs_extension` were equivalent both ways. Only one
+direction holds. The code never relied on the wrong half.
+
+**Freegosy itself was wrong about four things** at 5.1.x, which is the whole argument for the
+bar this session was held to: its play-session payload is a 422, its documented 409 body does
+not exist, its per-device isolation model is not what the server does, and its curated BIOS
+hashes add nothing our manifest lacks.
+
 ## Why this source needed a higher bar than the last three
 
 Grout, Argosy and the Playnite plugin sit under `rommapp`, track the server closely, and
