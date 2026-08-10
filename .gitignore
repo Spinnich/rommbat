@@ -521,3 +521,6 @@ openapi-normalized.tmp.json
 .trunk/*notifications
 .trunk/*tools
 .trunk/plugins
+
+# Freegosy probe transcripts
+probe-output/
