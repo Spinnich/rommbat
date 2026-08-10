@@ -72,7 +72,7 @@ public sealed record EvictionPlan
                     + (Refused.Count > 0 ? $": {Refused.Count} candidates were held back" : string.Empty);
             }
 
-            var text = $"{Selected.Count} games, {ByteSize.Format(BytesFreed)}, "
+            var text = $"{Selected.Count} {Games(Selected.Count)}, {ByteSize.Format(BytesFreed)}, "
                 + $"to get back inside a budget exceeded by {ByteSize.Format(BytesToFree)}";
 
             if (Refused.Count > 0)
@@ -83,6 +83,9 @@ public sealed record EvictionPlan
             return IsShort ? text + " (still short)" : text;
         }
     }
+
+    /// <summary>One game is not "1 games". Counts land in front of users here.</summary>
+    internal static string Games(int count) => count == 1 ? "game" : "games";
 }
 
 /// <summary>
@@ -320,6 +323,6 @@ public sealed record EvictionOutcome
     public string Summary =>
         Removed == 0 && Problems.Count == 0
             ? "nothing was removed"
-            : $"{Removed} games removed, {ByteSize.Format(BytesFreed)} freed"
+            : $"{Removed} {EvictionPlan.Games(Removed)} removed, {ByteSize.Format(BytesFreed)} freed"
                 + (Problems.Count > 0 ? $", {Problems.Count} kept" : string.Empty);
 }
