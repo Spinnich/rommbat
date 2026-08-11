@@ -22,8 +22,8 @@ The instance host is redacted throughout, per the repo rules.
 
 ## The honest total
 
-35 candidates read, 13 dropped at triage, 22 probed. Of those: **11 confirmed, 4 rejected,
-1 corrected, 1 partly settled, 5 left open.** Four further traps turned up while running the
+35 candidates read, 13 dropped at triage, 22 probed. Of those: **12 confirmed, 4 rejected,
+1 corrected, 1 partly settled, 4 left open.** Four further traps turned up while running the
 probes and none of them was on the list.
 
 **The one that would have cost real data** is F1: `GET /api/saves/{id}/content` marks the
@@ -102,7 +102,7 @@ this repository again in six months and re-walks the same dead ends.
 | F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed** |
 | F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed** |
 | F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**  |
-| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **open**            |
+| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed** |
 | F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **open**            |
 | F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **open**            |
 | F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **open**            |
@@ -629,6 +629,68 @@ negotiating saves first**. `docs/PLAN.md` routes play sessions only through
 coupled, and for an agent that wakes on `game-end` with nothing to negotiate, the standalone
 route is the whole job.
 
+### F17: the `.rvz` game-ID offset is real, and the `.iso` path it sits beside is dead here. **Confirmed, live**
+
+M6's attribution fallback, for a save with no observed launch, is to read the Game ID out of
+the ROM. Freegosy reads 4 ASCII bytes at offset `0x00` for an `.iso` and **`0x58`** for an
+`.rvz`. The first is the documented GameCube and Wii disc header layout; the second is
+container-specific and was the one worth checking.
+
+**No disc image was downloaded.** M3 established that a single-file ROM accepts a bounded
+`Range`, so `f17-disc-header-offsets.py` reads 256 bytes of a real image off the server:
+
+```text
+.rvz  rom id 304465 (gamecube)  1.16 GB on the server
+  GET content with Range: bytes=0-255 -> 206, Content-Range bytes 0-255/1158389088
+  256 bytes read instead of 1158389088
+  first 8 bytes: 52 56 5a 01 01 00 00 00  (RVZ.....)
+  -> not a raw disc image at offset 0, so this is a container
+  .rvz: bytes at 0x58 = 47 57 37 50 ('GW7P'), valid game-code shape: True
+
+.rvz  rom id 306687 (wii)  0.18 GB on the server
+  first 8 bytes: 52 56 5a 01 01 00 00 00  (RVZ.....)
+  .rvz: bytes at 0x58 = 52 55 55 45 ('RUUE'), valid game-code shape: True
+```
+
+**`0x58` holds a well-formed game code on both**, a GameCube PAL title and a USA Wii title,
+so the offset transfers. It works because the RVZ header embeds a copy of the original disc's
+first bytes for identification; the `01 00 00 00` after the magic is the format version, and
+**a future RVZ revision that moves that field breaks the offset**, so check the version before
+trusting it.
+
+The census underneath is the more useful half. `f17b-disc-format-census.py` walked **every**
+ROM on both platforms:
+
+```text
+=== gamecube: 1793 roms walked ===
+  .rvz         1792  (99.9%)
+  .(none)         1  (0.1%)
+
+=== wii: 189 roms walked ===
+  .rvz          148  (78.3%)
+  .wad           33  (17.5%)
+  .(none)         8  (4.2%)
+```
+
+**Not one `.iso` in 1,982 ROMs.** The offset-0 path both Freegosy and this plan reach for is
+correct in principle and never exercised on this library, so a client that handled only `.iso`
+would resolve nothing at all for GameCube and would silently read `RVZ.` as a game code.
+
+**And `.wad` is a third container neither client handles.** 17.5% of the Wii library, and it
+has no disc header anywhere:
+
+```text
+bytes 0..31: 00 00 00 20 49 73 00 00 00 00 0a 00 00 00 00 00 ...
+header size = 0x20, wad type = 'Is'
+0x18/0x1C disc magic present: False False
+```
+
+A WAD is an installable Wii title, and its title ID lives inside the ticket, whose offset
+depends on the preceding certificate-chain size rather than being fixed. **It cannot be read
+by a constant offset at all**, which makes it the case where the launch-journal correlation
+route is not merely preferred but required. That is the route `docs/PLAN.md` already ranks
+first; this is a platform where the fallback simply does not exist.
+
 ### Four incidental traps, all measured
 
 Not on the candidate list. They turned up while running the probes above and each would have
@@ -668,6 +730,23 @@ disagreement.
 | Device pairing is the only auth path                                     | `POST /api/token` password login and `client-tokens/exchange`          | Ruled out by M1; not re-litigated                                                  |
 | Never call `POST /api/devices` with host fingerprint fields              | Calls it; its research doc sends `hostname`, its code dropped it       | Not re-probed. The MAC-dedup reading in `docs/PLAN.md` line 168 is unchanged       |
 
+## The state of the test RetroBat install
+
+F18, F19 and F20 all need a real install driven far enough to see a file. The USB tree on the
+test stick is RetroBat `8.2.0-stable-win64` on NTFS, and it is not currently in a state to
+answer them:
+
+- **`roms/` is nearly empty**: content in `halflife`, `jaguar`, `jaguarcd`, `msx1`, `ports`
+  and `sonic-mania` only. Nothing for GameCube, PS1, DS, 3DS, Switch, Wii U or Xbox 360.
+- **Only RetroArch is installed.** Every other emulator is a folder shell with no executable:
+  `duckstation`, `desmume`, `melonds`, `dolphin-emu`, `azahar`, `cemu`, `xenia`, `ryujinx`
+  and `pcsx2` are all 0 MB. RetroBat downloads them on demand, and M0 already measured that
+  doing so raises **a modal dialog with no title and no timeout** that blocks the launch until
+  someone answers it.
+
+So each of the three needs content staged and at least one emulator installed through that
+dialog before a probe can run. None of them was guessed at in the meantime.
+
 ## What stays open
 
 - **F13**, whether `GET /api/saves/identifiers` scales. It answers in 0.07 s on an empty set
@@ -675,10 +754,6 @@ disagreement.
   library here has enough saves to load it.
 - **F22**, whether a pairing-minted device-bound token really lets `device_id` be omitted from
   negotiate. The error message says it should; the probe token is not device-bound.
-- **F17**, the GameCube and Wii game ID offsets (`0x00` in an `.iso`, `0x58` in an `.rvz`).
-  Needs a real disc image of each, which this machine does not have. The `.iso` offset agrees
-  with the documented GameCube and Wii disc header layout and is low risk; **the `.rvz` offset
-  is container-specific and is the one to check**.
 - **F18**, whether a multi-disc save filename drops the region tags its `.m3u` carries.
   Needs probe 2 rerun on a multi-disc title in a real RetroBat install.
 - **F19**, save shapes for the systems `save_shapes.json` still lists unclassified. Freegosy

@@ -1615,6 +1615,19 @@ routes, in order of preference:
 2. **Read the ID out of the ROM** (PSP/PS3 `PARAM.SFO`, GameCube/Wii disc header) as a
    fallback for saves that predate any observed launch.
 
+   **Measured, and the fallback is narrower than it sounds.** On a real library, GameCube is
+   **1,792 of 1,793 `.rvz`** and Wii is **148 `.rvz`, 33 `.wad`, zero `.iso` across both**. So
+   the raw disc header at offset `0x00` is correct in principle and never exercised: a reader
+   that handles only `.iso` resolves nothing and would take the literal bytes `RVZ.` for a
+   game code. In an `.rvz` the code sits at **`0x58`**, inside the copy of the disc's opening
+   bytes that the container embeds for identification, confirmed as `GW7P` and `RUUE` on two
+   real images; the format version follows the `RVZ\x01` magic and must be checked, since a
+   later revision moving that field moves the offset. **A `.wad` has no disc header at all**
+   and its title ID lives inside the ticket at an offset that depends on the preceding
+   certificate-chain length, so **17.5% of that Wii library cannot be read by any constant
+   offset**. Reading 256 bytes over a bounded `Range` is enough for all of this and no image
+   need be downloaded. See [freegosy-findings.md](freegosy-findings.md), F17.
+
 **Hash the contents, not the archive.** For bundled class C saves, defining
 `content_hash` as the MD5 of the zip bytes is a trap: archive output is
 implementation-dependent (entry ordering, timestamps, compression level differ between
