@@ -4,9 +4,12 @@
   takes on disk.
 
 .DESCRIPTION
-  M6 wants class D to collapse into class A by naming the memory card after the rom file,
-  which is what duckstation_memcardtype=PerGameFileTitle promises. Multi-disc breaks the
-  assumption underneath that, because "the rom file" is no longer one thing.
+  M6 once wanted class D to collapse into class A by naming the memory card after the rom
+  file, which is what duckstation_memcardtype=PerGameFileTitle promises. This probe was
+  written to check that against a multi-disc set, where "the rom file" is no longer one thing,
+  and it ended up withdrawing the recommendation: the stock PerGameTitle names the card from
+  gamedb.yaml's saveName with the disc marker removed, so it binds the set, and keying by
+  filename is what splits it.
 
   A real psx folder holds at least three layouts at once, and they are not equivalent:
 
@@ -14,9 +17,10 @@
     loose set   Final Fantasy VII (USA) (Disc 1|2|3).chd   three entries, no playlist
     foldered    Metal Gear Solid (USA) (Rev 1)\ containing two .chd and one .m3u
 
-  RetroBat's wiki documents a fourth: the .m3u flat in roms/psx beside the discs. Each is
-  a different string for PerGameFileTitle to key on, and a set launched by disc 1 and the
-  same set launched by its playlist may not share a card at all.
+  RetroBat's wiki documents a fourth: the .m3u flat in roms/psx beside the discs. Both the
+  foldered and the loose layout were driven and both produced a single card for the set, so
+  the playlist is not what binds it under DuckStation. Run this against the remaining layouts,
+  or with -MemcardType, to see a naming rule change under you.
 
   -Rom takes a path relative to roms/<system>, so a foldered set is addressed as
   "Game\Game.m3u". -MemcardType writes a per-game es_settings.cfg override for the run and

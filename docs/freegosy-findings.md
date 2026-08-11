@@ -1193,6 +1193,9 @@ first touches it, so a timed unattended launch produces nothing to read.
 
 ## What stays open
 
+Only the first of these is one of the 22 candidates, which is why the tally at the top says one
+left open. The other two are questions the probes raised rather than leads Freegosy supplied.
+
 - **F13**, whether `GET /api/saves/identifiers` scales. It answers in 0.07 s on an empty set
   and takes no parameters, which is the shape that made `/api/roms/identifiers` unusable. No
   library here has enough saves to load it.
