@@ -22,12 +22,22 @@
   "Game\Game.m3u". -MemcardType writes a per-game es_settings.cfg override for the run and
   removes it afterwards, so the stock configuration is left as it was found.
 
-  The probe never presses a save key. A PS1 launch writes its memory card unprompted, which
-  M0 already measured for PS2, so the card appears on its own.
+  The probe never presses a save key, and on DuckStation that is not enough on its own. A card
+  is created when the game first touches it, which is not a fixed point in the run: Metal Gear
+  Solid produced both slot cards 23 seconds into a launch, while Spyro ran 59 seconds and left
+  the directory empty. So a timed unattended launch may measure nothing, and -Interactive,
+  which hands the emulator to a person and waits for them to quit, is the mode that answers the
+  question for certain.
+
+  What the answer turned out to be, under the stock configuration and launched through the
+  .m3u: one card pair for the whole set, "Metal Gear Solid (USA)_1.mcd" and "_2.mcd", where the
+  suffix is the console slot and _2 is an empty formatted card. The stem is gamedb.yaml's
+  saveName with the disc marker removed. Still unmeasured: the same set with its discs loose
+  and no playlist.
 
 .EXAMPLE
-  pwsh -File tools/freegosy-probes/f18-multidisc-memcard.ps1 -Root K:\RetroBat -Rom "Spyro the Dragon (USA).chd"
-  pwsh -File tools/freegosy-probes/f18-multidisc-memcard.ps1 -Root K:\RetroBat -Rom "Metal Gear Solid (USA) (Rev 1)\Metal Gear Solid (USA) (Rev 1).m3u" -MemcardType PerGameFileTitle
+  pwsh -File tools/freegosy-probes/f18-multidisc-memcard.ps1 -Root <retrobat-root> -Rom "Spyro the Dragon (USA).chd"
+  pwsh -File tools/freegosy-probes/f18-multidisc-memcard.ps1 -Root <retrobat-root> -Rom "Metal Gear Solid (USA) (Rev 1)\Metal Gear Solid (USA) (Rev 1).m3u" -Interactive
 #>
 [CmdletBinding()]
 param(

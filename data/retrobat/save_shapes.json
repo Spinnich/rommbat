@@ -137,13 +137,14 @@
     },
     "psx": {
       "class": "A",
-      "evidence": "loose .srm when libretro is selected; DuckStation instead writes memcards, see shape_depends_on_emulator",
+      "evidence": "loose .srm when libretro is selected; DuckStation instead writes memcards/<saveName minus disc>_<slot>.mcd, see shape_depends_on_emulator",
       "provenance": "observed",
       "per_game_conversion": {
         "option": "duckstation_memcardtype",
-        "set_to": "PerGameFileTitle",
-        "keys_by": "rom filename",
-        "note": "PerGameTitle keys by DuckStation's internal title, which need not match the file"
+        "set_to": null,
+        "apply": false,
+        "keys_by": "gamedb saveName with the disc marker removed, not the rom filename",
+        "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database. A two-disc set produced one card pair, 'Metal Gear Solid (USA)_1.mcd' and '_2.mcd', where the suffix is the console slot and _2 is an empty formatted card. Regions stay separate because saveName carries them; revisions share a serial and a card. Not measured: a set whose discs are loose with no .m3u"
       },
       "shape_depends_on_emulator": true
     },

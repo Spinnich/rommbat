@@ -76,8 +76,11 @@ exit. `libretro` needs no mirroring, since RetroArch is pointed at the declared 
 via `savestate_directory`.
 
 Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
-unconditionally (some hold nothing but the rom filename), and it belongs with the state. See
-`save-sync` for the unreliable `<image>`.
+unconditionally, and it belongs with the state. **Its contents vary by emulator and one of them
+is useful**: some hold nothing but the rom filename, while DuckStation's holds the bare disc
+serial (`SLUS-00594`), which is the join key a database-named memory card otherwise has to be
+reverse engineered from. Read it rather than assuming. See `save-sync` for the unreliable
+`<image>`.
 
 **A declaration is not an installation.** Six of the thirteen emulators in `es_savestates.cfg`
 had no executable on a real, well-used install: RetroBat downloads emulators on demand. Check
@@ -109,17 +112,19 @@ so build the key from `fs_name` and never from a stripped name.
 
 Keys read from the live `es_features.cfg`, with the value RomMBat should set:
 
-| Key                       | Choices                                                 | Set to                 | Why                                    |
-| ------------------------- | ------------------------------------------------------- | ---------------------- | -------------------------------------- |
-| `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | **`PerGameFileTitle`** | keys the card by **rom filename**      |
-| `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`game`**             | names the card after the rom basename  |
-| `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | **`8`**                | already the stock default              |
-| `flycast_vmupergame`      | switch, unset by default                                | **on**                 | per-game VMU, port 1, **serial-keyed** |
+| Key                       | Choices                                                 | Set to          | Why                                    |
+| ------------------------- | ------------------------------------------------------- | --------------- | -------------------------------------- |
+| `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | **leave unset** | stock already binds a disc set         |
+| `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`game`**      | names the card after the rom basename  |
+| `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | **`8`**         | already the stock default              |
+| `flycast_vmupergame`      | switch, unset by default                                | **on**          | per-game VMU, port 1, **serial-keyed** |
 
-Prefer `PerGameFileTitle` over the stock `PerGameTitle`: the latter keys the card by
-DuckStation's internal database title, which need not match the rom filename RomMBat matches
-on. Also watch `dolphin_sync_saves`, which has RetroBat copying saves between the dolphin and
-libretro-dolphin folders on its own.
+Leave `duckstation_memcardtype` alone. The stock `PerGameTitle` keys the card by DuckStation's
+internal database title, which sounds worse than a filename key until a multi-disc set is
+driven: the title is `gamedb.yaml`'s `saveName` with the disc marker stripped, so the whole set
+shares one card while regions stay separate. `PerGameFileTitle` keys on three separate
+filenames and splits it. Also watch `dolphin_sync_saves`, which has RetroBat copying saves
+between the dolphin and libretro-dolphin folders on its own.
 
 **ES rewrites `es_settings.cfg` on exit, but only when a setting changed that session.** A
 start-and-quit, and even a session that launched a game, leave it untouched. When ES does

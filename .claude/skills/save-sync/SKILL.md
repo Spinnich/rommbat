@@ -72,21 +72,29 @@ a different version. RetroBat's own wiki warns that states break across emulator
 ## Class D is a configuration problem
 
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
-defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder). Only PCSX2 defaults to
-a shared card, and `pcsx2_slot1_memory=game` names the card after the ROM basename, which
-makes attribution trivial.
+defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
+that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
+after the ROM basename, which makes attribution trivial on a single-disc title.
 
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
 
-**Never convert a multi-disc set.** Every per-game mode gives each disc its own card:
-DuckStation's `resources/gamedb.yaml` puts the disc number in the title
-(`Final Fantasy VII (Disc 1)`), the serial differs per disc, and `PerGameFileTitle` keys on
-three separate filenames. `Shared` is the only mode that carries a save across a disc change.
-PS2 is worse, because PCSX2 cannot bind discs at all. So conversion is **per game**, which is
-what the `<system>["<rom>"]` form is for: convert single-disc titles, leave sets shared, and
-say why.
+**Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
+driven under stock `PerGameTitle` produced **one card for the set**:
+`memcards/Metal Gear Solid (USA)_1.mcd` and `_2.mcd`, where the suffix is the console **slot**
+and `_2` is an empty formatted card. The stem is `gamedb.yaml`'s `saveName` with the disc
+marker removed, so it carries the region (`(USA)`) but not the disc and not the rom's
+`(Rev 1)`. DuckStation binds a disc set through its own database, which is exactly what
+`PerGameFileTitle` would throw away by keying on three separate filenames.
+
+The price of leaving it stock is that PS1 cards need Game-ID attribution rather than filename
+attribution. RetroBat pays part of it already: a `.txt` beside the DuckStation save state holds
+the bare serial (`SLUS-00594`).
+
+PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all. So conversion
+is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
+leave sets alone, and say why.
 
 Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
 switching strands existing saves inside the old container unless migrated; and per-game
@@ -109,8 +117,16 @@ alone.
 **Dreamcast converts, but not into class A.** With `flycast_vmupergame=1` the new file is
 `vmu/T40217N_vmu_save_A1.bin`, named for the **disc serial**, while the shared
 `vmu_save_A1.bin` stops being written and both live in one directory. The rom filename appears
-nowhere, so this is Game-ID attribution like class C, not the filename match DuckStation's
-`PerGameFileTitle` gives. Only port 1 converts.
+nowhere, so this is Game-ID attribution like class C. Only port 1 converts. PS1 lands in the
+same place under its stock memory card mode, so identifier-keyed attribution is the normal case
+for disc systems, not an exception two of them make.
+
+**A save state is not always one file, and a save tree is not always portable.** A libretro
+state comes with a real `.state1.png` screenshot beside it, which bundling has to keep
+together. A multi-disc launch also leaves `saves/<system>/<playlist stem>.ldci`, RetroArch's
+record of which disc was in the drive, and its `image_path` is an **absolute path with a drive
+letter**. Syncing that verbatim restores a dangling pointer on any install at a different root,
+so exclude it or rewrite it on restore.
 
 ## Attribution
 

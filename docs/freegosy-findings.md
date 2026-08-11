@@ -23,7 +23,7 @@ The instance host is redacted throughout, per the repo rules.
 ## The honest total
 
 35 candidates read, 13 dropped at triage, 22 probed. Of those: **15 confirmed, 5 rejected,
-2 corrected, 1 left open.** Five further traps turned up while running the
+2 corrected, 1 left open.** Six further traps turned up while running the
 probes and none of them was on the list.
 
 **The one that would have cost real data** is F1: `GET /api/saves/{id}/content` marks the
@@ -46,10 +46,14 @@ the authority on what EmulationStation **offers**, not on what the emulator can 
 passing the extension filter is not evidence a file will launch. `ps2` lists `.m3u` and PCSX2
 cannot use one.
 
-**The one that reverses a recommendation** is also F18. The plan tells DuckStation to use
-`PerGameFileTitle` so a memory card is named after the rom file. On a multi-disc set every
-per-game mode gives each disc its own card, so that setting loses the save at the disc
-change, and `Shared` is the only mode that carries it.
+**The one that reverses a recommendation** is also F18, and it took two passes to get right.
+The plan tells DuckStation to use `PerGameFileTitle` so a memory card is named after the rom
+file. Reading the emulator's database, this document first concluded that every per-game mode
+splits a multi-disc set and only `Shared` carries it. **The first real card on disk refuted
+that.** The stock `PerGameTitle` names the card from the database with the disc marker
+stripped, so a two-disc set shares one card, regions stay separate, and revisions collapse.
+The recommendation still has to go, but for the opposite reason: the default is already
+correct and the conversion is what would break it.
 
 **Freegosy itself was wrong about four things** at 5.1.x, which is the whole argument for the
 bar this session was held to: its play-session payload is a 422, its documented 409 body does
@@ -99,30 +103,30 @@ this repository again in six months and re-walks the same dead ends.
 
 ### Survivors, ranked by what would change
 
-| #   | Claim                                                                                                                           | Touches                                         | Would hold here if                                                                     | Cheapest experiment                                                                       | Verdict              |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------- |
-| F1  | `GET /api/saves/{id}/content` takes `optimistic`, **defaulting to true**, which records the device sync before the bytes land   | M6 download step, `romm-api`, `save-sync`       | The server marks the device current on request rather than on the client confirming    | Download a save with the default and with `optimistic=false`, read `last_synced_at` back  | **live, confirmed**  |
-| F2  | `POST /api/saves` takes `autocleanup` and `autocleanup_limit` (default 10), pruning old saves in the slot server-side           | M6 upload, `romm-api`, `save-sync`              | The server actually deletes; RomMBat has no save-retention story at all today          | Upload N+1 saves into one slot with `autocleanup=true&autocleanup_limit=N`, list the slot | **live, confirmed**  |
-| F3  | The server dedups identical uploads within a slot, which is what makes our replay-safe flush safe                               | Core principle 1, M6, `offline-and-portable`    | Two identical uploads produce one row. Freegosy busts this deliberately, so it may not | Upload byte-identical content to the same slot twice, count the rows                      | **live, confirmed**  |
-| F4  | `POST /api/play-sessions` is a standalone ingest taking `{device_id, sessions:[...]}`, not only a field on `/complete`          | M6 flush, `romm-api`, `offline-and-portable`    | Sessions can be flushed without opening a sync session                                 | Post one session through the standalone route and read it back                            | **live, confirmed**  |
-| F5  | `GET /api/platforms` inlines the full `firmware[]` array with `md5_hash` per platform                                           | M5, `romm-api`, possibly the M2 scale guardrail | The join RomMBat needs is one request, not one per platform                            | Fetch `/api/platforms`, count firmware records and md5s, measure bytes                    | **live, confirmed**  |
-| F6  | The server's `[YYYY-MM-DD_HH-MM-SS]` filename tag has to be **stripped before writing to disk**, or the emulator cannot find it | M6 restore, `save-sync`                         | RetroBat's emulators locate saves by rom-name match, which they do                     | Upload a save, read the returned `file_name`, check the tag shape and any `-N` suffix     | **live, confirmed**  |
-| F7  | RomM 4.9+ **isolates** saves per device (Freegosy's framing), rather than merely tracking per device                            | M6 conflict handling, `save-sync`               | A save uploaded by device A is invisible or subordinate to device B                    | List saves for one rom with two different `device_id` values and diff the sets            | **live, rejected**   |
-| F8  | `device_syncs[].is_current` answers "does the server have something newer" without a negotiate                                  | M6, `romm-api`                                  | The flag is server-computed per device and trustworthy                                 | Read `GET /api/saves?rom_id=&device_id=` before and after an upload from another device   | **live, corrected**  |
-| F9  | `SaveSchema.origin_device_id` names the device that produced a save                                                             | M6 conflict handling, `save-sync`               | It is populated on upload, so a client can tell its own save from a peer's             | Read it back off a save uploaded with `device_id` set                                     | **live, confirmed**  |
-| F10 | `POST /api/saves/{id}/track` and `/untrack` opt a single save out of syncing for one device                                     | M6, `romm-api`                                  | `is_untracked` then changes what negotiate returns                                     | Untrack a save, re-negotiate, see whether the operation disappears                        | **live, confirmed**  |
-| F11 | `GET /api/saves/summary?rom_id=` returns per-slot counts and the latest save per slot                                           | M6, `romm-api`                                  | It is cheap enough to replace listing every save                                       | Call it against a rom with saves and compare against `GET /api/saves`                     | **live, confirmed**  |
-| F12 | A 409 on upload carries a structured body with `save_id`, `current_save_time` and `device_sync_time`                            | M6, `romm-api`, `save-sync`                     | The body is actionable, so a conflict can be shown without a second request            | Force a 409 and quote the body                                                            | **live, rejected**   |
-| F13 | `GET /api/saves/identifiers` takes no parameters, the same shape that made `/api/roms/identifiers` 504                          | M6 reconcile, `romm-api`                        | Saves are few enough that it answers, unlike the roms sibling                          | Time the call against the live library                                                    | **open**             |
-| F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed**  |
-| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**  |
-| F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**   |
-| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed**  |
-| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **probe, corrected** |
-| F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **probe, confirmed** |
-| F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **probe, refuted**   |
-| F21 | Freegosy carries 34 hand-curated BIOS md5s from libretro's docs that our `batocera-systems.json` join may miss                  | M5 gap reporting                                | Any of them is an alternative dump of a file RetroBat requires                         | Set-difference against the 157 md5s in `reference/batocera-systems.json`                  | **rejected**         |
-| F22 | `SyncNegotiatePayload.device_id` is optional when the token is device-bound, the device being inferred from the token           | M6, `romm-api`                                  | Our paired token is device-bound, which it is                                          | Negotiate without `device_id` and compare the response                                    | **live, confirmed**  |
+| #   | Claim                                                                                                                           | Touches                                         | Would hold here if                                                                     | Cheapest experiment                                                                       | Verdict                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------------- |
+| F1  | `GET /api/saves/{id}/content` takes `optimistic`, **defaulting to true**, which records the device sync before the bytes land   | M6 download step, `romm-api`, `save-sync`       | The server marks the device current on request rather than on the client confirming    | Download a save with the default and with `optimistic=false`, read `last_synced_at` back  | **live, confirmed**        |
+| F2  | `POST /api/saves` takes `autocleanup` and `autocleanup_limit` (default 10), pruning old saves in the slot server-side           | M6 upload, `romm-api`, `save-sync`              | The server actually deletes; RomMBat has no save-retention story at all today          | Upload N+1 saves into one slot with `autocleanup=true&autocleanup_limit=N`, list the slot | **live, confirmed**        |
+| F3  | The server dedups identical uploads within a slot, which is what makes our replay-safe flush safe                               | Core principle 1, M6, `offline-and-portable`    | Two identical uploads produce one row. Freegosy busts this deliberately, so it may not | Upload byte-identical content to the same slot twice, count the rows                      | **live, confirmed**        |
+| F4  | `POST /api/play-sessions` is a standalone ingest taking `{device_id, sessions:[...]}`, not only a field on `/complete`          | M6 flush, `romm-api`, `offline-and-portable`    | Sessions can be flushed without opening a sync session                                 | Post one session through the standalone route and read it back                            | **live, confirmed**        |
+| F5  | `GET /api/platforms` inlines the full `firmware[]` array with `md5_hash` per platform                                           | M5, `romm-api`, possibly the M2 scale guardrail | The join RomMBat needs is one request, not one per platform                            | Fetch `/api/platforms`, count firmware records and md5s, measure bytes                    | **live, confirmed**        |
+| F6  | The server's `[YYYY-MM-DD_HH-MM-SS]` filename tag has to be **stripped before writing to disk**, or the emulator cannot find it | M6 restore, `save-sync`                         | RetroBat's emulators locate saves by rom-name match, which they do                     | Upload a save, read the returned `file_name`, check the tag shape and any `-N` suffix     | **live, confirmed**        |
+| F7  | RomM 4.9+ **isolates** saves per device (Freegosy's framing), rather than merely tracking per device                            | M6 conflict handling, `save-sync`               | A save uploaded by device A is invisible or subordinate to device B                    | List saves for one rom with two different `device_id` values and diff the sets            | **live, rejected**         |
+| F8  | `device_syncs[].is_current` answers "does the server have something newer" without a negotiate                                  | M6, `romm-api`                                  | The flag is server-computed per device and trustworthy                                 | Read `GET /api/saves?rom_id=&device_id=` before and after an upload from another device   | **live, corrected**        |
+| F9  | `SaveSchema.origin_device_id` names the device that produced a save                                                             | M6 conflict handling, `save-sync`               | It is populated on upload, so a client can tell its own save from a peer's             | Read it back off a save uploaded with `device_id` set                                     | **live, confirmed**        |
+| F10 | `POST /api/saves/{id}/track` and `/untrack` opt a single save out of syncing for one device                                     | M6, `romm-api`                                  | `is_untracked` then changes what negotiate returns                                     | Untrack a save, re-negotiate, see whether the operation disappears                        | **live, confirmed**        |
+| F11 | `GET /api/saves/summary?rom_id=` returns per-slot counts and the latest save per slot                                           | M6, `romm-api`                                  | It is cheap enough to replace listing every save                                       | Call it against a rom with saves and compare against `GET /api/saves`                     | **live, confirmed**        |
+| F12 | A 409 on upload carries a structured body with `save_id`, `current_save_time` and `device_sync_time`                            | M6, `romm-api`, `save-sync`                     | The body is actionable, so a conflict can be shown without a second request            | Force a 409 and quote the body                                                            | **live, rejected**         |
+| F13 | `GET /api/saves/identifiers` takes no parameters, the same shape that made `/api/roms/identifiers` 504                          | M6 reconcile, `romm-api`                        | Saves are few enough that it answers, unlike the roms sibling                          | Time the call against the live library                                                    | **open**                   |
+| F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed**        |
+| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**        |
+| F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**         |
+| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed**        |
+| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title, driven far enough that a card appears            | **probe, corrected twice** |
+| F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **probe, confirmed**       |
+| F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **probe, refuted**         |
+| F21 | Freegosy carries 34 hand-curated BIOS md5s from libretro's docs that our `batocera-systems.json` join may miss                  | M5 gap reporting                                | Any of them is an alternative dump of a file RetroBat requires                         | Set-difference against the 157 md5s in `reference/batocera-systems.json`                  | **rejected**               |
+| F22 | `SyncNegotiatePayload.device_id` is optional when the token is device-bound, the device being inferred from the token           | M6, `romm-api`                                  | Our paired token is device-bound, which it is                                          | Negotiate without `device_id` and compare the response                                    | **live, confirmed**        |
 
 ### Dropped at triage
 
@@ -857,7 +861,7 @@ payload or implicit via a device-bound client token)`) is specific to a token wi
 behind it. RomMBat's token comes from pairing, so it may omit the field; sending it anyway is
 harmless and more explicit, which is what the plan already does.
 
-### F18: multi-disc is per emulator, and every per-game memory card mode splits a set. **Confirmed, probe. It corrects this document's own F16 reading**
+### F18: multi-disc is per emulator, the stock memory card mode holds a set together, and the conversion this plan recommends is what would break it. **Corrected twice, probe. It corrects this document's own F16 reading, then its own first answer**
 
 F16 concluded that a later milestone "has to build the `.m3u` itself, from the member names".
 That is true and it is not nearly enough. Three things had to be measured before the shape of
@@ -876,24 +880,74 @@ roms/psx/
 RetroBat's wiki documents a fourth, the `.m3u` flat in `roms/psx/` beside the discs. So the
 playlist may or may not exist, and may or may not sit in a folder with its discs.
 
-**Every per-game memory card mode gives each disc its own card.** DuckStation ships a
-readable database at `emulators/duckstation/resources/gamedb.yaml`, and it is the string
-`PerGameTitle` keys on:
+**The first answer here was wrong, and a real card refutes it.** Reading `gamedb.yaml` alone,
+the disc number is plainly in every title (`name = 'Metal Gear Solid (Disc 1)'`,
+`'Final Fantasy VII (Disc 2)'`, and so on), from which this document concluded that
+`PerGameTitle` splits a set, `PerGame` splits it on the serial, `PerGameFileTitle` splits it
+hardest of all, and only `Shared` holds it together. **That conclusion did not survive the
+first card that appeared on disk.** The two-disc Metal Gear Solid set, launched once through
+its `.m3u` and played until the game saved:
 
 ```text
-SCUS-94163  name = 'Final Fantasy VII (Disc 1)'
-SCUS-94164  name = 'Final Fantasy VII (Disc 2)'
-SCUS-94165  name = 'Final Fantasy VII (Disc 3)'
-SLUS-00594  name = 'Metal Gear Solid (Disc 1)'
-SLUS-00776  name = 'Metal Gear Solid (Disc 2)'
+saves/psx/duckstation/memcards/
+  Metal Gear Solid (USA)_1.mcd    131072 B   124 distinct byte values
+  Metal Gear Solid (USA)_2.mcd    131072 B    14 distinct byte values
 ```
 
-The disc number is **in the title**, so `PerGameTitle` splits the set. `PerGame` keys on the
-serial, which differs per disc, so it splits it too. `PerGameFileTitle`, which
-`docs/PLAN.md` recommends precisely because it keys on the rom file, splits it hardest of
-all. **Only `Shared` keeps one card across a set**, and that is the mode the plan is trying
-to move away from. Saving at the end of FF7 disc 1 and swapping to disc 2 finds an empty card
-under all three per-game modes.
+**One card for a two-disc set, and `_1` / `_2` are the two console slots, not the two discs.**
+Both files appeared in the same second at boot; only `_1` was rewritten at the moment the
+player saved, and `_2` still holds a formatted empty card. So the set is unified, and the
+mode that unified it is the stock one, straight out of the generated `settings.ini`:
+
+```text
+[MemoryCards]
+Card1Type=PerGameTitle
+Card2Type=PerGameTitle
+UsePlaylistTitle=true
+```
+
+**The card stem is `saveName` with the disc marker removed.** It is worth being exact about
+which of the three candidate strings it matched, because all three were live:
+
+```text
+gamedb name      Metal Gear Solid (Disc 1)          strip the disc marker -> Metal Gear Solid
+gamedb saveName  Metal Gear Solid (USA) (Disc 1)    strip the disc marker -> Metal Gear Solid (USA)   <- the card
+rom / m3u stem   Metal Gear Solid (USA) (Rev 1)
+```
+
+The card carries `(USA)`, so it is not from `name`. It carries no `(Rev 1)`, so it is not from
+the filename either, which also means `UsePlaylistTitle=true` does not mean "name the card
+after the playlist file". It means DuckStation resolves the playlist to a single disc set and
+then names it from the database. **Regions stay separate and discs collapse together**, which
+is the combination a user would choose deliberately.
+
+`f18d-psx-save-tree.py` checks that mechanically against all 10,764 database entries rather
+than by eye, and the result is stronger than the reasoning above: the card's stem resolves to
+**both** of the set's serials at once, which is the unification itself rather than an inference
+from it.
+
+```text
+Metal Gear Solid (USA) (Rev 1).srm
+   stem: 'Metal Gear Solid (USA) (Rev 1)'
+   matches a rom or playlist filename : True
+   matches no gamedb title
+duckstation/memcards/Metal Gear Solid (USA)_1.mcd
+   stem_<slot>: 'Metal Gear Solid (USA)'
+   matches a rom or playlist filename : False
+   matches gamedb saveName with the disc marker removed: SLUS-00594
+   matches gamedb saveName with the disc marker removed: SLUS-00776
+```
+
+Those two lines are the whole story in miniature. **The libretro card is keyed on a filename
+and matches no database title; the DuckStation card is keyed on a database title and matches no
+filename.** One system, one game, one session, and the two emulators do not share a single
+naming input.
+
+That inverts the cost. `PerGameTitle` is the stock default and it already holds a set
+together; `PerGameFileTitle`, which `docs/PLAN.md` recommends precisely because it keys on the
+rom file, is the change that would split one. Applying the recommended conversion to a
+multi-disc PS1 title makes the save disappear at the disc change, and the stock configuration
+that the conversion was meant to improve on does not have that failure.
 
 **And `.m3u` support cannot be inferred from the extension list.** This is the trap, and it
 caught this probe before it caught anyone else. `f18b-m3u-support-census.py` over the live
@@ -924,16 +978,26 @@ Eight disc-based systems do not list `.m3u` at all, so a set there is always N e
 `3do`, `amigacd32`, `atomiswave`, `cdi`, `naomi`, `psp`, `wii`, `xbox`. Note `gamecube` lists
 it and `wii` does not, though both are Dolphin.
 
-**What this costs the plan.** M6 recommends `pcsx2_slot1_memory=game` to convert PS2 out of
-class D, keyed by rom basename. For a **multi-disc PS2 game that option destroys the save at
-the disc change**, because PCSX2 cannot bind the discs and each basename gets its own card,
-where the stock shared `Mcd001.ps2` would have carried it through. The conversion is right
-for single-disc titles and wrong for multi-disc ones, so it cannot be a per-system decision;
-it has to be per game, which the `<system>["<rom>"]` override form already allows.
+**What this costs the plan.** Both of M6's per-game memory card conversions turn out to be
+unsafe on a multi-disc title, for the same reason and with the same fix.
 
-**Revisions share a card; regions may or may not, and which is true decides whether
-attribution works at all.** DuckStation's database carries two naming fields, and they behave
-differently. For the eight Metal Gear Solid disc-1 releases in it:
+M6 recommends `pcsx2_slot1_memory=game` to convert PS2 out of class D, keyed by rom basename.
+For a **multi-disc PS2 game that option destroys the save at the disc change**, because PCSX2
+cannot bind the discs and each basename gets its own card, where the stock shared
+`Mcd001.ps2` would have carried it through. M6 also recommends
+`duckstation_memcardtype=PerGameFileTitle` for PS1, on the reasoning that keying by rom file
+is more predictable than keying by an emulator's internal title. Measured, that trade is a bad
+one: the internal title is what binds a disc set, and the rom file is what breaks it apart.
+
+So neither conversion can be a per-system decision. Both are right for single-disc titles and
+wrong for multi-disc ones, which the `<system>["<rom>"]` override form already allows
+expressing per game. For PS1 specifically the better default is to **apply no conversion at
+all** and read the stock `PerGameTitle` layout, which needs database-backed attribution rather
+than filename attribution but does not lose saves.
+
+**Revisions share a card and regions do not, which is the combination attribution needs.**
+DuckStation's database carries two naming fields that behave differently, and the card above
+settles which one is in play. For the eight Metal Gear Solid disc-1 releases in it:
 
 ```text
 serial          name                                saveName
@@ -950,34 +1014,69 @@ SLPM-86114      Metal Gear Solid (Disc 1) (Ichi)    Metal Gear Solid (Japan) (Di
 the whole database `saveName` is very nearly a key: 10,081 entries, 10,074 distinct values,
 7 collisions and all of them demo or duplicate-serial oddities.
 
-So which field the card is named from decides the attribution story:
+Which field the card is named from decides the attribution story, and it is `saveName`:
 
-- keyed on **`name`**, a user holding the USA and five European releases gets **one shared
-  card**, a French save and an American save land in it together, and no card can be
-  attributed to a single `rom_id`
-- keyed on **`saveName`**, each regional release gets its own card and attribution is very
-  nearly one-to-one
+- had it been **`name`**, a user holding the USA and five European releases would get **one
+  shared card**, a French save and an American save would land in it together, and no card
+  could be attributed to a single `rom_id`
+- keyed on **`saveName`**, which is what the card measured, each regional release gets its own
+  card and attribution is very nearly one-to-one
 
-**Revisions behave well under both.** `Metal Gear Solid (USA) (Rev 1)` carries serial
-`SLUS-00594`, the same as the base USA release, so it is one database entry and one card
-either way. That is the behaviour a user wants: a revision inherits its saves.
+**Revisions behave well either way.** `Metal Gear Solid (USA) (Rev 1)` carries serial
+`SLUS-00594`, the same as the base USA release, so it is one database entry and one card, and
+the card that appeared carries no `(Rev 1)`. That is the behaviour a user wants: a revision
+inherits its saves.
 
-**And the multi-disc split holds whichever field is used**, because both carry the disc
-number. The finding above does not depend on resolving this.
+**What is still not measured is the loose layout, and it is the one RomM produces.** The set
+above was launched through a `.m3u`. Whether `PerGameTitle` also unifies three discs launched
+individually with no playlist, the Final Fantasy VII layout sitting in the same folder, was not
+driven. The evidence leans towards yes, because the card was named from the database rather
+than from the playlist file, so the same lookup should resolve each loose disc to the same
+disc set. That is a reading of one observation, not a second observation, and the layout it
+concerns is exactly the one a RomM sync creates. **It should be driven before M6 commits.**
 
-**Not measured.** No memory card was produced. DuckStation creates one only when the game
-writes to it, unlike PCSX2, which M0 measured rewriting both cards at launch: Spyro ran 59
-seconds (`playtime.dat` records `SCUS-94228` and the duration) and
-`saves/psx/duckstation/memcards/` stayed empty. So the naming above is read from
-DuckStation's database and its generated `settings.ini`, not from a card on disk. **Getting a
-real card needs a game driven far enough to save**, and that is the open half.
+**The same game under two emulators, and one naming rule does not cover either of them.** The
+run also drove the set under `libretro mednafen_psx_hw`, so one title produced two complete and
+disjoint save sets:
+
+```text
+saves/psx/
+  Metal Gear Solid (USA) (Rev 1).srm                          131072 B   libretro card
+  Metal Gear Solid (USA) (Rev 1).ldci                             163 B   disc index
+  duckstation/
+    Metal Gear Solid (USA) (Rev 1)_01.sav                    1975732 B   state
+    Metal Gear Solid (USA) (Rev 1).txt                            10 B   serial sidecar
+    memcards/Metal Gear Solid (USA)_1.mcd                     131072 B   card
+    memcards/Metal Gear Solid (USA)_2.mcd                     131072 B   card, empty
+  libretro.mednafen_psx_hw/
+    Metal Gear Solid (USA) (Rev 1).state1                    1774123 B   state
+    Metal Gear Solid (USA) (Rev 1).state1.png                  30175 B   screenshot
+```
+
+Three things in that tree are worth carrying into M6:
+
+- **Both cards are PS1 memory cards** and both open with the `MC` magic, so the same in-game
+  progress now exists twice in two formats under two names. Nothing can merge them, which is
+  what the per-emulator attribution design already assumes.
+- **DuckStation uses two different keys at once.** Its memory card is named from the database
+  (`Metal Gear Solid (USA)`) and its save state is named from the rom file
+  (`Metal Gear Solid (USA) (Rev 1)_01.sav`). One emulator, one game, one run, two naming rules.
+  Attribution cannot resolve a system with a single rule per emulator.
+- **The `.txt` beside the state holds exactly `SLUS-00594`** and nothing else. RetroBat is
+  writing a file to serial mapping into the save tree for free, which is the join key that
+  database-named cards otherwise need to be reverse engineered from.
+
+The libretro side unifies the set too, but by a different mechanism: the `.srm` is named from
+the `.m3u` stem, so the playlist binds the discs by filename where DuckStation binds them by
+database lookup. A libretro state is also a **two-file unit**, `.state1` plus a real
+`.state1.png` screenshot, which the bundling rules have to keep together.
 
 One correction to the bundled data on the way past: the generated
 `emulators/duckstation/settings.ini` puts memory cards at
 `saves/psx/duckstation/memcards`, a **third** level, where
 `data/retrobat/save_directories.json` records only `psx/duckstation`.
 
-### Four incidental traps, all measured
+### Six incidental traps, all measured
 
 Not on the candidate list. They turned up while running the probes above and each would have
 cost someone an hour.
@@ -996,6 +1095,29 @@ cost someone an hour.
 - **The `emulator` parameter becomes a path segment** in the stored save's `file_path`
   (`users/<hex>/saves/xbox/1393/rommbat-probe/...`), so it is not a free-form label. Anything
   RomMBat sends as `emulator` shapes the server's directory layout.
+- **RetroArch writes an absolute path into the save tree.** A multi-disc launch leaves
+  `saves/<system>/<playlist stem>.ldci` recording which disc was in the drive, and the path it
+  records is absolute, drive letter and all:
+
+  ```json
+  {
+    "version": "1.0",
+    "image_index": 0,
+    "image_path": "<root>\\roms\\psx\\Metal Gear Solid (USA) (Rev 1)\\Metal Gear Solid (USA) (Disc 1) (Rev 1).chd"
+  }
+  ```
+
+  This is the portable-install rule being broken by an upstream file, inside the directory
+  RomMBat is going to sync. Round-tripping it through RomM to a machine whose RetroBat sits on
+  another drive restores a dangling pointer. It is small, it is JSON, and its `image_index` is
+  genuinely worth preserving, so the choice is to exclude it or to rewrite `image_path` on
+  restore. It cannot simply be copied.
+
+- **The emulator creates an empty second memory card, and size cannot tell it apart from a
+  real one.** A PS1 launch produces a card per console slot whether or not the game ever
+  touches slot 2, and both are exactly 131072 bytes. Only the byte histogram separates them:
+  124 distinct values in the card that holds a save against 14 in the formatted empty one.
+  Uploading on file size, or on existence, ships an empty card as if it were progress.
 
 ---
 
@@ -1039,18 +1161,22 @@ named are not certified for a long time yet.
 Staging was done with the agent itself, which exercised M3 against a real target in passing:
 two `--scope filter` sets capped at one game each resolved, downloaded and landed correctly,
 and the extension filter excluded an `.xiso.iso` from the Master System set on the way
-through. **F18 still needs DuckStation installed through that dialog** and stays open.
+through. **F18 was answered afterwards**, once DuckStation was installed through that dialog
+and a multi-disc set was placed by hand, by a person playing Metal Gear Solid until the game
+wrote a card. It could not have been answered any other way: the card is created when the game
+first touches it, so a timed unattended launch produces nothing to read.
 
 ## What stays open
 
 - **F13**, whether `GET /api/saves/identifiers` scales. It answers in 0.07 s on an empty set
   and takes no parameters, which is the shape that made `/api/roms/identifiers` unusable. No
   library here has enough saves to load it.
-- **F18**, whether a multi-disc save filename drops the region tags its `.m3u` carries. F16
-  already showed this library has no `.m3u` members at all, so the question narrows to what
-  DuckStation names a memory card for a multi-disc set. Needs DuckStation installed through
-  the on-demand dialog and a multi-disc set fetched by hand, since M3 excludes multi-file
-  ROMs.
+- **Half of F18**, whether `PerGameTitle` also unifies a set whose discs are loose in
+  `roms/psx` with no `.m3u` to bind them. That is the layout a RomM sync produces, and it is
+  the only untested combination left: the set that was driven had a playlist. The measured card
+  was named from the database rather than from the playlist file, which is a reason to expect
+  the same disc-set lookup to resolve each loose disc identically, but expecting is not
+  measuring. One unattended launch of Final Fantasy VII disc 1 answers it.
 - **The 21 systems still unclassified in `save_shapes.json`.** F19 closed `mastersystem` and
   `gamegear`; the rest divide into ones RetroArch can answer cheaply (`fbneo`, `msx1`,
   `supergrafx`, `amiga`, `amstradcpc`, `apple2`) and ones needing a standalone emulator

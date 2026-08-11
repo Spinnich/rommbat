@@ -55,6 +55,12 @@ RetroBat runs from a USB drive and moves between machines.
   store API accepts, every path column carries a `CHECK` constraint, and a test drives the
   same table of bad values through both. `RetroBatInstall.Resolve` and `.Relativize` are the
   only places the two representations convert.
+- **Upstream does not follow that rule, and one of its files is inside the sync set.** A
+  multi-disc launch leaves `saves/<system>/<playlist stem>.ldci`, RetroArch's record of which
+  disc was in the drive, whose `image_path` is absolute down to the drive letter. Anything
+  RomMBat copies out of the save tree can carry a foreign machine's paths, so **treat the save
+  tree as untrusted for portability**: exclude the file, or rewrite the path on restore. The
+  three layers above protect what RomMBat writes, not what it relays.
 - **Find the root relative to the executable.** Walk up from `AppContext.BaseDirectory` to a
   marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no `build.ini`; the version
   lives in `system/version.info`. From a hook, `%~dp0..\..\..\` reaches `emulationstation/`
