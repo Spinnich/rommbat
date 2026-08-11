@@ -32,6 +32,13 @@ handheld that drops Wi-Fi mid-download, the server then believes the device hold
 does not, and every later negotiate answers `no_op`. Freegosy passes `optimistic=true`
 explicitly, so it did not find this; the parameter simply led us to look.
 
+**One claim of mine was retracted.** F5b first reported that firmware lives on the
+`-unofficial` platform twin and that a per-platform lookup could therefore miss it. That was
+an artifact of the probe printing only its first match, and the library's owner corrected it:
+the `-unofficial` rows are his own filing scheme for demos and prototypes, and the BIOS is on
+both rows. The probe now prints every match. What survives is smaller and is recorded as
+such.
+
 **Two corrections to things already written down as measured.** F15: `docs/PLAN.md` finding
 83 claimed multi-file and an empty `fs_extension` were equivalent both ways, and only one
 direction holds; the code never relied on the wrong half. F18: `<extension>` turns out to be
@@ -145,44 +152,62 @@ Nothing below is a fact until it carries a route and a quotation. Re-run any of 
 scripts in `tools/freegosy-probes/`, which read the server and token from the environment and
 never print the host.
 
-### F5b: firmware lives on the `-unofficial` twin, so a per-platform lookup can miss it entirely. **Confirmed, live**
+### F5b: fetching one BIOS by md5. **Confirmed**, plus a claim of mine that was **retracted**
 
-Fetching the PS1 BIOS by hand, as an M5 rehearsal, turned the F5 amendment from an
-optimisation into a correctness fix. `f5b-bios-fetch-by-md5.py` reads the requirement out of
-`reference/batocera-systems.json`, joins on md5 alone, verifies what arrives and writes it to
-the manifest's path:
+`f5b-bios-fetch-by-md5.py` is M5's flow done by hand: read the requirement out of
+`reference/batocera-systems.json`, join on md5 alone, verify what arrives, write it to the
+manifest's path. It worked, and `bios/psxonpsp660.bin` is now on the test install with a
+verified md5.
+
+**`is_verified` is `False` on the exact file the emulator needs to boot.** Both copies carry
+`is_verified: False` while the md5 is precisely what RetroBat requires. This is the sharpest
+instance of the rule: filtering on that flag refuses the one file without which no PS1 game
+runs at all.
+
+**Retracted: "firmware lives on the `-unofficial` twin, so a per-platform lookup can miss
+it".** The first run of this probe reported `found on platform fs_slug='psx-unofficial'` and
+I built a correctness argument on it. That was an artifact of the probe taking `matches[0]`
+out of iteration order, not a fact about the library. The file is on **both** rows:
 
 ```text
-  system   psx
-  md5      c53ca5908936d412331790f4426c6c33
-  destination  bios/psxonpsp660.bin
   records whose md5_hash matches: 2
-  found on platform fs_slug='psx-unofficial'
-  served file_name : 'psxonpsp660.bin'
-  is_verified      : False  (deliberately ignored)
-  md5 of what arrived: c53ca5908936d412331790f4426c6c33  matches: True
+  every platform row carrying this md5:
+    fs_slug='psx-unofficial'  slug='psx'  firmware_id=905  is_verified=False
+    fs_slug='psx'             slug='psx'  firmware_id=599  is_verified=False
 ```
 
-Two things there matter more than the download.
+A lookup scoped to `psx` would have found it. The probe now prints every matching row, which
+is what stops the same mistake being made from its output again.
 
-**`is_verified` is `False` on the exact file the emulator needs to boot.** Both copies of it
-carry `is_verified: False` while the md5 is precisely what RetroBat requires. This is the
-sharpest possible instance of the rule: filtering on that flag would have refused the one
-BIOS needed to run any PS1 game.
-
-**The file is filed under `psx-unofficial`, not `psx`.** Both platforms exist, both carry
-`slug` `psx`, and they hold 1,803 and 9,500 ROMs respectively. Across the library:
+**And the `-unofficial` platforms are a user's filing scheme, not a RomM behaviour.** They
+are how the owner of this library separates demos, prototypes, unlicensed and aftermarket
+titles: a folder named `psx-unofficial` becomes a platform whose `fs_slug` is that folder and
+whose `slug` RomM resolves to `psx`. So the earlier "36% of firmware sits on unofficial
+twins" is a statement about one person's organisation and carries no risk on its own.
+Measured properly across all 656 records:
 
 ```text
-firmware records by platform kind: {'official': 418, 'unofficial': 238}
-platforms ending -unofficial that carry firmware: 30
+firmware records: 656
+  md5 also present on a slug-sibling platform: 504
+  md5 present on only one platform row:        152
 ```
 
-**36% of firmware sits on `-unofficial` twins**, spread over 30 platforms. So
-`GET /api/firmware?platform_id=<the platform the ROMs came from>`, which is what the plan's
-M5 step 2 originally said, can return nothing while the file sits one row away. Reading the
-inlined `firmware[]` off `GET /api/platforms` and joining globally on md5 is therefore not
-merely cheaper than 79 requests, it is the only version that finds everything.
+Of the 152 singletons, nearly all sit on the **official** row while the twin lacks them
+(`megacd` 17, `nds` 16, `mastersystem` 14, `3do` 13, `nes` 12), which is harmless: a lookup
+scoped to the platform the ROMs came from finds them. **Exactly 3 records sit on an
+`-unofficial` row whose sibling lacks them**, all on `channelf-unofficial`, and that platform
+has no official sibling at all, so a scoped lookup finds those too.
+
+What survives, then, is smaller and different from what I first wrote:
+
+- Reading `/api/platforms` once is **cheaper** than one request per platform, which is what
+  F5 measured. It is not a correctness fix, and the plan has been corrected to say so.
+- **The same md5 legitimately appears on several platform rows**, 504 of 656 times here. A
+  global md5 join therefore returns several hits per required file, and the client must
+  dedupe on md5 and take any one rather than treating multiplicity as ambiguity or
+  downloading each.
+- The twins are **user-created and unpredictable in number and naming**, which strengthens
+  the existing rule to key on `fs_slug` and `id` and never on `slug`.
 
 ### F5: `GET /api/platforms` inlines every firmware record, with its md5. **Confirmed, live**
 

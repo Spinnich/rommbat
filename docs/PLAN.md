@@ -915,9 +915,13 @@ erroring; and every subsequent milestone can be developed with the server switch
 #### Three API facts that decide the data model, measured against a live instance
 
 - **`platform.slug` is not unique; `fs_slug` and `id` are.** A real 123-platform library
-  carried only **72 distinct slugs**, because every system has an `-unofficial` twin sharing
-  one (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). Anything keyed by slug
-  silently loses 51 of those 123 platforms and leaves the unofficial sets unmappable, so the
+  carried only **72 distinct slugs**, because that owner files demos, prototypes, unlicensed
+  and aftermarket titles under a parallel `-unofficial` folder per system, and RomM resolves
+  both folders to the same platform (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`).
+  **That is a user's filing scheme, not a RomM behaviour**, which makes it worse rather than
+  better for a client: the number of such rows, their names and which ones exist are entirely
+  under the user's control and cannot be predicted or enumerated in advance. Anything keyed by
+  slug silently loses 51 of those 123 platforms and leaves the extra sets unmappable, so the
   platform map is keyed by `fs_slug`. The slug stays as the bundled table's lookup key.
 - **`PUT /api/devices/{id}` must carry only the fields being changed.** Sending the full
   `DeviceUpdatePayload` shape, whose unset properties serialize as explicit nulls, answers
@@ -1282,17 +1286,14 @@ are simply absent, which is the gap step 5 exists to report. See
    `len(firmware)` on every platform and the same id set as the dedicated call. So a
    whole-library BIOS gap report is one request rather than 79.
 
-   **This is a correctness fix, not an optimisation, because firmware does not live on the
-   platform its ROMs live on.** `psxonpsp660.bin`, the BIOS DuckStation needs to boot
-   anything, was found on **`psx-unofficial`** rather than `psx`. Both platforms exist, both
-   carry `slug` `psx`, and they hold 1,803 and 9,500 ROMs. Library-wide, **238 of 656
-   firmware records (36%) sit on `-unofficial` twins, across 30 platforms**, so a lookup
-   scoped to the platform a sync set resolved from can return nothing while the file sits one
-   row away. Join globally on md5 and ignore which platform carried it. The per-platform
-   endpoint is still fine for a certification pass on one platform, as long as both twins are
-   asked.
+   The per-platform endpoint stays the right call for a certification pass on one platform.
 
-   **And that BIOS carries `is_verified: false`** on both copies, while its md5 is exactly
+   **One md5 legitimately appears on several platform rows**, 504 of 656 records on the
+   library measured, because a user may file one system under more than one folder and put the
+   firmware under each. So a global md5 join returns several hits per required file: dedupe on
+   md5 and take any one. Multiplicity is not ambiguity and is not a reason to download twice.
+
+   **`psxonpsp660.bin` carries `is_verified: false` on every copy**, while its md5 is exactly
    what RetroBat requires. It is the sharpest instance of the rule above: filtering on that
    flag refuses the one file without which no PS1 game runs at all.
 

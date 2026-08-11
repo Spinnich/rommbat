@@ -111,7 +111,9 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `GET /api/platforms` fails to deserialize on the **first** platform of a real library. Use
   `RomM.Client.Catalog.RomRow` and `PlatformRow`, which are slim and carry `long`.
 - **`platform.slug` is not unique; `fs_slug` and `id` are.** 123 platforms, 72 slugs, on a
-  real instance: every system has an `-unofficial` twin. Never key anything by slug.
+  real instance, whose owner files demos and prototypes under a parallel `-unofficial` folder
+  per system. **A user's filing scheme, not a RomM behaviour**, so the number and naming of
+  such rows is unpredictable. Never key anything by slug.
 - **`PUT /api/devices/{id}` takes only the fields you are changing.** The generated
   `DeviceUpdatePayload` serializes unset properties as explicit nulls and the server answers
   **500** with a plain-text body. Send a bare `{"sync_config": {...}}`, and merge into what

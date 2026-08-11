@@ -70,9 +70,23 @@ if not matches:
     record("f5b-bios-fetch-by-md5", lines)
     raise SystemExit(1)
 
+# One md5 routinely appears on several platform rows, because a user may file the same
+# system under more than one folder (demos, prototypes, unlicensed) and put the firmware
+# under each. **Report every hit.** Taking matches[0] and naming that platform invites the
+# reader to conclude the file lives only there, which is how the first run of this probe
+# produced a wrong finding.
+lines.append("  every platform row carrying this md5:")
+for candidate_platform, candidate in matches:
+    lines.append(
+        f"    fs_slug={candidate_platform['fs_slug']!r:22} slug={candidate_platform['slug']!r:12}"
+        f" firmware_id={candidate['id']:<6} file_name={candidate['file_name']!r}"
+        f" is_verified={candidate.get('is_verified')}"
+    )
+lines.append("")
+
 platform, firmware = matches[0]
 served = firmware["file_name"]
-lines.append(f"  found on platform fs_slug={platform['fs_slug']!r}")
+lines.append(f"  taking the first; any of them is the same bytes by definition of the join")
 lines.append(f"  served file_name : {served!r}")
 lines.append(f"  wanted file name : {wanted_name!r}")
 lines.append(f"  names agree      : {served.lower() == wanted_name.lower()}")
