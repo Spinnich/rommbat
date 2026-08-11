@@ -88,9 +88,21 @@ marker removed, so it carries the region (`(USA)`) but not the disc and not the 
 `(Rev 1)`. DuckStation binds a disc set through its own database, which is exactly what
 `PerGameFileTitle` would throw away by keying on three separate filenames.
 
+**The playlist is not what binds the set; the database is.** Final Fantasy VII, three discs
+loose with no `.m3u` and launched as disc 1 alone, produced one `Final Fantasy VII (USA)_1.mcd`
+resolving to all three serials. That is the layout a RomM sync creates, so stock is safe on it.
+
+**But the card and the state are keyed differently, in the same session.** The card is per disc
+**set**; the save state is `Final Fantasy VII (USA) (Disc 1)_01.sav`, named from the rom file
+and therefore per **disc**. A `rom_id` can own one card and three states, so never assume one
+save per game or one save per file. The mapping is many-to-many: 130 of the database's 698
+disc-set stems keep a subtitle behind the disc marker
+(`Biohazard 2 (Japan) (Disc 1) (Leon-hen)`), where set membership is not recoverable from the
+card name.
+
 The price of leaving it stock is that PS1 cards need Game-ID attribution rather than filename
 attribution. RetroBat pays part of it already: a `.txt` beside the DuckStation save state holds
-the bare serial (`SLUS-00594`).
+the bare serial (`SLUS-00594`, `SCUS-94163`).
 
 PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all. So conversion
 is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,

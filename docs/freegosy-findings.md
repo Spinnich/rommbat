@@ -1027,13 +1027,33 @@ Which field the card is named from decides the attribution story, and it is `sav
 the card that appeared carries no `(Rev 1)`. That is the behaviour a user wants: a revision
 inherits its saves.
 
-**What is still not measured is the loose layout, and it is the one RomM produces.** The set
-above was launched through a `.m3u`. Whether `PerGameTitle` also unifies three discs launched
-individually with no playlist, the Final Fantasy VII layout sitting in the same folder, was not
-driven. The evidence leans towards yes, because the card was named from the database rather
-than from the playlist file, so the same lookup should resolve each loose disc to the same
-disc set. That is a reading of one observation, not a second observation, and the layout it
-concerns is exactly the one a RomM sync creates. **It should be driven before M6 commits.**
+**The loose layout behaves the same way, and that was the half worth doubting.** The Metal Gear
+Solid set was launched through a `.m3u`, which left open whether the playlist was doing the
+binding. Final Fantasy VII settles it: three discs sitting loose in `roms/psx`, no playlist
+anywhere (no `.m3u`, and no `.ldci` written, which is itself the evidence no playlist was
+involved), launched as disc 1 alone.
+
+```text
+duckstation/memcards/Final Fantasy VII (USA)_1.mcd
+   stem_<slot>: 'Final Fantasy VII (USA)'
+   matches a rom or playlist filename : False
+   matches gamedb saveName with the disc marker removed: SCUS-94163
+   matches gamedb saveName with the disc marker removed: SCUS-94164
+   matches gamedb saveName with the disc marker removed: SCUS-94165
+```
+
+**One card, resolving to all three serials, from a single loose disc.** So the playlist is not
+what binds a set; the database lookup is, and it works from any one disc. That is the layout a
+RomM sync produces, so the stock configuration is safe on the shape RomMBat will actually
+create. It also means the `.m3u` is not load-bearing for saves under DuckStation, though it
+still is under libretro, which keys its `.srm` on the playlist filename.
+
+**But the save states split where the card does not.** The same session left
+`duckstation/Final Fantasy VII (USA) (Disc 1)_01.sav`, named from the rom file and therefore
+per disc, beside a memory card named from the database and therefore per set. **One emulator,
+one game, one session: the card unifies the set and the states divide it.** Anything that
+bundles a game's saves has to expect both relationships at once, and a `rom_id` that owns one
+card can own three states.
 
 **The same game under two emulators, and one naming rule does not cover either of them.** The
 run also drove the set under `libretro mednafen_psx_hw`, so one title produced two complete and
@@ -1113,11 +1133,16 @@ cost someone an hour.
   genuinely worth preserving, so the choice is to exclude it or to rewrite `image_path` on
   restore. It cannot simply be copied.
 
-- **The emulator creates an empty second memory card, and size cannot tell it apart from a
-  real one.** A PS1 launch produces a card per console slot whether or not the game ever
-  touches slot 2, and both are exactly 131072 bytes. Only the byte histogram separates them:
-  124 distinct values in the card that holds a save against 14 in the formatted empty one.
+- **An emulator can create an empty memory card, and size cannot tell it apart from a real
+  one.** Metal Gear Solid produced cards for both console slots and only ever wrote to slot 1,
+  leaving a formatted empty `_2.mcd` that is **exactly 131072 bytes, the same as the one
+  holding the save**. Only the byte histogram separates them: 124 distinct values against 14.
   Uploading on file size, or on existence, ships an empty card as if it were progress.
+
+  The first version of this note said a PS1 launch always produces a card per slot. **Final
+  Fantasy VII disproved that in the next session**, producing only `_1.mcd`, so how many cards
+  appear is a property of what the game touches and not of the emulator. Neither the count nor
+  the size is predictable; only the contents are.
 
 ---
 
@@ -1171,12 +1196,31 @@ first touches it, so a timed unattended launch produces nothing to read.
 - **F13**, whether `GET /api/saves/identifiers` scales. It answers in 0.07 s on an empty set
   and takes no parameters, which is the shape that made `/api/roms/identifiers` unusable. No
   library here has enough saves to load it.
-- **Half of F18**, whether `PerGameTitle` also unifies a set whose discs are loose in
-  `roms/psx` with no `.m3u` to bind them. That is the layout a RomM sync produces, and it is
-  the only untested combination left: the set that was driven had a playlist. The measured card
-  was named from the database rather than from the playlist file, which is a reason to expect
-  the same disc-set lookup to resolve each loose disc identically, but expecting is not
-  measuring. One unattended launch of Final Fantasy VII disc 1 answers it.
+- **How far the card-naming rule generalises, for the 130 sets where the disc marker is not
+  last.** F18 is otherwise closed: both the playlist layout and the loose layout were driven,
+  and both unified. But both driven sets read `Title (Region) (Disc N)` with nothing behind the
+  marker, and 1,373 database entries carry a disc marker across 698 stems, of which **130 keep
+  a subtitle behind it**:
+
+  ```text
+  Biohazard 2 (Japan) (Disc 1) (Leon-hen)      -> Biohazard 2 (Japan) (Leon-hen)
+  Biohazard 2 (Japan) (Disc 2) (Claire-hen)    -> Biohazard 2 (Japan) (Claire-hen)
+  Capcom Generations (Europe) (Disc 1) (Wings of Destiny)
+  Capcom Generations (Europe) (Disc 4) (Blazing Guns)
+  ```
+
+  Removing the marker leaves those discs on **separate stems**, so if the rule really is a
+  string operation they get separate cards. Sometimes that is right: the four Capcom Generations
+  discs are four different games. Sometimes it is likely wrong: the two Biohazard 2 scenario
+  discs share progress. **Whether DuckStation still groups them is unmeasured**, because the
+  observed rule was inferred from two sets that could not distinguish "strip the marker" from
+  "look up the disc set". No stem starting at disc 1 has a gap in its run, so nothing here is
+  malformed; the question is only about the 130.
+
+  The practical consequence is bounded and worth stating plainly: **RomMBat must not assume one
+  card per set, nor one set per card.** Whichever way those 130 resolve, the mapping between a
+  PS1 memory card and a `rom_id` is many-to-many in the general case.
+
 - **The 21 systems still unclassified in `save_shapes.json`.** F19 closed `mastersystem` and
   `gamegear`; the rest divide into ones RetroArch can answer cheaply (`fbneo`, `msx1`,
   `supergrafx`, `amiga`, `amstradcpc`, `apple2`) and ones needing a standalone emulator

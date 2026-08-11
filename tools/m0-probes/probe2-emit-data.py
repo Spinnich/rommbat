@@ -74,11 +74,13 @@ CONVERSIONS = {
     # splits it and the save disappears at the disc change.
     "psx": {"option": "duckstation_memcardtype", "set_to": None, "apply": False,
             "keys_by": "gamedb saveName with the disc marker removed, not the rom filename",
-            "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database. "
-                    "A two-disc set produced one card pair, 'Metal Gear Solid (USA)_1.mcd' and '_2.mcd', "
-                    "where the suffix is the console slot and _2 is an empty formatted card. "
+            "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database, "
+                    "with or without a .m3u: a foldered two-disc set and a loose three-disc set each "
+                    "produced one card, named '<saveName minus disc>_<slot>.mcd'. The slot suffix is not "
+                    "a disc number and how many slots appear depends on the game. "
                     "Regions stay separate because saveName carries them; revisions share a serial and a card. "
-                    "Not measured: a set whose discs are loose with no .m3u"},
+                    "Save states are keyed on the rom file instead, so they are per disc while the card is "
+                    "per set. Not measured: the 130 stems keeping a subtitle behind the disc marker"},
     "ps2": {"option": "pcsx2_slot1_memory", "set_to": "game", "keys_by": "rom basename"},
     "gamecube": {"option": "dolphin_slotA", "set_to": "8", "keys_by": "game code",
                  "note": "already the stock default; still needs attribution because .gci names carry the game code, not the filename"},

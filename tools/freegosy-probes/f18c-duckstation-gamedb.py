@@ -5,8 +5,10 @@ both whether a multi-disc set shares a card and whether a user holding several r
 releases of one game can have their saves told apart.
 
 Two fields matter and they disagree. `name` collapses regional variants onto one string,
-while `saveName` is region-qualified and very nearly unique across the database. Both carry
-the disc number, so the multi-disc split holds either way; only attribution differs.
+while `saveName` is region-qualified and very nearly unique across the database. A driven card
+matched `saveName` with the disc marker removed, which is why the last section here measures
+how far that stripping rule generalises: the two sets that were driven had nothing after the
+disc marker, and 130 stems in the database do.
 
 Reads the database DuckStation ships. Nothing is launched and nothing is written.
 
@@ -78,3 +80,34 @@ for label, pair in [
     print(f"{label}: disc1 saveName={a.get('saveName')!r}  disc2 saveName={b.get('saveName')!r}")
     print(f"         same saveName: {a.get('saveName') == b.get('saveName') and a.get('saveName') is not None}")
     print(f"         disc1 name={a.get('name')!r}  disc2 name={b.get('name')!r}")
+
+print()
+# How far the measured rule generalises. Both driven sets read "Title (Region) (Disc N)" with
+# nothing after the marker, so removing it merged their discs onto one stem. The marker is not
+# always last: "Biohazard 2 (Japan) (Disc 1) (Leon-hen)" keeps a subtitle behind it, and those
+# discs do not merge. Whether DuckStation still treats them as one set is unmeasured; this only
+# counts how large that population is.
+DISC = re.compile(r"\((?:Disc|Disk|CD)\s*(\d+)\)", re.I)
+sets = {}
+marked = 0
+for s, f in entries.items():
+    save = f.get("saveName")
+    if not save:
+        continue
+    found = DISC.search(save)
+    if not found:
+        continue
+    marked += 1
+    stem = re.sub(r"\s*\((?:Disc|Disk|CD)\s*\d+\)", "", save).strip()
+    sets.setdefault(stem, set()).add((int(found.group(1)), s))
+
+split = {k: v for k, v in sets.items() if 1 not in {n for n, _ in v}}
+gaps = [k for k, v in sets.items()
+        if sorted(n for n, _ in v)[:1] == [1]
+        and sorted(n for n, _ in v) != list(range(1, len(v) + 1))]
+print(f"saveName values carrying a disc marker: {marked}")
+print(f"  collapsing to distinct card stems:    {len(sets)}")
+print(f"  stems whose lowest disc is not 1:     {len(split)}  (the marker was not last)")
+print(f"  stems starting at 1 with a gap:       {len(gaps)}")
+for k, v in sorted(split.items())[:8]:
+    print(f"     {k!r}: discs {sorted(n for n, _ in v)}")

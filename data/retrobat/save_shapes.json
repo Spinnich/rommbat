@@ -144,7 +144,7 @@
         "set_to": null,
         "apply": false,
         "keys_by": "gamedb saveName with the disc marker removed, not the rom filename",
-        "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database. A two-disc set produced one card pair, 'Metal Gear Solid (USA)_1.mcd' and '_2.mcd', where the suffix is the console slot and _2 is an empty formatted card. Regions stay separate because saveName carries them; revisions share a serial and a card. Not measured: a set whose discs are loose with no .m3u"
+        "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database, with or without a .m3u: a foldered two-disc set and a loose three-disc set each produced one card, named '<saveName minus disc>_<slot>.mcd'. The slot suffix is not a disc number and how many slots appear depends on the game. Regions stay separate because saveName carries them; revisions share a serial and a card. Save states are keyed on the rom file instead, so they are per disc while the card is per set. Not measured: the 130 stems keeping a subtitle behind the disc marker"
       },
       "shape_depends_on_emulator": true
     },
