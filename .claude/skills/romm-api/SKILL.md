@@ -89,13 +89,16 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 | Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale    |
 | Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                         |
 | Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                         |
-| Firmware                 | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}` |
+| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}` |
 | Save negotiation         | `POST /api/sync/negotiate`                                                     |
-| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=`               |
-| Save download ack        | `POST /api/saves/{id}/downloaded`                                              |
+| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`  |
+| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                      |
+| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify  |
+| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                               |
 | Close session            | `POST /api/sync/sessions/{session_id}/complete`                                |
-| Playtime                 | `POST /api/play-sessions`                                                      |
+| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                 |
 | Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                         |
+| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`      |
 
 ## Traps
 
@@ -108,7 +111,9 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `GET /api/platforms` fails to deserialize on the **first** platform of a real library. Use
   `RomM.Client.Catalog.RomRow` and `PlatformRow`, which are slim and carry `long`.
 - **`platform.slug` is not unique; `fs_slug` and `id` are.** 123 platforms, 72 slugs, on a
-  real instance: every system has an `-unofficial` twin. Never key anything by slug.
+  real instance, whose owner files demos and prototypes under a parallel `-unofficial` folder
+  per system. **A user's filing scheme, not a RomM behaviour**, so the number and naming of
+  such rows is unpredictable. Never key anything by slug.
 - **`PUT /api/devices/{id}` takes only the fields you are changing.** The generated
   `DeviceUpdatePayload` serializes unset properties as explicit nulls and the server answers
   **500** with a plain-text body. Send a bare `{"sync_config": {...}}`, and merge into what
@@ -117,13 +122,30 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   full `set[int]` present even on the list endpoint, so `GET /api/collections` on a large
   instance returns every membership of every collection. Page
   `GET /api/roms?collection_id=` instead.
+- **An unknown query parameter is silently ignored**, so a misspelt filter returns the whole
+  library with a 200. `platform_ids=<psx>` answers `total=9500`; `platform_id=` singular and
+  an invented parameter both answer `total=83131`. No 422, no warning, no echo of what was
+  applied. Check parameter names against the pinned schema, and treat a scoped walk whose
+  `total` equals the library total as a bug in the query.
 - **Send `Range: bytes=0-` on a single-file ROM download, and never on a multi-file one.**
   Single-file answers 206 with an `ETag` (nginx's `hex(mtime)-hex(size)`) and resumes; a
   stale `If-Range` returns a full 200 rather than a corrupt splice. **Any `Range` on a
   multi-file ROM is refused 403 by nginx**, and the plain request that works carries no
-  `ETag` and no `Accept-Ranges`, so multi-file is not resumable at all. Multi-file ROMs are
-  identifiable before the request: `has_multiple_files`, and equivalently an empty
-  `fs_extension`.
+  `ETag` and no `Accept-Ranges`, so multi-file is not resumable at all.
+- **Multi-file is `has_multiple_files`, and an empty `fs_extension` is not the same thing.**
+  The schema carries three shape flags: `has_simple_single_file`, `has_nested_single_file`,
+  `has_multiple_files`. Every multi-file ROM does have an empty extension (209 of 209
+  sampled), but only 209 of 602 extensionless ROMs are multi-file; the other 391 are
+  `has_nested_single_file`, an ordinary ROM inside a folder, 157 of them holding one file.
+  Key off the flag, never off the extension.
+- **`download_path` on a save is not a usable URL.** It is served with a raw space and an
+  unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
+  the URL from the save `id`.
+- **`POST /api/saves/delete` fails the whole batch if one id is already gone**, answering 404
+  and deleting nothing. Autocleanup can remove an id between listing and deleting, so delete
+  one at a time or re-list immediately before.
+- **`POST /api/devices` answers `{device_id, name, created_at}`**, not a `DeviceSchema`.
+  `GET /api/devices` keys the same value `id`.
 - **`md5_hash`, `sha1_hash` and `crc_hash` all describe the _uncompressed_ content**, not
   just the CRC. A `.zip` reports the hashes of the file inside it, so hash inside a
   single-entry archive rather than over its bytes. Only 91% of ROMs carry an md5 and 96% a
@@ -136,7 +158,41 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Saves pair on `(rom_id, slot)`.** A null slot means "archival manual upload" and
   negotiates as `upload` forever. Always send a stable, non-null slot.
 - **The server renames uploaded saves** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`. Persist the
-  `file_name` from the response, not the one you sent.
+  `file_name` from the response, not the one you sent. **To write one to disk use
+  `file_name_no_tags` + `file_extension` instead**: an emulator finds a battery save by rom
+  name and never sees the tagged one. No client-side regex; the server returns the stem.
+- **`optimistic` on `GET /api/saves/{id}/content` defaults to true and records the device
+  sync on the request**, before the client has the bytes. A device that had never synced went
+  to `is_current: true` by issuing the GET alone. Always pass `optimistic=false` and send
+  `POST /api/saves/{id}/downloaded` after the bytes are written and verified, or a download
+  that dies mid-body leaves the server sure the device is current and the next negotiate
+  answers `no_op` forever.
+- **Identical uploads dedup within a slot** (same row reused, count unchanged), which is what
+  makes a replayed flush safe. Different content **appends** a row unless `overwrite=true`,
+  which replaces in place. `autocleanup` defaults to **false** and `autocleanup_limit` to 10,
+  so a slot grows unboundedly unless you ask it not to.
+- **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
+last sync"}`, with no save id and no timestamps. Fetch the save row separately to show the
+  user anything. It fires when **this device's** record is stale, so the device that wrote the
+  current save may write again while a device that never synced it is refused.
+- **`device_syncs` is empty unless you pass `device_id`**, and empty reads exactly like
+  "nobody has synced this". With `device_id` set it lists every device that has a record, the
+  queried one first. A device that never synced is **absent** rather than `is_current: false`,
+  so treat a missing entry as the strongest reason to pull.
+- **`origin_device_id`** names the device that uploaded a save, which is how you recognise
+  your own upload coming back.
+- **`POST /api/play-sessions` takes an envelope**, `{device_id, sessions: [...]}`, with
+  `device_id` outside the entries; a bare array is a 422. It answers a per-index result array
+  with `created_count`/`skipped_count` and reports a replay as `"status": "duplicate"`. Cap
+  100 per call (101 entries answers 400), `end_time` strictly after `start_time`, `rom_id`
+  optional. It needs **no** open sync session, so playtime can flush on its own.
+- **`POST /api/sync/negotiate` requires `device_id`** unless the client token is device-bound,
+  in which case the server infers it. Measured both ways: a pairing-minted token negotiates
+  with the field absent, an ordinary client token answers 400 naming the condition. RomMBat's
+  token comes from pairing, so it may omit it; send it anyway, it is more explicit.
+- **A sync session cannot be deleted.** `/api/sync/sessions` is read-only apart from
+  `/complete`, so every negotiate leaves a permanent row. Tests and probes that negotiate
+  accumulate them.
 - **Asset uploads are capped at 512 MiB** and rejected with 413 before the body is spooled.
 - **States are not in the negotiate protocol.** `POST /api/states` has no slot, device or
   conflict detection. Best-effort only.

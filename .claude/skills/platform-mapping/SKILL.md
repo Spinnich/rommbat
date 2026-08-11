@@ -27,10 +27,14 @@ Known-stale YAML entries: `astrocde`/`astrocade`, `bbc`/`bbcmicro`, `ps`/`psx`,
 ## Two identity traps, both measured live
 
 **`platform.slug` is not unique. `fs_slug` and `id` are.** A real 123-platform library
-carried **72 distinct slugs**, because every system has an `-unofficial` twin sharing one
-(`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). The local `platform_map` is keyed
-by `fs_slug`; the slug is only the bundled table's lookup key. Key the map by slug and 51 of
-those 123 platforms disappear, and nobody can point the unofficial set anywhere else.
+carried **72 distinct slugs**, because that owner files demos, prototypes, unlicensed and
+aftermarket titles under a parallel `-unofficial` folder per system, and RomM resolves both
+folders to one platform (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). **This is
+a user's filing scheme, not a RomM behaviour**, so how many such rows exist and what they are
+called is unpredictable: do not special-case the `-unofficial` suffix, and do not assume the
+collisions come in pairs. The local `platform_map` is keyed by `fs_slug`; the slug is only the
+bundled table's lookup key. Key the map by slug and 51 of those 123 platforms disappear, and
+nobody can point the extra sets anywhere else.
 
 **`es_systems.cfg` `<name>` is not the folder. `<path>` is.** Five systems disagree in the
 shipped 8.2.0 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `casloopy` to

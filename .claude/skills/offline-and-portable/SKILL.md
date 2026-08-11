@@ -18,9 +18,18 @@ the source of truth; the network is optional, probed with a short-timeout
 - **Everything produced offline goes to an outbox** with its real local mtime and content
   hash, never its sync time. A week offline is just a bigger negotiate payload; the protocol
   is full-state reconciliation and handles it natively when timestamps are honest.
-- **Retries are safe by design.** Play sessions dedup on truncated-to-the-second timestamps
-  server-side; save uploads dedup on `content_hash` within a slot. Lean on that instead of
-  inventing an ack protocol.
+- **Retries are safe by design, and this is measured.** A byte-identical save re-uploaded into
+  the same slot reuses the row; a repeated play session comes back `"status": "duplicate"` in
+  a per-index result array carrying `created_count`/`skipped_count`, so a partial flush is
+  reconciled exactly rather than inferred. Lean on that instead of inventing an ack protocol.
+  **The precondition is that "identical" really is identical**, so a bundled directory save
+  has to archive deterministically or every flush mints a new server row.
+- **Uploads are safe to replay; downloads are not safe to abandon.** `GET /api/saves/{id}/content`
+  records the device as current **on the request** unless `optimistic=false` is passed, so a
+  transfer killed mid-body by a dropped link leaves the server sure the device holds a save it
+  does not, and the next negotiate answers `no_op`. Pass `optimistic=false` and ack with
+  `POST /api/saves/{id}/downloaded` after the bytes are written and verified. Same shape as the
+  `.part` rule below: verify, then commit. See `save-sync` and `docs/freegosy-findings.md` F1.
 - **Clock skew is a real failure mode.** A flat RTC produces timestamps that lose every
   conflict. Keep a monotonic sequence alongside wall clock, compare against the server's
   `Date` header on first contact, and offer to re-stamp the outbox past a threshold.
@@ -46,6 +55,12 @@ RetroBat runs from a USB drive and moves between machines.
   store API accepts, every path column carries a `CHECK` constraint, and a test drives the
   same table of bad values through both. `RetroBatInstall.Resolve` and `.Relativize` are the
   only places the two representations convert.
+- **Upstream does not follow that rule, and one of its files is inside the sync set.** A
+  multi-disc launch leaves `saves/<system>/<playlist stem>.ldci`, RetroArch's record of which
+  disc was in the drive, whose `image_path` is absolute down to the drive letter. Anything
+  RomMBat copies out of the save tree can carry a foreign machine's paths, so **treat the save
+  tree as untrusted for portability**: exclude the file, or rewrite the path on restore. The
+  three layers above protect what RomMBat writes, not what it relays.
 - **Find the root relative to the executable.** Walk up from `AppContext.BaseDirectory` to a
   marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no `build.ini`; the version
   lives in `system/version.info`. From a hook, `%~dp0..\..\..\` reaches `emulationstation/`

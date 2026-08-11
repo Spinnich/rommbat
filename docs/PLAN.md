@@ -70,6 +70,16 @@ cleanly on reconnect.**
 - Retries must be safe. Play sessions dedup server-side on truncated-to-the-second
   timestamps, and save uploads dedup on `content_hash` within a slot, so replaying a
   failed flush is idempotent. Lean on that instead of inventing an ack protocol.
+
+  **Both halves are now measured, not inferred.** A byte-identical save posted twice into the
+  same slot reuses the same row and the slot count does not move; a replayed play session
+  comes back `"status": "duplicate"` in a per-index result array with `skipped_count`
+  incremented, so the server names what it skipped rather than leaving the client to guess.
+  This is also the reason a bundled directory save's archive **must** be deterministic: an
+  archive that varies between runs defeats the dedup this principle rests on, which is
+  precisely what Freegosy does by writing a timestamp file into every bundle. See
+  [freegosy-findings.md](freegosy-findings.md), F3 and F4.
+
 - **Clock skew is a real failure mode.** A handheld with a flat RTC produces timestamps
   that lose every conflict. Record a monotonic local sequence number alongside wall
   clock; on first successful contact compare local time against the server response
@@ -287,6 +297,19 @@ as a possible distribution channel later, not as the mechanism.
 | `rommapp/grout` `cfw/*/data/save_directories.json`               | RomM slug → emulator save subdirectory list                |
 | `rommapp/grout` `cache/save_sync.go`, `cache/background_sync.go` | Sync state machine and conflict handling, already proven   |
 | RomM `backend/utils/gamelist_exporter.py`                        | Authoritative field list for the `<game>` elements to emit |
+| `abduznik/Freegosy`                                              | **Mined and closed.** See the caveat below                 |
+
+**Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
+mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.1.0 baseline, it
+is v0.5.x with one maintainer, and it targets desktop emulators, EmuDeck and RetroDECK, so
+**none of its paths is valid for RetroBat and none was taken**. What it was good for was
+pointing at save-protocol parameters this plan had never mentioned. Every claim was then
+re-asked of the live server, and several of its own answers were wrong at 5.1.x: its play
+session payload shape is a 422, its documented 409 body does not exist, and its per-device
+isolation model is not what the server does. The full ledger, including the thirteen leads
+dropped at triage and the six left open, is
+[freegosy-findings.md](freegosy-findings.md). **Treat that document as closed**; re-reading
+the client is unlikely to repay the effort.
 
 ---
 
@@ -550,13 +573,37 @@ The six results that moved the design most:
    `dreamcast["<rom>.chd"].flycast_vmupergame=1`, `emu.cfg` flips to `PerGameVmu = yes` and a
    new `flycast/vmu/T40217N_vmu_save_A1.bin` appears live, while the shared
    `vmu_save_A1.bin` is left untouched. **`T40217N` is the disc's serial, not the rom
-   filename**, so unlike DuckStation's `PerGameFileTitle` this cannot be addressed from
-   `fs_name`; attribution needs the serial or the launch window.
+   filename**, so this cannot be addressed from `fs_name`; attribution needs the serial or the
+   launch window. That is the same shape DuckStation turns out to have under its stock memory
+   card mode, so identifier-keyed attribution is the common case for disc systems rather than
+   the exception.
 
    Also measured, and it changes M6's change-detection: **launching a PS2 game rewrites both
    shared memory cards without any in-game save**, and a Dreamcast launch rewrites the shared
    VMU the same way, so mtime cannot decide whether a class-D container needs uploading.
    Content hashing is mandatory there.
+
+   **That hazard is not confined to class D.** A Master System cart driven under libretro
+   `genesis_plus_gx`, booted to its title screen with no save key ever pressed and no progress
+   made, wrote `saves/mastersystem/<rom>.srm` anyway: 65,536 bytes while running and 8,188
+   bytes after a clean exit. Nor is it only written at exit, because RetroBat ships
+   `autosave_interval = "10"`, so the file appears within seconds of boot and survives a crash
+   or a kill. Its contents are the cartridge formatting its own backup RAM
+   (`PHANTASY STAR   BACKUP RAM PROGRAMMED BY`), so **no property of the file in isolation
+   identifies it as empty**: 8,188 bytes across 35 distinct byte values defeats both a size
+   floor and a blankness test. Only comparison against a previously known state separates it
+   from a real save, which makes `content_hash` the guard for class A as much as class D, and
+   means **the first save seen for a ROM with no local baseline is not evidence that anything
+   was played** and must not win a conflict on recency alone. See
+   [freegosy-findings.md](freegosy-findings.md), F20.
+
+   **`mastersystem` and `gamegear` are now classified**, both class A: a loose `.srm` at
+   `saves/<system>/` named after the ROM. `mastersystem` is a **wave 1** platform, so its shape
+   being a guess mattered more than the count suggests; `data/retrobat/save_shapes.json` drops
+   from 23 unclassified systems to 21. The technique that got `gamegear` is worth reusing for
+   the rest: **RetroArch names the destination in its own log even on a run that writes
+   nothing** (`[Override] Redirecting save file to ...`), so a system can be classified from
+   intent when its cart is never touched. See finding F19.
 
 3. **Library refresh.** Determine how to make ES pick up newly added ROMs without a full
    restart, and whether writing `gamelist.xml` while ES is running is safe (ES may
@@ -870,9 +917,13 @@ erroring; and every subsequent milestone can be developed with the server switch
 #### Three API facts that decide the data model, measured against a live instance
 
 - **`platform.slug` is not unique; `fs_slug` and `id` are.** A real 123-platform library
-  carried only **72 distinct slugs**, because every system has an `-unofficial` twin sharing
-  one (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`). Anything keyed by slug
-  silently loses 51 of those 123 platforms and leaves the unofficial sets unmappable, so the
+  carried only **72 distinct slugs**, because that owner files demos, prototypes, unlicensed
+  and aftermarket titles under a parallel `-unofficial` folder per system, and RomM resolves
+  both folders to the same platform (`fs_slug` `gb` and `gb-unofficial` are both `slug` `gb`).
+  **That is a user's filing scheme, not a RomM behaviour**, which makes it worse rather than
+  better for a client: the number of such rows, their names and which ones exist are entirely
+  under the user's control and cannot be predicted or enumerated in advance. Anything keyed by
+  slug silently loses 51 of those 123 platforms and leaves the extra sets unmappable, so the
   platform map is keyed by `fs_slug`. The slug stays as the bundled table's lookup key.
 - **`PUT /api/devices/{id}` must carry only the fields being changed.** Sending the full
   `DeviceUpdatePayload` shape, whose unset properties serialize as explicit nulls, answers
@@ -880,6 +931,14 @@ erroring; and every subsequent milestone can be developed with the server switch
   `sync_config` answers 200 and leaves name, platform and client version intact.
 - **`POST /api/auth/device/init` is 10/min/IP**, which the live test suite hits on its own
   once several tests each pair. Live catalog tests share one pairing per class.
+- **An unknown query parameter on `/api/roms` is silently ignored, so a misspelt scope is the
+  whole library.** Measured: `platform_ids=<psx>` answers `total=9500`, while `platform_id=`
+  singular and a parameter invented on the spot both answer 200 with `total=83131`. There is
+  no 422, no warning, and no echo of what was actually applied, so **a scope typo cannot be
+  told apart from a scope that genuinely matches everything** by reading the response.
+  `CatalogQuery` sends the plural and is correct today; the cheap guard is a resolve-time
+  assertion that a scoped walk's `total` is below the library total. See
+  [freegosy-findings.md](freegosy-findings.md), F14.
 
 #### Platform mapping is a feature, not a lookup table
 
@@ -991,6 +1050,13 @@ rather than bundled, because it reflects that machine's actual emulator configur
 - Filter every sync-set candidate against the resolved folder's `<extension>` list, using
   RomM's `fs_extension`, and exclude non-matches from the set before anything is
   downloaded.
+- **Passing the filter is not evidence the file will launch.** `<extension>` is the authority
+  on what EmulationStation indexes and offers, not on what the emulator behind the system can
+  consume. The measured case is `.m3u`: `ps2` lists it, and RetroBat's wiki says "PCSX2 does
+  not support m3u usage for multi-disc games". ES shows the playlist, `emulatorLauncher` hands
+  it over, and the emulator does not understand it, which is the same
+  appears-in-ES-and-dies failure this section exists to prevent. The extension list stays
+  necessary; treat per-emulator capability as a separate fact the config does not carry.
 - Show the exclusions rather than hiding them: "12 games skipped, format not supported by
   this system" with the offending extensions, so the user can fix it in RomM.
 - Watch the disc-image cases in particular, where RomM may hold a `.chd` while the
@@ -1011,15 +1077,52 @@ the rollout order below can be derived rather than hand-maintained.
   no `ETag` and no `Accept-Ranges`, so a multi-file download is not resumable by any header.
   The earlier reading, that a `Range` header is what selects a resumable cached-zip path, is
   withdrawn. See findings 78 and 79.
-- **Multi-file ROMs are out of scope for v1, and M2's extension filter already excludes
-  them.** Every multi-file ROM carries an empty `fs_extension` and every extensionless ROM
-  is multi-file, 105 of 105 both ways in a 2,000-ROM sample, so none has ever reached a sync
-  set. M3 makes that honest rather than incidental: they get their own exclusion state and
-  are reported as multi-file, not as an unsupported format, because telling someone their
+- **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
+  rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
   milestone has to build is extraction: the served zip is the only form on offer, its
   `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
   it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
+
+  **Finding 83's biconditional is half withdrawn, and the half that fails is the one a reader
+  would lean on.** It said every multi-file ROM carries an empty `fs_extension` and every
+  extensionless ROM is multi-file, 105 of 105 both ways. Re-measured over 2,000 ROMs on the
+  same instance: **every ROM flagged `has_multiple_files` does carry an empty `fs_extension`,
+  209 of 209, but only 209 of the 602 extensionless ROMs are multi-file.** The other 391 are
+  `has_nested_single_file`, an ordinary ROM stored inside a folder, and 157 of those hold
+  exactly one file. The schema carries **three** shape flags, not one:
+  `has_simple_single_file`, `has_nested_single_file`, `has_multiple_files`. An empty
+  `fs_extension` covers the last two and cannot separate them.
+
+  The code was already right: `SetResolver.cs:242` keys the exclusion on `HasMultipleFiles`,
+  never on the extension, so nothing mis-excludes today. Had anyone taken this plan at its
+  word and simplified that check to the extension test it called equivalent, 391 of 602
+  extensionless ROMs in that sample would have been wrongly excluded.
+
+  **The seam a later milestone owns is a third state, not a second.** A
+  `has_nested_single_file` ROM falls past the multi-file check into the extension check with
+  an empty `fs_extension`, matches no `<extension>` entry, and is reported as "skipped, format
+  not supported by this system" with the extension shown as `(none)`. For a Switch `.nsp`
+  sitting in a folder that is the wrong sentence, and it is exactly the failure the multi-file
+  state was added to avoid. See [freegosy-findings.md](freegosy-findings.md), F15.
+
+- **A multi-disc set is not a playlist.** Across 445 multi-file ROMs in that sample, **not one
+  carried a `.m3u` member**. Multi-disc titles are several images with the disc number in the
+  member filename and no playlist at all, so whatever builds multi-disc support has to
+  generate the `.m3u` from the member names rather than expect one in the payload. The
+  commonest multi-file shape on that library is not discs at all: it is PS3 `.pkg` plus its
+  `.rap` licence sibling. See finding F16.
+
+  **Generating it is necessary and not sufficient, because `.m3u` support is per emulator.**
+  A real `psx` folder holds three layouts at once: a single disc, three loose discs with no
+  playlist, and a folder containing two discs plus a hand-made `.m3u` whose lines are bare
+  filenames. RetroBat's wiki documents a fourth, the playlist flat beside the discs. **And the
+  extension list cannot tell you which systems can use one**: `ps2` lists `.m3u` in
+  `es_systems.cfg` while RetroBat's own wiki says "PCSX2 does not support m3u usage for
+  multi-disc games" and sends the user to the emulator's quick menu instead. 44 of 243 systems
+  list `.m3u`; how many can consume one is a per-emulator fact the config does not carry. See
+  [freegosy-findings.md](freegosy-findings.md), F18.
+
 - Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
   query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
   answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
@@ -1166,9 +1269,41 @@ and must not be relied on.
 
 The flow per synced platform:
 
+**Live measurement, and it is harsher than the fixture comparison above.** Of the **49**
+md5s RetroBat requires that a real 123-platform library actually holds, `is_verified` flags
+38 and **misses 11**, and **10 arrive under a filename RetroBat does not use**
+(`segacdbios9303.bin` for `bios_cd_u.bin`, `flash.bin` for `dc_flash.bin`, `sega_100.bin` for
+`saturn_bios.bin`, `pcfxbios.bin` for `pcfx.rom`, `bios.col` for `coleco.rom`). Either join
+would have thrown away files the user has and the emulator needs. The other 108 of the 157
+are simply absent, which is the gap step 5 exists to report. See
+[freegosy-findings.md](freegosy-findings.md), F21.
+
 1. Resolve required BIOS from `batocera-systems.json` for that RetroBat system.
-2. List candidates with `GET /api/firmware?platform_id=` and join on `md5_hash`, ignoring
-   both filename and `is_verified`.
+2. Join on `md5_hash`, ignoring both filename and `is_verified`.
+
+   **Read the candidates off `GET /api/platforms`, not one `GET /api/firmware?platform_id=`
+   per platform.** The platform list inlines a complete `firmware[]` array carrying
+   `md5_hash` on every record: measured at 656 records across 79 of 123 platforms, all 656
+   with an md5, in one 424 KB response taking 0.39 s, with `firmware_count` equal to
+   `len(firmware)` on every platform and the same id set as the dedicated call. So a
+   whole-library BIOS gap report is one request rather than 79.
+
+   The per-platform endpoint stays the right call for a certification pass on one platform.
+
+   **One md5 legitimately appears on several platform rows**, 504 of 656 records on the
+   library measured, because a user may file one system under more than one folder and put the
+   firmware under each. So a global md5 join returns several hits per required file: dedupe on
+   md5 and take any one. Multiplicity is not ambiguity and is not a reason to download twice.
+
+   **`psxonpsp660.bin` carries `is_verified: false` on every copy**, while its md5 is exactly
+   what RetroBat requires. It is the sharpest instance of the rule above: filtering on that
+   flag refuses the one file without which no PS1 game runs at all.
+
+   This is an inlined array on a list endpoint, the same family as the `GET /api/collections`
+   trap under core principle 2, but three orders of magnitude smaller: 424 KB for all 123
+   platforms against 715 KB for a **single** collection entry. It is a cost to note, not a
+   trap to avoid. See finding F5.
+
 3. Download matches via `GET /api/firmware/{id}/content/{file_name}` and **write to the
    path the manifest specifies**, renaming as needed. Firmware uses Starlette's
    `FileResponse`, so ranges work but there is no X-Accel path.
@@ -1275,8 +1410,45 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `file_name` from the response, not the one you sent. A 409 means the slot moved since
   the last sync; surface it and retry with `overwrite=true` only after resolution.
   Uploads are capped at 512 MiB.
-- Download: `GET /api/saves/{id}/content?device_id=&session_id=`, then
-  `POST /api/saves/{id}/downloaded` with `{device_id}` so the server records the sync.
+
+  **The name to persist and the name to write on disk are different fields.** A file written
+  under the tagged name is invisible to the emulator, which finds a battery save by matching
+  the rom name, so restoring one writes **`file_name_no_tags` plus `file_extension`** and
+  keeps `file_name` only as the server-side identity. No client-side regex is involved; the
+  server returns the untagged stem already. Freegosy hit this as its issues #42 and #28 and
+  answered it by stripping the tag by hand, which is work the response makes unnecessary.
+  See [freegosy-findings.md](freegosy-findings.md), F6.
+
+  **The 409 body carries nothing to show the user.** Measured at 5.1.1-beta.1 it is a bare
+  string, `{"detail": "Slot has a newer save since your last sync"}`, not the structured
+  `{error, message, save_id, current_save_time, device_sync_time}` other clients document. So
+  surfacing a useful conflict needs a separate fetch of the save row for its timestamp and
+  hash. The trigger is **this device's** sync record being stale for the slot, not the save
+  being newest overall: the device that uploaded the current save may upload again, while a
+  device that never synced it is refused. See finding F12.
+
+  **Decide the retention policy rather than inheriting it.** `autocleanup` defaults to false
+  and `autocleanup_limit` to 10, and a slot grows one row per genuine change forever without
+  them. Measured: `autocleanup=true&autocleanup_limit=2` held a slot at exactly two across
+  three further uploads, keeping the newest. Uploading changed content into a slot **appends**
+  a row unless `overwrite=true`, which replaces in place. This interacts with the `keep_both`
+  conflict default, since `keep_both` under an unbounded slot is how a library becomes
+  unusable. See finding F2.
+
+- Download: `GET /api/saves/{id}/content?device_id=&session_id=`**`&optimistic=false`**, then
+  `POST /api/saves/{id}/downloaded` with `{device_id}` **after the bytes are written and
+  verified**, so the server records the sync only once the device really has the save.
+
+  **`optimistic` defaults to true and that default loses saves on a flaky link.** Measured: a
+  device that had never synced a save went from `is_current: false` to `is_current: true` by
+  issuing the GET and nothing else, while the same request with `optimistic=false` left it
+  false until the ack. A download that dies mid-body therefore leaves the server believing the
+  device is current, the next negotiate answers `no_op` for that slot, and the save never comes
+  down again, silently. This is the same discipline M3 landed for ROM content, where the
+  `.part` file is verified before the rename. **The parameter and the ack have to travel
+  together**; the ack alone is decoration, because by then the record is already written. See
+  finding F1.
+
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
 - **States are not part of the negotiate protocol.** `POST /api/states` takes only
@@ -1369,18 +1541,84 @@ option that `emulatorlauncher` reads at launch:
 M0 read the real option definitions out of `es_features.cfg`. All four exist, and the
 choice lists are wider than the plan assumed:
 
-| Emulator            | Option                    | Choices in `es_features.cfg`                                | Set it to              | Why                                                                      |
-| ------------------- | ------------------------- | ----------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------ |
-| DuckStation (PS1)   | `duckstation_memcardtype` | `PerGameTitle`, `Shared`, **`PerGameFileTitle`**, `PerGame` | **`PerGameFileTitle`** | names the card after the **rom file**, which is what RomMBat matches on  |
-| PCSX2 (PS2)         | `pcsx2_slot1_memory`      | `standard`, `folder`, **`game`**                            | **`game`**             | names the card after the rom basename                                    |
-| Dolphin (GameCube)  | `dolphin_slotA`           | **`8`** (GCI folder), `1` (memory card)                     | **`8`**                | already the stock default                                                |
-| Flycast (Dreamcast) | `flycast_vmupergame`      | switch (`switchauto`, so unset by default)                  | **on**                 | per-game VMU, **port 1 only**, and keyed by **disc serial** not filename |
+| Emulator            | Option                    | Choices in `es_features.cfg`                                | Set it to       | Why                                                                       |
+| ------------------- | ------------------------- | ----------------------------------------------------------- | --------------- | ------------------------------------------------------------------------- |
+| DuckStation (PS1)   | `duckstation_memcardtype` | **`PerGameTitle`**, `Shared`, `PerGameFileTitle`, `PerGame` | **leave unset** | the stock `PerGameTitle` already binds a disc set; changing it breaks one |
+| PCSX2 (PS2)         | `pcsx2_slot1_memory`      | `standard`, `folder`, **`game`**                            | **`game`**      | names the card after the rom basename                                     |
+| Dolphin (GameCube)  | `dolphin_slotA`           | **`8`** (GCI folder), `1` (memory card)                     | **`8`**         | already the stock default                                                 |
+| Flycast (Dreamcast) | `flycast_vmupergame`      | switch (`switchauto`, so unset by default)                  | **on**          | per-game VMU, **port 1 only**, and keyed by **disc serial** not filename  |
 
-**Prefer `PerGameFileTitle` over `PerGameTitle` for DuckStation.** The plan previously
-treated the stock `PerGameTitle` as sufficient. It is not the best choice: `PerGameTitle`
-names the card after DuckStation's _internal database title_, which need not match the rom
-filename, while `PerGameFileTitle` names it after the file. Filename-keyed cards collapse
-class D straight into ordinary class-A attribution; title-keyed cards do not.
+**Do not convert DuckStation. Read the stock `PerGameTitle` layout instead.** An earlier
+revision of this plan preferred `PerGameFileTitle`, reasoning that a card named after the rom
+file collapses class D straight into ordinary class-A attribution while a card named after
+DuckStation's internal database title does not. A real card measured on a real install
+reversed that, because the internal title is doing work the filename cannot.
+
+A two-disc Metal Gear Solid set, launched once through its `.m3u` and played until the game
+saved, produced **one card for the set**, under the stock configuration:
+
+```text
+[MemoryCards]                        saves/psx/duckstation/memcards/
+Card1Type=PerGameTitle                 Metal Gear Solid (USA)_1.mcd    131072 B
+Card2Type=PerGameTitle                 Metal Gear Solid (USA)_2.mcd    131072 B, empty
+UsePlaylistTitle=true
+```
+
+`_1` and `_2` are the two console **slots**, not the two discs. The card stem is the shipped
+`resources/gamedb.yaml` `saveName` with the disc marker removed, which is a third string
+distinct from both of the obvious candidates:
+
+```text
+gamedb name      Metal Gear Solid (Disc 1)          minus the disc marker -> Metal Gear Solid
+gamedb saveName  Metal Gear Solid (USA) (Disc 1)    minus the disc marker -> Metal Gear Solid (USA)   <- the card
+rom / m3u stem   Metal Gear Solid (USA) (Rev 1)
+```
+
+So **regions stay separate and discs collapse together**, and revisions share a card because
+they share a serial. That is the behaviour RomMBat wants. `PerGameFileTitle` would name the
+card from the filename and split a set whose discs are separate files, which is the layout a
+RomM sync produces. The conversion that looked like an improvement is the regression.
+
+The cost of leaving it alone is that PS1 cards need **database-backed attribution** rather than
+filename attribution: the card stem is a `saveName` prefix, not a rom name. RetroBat softens
+this by writing the serial into the save tree unprompted, as a `.txt` beside the save state
+holding exactly `SLUS-00594`, which is the join key that lookup would otherwise have to
+reconstruct.
+
+**The loose layout behaves the same way, which is the case that matters most**, because it is
+what a RomM sync produces. Final Fantasy VII, three discs loose in `roms/psx` with no playlist
+at all, launched as disc 1 alone, produced one card resolving to all three serials:
+
+```text
+duckstation/memcards/Final Fantasy VII (USA)_1.mcd
+   matches a rom or playlist filename : False
+   matches gamedb saveName with the disc marker removed: SCUS-94163, SCUS-94164, SCUS-94165
+```
+
+So the playlist is not what binds a set under DuckStation; the database lookup is, and it works
+from any single disc. The `.m3u` still matters for libretro, which keys its `.srm` on the
+playlist filename, and for emulators that need it to change discs at all.
+
+**Two relationships exist at once, and M6 has to model both.** The same session left
+`duckstation/Final Fantasy VII (USA) (Disc 1)_01.sav`, a save state named from the rom file and
+therefore **per disc**, beside a memory card named from the database and therefore **per set**.
+A `rom_id` that owns one card can own three states, so neither "one save per game" nor "one
+save per file" is a safe assumption.
+
+What stays unmeasured is narrower: the observed rule cannot distinguish "strip the disc marker
+from `saveName`" from "look up the disc set", because both driven sets read
+`Title (Region) (Disc N)` with nothing behind the marker. **130 of the database's 698 disc-set
+stems keep a subtitle behind it** (`Biohazard 2 (Japan) (Disc 1) (Leon-hen)`), where the two
+readings disagree. Do not assume one card per set, nor one set per card: the mapping from a PS1
+card to a `rom_id` is many-to-many.
+
+**PS2 has the same failure and no equivalent escape.** PCSX2 cannot bind discs at all, so
+there is no title-keyed mode to fall back on: `pcsx2_slot1_memory=game` keys on the rom
+basename, and a multi-disc PS2 game loses its save at the disc change where the stock shared
+`Mcd001.ps2` would have carried it. **So the class-D conversion is a per-game decision, not a
+per-system one**, which is exactly what the `<system>["<rom filename>"]` override form is for:
+convert single-disc titles and leave multi-disc sets shared, reporting why. See
+[freegosy-findings.md](freegosy-findings.md), F18.
 
 **Watch out for `dolphin_sync_saves`**, also in `es_features.cfg`: "RetroBat will sync
 dolphin and libretro-dolphin saves folders." That is RetroBat moving save files between two
@@ -1478,9 +1716,11 @@ M0 then drove the option, and the conversion is real but lands one bucket lower 
 The new file is **`T40217N_vmu_save_A1.bin`**, named for the disc's product number rather
 than for `Bangai-O (USA).chd`, and it appears in the same directory as the shared files
 while those go untouched. **So a converted Dreamcast VMU is Game-ID-keyed, exactly like the
-class-C cases**, and it needs the attribution routes immediately below rather than the
-filename match that DuckStation's `PerGameFileTitle` allows. Detecting the conversion is
-easy at least: the shared file stops being written and a serial-prefixed sibling appears.
+class-C cases**, and it needs the attribution routes immediately below rather than a filename
+match. PS1 lands in the same place once DuckStation is left at its stock memory card mode, so
+these routes carry more of the library than an earlier reading of this plan assumed. Detecting
+the conversion is easy at least: the shared file stops being written and a serial-prefixed
+sibling appears.
 
 Whatever remains genuinely shared after all this is reported as "not syncable, here is
 why" rather than silently ignored.
@@ -1499,6 +1739,19 @@ routes, in order of preference:
 2. **Read the ID out of the ROM** (PSP/PS3 `PARAM.SFO`, GameCube/Wii disc header) as a
    fallback for saves that predate any observed launch.
 
+   **Measured, and the fallback is narrower than it sounds.** On a real library, GameCube is
+   **1,792 of 1,793 `.rvz`** and Wii is **148 `.rvz`, 33 `.wad`, zero `.iso` across both**. So
+   the raw disc header at offset `0x00` is correct in principle and never exercised: a reader
+   that handles only `.iso` resolves nothing and would take the literal bytes `RVZ.` for a
+   game code. In an `.rvz` the code sits at **`0x58`**, inside the copy of the disc's opening
+   bytes that the container embeds for identification, confirmed as `GW7P` and `RUUE` on two
+   real images; the format version follows the `RVZ\x01` magic and must be checked, since a
+   later revision moving that field moves the offset. **A `.wad` has no disc header at all**
+   and its title ID lives inside the ticket at an offset that depends on the preceding
+   certificate-chain length, so **17.5% of that Wii library cannot be read by any constant
+   offset**. Reading 256 bytes over a bounded `Range` is enough for all of this and no image
+   need be downloaded. See [freegosy-findings.md](freegosy-findings.md), F17.
+
 **Hash the contents, not the archive.** For bundled class C saves, defining
 `content_hash` as the MD5 of the zip bytes is a trap: archive output is
 implementation-dependent (entry ordering, timestamps, compression level differ between
@@ -1515,6 +1768,25 @@ previous copy aside until the next successful sync.
 - Play sessions: `{rom_id, save_slot, start_time, end_time, duration_ms}`, at most 100 per
   call, `end_time` strictly after `start_time`, microseconds truncated server-side for
   dedup. A long offline binge flushes in chunks; replaying a failed chunk is safe.
+
+  **All three of those are now measured rather than read off the backend, and the payload
+  shape is an envelope.** `POST /api/play-sessions` takes
+  `{device_id, sessions: [...]}` with `device_id` **outside** the entries; a bare array of
+  entries carrying their own `device_id`, which Freegosy sends, answers 422. The response is a
+  per-index result array, `{"results": [{"index", "status", "id"}], "created_count",
+"skipped_count"}`, and a replayed session comes back `"status": "duplicate"` with
+  `skipped_count` incremented, so **a partially-failed flush is reconciled exactly rather than
+  inferred**. 101 entries answer 400 `Batch size exceeds maximum of 100`, and a reversed
+  interval answers 422 `end_time must be after start_time`. `rom_id` is genuinely optional,
+  which is not a licence to send a session without one: an orphan `game-end` is still
+  discarded. See [freegosy-findings.md](freegosy-findings.md), F4.
+
+  **This endpoint stands alone, so playtime need not wait on a save negotiation.** It works
+  with no sync session open, which matters for the agent that wakes on `game-end` with nothing
+  to negotiate: routing playtime only through `POST /api/sync/sessions/{id}/complete` couples
+  two things that the server does not couple. Use `/complete` when a session is already open
+  and the standalone route otherwise.
+
 - Optionally `PUT /api/roms/{id}/props?update_last_played=true`. Note there is no
   `is_favorite` and no `playtime` field on rom props; favourites are collection
   membership, and playtime lives entirely in play sessions.
@@ -1607,49 +1879,57 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 
 ## Risks and how to defuse them
 
-| Risk                                                                                                                            | Mitigation                                                                                                                                                                                          |
-| ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Device offline for days, then floods the server on reconnect                                                                    | Durable outbox, chunked idempotent flush, exponential backoff, honest local mtimes                                                                                                                  |
-| Device clock is wrong, so offline saves lose every conflict                                                                     | Monotonic sequence alongside wall clock; compare against the server `Date` header on reconnect and offer re-stamp                                                                                   |
-| 100k-game library overwhelms the host or the UI                                                                                 | Catalog is never mirrored; content is opt-in via sync sets with hard game/byte budgets and eviction                                                                                                 |
-| `GET /api/collections` returns every membership of every collection                                                             | Never read `rom_ids` from collection payloads; page `GET /api/roms?collection_id=` instead                                                                                                          |
-| Huge `gamelist.xml` makes EmulationStation unusable                                                                             | Only locally present ROMs go in the gamelist; cap per system using the M0 measurement                                                                                                               |
-| ES overwrites `gamelist.xml` on exit and loses synced metadata                                                                  | M0 experiment 3; write only when ES is idle, or via the `update-gamelists` / `quit` hooks                                                                                                           |
-| Save corruption from a bad conflict resolution                                                                                  | Never auto-overwrite on 409; default to keeping both, copy aside before any overwrite                                                                                                               |
-| Eviction deletes a game whose save has not synced yet                                                                           | Eviction is blocked on unflushed outbox entries for that ROM, with a dry-run preview                                                                                                                |
-| ES hook slows or hangs game launch                                                                                              | Hooks are journal-only with a hard time budget from M0; all network work happens in the background agent                                                                                            |
-| Drive letter changes and every stored path breaks                                                                               | Persist only paths relative to the RetroBat root; resolve to absolute at point of use; M0 experiment 7 proves it                                                                                    |
-| Portable install moved to a new PC registers as a second device, or collides with another client                                | Anchor identity on `client_device_identifier` via the pairing flow, which never records MAC/IP/hostname. Never call `POST /api/devices` with fingerprint fields, whose dedup matches on MAC alone   |
-| DPAPI-encrypted token is undecryptable on the next machine                                                                      | Do not use DPAPI. Default portable installs to a scoped, expiring token, offer an optional passphrase, make re-pairing cheap                                                                        |
-| Pairing-only auth strands a user who cannot reach the web UI                                                                    | Accepted trade. The pairing code is short-lived and re-issuing is one button; document that approving needs a browser somewhere on the network                                                      |
-| Token expires mid-session and the outbox is lost                                                                                | 401 is an expected state: keep the database and outbox, return to the pairing screen, resume the flush after re-pair on the same `client_device_identifier`                                         |
-| Approver grants fewer scopes than requested                                                                                     | Read the granted set from `/token` and degrade by feature (pull-only, BIOS off) with a visible explanation, never a late 403                                                                        |
-| Typing the server URL on a gamepad is the one hostile step                                                                      | On-screen keyboard, remembered after first use; mDNS discovery or a pre-seeded config file as a follow-up                                                                                           |
-| FAT32 target silently fails on a ROM larger than 4 GB                                                                           | Detect the filesystem up front; skip or refuse oversized ROMs with an explanation instead of a partial write                                                                                        |
-| Coarse FAT/exFAT mtime granularity causes false or missed conflicts                                                             | Compare on `content_hash` first, use mtime only as an ordering tiebreak                                                                                                                             |
-| Long portable paths exceed MAX_PATH                                                                                             | Long-path-aware APIs and `\\?\` prefixes where needed                                                                                                                                               |
-| Emulator save paths differ per system and RetroBat version                                                                      | Data-driven `save_directories.json`, user-overridable, with a clear "unmapped system" state                                                                                                         |
-| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, restore atomically via temp-dir-and-swap                                                                                                   |
-| Shared memory cards cannot be attributed to a `rom_id`                                                                          | Convert to per-game cards via the RetroBat option (`pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`) written to `es_settings.cfg`; PS1 and GameCube are already per-game by default |
-| Writing emulator INIs directly gets clobbered every launch                                                                      | `emulatorlauncher` regenerates them from options at launch; write `es_settings.cfg` instead, using its `<system>["<rom>"]` per-game form                                                            |
-| `es_settings.cfg` is rewritten by ES on exit, like `gamelist.xml`                                                               | Merge rather than clobber, write while ES is idle, write atomically                                                                                                                                 |
-| Switching a user to per-game cards strands their existing saves                                                                 | Opt-in and reversible, with either a migration path out of the old container or an explicit warning before the switch; note that per-game cards also break legitimate cross-game save reads         |
-| Directory saves are keyed by Game ID and RomM stores no serial or title ID                                                      | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers                                                                  |
-| Hashing zip bytes makes RomMBat and Grout disagree on identical saves                                                           | Define `content_hash` over sorted relative paths plus per-file hashes; the archive is transport only                                                                                                |
-| A save state restored across an emulator update corrupts or crashes                                                             | Record emulator, core and version per state; never silently restore across a version change (RetroBat's own wiki warns about this)                                                                  |
-| Platform nomenclature diverges: 37% of RetroBat systems unmapped, 19 shipped entries stale, 13 slugs fan out to several folders | Layered resolution (override → `fs_slug` → bundled table → normalized suggestion → unmapped), a first-class mapping UI, and `es_systems.cfg` read from the live install                             |
-| Two RomM platforms resolve to one folder and clobber each other                                                                 | Key gamelist generation and the local file index by resolved folder, not by platform; merge entries                                                                                                 |
-| Arcade fans out to ten folders with romset-specific naming                                                                      | No guessing: require an explicit folder choice per arcade sync set in v1                                                                                                                            |
-| Bundled mapping table goes stale as both projects add systems                                                                   | Table is a seed, not an authority; user overrides persist in `Device.sync_config`; unmapped is a normal state, not an error                                                                         |
-| RetroBat changes its folder layout between releases                                                                             | Pin a tested-versions table; detect the version and refuse to write when the layout is unrecognised                                                                                                 |
-| Socket.IO looks tempting for live updates                                                                                       | Not usable: the socket authenticates from the `romm_session` cookie only, and `sync:*` events go to a `user:{id}` room nothing ever joins. Poll REST                                                |
-| Published RomM docs disagree with the server                                                                                    | Generate from `/openapi.json` at a pinned RomM version; gate features on `GET /api/heartbeat`                                                                                                       |
-| Syncing a file the target emulator cannot launch: a game that appears in ES and dies                                            | Filter every candidate against the resolved system's `<extension>` list from the live `es_systems.cfg`, and show what was excluded and why                                                          |
-| RomM's `is_verified` misses 94 of RetroBat's 157 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                              |
-| Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                   |
-| Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                            |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2, RomM 5.1.0), check both at startup, refuse below and warn above                                                                                             |
-| Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                  |
+| Risk                                                                                                                            | Mitigation                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Device offline for days, then floods the server on reconnect                                                                    | Durable outbox, chunked idempotent flush, exponential backoff, honest local mtimes                                                                                                                                                                                     |
+| Device clock is wrong, so offline saves lose every conflict                                                                     | Monotonic sequence alongside wall clock; compare against the server `Date` header on reconnect and offer re-stamp                                                                                                                                                      |
+| 100k-game library overwhelms the host or the UI                                                                                 | Catalog is never mirrored; content is opt-in via sync sets with hard game/byte budgets and eviction                                                                                                                                                                    |
+| `GET /api/collections` returns every membership of every collection                                                             | Never read `rom_ids` from collection payloads; page `GET /api/roms?collection_id=` instead                                                                                                                                                                             |
+| Huge `gamelist.xml` makes EmulationStation unusable                                                                             | Only locally present ROMs go in the gamelist; cap per system using the M0 measurement                                                                                                                                                                                  |
+| ES overwrites `gamelist.xml` on exit and loses synced metadata                                                                  | M0 experiment 3; write only when ES is idle, or via the `update-gamelists` / `quit` hooks                                                                                                                                                                              |
+| Save corruption from a bad conflict resolution                                                                                  | Never auto-overwrite on 409; default to keeping both, copy aside before any overwrite                                                                                                                                                                                  |
+| A save download dies mid-body and the server records the device as current, so the save never comes down again                  | Pass `optimistic=false` on `GET /api/saves/{id}/content` and send `POST /api/saves/{id}/downloaded` only after the bytes are written and verified. The default is `true` and records on request                                                                        |
+| A restored save is written under the server's tagged filename and the emulator never finds it                                   | Write `file_name_no_tags` + `file_extension`; keep `file_name` only as the server-side identity                                                                                                                                                                        |
+| A save slot grows one row per session until the user's RomM is unusable                                                         | `autocleanup=true` with an explicit `autocleanup_limit`; the defaults are off and 10, and `keep_both` conflicts compound it                                                                                                                                            |
+| A misspelt `/api/roms` filter silently resolves the whole library instead of one platform                                       | Unknown parameters are ignored with a 200, so assert at resolve time that a scoped walk's `total` is below the library total                                                                                                                                           |
+| Eviction deletes a game whose save has not synced yet                                                                           | Eviction is blocked on unflushed outbox entries for that ROM, with a dry-run preview                                                                                                                                                                                   |
+| ES hook slows or hangs game launch                                                                                              | Hooks are journal-only with a hard time budget from M0; all network work happens in the background agent                                                                                                                                                               |
+| Drive letter changes and every stored path breaks                                                                               | Persist only paths relative to the RetroBat root; resolve to absolute at point of use; M0 experiment 7 proves it                                                                                                                                                       |
+| Portable install moved to a new PC registers as a second device, or collides with another client                                | Anchor identity on `client_device_identifier` via the pairing flow, which never records MAC/IP/hostname. Never call `POST /api/devices` with fingerprint fields, whose dedup matches on MAC alone                                                                      |
+| DPAPI-encrypted token is undecryptable on the next machine                                                                      | Do not use DPAPI. Default portable installs to a scoped, expiring token, offer an optional passphrase, make re-pairing cheap                                                                                                                                           |
+| Pairing-only auth strands a user who cannot reach the web UI                                                                    | Accepted trade. The pairing code is short-lived and re-issuing is one button; document that approving needs a browser somewhere on the network                                                                                                                         |
+| Token expires mid-session and the outbox is lost                                                                                | 401 is an expected state: keep the database and outbox, return to the pairing screen, resume the flush after re-pair on the same `client_device_identifier`                                                                                                            |
+| Approver grants fewer scopes than requested                                                                                     | Read the granted set from `/token` and degrade by feature (pull-only, BIOS off) with a visible explanation, never a late 403                                                                                                                                           |
+| Typing the server URL on a gamepad is the one hostile step                                                                      | On-screen keyboard, remembered after first use; mDNS discovery or a pre-seeded config file as a follow-up                                                                                                                                                              |
+| FAT32 target silently fails on a ROM larger than 4 GB                                                                           | Detect the filesystem up front; skip or refuse oversized ROMs with an explanation instead of a partial write                                                                                                                                                           |
+| Coarse FAT/exFAT mtime granularity causes false or missed conflicts                                                             | Compare on `content_hash` first, use mtime only as an ordering tiebreak                                                                                                                                                                                                |
+| Long portable paths exceed MAX_PATH                                                                                             | Long-path-aware APIs and `\\?\` prefixes where needed                                                                                                                                                                                                                  |
+| Emulator save paths differ per system and RetroBat version                                                                      | Data-driven `save_directories.json`, user-overridable, with a clear "unmapped system" state                                                                                                                                                                            |
+| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, restore atomically via temp-dir-and-swap                                                                                                                                                                      |
+| Shared memory cards cannot be attributed to a `rom_id`                                                                          | Convert to per-game cards via the RetroBat option (`pcsx2_slot1_memory`, `dolphin_slotA`) written to `es_settings.cfg`; PS1 and GameCube are already per-game by default, and PS1 must be left alone rather than converted                                             |
+| Converting a per-game memory card splits a multi-disc set and loses the save at the disc change                                 | Decide the conversion per game, not per system, using the `<system>["<rom>"]` form; never convert a set with several disc files, and leave DuckStation at stock `PerGameTitle`, which binds a set through its own database                                             |
+| RetroArch writes an absolute image path into the save tree (`<playlist>.ldci`), which does not survive a drive-letter change    | Exclude it from the sync set, or rewrite `image_path` on restore; never round-trip it verbatim. Its `image_index` is worth keeping, so exclusion is a real cost, not a free win                                                                                        |
+| An emulator-created empty memory card is the same size as a real one and uploads as if it were progress                         | Change detection cannot use size or existence; hash content, and treat a card whose byte histogram is that of a freshly formatted one as absent. How many cards appear is a property of the game, not the emulator: one title produced both slots, another only slot 1 |
+| One PS1 game yields a card per disc set and a save state per disc, so a `rom_id` maps to saves many-to-many                     | Model the card and the state as separately keyed; never assume one save per game or one save per file, and never infer a set's membership from a card name alone                                                                                                       |
+| Writing emulator INIs directly gets clobbered every launch                                                                      | `emulatorlauncher` regenerates them from options at launch; write `es_settings.cfg` instead, using its `<system>["<rom>"]` per-game form                                                                                                                               |
+| `es_settings.cfg` is rewritten by ES on exit, like `gamelist.xml`                                                               | Merge rather than clobber, write while ES is idle, write atomically                                                                                                                                                                                                    |
+| Switching a user to per-game cards strands their existing saves                                                                 | Opt-in and reversible, with either a migration path out of the old container or an explicit warning before the switch; note that per-game cards also break legitimate cross-game save reads                                                                            |
+| Directory saves are keyed by Game ID and RomM stores no serial or title ID                                                      | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers                                                                                                                                     |
+| Hashing zip bytes makes RomMBat and Grout disagree on identical saves                                                           | Define `content_hash` over sorted relative paths plus per-file hashes; the archive is transport only                                                                                                                                                                   |
+| A save state restored across an emulator update corrupts or crashes                                                             | Record emulator, core and version per state; never silently restore across a version change (RetroBat's own wiki warns about this)                                                                                                                                     |
+| Platform nomenclature diverges: 37% of RetroBat systems unmapped, 19 shipped entries stale, 13 slugs fan out to several folders | Layered resolution (override → `fs_slug` → bundled table → normalized suggestion → unmapped), a first-class mapping UI, and `es_systems.cfg` read from the live install                                                                                                |
+| Two RomM platforms resolve to one folder and clobber each other                                                                 | Key gamelist generation and the local file index by resolved folder, not by platform; merge entries                                                                                                                                                                    |
+| Arcade fans out to ten folders with romset-specific naming                                                                      | No guessing: require an explicit folder choice per arcade sync set in v1                                                                                                                                                                                               |
+| Bundled mapping table goes stale as both projects add systems                                                                   | Table is a seed, not an authority; user overrides persist in `Device.sync_config`; unmapped is a normal state, not an error                                                                                                                                            |
+| RetroBat changes its folder layout between releases                                                                             | Pin a tested-versions table; detect the version and refuse to write when the layout is unrecognised                                                                                                                                                                    |
+| Socket.IO looks tempting for live updates                                                                                       | Not usable: the socket authenticates from the `romm_session` cookie only, and `sync:*` events go to a `user:{id}` room nothing ever joins. Poll REST                                                                                                                   |
+| Published RomM docs disagree with the server                                                                                    | Generate from `/openapi.json` at a pinned RomM version; gate features on `GET /api/heartbeat`                                                                                                                                                                          |
+| Syncing a file the target emulator cannot launch: a game that appears in ES and dies                                            | Filter every candidate against the resolved system's `<extension>` list from the live `es_systems.cfg`, and show what was excluded and why                                                                                                                             |
+| RomM's `is_verified` misses 94 of RetroBat's 157 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                 |
+| Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                      |
+| Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                               |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2, RomM 5.1.0), check both at startup, refuse below and warn above                                                                                                                                                                |
+| Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                     |
 
 ---
 

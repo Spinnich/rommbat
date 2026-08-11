@@ -72,28 +72,73 @@ a different version. RetroBat's own wiki warns that states break across emulator
 ## Class D is a configuration problem
 
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
-defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder). Only PCSX2 defaults to
-a shared card, and `pcsx2_slot1_memory=game` names the card after the ROM basename, which
-makes attribution trivial.
+defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
+that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
+after the ROM basename, which makes attribution trivial on a single-disc title.
 
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
 
+**Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
+driven under stock `PerGameTitle` produced **one card for the set**:
+`memcards/Metal Gear Solid (USA)_1.mcd` and `_2.mcd`, where the suffix is the console **slot**
+and `_2` is an empty formatted card. The stem is `gamedb.yaml`'s `saveName` with the disc
+marker removed, so it carries the region (`(USA)`) but not the disc and not the rom's
+`(Rev 1)`. DuckStation binds a disc set through its own database, which is exactly what
+`PerGameFileTitle` would throw away by keying on three separate filenames.
+
+**The playlist is not what binds the set; the database is.** Final Fantasy VII, three discs
+loose with no `.m3u` and launched as disc 1 alone, produced one `Final Fantasy VII (USA)_1.mcd`
+resolving to all three serials. That is the layout a RomM sync creates, so stock is safe on it.
+
+**But the card and the state are keyed differently, in the same session.** The card is per disc
+**set**; the save state is `Final Fantasy VII (USA) (Disc 1)_01.sav`, named from the rom file
+and therefore per **disc**. A `rom_id` can own one card and three states, so never assume one
+save per game or one save per file. The mapping is many-to-many: 130 of the database's 698
+disc-set stems keep a subtitle behind the disc marker
+(`Biohazard 2 (Japan) (Disc 1) (Leon-hen)`), where set membership is not recoverable from the
+card name.
+
+The price of leaving it stock is that PS1 cards need Game-ID attribution rather than filename
+attribution. RetroBat pays part of it already: a `.txt` beside the DuckStation save state holds
+the bare serial (`SLUS-00594`, `SCUS-94163`).
+
+PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all. So conversion
+is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
+leave sets alone, and say why.
+
 Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
 switching strands existing saves inside the old container unless migrated; and per-game
 cards break games that legitimately read a prequel's save.
 
-**Never use mtime to decide whether a class-D container changed.** Launching a PS2 game
+**Never use mtime to decide whether a save changed, in any class.** Launching a PS2 game
 rewrote both `Mcd001.ps2` and `Mcd002.ps2` with no in-game save at all, and a Dreamcast launch
 rewrites the shared VMU the same way, so a mtime check uploads the container after every
 session. Hash the content.
 
+**Class A does it too, and no size floor catches it.** A Master System cart booted to its
+title screen under libretro `genesis_plus_gx`, with no save key pressed and no progress made,
+wrote an 8,188-byte `.srm` whose contents are the cart formatting its own backup RAM. 35
+distinct byte values, legible ASCII: a minimum-upload-size check passes it and a blankness
+check passes it. `autosave_interval = "10"` means it lands within seconds of boot, so waiting
+for a clean exit protects nothing either. **The first save seen for a ROM with no local
+baseline is not evidence that anything was played**, so it must not win a conflict on recency
+alone.
+
 **Dreamcast converts, but not into class A.** With `flycast_vmupergame=1` the new file is
 `vmu/T40217N_vmu_save_A1.bin`, named for the **disc serial**, while the shared
 `vmu_save_A1.bin` stops being written and both live in one directory. The rom filename appears
-nowhere, so this is Game-ID attribution like class C, not the filename match DuckStation's
-`PerGameFileTitle` gives. Only port 1 converts.
+nowhere, so this is Game-ID attribution like class C. Only port 1 converts. PS1 lands in the
+same place under its stock memory card mode, so identifier-keyed attribution is the normal case
+for disc systems, not an exception two of them make.
+
+**A save state is not always one file, and a save tree is not always portable.** A libretro
+state comes with a real `.state1.png` screenshot beside it, which bundling has to keep
+together. A multi-disc launch also leaves `saves/<system>/<playlist stem>.ldci`, RetroArch's
+record of which disc was in the drive, and its `image_path` is an **absolute path with a drive
+letter**. Syncing that verbatim restores a dangling pointer on any install at a different root,
+so exclude it or rewrite it on restore.
 
 ## Attribution
 
@@ -132,7 +177,45 @@ hash, folded into one digest. The archive is transport only.
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
-- Persist the `file_name` the server returns, not the one you sent.
+  **The body is a bare string** with no save id and no timestamps, so fetch the save row if
+  you want to show the user what they are conflicting with. It fires when **this device's**
+  sync record is stale, not when the save is newest overall.
+- Persist the `file_name` the server returns, not the one you sent. **Write a different name
+  to disk**: `file_name_no_tags` + `file_extension`. A file called
+  `Game [2026-08-10_22-58-26].srm` is invisible to the emulator, which matches on the rom
+  name. The server returns the untagged stem, so no client-side regex is needed.
+- **Download with `optimistic=false`, then ack.** The parameter defaults to true and records
+  the device as current on the request rather than on receipt, so a transfer that dies
+  mid-body leaves the server sure the device has a save it does not, and the next negotiate
+  answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
+  and verified. Same discipline as M3's `.part`: verify, then commit.
+- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10.
+  Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
+  default compounds it.
 - Restores are atomic: extract to a temp directory beside the target, verify, swap, keep
   the previous copy until the next successful sync.
 - Never evict a ROM whose saves are still in the outbox.
+
+## `device_id` is bookkeeping, never a filter
+
+Both devices see the same save rows; nothing is isolated per device. What is per device is
+the sync record, exposed as `device_syncs` on a save, and **that array is empty unless the
+request carries `device_id`**. Empty therefore reads exactly like "nobody has ever synced
+this", which is why it must not be read that way. With `device_id` set it lists every device
+that has a record, the queried one first, and a device that has never synced is **absent**
+rather than `is_current: false`. Treat a missing entry as the strongest reason to pull.
+`origin_device_id` names the uploader, which is how a device recognises its own save
+returning.
+
+## Determinism is what makes replay safe
+
+Identical content uploaded twice into one slot reuses the same row, which is what makes a
+replayed flush idempotent. That only holds if the bytes are identical, so a bundled class-C
+save must produce a **byte-identical archive** for unchanged contents. Freegosy writes a
+timestamp file into every bundle specifically to defeat this dedup, and pays for it with a
+new server row on every sync of an unchanged save. Hash the logical contents, and keep the
+archive deterministic.
+
+Play sessions replay safely too, and say so: `POST /api/play-sessions` returns a per-index
+result array and marks a repeat `"status": "duplicate"`, so a partial flush is reconciled
+exactly rather than inferred. It needs no open sync session.

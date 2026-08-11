@@ -41,11 +41,20 @@ CONFIRMED_SHAPES = {
     "gbc": ("A", "loose .srm per rom, libretro"),
     "gba": ("A", "loose .srm per rom, libretro"),
     "megadrive": ("A", "loose .srm per rom, libretro"),
+    # Both driven under libretro genesis_plus_gx with no save key ever pressed, so the file
+    # that appeared was written by the emulator alone. RetroArch names the destination in
+    # its own log ("Redirecting save file to saves/<system>/<rom>.srm") even on a run that
+    # writes nothing, which is what classifies gamegear despite its cart staying untouched.
+    "mastersystem": ("A", "loose .srm per rom, libretro genesis_plus_gx; written at boot before any player save"),
+    "gamegear": ("A", "loose .srm per rom, libretro genesis_plus_gx; path declared by the emulator, cart untouched in the run"),
     "n64": ("A", "loose .srm per rom, libretro"),
     "pcengine": ("A", "loose .srm per rom, libretro"),
     "pcenginecd": ("A", "loose .srm per rom, libretro"),
     "sega32x": ("A", "loose .srm per rom, libretro"),
-    "psx": ("A", "loose .srm when libretro is selected; DuckStation instead writes memcards, see shape_depends_on_emulator"),
+    # Driven under both emulators with the same two-disc set. libretro names the .srm from the
+    # .m3u stem; DuckStation names the card from its gamedb saveName with the disc marker
+    # removed, and writes one per console slot rather than one per disc.
+    "psx": ("A", "loose .srm when libretro is selected; DuckStation instead writes memcards/<saveName minus disc>_<slot>.mcd, see shape_depends_on_emulator"),
     "saturn": ("B", ".bcr and .bkr both written per rom"),
     "megacd": ("BD", "per-rom .brm and .srm, plus a shared 4Mbit_cart.brm RAM cart"),
     "mame": ("C", "nvram/<shortname>/ where shortname is the rom basename, so attribution is by filename"),
@@ -60,8 +69,18 @@ CONFIRMED_SHAPES = {
 
 # Per-game conversion levers, read out of es_features.cfg on a real install.
 CONVERSIONS = {
-    "psx": {"option": "duckstation_memcardtype", "set_to": "PerGameFileTitle",
-            "keys_by": "rom filename", "note": "PerGameTitle keys by DuckStation's internal title, which need not match the file"},
+    # The one lever here that should not be pulled. Measured on a driven two-disc set: stock
+    # PerGameTitle produced a single card for the set, so converting to a filename-keyed mode
+    # splits it and the save disappears at the disc change.
+    "psx": {"option": "duckstation_memcardtype", "set_to": None, "apply": False,
+            "keys_by": "gamedb saveName with the disc marker removed, not the rom filename",
+            "note": "Stock PerGameTitle binds a multi-disc set through DuckStation's own database, "
+                    "with or without a .m3u: a foldered two-disc set and a loose three-disc set each "
+                    "produced one card, named '<saveName minus disc>_<slot>.mcd'. The slot suffix is not "
+                    "a disc number and how many slots appear depends on the game. "
+                    "Regions stay separate because saveName carries them; revisions share a serial and a card. "
+                    "Save states are keyed on the rom file instead, so they are per disc while the card is "
+                    "per set. Not measured: the 130 stems keeping a subtitle behind the disc marker"},
     "ps2": {"option": "pcsx2_slot1_memory", "set_to": "game", "keys_by": "rom basename"},
     "gamecube": {"option": "dolphin_slotA", "set_to": "8", "keys_by": "game code",
                  "note": "already the stock default; still needs attribution because .gci names carry the game code, not the filename"},

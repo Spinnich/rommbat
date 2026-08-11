@@ -9,9 +9,9 @@
 
     global.<key>  ->  <system>.<key>  ->  <system>["<rom filename>"].<key>
 
-  Everything downstream of that (PCSX2 per-game cards, DuckStation PerGameFileTitle,
-  Flycast per-game VMU) assumes the last form works and stays written. Neither had been
-  measured, so this probe measures both.
+  Everything downstream of that (PCSX2 per-game cards, Flycast per-game VMU, and per-game
+  decisions about whether to convert at all) assumes the last form works and stays written.
+  Neither had been measured, so this probe measures both.
 
   Part 1, launcher precedence. Five launches driven straight at emulatorLauncher.exe, which
   is the process that reads es_settings.cfg and applies the precedence. `smooth` is used as
