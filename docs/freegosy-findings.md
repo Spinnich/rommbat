@@ -931,6 +931,40 @@ where the stock shared `Mcd001.ps2` would have carried it through. The conversio
 for single-disc titles and wrong for multi-disc ones, so it cannot be a per-system decision;
 it has to be per game, which the `<system>["<rom>"]` override form already allows.
 
+**Revisions share a card; regions may or may not, and which is true decides whether
+attribution works at all.** DuckStation's database carries two naming fields, and they behave
+differently. For the eight Metal Gear Solid disc-1 releases in it:
+
+```text
+serial          name                                saveName
+SLUS-00594      Metal Gear Solid (Disc 1)           Metal Gear Solid (USA) (Disc 1)
+SLES-01370      Metal Gear Solid (Disc 1)           Metal Gear Solid (Europe) (Disc 1)
+SLES-01506      Metal Gear Solid (Disc 1)           Metal Gear Solid (France) (Disc 1)
+SLES-01507      Metal Gear Solid (Disc 1)           Metal Gear Solid (Germany) (Disc 1)
+SLES-01508      Metal Gear Solid (Disc 1)           Metal Gear Solid (Italy) (Disc 1)
+SLES-01734      Metal Gear Solid (Disc 1)           Metal Gear Solid (Spain) (Disc 1)
+SLPM-86114      Metal Gear Solid (Disc 1) (Ichi)    Metal Gear Solid (Japan) (Disc 1) (Ichi)
+```
+
+**`name` collapses six releases onto one string. `saveName` separates all of them.** Across
+the whole database `saveName` is very nearly a key: 10,081 entries, 10,074 distinct values,
+7 collisions and all of them demo or duplicate-serial oddities.
+
+So which field the card is named from decides the attribution story:
+
+- keyed on **`name`**, a user holding the USA and five European releases gets **one shared
+  card**, a French save and an American save land in it together, and no card can be
+  attributed to a single `rom_id`
+- keyed on **`saveName`**, each regional release gets its own card and attribution is very
+  nearly one-to-one
+
+**Revisions behave well under both.** `Metal Gear Solid (USA) (Rev 1)` carries serial
+`SLUS-00594`, the same as the base USA release, so it is one database entry and one card
+either way. That is the behaviour a user wants: a revision inherits its saves.
+
+**And the multi-disc split holds whichever field is used**, because both carry the disc
+number. The finding above does not depend on resolving this.
+
 **Not measured.** No memory card was produced. DuckStation creates one only when the game
 writes to it, unlike PCSX2, which M0 measured rewriting both cards at launch: Spyro ran 59
 seconds (`playtime.dat` records `SCUS-94228` and the duration) and

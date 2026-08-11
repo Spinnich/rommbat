@@ -39,6 +39,11 @@ param(
     [string] $MemcardType = '',
     [int] $BootSeconds = 60,
     [int] $SettleSeconds = 8,
+    # Hand the emulator to a person instead of a timer: launch, then wait for them to play,
+    # save in-game and quit. DuckStation writes a memory card only when the game asks it to,
+    # unlike PCSX2, so an unattended run measures nothing.
+    [switch] $Interactive,
+    [int] $InteractiveTimeoutMinutes = 30,
     [switch] $KeepArtifacts
 )
 
@@ -103,6 +108,26 @@ try {
     Write-Host "  launching: emulatorLauncher $($argList -join ' ')"
     $proc = Start-Process -FilePath $launcher -WorkingDirectory $launcherDir -ArgumentList $argList -PassThru
 
+    if ($Interactive) {
+        Write-Host ''
+        Write-Host '  INTERACTIVE. Play the game, save in-game, then quit the emulator.' -ForegroundColor Yellow
+        Write-Host '  This script is waiting for DuckStation to exit and will not close it.' -ForegroundColor Yellow
+        Write-Host ''
+        $limit = (Get-Date).AddMinutes($InteractiveTimeoutMinutes)
+        $seen = $false
+        while ((Get-Date) -lt $limit) {
+            $live = Get-Process -Name 'duckstation*' -ErrorAction SilentlyContinue
+            if ($live) { $seen = $true }
+            elseif ($seen) { break }
+            Start-Sleep -Seconds 2
+        }
+        $cleanExit = $seen -and -not (Get-Process -Name 'duckstation*' -ErrorAction SilentlyContinue)
+        if (-not $seen) { Write-Host '  never saw a duckstation process; did it launch?' -ForegroundColor Yellow }
+        Write-Host '  emulator has exited'
+        Start-Sleep -Seconds $SettleSeconds
+    }
+    else {
+
     Write-Host "  waiting ${BootSeconds}s"
     Start-Sleep -Seconds $BootSeconds
 
@@ -125,6 +150,7 @@ try {
         Get-Process -Name 'duckstation*' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     }
     Start-Sleep -Seconds $SettleSeconds
+    }
 
     $after = Get-Tree
     Write-Host ''
@@ -160,8 +186,11 @@ try {
     }
 }
 finally {
-    if ($proc) { Get-Process -Id $proc.Id -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
-    Get-Process -Name 'duckstation*' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    # In interactive mode the person owns the emulator's lifetime, so never kill it here.
+    if (-not $Interactive) {
+        if ($proc) { Get-Process -Id $proc.Id -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue }
+        Get-Process -Name 'duckstation*' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
     if (Test-Path $esBackup) { Move-Item $esBackup $esCfg -Force }
     if (-not $KeepArtifacts -and $created) {
         Write-Host ''
