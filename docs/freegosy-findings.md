@@ -22,8 +22,8 @@ The instance host is redacted throughout, per the repo rules.
 
 ## The honest total
 
-35 candidates read, 13 dropped at triage, 22 probed. Of those: **14 confirmed, 5 rejected,
-1 corrected, 2 left open.** Four further traps turned up while running the
+35 candidates read, 13 dropped at triage, 22 probed. Of those: **15 confirmed, 5 rejected,
+2 corrected, 1 left open.** Five further traps turned up while running the
 probes and none of them was on the list.
 
 **The one that would have cost real data** is F1: `GET /api/saves/{id}/content` marks the
@@ -32,9 +32,17 @@ handheld that drops Wi-Fi mid-download, the server then believes the device hold
 does not, and every later negotiate answers `no_op`. Freegosy passes `optimistic=true`
 explicitly, so it did not find this; the parameter simply led us to look.
 
-**The one that corrects something already written down as measured** is F15: `docs/PLAN.md`
-finding 83 claimed multi-file and an empty `fs_extension` were equivalent both ways. Only one
-direction holds. The code never relied on the wrong half.
+**Two corrections to things already written down as measured.** F15: `docs/PLAN.md` finding
+83 claimed multi-file and an empty `fs_extension` were equivalent both ways, and only one
+direction holds; the code never relied on the wrong half. F18: `<extension>` turns out to be
+the authority on what EmulationStation **offers**, not on what the emulator can **play**, so
+passing the extension filter is not evidence a file will launch. `ps2` lists `.m3u` and PCSX2
+cannot use one.
+
+**The one that reverses a recommendation** is also F18. The plan tells DuckStation to use
+`PerGameFileTitle` so a memory card is named after the rom file. On a multi-disc set every
+per-game mode gives each disc its own card, so that setting loses the save at the disc
+change, and `Shared` is the only mode that carries it.
 
 **Freegosy itself was wrong about four things** at 5.1.x, which is the whole argument for the
 bar this session was held to: its play-session payload is a 422, its documented 409 body does
@@ -103,7 +111,7 @@ this repository again in six months and re-walks the same dead ends.
 | F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**  |
 | F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**   |
 | F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed**  |
-| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **open**             |
+| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **probe, corrected** |
 | F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **probe, confirmed** |
 | F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **probe, refuted**   |
 | F21 | Freegosy carries 34 hand-curated BIOS md5s from libretro's docs that our `batocera-systems.json` join may miss                  | M5 gap reporting                                | Any of them is an alternative dump of a file RetroBat requires                         | Set-difference against the 157 md5s in `reference/batocera-systems.json`                  | **rejected**         |
@@ -136,6 +144,45 @@ Nothing here got a probe, because nothing in RomMBat changes if it is true.
 Nothing below is a fact until it carries a route and a quotation. Re-run any of it with the
 scripts in `tools/freegosy-probes/`, which read the server and token from the environment and
 never print the host.
+
+### F5b: firmware lives on the `-unofficial` twin, so a per-platform lookup can miss it entirely. **Confirmed, live**
+
+Fetching the PS1 BIOS by hand, as an M5 rehearsal, turned the F5 amendment from an
+optimisation into a correctness fix. `f5b-bios-fetch-by-md5.py` reads the requirement out of
+`reference/batocera-systems.json`, joins on md5 alone, verifies what arrives and writes it to
+the manifest's path:
+
+```text
+  system   psx
+  md5      c53ca5908936d412331790f4426c6c33
+  destination  bios/psxonpsp660.bin
+  records whose md5_hash matches: 2
+  found on platform fs_slug='psx-unofficial'
+  served file_name : 'psxonpsp660.bin'
+  is_verified      : False  (deliberately ignored)
+  md5 of what arrived: c53ca5908936d412331790f4426c6c33  matches: True
+```
+
+Two things there matter more than the download.
+
+**`is_verified` is `False` on the exact file the emulator needs to boot.** Both copies of it
+carry `is_verified: False` while the md5 is precisely what RetroBat requires. This is the
+sharpest possible instance of the rule: filtering on that flag would have refused the one
+BIOS needed to run any PS1 game.
+
+**The file is filed under `psx-unofficial`, not `psx`.** Both platforms exist, both carry
+`slug` `psx`, and they hold 1,803 and 9,500 ROMs respectively. Across the library:
+
+```text
+firmware records by platform kind: {'official': 418, 'unofficial': 238}
+platforms ending -unofficial that carry firmware: 30
+```
+
+**36% of firmware sits on `-unofficial` twins**, spread over 30 platforms. So
+`GET /api/firmware?platform_id=<the platform the ROMs came from>`, which is what the plan's
+M5 step 2 originally said, can return nothing while the file sits one row away. Reading the
+inlined `firmware[]` off `GET /api/platforms` and joining globally on md5 is therefore not
+merely cheaper than 79 requests, it is the only version that finds everything.
 
 ### F5: `GET /api/platforms` inlines every firmware record, with its md5. **Confirmed, live**
 
@@ -784,6 +831,92 @@ Identical outcomes. The 400 seen earlier (`device_id is required (either in the 
 payload or implicit via a device-bound client token)`) is specific to a token with no device
 behind it. RomMBat's token comes from pairing, so it may omit the field; sending it anyway is
 harmless and more explicit, which is what the plan already does.
+
+### F18: multi-disc is per emulator, and every per-game memory card mode splits a set. **Confirmed, probe. It corrects this document's own F16 reading**
+
+F16 concluded that a later milestone "has to build the `.m3u` itself, from the member names".
+That is true and it is not nearly enough. Three things had to be measured before the shape of
+the problem was visible, and a real `psx` folder holds three different layouts at once:
+
+```text
+roms/psx/
+  Spyro the Dragon (USA).chd                        single disc
+  Final Fantasy VII (USA) (Disc 1|2|3).chd          three loose discs, no playlist
+  Metal Gear Solid (USA) (Rev 1)/                   a folder holding
+    Metal Gear Solid (USA) (Disc 1) (Rev 1).chd
+    Metal Gear Solid (USA) (Disc 2) (Rev 1).chd
+    Metal Gear Solid (USA) (Rev 1).m3u              two bare filenames, one per line
+```
+
+RetroBat's wiki documents a fourth, the `.m3u` flat in `roms/psx/` beside the discs. So the
+playlist may or may not exist, and may or may not sit in a folder with its discs.
+
+**Every per-game memory card mode gives each disc its own card.** DuckStation ships a
+readable database at `emulators/duckstation/resources/gamedb.yaml`, and it is the string
+`PerGameTitle` keys on:
+
+```text
+SCUS-94163  name = 'Final Fantasy VII (Disc 1)'
+SCUS-94164  name = 'Final Fantasy VII (Disc 2)'
+SCUS-94165  name = 'Final Fantasy VII (Disc 3)'
+SLUS-00594  name = 'Metal Gear Solid (Disc 1)'
+SLUS-00776  name = 'Metal Gear Solid (Disc 2)'
+```
+
+The disc number is **in the title**, so `PerGameTitle` splits the set. `PerGame` keys on the
+serial, which differs per disc, so it splits it too. `PerGameFileTitle`, which
+`docs/PLAN.md` recommends precisely because it keys on the rom file, splits it hardest of
+all. **Only `Shared` keeps one card across a set**, and that is the mode the plan is trying
+to move away from. Saving at the end of FF7 disc 1 and swapping to disc 2 finds an empty card
+under all three per-game modes.
+
+**And `.m3u` support cannot be inferred from the extension list.** This is the trap, and it
+caught this probe before it caught anyone else. `f18b-m3u-support-census.py` over the live
+`es_systems.cfg`:
+
+```text
+systems declaring a <path>: 243
+  list .m3u in <extension>:     44
+  do not list .m3u:            199
+
+  psx   .7z .cbn .ccd .chd .cso .cue .img .iso .m3u .mdf .pbp .squashfs .toc .zip
+  ps2   .7z .bin .chd .cso .gz .iso .m3u .mdf .squashfs .zip
+```
+
+**`ps2` lists `.m3u`.** RetroBat's own wiki says of PCSX2: _"PCSX2 does not support m3u usage
+for multi-disc games"_, and directs the user to the emulator's quick menu to change discs
+instead. So EmulationStation will index the playlist, `emulatorLauncher` will hand it over,
+and the emulator will not understand it. `<extension>` is the authority on **what ES offers**,
+never on **what the emulator can play**.
+
+That qualifies a rule this plan leans on hard. "File extensions come from RetroBat, never
+from RomM" remains right, and the extension list remains necessary, but it is **not
+sufficient**: passing the filter is not evidence a file will launch. The failure it produces
+is the exact one M2 wrote the filter to prevent, a game that appears in EmulationStation,
+looks correct, and dies.
+
+Eight disc-based systems do not list `.m3u` at all, so a set there is always N entries:
+`3do`, `amigacd32`, `atomiswave`, `cdi`, `naomi`, `psp`, `wii`, `xbox`. Note `gamecube` lists
+it and `wii` does not, though both are Dolphin.
+
+**What this costs the plan.** M6 recommends `pcsx2_slot1_memory=game` to convert PS2 out of
+class D, keyed by rom basename. For a **multi-disc PS2 game that option destroys the save at
+the disc change**, because PCSX2 cannot bind the discs and each basename gets its own card,
+where the stock shared `Mcd001.ps2` would have carried it through. The conversion is right
+for single-disc titles and wrong for multi-disc ones, so it cannot be a per-system decision;
+it has to be per game, which the `<system>["<rom>"]` override form already allows.
+
+**Not measured.** No memory card was produced. DuckStation creates one only when the game
+writes to it, unlike PCSX2, which M0 measured rewriting both cards at launch: Spyro ran 59
+seconds (`playtime.dat` records `SCUS-94228` and the duration) and
+`saves/psx/duckstation/memcards/` stayed empty. So the naming above is read from
+DuckStation's database and its generated `settings.ini`, not from a card on disk. **Getting a
+real card needs a game driven far enough to save**, and that is the open half.
+
+One correction to the bundled data on the way past: the generated
+`emulators/duckstation/settings.ini` puts memory cards at
+`saves/psx/duckstation/memcards`, a **third** level, where
+`data/retrobat/save_directories.json` records only `psx/duckstation`.
 
 ### Four incidental traps, all measured
 

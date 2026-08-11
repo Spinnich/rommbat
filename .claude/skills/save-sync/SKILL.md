@@ -80,6 +80,14 @@ Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. T
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
 
+**Never convert a multi-disc set.** Every per-game mode gives each disc its own card:
+DuckStation's `resources/gamedb.yaml` puts the disc number in the title
+(`Final Fantasy VII (Disc 1)`), the serial differs per disc, and `PerGameFileTitle` keys on
+three separate filenames. `Shared` is the only mode that carries a save across a disc change.
+PS2 is worse, because PCSX2 cannot bind discs at all. So conversion is **per game**, which is
+what the `<system>["<rom>"]` form is for: convert single-disc titles, leave sets shared, and
+say why.
+
 Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
 switching strands existing saves inside the old container unless migrated; and per-game
 cards break games that legitimately read a prequel's save.

@@ -1044,6 +1044,13 @@ rather than bundled, because it reflects that machine's actual emulator configur
 - Filter every sync-set candidate against the resolved folder's `<extension>` list, using
   RomM's `fs_extension`, and exclude non-matches from the set before anything is
   downloaded.
+- **Passing the filter is not evidence the file will launch.** `<extension>` is the authority
+  on what EmulationStation indexes and offers, not on what the emulator behind the system can
+  consume. The measured case is `.m3u`: `ps2` lists it, and RetroBat's wiki says "PCSX2 does
+  not support m3u usage for multi-disc games". ES shows the playlist, `emulatorLauncher` hands
+  it over, and the emulator does not understand it, which is the same
+  appears-in-ES-and-dies failure this section exists to prevent. The extension list stays
+  necessary; treat per-emulator capability as a separate fact the config does not carry.
 - Show the exclusions rather than hiding them: "12 games skipped, format not supported by
   this system" with the offending extensions, so the user can fix it in RomM.
 - Watch the disc-image cases in particular, where RomM may hold a `.chd` while the
@@ -1099,6 +1106,17 @@ the rollout order below can be derived rather than hand-maintained.
   generate the `.m3u` from the member names rather than expect one in the payload. The
   commonest multi-file shape on that library is not discs at all: it is PS3 `.pkg` plus its
   `.rap` licence sibling. See finding F16.
+
+  **Generating it is necessary and not sufficient, because `.m3u` support is per emulator.**
+  A real `psx` folder holds three layouts at once: a single disc, three loose discs with no
+  playlist, and a folder containing two discs plus a hand-made `.m3u` whose lines are bare
+  filenames. RetroBat's wiki documents a fourth, the playlist flat beside the discs. **And the
+  extension list cannot tell you which systems can use one**: `ps2` lists `.m3u` in
+  `es_systems.cfg` while RetroBat's own wiki says "PCSX2 does not support m3u usage for
+  multi-disc games" and sends the user to the emulator's quick menu instead. 44 of 243 systems
+  list `.m3u`; how many can consume one is a per-emulator fact the config does not carry. See
+  [freegosy-findings.md](freegosy-findings.md), F18.
+
 - Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
   query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
   answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
@@ -1262,8 +1280,21 @@ are simply absent, which is the gap step 5 exists to report. See
    `md5_hash` on every record: measured at 656 records across 79 of 123 platforms, all 656
    with an md5, in one 424 KB response taking 0.39 s, with `firmware_count` equal to
    `len(firmware)` on every platform and the same id set as the dedicated call. So a
-   whole-library BIOS gap report is one request rather than 79. The per-platform endpoint
-   stays the right call for a single platform, which is what a certification pass wants.
+   whole-library BIOS gap report is one request rather than 79.
+
+   **This is a correctness fix, not an optimisation, because firmware does not live on the
+   platform its ROMs live on.** `psxonpsp660.bin`, the BIOS DuckStation needs to boot
+   anything, was found on **`psx-unofficial`** rather than `psx`. Both platforms exist, both
+   carry `slug` `psx`, and they hold 1,803 and 9,500 ROMs. Library-wide, **238 of 656
+   firmware records (36%) sit on `-unofficial` twins, across 30 platforms**, so a lookup
+   scoped to the platform a sync set resolved from can return nothing while the file sits one
+   row away. Join globally on md5 and ignore which platform carried it. The per-platform
+   endpoint is still fine for a certification pass on one platform, as long as both twins are
+   asked.
+
+   **And that BIOS carries `is_verified: false`** on both copies, while its md5 is exactly
+   what RetroBat requires. It is the sharpest instance of the rule above: filtering on that
+   flag refuses the one file without which no PS1 game runs at all.
 
    This is an inlined array on a list endpoint, the same family as the `GET /api/collections`
    trap under core principle 2, but three orders of magnitude smaller: 424 KB for all 123
@@ -1514,11 +1545,25 @@ choice lists are wider than the plan assumed:
 | Dolphin (GameCube)  | `dolphin_slotA`           | **`8`** (GCI folder), `1` (memory card)                     | **`8`**                | already the stock default                                                |
 | Flycast (Dreamcast) | `flycast_vmupergame`      | switch (`switchauto`, so unset by default)                  | **on**                 | per-game VMU, **port 1 only**, and keyed by **disc serial** not filename |
 
-**Prefer `PerGameFileTitle` over `PerGameTitle` for DuckStation.** The plan previously
-treated the stock `PerGameTitle` as sufficient. It is not the best choice: `PerGameTitle`
-names the card after DuckStation's _internal database title_, which need not match the rom
-filename, while `PerGameFileTitle` names it after the file. Filename-keyed cards collapse
-class D straight into ordinary class-A attribution; title-keyed cards do not.
+**Prefer `PerGameFileTitle` over `PerGameTitle` for DuckStation, on single-disc titles only.**
+`PerGameTitle` names the card after DuckStation's _internal database title_, which need not
+match the rom filename, while `PerGameFileTitle` names it after the file. Filename-keyed cards
+collapse class D straight into ordinary class-A attribution; title-keyed cards do not.
+
+**Every per-game mode breaks a multi-disc set, including that one.** DuckStation's shipped
+`resources/gamedb.yaml` puts the disc number in the title itself
+(`Final Fantasy VII (Disc 1)`, `(Disc 2)`, `(Disc 3)`; `Metal Gear Solid (Disc 1)`,
+`(Disc 2)`), and the serial differs per disc as well. So `PerGameTitle` splits the set,
+`PerGame` splits it, and `PerGameFileTitle` splits it hardest, because three discs are three
+filenames. **Only `Shared` keeps one card across a set.** A player who saves at the end of
+disc 1 and swaps to disc 2 finds an empty card under all three per-game modes.
+
+The same trap applies to PS2 and is worse there, because PCSX2 cannot bind the discs at all:
+`pcsx2_slot1_memory=game` keys on the rom basename, so a multi-disc PS2 game loses its save at
+the disc change where the stock shared `Mcd001.ps2` would have carried it. **So the class-D
+conversion is a per-game decision, not a per-system one**, which is exactly what the
+`<system>["<rom filename>"]` override form is for: convert single-disc titles and leave
+multi-disc sets shared, reporting why. See [freegosy-findings.md](freegosy-findings.md), F18.
 
 **Watch out for `dolphin_sync_saves`**, also in `es_features.cfg`: "RetroBat will sync
 dolphin and libretro-dolphin saves folders." That is RetroBat moving save files between two
