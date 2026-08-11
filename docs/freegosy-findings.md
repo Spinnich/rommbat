@@ -16,14 +16,14 @@ rows that no route settled are labelled open rather than quietly promoted.
 | RomM under test    | `5.1.1-beta.1`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION` |
 | Schema cross-check | `src/RomM.Client/openapi/romm-5.1.0.json`, the pinned minimum      |
 | RetroBat           | `8.2.0-stable-win64`                                               |
-| Date               | 2026-08-10                                                         |
+| Date               | 2026-08-10 and 2026-08-11                                          |
 
 The instance host is redacted throughout, per the repo rules.
 
 ## The honest total
 
-35 candidates read, 13 dropped at triage, 22 probed. Of those: **12 confirmed, 4 rejected,
-1 corrected, 1 partly settled, 4 left open.** Four further traps turned up while running the
+35 candidates read, 13 dropped at triage, 22 probed. Of those: **14 confirmed, 5 rejected,
+1 corrected, 2 left open.** Four further traps turned up while running the
 probes and none of them was on the list.
 
 **The one that would have cost real data** is F1: `GET /api/saves/{id}/content` marks the
@@ -84,30 +84,30 @@ this repository again in six months and re-walks the same dead ends.
 
 ### Survivors, ranked by what would change
 
-| #   | Claim                                                                                                                           | Touches                                         | Would hold here if                                                                     | Cheapest experiment                                                                       | Verdict             |
-| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------- |
-| F1  | `GET /api/saves/{id}/content` takes `optimistic`, **defaulting to true**, which records the device sync before the bytes land   | M6 download step, `romm-api`, `save-sync`       | The server marks the device current on request rather than on the client confirming    | Download a save with the default and with `optimistic=false`, read `last_synced_at` back  | **live, confirmed** |
-| F2  | `POST /api/saves` takes `autocleanup` and `autocleanup_limit` (default 10), pruning old saves in the slot server-side           | M6 upload, `romm-api`, `save-sync`              | The server actually deletes; RomMBat has no save-retention story at all today          | Upload N+1 saves into one slot with `autocleanup=true&autocleanup_limit=N`, list the slot | **live, confirmed** |
-| F3  | The server dedups identical uploads within a slot, which is what makes our replay-safe flush safe                               | Core principle 1, M6, `offline-and-portable`    | Two identical uploads produce one row. Freegosy busts this deliberately, so it may not | Upload byte-identical content to the same slot twice, count the rows                      | **live, confirmed** |
-| F4  | `POST /api/play-sessions` is a standalone ingest taking `{device_id, sessions:[...]}`, not only a field on `/complete`          | M6 flush, `romm-api`, `offline-and-portable`    | Sessions can be flushed without opening a sync session                                 | Post one session through the standalone route and read it back                            | **live, confirmed** |
-| F5  | `GET /api/platforms` inlines the full `firmware[]` array with `md5_hash` per platform                                           | M5, `romm-api`, possibly the M2 scale guardrail | The join RomMBat needs is one request, not one per platform                            | Fetch `/api/platforms`, count firmware records and md5s, measure bytes                    | **live, confirmed** |
-| F6  | The server's `[YYYY-MM-DD_HH-MM-SS]` filename tag has to be **stripped before writing to disk**, or the emulator cannot find it | M6 restore, `save-sync`                         | RetroBat's emulators locate saves by rom-name match, which they do                     | Upload a save, read the returned `file_name`, check the tag shape and any `-N` suffix     | **live, confirmed** |
-| F7  | RomM 4.9+ **isolates** saves per device (Freegosy's framing), rather than merely tracking per device                            | M6 conflict handling, `save-sync`               | A save uploaded by device A is invisible or subordinate to device B                    | List saves for one rom with two different `device_id` values and diff the sets            | **live, rejected**  |
-| F8  | `device_syncs[].is_current` answers "does the server have something newer" without a negotiate                                  | M6, `romm-api`                                  | The flag is server-computed per device and trustworthy                                 | Read `GET /api/saves?rom_id=&device_id=` before and after an upload from another device   | **live, corrected** |
-| F9  | `SaveSchema.origin_device_id` names the device that produced a save                                                             | M6 conflict handling, `save-sync`               | It is populated on upload, so a client can tell its own save from a peer's             | Read it back off a save uploaded with `device_id` set                                     | **live, confirmed** |
-| F10 | `POST /api/saves/{id}/track` and `/untrack` opt a single save out of syncing for one device                                     | M6, `romm-api`                                  | `is_untracked` then changes what negotiate returns                                     | Untrack a save, re-negotiate, see whether the operation disappears                        | **live, confirmed** |
-| F11 | `GET /api/saves/summary?rom_id=` returns per-slot counts and the latest save per slot                                           | M6, `romm-api`                                  | It is cheap enough to replace listing every save                                       | Call it against a rom with saves and compare against `GET /api/saves`                     | **live, confirmed** |
-| F12 | A 409 on upload carries a structured body with `save_id`, `current_save_time` and `device_sync_time`                            | M6, `romm-api`, `save-sync`                     | The body is actionable, so a conflict can be shown without a second request            | Force a 409 and quote the body                                                            | **live, rejected**  |
-| F13 | `GET /api/saves/identifiers` takes no parameters, the same shape that made `/api/roms/identifiers` 504                          | M6 reconcile, `romm-api`                        | Saves are few enough that it answers, unlike the roms sibling                          | Time the call against the live library                                                    | **open**            |
-| F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed** |
-| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed** |
-| F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**  |
-| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed** |
-| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **open**            |
-| F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **open**            |
-| F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **open**            |
-| F21 | Freegosy carries 34 hand-curated BIOS md5s from libretro's docs that our `batocera-systems.json` join may miss                  | M5 gap reporting                                | Any of them is an alternative dump of a file RetroBat requires                         | Set-difference against the 157 md5s in `reference/batocera-systems.json`                  | **rejected**        |
-| F22 | `SyncNegotiatePayload.device_id` is optional when the token is device-bound, the device being inferred from the token           | M6, `romm-api`                                  | Our paired token is device-bound, which it is                                          | Negotiate without `device_id` and compare the response                                    | **partly settled**  |
+| #   | Claim                                                                                                                           | Touches                                         | Would hold here if                                                                     | Cheapest experiment                                                                       | Verdict              |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | -------------------- |
+| F1  | `GET /api/saves/{id}/content` takes `optimistic`, **defaulting to true**, which records the device sync before the bytes land   | M6 download step, `romm-api`, `save-sync`       | The server marks the device current on request rather than on the client confirming    | Download a save with the default and with `optimistic=false`, read `last_synced_at` back  | **live, confirmed**  |
+| F2  | `POST /api/saves` takes `autocleanup` and `autocleanup_limit` (default 10), pruning old saves in the slot server-side           | M6 upload, `romm-api`, `save-sync`              | The server actually deletes; RomMBat has no save-retention story at all today          | Upload N+1 saves into one slot with `autocleanup=true&autocleanup_limit=N`, list the slot | **live, confirmed**  |
+| F3  | The server dedups identical uploads within a slot, which is what makes our replay-safe flush safe                               | Core principle 1, M6, `offline-and-portable`    | Two identical uploads produce one row. Freegosy busts this deliberately, so it may not | Upload byte-identical content to the same slot twice, count the rows                      | **live, confirmed**  |
+| F4  | `POST /api/play-sessions` is a standalone ingest taking `{device_id, sessions:[...]}`, not only a field on `/complete`          | M6 flush, `romm-api`, `offline-and-portable`    | Sessions can be flushed without opening a sync session                                 | Post one session through the standalone route and read it back                            | **live, confirmed**  |
+| F5  | `GET /api/platforms` inlines the full `firmware[]` array with `md5_hash` per platform                                           | M5, `romm-api`, possibly the M2 scale guardrail | The join RomMBat needs is one request, not one per platform                            | Fetch `/api/platforms`, count firmware records and md5s, measure bytes                    | **live, confirmed**  |
+| F6  | The server's `[YYYY-MM-DD_HH-MM-SS]` filename tag has to be **stripped before writing to disk**, or the emulator cannot find it | M6 restore, `save-sync`                         | RetroBat's emulators locate saves by rom-name match, which they do                     | Upload a save, read the returned `file_name`, check the tag shape and any `-N` suffix     | **live, confirmed**  |
+| F7  | RomM 4.9+ **isolates** saves per device (Freegosy's framing), rather than merely tracking per device                            | M6 conflict handling, `save-sync`               | A save uploaded by device A is invisible or subordinate to device B                    | List saves for one rom with two different `device_id` values and diff the sets            | **live, rejected**   |
+| F8  | `device_syncs[].is_current` answers "does the server have something newer" without a negotiate                                  | M6, `romm-api`                                  | The flag is server-computed per device and trustworthy                                 | Read `GET /api/saves?rom_id=&device_id=` before and after an upload from another device   | **live, corrected**  |
+| F9  | `SaveSchema.origin_device_id` names the device that produced a save                                                             | M6 conflict handling, `save-sync`               | It is populated on upload, so a client can tell its own save from a peer's             | Read it back off a save uploaded with `device_id` set                                     | **live, confirmed**  |
+| F10 | `POST /api/saves/{id}/track` and `/untrack` opt a single save out of syncing for one device                                     | M6, `romm-api`                                  | `is_untracked` then changes what negotiate returns                                     | Untrack a save, re-negotiate, see whether the operation disappears                        | **live, confirmed**  |
+| F11 | `GET /api/saves/summary?rom_id=` returns per-slot counts and the latest save per slot                                           | M6, `romm-api`                                  | It is cheap enough to replace listing every save                                       | Call it against a rom with saves and compare against `GET /api/saves`                     | **live, confirmed**  |
+| F12 | A 409 on upload carries a structured body with `save_id`, `current_save_time` and `device_sync_time`                            | M6, `romm-api`, `save-sync`                     | The body is actionable, so a conflict can be shown without a second request            | Force a 409 and quote the body                                                            | **live, rejected**   |
+| F13 | `GET /api/saves/identifiers` takes no parameters, the same shape that made `/api/roms/identifiers` 504                          | M6 reconcile, `romm-api`                        | Saves are few enough that it answers, unlike the roms sibling                          | Time the call against the live library                                                    | **open**             |
+| F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed**  |
+| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**  |
+| F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**   |
+| F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed**  |
+| F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title                                                   | **open**             |
+| F19 | Save-shape hypotheses for the systems `save_shapes.json` still lists unclassified (3ds, nds, switch, wiiu, xbox360)             | `data/retrobat/save_shapes.json`, M6            | RetroBat's emulator for each writes the same shape Freegosy's desktop one does         | Probe 2 rerun per system, which needs those emulators installed and driven                | **probe, confirmed** |
+| F20 | A blank save an emulator writes at launch can overwrite a good cloud save, so uploads need a floor                              | M6 change detection, `save-sync`                | RetroBat emulators do write stub saves at launch, which probe 2 already saw for PS2    | Reasoned, plus a test over the observed class-D rewrite behaviour                         | **probe, refuted**   |
+| F21 | Freegosy carries 34 hand-curated BIOS md5s from libretro's docs that our `batocera-systems.json` join may miss                  | M5 gap reporting                                | Any of them is an alternative dump of a file RetroBat requires                         | Set-difference against the 157 md5s in `reference/batocera-systems.json`                  | **rejected**         |
+| F22 | `SyncNegotiatePayload.device_id` is optional when the token is device-bound, the device being inferred from the token           | M6, `romm-api`                                  | Our paired token is device-bound, which it is                                          | Negotiate without `device_id` and compare the response                                    | **live, confirmed**  |
 
 ### Dropped at triage
 
@@ -691,6 +691,100 @@ by a constant offset at all**, which makes it the case where the launch-journal 
 route is not merely preferred but required. That is the route `docs/PLAN.md` already ranks
 first; this is a platform where the fallback simply does not exist.
 
+### F19: mastersystem and gamegear are class A. **Confirmed, probe**
+
+Both driven on the test stick under `libretro` / `genesis_plus_gx` by
+`f19-f20-battery-on-close.ps1`, which **never presses a save key**, so anything that appears
+was written by the emulator alone.
+
+```text
+=== mastersystem / libretro / genesis_plus_gx / Phantasy Star (Brazil).zip ===
+  baseline: 0 file(s) under saves/mastersystem
+  -- while the emulator is still running
+     new     Phantasy Star (Brazil).srm      65536 B  06:30:17.597
+  closing the emulator with the quit hotkey (Escape)
+  exited on its own, so any save-on-exit path ran
+  -- after the emulator exits
+     new     Phantasy Star (Brazil).srm       8188 B  06:30:41.754
+```
+
+A loose `.srm` at `saves/<system>/`, named after the ROM, one level deep. **Class A**, the
+same as `nes`, `snes` and `megadrive`. Both are now classified in
+`data/retrobat/save_shapes.json` through its generator, and `_unclassified` drops from 23
+entries to 21.
+
+**RetroArch names the destination in its own log even on a run that writes nothing**, which
+is what classified `gamegear` despite its cart never being touched:
+
+```text
+[Override] Redirecting save file to "<root>\saves\gamegear\Defenders of Oasis (USA, Europe) (Virtual Console).srm".
+[SRAM] Skipping SRAM load.
+```
+
+That log line is a better source than the file, because it states the intent rather than the
+outcome. Worth reusing wherever an emulator has to be classified without a real save.
+
+**One honest gap.** The Game Gear run's exit had to be forced, twice, because the Escape
+hotkey did not close it, so the probe declared its own F20 half void for that run and it is
+recorded as void rather than quietly folded in. The shape answer stands because it does not
+depend on how the process ended.
+
+### F20: a launch alone writes a battery save, and no size floor can catch it. **Confirmed, probe. Freegosy's guard is refuted**
+
+The Master System run above is the whole finding. **The game was booted and left at its title
+screen. No save key was ever sent. No progress of any kind was made.** It still produced a
+save file, twice: 65,536 bytes while running and 8,188 bytes after a clean exit.
+
+The mid-run write is not incidental. `retroarch.cfg` on this install carries
+
+```text
+autosave_interval = "10"
+```
+
+so the SRAM buffer is flushed every ten seconds, which means **the file exists within seconds
+of boot** and survives a crash or a forced kill. Waiting for a clean exit is not a protection.
+
+What the file actually contains settles the design question:
+
+```text
+00000000: 5048 414e 5441 5359 2053 5441 5220 2020  PHANTASY STAR
+00000010: 2020 2020 2020 4241 434b 5550 2052 414d        BACKUP RAM
+00000020: 5052 4f47 5241 4d4d 4544 2042 5920 2020  PROGRAMMED BY
+```
+
+That is the cartridge formatting its own backup RAM at boot. **Freegosy's answer to this
+hazard is a 100-byte minimum upload size**, and this file defeats it comfortably: 8,188 bytes,
+35 distinct byte values, legible ASCII. A blankness test fails too, since the content is
+neither all `0x00` nor all `0xFF`. **Nothing about the file in isolation distinguishes
+"the cart formatted itself" from "the player saved."**
+
+So the size floor is not a smaller version of the right answer, it is the wrong instrument.
+The only thing that separates the two cases is comparison against a previously known state,
+which is what `content_hash` already provides. The consequence for M6 is narrow and real:
+**the first save seen for a ROM with no local baseline is not evidence that anything was
+played**, so it must not win a conflict against a server save on recency alone.
+
+This also widens a hazard the plan had scoped to class D. M0 measured a PS2 launch rewriting
+both shared memory cards with no in-game save, and the plan concluded that **class D**
+therefore needs content hashing rather than mtime. The same is now measured for **class A**
+on an ordinary battery cart, so "mtime cannot decide whether this needs uploading" is a
+general rule, not a shared-container one.
+
+### F22: a device-bound token really does make `device_id` optional. **Confirmed, live**
+
+The earlier run left this half open because the probe token was an ordinary client token.
+Pairing the test install minted a device-bound one, which closes it:
+
+```text
+device-bound token, NO device_id   -> 200  session 142, 1 operation
+device-bound token, WITH device_id -> 200  session 143, 1 operation
+```
+
+Identical outcomes. The 400 seen earlier (`device_id is required (either in the request
+payload or implicit via a device-bound client token)`) is specific to a token with no device
+behind it. RomMBat's token comes from pairing, so it may omit the field; sending it anyway is
+harmless and more explicit, which is what the plan already does.
+
 ### Four incidental traps, all measured
 
 Not on the candidate list. They turned up while running the probes above and each would have
@@ -732,37 +826,43 @@ disagreement.
 
 ## The state of the test RetroBat install
 
-F18, F19 and F20 all need a real install driven far enough to see a file. The USB tree on the
-test stick is RetroBat `8.2.0-stable-win64` on NTFS, and it is not currently in a state to
-answer them:
+F18, F19 and F20 all need a real install driven far enough to see a file. The USB tree is
+RetroBat `8.2.0-stable-win64` on NTFS, and it started this session unable to answer any of
+them:
 
-- **`roms/` is nearly empty**: content in `halflife`, `jaguar`, `jaguarcd`, `msx1`, `ports`
-  and `sonic-mania` only. Nothing for GameCube, PS1, DS, 3DS, Switch, Wii U or Xbox 360.
+- **`roms/` was nearly empty**: content in `halflife`, `jaguar`, `jaguarcd`, `msx1`, `ports`
+  and `sonic-mania` only.
 - **Only RetroArch is installed.** Every other emulator is a folder shell with no executable:
   `duckstation`, `desmume`, `melonds`, `dolphin-emu`, `azahar`, `cemu`, `xenia`, `ryujinx`
   and `pcsx2` are all 0 MB. RetroBat downloads them on demand, and M0 already measured that
   doing so raises **a modal dialog with no title and no timeout** that blocks the launch until
   someone answers it.
 
-So each of the three needs content staged and at least one emulator installed through that
-dialog before a probe can run. None of them was guessed at in the meantime.
+**That decided which of the three got answered.** RetroArch needs no install and no dialog,
+so F19 and F20 were re-aimed at the systems it already serves, which turned out to be the
+better target anyway: `mastersystem` is a **wave 1** platform in the rollout order and its
+shape was still a guess, while the 3DS, Switch, Wii U and Xbox 360 systems the original lead
+named are not certified for a long time yet.
+
+Staging was done with the agent itself, which exercised M3 against a real target in passing:
+two `--scope filter` sets capped at one game each resolved, downloaded and landed correctly,
+and the extension filter excluded an `.xiso.iso` from the Master System set on the way
+through. **F18 still needs DuckStation installed through that dialog** and stays open.
 
 ## What stays open
 
 - **F13**, whether `GET /api/saves/identifiers` scales. It answers in 0.07 s on an empty set
   and takes no parameters, which is the shape that made `/api/roms/identifiers` unusable. No
   library here has enough saves to load it.
-- **F22**, whether a pairing-minted device-bound token really lets `device_id` be omitted from
-  negotiate. The error message says it should; the probe token is not device-bound.
-- **F18**, whether a multi-disc save filename drops the region tags its `.m3u` carries.
-  Needs probe 2 rerun on a multi-disc title in a real RetroBat install.
-- **F19**, save shapes for the systems `save_shapes.json` still lists unclassified. Freegosy
-  has strategies for the Switch, 3DS, DS, Wii U and Xbox 360 emulators, so it supplies a
-  hypothesis per system, but RetroBat runs different emulators in a different layout and only
-  probe 2 can decide. **These are hypotheses to test, not classifications to copy**, and
-  nothing has been written into `save_shapes.json`.
-- **F20**, whether a blank save written at launch can overwrite a good server save. Probe 2
-  already measured that a PS2 launch rewrites both memory cards with no in-game save, so the
-  hazard is real in RetroBat; what is unmeasured is whether the resulting file is small enough
-  for a size floor to catch, and a size floor is a poor instrument anyway. The content hash
-  the plan already mandates is the better guard.
+- **F18**, whether a multi-disc save filename drops the region tags its `.m3u` carries. F16
+  already showed this library has no `.m3u` members at all, so the question narrows to what
+  DuckStation names a memory card for a multi-disc set. Needs DuckStation installed through
+  the on-demand dialog and a multi-disc set fetched by hand, since M3 excludes multi-file
+  ROMs.
+- **The 21 systems still unclassified in `save_shapes.json`.** F19 closed `mastersystem` and
+  `gamegear`; the rest divide into ones RetroArch can answer cheaply (`fbneo`, `msx1`,
+  `supergrafx`, `amiga`, `amstradcpc`, `apple2`) and ones needing a standalone emulator
+  installed first (`3ds`, `nds`, `switch`, `wiiu`, `xbox360`, `psvita`, `naomi`, `atomiswave`).
+  Freegosy supplies a hypothesis for several of the second group, but it runs different
+  emulators in a different layout, so **those stay hypotheses to test and none has been
+  written into `save_shapes.json`.**

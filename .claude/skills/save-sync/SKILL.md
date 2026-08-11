@@ -84,10 +84,19 @@ Caveats, all user-visible: it mutates their config so it is opt-in and reversibl
 switching strands existing saves inside the old container unless migrated; and per-game
 cards break games that legitimately read a prequel's save.
 
-**Never use mtime to decide whether a class-D container changed.** Launching a PS2 game
+**Never use mtime to decide whether a save changed, in any class.** Launching a PS2 game
 rewrote both `Mcd001.ps2` and `Mcd002.ps2` with no in-game save at all, and a Dreamcast launch
 rewrites the shared VMU the same way, so a mtime check uploads the container after every
 session. Hash the content.
+
+**Class A does it too, and no size floor catches it.** A Master System cart booted to its
+title screen under libretro `genesis_plus_gx`, with no save key pressed and no progress made,
+wrote an 8,188-byte `.srm` whose contents are the cart formatting its own backup RAM. 35
+distinct byte values, legible ASCII: a minimum-upload-size check passes it and a blankness
+check passes it. `autosave_interval = "10"` means it lands within seconds of boot, so waiting
+for a clean exit protects nothing either. **The first save seen for a ROM with no local
+baseline is not evidence that anything was played**, so it must not win a conflict on recency
+alone.
 
 **Dreamcast converts, but not into class A.** With `flycast_vmupergame=1` the new file is
 `vmu/T40217N_vmu_save_A1.bin`, named for the **disc serial**, while the shared

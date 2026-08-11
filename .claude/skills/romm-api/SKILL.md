@@ -185,7 +185,12 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   100 per call (101 entries answers 400), `end_time` strictly after `start_time`, `rom_id`
   optional. It needs **no** open sync session, so playtime can flush on its own.
 - **`POST /api/sync/negotiate` requires `device_id`** unless the client token is device-bound,
-  in which case the server infers it. Send it regardless.
+  in which case the server infers it. Measured both ways: a pairing-minted token negotiates
+  with the field absent, an ordinary client token answers 400 naming the condition. RomMBat's
+  token comes from pairing, so it may omit it; send it anyway, it is more explicit.
+- **A sync session cannot be deleted.** `/api/sync/sessions` is read-only apart from
+  `/complete`, so every negotiate leaves a permanent row. Tests and probes that negotiate
+  accumulate them.
 - **Asset uploads are capped at 512 MiB** and rejected with 413 before the body is spooled.
 - **States are not in the negotiate protocol.** `POST /api/states` has no slot, device or
   conflict detection. Best-effort only.

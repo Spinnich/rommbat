@@ -41,6 +41,12 @@ CONFIRMED_SHAPES = {
     "gbc": ("A", "loose .srm per rom, libretro"),
     "gba": ("A", "loose .srm per rom, libretro"),
     "megadrive": ("A", "loose .srm per rom, libretro"),
+    # Both driven under libretro genesis_plus_gx with no save key ever pressed, so the file
+    # that appeared was written by the emulator alone. RetroArch names the destination in
+    # its own log ("Redirecting save file to saves/<system>/<rom>.srm") even on a run that
+    # writes nothing, which is what classifies gamegear despite its cart staying untouched.
+    "mastersystem": ("A", "loose .srm per rom, libretro genesis_plus_gx; written at boot before any player save"),
+    "gamegear": ("A", "loose .srm per rom, libretro genesis_plus_gx; path declared by the emulator, cart untouched in the run"),
     "n64": ("A", "loose .srm per rom, libretro"),
     "pcengine": ("A", "loose .srm per rom, libretro"),
     "pcenginecd": ("A", "loose .srm per rom, libretro"),

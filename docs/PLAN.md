@@ -581,6 +581,28 @@ The six results that moved the design most:
    VMU the same way, so mtime cannot decide whether a class-D container needs uploading.
    Content hashing is mandatory there.
 
+   **That hazard is not confined to class D.** A Master System cart driven under libretro
+   `genesis_plus_gx`, booted to its title screen with no save key ever pressed and no progress
+   made, wrote `saves/mastersystem/<rom>.srm` anyway: 65,536 bytes while running and 8,188
+   bytes after a clean exit. Nor is it only written at exit, because RetroBat ships
+   `autosave_interval = "10"`, so the file appears within seconds of boot and survives a crash
+   or a kill. Its contents are the cartridge formatting its own backup RAM
+   (`PHANTASY STAR   BACKUP RAM PROGRAMMED BY`), so **no property of the file in isolation
+   identifies it as empty**: 8,188 bytes across 35 distinct byte values defeats both a size
+   floor and a blankness test. Only comparison against a previously known state separates it
+   from a real save, which makes `content_hash` the guard for class A as much as class D, and
+   means **the first save seen for a ROM with no local baseline is not evidence that anything
+   was played** and must not win a conflict on recency alone. See
+   [freegosy-findings.md](freegosy-findings.md), F20.
+
+   **`mastersystem` and `gamegear` are now classified**, both class A: a loose `.srm` at
+   `saves/<system>/` named after the ROM. `mastersystem` is a **wave 1** platform, so its shape
+   being a guess mattered more than the count suggests; `data/retrobat/save_shapes.json` drops
+   from 23 unclassified systems to 21. The technique that got `gamegear` is worth reusing for
+   the rest: **RetroArch names the destination in its own log even on a run that writes
+   nothing** (`[Override] Redirecting save file to ...`), so a system can be classified from
+   intent when its cart is never touched. See finding F19.
+
 3. **Library refresh.** Determine how to make ES pick up newly added ROMs without a full
    restart, and whether writing `gamelist.xml` while ES is running is safe (ES may
    overwrite on exit). Check the `update-gamelists` hook and the `-updatestores` pattern

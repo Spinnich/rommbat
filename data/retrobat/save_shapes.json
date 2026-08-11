@@ -17,10 +17,8 @@
     "dolphin",
     "doom3",
     "fbneo",
-    "gamegear",
     "hbmame",
     "jaguar",
-    "mastersystem",
     "msx1",
     "naomi",
     "naomi2",
@@ -57,6 +55,11 @@
         "note": "already the stock default; still needs attribution because .gci names carry the game code, not the filename"
       }
     },
+    "gamegear": {
+      "class": "A",
+      "evidence": "loose .srm per rom, libretro genesis_plus_gx; path declared by the emulator, cart untouched in the run",
+      "provenance": "observed"
+    },
     "gb": {
       "class": "A",
       "evidence": "loose .srm per rom, libretro",
@@ -75,6 +78,11 @@
     "mame": {
       "class": "C",
       "evidence": "nvram/<shortname>/ where shortname is the rom basename, so attribution is by filename",
+      "provenance": "observed"
+    },
+    "mastersystem": {
+      "class": "A",
+      "evidence": "loose .srm per rom, libretro genesis_plus_gx; written at boot before any player save",
       "provenance": "observed"
     },
     "megacd": {
