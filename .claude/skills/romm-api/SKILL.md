@@ -141,6 +141,26 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **`download_path` on a save is not a usable URL.** It is served with a raw space and an
   unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
   the URL from the save `id`.
+- **Media is static files under `/assets/romm/resources/`, not an API route, and the fields
+  come in two shapes.** `path_cover_small` and `path_cover_large` are already rooted at that
+  prefix and carry a `?ts=` query with a **raw space**; `path_manual`, `path_video` and
+  `ss_metadata.marquee_path` are relative to it. **The relative form requested as given
+  answers 200 with the web UI's `index.html`**, 5,826 bytes, with an `ETag` and
+  `Accept-Ranges`, so a status check will not catch it and the content type must be. Normalise
+  onto the prefix exactly once and drop the query. nginx serves them: ranges work, 416 past
+  the end, and **no token is required at all**.
+- **Never use `url_cover` or `url_manual`.** They are `neoclone.screenscraper.fr` API URLs
+  carrying a third party's `devid` and `devpassword` in the query string. Off-LAN, and not
+  yours to send.
+- **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**
+  `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
+  `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
+  parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
+- **`metadatum` units and scales agree with nothing.** `first_release_date` is **milliseconds**
+  (read as seconds, every value lands in year 0); `average_rating` is **0-100**;
+  `player_count` is a **string** already in EmulationStation's `1-2` form; `companies` is one
+  flat array merging developer and publisher, **alphabetically sorted on 4,197 of 4,197**
+  rows, so the roles cannot be recovered from it or from any provider block.
 - **`POST /api/saves/delete` fails the whole batch if one id is already gone**, answering 404
   and deleting nothing. Autocleanup can remove an id between listing and deleting, so delete
   one at a time or re-list immediately before.

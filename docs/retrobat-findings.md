@@ -8,10 +8,10 @@ any of it against a different build.
 | ------------------ | ----------------------------------------------------------------- |
 | RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`             |
 | RomM               | `5.1.1-beta.1`, read from `GET /api/heartbeat` → `SYSTEM.VERSION` |
-| Library under test | 83,131 roms, host redacted                                        |
+| Library under test | 83,131 roms at M0, 83,435 by M4, host redacted                    |
 | Host OS            | Windows 11 Pro 10.0.26200                                         |
 | .NET               | 10.0.302                                                          |
-| Date               | 2026-08-08                                                        |
+| Date               | 2026-08-08, extended through M4 on 2026-08-11                     |
 
 Paths are written relative to the RetroBat root and the instance host is redacted, per the
 repo rules.
@@ -1320,6 +1320,11 @@ re-issuing `/quit` worked immediately. So **a 200 from this API is not evidence 
 happened**, and any code that shuts ES down before touching `es_settings.cfg` has to poll
 for the process actually exiting rather than trust the response.
 
+**`/reloadgames` is in the same state, measured during M4 (finding 107).** With RetroArch up
+it answered 200 in 1 ms and a ROM added to the folder was still unreported five seconds
+later. The one route M4 depends on is therefore not exempt: a sync that writes a gamelist
+while a game is running has to reload again afterwards rather than treat the 200 as done.
+
 **It works on loopback with `PublicWebAccess` absent from `es_settings.cfg`**, that is at
 ES's default. The binary also carries the string `HttpServerThread : Access disabled for`, and the UI
 exposes "ENABLE PUBLIC WEB API ACCESS" under FRONTEND DEVELOPER OPTIONS showing
@@ -1351,7 +1356,17 @@ Comparing the file before and after that rewrite:
 
 - **XML comments survive.** ES is not regenerating the document from its model; it loads,
   modifies and saves, so unknown nodes are preserved.
+
+  > **Half of this is withdrawn. See finding 103.** Unknown elements and attributes do
+  > survive, `<scrap/>` in its self-closing form included. **Comments do not**: an ES rewrite
+  > drops every one, at document level and inside a `<game>` alike. What is preserved is the
+  > node tree its parser keeps, and comments are not in it.
+
 - **`<path>` element order is unchanged.**
+
+  > **True only for entries ES did not touch. See finding 105.** The played entry's children
+  > were rewritten into ES's own order, the entry moved to the end of the file, and
+  > `<hidden>false</hidden>` was pruned as a default.
 - **No `<game>` entry was written for the metadata-less probe rom**, even though ES listed it
   in the API. ES only persists entries it has metadata for.
 
@@ -1364,6 +1379,11 @@ exit, so an edit made **without** a following reload would be overwritten by tha
 > plan's "write only while ES is idle" constraint into a much cheaper "write then reload".
 > The negative case, editing without reloading and then quitting, was not directly executed;
 > it is inferred from the stale-model and rewrite-on-exit measurements, both of which were.
+>
+> **Two M4 measurements bound the rule.** ES rewrites the file only when it has something to
+> change, so a session that touched nothing leaves it byte-identical (finding 104); and the
+> reload is ignored outright while a game is running (finding 107), which is precisely when a
+> background sync is most likely to be writing.
 
 ### What the plan was looking for, and why it is not there
 
@@ -1895,6 +1915,53 @@ the library by offset, so they describe a 2.4% sample rather than the whole of i
 | 85  | (not addressed) whether every ROM carries a hash                                                             | No. Of 1,895 single-file ROMs sampled, **1,724 (91.0%) carry `md5_hash`** and **1,824 (96.3%) `sha1_hash`**. Verification has to degrade to size when the server has no hash to compare against, and say that it did                                                                                                                                                                    |
 | 86  | (not addressed) how much of a real library FAT32 cannot hold                                                 | **3.05%**, 61 of 2,000 sampled ROMs over the 4 GB ceiling. The longest `fs_name` was **174 characters**, which with a deep portable root and an `images/` sibling is inside `MAX_PATH` reach. **No `fs_name` in 2,000 carried a character Windows refuses**, so the Linux-to-Windows name hazard is real in principle and unobserved here                                               |
 | 87  | (not addressed) the cost of a per-ROM existence check                                                        | `GET /api/roms/{id}/simple` took **4.2 s** for a hit and **0.45 s** for a miss, so checking locally present ROMs one at a time is not a cheap substitute for a reconcile either                                                                                                                                                                                                         |
+
+## Measured during M4
+
+Same rules again. Measured against RomM **5.1.1-beta.1** behind nginx on a library that has
+grown to **83,435 ROMs**, and against RetroBat 8.2.0 on two installs: `K:\RetroBat`, the
+probe tree, for everything that writes, and a second, real, fully scraped install read only,
+for what a user's own gamelists and media actually look like. Probes in `tools/m4-probes/`.
+
+The sampled figures come from **5,000 ROMs read as twenty 250-row pages** spread evenly
+across the library by offset, so they describe a 6.0% sample rather than the whole of it.
+Two of these contradict something already in this file or in the plan, and both are amended
+in the same change.
+
+`backend/utils/gamelist_exporter.py` is now vendored at
+`reference/romm-gamelist_exporter.py`, and it **independently confirms two of the conversions
+below from upstream's own code**: `datetime.fromtimestamp(timestamp / 1000)` for
+`first_release_date` and `average_rating / 100` with a comment naming the scale. `verify.py`
+asserts both still hold, so upstream changing either shows up as a drift rather than as a
+wrong number in a gamelist.
+
+| #   | Previously                                                                                        | Measurement says                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 88  | (not addressed) what `url_cover` and `url_manual` point at                                          | **A third party, with a third party's credentials.** Both are `neoclone.screenscraper.fr` API URLs carrying someone else's `devid` and `devpassword` in the query string. Unusable twice over: off-LAN, which breaks the offline story, and not ours to send                                                                                                                                 |
+| 89  | Media downloads reuse M3's `/api/roms/{id}/content` path (plan M4)                                  | **They are static resource paths, and they come in two shapes.** `path_cover_small`/`path_cover_large` are already rooted at `/assets/romm/resources/` and carry a `?ts=` query containing a **raw space**; `path_manual`, `path_video` and the `ss_metadata` image paths are relative to that prefix. Normalise both onto the prefix exactly once                                            |
+| 90  | (not addressed) what the wrong prefix does                                                          | **Answers 200.** Requesting `roms/20/1393/manual/1393.pdf` as given returns **5,826 bytes of the web UI's `index.html`** with an `ETag` and `Accept-Ranges`, and would be written to disk as a PDF. Status is not enough: the content type has to be checked                                                                                                                                 |
+| 91  | (not addressed) whether the device token authenticates media                                        | **No token is needed at all.** Bearer and anonymous requests were byte-identical on every media path tried. nginx serves them: `Accept-Ranges: bytes`, an `hex(mtime)-hex(size)` `ETag`, `bytes=0-99` answers 206 with a `Content-Range`, and a range past the end answers 416. M3's resume machinery applies unchanged                                                                     |
+| 92  | (not addressed) how much media a real library has, and how big it is                                | cover 84.3%, `merged_screenshots` 84.6%, `path_video` **72.1%**, `path_manual` 46.1%, `summary` 81.9%, `metadatum` populated on 100%. Marquee is provider-scoped: `ss_metadata` is present on 1,093 of 1,250 and carries `logo_path` on 994, so **79.5%** of the library, against `marquee_path` on 1,077. Medians: thumbnail 104 KB, cover **525 KB**, logo 445 KB, video **1.99 MB**, manual **2.45 MB**. So a 100-game `nes` set is ~12.8 MB of ROMs against ~550 MB of media, a factor of 43 |
+| 92b | (not addressed) which ScreenScraper asset is EmulationStation's marquee                             | **`logo_path`, not `marquee_path`.** Upstream's own `gamelist_exporter.py` maps `"marquee": [ss.get("logo_path"), gl.get("marquee_path")]`. ES's marquee is game logo art; ScreenScraper's marquee is an arcade cabinet marquee. Now vendored at `reference/romm-gamelist_exporter.py` so the mapping is checkable                                                                          |
+| 93  | `GET /api/roms/{id}` is how M4 gets metadata (plan M4 by implication)                               | **It costs N requests and buys nothing.** `SimpleRomSchema`, which the paged read already returns, carries `metadatum`, `summary`, every media path, `regions` and `languages`. `DetailedRomSchema`'s 7 extra fields are all user arrays and were **empty on every ROM tried**. Per-ROM: 0.15 s each, **150 s for 1,000 games**. Per-page: 0 extra requests, 15.7% of a page M2 already reads |
+| 94  | (not addressed) whether the present ROMs can be asked for by id                                     | **No.** `GET /api/roms` has 47 query parameters and not one of them takes ROM ids. "Metadata for exactly what is on disk" is not a query, so it is either the walk carrying it or one request per ROM                                                                                                                                                                                        |
+| 95  | (not addressed) what unit `metadatum.first_release_date` uses                                       | **Milliseconds.** Read as seconds, all 4,108 sampled values land in year 0; read as milliseconds they land in **1983-2026**. No value was negative, so a pre-1970 release is unobserved rather than impossible                                                                                                                                                                               |
+| 96  | (not addressed) what scale `metadatum.average_rating` uses                                          | **0 to 100**, min 5.0, max 100.0, and **all 3,216 sampled values are above 1.0**. A gamelist `<rating>` is 0-1 to two decimals, so it is a divide by 100. A real scraped install's ratings sit on 17 distinct values in 0.05 steps, which is ScreenScraper's /20 score and finer-grained here                                                                                                |
+| 97  | (not addressed) whether `player_count` maps onto `<players>`                                        | **It is already the same form.** `"1"` 3,406, `"1-2"` 1,008, `"1-4"` 328, up to `"1-16"`. A real install's `<players>` is the identical vocabulary. A straight copy, and the only conversion in this table that is not one                                                                                                                                                                   |
+| 98  | `<developer>` and `<publisher>` come from the metadata (plan M4)                                    | **Neither role can be recovered.** `metadatum.companies` is a flat array merging both, **alphabetically sorted on 4,197 of 4,197** rows that have one, so any positional reading is reading the alphabet. Chrono Trigger reads `['Squaresoft', 'Squaresoft']`, the same company twice. 3,959 of 5,000 carry exactly two entries. `igdb_metadata.companies` is unsorted but unlabelled       |
+| 99  | (not addressed) how an array becomes a single-valued gamelist element                               | The real install already does it: **2,079 of its 4,440 `<genre>` values contain a comma or a slash** (`Racing, Driving`, `Action / Adventure`) out of 111 distinct values. Joining with `, ` reproduces the convention rather than departing from it. `franchises` needs deduping first: 18 of 5,000 repeat a name                                                                          |
+| 100 | (not addressed) whether `regions` and `languages` can be copied                                     | **Different vocabularies both ways.** RomM says `Japan`, `USA`, `Europe`, `World`; the real install writes `jp`, `us`, `eu`, `wr`. RomM says `English`, `French`; ES writes `en,fr` comma-joined. 246 of 5,000 rows carry more than one region while `<region>` is single-valued, and `languages` is present on only 18.3%                                                                  |
+| 101 | Media is named after the ROM file (plan M4, `retrobat-layout`)                                       | Confirmed exactly, read off a real scraped install rather than from memory: `images/<stem>-image.png`, `images/<stem>-thumb.png`, **`images/<stem>-marquee.png`** (marquee lives under `images/`, not its own folder), `videos/<stem>-video.mp4`, `manuals/<stem>-manual.pdf`, where `<stem>` is the ROM file name without its extension                                                     |
+| 102 | ES writes back favourite, playcount, lastplayed and hidden (plan M4)                                | **Incomplete, and two of the four are unobserved.** Across 4,531 entries in 32 real gamelists: `playcount` 115, `lastplayed` 115, **`gametime` 114**, and **no `favorite` and no `hidden` at all**. The merge surface is much wider: `scrap` 4,525 (self-closing, `name` and `date` attributes), `game@id` 4,493, `cheevosHash` 4,187, `md5` 2,815, `cheevosId` 2,329, `arcadesystemname` 568, `multidisk` 161, `crc32` 8. Own an allowlist, never a blocklist |
+| 103 | **XML comments survive an ES rewrite** (probe 3, "Writing `gamelist.xml` under a running ES")       | **Refuted.** When ES does rewrite the file it drops **every** comment, both at document level and inside a `<game>` it did not otherwise touch. Unknown **elements** and **attributes** do survive, including `<scrap/>` in its self-closing form and `id`/`source` on `<game>`, so the original conclusion holds for everything except comments                                             |
+| 104 | ES rewrites `gamelist.xml` on exit (probe 3)                                                        | **Only when it has something to change.** A full session that started ES, called `/reloadgames`, and quit left a 1,810-byte file **byte-identical**, mtime included. The rewrite in probe 3 followed a game actually being played. So the no-churn regression is meaningful, but it has to compare the file **after** ES has touched it, not the one RomMBat wrote                          |
+| 105 | ES merges in place, so element order survives (probe 3)                                             | **For entries it does not touch.** Playing one game rewrote that entry's children into ES's own order (`path,name,desc,genre,rating,releasedate,developer,publisher,players,favorite,playcount,lastplayed,gametime,lang,region,...`), **moved it to the end of the file**, and **dropped `<hidden>false</hidden>`**, which is the same default-pruning seen on `es_settings.cfg`. The untouched entry kept RomMBat's order exactly |
+| 106 | (not addressed) what a gamelist entry with no file behind it does                                   | **Nothing.** ES reported 6 games for 6 ROM files while the gamelist held 3 entries, one of them naming a file that does not exist, so a stale entry left by an eviction is not a phantom game. It **does survive the rewrite**, so it is inert but permanent until RomMBat removes it                                                                                                        |
+| 107 | `/reloadgames` is the refresh mechanism (probe 3, plan M4)                                          | **Ignored while a game is running**, exactly as `/quit` and `/emukill` are. 200 in 1 ms, and a ROM added to the folder was still not reported five seconds later. Reproduced twice. So the one API call M4 depends on shares the trap: a 200 is not evidence the reload happened                                                                                                            |
+| 108 | A short timeout covers a reload with ES absent (plan M4)                                            | **2.04 s**, five raw TCP connects and three `HttpClient` requests alike, which is M0 probe 6b's "host up, port closed" row (2,040 ms) reappearing on loopback. The project's 2 s interactive `ConnectTimeout` fires at almost exactly the same moment and buys nothing. ES being absent is the ordinary case, so this client needs a far shorter one                                        |
+| 109 | Long paths are the hazard for constructed media names (plan, principle 4)                           | **The 255-character file name is the ceiling, and `\\?\` does not lift it**: 255 wrote, 256 failed `IOException` both plain and prefixed, because it is a filesystem component limit rather than `MAX_PATH`. Total path reached 306 characters fine on this machine (`LongPathsEnabled=1`). The longest `fs_name` in the sample is 156 characters, so a suffix plus a folder is well inside it |
+| 110 | (not addressed) which characters a constructed name must lose                                       | `<`, `>`, `"`, `\|`, `?`, `*` raise `IOException` and `/`, `\` raise `DirectoryNotFoundException`, all loud. **`:` does not**: it writes an **NTFS alternate data stream**, so the call succeeds, the directory lists a file called `probe`, and the file the gamelist names is not there. A trailing dot or space is silently stripped. `CON.png`, `PRN.png`, `COM1.png` all wrote on Windows 11 26200 |
+| 111 | The per-system cap is for navigability (probe 5, plan M4)                                           | **A cap cannot deliver that on its own.** ES lists ROM files it has no gamelist entry for (probe 3, and reconfirmed here), so dropping entries hides no games and only strips their art. `ParseGamelistOnly` does exist as an ES setting, beside `IgnoreGamelist`, backing `--gamelist-only`, but it is global and would change every system including ones RomMBat does not manage         |
 
 ---
 

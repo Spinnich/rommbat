@@ -19,6 +19,7 @@ fetch RetroBat-Official/emulatorlauncher batocera-systems/Resources/batocera-sys
 echo "RomM:"
 fetch rommapp/romm examples/config.batocera-retrobat.yml config.batocera-retrobat.yml
 fetch rommapp/romm backend/models/fixtures/known_bios_files.json romm-known_bios_files.json
+fetch rommapp/romm backend/utils/gamelist_exporter.py romm-gamelist_exporter.py
 
 # The slug list is an enum in source, not a data file, so extract it.
 echo "  rommapp/romm  backend/handler/metadata/base_handler.py (UniversalPlatformSlug)"

@@ -196,22 +196,49 @@ directory; it differs by hook form.
 
 ## gamelist.xml
 
-ES writes user edits (favourite, playcount, lastplayed, hidden) back into the same file.
 Merge, never clobber; write atomically via temp file plus rename; include only locally
 present ROMs. **Key generation by resolved folder, not by platform**, because two RomM
 platforms can share one folder.
 
+**Own an allowlist of the fields you write, never a blocklist of ES's.** The four the plan
+first named are not the surface. Across 4,531 entries in 32 gamelists from a real scraped
+install: `playcount` 115, `lastplayed` 115, **`gametime` 114**, and **no `favorite` and no
+`hidden` at all**, plus `scrap` 4,525 (self-closing, `name` and `date` attributes),
+`id` on `<game>` 4,493, `cheevosHash` 4,187, `md5` 2,815, `cheevosId` 2,329,
+`arcadesystemname` 568, `multidisk` 161, `crc32` 8.
+
+**Media is named after the ROM file**, stem being the file name without its extension:
+`images/<stem>-image.png`, `images/<stem>-thumb.png`, `images/<stem>-marquee.png` (marquee
+lives under `images/`, not its own folder), `videos/<stem>-video.mp4`,
+`manuals/<stem>-manual.pdf`. Those are the exact names a user's own scrape writes, so never
+delete one RomMBat did not create.
+
 **After writing, call `GET http://127.0.0.1:1234/reloadgames`.** M0 measured that ES keeps a
 stale in-memory model until asked to reload, and rewrites `gamelist.xml` from that model when
 it exits. Write-then-reload makes the edit stick and takes effect immediately; write without
-reloading and ES can serialise its stale copy over you. ES merges in place rather than
-regenerating, so comments and element order survive, and it writes no `<game>` entry for a
-rom it has no metadata for.
+reloading and ES can serialise its stale copy over you. ES writes no `<game>` entry for a rom
+it has no metadata for, and **does not list a `<game>` whose `<path>` names a file that is not
+on disk**, so a stale entry is inert rather than a phantom game.
+
+**Do not depend on ES preserving what it read.** When it has a reason to rewrite the file it
+**drops every XML comment**, at document level and inside a `<game>` alike; moves the entry it
+changed to the end; rewrites that entry's children into its own order
+(`path,name,desc,genre,rating,releasedate,developer,publisher,players,favorite,playcount,lastplayed,gametime,lang,region,...`);
+and prunes `<hidden>false</hidden>` as a default, the same behaviour it has on
+`es_settings.cfg`. Unknown elements and attributes do survive. When it has no reason, it
+leaves the file **byte-identical, mtime included**, so a no-churn assertion is meaningful but
+has to be made about the file ES left behind.
 
 **`/reloadgames` returns in 1-2 ms and does the work afterwards**, so its response is not a
 completion signal. Time to the change being visible was 269 ms for a 200-entry list and
 1.1 s for 100,000. Poll `/systems` (a few KB, carries `totalGames`) rather than
 `/systems/<system>/games`, which serialises the whole library.
+
+**And it is ignored outright while a game is running**, 200 in 1 ms with nothing reloaded,
+exactly as `/quit` and `/emukill` are. Reload again after the game ends rather than treating
+the 200 as done. With ES absent, which is the ordinary case for a background sync, the connect
+is **refused after 2.04 s** on loopback, so this client needs a `ConnectTimeout` far below the
+2 s used for reachability or every sync pays it.
 
 **Size is not the constraint you would expect.** ES loaded a 100,000-entry, 65 MB gamelist
 in 2.07 s from a cold start for 419 MB of working set, roughly 2 MB per 1,000 entries, and

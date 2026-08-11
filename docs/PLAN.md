@@ -115,9 +115,17 @@ Guardrails that follow from this:
   in under 1.5 s. Deletion of content is reconciled through set re-resolution instead; see
   M3 and finding 81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
-  large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. The cap exists
-  because 100,000 entries cannot be navigated with a gamepad, which is principle 3's
-  argument, and because a gamelist is a mirror of what is on disk.
+  large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
+  mirror of what is on disk, and that is the whole of the rule.
+
+  **The per-system cap this bullet used to name is withdrawn, because it cannot do the job
+  it was given.** ES lists ROM files it has no gamelist entry for, so dropping entries hides
+  no games and only strips their art and description: the user still scrolls past exactly as
+  many tiles, now blank. What bounds navigability is the sync set's own `max_games`, which
+  is principle 3's argument and already exists. M4 reports a folder that grows past a
+  threshold rather than truncating it. `ParseGamelistOnly` would make the gamelist
+  authoritative and give a cap teeth, but it is a global ES setting affecting systems
+  RomMBat does not manage, so RomMBat does not touch it. See finding 111.
 - Warn before a set resolves to more than a configurable game count or byte size.
 
 ### 3. Curation, so the device shows what the user cares about
@@ -1155,6 +1163,8 @@ the rollout order below can be derived rather than hand-maintained.
   and unable to evict its way out, because it must never delete a file it did not download.
 - Eviction is a first-class operation and a dry-run by default: it shows what would be
   removed before anything is, and refuses to evict anything with unflushed local saves.
+  **From M4 it takes a ROM's media and its gamelist entry with it**, and still never touches
+  a file RomMBat did not download, which is what keeps a user's own scraped art safe.
   **Two of the plan's three eviction policies cannot be honoured yet, and the code says so
   rather than ignoring them.** "Keep favourites" needs a fact RomM does not carry on a ROM
   (favourites are collection membership) and "keep the last N played" needs the play sessions
@@ -1220,21 +1230,96 @@ cleanly.
   `name`, `desc`, `image`, `thumbnail`, `marquee`, `video`, `manual`, `developer`,
   `publisher`, `genre`, `family`, `players`, `lang`, `region`, `releasedate`
   (`YYYYMMDDT000000`), `rating` (0-1, 2 decimals).
+- **Metadata rides the walk M2 already makes, and costs no extra request.** The paged read
+  returns `SimpleRomSchema`, which carries `metadatum`, `summary`, every media path,
+  `regions` and `languages`; M2's slim `RomRow` simply throws them away. `GET /api/roms/{id}`
+  returns `DetailedRomSchema`, whose only additions are seven user arrays that were empty on
+  every ROM tried, at 0.15 s per request, which is **150 s for a 1,000-game set** against
+  zero. And `GET /api/roms` has no id-list parameter, so "metadata for exactly what is on
+  disk" is not a query that can be asked. What M4 adds is a metadata row per **member**,
+  written during resolution and read back offline. See findings 93 and 94.
+- **Five conversions, none of them a copy, and each wrong quietly rather than loudly.**
+  `first_release_date` is **milliseconds**, not seconds (read as seconds every value lands in
+  year 0). `average_rating` is **0-100** against a gamelist `<rating>` of 0-1. `genres` and
+  `franchises` are arrays against single-valued elements, joined with `, ` because that is
+  what a real scraped install already contains (`Racing, Driving`), and `franchises` needs
+  deduping first. `regions` and `languages` use a different vocabulary in both directions:
+  `Japan` against `jp`, `English` against a comma-joined `en,fr`. Only `player_count` is a
+  straight copy, because RomM already writes `1-2`. Findings 95 to 100.
+- **`<developer>` carries the company list and `<publisher>` is not written at all.**
+  `metadatum.companies` merges both roles into one flat array and sorts it alphabetically on
+  4,197 of 4,197 rows that have one, so a positional reading is reading the alphabet, and
+  Chrono Trigger reads `['Squaresoft', 'Squaresoft']`. No provider block separates them
+  either. Writing the joined list into both fields would assert that BioWare published KOTOR;
+  writing it into `<developer>` alone asserts only that these companies were involved.
+  Finding 98.
 - Download media into `images/`, `videos/`, `manuals/` next to the ROMs, named after the
-  ROM file, per RetroBat's scraper convention. Media counts against the disk budget.
-- **Merge, never clobber.** ES writes user edits (favourite, playcount, lastplayed,
-  hidden) back into the same file. Read the existing gamelist, update only the fields
-  RomMBat owns, preserve the rest, and write atomically via temp file plus rename.
+  ROM file, per RetroBat's scraper convention: `<stem>-image.png`, `<stem>-thumb.png`,
+  **`<stem>-marquee.png` (also under `images/`)**, `<stem>-video.mp4`,
+  `<stem>-manual.pdf`. The marquee comes from **`ss_metadata.logo_path`, not
+  `marquee_path`**, which is what upstream's own exporter does: EmulationStation's marquee is
+  game logo art while ScreenScraper's marquee is an arcade cabinet marquee. It is the one
+  field sourced from a provider block rather than a ROM-level one, so it is absent for about
+  a fifth of a real library. Media counts against the disk budget, and it is not a rounding error:
+  at the measured medians a game costs 525 KB of cover, 104 KB of thumbnail, 445 KB of
+  marquee, 1.99 MB of video and 2.45 MB of manual, so a 100-game `nes` set is ~12.8 MB of
+  ROMs against ~550 MB of media. **The default fetches covers, marquee and video, and leaves
+  manuals opt-in**, which is ~3.1 MB per game and matches what this milestone is done-when.
+  Finding 92.
+- **Media comes off static resource paths, not the `/api/roms/{id}/content` route M3 built**,
+  and three things about them decide the code:
+  - **Never use `url_cover` or `url_manual`.** They are ScreenScraper API URLs carrying a
+    third party's credentials in the query string: off-LAN, which breaks principle 1, and not
+    ours to send. Finding 88.
+  - **Two path shapes.** `path_cover_small` and `path_cover_large` are already rooted at
+    `/assets/romm/resources/` and carry a `?ts=` query holding a **raw space**;
+    `path_manual`, `path_video` and `ss_metadata.logo_path` are relative to that prefix.
+    Normalise onto the prefix exactly once, and drop the query. Finding 89.
+  - **The wrong prefix answers 200.** Requesting the relative form as given returns the web
+    UI's `index.html`, 5,826 bytes, with an `ETag` and `Accept-Ranges`, which would be
+    written to disk as a PDF. Check the content type, not just the status. Finding 90.
+
+  The good news is the rest: nginx serves media with ranges, an `ETag` and a 416 past the
+  end, so M3's resume machinery applies unchanged, and no token is needed at all.
+- **Names RomMBat constructs, from names it was given.** The ceiling is the **255-character
+  file name**, not `MAX_PATH`, and `\\?\` does not lift it because it is a filesystem
+  component limit. Sanitise before the write: `<>"|?*` and the separators fail loudly, but
+  **`:` does not fail at all**, it writes an NTFS alternate data stream, so the call succeeds
+  and the file the gamelist names is not there. Findings 109 and 110.
+- **Merge, never clobber, on an allowlist of the fields RomMBat owns.** The four fields this
+  plan used to name are not the surface: a real install's 4,531 entries carry `playcount`,
+  `lastplayed` and **`gametime`**, and no `favorite` or `hidden` at all, plus `scrap` with its
+  attributes, `id` and `source` on `<game>`, `cheevosHash`, `cheevosId`, `md5`, `crc32`,
+  `arcadesystemname` and `multidisk`. Read the existing gamelist, replace only the elements
+  RomMBat writes, leave every other node exactly where it is, and write atomically via temp
+  file plus rename. Finding 102.
+- **Do not depend on ES preserving what it reads.** When ES has a reason to rewrite the file
+  it **drops every XML comment**, moves the entry it changed to the end, rewrites that
+  entry's children into its own order, and prunes `<hidden>false</hidden>` as a default.
+  Unknown elements and attributes do survive. When it has no reason, it leaves the file
+  byte-identical, mtime included. Findings 103, 104 and 105.
 - **Then call `GET http://127.0.0.1:1234/reloadgames`.** M0 measured that ES holds a stale
   in-memory model until asked to reload, and rewrites `gamelist.xml` from that model on
   exit. Write-then-reload makes the edit stick **and** shows it immediately without a
   restart; writing without reloading risks ES serialising its stale copy over the top. ES
-  merges in place rather than regenerating, so comments and element order survive, and it
-  writes no `<game>` entry for a rom it has no metadata for. The API answers only while ES
-  runs, so give the call a short timeout and carry on if it fails.
+  writes no `<game>` entry for a rom it has no metadata for. Two measured limits:
+  - **It is ignored while a game is running**, 200 in 1 ms with nothing happening, exactly
+    as `/quit` and `/emukill` are. A 200 is not evidence. Finding 107.
+  - **A refused loopback connect costs 2.04 s**, so the project's 2 s interactive
+    `ConnectTimeout` buys nothing here. ES being absent is the ordinary case for a background
+    sync, not an error, so this client gets its own much shorter budget. Finding 108.
+- **A stale entry is inert, and still worth removing.** ES does not list a `<game>` whose
+  `<path>` names a file that is not on disk, so an entry left behind by an eviction is not a
+  phantom game, but it does survive ES's own rewrite. Eviction removes a ROM's gamelist entry
+  and its media in the same pass. Finding 106.
 - Generating the gamelist client-side is correct here. RomM's
   `POST /api/export/gamelist-xml` writes into the _server's_ library folders, which is a
   different machine.
+- **What M7 reuses.** The ES menu entry needs the same merge-and-reload against
+  `system/es_menu/gamelist.xml`. M4 builds that as two components with a seam, not as one
+  gamelist writer: a merge that owns "read this file, replace these elements, preserve
+  everything else, write atomically" with no knowledge of ROMs, and an ES client that owns
+  the reload. M7 supplies its own entry and reuses both unchanged.
 
 **Done when:** ES shows box art, descriptions and videos for synced games, and a user's
 manual metadata edit survives the next sync.
@@ -1945,6 +2030,12 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
   given a fixture `es_systems.cfg`, and assert that two platforms sharing a folder produce
   one merged gamelist rather than two competing writes. Track the unmapped count as a
   visible number so it cannot silently grow.
+- **Gamelist merge, against a fixture taken from a real install:** round-trip an ES-written
+  `gamelist.xml` and assert `playcount`, `lastplayed`, `gametime`, `scrap` with its
+  attributes, `id` and `source` on `<game>`, `cheevosHash` and every other node RomMBat does
+  not own survive untouched, while the fields it does own are updated. Assert an ampersand, a
+  non-ASCII title and a control character in a description all come back out parseable, since
+  a gamelist ES cannot parse loses the whole system rather than one entry.
 - **Offline simulation:** the highest-value test suite. Drive the whole client against a
   stubbed handler that can be switched to "unreachable" mid-operation, and assert that
   every operation either completes locally or queues, and that a subsequent flush is
@@ -1977,6 +2068,12 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
   no gamelist churn. That is the single best signal that slots, cursors and set resolution
   are all correct.
 
+  **"No churn" is a claim about the file ES leaves behind, not the one RomMBat wrote.** ES
+  leaves a gamelist byte-identical when it has nothing to change, so the test is meaningful;
+  but once a game has been played, ES reorders the entries, rewrites that entry's children
+  into its own order and drops every comment, so the second write has to be a no-op against
+  that file rather than against its own previous output. See findings 103 to 105.
+
 ---
 
 ## Optional follow-ups to RomM itself
@@ -1992,6 +2089,13 @@ should go up on its own branch rather than bundled:
 2. `backend/endpoints/sockets/sync.py` emits `sync:*` to `room=f"user:{user_id}"`, but
    nothing anywhere calls `enter_room` for that room, so those events are undeliverable.
    Either join the room on connect or drop the emitters.
+3. `backend/utils/gamelist_exporter.py` writes `companies[0]` into `<developer>` and
+   `companies[1]` into `<publisher>`. That array merges both roles and is alphabetically
+   sorted on every row measured, so the two fields carry the alphabet: KOTOR exports with
+   Activision as its developer and Aspyr Media as its publisher, and Chrono Trigger exports
+   `Squaresoft` twice. The same file writes `regions[0]` and `languages[0]` verbatim, so
+   `<region>` gets `USA` where EmulationStation's own vocabulary is `us`. Neither is fixable
+   without a role on the company record, which is the real ask.
 
 A third, larger idea worth raising as a discussion rather than a PR: collection list
 responses embedding full `rom_ids` sets does not scale, and a companion-app ecosystem
