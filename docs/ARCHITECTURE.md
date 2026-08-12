@@ -225,20 +225,24 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. The schema lives
+so each milestone has somewhere honest to write from the moment it starts. Four have been
+added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table             | Holds                                                                                                        |
 | ----------------- | ------------------------------------------------------------------------------------------------------------ |
 | `device`          | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token   |
 | `local_sequence`  | Singleton: the monotonic counter the outbox and journal share                                                |
-| `local_file`      | Relative path, resolved folder, `rom_id`, size, md5/sha1/crc, mtime, last verified, synced or adopted        |
+| `local_file`      | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5/sha1/crc, mtime, last verified, synced or adopted |
 | `sync_set`        | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                           |
 | `sync_set_member` | Resolved membership per set, with departed members kept so drift between runs is visible                     |
 | `platform_map`    | Resolved folder per RomM platform, and **which layer resolved it**                                           |
 | `outbox`          | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number |
 | `journal`         | Hook events, correlated later against `emulatorLauncher.log`                                                 |
 | `game_id_binding` | Learned Game ID to `rom_id` bindings, for class C and D attribution                                          |
+| `rom_metadata`    | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server            |
+| `setting`         | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy |
+| `content_download`| One interrupted transfer per ROM: its `.part`, its target, the expected length and the validator to resume against |
 | `sync_cursor`     | Per-endpoint cursors and `updated_after` watermarks                                                          |
 | `clock`           | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                   |
 
