@@ -23,13 +23,24 @@ public sealed record EvictionCandidate
 
     public required EvictionReason Reason { get; init; }
 
+    /// <summary>
+    /// The artwork, video and manual that go with it.
+    /// </summary>
+    /// <remarks>
+    /// Media follows its ROM out, or the install accumulates orphaned covers no gamelist
+    /// references. Only files RomMBat downloaded are here: a user's own scrape writes to the
+    /// same names and is never a candidate.
+    /// </remarks>
+    public IReadOnlyList<LocalFile> Media { get; init; } = [];
+
     /// <summary>Which set it belonged to, when one still does.</summary>
     public string? SetName { get; init; }
 
     /// <summary>Its rank in that set, which is what orders candidates sharing a reason.</summary>
     public int? Position { get; init; }
 
-    public long Bytes => File.SizeBytes;
+    /// <summary>What removing this candidate frees, the ROM and its media together.</summary>
+    public long Bytes => File.SizeBytes + Media.Sum(file => file.SizeBytes);
 
     /// <summary>Set when something refused to let this one go.</summary>
     public string? Refusal { get; init; }
@@ -197,6 +208,7 @@ public sealed class EvictionPlanner
         var removed = 0;
         var freed = 0L;
         var problems = new List<string>();
+        var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var candidate in plan.Selected)
         {
@@ -215,15 +227,18 @@ public sealed class EvictionPlanner
 
             try
             {
-                var absolute = install.Resolve(candidate.File.Path);
-                if (File.Exists(absolute))
+                freed += Delete(candidate.File, install);
+
+                // The media goes with it. Each is checked for origin again rather than
+                // trusted from the plan: a file the user replaced between the dry run and
+                // this call is theirs now.
+                foreach (var media in candidate.Media.Where(file => file.Origin == FileOrigin.Synced))
                 {
-                    File.Delete(absolute);
+                    freed += Delete(media, install);
                 }
 
-                _store.Files.Remove(candidate.File.Path);
                 removed++;
-                freed += candidate.Bytes;
+                folders.Add(candidate.File.Folder);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -238,7 +253,25 @@ public sealed class EvictionPlanner
             Removed = removed,
             BytesFreed = freed,
             Problems = problems,
+
+            // The gamelists that now name games this install no longer has. Reported rather
+            // than rewritten here, so eviction stays a thing that deletes files and the
+            // gamelist writer stays the one thing that writes gamelists.
+            FoldersToRewrite = [.. folders.Order(StringComparer.OrdinalIgnoreCase)],
         };
+    }
+
+    /// <summary>Removes one file and its row, and reports what that freed.</summary>
+    private long Delete(LocalFile file, RetroBatInstall install)
+    {
+        var absolute = install.Resolve(file.Path);
+        if (File.Exists(absolute))
+        {
+            File.Delete(absolute);
+        }
+
+        _store.Files.Remove(file.Path);
+        return file.SizeBytes;
     }
 
     /// <summary>Everything that could go, worst first.</summary>
@@ -246,9 +279,20 @@ public sealed class EvictionPlanner
     {
         // Only what RomMBat downloaded. An adopted file is the user's own and is never a
         // candidate, which is also why it never counted towards the budget.
-        var files = _store.Files.List()
+        var synced = _store.Files.List()
             .Where(file => file.Origin == FileOrigin.Synced && file.RomId is not null)
+            .ToList();
+
+        // Keyed on the ROM row specifically. Since M4 a ROM can have six rows, five of them
+        // media, and keying on rom_id alone would throw on the second.
+        var files = synced
+            .Where(file => file.Kind == LocalFileKind.Rom)
             .ToDictionary(file => file.RomId!.Value);
+
+        var mediaByRom = synced
+            .Where(file => file.Kind != LocalFileKind.Rom)
+            .GroupBy(file => file.RomId!.Value)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<LocalFile>)[.. group]);
 
         var claims = new Dictionary<int, (string SetName, MemberState State, int? Position)>();
 
@@ -277,15 +321,23 @@ public sealed class EvictionPlanner
 
         foreach (var (romId, file) in files)
         {
+            var media = mediaByRom.GetValueOrDefault(romId, []);
+
             if (!claims.TryGetValue(romId, out var claim))
             {
-                candidates.Add(new EvictionCandidate { File = file, Reason = EvictionReason.Orphaned });
+                candidates.Add(new EvictionCandidate
+                {
+                    File = file,
+                    Media = media,
+                    Reason = EvictionReason.Orphaned,
+                });
                 continue;
             }
 
             candidates.Add(new EvictionCandidate
             {
                 File = file,
+                Media = media,
                 Reason = claim.State == MemberState.Member ? EvictionReason.LowestRanked : EvictionReason.Departed,
                 SetName = claim.SetName,
                 Position = claim.Position,
@@ -319,6 +371,9 @@ public sealed record EvictionOutcome
     public long BytesFreed { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
+
+    /// <summary>Folders whose gamelist now names a game that is gone.</summary>
+    public IReadOnlyList<string> FoldersToRewrite { get; init; } = [];
 
     public string Summary =>
         Removed == 0 && Problems.Count == 0

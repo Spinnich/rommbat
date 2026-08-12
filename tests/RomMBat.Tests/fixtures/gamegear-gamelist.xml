@@ -1,0 +1,113 @@
+<?xml version="1.0"?>
+<gameList>
+	<game id="12932">
+		<path>./Alien Syndrome (Europe).zip</path>
+		<name>Alien Syndrome</name>
+		<desc>Alien Syndrome is a scrolling shooter arcade conversion.
+
+Your job is to run around and rescue all the captives and make it to the escape hatch before the time bomb explodes. Then face the mother alien at the end of the level.
+
+You can play as a single player or two people, taking turns. (Player 2 starts the game after Player 1 dies and vice versa.)</desc>
+		<genre>Shooter / Run and Gun</genre>
+		<image>./images/Alien Syndrome (Europe)-image.png</image>
+		<video>./videos/Alien Syndrome (Europe)-video.mp4</video>
+		<marquee>./images/Alien Syndrome (Europe)-marquee.png</marquee>
+		<thumbnail>./images/Alien Syndrome (Europe)-thumb.png</thumbnail>
+		<manual>./manuals/Alien Syndrome (Europe)-manual.pdf</manual>
+		<rating>0.55</rating>
+		<releasedate>19920101T000000</releasedate>
+		<developer>Sims</developer>
+		<publisher>SEGA</publisher>
+		<family>Alien</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20260611T192546</lastplayed>
+		<md5>6c29fc1bae1051774e9a83098f55bd4e</md5>
+		<gametime>22</gametime>
+		<lang>en</lang>
+		<region>eu</region>
+		<cheevosHash>6C29FC1BAE1051774E9A83098F55BD4E</cheevosHash>
+		<scrap name="ScreenScraper" date="20260611T192423" />
+	</game>
+	<game id="12898">
+		<path>./Batman Returns (World).zip</path>
+		<name>Batman Returns</name>
+		<desc>From Sega 8-bit specialists Aspect comes one of many adaptations of Tim Burton's 1992 superhero sequel Batman Returns. Like other versions, it is a side-scrolling platformer. While very similar to the Master System version, the Game Gear version has slightly different levels and gameplay mechanics.
+
+Batman must move through five stages on his way to defeat the Penguin. These include the streets and rooftops of Gotham City, Max Shreck's department store, the sewers, and the Penguin's lair. For the first four levels, a route can be selected from two options, allowing for different paths through the game.
+
+Enemies standing in Batman's way can be defeated by throwing the Batarang at them, which will take out most baddies with one or just a few hits, even though the weapon's range is limited. Other tools Batman can use are a grappling hook to pull himself up to higher levels or swing across dangerous areas, and his cape, which can be used as a parachute, for more control during falls.
+
+Unlike in the Master System version, Batman can take more than one hit: he has a health bar, which can be refilled with powerups hidden in bat symbols.</desc>
+		<genre>Beat'em Up</genre>
+		<image>./images/Batman Returns (World)-image.png</image>
+		<video>./videos/Batman Returns (World)-video.mp4</video>
+		<marquee>./images/Batman Returns (World)-marquee.png</marquee>
+		<thumbnail>./images/Batman Returns (World)-thumb.png</thumbnail>
+		<manual>./manuals/Batman Returns (World)-manual.pdf</manual>
+		<rating>0.55</rating>
+		<releasedate>19920901T000000</releasedate>
+		<developer>Aspect</developer>
+		<publisher>SEGA</publisher>
+		<family>Batman</family>
+		<players>1</players>
+		<playcount>1</playcount>
+		<lastplayed>20260615T083937</lastplayed>
+		<md5>1e8cfd2f30e9ad733f602cf2de696ba9</md5>
+		<gametime>14</gametime>
+		<lang>en</lang>
+		<region>wr</region>
+		<cheevosHash>1E8CFD2F30E9AD733F602CF2DE696BA9</cheevosHash>
+		<cheevosId>14284</cheevosId>
+		<scrap name="ScreenScraper" date="20260611T192422" />
+	</game>
+	<game id="12972">
+		<path>./Baku Baku (USA).zip</path>
+		<name>Baku Baku</name>
+		<desc>The Minister approaches the King to tell him that his only daughter, the Princess, wants a new pet. But the King says she already has too many, and she can't take care of so many animals. Thus the Minister purposes a contest of skill and daring to select the Royal Zookeeper. Master Piggy then sends his pupil, Polly, to participate in the contest.
+
+Baku Baku Animal is a variation on the very often copied Tetris type of game. The game has three different play modes: practice, normal and hard. It also can be played by two players against each other (except for the Master System version).
+
+The objective is to pair animal heads with their respective food. If a rabbit head comes falling, you must make it fall on a pile of carrot tiles, dog heads with bones, panda heads with bamboos and monkey heads with bananas. There is a bonus item, the "BB coin", which will appear from times to times, and remove piled tiles from the playfield. Removed tiles will be sent to the opponent's playfield all at once, increasing the difficulty of the task. Polly will face several contestants, and she'll win when her opponents get their playfield piled to the top.</desc>
+		<genre>Puzzle</genre>
+		<image>./images/Baku Baku (USA)-image.png</image>
+		<video>./videos/Baku Baku (USA)-video.mp4</video>
+		<marquee>./images/Baku Baku (USA)-marquee.png</marquee>
+		<thumbnail>./images/Baku Baku (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Baku Baku (USA)-manual.pdf</manual>
+		<rating>0.4</rating>
+		<releasedate>19960101T000000</releasedate>
+		<developer>Minato Giken</developer>
+		<publisher>SEGA</publisher>
+		<players>1-2</players>
+		<md5>3ff5a4888076e7a5905bc565563c3692</md5>
+		<lang>en</lang>
+		<region>us</region>
+		<cheevosHash>3FF5A4888076E7A5905BC565563C3692</cheevosHash>
+		<scrap name="ScreenScraper" date="20260611T192428" />
+	</game>
+	<game id="12852">
+		<path>./Battletoads (USA).zip</path>
+		<name>Battletoads</name>
+		<desc>The Dark Queen has attacked and kidnapped (toadnapped?) your best buddy.. To make matters worse, she nabbed the best looking girl around! So, what will you do? Cry? Whimper? Hide? Call the Starcops? NO! Cause you're a Battletoad! Battletoads don't cry, hide or call for help! And they certainly don't whimper! They get MAD then they get EVEN! So grab your blaster, hop on the Toadster and go get 'em!
+
+You will control a battletoad through various levels. Some are side-scrolling beat-em-ups, other are vertical drops down a shaft, fighting as you go, others have you riding a rocket or surfboard, shooting or avoiding enemies. At the end of each area, there is a boss. In some areas, about half-way through, you may have a mini-boss.</desc>
+		<genre>Beat'em Up</genre>
+		<image>./images/Battletoads (USA)-image.png</image>
+		<video>./videos/Battletoads (USA)-video.mp4</video>
+		<marquee>./images/Battletoads (USA)-marquee.png</marquee>
+		<thumbnail>./images/Battletoads (USA)-thumb.png</thumbnail>
+		<manual>./manuals/Battletoads (USA)-manual.pdf</manual>
+		<rating>0.9</rating>
+		<releasedate>19931201T000000</releasedate>
+		<developer>Arc System Works</developer>
+		<publisher>SEGA</publisher>
+		<family>Battletoads</family>
+		<players>1</players>
+		<md5>643536bfaf945e8fa8a22de8d4653d83</md5>
+		<lang>en</lang>
+		<region>us</region>
+		<cheevosHash>643536BFAF945E8FA8A22DE8D4653D83</cheevosHash>
+		<scrap name="ScreenScraper" date="20260611T192429" />
+	</game>
+</gameList>

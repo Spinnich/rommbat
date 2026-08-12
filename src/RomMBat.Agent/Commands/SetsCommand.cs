@@ -379,6 +379,14 @@ internal static class SetsCommand
             walkStartedAt,
             complete);
 
+        // Upserted rather than replaced, and after the membership: a resumed walk only carries
+        // metadata for the segment it just read, and the rows an earlier segment wrote are
+        // still the only copy of that game's description.
+        foreach (var metadata in resolution.Metadata)
+        {
+            context.Store.Metadata.Record(metadata);
+        }
+
         if (!complete)
         {
             context.Store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, now);

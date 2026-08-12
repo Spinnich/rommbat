@@ -35,6 +35,58 @@ internal sealed record StubRom(
 
     /// <summary>True to serve this ROM the way RomM serves a multi-file one: no ranges, ever.</summary>
     public bool HasMultipleFiles { get; init; }
+
+    /// <summary>
+    /// The gamelist metadata the paged read carries, or null for a ROM with none.
+    /// </summary>
+    /// <remarks>
+    /// On the row rather than behind a second endpoint, because that is where the real API
+    /// puts it: <c>SimpleRomSchema</c> carries <c>metadatum</c>, <c>summary</c> and every media
+    /// path, so reading them costs no request and a test that stubbed them elsewhere would be
+    /// testing a client nobody ships.
+    /// </remarks>
+    public StubRomMetadata? Metadata { get; init; }
+}
+
+/// <summary>What a ROM row carries beyond what sync-set resolution reads.</summary>
+/// <remarks>
+/// The defaults are the shapes measured on a live instance, traps included: companies
+/// alphabetically sorted with both roles merged, a release date in <b>milliseconds</b>, a
+/// rating out of <b>100</b>, and media paths in the two different shapes RomM emits.
+/// </remarks>
+internal sealed record StubRomMetadata
+{
+    public string? Summary { get; init; } = "A game the stub library holds.";
+
+    public IReadOnlyList<string> Companies { get; init; } = ["Nintendo"];
+
+    public IReadOnlyList<string> Genres { get; init; } = ["Platform"];
+
+    public IReadOnlyList<string> Franchises { get; init; } = [];
+
+    public string PlayerCount { get; init; } = "1-2";
+
+    /// <summary>1994-09-16, in milliseconds.</summary>
+    public long? FirstReleaseDate { get; init; } = 779_673_600_000;
+
+    /// <summary>Out of 100.</summary>
+    public double? AverageRating { get; init; } = 82.5;
+
+    public IReadOnlyList<string> Regions { get; init; } = ["USA"];
+
+    public IReadOnlyList<string> Languages { get; init; } = ["English"];
+
+    /// <summary>Already rooted at the asset prefix, and carrying the raw-space query.</summary>
+    public string? CoverLargePath { get; init; } = "/assets/romm/resources/roms/1/{id}/cover/big.png?ts=2026-07-21 18:07:17";
+
+    public string? CoverSmallPath { get; init; } = "/assets/romm/resources/roms/1/{id}/cover/small.png";
+
+    /// <summary>Relative to the prefix, which is the shape that answers 200 with a web page if used as given.</summary>
+    public string? VideoPath { get; init; } = "roms/1/{id}/video/video.mp4";
+
+    public string? ManualPath { get; init; }
+
+    public string? LogoPath { get; init; } = "roms/1/{id}/logo/logo.png";
 }
 
 /// <summary>One platform in the stub library.</summary>
@@ -103,6 +155,20 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     /// <summary>What <c>GET /api/platforms</c> answers with.</summary>
     public IList<StubPlatform> Platforms { get; } = [];
+
+    /// <summary>
+    /// Media files, keyed by their full path under <c>/assets/romm/resources/</c>.
+    /// </summary>
+    /// <remarks>
+    /// A path that is not here answers 404. That is deliberately not what the real server does
+    /// for a <b>prefix-less</b> path, which answers 200 with the web UI's page; that case is
+    /// covered where the client is tested directly, because reproducing it here would mean the
+    /// stub answering 200 to everything.
+    /// </remarks>
+    public IDictionary<string, byte[]> Media { get; } = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+
+    /// <summary>Every media path requested, in order, so a test can count them.</summary>
+    public IList<string> AssetRequests { get; } = [];
 
     /// <summary>The <c>sync_config</c> last written by <c>PUT /api/devices/{id}</c>.</summary>
     public JsonElement? StoredSyncConfig { get; set; }
@@ -289,6 +355,11 @@ internal sealed class StubRomMServer : HttpMessageHandler
             return ByHash(request.RequestUri);
         }
 
+        if (path.StartsWith("/assets/romm/resources/", StringComparison.Ordinal))
+        {
+            return Asset(path);
+        }
+
         if (path.Contains("/content/", StringComparison.Ordinal))
         {
             return ContentResponse(request, path);
@@ -433,6 +504,47 @@ internal sealed class StubRomMServer : HttpMessageHandler
         return match is null ? Detail(HttpStatusCode.NotFound, "Not Found") : Json(HttpStatusCode.OK, Project(match));
     }
 
+    /// <summary>
+    /// Serves a media file the way nginx does, and the web UI's page the way it does too.
+    /// </summary>
+    /// <remarks>
+    /// The second half is the interesting one. A media path used without the asset prefix
+    /// answers <b>200</b> with <c>index.html</c> rather than 404, which is why the client has
+    /// to check the content type and not the status. Reproduced here so a regression in the
+    /// prefix handling shows up as a test failure rather than as a PDF full of HTML.
+    /// </remarks>
+    private HttpResponseMessage Asset(string path)
+    {
+        AssetRequests.Add(path);
+
+        if (!Media.TryGetValue(path, out var bytes))
+        {
+            return Detail(HttpStatusCode.NotFound, "no such asset");
+        }
+
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(bytes),
+        };
+
+        response.Content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue(ContentTypeFor(path));
+        response.Headers.TryAddWithoutValidation("Accept-Ranges", "bytes");
+        response.Headers.TryAddWithoutValidation("ETag", $"\"69e6885d-{bytes.Length:x}\"");
+
+        return response;
+    }
+
+    private static string ContentTypeFor(string path)
+    {
+        if (path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+        {
+            return "video/mp4";
+        }
+
+        return path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? "application/pdf" : "image/png";
+    }
+
     private HttpResponseMessage Roms(Uri? uri)
     {
         if (NextRomsStatus is { } status)
@@ -472,23 +584,51 @@ internal sealed class StubRomMServer : HttpMessageHandler
         });
     }
 
-    private static object Project(StubRom rom) => new
+    private static object Project(StubRom rom)
     {
-        id = rom.Id,
-        platform_id = rom.PlatformId,
-        platform_slug = rom.PlatformSlug,
-        platform_fs_slug = rom.PlatformFsSlug,
-        platform_display_name = rom.PlatformSlug,
-        fs_name = rom.FsName,
-        fs_extension = rom.Extension,
-        fs_size_bytes = rom.SizeBytes,
-        md5_hash = rom.Md5Hash,
-        sha1_hash = rom.Sha1Hash,
-        has_multiple_files = rom.HasMultipleFiles,
-        name = rom.Name,
-        name_sort_key = rom.Name,
-        updated_at = rom.UpdatedAt,
-    };
+        var meta = rom.Metadata;
+        var id = rom.Id.ToString(CultureInfo.InvariantCulture);
+
+        return new
+        {
+            id = rom.Id,
+            platform_id = rom.PlatformId,
+            platform_slug = rom.PlatformSlug,
+            platform_fs_slug = rom.PlatformFsSlug,
+            platform_display_name = rom.PlatformSlug,
+            fs_name = rom.FsName,
+            fs_extension = rom.Extension,
+            fs_size_bytes = rom.SizeBytes,
+            md5_hash = rom.Md5Hash,
+            sha1_hash = rom.Sha1Hash,
+            has_multiple_files = rom.HasMultipleFiles,
+            name = rom.Name,
+            name_sort_key = rom.Name,
+            updated_at = rom.UpdatedAt,
+            summary = meta?.Summary,
+            regions = meta?.Regions ?? [],
+            languages = meta?.Languages ?? [],
+            path_cover_large = Personalize(meta?.CoverLargePath, id),
+            path_cover_small = Personalize(meta?.CoverSmallPath, id),
+            path_video = Personalize(meta?.VideoPath, id),
+            path_manual = Personalize(meta?.ManualPath, id),
+            ss_metadata = meta is null ? null : new { logo_path = Personalize(meta.LogoPath, id) },
+            metadatum = meta is null ? null : new
+            {
+                rom_id = rom.Id,
+                genres = meta.Genres,
+                franchises = meta.Franchises,
+                companies = meta.Companies,
+                player_count = meta.PlayerCount,
+                first_release_date = meta.FirstReleaseDate,
+                average_rating = meta.AverageRating,
+            },
+        };
+    }
+
+    /// <summary>Puts the ROM id into a media path template, so two ROMs never share a file.</summary>
+    private static string? Personalize(string? template, string id) =>
+        template?.Replace("{id}", id, StringComparison.Ordinal);
 
     private static TaskCanceledException Timeout() =>
         new("The request was canceled due to the configured ConnectTimeout.", new TimeoutException());

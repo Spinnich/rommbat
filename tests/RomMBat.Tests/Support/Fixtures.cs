@@ -28,6 +28,18 @@ internal static class Fixtures
     /// <summary>The bundled platform map, as shipped.</summary>
     public static string PlatformsJson => Path("platforms.json");
 
+    /// <summary>
+    /// Four entries lifted verbatim from a real scraped install's <c>roms/gamegear/gamelist.xml</c>.
+    /// </summary>
+    /// <remarks>
+    /// Not synthesized, because the point is what a file RomMBat did not write actually
+    /// contains. Two of the four carry <c>playcount</c>, <c>lastplayed</c> and
+    /// <c>gametime</c>, all four carry <c>scrap</c> with its two attributes, <c>md5</c>,
+    /// <c>cheevosHash</c> and an <c>id</c> attribute on <c>&lt;game&gt;</c>, and one carries
+    /// <c>cheevosId</c>. RomMBat owns none of those.
+    /// </remarks>
+    public static string GamegearGamelist => Path("gamegear-gamelist.xml");
+
     /// <summary>Parses the shipped template.</summary>
     public static EsSystemsFile LoadEsSystems()
     {

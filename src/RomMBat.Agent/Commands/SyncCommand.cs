@@ -2,6 +2,7 @@ using RomMBat.Core;
 using System.Globalization;
 using RomM.Client;
 using RomMBat.Core.Content;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Agent.Commands;
@@ -74,6 +75,12 @@ internal static class SyncCommand
             var planner = new ContentPlanner(context.Install, context.Store, limits);
             var worst = ExitCode.Ok;
 
+            // Folders touched across every set, so one gamelist pass covers them all. Two RomM
+            // platforms can resolve to one folder, and writing per set would have the second
+            // set's write clobber the first's.
+            var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var syncedRoms = new List<int>();
+
             foreach (var set in sets)
             {
                 var members = context.Store.SyncSets.Members(set.Id);
@@ -116,6 +123,26 @@ internal static class SyncCommand
                 {
                     worst = Math.Max(worst, ExitCode.Offline);
                 }
+
+                foreach (var step in plan.Steps.Where(step => step.Action != ContentAction.Blocked))
+                {
+                    folders.Add(step.Member.Folder!);
+                    syncedRoms.Add(step.Member.RomId);
+                }
+            }
+
+            if (!dryRun && !offline && connection is not null && syncedRoms.Count > 0)
+            {
+                await FetchMediaAsync(context, connection, limits, syncedRoms, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            // Written even on a dry run's opposite, an offline run: the gamelist comes from
+            // local state, so a sync that fetched nothing still leaves ES showing what is
+            // there. A dry run writes nothing at all, which is what a dry run means.
+            if (!dryRun && folders.Count > 0)
+            {
+                await WriteGamelistsAsync(context, folders, cancellationToken).ConfigureAwait(false);
             }
 
             ReportBudget(context, planner);
@@ -126,6 +153,55 @@ internal static class SyncCommand
             connection?.Dispose();
         }
     }
+
+    /// <summary>
+    /// Fetches the artwork for what just landed.
+    /// </summary>
+    /// <remarks>
+    /// After the ROMs rather than alongside them, because a cover for a game whose download
+    /// failed is bytes spent on a gamelist entry that will not be written.
+    /// </remarks>
+    private static async Task FetchMediaAsync(
+        AgentContext context,
+        RomMConnection connection,
+        FilesystemLimits limits,
+        IReadOnlyCollection<int> romIds,
+        CancellationToken cancellationToken)
+    {
+        var media = new MediaSync(context.Install, context.Store, connection, limits);
+
+        var outcome = await media
+            .ApplyAsync(romIds, new Progress<string>(ShowMedia), cancellationToken)
+            .ConfigureAwait(false);
+
+        ClearProgressLine();
+        Console.WriteLine();
+        Console.WriteLine($"  {outcome.Summary}");
+
+        foreach (var problem in outcome.Problems)
+        {
+            Console.Error.WriteLine($"    {problem}");
+        }
+    }
+
+    private static async Task WriteGamelistsAsync(
+        AgentContext context,
+        IEnumerable<string> folders,
+        CancellationToken cancellationToken)
+    {
+        var gamelists = new GamelistSync(context.Install, context.Store);
+        using var emulationStation = new EmulationStationClient();
+
+        var outcome = await gamelists
+            .ApplyAsync(folders, emulationStation, cancellationToken)
+            .ConfigureAwait(false);
+
+        Console.WriteLine();
+        GamelistCommand.Report(outcome);
+    }
+
+    private static void ShowMedia(string what) =>
+        Console.Write($"\r    {Trim(what, 60),-64}");
 
     /// <summary>Prints what the plan would do, one line per game that is not already present.</summary>
     private static void Report(ContentPlan plan)

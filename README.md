@@ -13,9 +13,10 @@ is a wombat.
 
 > [!WARNING]
 >
-> **Pre-release, and not yet useful.** Pairing, device identity, the local store, catalog
-> browsing, platform mapping and sync sets work; **no content is downloaded yet**, which is
-> M3. The repository also holds the design of record
+> **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
+> mapping, sync sets, content sync with a disk budget, and metadata, media and
+> `gamelist.xml` all work. **Saves, states and playtime do not yet cross**, which is M6, and
+> **BIOS is not fetched**, which is M5. The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
@@ -156,6 +157,8 @@ rommbat-agent.exe sync --dry-run             # what it would fetch, and what it 
 rommbat-agent.exe sync                       # fetch it
 rommbat-agent.exe evict                      # what would go to get back inside the budget
 rommbat-agent.exe evict --apply              # actually remove it
+rommbat-agent.exe gamelist                   # rewrite gamelist.xml from local state
+rommbat-agent.exe gamelist --media all       # also fetch manuals, which are off by default
 ```
 
 `sync` re-resolves each set first, because smart-collection membership drifts server-side,
@@ -163,8 +166,19 @@ then prints a plan before doing anything. A second run of an unchanged set downl
 and says so. `sync --dry-run` and `sync --offline` both work with the server unreachable,
 answering from what the store already holds.
 
+`sync` then fetches artwork and writes one `gamelist.xml` per RetroBat folder, keyed by the
+folder rather than by the platform because two RomM platforms can share one. It merges into
+what is already there, so anything EmulationStation or a user's own scraper wrote survives,
+and it asks EmulationStation to reload only when something actually changed. `gamelist` does
+the same thing on its own and needs no server at all.
+
+**Media is not a rounding error.** At the sizes measured on a real library a game costs about
+3.1 MB of cover, thumbnail, marquee and video, so a hundred-game NES set is roughly 12.8 MB of
+ROMs and 320 MB of artwork. It counts against the same budget, and manuals are opt-in.
+
 **Nothing is deleted without `evict --apply`.** Eviction never removes a file RomMBat did not
-download, and never one whose saves have not reached the server.
+download, and never one whose saves have not reached the server. It takes a game's artwork and
+its gamelist entry out with it, and leaves artwork a user scraped themselves alone.
 
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
 several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server
@@ -184,7 +198,7 @@ framework works end to end.
 | M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                 |
 | M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet |
 | M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance |
-| M4        | `gamelist.xml` generation and media                                                                                 | Not started                                                                                             |
+| M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance |
 | M5        | BIOS and firmware                                                                                                   | Not started                                                                                             |
 | M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                                             |
 | M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                             |
