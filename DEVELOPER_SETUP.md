@@ -274,9 +274,12 @@ hand is safe, and the next sync starts that ROM again.
 ### Metadata, media and gamelists
 
 ```powershell
-dotnet run --project src/RomMBat.Agent -- gamelist --root D:etrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:etrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist --root D:
+etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:
+etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:
+etrobat-test
 ```
 
 `sync` already does all of this. `gamelist` is the same pass on its own, and it needs no

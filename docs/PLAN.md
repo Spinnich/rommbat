@@ -126,6 +126,7 @@ Guardrails that follow from this:
   threshold rather than truncating it. `ParseGamelistOnly` would make the gamelist
   authoritative and give a cap teeth, but it is a global ES setting affecting systems
   RomMBat does not manage, so RomMBat does not touch it. See finding 111.
+
 - Warn before a set resolves to more than a configurable game count or byte size.
 
 ### 3. Curation, so the device shows what the user cares about
@@ -1241,7 +1242,7 @@ cleanly.
 - **Five conversions, none of them a copy, and each wrong quietly rather than loudly.**
   `first_release_date` is **milliseconds**, not seconds (read as seconds every value lands in
   year 0). `average_rating` is **0-100** against a gamelist `<rating>` of 0-1. `genres` and
-  `franchises` are arrays against single-valued elements, joined with `, ` because that is
+  `franchises` are arrays against single-valued elements, joined with a comma and a space because that is
   what a real scraped install already contains (`Racing, Driving`), and `franchises` needs
   deduping first. `regions` and `languages` use a different vocabulary in both directions:
   `Japan` against `jp`, `English` against a comma-joined `en,fr`. Only `player_count` is a
@@ -1281,6 +1282,7 @@ cleanly.
 
   The good news is the rest: nginx serves media with ranges, an `ETag` and a 416 past the
   end, so M3's resume machinery applies unchanged, and no token is needed at all.
+
 - **Names RomMBat constructs, from names it was given.** The ceiling is the **255-character
   file name**, not `MAX_PATH`, and `\\?\` does not lift it because it is a filesystem
   component limit. Sanitise before the write: `<>"|?*` and the separators fail loudly, but
