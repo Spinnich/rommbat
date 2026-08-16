@@ -286,6 +286,37 @@ etrobat-test
 server: everything it writes comes from the local store, which is what lets it run on a
 handheld that has been off the network for a week.
 
+### Saves, playtime and the ES hooks
+
+```powershell
+dotnet run --project src/RomMBat.Agent -- hooks status --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- hooks install --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- saves --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
+```
+
+`sync` installs the hooks on its first run and flushes at the end, so none of this is
+normally typed. `hooks uninstall` removes exactly RomMBat's own file from each event folder
+and nothing else in them.
+
+**The hook is its own executable and has to be published before it can be installed.** It is
+not the agent: four copies are installed, one per event folder, so it is built small and
+references nothing.
+
+```powershell
+dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -o publish/hook
+```
+
+Copy the result to `<root>\emulators\rommbat\rommbat-hook.exe`, which is where
+`hooks install` looks for it. One test skips until this has been run, because it drives 32
+real hook processes at once to prove the journal survives interleaved appends.
+
+`flush` is what the hooks trigger and is the only command that needs the lock: draining the
+spool, correlating play sessions and rescanning saves all work with the server unreachable,
+so `--offline` is a real mode rather than a dry run. `saves` is the report of what is on
+disk, what has gone up, and what cannot go up and why.
+
 **Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
 opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against
 5.5 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes
