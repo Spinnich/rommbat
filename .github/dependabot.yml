@@ -6,6 +6,17 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    # Minor and patch arrive as one PR, so a week's routine bumps are verified together
+    # against one build rather than five stale branches. Major bumps stay ungrouped: they
+    # are the ones that need reading on their own, and a runner or framework major can go
+    # green while doing something quietly wrong.
+    groups:
+      nuget:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -13,3 +24,10 @@ updates:
       interval: weekly
     labels:
       - dependencies
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
