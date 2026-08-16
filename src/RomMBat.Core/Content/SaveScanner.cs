@@ -309,13 +309,18 @@ public sealed class SaveScanner
         }
 
         var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
+        var names = string.Join(", ", subdirectories.Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
+        // The system's own class is named because a reader will ask why a class A system has
+        // anything unsyncable at all. The answer is that the class describes its battery
+        // saves, which are the loose files, and these subdirectories are the emulators' own
+        // trees: memory cards, directory saves and save states, none of which ship here.
         report.Add(
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
-            $"{subdirectories.Count} directories under saves/{system}/ hold directory saves, shared "
-                + $"containers or save states (shape {classes}). These land in the next release.",
+            $"{names} hold save states, directory saves or shared containers. This release syncs "
+                + $"the battery saves loose under saves/{system}/ (class {classes}) and nothing else.",
             files);
     }
 
