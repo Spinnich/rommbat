@@ -382,6 +382,27 @@ public sealed class GamelistTests : IDisposable
         Assert.NotNull(after.SelectSingleNode("/gameList/game[path='./Sonic Chaos (USA).zip']"));
     }
 
+    [Fact]
+    public void An_entry_spelled_without_its_prefix_is_ours_in_the_count_as_well_as_in_the_merge()
+    {
+        Populate("gamegear", (10, "Sonic Chaos (USA).zip"));
+
+        // The shape Entry_paths_match_however_the_other_writer_spelled_them establishes, now
+        // on disk: the same ROM, named without the "./" RomMBat writes.
+        var path = Path.Combine(_tree.Root, "roms", "gamegear", "gamelist.xml");
+        var seed = GamelistDocument.Empty();
+        seed.Apply(new GamelistEntry("Sonic Chaos (USA).zip", [new("name", "Theirs")]));
+        seed.WriteIfChanged(path);
+
+        var result = new GamelistSync(_tree.Install(), _store).Write("gamegear");
+
+        // Updated, not added, and not then reported back to the user as somebody else's.
+        Assert.Equal(1, result.Entries);
+        Assert.Equal(1, result.Updated);
+        Assert.Equal(0, result.Added);
+        Assert.Equal(0, result.Foreign);
+    }
+
     // ------------------------------------------------------------------ the threshold
 
     [Fact]

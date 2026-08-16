@@ -138,9 +138,33 @@ public sealed class GamelistDocument
     /// <summary>How many <c>&lt;game&gt;</c> entries the document holds.</summary>
     public int Count => _root.Elements("game").Count();
 
-    /// <summary>The <c>&lt;path&gt;</c> of every entry, in document order.</summary>
-    public IReadOnlyList<string> Paths =>
-        [.. _root.Elements("game").Select(PathOf).Where(path => path is not null).Select(path => path!)];
+    /// <summary>
+    /// How many entries name a path that is not one of <paramref name="paths"/>.
+    /// </summary>
+    /// <remarks>
+    /// Matched through the same normalisation <see cref="Contains"/> uses, so an entry another
+    /// writer spelled <c>Game.zip</c> is recognised as one of <paramref name="paths"/> when the
+    /// caller spells it <c>./Game.zip</c>. Comparing the raw strings instead would report an
+    /// entry this class had just updated as somebody else's. An entry carrying no
+    /// <c>&lt;path&gt;</c> at all is counted as neither.
+    /// </remarks>
+    public int CountExcept(IEnumerable<string> paths)
+    {
+        ArgumentNullException.ThrowIfNull(paths);
+
+        var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in paths)
+        {
+            if (NormalizePath(path) is { } normalized)
+            {
+                known.Add(normalized);
+            }
+        }
+
+        return _root.Elements("game")
+            .Select(PathOf)
+            .Count(path => NormalizePath(path) is { } normalized && !known.Contains(normalized));
+    }
 
     /// <summary>
     /// Applies one entry, creating it when it is not there.

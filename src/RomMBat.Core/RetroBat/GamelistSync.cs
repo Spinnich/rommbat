@@ -266,9 +266,9 @@ public sealed class GamelistSync
 
         // Whatever is left that RomMBat neither wrote nor knows about: entries a user's own
         // scraper put there, which are carried through untouched and counted so a run can say
-        // so rather than leaving the user to wonder.
-        var ours = present.Select(file => "./" + file.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var foreign = document.Paths.Count(entry => !ours.Contains(entry));
+        // so rather than leaving the user to wonder. The document does the matching, so an
+        // entry spelled without its "./" is not miscounted as somebody else's.
+        var foreign = document.CountExcept(present.Select(file => "./" + file.FileName));
 
         return new GamelistFolderResult
         {
