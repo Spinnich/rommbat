@@ -16,20 +16,17 @@
     the e_sqlite3 native library, which single-file publish carries.
   -->
   <ItemGroup Label="Local store">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.2" />
-    <!--
-      Transitive pin. Microsoft.Data.Sqlite 10.0.2 still pulls the 2.1.11 native library,
-      which carries GHSA-2m69-gcr7-jv3q (a vulnerable bundled SQLite). 2.1.12 is the first
-      version outside the advisory's range and is a native-binary bump only, so it stays on
-      the managed API the rest of the 2.1 line exposes. Drop this once the SDK package
-      moves past it.
-    -->
-    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
   </ItemGroup>
 
-  <!-- QRCoder is MIT and pure managed, so it survives self-contained single-file publish. -->
+  <!--
+    QRCoder is MIT, and the generator this uses is pure managed, so it survives
+    self-contained single-file publish. The package also references System.Drawing.Common,
+    which only its image renderers need. Nothing here calls those, so that assembly rides
+    along unused.
+  -->
   <ItemGroup Label="Pairing">
-    <PackageVersion Include="QRCoder" Version="1.6.0" />
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
   <!--
@@ -39,19 +36,19 @@
   -->
 
   <!--
-    xunit stays on the v2 line. The 3.x Visual Studio runner drives both v2 and v3
+    xunit stays on the v2 line. The 4.x Visual Studio runner drives both v2 and v3
     test projects, so the runner tracks current while the assertion library does not
     force a rewrite of every test.
   -->
   <ItemGroup Label="Testing">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <!--
       Runtime skipping, for the tests that need a live RomM. A clone with no server must
       still run green, and a silently-passing stub would be worse than a skip.
     -->
-    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.61" />
   </ItemGroup>
 
 </Project>
