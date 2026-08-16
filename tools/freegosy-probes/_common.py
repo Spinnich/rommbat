@@ -56,6 +56,7 @@ def request(
     json_body=None,
     raw_body: bytes | None = None,
     content_type: str | None = None,
+    headers_extra: dict[str, str] | None = None,
     timeout: float = 120.0,
     read_body: bool = True,
 ):
@@ -79,6 +80,8 @@ def request(
         headers["Content-Type"] = "application/json"
     elif content_type:
         headers["Content-Type"] = content_type
+    if headers_extra:
+        headers.update(headers_extra)
 
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
     started = time.monotonic()
