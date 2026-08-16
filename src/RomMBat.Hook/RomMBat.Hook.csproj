@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>RomMBat.Hook</RootNamespace>
+    <!--
+      EmulationStation runs every file in an event folder and passes the game's arguments
+      positionally, so the hook is invoked by its path with no subcommand. The event it is
+      serving comes from the name of the folder it was installed into.
+    -->
+    <AssemblyName>rommbat-hook</AssemblyName>
+    <Description>
+      The EmulationStation event hook. Writes one spool file and exits. It opens no socket,
+      touches no database and takes no lock, because it runs inside the game-launch path.
+    </Description>
+
+    <!--
+      Deliberately references nothing, not even RomMBat.Core. Four copies of this file are
+      installed, one per event folder, so every megabyte is paid four times on a portable
+      drive. Measured: 11.0 MB like this, 15.1 MB the moment Microsoft.Data.Sqlite is
+      referenced, and 75.5 MB if the agent itself were installed as the hook.
+    -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!--
+    Linked source rather than a project reference, because a reference to RomMBat.Core would
+    bring the store and the API client with it. The spool format's canonical home is Core,
+    which is the end that has to keep reading files an older hook wrote; this project compiles
+    the same two files so the writer and the reader cannot drift.
+  -->
+  <ItemGroup>
+    <Compile Include="..\RomMBat.Core\Paths\RootMarkers.cs" Link="Shared\RootMarkers.cs" />
+    <Compile Include="..\RomMBat.Core\Sync\SpoolRecord.cs" Link="Shared\SpoolRecord.cs" />
+    <Compile Include="..\RomMBat.Core\Sync\Spool.cs" Link="Shared\Spool.cs" />
+  </ItemGroup>
+
+</Project>

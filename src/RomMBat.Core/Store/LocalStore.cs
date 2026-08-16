@@ -43,6 +43,7 @@ public sealed class LocalStore : IDisposable
         Device = new DeviceStore(connection);
         Clock = new ClockStore(connection);
         Outbox = new OutboxStore(connection, this);
+        Journal = new JournalStore(connection, this);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -69,6 +70,9 @@ public sealed class LocalStore : IDisposable
     public ClockStore Clock { get; }
 
     public OutboxStore Outbox { get; }
+
+    /// <summary>What the ES hooks append, which is the only thing they do.</summary>
+    public JournalStore Journal { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }

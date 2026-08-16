@@ -21,14 +21,8 @@ public static class RetroBatRoot
     private const string RegistryKeyPath = @"Software\RetroBat";
     private const string RegistryValueName = "LatestKnownInstallPath";
 
-    /// <summary>
-    /// Files and directories whose presence identifies a RetroBat root.
-    /// </summary>
-    /// <remarks>
-    /// M0 probe 4 confirmed all of these in a stock 8.2 tree, and confirmed there is no
-    /// <c>build.ini</c> anywhere in it.
-    /// </remarks>
-    public static IReadOnlyList<string> Markers { get; } = ["retrobat.ini", "emulationstation", "roms"];
+    /// <summary>Files and directories whose presence identifies a RetroBat root.</summary>
+    public static IReadOnlyList<string> Markers => RootMarkers.All;
 
     /// <summary>
     /// Minimum supported RetroBat version. Below this, RomMBat refuses to run.
@@ -105,50 +99,14 @@ public static class RetroBatRoot
                     + $"there, and installs itself at {RetroBatInstall.AppDirectory}.");
     }
 
-    /// <summary>
-    /// True when the directory looks like a RetroBat root.
-    /// </summary>
+    /// <summary>True when the directory looks like a RetroBat root.</summary>
     /// <remarks>
-    /// <c>retrobat.ini</c> alone is decisive. Without it, both <c>emulationstation/</c> and
-    /// <c>roms/</c> are required, because either on its own is a common enough directory
-    /// name to produce a false positive partway up an unrelated tree.
+    /// The rule lives in <see cref="RootMarkers"/>, which the ES hook compiles directly, so
+    /// the hook and the agent cannot come to disagree about where the install is.
     /// </remarks>
-    public static bool IsRoot(string directory)
-    {
-        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
-        {
-            return false;
-        }
+    public static bool IsRoot(string directory) => RootMarkers.IsRoot(directory);
 
-        if (File.Exists(Path.Combine(directory, "retrobat.ini")))
-        {
-            return true;
-        }
-
-        return Directory.Exists(Path.Combine(directory, "emulationstation"))
-            && Directory.Exists(Path.Combine(directory, "roms"));
-    }
-
-    private static string? WalkUp(string? start)
-    {
-        if (string.IsNullOrWhiteSpace(start))
-        {
-            return null;
-        }
-
-        var directory = new DirectoryInfo(Path.GetFullPath(start));
-        while (directory is not null)
-        {
-            if (IsRoot(directory.FullName))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        return null;
-    }
+    private static string? WalkUp(string? start) => RootMarkers.WalkUp(start);
 
     private static string? ReadRegistryPath()
     {
