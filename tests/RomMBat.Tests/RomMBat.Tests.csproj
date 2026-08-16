@@ -50,6 +50,10 @@
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\data\retrobat\platforms.json" Link="fixtures\platforms.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\data\retrobat\bios.json" Link="fixtures\bios.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\reference\batocera-systems.json" Link="fixtures\batocera-systems.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

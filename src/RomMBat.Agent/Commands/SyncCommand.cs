@@ -1,6 +1,7 @@
 using RomMBat.Core;
 using System.Globalization;
 using RomM.Client;
+using RomM.Client.Catalog;
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
@@ -11,15 +12,24 @@ namespace RomMBat.Agent.Commands;
 /// <c>sync</c>: turn a resolved set into files in the RetroBat tree.
 /// </summary>
 /// <remarks>
-/// Three passes, in this order and for a reason. The set is re-resolved, because
+/// Four passes, in this order and for a reason. The set is re-resolved, because
 /// smart-collection membership drifts server-side and fetching a stale membership downloads
 /// games the set no longer contains. Then a plan is worked out and printed, because being told
 /// what is about to happen is worth more than a progress bar. Then, unless this is a dry run,
 /// the plan is carried out.
 /// <para>
+/// <b>BIOS goes first, ahead of every ROM.</b> A platform synced without its firmware is dead
+/// weight in the gallery: the games appear in EmulationStation, look right, and die on launch.
+/// Fetching it after the ROMs would leave exactly that state behind on any run that was
+/// interrupted, and interrupted is the normal case for a handheld. The pass covers every folder
+/// the sets resolve to, in one <c>GET /api/platforms</c> rather than one request per platform,
+/// so ordering it first costs one request and not one per set.
+/// </para>
+/// <para>
 /// <c>--dry-run</c> and <c>--offline</c> both work with the server unreachable: the plan is
 /// made from the membership already in the store, so a handheld away from the network can still
-/// answer "what would this sync do".
+/// answer "what would this sync do". The BIOS report is answerable that way too, from the
+/// bundled manifest and what is on disk.
 /// </para>
 /// </remarks>
 internal static class SyncCommand
@@ -80,6 +90,20 @@ internal static class SyncCommand
             // set's write clobber the first's.
             var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var syncedRoms = new List<int>();
+
+            // Before a byte of ROM content, and over every folder at once. The folders come from
+            // the membership rather than from the plan, because a set whose games are all present
+            // still needs its BIOS to be.
+            await FetchBiosAsync(
+                    context,
+                    connection,
+                    limits,
+                    sets.SelectMany(set => context.Store.SyncSets.Members(set.Id))
+                        .Select(member => member.Folder)
+                        .OfType<string>(),
+                    dryRun,
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             foreach (var set in sets)
             {
@@ -158,6 +182,73 @@ internal static class SyncCommand
         finally
         {
             connection?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Fetches the firmware every folder in this sync needs, before any of its ROMs.
+    /// </summary>
+    /// <remarks>
+    /// Never fatal. A BIOS RomM does not have is the ordinary case this reports rather than an
+    /// error, and a firmware pass that fails outright must not stop the ROMs it was ordered in
+    /// front of: the same sync run tomorrow will try again, and the report already says what is
+    /// missing.
+    /// </remarks>
+    private static async Task FetchBiosAsync(
+        AgentContext context,
+        RomMConnection? connection,
+        FilesystemLimits limits,
+        IEnumerable<string> folders,
+        bool dryRun,
+        CancellationToken cancellationToken)
+    {
+        var wanted = folders.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        var planner = new BiosPlanner(context.Install, context.Store, limits: limits);
+        IReadOnlyDictionary<string, FirmwareRow>? candidates = null;
+
+        if (connection is not null)
+        {
+            var (index, problem) = await BiosCommand.ReadCandidatesAsync(connection, cancellationToken).ConfigureAwait(false);
+            if (problem is not null)
+            {
+                Console.Error.WriteLine($"  {problem}");
+            }
+
+            candidates = index;
+        }
+
+        var plan = planner.Plan(wanted, candidates);
+
+        if (plan.Steps.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("BIOS");
+        BiosCommand.Report(plan);
+
+        // IsNoOp rather than DownloadCount: a plan that only adopts still has rows to write,
+        // and an offline pass can adopt without a connection.
+        if (dryRun || plan.IsNoOp)
+        {
+            return;
+        }
+
+        var outcome = await new BiosSync(context.Install, context.Store, connection)
+            .ApplyAsync(plan, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        Console.WriteLine($"  {outcome.Summary}");
+
+        foreach (var problem in outcome.Problems)
+        {
+            Console.Error.WriteLine($"    {problem}");
         }
     }
 

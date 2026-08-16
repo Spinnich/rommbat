@@ -255,7 +255,7 @@ _single_ collection entry. It is a cost to note, not a trap to avoid.
 `tools/freegosy-probes/f21-bios-md5-join.py`:
 
 ```text
-RetroBat requires 157 distinct md5s (reference/batocera-systems.json)
+RetroBat requires 157 distinct md5s (reference/batocera-systems.json)   <- 156; see below
 
 Freegosy carries 28 distinct md5s
   also required by RetroBat:     16
@@ -284,17 +284,36 @@ Joining the same set on filename instead of md5:
   served name differs:                10
 ```
 
-- **`is_verified` would have discarded 11 of the 49 correct BIOS files this library holds**,
-  22% of them. The plan's existing figure (94 of 157 md5s unknown to RomM) comes from
-  comparing two static files. This is the first measurement of the rule biting on real data.
-- **10 of the 49 arrive under a name RetroBat does not use.** Measured examples:
-  `segacdbios9303.bin` where RetroBat wants `bios_cd_u.bin`, `flash.bin` for `dc_flash.bin`,
-  `sega_100.bin` for `saturn_bios.bin`, `pcfxbios.bin` for `pcfx.rom`, `bios.col` for
-  `coleco.rom`. A filename join loses those ten silently, which is exactly the shape of
-  failure Freegosy's own `_findMatchingSpec` has.
-- **This library holds 49 of the 157 md5s RetroBat requires**, so M5's "needed, not in your
-  library" report has 108 rows to write on this instance. That number is a property of one
-  library and will differ everywhere.
+- **`is_verified` and a filename join both discard files the user has**, which is the rule
+  the plan argued for and this is the first measurement of it biting on real data.
+- **The renames are real.** `segacdbios9303.bin` where RetroBat wants `bios_cd_u.bin`,
+  `flash.bin` for `dc_flash.bin`, `sega_100.bin` for `saturn_bios.bin`, `pcfxbios.bin` for
+  `pcfx.rom`, `bios.col` for `coleco.rom`. That is exactly the shape of failure Freegosy's own
+  `_findMatchingSpec` has.
+- **This library holds 49 of the md5s RetroBat requires**, so M5's "needed, not in your
+  library" report has around a hundred rows to write on this instance. That number is a
+  property of one library and will differ everywhere.
+
+**Corrected in M5: the 11 and the 10 above are artefacts of this probe, and the denominator
+was wrong too.** Three things moved, all of them counting rather than upstream drift, and
+`tools/m5-probes/m5-probe2-platform-firmware.py` re-measures each:
+
+- **157 was 156.** `verify.py` and this probe both built the required set without filtering
+  the empty md5 string, and 179 of the 353 manifest entries carry one. So the held count is
+  49 of **156** and the missing count is 107 rather than 108.
+- **`is_verified` loses 6, not 11. A filename join loses 2, not 10.** The probe built
+  `library = {md5: record}`, and 235 md5s sit on more than one platform row, so whichever row
+  landed last decided both answers for that file. A client joins across every row and takes
+  any hit, so a file survives if **any** copy is verified or **any** copy carries the name.
+  Four of the five renames above are cases where the library also holds a correctly named
+  copy; `segacdbios9303.bin` and `[BIOS] Philips C52 (France).bin` are the two where every
+  copy is misnamed.
+- **46, not 49, are actually fetchable.** 142 of the 656 records are flagged
+  `missing_from_fs`, and three required md5s are held only by such a row. Their content route
+  answers **500**, so a join that ignored the flag would promise three files and fail on each.
+
+The rule itself survives all three corrections intact: both forbidden joins still lose files
+the emulator needs, and `psxonpsp660.bin` is still `is_verified: false` on every copy.
 
 ### F14: `/api/roms` silently ignores an unknown query parameter. **Confirmed, live**
 

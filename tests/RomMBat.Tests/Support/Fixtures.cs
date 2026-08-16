@@ -28,6 +28,26 @@ internal static class Fixtures
     /// <summary>The bundled platform map, as shipped.</summary>
     public static string PlatformsJson => Path("platforms.json");
 
+    /// <summary>The bundled BIOS requirements manifest, as shipped.</summary>
+    public static string BiosJson => Path("bios.json");
+
+    /// <summary>
+    /// RetroBat's own <c>batocera-systems.json</c>, which <see cref="BiosJson"/> is generated from.
+    /// </summary>
+    /// <remarks>
+    /// Linked from <c>reference/</c> so the generator's output is checked against the same
+    /// bytes the plan's numbers were derived from. A real install has no such file: the data
+    /// is a string resource inside <c>emulationstation/batocera-systems.exe</c>.
+    /// </remarks>
+    public static string BatoceraSystemsJson => Path("batocera-systems.json");
+
+    /// <summary>Parses the bundled BIOS manifest from the file, rather than from the assembly.</summary>
+    public static BiosManifest LoadBiosManifest()
+    {
+        using var stream = File.OpenRead(BiosJson);
+        return BiosManifest.Parse(stream);
+    }
+
     /// <summary>
     /// Four entries lifted verbatim from a real scraped install's <c>roms/gamegear/gamelist.xml</c>.
     /// </summary>

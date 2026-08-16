@@ -20,8 +20,11 @@ Record results in `docs/platforms/<system>.md`. All nine, or it is not certified
 1. Folder mapping resolves, and the resolution layer is recorded.
 2. `<extension>` list captured from the live `es_systems.cfg`; a known-unsupported file is
    correctly excluded from the sync set and reported.
-3. Required BIOS from `batocera-systems.json` resolved against RomM **by md5**; gaps listed
-   with expected filename and hash.
+3. Required BIOS resolved against RomM **by md5**; gaps listed with expected filename and hash.
+   Run `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and
+   record all four states rather than a pass or fail: present, fetched, not in the library, and
+   the ones RetroBat names no hash for. A system whose whole requirement is hashless (28 of the
+   99 are) is certified on the other eight steps, and step 3 says so in those words.
 4. Save shape classified A/B/C/D, and a battery save round-trips.
 5. A save state round-trips including its screenshot, per `es_savestates.cfg`.
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.

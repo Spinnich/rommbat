@@ -116,13 +116,14 @@ task.
 | Subcommand   | Network       | Notes                                                                                 |
 | ------------ | ------------- | ------------------------------------------------------------------------------------- |
 | `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                       |
-| `sync`       | yes           | Resolve sets, pull content, media and BIOS                                            |
+| `sync`       | yes           | Resolve sets, then BIOS, then content, then media, then gamelists                     |
+| `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`              |
 | `game-start` | **never**     | Append a start record and exit                                                        |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit             |
 | `flush`      | yes           | Drain the outbox if the server is reachable                                           |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts |
 
-`pair` and `status` are implemented. The rest exit 70 until their milestone.
+Everything but the three M6 subcommands is implemented; those exit 70 until that milestone.
 
 `game-start` and `game-end` run inside the game launch path. They must not open a socket and
 must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
@@ -423,10 +424,20 @@ exclusions are shown to the user rather than hidden.
 
 **Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
 entries across 99 systems as `{md5, file}`, with the exact destination path. Join it
-against `GET /api/firmware` on **md5 only**: filenames differ between the two projects,
-and RomM's `is_verified` misses 94 of the 157 hashes RetroBat requires. BIOS is fetched
+against RomM's firmware records on **md5 only**: filenames differ between the two projects,
+and RomM's `is_verified` is false on files RetroBat requires, `psxonpsp660.bin` among them,
+so on a real library filtering on it discards 6 of the 49 required hashes that library
+holds. A further 93 of the 156 have no RomM record at all, which is a gap and not a
+flag. BIOS is fetched
 **before** that platform's ROMs, because a platform without its BIOS is dead weight in the
 gallery.
+
+Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
+inside `batocera-systems.exe`, so the manifest is bundled at `data/retrobat/bios.json` rather
+than read from the install. And **179 of the 353 entries carry no md5**, so a BIOS report has
+three states rather than two: matched, missing from the library, and unverifiable because
+RetroBat names no hash. `bios/` is otherwise a tree RomMBat does not own, holding thousands of
+files of emulator user data, so nothing there is overwritten or deleted.
 
 ---
 

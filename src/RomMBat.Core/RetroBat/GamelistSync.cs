@@ -205,7 +205,9 @@ public sealed class GamelistSync
     /// <summary>Every folder holding at least one ROM RomMBat knows about.</summary>
     public IReadOnlyList<string> FoldersWithRoms() =>
         [.. _store.Files.List(kind: LocalFileKind.Rom)
-            .Select(file => file.Folder)
+
+            // Non-null by the schema's own CHECK: only firmware has no folder.
+            .Select(file => file.Folder!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase)];
 

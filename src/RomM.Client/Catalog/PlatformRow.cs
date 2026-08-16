@@ -45,6 +45,22 @@ public sealed record PlatformRow
     [JsonPropertyName("fs_size_bytes")]
     public long SizeBytes { get; init; }
 
+    /// <summary>
+    /// Every firmware record RomM holds for this platform, inlined on the list endpoint.
+    /// </summary>
+    /// <remarks>
+    /// Complete rather than a preview, measured twice: <c>firmware_count</c> equals
+    /// <c>len(firmware)</c> on all 123 platforms of a real library, and the widest platform's
+    /// inlined set has the same 75 ids as <c>GET /api/firmware?platform_id=</c>. So the whole
+    /// library's BIOS gap is one 424 KB request rather than one request per platform.
+    /// </remarks>
+    [JsonPropertyName("firmware")]
+    public IReadOnlyList<FirmwareRow> Firmware { get; init; } = [];
+
+    /// <summary>What the server says <see cref="Firmware"/> should hold.</summary>
+    [JsonPropertyName("firmware_count")]
+    public int FirmwareCount { get; init; }
+
     /// <summary>What to show a user, preferring whatever they renamed it to.</summary>
     public string Label =>
         CustomName is { Length: > 0 } custom ? custom

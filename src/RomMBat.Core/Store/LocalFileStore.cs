@@ -50,6 +50,18 @@ public enum LocalFileKind
     Video,
 
     Manual,
+
+    /// <summary>
+    /// A BIOS file under <c>bios/</c>, which belongs to a system rather than to a ROM.
+    /// </summary>
+    /// <remarks>
+    /// The one kind with no <see cref="LocalFile.RomId"/> and no <see cref="LocalFile.Folder"/>,
+    /// enforced by a CHECK: <c>bios/coleco.rom</c> is required by three systems at three
+    /// paths, so any single folder written on the row would be a lie. Having no
+    /// <c>rom_id</c> is also what keeps eviction away from it, since eviction only ever
+    /// considers rows that have one.
+    /// </remarks>
+    Firmware,
 }
 
 /// <summary>Which check a file last passed.</summary>
@@ -74,13 +86,16 @@ public sealed record LocalFile
     /// <summary>Where it is, relative to the RetroBat root. Never absolute, on pain of a CHECK.</summary>
     public required RelativePath Path { get; init; }
 
-    /// <summary>The RetroBat folder it lives in, which is what everything downstream groups by.</summary>
-    public required string Folder { get; init; }
+    /// <summary>
+    /// The <c>roms/</c> folder it lives in, which is what everything downstream groups by,
+    /// and null for firmware.
+    /// </summary>
+    public string? Folder { get; init; }
 
-    /// <summary>The ROM it is, or belongs to, or null for a file no ROM has been matched to.</summary>
+    /// <summary>The ROM it is, or belongs to, or null for firmware.</summary>
     public int? RomId { get; init; }
 
-    /// <summary>Whether this is the game or one of the five media files beside it.</summary>
+    /// <summary>Whether this is the game, one of the five media files beside it, or firmware.</summary>
     public LocalFileKind Kind { get; init; } = LocalFileKind.Rom;
 
     public required string FileName { get; init; }
@@ -166,7 +181,7 @@ public sealed class LocalFileStore
             RETURNING id;
             """)
             .With("$path", file.Path.Value)
-            .With("$folder", file.Folder)
+            .With("$folder", SqliteValues.OrNull(file.Folder))
             .With("$romId", SqliteValues.OrNull(file.RomId))
             .With("$fileName", file.FileName)
             .With("$size", file.SizeBytes)
@@ -318,6 +333,7 @@ public sealed class LocalFileStore
         LocalFileKind.Marquee => "marquee",
         LocalFileKind.Video => "video",
         LocalFileKind.Manual => "manual",
+        LocalFileKind.Firmware => "firmware",
         _ => "rom",
     };
 
@@ -328,6 +344,7 @@ public sealed class LocalFileStore
         "marquee" => LocalFileKind.Marquee,
         "video" => LocalFileKind.Video,
         "manual" => LocalFileKind.Manual,
+        "firmware" => LocalFileKind.Firmware,
         _ => LocalFileKind.Rom,
     };
 
@@ -384,7 +401,7 @@ public sealed class LocalFileStore
     {
         Id = reader.GetInt64(0),
         Path = RelativePath.Create(reader.GetString(1)),
-        Folder = reader.GetString(2),
+        Folder = reader.GetStringOrNull(2),
         RomId = (int?)reader.GetInt64OrNull(3),
         FileName = reader.GetString(4),
         SizeBytes = reader.GetInt64(5),

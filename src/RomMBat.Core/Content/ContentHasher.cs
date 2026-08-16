@@ -105,6 +105,29 @@ public static class ContentHasher
         return Hash(stream, HashScope.File, fileBytes, fileBytes, describesLibraryContent: true);
     }
 
+    /// <summary>
+    /// The md5 of a file's own bytes, whatever the file is.
+    /// </summary>
+    /// <remarks>
+    /// <b>For firmware, and never for a ROM.</b> RomM's rom hashes describe uncompressed
+    /// content, so a rom inside a zip is hashed inside it. RetroBat's BIOS manifest is the
+    /// other way round: its md5 describes the file at the path it names, and several of those
+    /// paths are <c>.zip</c> romsets it wants left zipped (<c>bios/neogeo.zip</c>,
+    /// <c>bios/neocdz.zip</c>). Looking inside one would compare the wrong bytes and refuse a
+    /// correct file forever.
+    /// </remarks>
+    public static string ComputeFileMd5(string absolutePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(absolutePath);
+
+        using var stream = Open(absolutePath);
+#pragma warning disable CA5351 // MD5, deliberately: it is what RetroBat's manifest carries.
+        using var md5 = MD5.Create();
+#pragma warning restore CA5351
+
+        return Convert.ToHexString(md5.ComputeHash(stream)).ToLowerInvariant();
+    }
+
     /// <summary>True when the name says zip, which is the only archive this can see inside.</summary>
     public static bool LooksLikeZip(string path) =>
         Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
