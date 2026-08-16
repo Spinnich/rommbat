@@ -640,7 +640,17 @@ The six results that moved the design most:
    `roms/`) reliably locates the root on both a portable and a fixed install, and find
    the idiomatic place inside the tree for a third-party tool to live. Confirm the
    minimum viable `system/es_menu/*.menu` entry, and whether it tolerates a **relative**
-   executable path. Confirm the `%~dp0..\..\..\` pattern works from a hook `.bat`.
+   executable path. Confirm the `%~dp0..\..\..\..\` pattern works from a hook.
+
+   **The count in that sentence was wrong for three revisions of this plan and is fixed
+   here.** A hook lives at `emulationstation/.emulationstation/scripts/<event>/`, so three
+   levels reaches `emulationstation/`, which is where `emulatorLauncher.exe` sits, and the
+   RetroBat root takes a fourth. RetroBat's own `start/updatestores.bat` uses three because
+   it is calling `emulatorLauncher.exe`, which is exactly the coincidence that made the
+   wrong number look confirmed. RomMBat ships executable hooks that resolve the agent from
+   their own module path rather than a shell expansion, so nothing depends on the count at
+   runtime; it is corrected because the plan is read as documentation. See
+   [retrobat-findings.md](retrobat-findings.md), probe 4.
 
    **Answered, and it changed the layout.** A `.menu` executable path is **required** to be
    relative, is resolved under **`emulators\`**, and `..\` escapes are **refused**
@@ -1501,6 +1511,37 @@ failing silently at launch, and BIOS is fetched before that platform's ROMs.
 The milestone with the most protocol nuance. Read `backend/endpoints/sync.py` and
 `backend/endpoints/saves.py` before writing code.
 
+**M6 ships in two stages, cut at the save-class boundary.** M1 through M5 were each one PR;
+this section is four independent pieces and the one milestone where a missed detail loses a
+save rather than a download, so it is split into two review surfaces instead of one nobody
+can hold.
+
+|                                                                       | Stage 1                                    | Stage 2             |
+| --------------------------------------------------------------------- | ------------------------------------------ | ------------------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                     | **yes**                                    |                     |
+| Play sessions, standalone ingest                                      | **yes**                                    |                     |
+| Class A and B saves, attributed by filename                           | **yes**                                    |                     |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore | **yes**                                    |                     |
+| The logical-content hash                                              | **yes**, defined for the general case      | inherited unchanged |
+| `SaveGuard`'s third question                                          | **yes**, for the classes stage 1 discovers | widened to C and D  |
+| Save states, all 13 emulators                                         |                                            | yes                 |
+| Class C bundling                                                      |                                            | yes                 |
+| Class D conversion and the `es_settings.cfg` writer                   |                                            | yes                 |
+| Game-ID attribution, journal correlation and ROM header               |                                            | yes                 |
+
+The cut is at the class boundary rather than at the local/network boundary because that is
+the only split where stage 1 is provably correct end to end: a local-then-network cut defers
+every server-side surprise past a whole review cycle and leaves the offline simulation, the
+suite this plan calls its highest value, with nothing to flush.
+
+**Stage 1 satisfies the offline half of "done when" and not the breadth half.** Three games
+played unplugged, one flush, and a newer save returning as a conflict are all provable on
+class A. "One game from each save shape" is stage 2 by construction.
+
+**What stage 1 does with the classes it does not ship is report them, not ignore them.**
+Everything class C, class D and every save state is recorded as unsyncable with a reason, so
+a user is told that their PS3 saves are not going up rather than being left to notice.
+
 **M3 left a seam here that has to be connected, and it is the one where being wrong destroys
 data.** Eviction asks `RomMBat.Core.Content.SaveGuard` before removing any ROM, and today
 that guard can only answer from an unsent `outbox` row or an `open` `journal` entry, because
@@ -1545,9 +1586,39 @@ mitigation and not an answer.
   written on every launch, timestamped to the millisecond, and is the only durable in-tree
   source that carries the rom path **together with** `-system`, `-emulator` and `-core`,
   which the hook withholds in any case (`$4` and `$5` arrive empty). That single source
-  solves both problems at once. Measured on a real install at **268 KB for 5 weeks and 70
-  launches**, with a two-file rotation (`emulatorLauncher.log` plus `.log.old`), so the
-  parser must read both and tolerate a rotation between reads.
+  solves both problems at once, with a two-file rotation (`emulatorLauncher.log` plus
+  `.log.old`), so the parser must read both and tolerate a rotation between reads.
+
+  **M6 re-measured the file on the real library and the size figure this bullet used to
+  quote, 268 KB for 5 weeks and 70 launches, describes a smaller install rather than the
+  mechanism.** Live: **503,225 B, 2026-07-04 to 2026-08-16, 159 launches**, beside a
+  **1,048,604 B** `.log.old` covering the three weeks before it at 265 launches. **Rotation
+  is a size threshold near 1 MiB**, and the two files do not overlap, so reading `.old` then
+  the live file yields launches in time order across the boundary. That is what a cursor has
+  to survive; a per-launch rotation, which is what both ES logs do, would not be survivable
+  at all.
+
+  Six things about the file decide parser behaviour, and five of them are traps:
+  - **730 `[Startup]` lines, of which only 424 are a game launch.** `emulatorLauncher.exe` is
+    also invoked for `-updatestores` and similar. Keying on `[Startup]` over-counts by 72%;
+    the discriminator is the presence of `-rom`.
+  - **The rom path is rooted at whatever drive letter the install had at the time.** 295 of
+    424 read `D:\RetroBat` and 129 read `E:\RetroBat`, in one continuous log for one install
+    that moved. This is principle 4's own case appearing inside the file M6 depends on, so
+    relativising by stripping the current root discards 70% of the history. Relativise on the
+    `roms\<system>\` segment instead, and never store the result rooted.
+  - **`-rom` is not a fixed shape.** It is unquoted once in 424, with spaces and parentheses
+    in the path, so a `-rom "([^"]+)"` regex misses it. It is not the final flag 19 times,
+    and `-core` is written **after** it 5 times, so a positional read misses those. Read the
+    quoted form to its closing quote and the unquoted form to end of line.
+  - **187 of the 424 launches never record `Process exited with code`.** End time cannot come
+    from this file; `game-end`'s own timestamp is the end.
+  - **The file opens with a UTF-8 BOM** and carries 15 unstamped continuation lines, .NET
+    stack traces among them, so a line-per-record read has to tolerate both.
+  - **An ES-menu launch is identifiable rather than inferred.** 27 carry `-system retrobat`
+    with a `-rom` under `system\es_menu\`. So "RomMBat's own exit must not become a play
+    session" becomes a rule keyed on observable data instead of a heuristic, which is
+    stronger than this plan previously assumed it could be.
 
   Design the journal as: **`game-end` is the trigger, `emulatorLauncher.log` is the data.**
   That holds even though an exe `game-start` hook is reliable, because the hook is never told
@@ -1574,6 +1645,18 @@ mitigation and not an answer.
   a scheduled task, so the outbox is flushed by a short-lived agent process invoked from
   the `start`, `game-end` and `quit` hooks, and by the UI while it runs. Design for
   one-pass-and-exit, and make concurrent invocations safe with a lock file in the tree.
+
+  **`sync` flushes first, before anything else it does.** A user who never leaves ES and
+  never opens the UI still gets their saves up, and a flush that has already happened costs
+  one query.
+
+- **Hook installation happens on the first `sync`, announced, and `hooks uninstall` reverses
+  it.** The opt-in rule that governs class D exists because flipping a memory card mode
+  changes where an emulator writes and strands the saves already there. Installing a hook
+  adds a file beside the existing scripts and changes nothing about how a game runs, so the
+  same ceremony is not warranted; what is warranted is saying plainly what was added and
+  where. Without hooks there is no playtime and no launch window at all, so making the
+  milestone's headline feature off by default would be the worse failure.
 - **Slots are the pairing key.** Saves pair on `(rom_id, slot)`. Send a **stable,
   non-null** `slot` (for example `retroarch:<system>`). A null slot means "archival manual
   upload", is excluded from pairing, and so negotiates as `upload` forever, piling up
@@ -1613,6 +1696,14 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   a row unless `overwrite=true`, which replaces in place. This interacts with the `keep_both`
   conflict default, since `keep_both` under an unbounded slot is how a library becomes
   unusable. See finding F2.
+
+  **Decided, as one decision rather than two.** Every upload carries
+  `autocleanup=true&autocleanup_limit=10`, and conflicts keep both: upload without
+  `overwrite`, which appends a row, having first copied the local file aside. So principle
+  1's "default to `keep_both`, never silently overwrite" holds, and the growth it would
+  otherwise cause is bounded at ten rows per slot by the server. Neither half works without
+  the other: `keep_both` unbounded fills the library, and autocleanup without `keep_both`
+  means a conflict silently discards one side.
 
 - Download: `GET /api/saves/{id}/content?device_id=&session_id=`**`&optimistic=false`**, then
   `POST /api/saves/{id}/downloaded` with `{device_id}` **after the bytes are written and
@@ -1691,7 +1782,7 @@ must tolerate `<core>` children appearing, since a user can enable them.
 | Class | Shape                              | Examples                                                                                                                              | Handling                                                                                                           |
 | ----- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | A     | One file per game                  | RetroArch `.srm`/`.sav`/`.eep`, most standalone                                                                                       | Direct 1:1 map to a `Save`. Slot `{emulator}:battery`                                                              |
-| B     | Several files per game             | `.srm` + `.rtc`, ScummVM `.s00`…`.s99`                                                                                                | Either one slot per file, or bundle as class C. Prefer per-file slots when the set is small and stable             |
+| B     | Several files per game             | `.srm` + `.rtc`, ScummVM `.s00`…`.s99`                                                                                                | **One slot per file**, `{emulator}:battery:{ext}`. Decided in M6 stage 1; see below                                |
 | C     | Directory per game                 | PPSSPP `PSP/SAVEDATA/<GAMEID>/`, RPCS3 `savedata/<TITLEID>/`, Cemu, Citra, Wii NAND `title/00010000/<id>/data/`, MAME `nvram/<game>/` | Bundle to a single archive, following `grout/sync/zip_save.go`, which already handles the multi-directory PSP case |
 | D     | One container shared by many games | PCSX2 `Mcd001.ps2` (default), Dreamcast VMU, **megacd `4Mbit_cart.brm`**, **xbox `eeprom.bin` + `xbox_hdd.qcow2`**                    | Convert to per-game via a RetroBat option where one exists. See below                                              |
 
@@ -1704,13 +1795,57 @@ system folders, so `saves/dolphin/User/GC/SRAM.USA.raw` and
 segment is a system name will mis-attribute these. `data/retrobat/save_directories.json`
 has to model both levels.
 
+**M6 re-inventoried the tree and neither level is positional, in either direction.** The
+consequence is that discovery cannot be built on path shape at all: **the shape definition
+names the paths, and anything it does not name is reported as unknown rather than guessed.**
+
+- **Nine top-level directories are not declared systems**, not the four this bullet names:
+  `amiga`, `dolphin`, `gameandwatch`, `ghostship`, `loopy`, `mesen`, `pb`, `psxmame`,
+  `windows`, against the 243 systems the live `es_systems.cfg` declares.
+- **The second level is not an emulator either.** `mame/artwork`, `mame/cfg`, `mame/ctrlr`,
+  `n64/sram`, `n64/games`, `n64/sstates`, `psp/SYSTEM`, `psp/Cheats`, `switch/user`,
+  `switch/sdmc`, `rtcw/Main` and `dolphin/User` are all second-level directories that name
+  no emulator. A parser that reads the second segment as one invents emulators.
+- **The second level is emulator-**and-core** where states live**, so
+  `saves/gbc/libretro.gambatte/` sits beside `saves/gbc/*.srm` and `saves/snes/bizhawk/`
+  beside `saves/snes/libretro.snes9x/`. Battery saves and states share the parent.
+- **Loose does not mean class A.** `xbox` holds `eeprom.bin` and a 39 MB `xbox_hdd.qcow2`
+  loose at the system root and both are class D.
+- **Class B and class D interleave at one level.** `megacd` holds per-game `.brm` and `.srm`
+  beside the shared `4Mbit_cart.brm`, so excluding class D is a named-container list, never
+  a positional rule.
+- **The bundled data is short of the tree.** 21 systems that hold content on disk are still
+  `_unclassified`, and `ports` is absent from `save_shapes.json` entirely.
+- All four class-D options and `dolphin_sync_saves` are **unset** on the measured install, so
+  stock is the case to build for and the conversion hazards are stage 2's to detect.
+
 Two shapes observed that the table above did not predict: **saturn writes `.bcr` _and_
 `.bkr` per game** (class B), and **megacd is B and D simultaneously**, with per-game `.brm`
-plus `.srm` alongside a shared 512 KB `4Mbit_cart.brm`. **MAME is the friendly class C
+plus `.srm` alongside a shared 512 KB `4Mbit_cart.brm`.
+
+**Class B takes one slot per file, keyed `{emulator}:battery:{ext}`.** The observed sets are
+two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32 KB, megacd's
+`.brm` with its `.srm`), which is exactly the "small and stable" case. Bundling them would
+pull the deterministic-archive machinery into stage 1, which is most of what stage 2 owns.
+The cost is that a partial flush can land one file and not its sibling, so the two outbox
+rows go up as one batch and a partial result is reported as one, rather than each file
+looking independently fine. **MAME is the friendly class C
 case**: `saves/mame/nvram/<shortname>/` across 1231 directories, where the short name _is_
-the rom basename, so attribution needs no Game ID lookup at all. **RPCS3 is the hostile
-one**: 32,451 files under `saves/ps3/rpcs3/`, which makes any recursive content hash a real
-performance problem.
+the rom basename, so attribution needs no Game ID lookup at all.
+
+**RPCS3 was called the hostile one on a number that counts the wrong tree, and M6 measured
+it.** `saves/ps3/rpcs3/` really is 32,451 files, and a logical-content hash over all of them
+takes **426 s warm, 512 s cold, across 52.87 GB**. But that is `dev_hdd0` in its entirety,
+installed games and firmware and caches included. The save data is
+`dev_hdd0/home/<user>/savedata/`, which is **17 directories, 77 files, 16.3 MB, 0.06 s**.
+MAME's whole `nvram` tree is 1,531 files and 8.0 s, and per game it is trivial.
+
+So the design input is not "class C needs a hashing budget". It is **the shape definition
+must scope the save unit, and hashing an emulator's data root is the bug**. A shape that
+names `saves/ps3/rpcs3` is wrong in a way that costs seven minutes per sync; one that names
+`saves/ps3/rpcs3/dev_hdd0/home/*/savedata/<TITLEID>/` is right and costs nothing. Stage 1's
+real workload, every loose file under every system folder, is **37 files, 43 MB, 0.51 s**,
+and 38 MB of that is `xbox`'s class-D disk image which it must not read at all.
 
 **Class D is a configuration problem, and RetroBat already has the switch.** A shared
 memory card holds saves for twenty games, so it cannot be attributed to a `rom_id`. But
