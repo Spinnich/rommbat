@@ -46,7 +46,7 @@
   <ItemGroup Label="Testing">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
     <!--
       Runtime skipping, for the tests that need a live RomM. A clone with no server must
       still run green, and a silently-passing stub would be worse than a skip.
