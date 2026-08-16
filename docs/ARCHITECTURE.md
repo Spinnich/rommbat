@@ -424,7 +424,7 @@ exclusions are shown to the user rather than hidden.
 **Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
 entries across 99 systems as `{md5, file}`, with the exact destination path. Join it
 against `GET /api/firmware` on **md5 only**: filenames differ between the two projects,
-and RomM's `is_verified` misses 94 of the 157 hashes RetroBat requires. BIOS is fetched
+and RomM's `is_verified` misses 93 of the 156 hashes RetroBat requires. BIOS is fetched
 **before** that platform's ROMs, because a platform without its BIOS is dead weight in the
 gallery.
 

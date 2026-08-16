@@ -1335,11 +1335,17 @@ A platform synced without its BIOS is dead weight in the gallery, so firmware is
 **prioritised ahead of ROM content** for any platform being synced, and driven by what
 RetroBat actually requires rather than by whatever the RomM library happens to hold.
 
-**RetroBat ships the requirements manifest.** `batocera-systems/Resources/batocera-systems.json`
-(in `emulatorlauncher`, and present in the tree) is machine-readable and complete: 99
-systems, 353 BIOS entries, each `{"md5": ..., "file": "bios/<name>"}` giving both the hash
-and the exact destination path. Use it as the requirements source. The wiki's per-system
-BIOS pages are prose over the same data and are useful for user-facing text, not for logic.
+**RetroBat ships the requirements manifest, and it is not a file.**
+`batocera-systems/Resources/batocera-systems.json` (in `emulatorlauncher`) is machine-readable
+and complete: 99 systems, 353 BIOS entries, each `{"md5": ..., "file": "bios/<name>"}` giving
+both the hash and the exact destination path. **A real RetroBat 8.2 install contains no such
+file.** The data ships as a .NET string resource named `batocera_systems` inside
+`emulationstation/batocera-systems.exe`, and it is the vendored copy byte for byte apart from
+a trailing newline. So the `es_systems.cfg` precedent, "read the live copy, the vendored one is
+a template", has nothing to read: **the manifest is bundled in `data/retrobat/bios.json`**,
+generated from `reference/` by `tools/build-bios-manifest.py` and embedded like
+`platforms.json`. The wiki's per-system BIOS pages are prose over the same data and are useful
+for user-facing text, not for logic.
 
 **Join on md5, and do not trust RomM's `is_verified`.** The two projects' firmware
 knowledge overlaps far less than expected. Measured against RomM's
@@ -1347,43 +1353,74 @@ knowledge overlaps far less than expected. Measured against RomM's
 
 |                                    |        |
 | ---------------------------------- | ------ |
-| Distinct md5s RetroBat requires    | 157    |
+| Distinct md5s RetroBat requires    | 156    |
 | Distinct md5s RomM knows           | 353    |
 | **Overlap**                        | **63** |
-| RetroBat-required, unknown to RomM | 94     |
+| RetroBat-required, unknown to RomM | 93     |
 
 So 60% of what RetroBat needs will never be flagged `is_verified` by RomM even when the
 user has the correct file. The two also key differently: RomM by `platform_slug:file_name`,
 RetroBat by destination path. **md5 is the only reliable join.** Filenames will not match
 and must not be relied on.
 
+**156, not the 157 this table used to say.** `verify.py` built its set without filtering the
+empty string, and 179 of the 353 entries carry one. The same fault moved "unknown to RomM"
+from 94 to 93; the overlap was never affected, because RomM's side has no blank hash to
+match. Our counting, not upstream drift, in the same family as the YAML parser fault recorded
+in `reference/README.md`.
+
+**Those 179 blank entries are a third state, not a gap in the user's library.** They span 49
+systems, and **28 systems have no joinable entry at all**, `mastersystem`, `ngp`, `ngpc`,
+`sega32x`, `atarist` and `cdi` among them. An md5-only join can say nothing about these in
+either direction, so they are reported as "RetroBat names no hash for these, so RomMBat
+cannot check them" and never counted as missing. The rule also settles two categories for
+free: all 64 `bios/mame/` entries are blank, so MAME's software lists are out of scope
+without a special case, and so are all 7 entries that land outside `bios/` under
+`emulators/jynx/` and `emulators/dolphin-emu/User/Triforce/`. **`bios/` is an enforced
+prefix anyway**, so a future manifest entry that grows an md5 outside it is refused rather
+than written into an emulator's install directory.
+
 The flow per synced platform:
 
-**Live measurement, and it is harsher than the fixture comparison above.** Of the **49**
-md5s RetroBat requires that a real 123-platform library actually holds, `is_verified` flags
-38 and **misses 11**, and **10 arrive under a filename RetroBat does not use**
-(`segacdbios9303.bin` for `bios_cd_u.bin`, `flash.bin` for `dc_flash.bin`, `sega_100.bin` for
-`saturn_bios.bin`, `pcfxbios.bin` for `pcfx.rom`, `bios.col` for `coleco.rom`). Either join
-would have thrown away files the user has and the emulator needs. The other 108 of the 157
-are simply absent, which is the gap step 5 exists to report. See
-[freegosy-findings.md](freegosy-findings.md), F21.
+**Live measurement, and it is less harsh than the fixture comparison above.** Of the **156**
+md5s RetroBat requires, a real 123-platform library holds **49**, and holds **46** of them as
+bytes the server can actually serve. Against that 49, an `is_verified` filter loses **6** and
+a filename join loses **2**. Both joins still lose files the user has and the emulator needs,
+and the named renames are real (`SegaCDBIOS9303.bin` for `bios_CD_U.bin`, `flash.bin` for
+`dc_flash.bin`, `sega_100.bin` for `saturn_bios.bin`, `pcfxbios.bin` for `pcfx.rom`,
+`bios.col` for `coleco.rom`), but for four of the five the library also holds a copy under
+the name RetroBat wants, which is what saves a filename join from losing them.
 
-1. Resolve required BIOS from `batocera-systems.json` for that RetroBat system.
+**The 11 and 10 this section used to quote were an artefact of the probe.** F21 keyed a
+dictionary by md5, so with 235 md5s sitting on more than one platform row, whichever row
+landed last decided both answers. A client joins on md5 across every row and takes any hit,
+so the honest figures are 6 and 2. See [freegosy-findings.md](freegosy-findings.md), F21.
+
+1. Resolve required BIOS from the bundled manifest for that RetroBat system. The manifest is
+   keyed by **batocera system names**, a third vocabulary beside `es_systems.cfg`'s `<name>`
+   and `<path>`: 97 of its 99 keys are exactly a `<path>` basename, and the two that are not
+   (`astrocde` for `astrocade`, `msx` for `msx1`) are aliased in the bundled table. See the
+   `platform-mapping` skill.
 2. Join on `md5_hash`, ignoring both filename and `is_verified`.
 
    **Read the candidates off `GET /api/platforms`, not one `GET /api/firmware?platform_id=`
    per platform.** The platform list inlines a complete `firmware[]` array carrying
    `md5_hash` on every record: measured at 656 records across 79 of 123 platforms, all 656
-   with an md5, in one 424 KB response taking 0.39 s, with `firmware_count` equal to
+   with an md5, in one 424 KB response taking 0.40 s, with `firmware_count` equal to
    `len(firmware)` on every platform and the same id set as the dedicated call. So a
    whole-library BIOS gap report is one request rather than 79.
 
    The per-platform endpoint stays the right call for a certification pass on one platform.
 
+   **`missing_from_fs` means the row is not a match.** 142 of the 656 records carry it, and
+   the content route for one answers **500** with a bare `Internal Server Error` rather than 404. Three of the 49 md5s this library holds are held only by such a row, so a join that
+   ignored the flag would promise three files and fail mid-sync on each.
+
    **One md5 legitimately appears on several platform rows**, 504 of 656 records on the
    library measured, because a user may file one system under more than one folder and put the
    firmware under each. So a global md5 join returns several hits per required file: dedupe on
-   md5 and take any one. Multiplicity is not ambiguity and is not a reason to download twice.
+   md5 and take any one that is not `missing_from_fs`. Multiplicity is not ambiguity and is not
+   a reason to download twice.
 
    **`psxonpsp660.bin` carries `is_verified: false` on every copy**, while its md5 is exactly
    what RetroBat requires. It is the sharpest instance of the rule above: filtering on that
@@ -1395,13 +1432,51 @@ are simply absent, which is the gap step 5 exists to report. See
    trap to avoid. See finding F5.
 
 3. Download matches via `GET /api/firmware/{id}/content/{file_name}` and **write to the
-   path the manifest specifies**, renaming as needed. Firmware uses Starlette's
-   `FileResponse`, so ranges work but there is no X-Accel path.
+   path the manifest specifies**, renaming as needed. **One download can owe several writes**:
+   six required md5s name more than one destination, `coleco.rom`, `colecovision.rom` and
+   `openMSX/share/systemroms/coleco.rom` being the same bytes and `saturn_bios.bin` being
+   wanted at both `bios/` and `bios/kronos/`. No destination path ever takes two different
+   md5s, so the path is the key and the md5 is not. Destinations reach **six** segments deep,
+   so the writer creates directories and every constructed path goes through `RelativePath`
+   and the filesystem-limit checks.
+
+   Firmware uses Starlette's `FileResponse` and behaves exactly as M3's ROM route does:
+   `accept-ranges: bytes`, an `etag`, a `content-range` on a 206, a byte-exact resume, **416**
+   past the end, and a stale `If-Range` answered 200 with the whole body. Two differences
+   worth knowing: the **file name in the URL is never read**, so the right id under any name
+   serves the bytes, and the content type is guessed from the extension (`text/plain` for a
+   `.rom`), so a type check may reject HTML but must not require `application/octet-stream`.
+
 4. Skip files already present with the right md5. On a hash mismatch, warn and leave the
    existing file alone rather than overwriting something that works.
+
+   **`bios/` is a shared tree and RomMBat owns almost none of it.** A real install holds
+   **4,683 files and 373 MB** there before RomMBat writes anything, nearly all of it emulator
+   data: `dolphin-emu` 2,508 files, `mame` 858, `nxengine` 436, blueMSX's `Machines` 296,
+   plus openMSX's entire user-data directory, **save states included**. Exactly 3 files sat at
+   a path the manifest names carrying the md5 it names. So a file present with the right md5
+   that RomMBat did not download is **adopted as a fact, never as something it may later
+   remove**, and eviction never touches this tree at all.
+
 5. **Report the gap.** Required BIOS with no md5 match anywhere in RomM is the single most
    useful thing this feature can tell a user, so surface it per platform as "needed, not
-   in your library" with the expected filename and hash.
+   in your library" with the expected filename and hash. Three states, never two: matched,
+   missing from your library, and unverifiable because RetroBat names no hash.
+
+   **The report is answerable offline**, from the bundled manifest plus what is on disk, which
+   is what principle 1 requires of it. Without the server it splits into present and absent;
+   with the server the absent half splits again into "RomM has it" and "not in your library".
+
+**Budget and eviction.** Firmware counts against `content.max_bytes`, so `status` and
+`budget` tell the truth about what RomMBat put on the disk, and is **never evicted**. Every
+file the measured library can serve totals **18.5 MiB**, against roughly 550 MB of media for
+a single 100-game set, so evicting firmware would free nothing measurable while leaving a
+platform unable to boot.
+
+**What triggers a pass.** Both: `sync` fetches a platform's BIOS before its ROMs, and a
+`bios` command in the shape of `budget` and `evict` carries `--dry-run` and `--offline` for
+the report on its own. The whole-library report is one request, which is what makes the
+standalone command cheap.
 
 **Done when:** syncing a BIOS-dependent platform lands the right files at the right paths
 with no manual copying, files RomM does not have are listed explicitly rather than
@@ -2015,7 +2090,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | Socket.IO looks tempting for live updates                                                                                       | Not usable: the socket authenticates from the `romm_session` cookie only, and `sync:*` events go to a `user:{id}` room nothing ever joins. Poll REST                                                                                                                   |
 | Published RomM docs disagree with the server                                                                                    | Generate from `/openapi.json` at a pinned RomM version; gate features on `GET /api/heartbeat`                                                                                                                                                                          |
 | Syncing a file the target emulator cannot launch: a game that appears in ES and dies                                            | Filter every candidate against the resolved system's `<extension>` list from the live `es_systems.cfg`, and show what was excluded and why                                                                                                                             |
-| RomM's `is_verified` misses 94 of RetroBat's 157 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                 |
+| RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                 |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                      |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                               |
 | Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2, RomM 5.1.0), check both at startup, refuse below and warn above                                                                                                                                                                |
@@ -2204,7 +2279,7 @@ Paste this into Claude Code from an empty directory:
 > RetroBat too**: `batocera-systems/Resources/batocera-systems.json` lists 353 BIOS entries
 > across 99 systems as `{md5, file}` with the exact destination path. Join it against
 > `GET /api/firmware` on **md5 only**, because filenames differ and RomM's `is_verified`
-> misses 94 of the 157 hashes RetroBat requires. Fetch BIOS before that platform's ROMs,
+> misses 93 of the 156 hashes RetroBat requires. Fetch BIOS before that platform's ROMs,
 > and report required files RomM does not have.
 >
 > Start with M0: write throwaway probes that confirm what arguments RetroBat's

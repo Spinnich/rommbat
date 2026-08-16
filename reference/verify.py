@@ -88,20 +88,54 @@ def main():
 
     print("\nFirmware")
     bios = json.loads((HERE / "batocera-systems.json").read_text())
-    rb_md5 = {b["md5"].lower() for v in bios.values() for b in v.get("biosFiles", [])}
+    entries = [(system, b["md5"].strip().lower(), b["file"]) for system, v in bios.items() for b in v.get("biosFiles", [])]
+
+    # The blank string is filtered here and nowhere else, because an entry carrying no md5
+    # cannot be joined in either direction: RomMBat can neither find such a file in RomM nor
+    # recognise it on disk. Counting it as a requirement inflated every number below by one
+    # and made "unknown to RomM" claim a hash that does not exist.
+    rb_md5 = {md5 for _system, md5, _file in entries if md5}
     check("RetroBat systems in the BIOS manifest", len(bios), 99)
+    check("BIOS entries total", len(entries), 353)
+    check("  ...of those carrying no md5 at all", sum(1 for _s, md5, _f in entries if not md5), 179)
     check(
-        "BIOS entries total",
-        sum(len(v.get("biosFiles", [])) for v in bios.values()),
-        353,
+        "  ...systems with no joinable entry at all",
+        sum(1 for v in bios.values() if v.get("biosFiles") and not any(b["md5"].strip() for b in v["biosFiles"])),
+        28,
     )
-    check("Distinct md5s RetroBat requires", len(rb_md5), 157)
+    check("Distinct md5s RetroBat requires", len(rb_md5), 156)
 
     known = json.loads((HERE / "romm-known_bios_files.json").read_text())
     rm_md5 = {v["md5"].lower() for v in known.values() if isinstance(v, dict) and v.get("md5")}
     check("Distinct md5s RomM knows", len(rm_md5), 353)
     check("Overlap", len(rb_md5 & rm_md5), 63)
-    check("RetroBat-required, unknown to RomM", len(rb_md5 - rm_md5), 94)
+    check("RetroBat-required, unknown to RomM", len(rb_md5 - rm_md5), 93)
+
+    # Shapes M5's writer depends on. Each one is a rule in code, so a drift here is a bug
+    # waiting to happen rather than a statistic.
+    paths_by_md5 = {}
+    md5s_by_path = {}
+    for _system, md5, file in entries:
+        if md5:
+            paths_by_md5.setdefault(md5, set()).add(file)
+            md5s_by_path.setdefault(file, set()).add(md5)
+
+    check("One md5 owing several destination paths", sum(1 for p in paths_by_md5.values() if len(p) > 1), 6)
+    check("One destination path taking several md5s", sum(1 for m in md5s_by_path.values() if len(m) > 1), 0)
+    check("Entries landing outside bios/", sum(1 for _s, _m, f in entries if not f.startswith("bios/")), 7)
+    check(
+        "  ...of those, joinable",
+        sum(1 for _s, md5, f in entries if md5 and not f.startswith("bios/")),
+        0,
+    )
+    check("Entries under bios/mame/", sum(1 for _s, _m, f in entries if f.startswith("bios/mame/")), 64)
+    check(
+        "  ...of those, joinable",
+        sum(1 for _s, md5, f in entries if md5 and f.startswith("bios/mame/")),
+        0,
+    )
+    check("Deepest destination path, in segments", max(f.count("/") + 1 for _s, _m, f in entries), 6)
+    check("Manifest keys that are not a RetroBat system", len(set(bios) - systems), 2)
 
     print("\nGamelist export")
     exporter = (HERE / "romm-gamelist_exporter.py").read_text(encoding="utf-8")

@@ -223,4 +223,4 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and
   `sync:*` events are emitted to a `user:{id}` room nothing ever joins. Poll REST.
 - **`is_verified` on firmware is unreliable here.** See `platform-mapping` and the BIOS
-  section of the plan: it misses 94 of the 157 md5s RetroBat requires.
+  section of the plan: it misses 93 of the 156 md5s RetroBat requires.
