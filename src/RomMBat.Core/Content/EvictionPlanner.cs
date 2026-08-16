@@ -228,23 +228,36 @@ public sealed class EvictionPlanner
             try
             {
                 freed += Delete(candidate.File, install);
-
-                // The media goes with it. Each is checked for origin again rather than
-                // trusted from the plan: a file the user replaced between the dry run and
-                // this call is theirs now.
-                foreach (var media in candidate.Media.Where(file => file.Origin == FileOrigin.Synced))
-                {
-                    freed += Delete(media, install);
-                }
-
-                removed++;
-                folders.Add(candidate.File.Folder);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // The row stays when the file could not go, so the inventory never claims to
                 // have removed something that is still on the disk.
                 problems.Add($"{candidate.File.FileName}: could not be removed ({ex.Message}).");
+                continue;
+            }
+
+            // The ROM is gone, so the folder's gamelist names a game this install no longer
+            // has however the media below fares. Counted and queued here rather than after
+            // the media loop, so one locked image cannot cost the folder its rewrite.
+            removed++;
+            folders.Add(candidate.File.Folder);
+
+            // The media goes with it. Each is checked for origin again rather than trusted
+            // from the plan: a file the user replaced between the dry run and this call is
+            // theirs now.
+            foreach (var media in candidate.Media.Where(file => file.Origin == FileOrigin.Synced))
+            {
+                try
+                {
+                    freed += Delete(media, install);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Reported per file and the rest still go. Its row stays, so the next
+                    // pass sees it again.
+                    problems.Add($"{media.FileName}: left behind ({ex.Message}).");
+                }
             }
         }
 

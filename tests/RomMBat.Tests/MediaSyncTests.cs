@@ -277,6 +277,34 @@ public sealed class MediaSyncTests : IDisposable
         Assert.Equal([9, 9, 9], File.ReadAllBytes(theirs));
     }
 
+    [Fact]
+    public async Task A_media_file_that_will_not_delete_still_leaves_its_folder_to_be_rewritten()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        var video = store.Files.ForRom(1, LocalFileKind.Video).Single();
+        var absolute = _tree.Install().Resolve(video.Path);
+
+        // What a media player with the file open does to a delete.
+        using var held = new FileStream(absolute, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var planner = new EvictionPlanner(store);
+        var outcome = planner.Apply(planner.Plan(bytesToFree: long.MaxValue), _tree.Install());
+
+        // The ROM went, so its gamelist entry has to go too, whatever happened to the video.
+        Assert.Equal(1, outcome.Removed);
+        Assert.Contains("snes", outcome.FoldersToRewrite);
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Game 1 (USA).sfc")));
+
+        // Reported against the file that actually failed, and the cover still went.
+        Assert.Contains(outcome.Problems, problem => problem.Contains("left behind", StringComparison.Ordinal));
+        Assert.True(File.Exists(absolute));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_tree.Root, "roms", "snes", "images")));
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private sealed record SyncOutcome(ContentSyncOutcome Content, MediaSyncOutcome Media, GamelistSyncOutcome Gamelists);
