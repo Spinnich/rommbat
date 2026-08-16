@@ -233,7 +233,9 @@ internal static class SyncCommand
         Console.WriteLine("BIOS");
         BiosCommand.Report(plan);
 
-        if (dryRun || connection is null || plan.DownloadCount == 0)
+        // IsNoOp rather than DownloadCount: a plan that only adopts still has rows to write,
+        // and an offline pass can adopt without a connection.
+        if (dryRun || plan.IsNoOp)
         {
             return;
         }

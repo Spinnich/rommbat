@@ -70,22 +70,21 @@ internal static class BiosCommand
 
             Report(plan);
 
-            if (plan.Steps.Count == 0 || !apply || plan.DownloadCount == 0)
+            // IsNoOp rather than DownloadCount, because adopting a file the user copied in by
+            // hand is a write too, and it is the only thing to do on a library RomM has none
+            // of the required hashes for.
+            if (!apply || plan.IsNoOp)
             {
-                if (plan.DownloadCount > 0)
+                if (!plan.IsNoOp)
                 {
                     Console.WriteLine();
-                    Console.WriteLine("Nothing was written. Run 'bios --apply' to fetch these.");
+                    Console.WriteLine("Nothing was written. Run 'bios --apply' to bring these in.");
                 }
 
                 return ExitCode.Ok;
             }
 
-            if (connection is null)
-            {
-                return ExitCode.Offline;
-            }
-
+            // A null connection is an offline run, which carries adoptions and no downloads.
             var sync = new BiosSync(context.Install, context.Store, connection);
             var outcome = await sync
                 .ApplyAsync(plan, new Progress<BiosSyncProgress>(Show), cancellationToken)
