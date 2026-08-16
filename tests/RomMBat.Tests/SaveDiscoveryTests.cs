@@ -194,7 +194,10 @@ public class SaveDiscoveryTests
         var ps3 = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "ps3");
         Assert.Equal(UnsyncableReason.NotInThisVersion, ps3.Reason);
         Assert.Equal(5, ps3.FileCount);
-        Assert.Contains("next release", ps3.Detail, StringComparison.Ordinal);
+        Assert.Contains("rpcs3", ps3.Detail, StringComparison.Ordinal);
+
+        // Names the directories it found, so a user can go and look at them.
+        Assert.Contains("This release syncs", ps3.Detail, StringComparison.Ordinal);
 
         Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
     }
