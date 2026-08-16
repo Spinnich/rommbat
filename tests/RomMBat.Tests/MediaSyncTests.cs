@@ -305,6 +305,32 @@ public sealed class MediaSyncTests : IDisposable
         Assert.Empty(Directory.GetFiles(Path.Combine(_tree.Root, "roms", "snes", "images")));
     }
 
+    [Fact]
+    public async Task Media_the_server_declares_no_length_for_is_still_held_to_the_budget()
+    {
+        using var stub = Library(1);
+        stub.MediaWithoutLength = true;
+
+        using var store = LocalStore.Open(_tree.Install());
+
+        // The ROM fits and 32 bytes are left over, against 64-byte media. With no
+        // Content-Length there is nothing to refuse up front, so the read has to stop.
+        store.Settings.Set(SettingStore.ContentMaxBytes, 1024L + 32, DateTimeOffset.UtcNow);
+
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(1, outcome.Content.Downloaded);
+        Assert.True(outcome.Media.Failed > 0);
+        Assert.Contains(
+            outcome.Media.Problems,
+            problem => problem.Contains("declared no length", StringComparison.Ordinal));
+
+        // Nothing over budget reached the folder, and no partial file was left behind.
+        var images = Path.Combine(_tree.Root, "roms", "snes", "images");
+        Assert.True(!Directory.Exists(images) || Directory.GetFiles(images).Length == 0);
+        Assert.Equal(0, outcome.Media.Downloaded);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private sealed record SyncOutcome(ContentSyncOutcome Content, MediaSyncOutcome Media, GamelistSyncOutcome Gamelists);

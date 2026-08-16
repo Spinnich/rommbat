@@ -170,6 +170,15 @@ internal sealed class StubRomMServer : HttpMessageHandler
     /// <summary>Every media path requested, in order, so a test can count them.</summary>
     public IList<string> AssetRequests { get; } = [];
 
+    /// <summary>
+    /// Serves media with no <c>Content-Length</c>, the way a chunked response arrives.
+    /// </summary>
+    /// <remarks>
+    /// nginx sends the header on every measured path, so this is the case the budget's
+    /// pre-flight cannot see coming rather than one the real server produces.
+    /// </remarks>
+    public bool MediaWithoutLength { get; set; }
+
     /// <summary>The <c>sync_config</c> last written by <c>PUT /api/devices/{id}</c>.</summary>
     public JsonElement? StoredSyncConfig { get; set; }
 
@@ -524,7 +533,9 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
         var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            Content = new ByteArrayContent(bytes),
+            Content = MediaWithoutLength
+                ? new StreamContent(new UnmeasuredStream(bytes))
+                : new ByteArrayContent(bytes),
         };
 
         response.Content.Headers.ContentType =
@@ -663,6 +674,50 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     private static HttpResponseMessage Detail(HttpStatusCode status, string detail) =>
         Json(status, new { detail });
+
+    /// <summary>
+    /// A body whose length cannot be known before it is read.
+    /// </summary>
+    /// <remarks>
+    /// Unseekable, so <see cref="StreamContent"/> declines to compute a <c>Content-Length</c>
+    /// and the response arrives without one.
+    /// </remarks>
+    private sealed class UnmeasuredStream(byte[] body) : Stream
+    {
+        private int _position;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => _position;
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var take = Math.Min(count, body.Length - _position);
+            Array.Copy(body, _position, buffer, offset, take);
+            _position += take;
+            return take;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
 
     /// <summary>
     /// A body that hands over some bytes and then dies, the way a dropped link does.

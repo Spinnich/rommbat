@@ -36,7 +36,8 @@ public sealed partial class RomMConnection
     /// How much room the caller has. Checked against <c>Content-Length</c> before the body is
     /// read, so a disk budget refuses a file rather than overshooting it, which is the only
     /// pre-flight available: media has no size on the ROM row and a HEAD would be a second
-    /// request per file.
+    /// request per file. A response that declares no length is bounded during the read
+    /// instead, and fails once it passes the limit.
     /// </param>
     /// <param name="progress">Reported roughly every buffer.</param>
     /// <param name="cancellationToken">A user cancellation, kept distinct from a stall.</param>
@@ -88,8 +89,26 @@ public sealed partial class RomMConnection
                 $"{DescribeKind(resource.Kind)} is {declared:N0} bytes and only {room:N0} are left inside the budget.");
         }
 
-        var written = await CopyAsync(response, destination, 0, total, progress, cancellationToken)
+        var written = await CopyAsync(
+                response,
+                destination,
+                0,
+                total,
+                progress,
+                cancellationToken,
+                ceiling: maximumBytes)
             .ConfigureAwait(false);
+
+        // The header check above cannot fire on a response that declared no length, so the
+        // budget is enforced again on what actually arrived. The caller discards the partial
+        // file, so nothing over budget reaches the folder.
+        if (maximumBytes is { } limit && written > limit)
+        {
+            return RomMResponse.Failure<MediaResult>(
+                RomMResponseStatus.ServerError,
+                $"{DescribeKind(resource.Kind)} passed the {limit:N0} bytes left inside the budget "
+                    + "and the server declared no length up front, so the transfer was stopped.");
+        }
 
         return RomMResponse.Success(new MediaResult
         {

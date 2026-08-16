@@ -269,13 +269,19 @@ public sealed partial class RomMConnection
     }
 
     /// <summary>Reads the body, giving up only when the bytes stop arriving.</summary>
+    /// <param name="ceiling">
+    /// Stops reading once this many bytes have been written, for a caller whose budget cannot
+    /// be checked up front because the response declared no length. Overshoot is one buffer.
+    /// The caller is told nothing here: it compares the return against its own room.
+    /// </param>
     private static async Task<long> CopyAsync(
         HttpResponseMessage response,
         Stream destination,
         long resumedFrom,
         long? total,
         IProgress<RomContentProgress>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        long? ceiling = null)
     {
         var buffer = new byte[DownloadBufferSize];
         var written = 0L;
@@ -330,6 +336,11 @@ public sealed partial class RomMConnection
             await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
             written += read;
             progress?.Report(new RomContentProgress(written, resumedFrom, total));
+
+            if (ceiling is { } limit && written > limit)
+            {
+                break;
+            }
         }
 
         // Committed before the caller is told anything succeeded, so a power cut immediately
