@@ -51,7 +51,7 @@
       Runtime skipping, for the tests that need a live RomM. A clone with no server must
       still run green, and a silently-passing stub would be worse than a skip.
     -->
-    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.61" />
   </ItemGroup>
 
 </Project>
