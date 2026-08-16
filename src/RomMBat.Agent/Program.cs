@@ -27,6 +27,8 @@ internal static class Program
         "evict",      // free space, dry run unless --apply
         "bios",       // what RetroBat requires under bios/, and what is missing
         "gamelist",   // rewrite gamelist.xml from local state, no server needed
+        "hooks",      // install or remove the ES event hooks
+        "saves",      // what is on disk, what went up, what cannot
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
         "flush",      // drain the outbox if the server is reachable
@@ -71,6 +73,10 @@ internal static class Program
                 "evict" => await EvictCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "bios" => await BiosCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "gamelist" => await GamelistCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "hooks" => await HooksCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "saves" => await SavesCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "flush" => await FlushCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }

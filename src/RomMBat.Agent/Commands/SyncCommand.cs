@@ -12,7 +12,7 @@ namespace RomMBat.Agent.Commands;
 /// <c>sync</c>: turn a resolved set into files in the RetroBat tree.
 /// </summary>
 /// <remarks>
-/// Four passes, in this order and for a reason. The set is re-resolved, because
+/// Six passes, in this order and for a reason. The set is re-resolved, because
 /// smart-collection membership drifts server-side and fetching a stale membership downloads
 /// games the set no longer contains. Then a plan is worked out and printed, because being told
 /// what is about to happen is worth more than a progress bar. Then, unless this is a dry run,
@@ -24,6 +24,19 @@ namespace RomMBat.Agent.Commands;
 /// interrupted, and interrupted is the normal case for a handheld. The pass covers every folder
 /// the sets resolve to, in one <c>GET /api/platforms</c> rather than one request per platform,
 /// so ordering it first costs one request and not one per set.
+/// </para>
+/// <para>
+/// <b>The saves flush goes first, ahead of everything.</b> A user who never leaves
+/// EmulationStation and never opens the UI still has their saves and play sessions go up,
+/// because this is one of the few moments RomMBat is running with a link. It is also cheap
+/// when there is nothing waiting: one query.
+/// </para>
+/// <para>
+/// <b>The hooks are installed on the first run, and said so.</b> Without them there is no
+/// playtime and no launch window at all, so leaving them off by default would leave the
+/// feature off for everyone who never reads the manual. Installing one adds a file beside the
+/// scripts already there and changes nothing about how a game runs, unlike the memory card
+/// options the opt-in rule was written for. <c>hooks uninstall</c> takes them back out.
 /// </para>
 /// <para>
 /// <c>--dry-run</c> and <c>--offline</c> both work with the server unreachable: the plan is
@@ -46,6 +59,11 @@ internal static class SyncCommand
         if (sets is null)
         {
             return ExitCode.Usage;
+        }
+
+        if (!command.Has("dry-run"))
+        {
+            InstallHooks(context);
         }
 
         var dryRun = command.Has("dry-run");
@@ -176,6 +194,11 @@ internal static class SyncCommand
                 await WriteGamelistsAsync(context, folders, cancellationToken).ConfigureAwait(false);
             }
 
+            if (!dryRun)
+            {
+                await FlushSavesAsync(context, command, cancellationToken).ConfigureAwait(false);
+            }
+
             ReportBudget(context, planner);
             return worst;
         }
@@ -183,6 +206,73 @@ internal static class SyncCommand
         {
             connection?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Puts the ES hooks in place on the first sync, and says exactly what it added.
+    /// </summary>
+    /// <remarks>
+    /// Silent when they are already current, which is every run after the first. A failure is
+    /// reported and never fatal: the commonest cause is EmulationStation holding the file, and
+    /// a sync that fetched a library should not fail over a hook it can install next time.
+    /// </remarks>
+    private static void InstallHooks(AgentContext context)
+    {
+        var hooks = new RomMBat.Core.RetroBat.EsHooks(context.Install);
+
+        if (hooks.IsInstalled())
+        {
+            return;
+        }
+
+        var outcome = hooks.Install();
+
+        if (outcome.Installed + outcome.Updated > 0)
+        {
+            Console.WriteLine(
+                $"Installed {outcome.Installed + outcome.Updated} EmulationStation hooks, so play "
+                    + "sessions and saves are picked up. Remove them with 'rommbat-agent hooks uninstall'.");
+
+            foreach (var step in outcome.Steps.Where(step => step.Action
+                is RomMBat.Core.RetroBat.EsHookAction.Installed or RomMBat.Core.RetroBat.EsHookAction.Updated))
+            {
+                Console.WriteLine($"  {step.Path}");
+            }
+
+            Console.WriteLine();
+        }
+
+        foreach (var problem in outcome.Problems)
+        {
+            Console.Error.WriteLine($"The hook could not be installed: {problem}");
+        }
+    }
+
+    /// <summary>Runs the same pass 'flush' does, quietly, at the end of a sync.</summary>
+    private static async Task FlushSavesAsync(
+        AgentContext context,
+        CommandLine command,
+        CancellationToken cancellationToken)
+    {
+        Console.WriteLine();
+
+        // The store this sync already has open, rather than a second connection to it.
+        var arguments = new List<string> { "flush", "--quiet" };
+
+        if (command.Has("offline"))
+        {
+            arguments.Add("--offline");
+        }
+
+        if (command.Value("passphrase") is { } passphrase)
+        {
+            arguments.Add("--passphrase");
+            arguments.Add(passphrase);
+        }
+
+        await FlushCommand
+            .RunAsync(context, CommandLine.Parse([.. arguments]), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
