@@ -242,8 +242,10 @@ is **refused after 2.04 s** on loopback, so this client needs a `ConnectTimeout`
 
 **Size is not the constraint you would expect.** ES loaded a 100,000-entry, 65 MB gamelist
 in 2.07 s from a cold start for 419 MB of working set, roughly 2 MB per 1,000 entries, and
-2.93 s with a real image file per entry. Cap a gamelist because nobody can navigate 100,000
-entries with a gamepad, not because ES cannot parse it.
+2.93 s with a real image file per entry. **Do not cap a gamelist**, though: ES lists ROM
+files it has no entry for, so dropping entries hides no games and only strips their art,
+leaving the user the same number of tiles to scroll past. What bounds navigability is the
+sync set's own game cap. Report a folder that grows past a threshold; never truncate it.
 
 ## The EmulationStation HTTP API
 

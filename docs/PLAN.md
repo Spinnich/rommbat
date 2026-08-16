@@ -445,9 +445,10 @@ The six results that moved the design most:
   and `..\` escapes are refused, so RomMBat lives at `emulators/rommbat/`, not `plugins/`.
 - **An unreachable LAN host takes 21 seconds to fail** and a default `HttpClient` inherits
   every millisecond of it, so `ConnectTimeout` must be set explicitly everywhere.
-- **The gamelist ceiling is a fiction.** ES loads 100,000 entries in 2.07 s for 419 MB, so
-  the per-system cap M4 enforces is about what a person can navigate with a gamepad, not
-  about what ES can parse.
+- **The gamelist ceiling is a fiction.** ES loads 100,000 entries in 2.07 s for 419 MB. The
+  per-system cap this once justified on navigability grounds is withdrawn as well, because
+  ES lists ROM files with no gamelist entry: M4 reports a large folder rather than
+  truncating it. See findings 111 and 106.
 - **exFAT is no gentler than FAT32 on timestamps**: 2-second granularity on both, rounded
   **up**, which stamps a freshly written save as much as 2 seconds in the future. Every
   mtime comparison and the clock-skew check have to carry that tolerance.
@@ -677,6 +678,8 @@ The six results that moved the design most:
    afterwards; the change is visible **1.1 s** later at 100k. **So the per-system gamelist
    cap is a gamepad-navigability decision, not a technical ceiling**, and the claim under
    core principle 2 that a 100k gamelist "would make EmulationStation unusable" is withdrawn.
+   M4's finding 111 then withdrew the cap itself: navigability is not something a cap can
+   deliver, because ES lists ROM files that have no gamelist entry.
    What this does not measure is on-screen scroll smoothness, which ES exposes no way to read.
 
 6. **Offline behaviour of the host.** Confirm what happens to a running sync when Wi-Fi
@@ -1972,7 +1975,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | Device clock is wrong, so offline saves lose every conflict                                                                     | Monotonic sequence alongside wall clock; compare against the server `Date` header on reconnect and offer re-stamp                                                                                                                                                      |
 | 100k-game library overwhelms the host or the UI                                                                                 | Catalog is never mirrored; content is opt-in via sync sets with hard game/byte budgets and eviction                                                                                                                                                                    |
 | `GET /api/collections` returns every membership of every collection                                                             | Never read `rom_ids` from collection payloads; page `GET /api/roms?collection_id=` instead                                                                                                                                                                             |
-| Huge `gamelist.xml` makes EmulationStation unusable                                                                             | Only locally present ROMs go in the gamelist; cap per system using the M0 measurement                                                                                                                                                                                  |
+| Huge `gamelist.xml` makes EmulationStation unusable                                                                             | Withdrawn by the M0 measurement: 100,000 entries load in 2.07 s. Only locally present ROMs go in the gamelist, and a large folder is reported rather than capped (finding 111)                                                                                         |
 | ES overwrites `gamelist.xml` on exit and loses synced metadata                                                                  | M0 experiment 3; write only when ES is idle, or via the `update-gamelists` / `quit` hooks                                                                                                                                                                              |
 | Save corruption from a bad conflict resolution                                                                                  | Never auto-overwrite on 409; default to keeping both, copy aside before any overwrite                                                                                                                                                                                  |
 | A save download dies mid-body and the server records the device as current, so the save never comes down again                  | Pass `optimistic=false` on `GET /api/saves/{id}/content` and send `POST /api/saves/{id}/downloaded` only after the bytes are written and verified. The default is `true` and records on request                                                                        |
