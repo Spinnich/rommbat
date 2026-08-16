@@ -167,6 +167,12 @@ public sealed class EmulationStationClient : IDisposable
     /// A connect timeout and a user cancellation are both <see cref="TaskCanceledException"/>
     /// and differ only in the inner exception, so the caller's own token is checked first. A
     /// real cancellation propagates.
+    /// <para>
+    /// The 5 s request timeout produces that same shape, so an ES that accepts the connection
+    /// and then stalls reads as absent. Deliberate, and the same call this project makes for
+    /// reachability: both mean "not there inside the budget", and ES stalling with the port
+    /// open is not a state a background sync can do anything different about.
+    /// </para>
     /// </remarks>
     private static bool IsAbsent(Exception ex, CancellationToken cancellationToken)
     {
