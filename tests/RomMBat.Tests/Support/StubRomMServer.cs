@@ -90,7 +90,31 @@ internal sealed record StubRomMetadata
 }
 
 /// <summary>One platform in the stub library.</summary>
-internal sealed record StubPlatform(int Id, string Slug, string FsSlug, string Name);
+internal sealed record StubPlatform(int Id, string Slug, string FsSlug, string Name)
+{
+    /// <summary>The firmware records RomM inlines on this platform.</summary>
+    public IReadOnlyList<StubFirmware> Firmware { get; init; } = [];
+}
+
+/// <summary>
+/// One firmware record, shaped like the live server's.
+/// </summary>
+/// <remarks>
+/// <see cref="FileName"/> defaults to something RetroBat does not use and
+/// <see cref="IsVerified"/> to false, because those are the two traps M5 exists to survive: a
+/// join on either would throw away files the emulator needs.
+/// </remarks>
+internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
+{
+#pragma warning disable CA5351 // MD5, deliberately: it is what RomM publishes and RetroBat requires.
+    public string Md5Hash => Convert.ToHexString(System.Security.Cryptography.MD5.HashData(Bytes)).ToLowerInvariant();
+#pragma warning restore CA5351
+
+    public bool IsVerified { get; init; }
+
+    /// <summary>The row outlived the file. Its content route answers 500, as measured.</summary>
+    public bool MissingFromFs { get; init; }
+}
 
 /// <summary>
 /// A stand-in RomM server that can be switched to unreachable mid-operation.
@@ -169,6 +193,12 @@ internal sealed class StubRomMServer : HttpMessageHandler
 
     /// <summary>Every media path requested, in order, so a test can count them.</summary>
     public IList<string> AssetRequests { get; } = [];
+
+    /// <summary>Every firmware id whose content was requested, in order.</summary>
+    public IList<int> FirmwareRequests { get; } = [];
+
+    /// <summary>Bytes to serve instead of a record's own, for testing what a wrong file does.</summary>
+    public IDictionary<int, byte[]> FirmwareBodyOverrides { get; } = new Dictionary<int, byte[]>();
 
     /// <summary>
     /// Serves media with no <c>Content-Length</c>, the way a chunked response arrives.
@@ -349,6 +379,16 @@ internal sealed class StubRomMServer : HttpMessageHandler
                 name = platform.Name,
                 display_name = platform.Name,
                 rom_count = Library.Count(rom => rom.PlatformId == platform.Id),
+                firmware_count = platform.Firmware.Count,
+                firmware = platform.Firmware.Select(firmware => new
+                {
+                    id = firmware.Id,
+                    file_name = firmware.FileName,
+                    file_size_bytes = firmware.Bytes.Length,
+                    md5_hash = firmware.Md5Hash,
+                    is_verified = firmware.IsVerified,
+                    missing_from_fs = firmware.MissingFromFs,
+                }).ToArray(),
             }).ToArray());
         }
 
@@ -367,6 +407,11 @@ internal sealed class StubRomMServer : HttpMessageHandler
         if (path.StartsWith("/assets/romm/resources/", StringComparison.Ordinal))
         {
             return Asset(path);
+        }
+
+        if (path.Contains("/api/firmware/", StringComparison.Ordinal))
+        {
+            return FirmwareResponse(path);
         }
 
         if (path.Contains("/content/", StringComparison.Ordinal))
@@ -402,6 +447,55 @@ internal sealed class StubRomMServer : HttpMessageHandler
             user_id = 1,
             sync_config = StoredSyncConfig,
         });
+    }
+
+    /// <summary>
+    /// Serves firmware content the way the measured server does.
+    /// </summary>
+    /// <remarks>
+    /// Two behaviours are copied from a live instance rather than invented. The file name in
+    /// the URL is <b>not read</b>: the right id under any name serves the bytes. And a record
+    /// flagged <c>missing_from_fs</c> answers <b>500</b> with a bare "Internal Server Error"
+    /// rather than 404, which is why a plan must skip such a record instead of promising it.
+    /// </remarks>
+    private HttpResponseMessage FirmwareResponse(string path)
+    {
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var index = Array.IndexOf(segments, "content");
+        if (index <= 0 || !int.TryParse(segments[index - 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+        {
+            return Detail(HttpStatusCode.NotFound, "Not Found");
+        }
+
+        FirmwareRequests.Add(id);
+
+        var firmware = Platforms.SelectMany(platform => platform.Firmware).FirstOrDefault(row => row.Id == id);
+        if (firmware is null)
+        {
+            return Detail(HttpStatusCode.NotFound, "Not Found");
+        }
+
+        if (firmware.MissingFromFs)
+        {
+            return new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = new StringContent("Internal Server Error", Encoding.UTF8, "text/plain"),
+            };
+        }
+
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(FirmwareBodyOverrides.TryGetValue(id, out var override_)
+                ? override_
+                : firmware.Bytes),
+        };
+
+        // Guessed from the extension by the real server, so a .rom arrives as text/plain and a
+        // content-type check must not demand octet-stream.
+        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            firmware.FileName.EndsWith(".rom", StringComparison.OrdinalIgnoreCase) ? "text/plain" : "application/octet-stream");
+
+        return response;
     }
 
     /// <summary>
