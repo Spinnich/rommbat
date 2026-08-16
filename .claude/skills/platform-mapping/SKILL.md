@@ -43,6 +43,22 @@ shipped 8.2.0 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `ca
 and `retrobat` at `system/es_menu`) and `mess` declares no path at all; none is a sync
 target. Match folders case-insensitively, and take the folder from the resolved `<path>`.
 
+## A third vocabulary: the BIOS manifest's system names
+
+`batocera-systems.json` is keyed by **batocera system names**, which are neither
+`es_systems.cfg`'s `<name>` nor RomM's slug. 97 of its 99 keys are exactly a `<path>` basename
+and so need no translation at all; the two that are not are aliased in
+`tools/build-bios-manifest.py`, which fails the build if a third appears:
+
+| Manifest key | RetroBat folder |
+| ------------ | --------------- |
+| `astrocde`   | `astrocade`     |
+| `msx`        | `msx1`          |
+
+`astrocde` is the same stale spelling the seed YAML has, which is already listed above. Note
+also that RetroBat calls the Mega CD `megacd`, so a BIOS lookup for `segacd` finds nothing:
+that is the seed's `segacd`/`megacd` divergence showing up in a second place.
+
 ## No authoritative source exists
 
 - `platform.libretro_slug` is a libretro DAT name ("Nintendo - Super Nintendo Entertainment

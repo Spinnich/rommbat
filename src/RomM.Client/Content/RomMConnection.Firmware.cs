@@ -111,9 +111,15 @@ public sealed partial class RomMConnection
                 RomMResponseStatus.Unauthorized,
                 detail ?? "The stored token is expired or revoked. Pair again."),
 
+            // The scope guard runs before the handler and answers a bare "Forbidden" with no
+            // mention of what was missing, measured against a token granted everything except
+            // firmware.read. So the detail is not worth relaying on its own and the scope is
+            // named here, which is also the only actionable half of the message.
             HttpStatusCode.Forbidden => RomMResponse.Failure<FirmwareResult>(
                 RomMResponseStatus.Forbidden,
-                detail ?? "The stored token was not granted firmware.read, so BIOS files cannot be fetched."),
+                "This pairing was not granted firmware.read, so BIOS files cannot be fetched. "
+                    + "Pair again and grant it, or copy them into bios/ by hand."
+                    + (IsInformative(detail) ? $" The server said: {detail}" : string.Empty)),
 
             HttpStatusCode.NotFound => RomMResponse.Failure<FirmwareResult>(
                 RomMResponseStatus.ServerError,
@@ -132,4 +138,8 @@ public sealed partial class RomMConnection
                 detail ?? $"The server answered {(int)response.StatusCode} while downloading '{firmware.FileName}'."),
         };
     }
+
+    /// <summary>True when a body says more than the status line already did.</summary>
+    private static bool IsInformative(string? detail) =>
+        !string.IsNullOrWhiteSpace(detail) && !detail.Equals("Forbidden", StringComparison.OrdinalIgnoreCase);
 }

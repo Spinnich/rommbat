@@ -203,6 +203,35 @@ public sealed class LivePairingTests : IAsyncDisposable
         Assert.True(completion.Scopes.Allows(RomMFeature.Library));
         Assert.False(completion.Scopes.Allows(RomMFeature.SavePush));
         Assert.NotEmpty(completion.Scopes.Degradations);
+        Assert.False(completion.Scopes.Allows(RomMFeature.Firmware));
+
+        // What a token without firmware.read actually answers, driven rather than guessed,
+        // because the degraded path in FeatureAvailability is written against it.
+        //
+        // The split matters: platforms.read alone still carries every firmware md5, since the
+        // records are inlined on the platform list, so the BIOS gap report keeps working on a
+        // narrowed grant and only the fetch is refused.
+        using (var narrowedConnection = new RomMConnection(
+            new RomMClientOptions { Origin = origin, AccessToken = pairing.UnlockToken(null) }))
+        {
+            var platforms = await narrowedConnection.ListPlatformsAsync();
+            Assert.True(platforms.IsSuccess, platforms.Message);
+
+            var listed = await narrowedConnection.ListFirmwareAsync(platforms.Value![0].Id);
+            Assert.Equal(RomMResponseStatus.Forbidden, listed.Status);
+
+            var fetchable = platforms.Value
+                .SelectMany(platform => platform.Firmware)
+                .FirstOrDefault(firmware => firmware.IsFetchable);
+
+            if (fetchable is not null)
+            {
+                var refused = await narrowedConnection.DownloadFirmwareAsync(fetchable, Stream.Null);
+
+                Assert.Equal(RomMResponseStatus.Forbidden, refused.Status);
+                Assert.Contains("firmware.read", refused.Message, StringComparison.Ordinal);
+            }
+        }
 
         // The remedy the client prints is "pair again and grant the missing scopes", so
         // exercise it: the same identifier, a wider grant, the same device, no degradations.

@@ -14,9 +14,9 @@ is a wombat.
 > [!WARNING]
 >
 > **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
-> mapping, sync sets, content sync with a disk budget, and metadata, media and
-> `gamelist.xml` all work. **Saves, states and playtime do not yet cross**, which is M6, and
-> **BIOS is not fetched**, which is M5. The repository also holds the design of record
+> mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
+> BIOS all work. **Saves, states and playtime do not yet cross**, which is M6. The
+> repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
@@ -199,7 +199,7 @@ framework works end to end.
 | M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet        |
 | M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance        |
 | M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance |
-| M5        | BIOS and firmware                                                                                                   | Not started                                                                                                    |
+| M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                     |
 | M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                                                    |
 | M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                                    |
 | M8        | Packaging, docs, release                                                                                            | Not started                                                                                                    |
