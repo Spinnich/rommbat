@@ -24,11 +24,16 @@ public sealed record PendingPlaySession(
 /// Of those orphans, the ones explained by an ES-menu launch, which includes RomMBat's own
 /// exit. Counted separately because they are expected rather than a fault.
 /// </param>
+/// <param name="Suspicious">
+/// Sessions at or past <see cref="PlaytimeCorrelator.SuspiciouslyLong"/>. Sent like any other,
+/// and counted so a machine left on overnight is visible rather than invisible.
+/// </param>
 public sealed record CorrelationOutcome(
     int Sessions,
     int Orphans,
     int MenuLaunches,
-    int Unresolved)
+    int Unresolved,
+    int Suspicious = 0)
 {
     public static CorrelationOutcome Empty { get; } = new(0, 0, 0, 0);
 
@@ -70,9 +75,14 @@ public sealed class PlaytimeCorrelator
     public static TimeSpan LaunchWindow { get; } = TimeSpan.FromHours(24);
 
     /// <summary>
-    /// Sessions longer than this are recorded but flagged, because <c>game-end</c> cannot say
-    /// how a game ended, only that it did.
+    /// Sessions at least this long are counted separately rather than dropped.
     /// </summary>
+    /// <remarks>
+    /// <c>game-end</c> fires reliably even on a crash or a kill, measured, but it cannot say
+    /// <i>how</i> a game ended. A twelve-hour session is more likely a machine left on than a
+    /// binge, and it still goes up, because refusing to record real playtime is the worse
+    /// error. Counting it is what lets someone notice a pattern of them.
+    /// </remarks>
     public static TimeSpan SuspiciouslyLong { get; } = TimeSpan.FromHours(12);
 
     private readonly RetroBatInstall _install;
@@ -115,6 +125,7 @@ public sealed class PlaytimeCorrelator
         var sessions = 0;
         var orphans = 0;
         var menuLaunches = 0;
+        var suspicious = 0;
         var correlated = new List<long>();
         var discarded = new List<long>();
 
@@ -175,6 +186,12 @@ public sealed class PlaytimeCorrelator
 
                     Enqueue(session, now);
                     sessions++;
+
+                    if (session.EndTime - session.StartTime >= SuspiciouslyLong)
+                    {
+                        suspicious++;
+                    }
+
                     correlated.Add(entry.Id);
                     if (start is not null)
                     {
@@ -204,7 +221,7 @@ public sealed class PlaytimeCorrelator
 
         _store.LaunchCursor.Write(_log.PositionAfter(launches, cursor), now);
 
-        return new CorrelationOutcome(sessions, orphans, menuLaunches, unresolved);
+        return new CorrelationOutcome(sessions, orphans, menuLaunches, unresolved, suspicious);
     }
 
     /// <summary>

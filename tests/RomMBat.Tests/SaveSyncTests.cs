@@ -320,6 +320,29 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_save_this_device_uploaded_is_not_fetched_back_down()
+    {
+        // origin_device_id names the uploader, so a download offered for bytes this device
+        // already holds and itself sent is a transfer nobody needs.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        await fixture.SyncAsync();
+
+        // Now the server offers it back, which is what a second device's negotiate looks like
+        // from here after this device uploaded.
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
     public async Task Negotiate_sends_the_files_real_mtime_and_never_the_sync_time()
     {
         // Sending the sync time makes every offline edit lose every conflict it is in.

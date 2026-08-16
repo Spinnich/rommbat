@@ -226,6 +226,18 @@ public sealed class SaveSync
                     break;
 
                 case SyncAction.Download when operation.SaveId is { } saveId:
+                    // origin_device_id names the uploader, so a save this device sent that is
+                    // being offered back is bytes this device already has. Skipped rather than
+                    // fetched, which is the cheapest saving in the protocol and the reason the
+                    // field is persisted at all.
+                    if (local?.ContentHash is { } held
+                        && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase)
+                        && _store.SaveSlots.IsOwnUpload(operation.RomId, operation.Slot ?? string.Empty, _deviceId))
+                    {
+                        noOps++;
+                        break;
+                    }
+
                     var download = await DownloadAsync(operation, saveId, local, result.SessionId, cancellationToken)
                         .ConfigureAwait(false);
 

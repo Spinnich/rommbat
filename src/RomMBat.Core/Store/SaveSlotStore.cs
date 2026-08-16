@@ -9,9 +9,9 @@ namespace RomMBat.Core.Store;
 /// The server's identity, tagged with the upload timestamp. Not a name to write on disk.
 /// </param>
 /// <param name="OnDiskPath">
-/// Where a restore of this slot goes, built from the untagged stem and the extension. Null
-/// when the server told us neither, which is not a case observed and is not one to paper over
-/// by falling back to the tagged name.
+/// Where a restore of this slot goes, which is the path the local save already occupies. Null
+/// when this device has never held the slot: there is no system folder to put it in, and a
+/// guessed path would restore a save where no emulator looks.
 /// </param>
 public sealed record SaveSlotRecord(
     long RomId,
@@ -142,16 +142,11 @@ public sealed class SaveSlotStore
         {
             onDisk = parsed;
         }
-        else if (noTags is not null)
-        {
-            // No local file for this slot yet, so the name is built from what the server
-            // returned: the untagged stem plus the extension, never file_name.
-            var name = string.IsNullOrEmpty(extension) ? noTags : $"{noTags}.{extension}";
-            if (RelativePath.TryCreate($"saves/{name}", out var built))
-            {
-                onDisk = built;
-            }
-        }
+
+        // Deliberately no fallback. A slot this device has never held locally has no known
+        // system folder, and saves/<name> with no folder is a path no emulator reads, so
+        // guessing one would restore a save into a place nothing looks. The download reports
+        // that it has nowhere to write instead.
 
         return new SaveSlotRecord(
             reader.GetInt64(0),
