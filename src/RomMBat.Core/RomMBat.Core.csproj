@@ -35,6 +35,7 @@
   -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\data\retrobat\platforms.json" Link="data\retrobat\platforms.json" />
+    <EmbeddedResource Include="..\..\data\retrobat\bios.json" Link="data\retrobat\bios.json" />
   </ItemGroup>
 
   <ItemGroup>

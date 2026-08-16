@@ -175,7 +175,10 @@ public sealed class MediaSync
                 continue;
             }
 
+            // Non-null by the schema's own CHECK: only firmware has no folder, and this
+            // query asked for roms.
             var rom = romFiles[0];
+            var folder = rom.Folder!;
 
             foreach (var kind in kinds)
             {
@@ -192,7 +195,7 @@ public sealed class MediaSync
 
                 try
                 {
-                    target = TargetFor(rom.Folder, rom.FileName, kind, resource.Extension);
+                    target = TargetFor(folder, rom.FileName, kind, resource.Extension);
                 }
                 catch (ArgumentException ex)
                 {
@@ -211,7 +214,7 @@ public sealed class MediaSync
 
                 if (state == MediaState.Adopt)
                 {
-                    RecordAdopted(romId, kind, target, rom.Folder);
+                    RecordAdopted(romId, kind, target, folder);
                     adopted++;
                     continue;
                 }
@@ -246,7 +249,7 @@ public sealed class MediaSync
                     continue;
                 }
 
-                Record(romId, kind, target, rom.Folder, result.Bytes);
+                Record(romId, kind, target, folder, result.Bytes);
                 downloaded++;
                 bytes += result.Bytes;
                 managed += result.Bytes;

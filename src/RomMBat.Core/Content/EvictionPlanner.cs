@@ -241,7 +241,10 @@ public sealed class EvictionPlanner
             // has however the media below fares. Counted and queued here rather than after
             // the media loop, so one locked image cannot cost the folder its rewrite.
             removed++;
-            folders.Add(candidate.File.Folder);
+            if (candidate.File.Folder is { } folder)
+            {
+                folders.Add(folder);
+            }
 
             // The media goes with it. Each is checked for origin again rather than trusted
             // from the plan: a file the user replaced between the dry run and this call is
