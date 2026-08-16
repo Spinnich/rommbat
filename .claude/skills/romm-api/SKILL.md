@@ -144,11 +144,13 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Media is static files under `/assets/romm/resources/`, not an API route, and the fields
   come in two shapes.** `path_cover_small` and `path_cover_large` are already rooted at that
   prefix and carry a `?ts=` query with a **raw space**; `path_manual`, `path_video` and
-  `ss_metadata.marquee_path` are relative to it. **The relative form requested as given
+  `ss_metadata.logo_path` are relative to it. **The relative form requested as given
   answers 200 with the web UI's `index.html`**, 5,826 bytes, with an `ETag` and
   `Accept-Ranges`, so a status check will not catch it and the content type must be. Normalise
   onto the prefix exactly once and drop the query. nginx serves them: ranges work, 416 past
-  the end, and **no token is required at all**.
+  the end, and **no token is required at all**. EmulationStation's marquee is
+  `ss_metadata.logo_path`, never the similarly named `marquee_path`, which is an arcade
+  cabinet marquee.
 - **Never use `url_cover` or `url_manual`.** They are `neoclone.screenscraper.fr` API URLs
   carrying a third party's `devid` and `devpassword` in the query string. Off-LAN, and not
   yours to send.
