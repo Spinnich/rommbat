@@ -189,7 +189,9 @@ public sealed class BiosManifestTests
 
         // The same ColecoVision bios, wanted at three paths, one of them inside openMSX's
         // user-data tree. This is what makes the destination the key and the md5 not.
-        var coleco = manifest.DestinationsFor("2c66f5911e5b42b8ebe113403548eee7");
+        var coleco = manifest.Requirements
+            .Where(requirement => requirement.Md5 == "2c66f5911e5b42b8ebe113403548eee7")
+            .ToList();
 
         Assert.Equal(
             ["bios/coleco.rom", "bios/colecovision.rom", "bios/openMSX/share/systemroms/coleco.rom"],

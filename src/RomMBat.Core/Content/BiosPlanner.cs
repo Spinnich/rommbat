@@ -56,19 +56,12 @@ public sealed record BiosStep
     /// <summary>The RomM record the md5 matched, when one did.</summary>
     public FirmwareRow? Match { get; init; }
 
-    /// <summary>What is actually at the destination, when something is.</summary>
-    public string? FoundMd5 { get; init; }
-
     public long BytesToTransfer { get; init; }
 
     public string? Reason { get; init; }
 
     /// <summary>Where this file belongs, relative to the RetroBat root.</summary>
     public RelativePath Path => Requirement.Path;
-
-    /// <summary>True when a user has to do something about it.</summary>
-    public bool NeedsAttention =>
-        Action is BiosAction.Mismatch or BiosAction.MissingFromLibrary or BiosAction.Blocked;
 }
 
 /// <summary>What a BIOS pass would do, before anything is done.</summary>
@@ -78,9 +71,6 @@ public sealed record BiosPlan
 
     /// <summary>False when the server was never asked, which changes what a gap means.</summary>
     public bool CheckedAgainstServer { get; init; }
-
-    /// <summary>The folders this plan covers, in the order they were asked for.</summary>
-    public IReadOnlyList<string> Folders { get; init; } = [];
 
     public IEnumerable<BiosStep> Downloads => Steps.Where(step => step.Action == BiosAction.Download);
 
@@ -309,7 +299,6 @@ public sealed class BiosPlanner
         {
             Steps = steps,
             CheckedAgainstServer = candidates is not null,
-            Folders = wanted,
         };
     }
 
@@ -351,7 +340,6 @@ public sealed class BiosPlanner
                 return step with
                 {
                     Action = BiosAction.Adopt,
-                    FoundMd5 = found,
                     Reason = "already on disk and its content matches",
                 };
             }
@@ -359,7 +347,6 @@ public sealed class BiosPlanner
             return step with
             {
                 Action = BiosAction.Mismatch,
-                FoundMd5 = found,
                 Reason = $"a different file is there ({found}). It is left exactly as it is: "
                     + "a BIOS that works for you beats the one RetroBat lists.",
             };
@@ -374,7 +361,7 @@ public sealed class BiosPlanner
             };
         }
 
-        if (candidates.TryGetValue(wanted, out var match) && !match.MissingFromFs)
+        if (candidates.TryGetValue(wanted, out var match) && match.IsFetchable)
         {
             return step with
             {

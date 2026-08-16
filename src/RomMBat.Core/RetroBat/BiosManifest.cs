@@ -1,5 +1,4 @@
 using System.Collections.Frozen;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RomMBat.Core.Paths;
@@ -28,9 +27,6 @@ public sealed record BiosRequirement(string System, string Folder, string? Md5, 
     /// </remarks>
     public bool IsUnverifiable => Md5 is null;
 }
-
-/// <summary>What one RetroBat system needs.</summary>
-public sealed record BiosSystem(string Key, string Name, string Folder, IReadOnlyList<BiosRequirement> Files);
 
 /// <summary>
 /// <c>data/retrobat/bios.json</c>: RetroBat's own BIOS requirements, per system.
@@ -64,10 +60,10 @@ public sealed class BiosManifest
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly FrozenDictionary<string, BiosSystem> _byFolder;
+    private readonly FrozenDictionary<string, IReadOnlyList<BiosRequirement>> _byFolder;
 
     private BiosManifest(
-        FrozenDictionary<string, BiosSystem> byFolder,
+        FrozenDictionary<string, IReadOnlyList<BiosRequirement>> byFolder,
         IReadOnlyList<BiosRequirement> requirements,
         IReadOnlyList<string> rejected)
     {
@@ -98,7 +94,7 @@ public sealed class BiosManifest
         var document = JsonSerializer.Deserialize<ManifestDocument>(json, SerializerOptions)
             ?? throw new InvalidOperationException("bios.json is empty.");
 
-        var systems = new Dictionary<string, BiosSystem>(StringComparer.OrdinalIgnoreCase);
+        var systems = new Dictionary<string, IReadOnlyList<BiosRequirement>>(StringComparer.OrdinalIgnoreCase);
         var requirements = new List<BiosRequirement>();
         var rejected = new List<string>();
 
@@ -120,14 +116,9 @@ public sealed class BiosManifest
 
             // A system can share a folder with another (nothing does today), so the files
             // merge rather than the later system replacing the earlier one.
-            if (systems.TryGetValue(folder, out var existing))
-            {
-                systems[folder] = existing with { Files = [.. existing.Files, .. files] };
-            }
-            else
-            {
-                systems[folder] = new BiosSystem(key, body.Name ?? key, folder, files);
-            }
+            systems[folder] = systems.TryGetValue(folder, out var existing)
+                ? [.. existing, .. files]
+                : files;
 
             requirements.AddRange(files);
         }
@@ -138,31 +129,9 @@ public sealed class BiosManifest
             rejected);
     }
 
-    /// <summary>What one RetroBat folder needs, or null when the manifest names no BIOS for it.</summary>
-    public bool TryGetFolder(string? folder, [NotNullWhen(true)] out BiosSystem? system)
-    {
-        system = null;
-        return !string.IsNullOrWhiteSpace(folder) && _byFolder.TryGetValue(folder, out system);
-    }
-
     /// <summary>What one RetroBat folder needs. Empty when the manifest names no BIOS for it.</summary>
     public IReadOnlyList<BiosRequirement> For(string? folder) =>
-        TryGetFolder(folder, out var system) ? system.Files : [];
-
-    /// <summary>
-    /// Every destination the same bytes are wanted at.
-    /// </summary>
-    /// <remarks>
-    /// One download can owe several writes, so this is what the writer iterates rather than
-    /// the requirement it matched on. Six md5s take more than one path.
-    /// </remarks>
-    public IReadOnlyList<BiosRequirement> DestinationsFor(string md5)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(md5);
-
-        var wanted = Normalize(md5);
-        return [.. Requirements.Where(requirement => requirement.Md5 == wanted)];
-    }
+        !string.IsNullOrWhiteSpace(folder) && _byFolder.TryGetValue(folder, out var files) ? files : [];
 
     /// <summary>True when a manifest path is one RomMBat may write.</summary>
     /// <remarks>
@@ -195,9 +164,6 @@ public sealed class BiosManifest
 
     private sealed class SystemDocument
     {
-        [JsonPropertyName("name")]
-        public string? Name { get; init; }
-
         [JsonPropertyName("folder")]
         public string? Folder { get; init; }
 
