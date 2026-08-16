@@ -20,7 +20,7 @@ namespace RomMBat.Tests.Support;
 /// the full RomMBat scope set, so leaving one behind is leaving a live credential behind.
 /// </para>
 /// </remarks>
-public sealed class LiveCatalogFixture : IAsyncLifetime, IDisposable
+public sealed class LiveCatalogFixture : IAsyncLifetime
 {
     private const string ServerVariable = "ROMMBAT_TEST_SERVER";
     private const string TokenVariable = "ROMMBAT_TEST_APPROVER_TOKEN";
@@ -43,7 +43,7 @@ public sealed class LiveCatalogFixture : IAsyncLifetime, IDisposable
     internal LiveSession Session =>
         _session ?? throw new InvalidOperationException("The live fixture is not configured.");
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         if (!IsConfigured)
         {
@@ -71,17 +71,17 @@ public sealed class LiveCatalogFixture : IAsyncLifetime, IDisposable
         _session = new LiveSession(_store, completion.RomMDeviceId!, origin, token) { Install = install };
     }
 
-    /// <summary>xUnit calls <see cref="DisposeAsync"/>; this exists so the analyzer agrees.</summary>
-    public void Dispose()
+    /// <summary>The synchronous half of teardown, reached only through <see cref="DisposeAsync"/>.</summary>
+    private void DisposeLocals()
     {
         _session?.Dispose();
         _store?.Dispose();
         _tree?.Dispose();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        Dispose();
+        DisposeLocals();
 
         if (!IsConfigured || _litter.IsEmpty)
         {

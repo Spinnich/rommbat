@@ -38,7 +38,7 @@ namespace RomMBat.Tests;
 /// See DEVELOPER_SETUP.md section 3.
 /// </para>
 /// </remarks>
-public class LivePairingTests : IAsyncLifetime
+public sealed class LivePairingTests : IAsyncDisposable
 {
     /// <summary>
     /// Undone after every test. xUnit builds a fresh instance per test, so each one cleans
@@ -53,9 +53,10 @@ public class LivePairingTests : IAsyncLifetime
 
     private static string? ApproverToken => Environment.GetEnvironmentVariable(TokenVariable);
 
-    private static bool IsConfigured => !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(ApproverToken);
+    private const string NotConfigured =
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    private static bool IsConfigured => !string.IsNullOrWhiteSpace(Server) && !string.IsNullOrWhiteSpace(ApproverToken);
 
     /// <summary>
     /// Deletes the devices and revokes the tokens this test created.
@@ -64,7 +65,7 @@ public class LivePairingTests : IAsyncLifetime
     /// Not optional politeness. Each approval mints a real credential with the full RomMBat
     /// scope set, and without this a suite run leaves one set behind every time.
     /// </remarks>
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (!IsConfigured || _litter.IsEmpty)
         {
@@ -78,10 +79,10 @@ public class LivePairingTests : IAsyncLifetime
             "Live test litter was left on the server: " + string.Join("; ", problems));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task Pairing_end_to_end_yields_a_token_that_survives_a_restart()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var origin = new Uri(Server!);
         using var tree = TempRetroBatTree.Create();
@@ -132,10 +133,10 @@ public class LivePairingTests : IAsyncLifetime
         }
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task Re_pairing_on_the_same_identifier_updates_the_device_rather_than_duplicating_it()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var origin = new Uri(Server!);
         using var tree = TempRetroBatTree.Create();
@@ -179,10 +180,10 @@ public class LivePairingTests : IAsyncLifetime
             devices.Value!.Count(d => string.Equals(d.Id, first.RomMDeviceId, StringComparison.Ordinal)));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task A_narrowed_grant_comes_back_narrowed_and_degrades()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var origin = new Uri(Server!);
         using var tree = TempRetroBatTree.Create();
@@ -217,10 +218,10 @@ public class LivePairingTests : IAsyncLifetime
         Assert.Equal(RomMScopes.Requested.Order(StringComparer.Ordinal), widened.Scopes.All);
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task A_declined_request_is_reported_rather_than_polled_forever()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var origin = new Uri(Server!);
         using var tree = TempRetroBatTree.Create();
