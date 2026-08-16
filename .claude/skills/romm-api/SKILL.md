@@ -223,9 +223,11 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and
   `sync:*` events are emitted to a `user:{id}` room nothing ever joins. Poll REST.
 - **`is_verified` on firmware is unreliable here.** See `platform-mapping` and the BIOS
-  section of the plan: it misses 93 of the 156 md5s RetroBat requires. Measured against a real
-  library, filtering on it discards 6 of the 49 required files that library holds, and joining
-  on `file_name` instead of `md5_hash` discards 2. Join on md5 and nothing else.
+  section of the plan: it is false on files RetroBat requires, `psxonpsp660.bin` among them.
+  Measured against a real library, filtering on it discards 6 of the 49 required files that
+  library holds, and joining on `file_name` instead of `md5_hash` discards 2. Join on md5 and
+  nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record
+  of at all, which no join can rescue.)
 - **`missing_from_fs` means the row outlived the file, and its content route answers 500.**
   142 of 656 firmware records carried it on the library measured, and a bare
   `Internal Server Error` in `text/plain` is what a request for one gets, not a 404. Skip such

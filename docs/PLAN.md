@@ -1440,6 +1440,14 @@ so the honest figures are 6 and 2. See [freegosy-findings.md](freegosy-findings.
    so the writer creates directories and every constructed path goes through `RelativePath`
    and the filesystem-limit checks.
 
+   **And it runs the other way too**: **six** destinations are required by more than one
+   system, five of them carrying an md5, `bios/openMSX/share/systemroms/fmpac.rom` being
+   wanted by all four MSX systems. A plan is built per system, so a destination arrives
+   several times and must be **written, recorded and counted once**. Keyed on md5 alone, the
+   second arrival copies the file onto itself and fails a pass that actually worked. The
+   budget follows the same split: the bytes are charged to the network once per md5 and to
+   the disk once per destination, because that is how many files land.
+
    Firmware uses Starlette's `FileResponse` and behaves exactly as M3's ROM route does:
    `accept-ranges: bytes`, an `etag`, a `content-range` on a 206, a byte-exact resume, **416**
    past the end, and a stale `If-Range` answered 200 with the whole body. Two differences
@@ -1457,6 +1465,12 @@ so the honest figures are 6 and 2. See [freegosy-findings.md](freegosy-findings.
    a path the manifest names carrying the md5 it names. So a file present with the right md5
    that RomMBat did not download is **adopted as a fact, never as something it may later
    remove**, and eviction never touches this tree at all.
+
+   **Adopting needs no server.** Recognising a file already at the path RetroBat wants is the
+   manifest against the disk, so a pass whose only work is adoption runs with the network
+   down, and a pass with nothing to download still has rows to write. Gating the apply on
+   "is anything being fetched" would make adoption reachable only as a side effect of an
+   unrelated download, and the fast path that skips re-hashing needs the row it writes.
 
 5. **Report the gap.** Required BIOS with no md5 match anywhere in RomM is the single most
    useful thing this feature can tell a user, so surface it per platform as "needed, not
@@ -2279,8 +2293,8 @@ Paste this into Claude Code from an empty directory:
 > RetroBat too**: `batocera-systems/Resources/batocera-systems.json` lists 353 BIOS entries
 > across 99 systems as `{md5, file}` with the exact destination path. Join it against
 > `GET /api/firmware` on **md5 only**, because filenames differ and RomM's `is_verified`
-> misses 93 of the 156 hashes RetroBat requires. Fetch BIOS before that platform's ROMs,
-> and report required files RomM does not have.
+> is false on hashes RetroBat requires, `psxonpsp660.bin` among them. Fetch BIOS before
+> that platform's ROMs, and report required files RomM does not have.
 >
 > Start with M0: write throwaway probes that confirm what arguments RetroBat's
 > EmulationStation passes to a `.bat` hook and **whether it blocks game launch**, where

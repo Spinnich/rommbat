@@ -425,7 +425,10 @@ exclusions are shown to the user rather than hidden.
 **Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
 entries across 99 systems as `{md5, file}`, with the exact destination path. Join it
 against RomM's firmware records on **md5 only**: filenames differ between the two projects,
-and RomM's `is_verified` misses 93 of the 156 hashes RetroBat requires. BIOS is fetched
+and RomM's `is_verified` is false on files RetroBat requires, `psxonpsp660.bin` among them,
+so on a real library filtering on it discards 6 of the 49 required hashes that library
+holds. A further 93 of the 156 have no RomM record at all, which is a gap and not a
+flag. BIOS is fetched
 **before** that platform's ROMs, because a platform without its BIOS is dead weight in the
 gallery.
 
