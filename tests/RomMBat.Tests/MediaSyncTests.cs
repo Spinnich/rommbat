@@ -1,0 +1,430 @@
+using RomM.Client;
+using RomM.Client.Catalog;
+using RomM.Client.Content;
+using RomMBat.Core.Content;
+using RomMBat.Core.Mapping;
+using RomMBat.Core.Metadata;
+using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
+using RomMBat.Tests.Support;
+using Xunit;
+
+namespace RomMBat.Tests;
+
+/// <summary>
+/// Resolving a set, fetching its media, writing its gamelist, and doing it all again.
+/// </summary>
+/// <remarks>
+/// The end-to-end shape of M4, driven against the stub so the interesting cases (an unreachable
+/// server, a full budget, a moved install) are reachable at all.
+/// </remarks>
+public sealed class MediaSyncTests : IDisposable
+{
+    private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
+
+    public void Dispose()
+    {
+        _tree.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    // ------------------------------------------------------------------ what a walk costs
+
+    [Fact]
+    public async Task Metadata_for_every_member_arrives_without_one_extra_request()
+    {
+        using var stub = Library(6);
+        using var store = LocalStore.Open(_tree.Install());
+
+        var resolution = await ResolveAsync(stub, store);
+
+        // The claim this milestone's whole shape rests on. GET /api/roms/{id} would be one
+        // request per game, 0.15 s each; the paged read already carries every field.
+        Assert.Equal(1, stub.RomPagesServed);
+        Assert.DoesNotContain(stub.RequestLog, path => path.Contains("/api/roms/1", StringComparison.Ordinal));
+
+        Assert.Equal(6, resolution.Members.Count);
+        Assert.Equal(6, resolution.Metadata.Count);
+        Assert.Equal(6, store.Metadata.Count());
+
+        var one = store.Metadata.Find(1)!;
+        Assert.Equal("snes", one.Folder);
+        Assert.Equal("Nintendo", one.Developer);
+        Assert.Equal("1-2", one.Players);
+        Assert.Equal("19940916T000000", one.ReleaseDate);
+        Assert.Equal("0.83", one.Rating);
+        Assert.Equal("us", one.Region);
+        Assert.Equal("en", one.Languages);
+    }
+
+    [Fact]
+    public async Task A_set_capped_far_below_its_scope_holds_metadata_for_the_cap_not_the_scope()
+    {
+        // The bounded-memory claim. A description runs to 11,719 characters on a real library,
+        // so holding one per scanned row would make a walk's memory a function of the library.
+        using var stub = Library(2_000);
+        using var store = LocalStore.Open(_tree.Install());
+
+        var resolution = await ResolveAsync(stub, store, maxGames: 25);
+
+        Assert.Equal(2_000, resolution.Scanned);
+        Assert.Equal(25, resolution.Members.Count);
+        Assert.Equal(25, resolution.Metadata.Count);
+
+        // 8 pages of 250 for 2,000 ROMs, and not one request more for the metadata.
+        Assert.Equal(8, stub.RomPagesServed);
+        Assert.Equal(25, store.Metadata.Count());
+    }
+
+    // ------------------------------------------------------------------ media
+
+    [Fact]
+    public async Task Media_lands_beside_the_roms_under_the_names_RetroBat_expects()
+    {
+        using var stub = Library(2);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        var images = Path.Combine(_tree.Root, "roms", "snes", "images");
+        var videos = Path.Combine(_tree.Root, "roms", "snes", "videos");
+
+        Assert.True(File.Exists(Path.Combine(images, "Game 1 (USA)-image.png")));
+        Assert.True(File.Exists(Path.Combine(images, "Game 1 (USA)-thumb.png")));
+        Assert.True(File.Exists(Path.Combine(images, "Game 1 (USA)-marquee.png")));
+        Assert.True(File.Exists(Path.Combine(videos, "Game 1 (USA)-video.mp4")));
+
+        // Manuals are off by default, and this library has none anyway.
+        Assert.False(Directory.Exists(Path.Combine(_tree.Root, "roms", "snes", "manuals")));
+
+        // Each is recorded against its ROM, which is what lets eviction take it along.
+        var files = store.Files.ForRom(1);
+        Assert.Equal(5, files.Count);
+        Assert.Single(files, file => file.Kind == LocalFileKind.Rom);
+        Assert.Single(files, file => file.Kind == LocalFileKind.Marquee);
+    }
+
+    [Fact]
+    public async Task A_second_run_fetches_no_media_and_writes_no_gamelist()
+    {
+        using var stub = Library(2);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        var requestsAfterFirst = stub.AssetRequests.Count;
+        var gamelist = Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml");
+        var bytes = File.ReadAllBytes(gamelist);
+
+        var second = await SyncAsync(stub, store);
+
+        Assert.Equal(0, second.Media.Downloaded);
+        Assert.Equal(8, second.Media.AlreadyPresent);
+        Assert.Equal(requestsAfterFirst, stub.AssetRequests.Count);
+
+        Assert.True(second.Gamelists.IsNoOp);
+        Assert.Equal(bytes, File.ReadAllBytes(gamelist));
+    }
+
+    [Fact]
+    public async Task Artwork_a_user_scraped_is_adopted_rather_than_overwritten()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        // The user's own scraper writes to exactly the name RomMBat would use.
+        var images = Path.Combine(_tree.Root, "roms", "snes", "images");
+        Directory.CreateDirectory(images);
+        var theirs = Path.Combine(images, "Game 1 (USA)-image.png");
+        File.WriteAllBytes(theirs, [1, 2, 3, 4, 5]);
+
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal([1, 2, 3, 4, 5], File.ReadAllBytes(theirs));
+        Assert.True(outcome.Media.Adopted >= 1);
+
+        var recorded = store.Files.ForRom(1, LocalFileKind.Image).Single();
+        Assert.Equal(FileOrigin.Adopted, recorded.Origin);
+
+        // Adopted media is the user's, so it never counts against RomMBat's budget.
+        Assert.DoesNotContain(
+            store.Files.List().Where(file => file.Origin == FileOrigin.Synced),
+            file => file.Kind == LocalFileKind.Image);
+    }
+
+    [Fact]
+    public async Task A_full_budget_stops_the_artwork_rather_than_the_games()
+    {
+        using var stub = Library(3);
+        using var store = LocalStore.Open(_tree.Install());
+
+        // Enough for the ROMs and almost nothing else.
+        store.Settings.Set(SettingStore.ContentMaxBytes, 3 * 1024L + 512, DateTimeOffset.UtcNow);
+
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(3, outcome.Content.Downloaded);
+        Assert.True(outcome.Media.Blocked > 0);
+        Assert.Contains(outcome.Media.Problems, problem => problem.Contains("budget is full", StringComparison.Ordinal));
+
+        // And the gamelist is still written, referencing only what actually landed.
+        var written = File.ReadAllText(Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml"));
+        Assert.Contains("<name>Game 1</name>", written, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------------------ the whole thing, moved
+
+    [Fact]
+    public async Task A_populated_install_with_media_and_a_gamelist_moves_without_re_fetching()
+    {
+        using var stub = Library(3);
+
+        using (var store = LocalStore.Open(_tree.Install()))
+        {
+            await SyncAsync(stub, store);
+        }
+
+        var requestsBefore = stub.AssetRequests.Count;
+        Assert.True(requestsBefore > 0);
+
+        // The whole tree turns up somewhere else, database, artwork and gamelist included,
+        // which is what a drive letter changing from E: to F: does.
+        using var moved = _tree.CopyToNewLocation();
+        var relocated = moved.Install();
+
+        using var store2 = LocalStore.OpenAt(relocated.DatabasePath);
+
+        var gamelist = Path.Combine(moved.Root, "roms", "snes", "gamelist.xml");
+        var bytes = File.ReadAllBytes(gamelist);
+
+        // Nothing may have recorded where the install used to be, so a second pass at the new
+        // location writes nothing and fetches nothing.
+        var media = new MediaSync(relocated, store2, Connect(stub));
+        var mediaOutcome = await media.ApplyAsync([1, 2, 3]);
+
+        var gamelists = await new GamelistSync(relocated, store2).ApplyAsync(["snes"], emulationStation: null);
+
+        Assert.NotEqual(_tree.Root, moved.Root);
+        Assert.Equal(0, mediaOutcome.Downloaded);
+        Assert.Equal(requestsBefore, stub.AssetRequests.Count);
+        Assert.True(gamelists.IsNoOp);
+        Assert.Equal(bytes, File.ReadAllBytes(gamelist));
+
+        // And the gamelist still holds relative references, which is why the move was a non-event.
+        var text = File.ReadAllText(gamelist);
+        Assert.Contains("<image>./images/", text, StringComparison.Ordinal);
+        Assert.DoesNotContain(_tree.Root, text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(moved.Root, text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ------------------------------------------------------------------ eviction
+
+    [Fact]
+    public async Task Eviction_takes_a_games_media_and_its_gamelist_entry_with_it()
+    {
+        using var stub = Library(3);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        var install = _tree.Install();
+        var planner = new EvictionPlanner(store);
+        var plan = planner.Plan(bytesToFree: long.MaxValue);
+
+        // Every candidate carries its artwork, and the bytes freed say so.
+        Assert.All(plan.Selected, candidate => Assert.Equal(4, candidate.Media.Count));
+        Assert.All(plan.Selected, candidate => Assert.True(candidate.Bytes > candidate.File.SizeBytes));
+
+        var outcome = planner.Apply(plan, install);
+
+        Assert.Equal(3, outcome.Removed);
+        Assert.Contains("snes", outcome.FoldersToRewrite);
+        Assert.Empty(Directory.GetFiles(Path.Combine(_tree.Root, "roms", "snes", "images")));
+        Assert.Empty(store.Files.List());
+
+        // The gamelist is rewritten from local state, with no server involved at all.
+        await new GamelistSync(install, store).ApplyAsync(outcome.FoldersToRewrite, emulationStation: null);
+
+        var written = new System.Xml.XmlDocument();
+        written.Load(Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml"));
+
+        Assert.Empty(written.SelectNodes("/gameList/game")!);
+    }
+
+    [Fact]
+    public async Task Eviction_leaves_artwork_the_user_scraped_where_it_is()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        var images = Path.Combine(_tree.Root, "roms", "snes", "images");
+        Directory.CreateDirectory(images);
+        var theirs = Path.Combine(images, "Game 1 (USA)-image.png");
+        File.WriteAllBytes(theirs, [9, 9, 9]);
+
+        await SyncAsync(stub, store);
+
+        var planner = new EvictionPlanner(store);
+        var outcome = planner.Apply(planner.Plan(bytesToFree: long.MaxValue), _tree.Install());
+
+        Assert.Equal(1, outcome.Removed);
+
+        // The ROM and the artwork RomMBat fetched are gone; the user's cover is untouched.
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Game 1 (USA).sfc")));
+        Assert.True(File.Exists(theirs));
+        Assert.Equal([9, 9, 9], File.ReadAllBytes(theirs));
+    }
+
+    [Fact]
+    public async Task A_media_file_that_will_not_delete_still_leaves_its_folder_to_be_rewritten()
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        var video = store.Files.ForRom(1, LocalFileKind.Video).Single();
+        var absolute = _tree.Install().Resolve(video.Path);
+
+        // What a media player with the file open does to a delete.
+        using var held = new FileStream(absolute, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var planner = new EvictionPlanner(store);
+        var outcome = planner.Apply(planner.Plan(bytesToFree: long.MaxValue), _tree.Install());
+
+        // The ROM went, so its gamelist entry has to go too, whatever happened to the video.
+        Assert.Equal(1, outcome.Removed);
+        Assert.Contains("snes", outcome.FoldersToRewrite);
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Game 1 (USA).sfc")));
+
+        // Reported against the file that actually failed, and the cover still went.
+        Assert.Contains(outcome.Problems, problem => problem.Contains("left behind", StringComparison.Ordinal));
+        Assert.True(File.Exists(absolute));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_tree.Root, "roms", "snes", "images")));
+    }
+
+    [Fact]
+    public async Task Media_the_server_declares_no_length_for_is_still_held_to_the_budget()
+    {
+        using var stub = Library(1);
+        stub.MediaWithoutLength = true;
+
+        using var store = LocalStore.Open(_tree.Install());
+
+        // The ROM fits and 32 bytes are left over, against 64-byte media. With no
+        // Content-Length there is nothing to refuse up front, so the read has to stop.
+        store.Settings.Set(SettingStore.ContentMaxBytes, 1024L + 32, DateTimeOffset.UtcNow);
+
+        var outcome = await SyncAsync(stub, store);
+
+        Assert.Equal(1, outcome.Content.Downloaded);
+        Assert.True(outcome.Media.Failed > 0);
+        Assert.Contains(
+            outcome.Media.Problems,
+            problem => problem.Contains("declared no length", StringComparison.Ordinal));
+
+        // Nothing over budget reached the folder, and no partial file was left behind.
+        var images = Path.Combine(_tree.Root, "roms", "snes", "images");
+        Assert.True(!Directory.Exists(images) || Directory.GetFiles(images).Length == 0);
+        Assert.Equal(0, outcome.Media.Downloaded);
+    }
+
+    // ------------------------------------------------------------------ helpers
+
+    private sealed record SyncOutcome(ContentSyncOutcome Content, MediaSyncOutcome Media, GamelistSyncOutcome Gamelists);
+
+    /// <summary>A stub library of <paramref name="count"/> SNES games, each with metadata and media.</summary>
+    private static StubRomMServer Library(int count)
+    {
+        var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+
+        for (var id = 1; id <= count; id++)
+        {
+            stub.Library.Add(new StubRom(
+                id,
+                1,
+                "snes",
+                "snes",
+                $"Game {id}",
+                $"Game {id} (USA).sfc",
+                "sfc",
+                1024)
+            {
+                Metadata = new StubRomMetadata(),
+            });
+
+            stub.Content[id] = new byte[1024];
+
+            foreach (var kind in new[] { "cover/big.png", "cover/small.png", "video/video.mp4", "logo/logo.png" })
+            {
+                stub.Media[$"/assets/romm/resources/roms/1/{id}/{kind}"] = new byte[64];
+            }
+        }
+
+        return stub;
+    }
+
+    private static RomMConnection Connect(StubRomMServer stub) =>
+        new(new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
+
+    private static async Task<SetResolution> ResolveAsync(StubRomMServer stub, LocalStore store, int? maxGames = null)
+    {
+        using var connection = Connect(stub);
+
+        var set = store.SyncSets.Find("snes") ?? store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "snes",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "1",
+                MaxGames = maxGames,
+            },
+            DateTimeOffset.UtcNow);
+
+        var install = Fixtures.Synthesize(("snes", ".sfc .smc"));
+        var resolver = new SetResolver(install, new PlatformResolver(install, store.PlatformMap.Overrides()));
+        var resolvedAt = DateTimeOffset.UtcNow;
+
+        var resolution = await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set)),
+            resolvedAt);
+
+        store.SyncSets.ReplaceMembers(
+            set.Id,
+            [.. resolution.Members, .. resolution.Excluded],
+            resolution.Summary,
+            resolvedAt);
+
+        foreach (var metadata in resolution.Metadata)
+        {
+            store.Metadata.Record(metadata);
+        }
+
+        return resolution;
+    }
+
+    /// <summary>Resolves, pulls, fetches media and writes gamelists, as <c>sync</c> does.</summary>
+    private async Task<SyncOutcome> SyncAsync(StubRomMServer stub, LocalStore store)
+    {
+        await ResolveAsync(stub, store);
+
+        using var connection = Connect(stub);
+        var install = _tree.Install();
+        var set = store.SyncSets.Find("snes")!;
+        var members = store.SyncSets.Members(set.Id);
+
+        var plan = new ContentPlanner(install, store).Plan(set, members);
+        var content = await new ContentSync(install, store, connection).ApplyAsync(plan);
+
+        var romIds = members.Select(member => member.RomId).ToList();
+        var media = await new MediaSync(install, store, connection).ApplyAsync(romIds);
+
+        var gamelists = await new GamelistSync(install, store).ApplyAsync(["snes"], emulationStation: null);
+
+        return new SyncOutcome(content, media, gamelists);
+    }
+}

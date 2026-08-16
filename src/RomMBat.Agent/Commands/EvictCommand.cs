@@ -1,4 +1,5 @@
 using RomMBat.Core.Content;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core;
 
@@ -19,14 +20,14 @@ namespace RomMBat.Agent.Commands;
 /// </remarks>
 internal static class EvictCommand
 {
-    public static Task<int> RunAsync(CommandLine command, CancellationToken cancellationToken)
+    public static async Task<int> RunAsync(CommandLine command, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         using var context = AgentContext.Open(command, Console.Error, out var exitCode);
         if (context is null)
         {
-            return Task.FromResult(exitCode);
+            return exitCode;
         }
 
         var planner = new EvictionPlanner(context.Store);
@@ -40,7 +41,7 @@ internal static class EvictCommand
                 ? "No disk budget is set, so nothing is over it. Set one with 'budget --max 64GB'."
                 : plan.Summary);
 
-            return Task.FromResult(ExitCode.Ok);
+            return ExitCode.Ok;
         }
 
         Console.WriteLine(plan.Summary);
@@ -48,8 +49,14 @@ internal static class EvictCommand
 
         foreach (var candidate in plan.Selected)
         {
+            // The media count is shown because it is where the surprise is: a game whose ROM
+            // is 128 KB can be carrying 3 MB of artwork out with it.
+            var media = candidate.Media.Count > 0
+                ? $" (+{candidate.Media.Count} media)"
+                : string.Empty;
+
             Console.WriteLine(
-                $"  {ByteSize.Format(candidate.Bytes),10}  {Describe(candidate)}  {candidate.File.FileName}");
+                $"  {ByteSize.Format(candidate.Bytes),10}  {Describe(candidate)}  {candidate.File.FileName}{media}");
         }
 
         foreach (var candidate in plan.Refused)
@@ -69,7 +76,7 @@ internal static class EvictCommand
         {
             Console.WriteLine();
             Console.WriteLine("Nothing was removed. Run 'evict --apply' to carry this out.");
-            return Task.FromResult(ExitCode.Ok);
+            return ExitCode.Ok;
         }
 
         var outcome = planner.Apply(plan, context.Install);
@@ -82,7 +89,23 @@ internal static class EvictCommand
             Console.Error.WriteLine($"  {problem}");
         }
 
-        return Task.FromResult(ExitCode.Ok);
+        // A gamelist that still names a removed game is inert, since EmulationStation does not
+        // list an entry whose file is missing, but it survives ES's own rewrite and would sit
+        // there forever. This needs no server: the entry and its metadata are both local.
+        if (outcome.FoldersToRewrite.Count > 0)
+        {
+            var gamelists = new GamelistSync(context.Install, context.Store);
+            using var emulationStation = new EmulationStationClient();
+
+            var written = await gamelists
+                .ApplyAsync(outcome.FoldersToRewrite, emulationStation, cancellationToken)
+                .ConfigureAwait(false);
+
+            Console.WriteLine();
+            GamelistCommand.Report(written);
+        }
+
+        return ExitCode.Ok;
     }
 
     private static string Describe(EvictionCandidate candidate) => candidate.Reason switch

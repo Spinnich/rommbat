@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace RomM.Client.Catalog;
 
 /// <summary>
-/// One ROM, cut down to what browsing and sync-set resolution need.
+/// One ROM, cut down to what browsing, sync-set resolution and the gamelist need.
 /// </summary>
 /// <remarks>
 /// Deliberately not <c>SimpleRomSchema</c>, for two reasons that both bite at scale.
@@ -17,8 +17,18 @@ namespace RomM.Client.Catalog;
 /// </para>
 /// <para>
 /// <b>Cost.</b> A full walk of an 83k library is 333 pages of 250, and the generated schema
-/// carries roughly seventy fields per ROM including eight metadata sub-objects. None of that
-/// is read here, and parsing it would be the largest cost in the walk.
+/// carries roughly seventy fields per ROM including eight metadata sub-objects. Most of that
+/// is still skipped here.
+/// </para>
+/// <para>
+/// <b>M4 widened this rather than adding a request.</b> The gamelist fields are already in
+/// the page: <c>metadatum</c>, <c>summary</c>, the media paths, <c>regions</c> and
+/// <c>languages</c> account for 15.7% of a 250-row page that the walk fetches anyway.
+/// <c>GET /api/roms/{id}</c> would add 0.15 s per ROM, 150 s for a thousand-game set, and
+/// its only extra fields are user arrays this client never reads. There is also no
+/// id-list parameter on <c>/api/roms</c>, so "metadata for exactly these ROMs" cannot be
+/// asked for at all. Nothing holds more than one page of these, and only selected members
+/// keep theirs past the walk.
 /// </para>
 /// </remarks>
 public sealed record RomRow
@@ -103,6 +113,50 @@ public sealed record RomRow
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; init; }
 
+    /// <summary>The description a gamelist calls <c>desc</c>. Present on 81.9% of a real library.</summary>
+    /// <remarks>
+    /// The longest in a 5,000-row sample is 11,719 characters, which is why nothing holds more
+    /// than one page of these at a time and only selected members keep theirs.
+    /// </remarks>
+    [JsonPropertyName("summary")]
+    public string? Summary { get; init; }
+
+    [JsonPropertyName("metadatum")]
+    public RomMetadata? Metadata { get; init; }
+
+    /// <summary>Rooted at the asset prefix already, unlike the three below it.</summary>
+    [JsonPropertyName("path_cover_small")]
+    public string? CoverSmallPath { get; init; }
+
+    [JsonPropertyName("path_cover_large")]
+    public string? CoverLargePath { get; init; }
+
+    /// <summary>Relative to the asset prefix, and 200 with an HTML body if used as given.</summary>
+    [JsonPropertyName("path_manual")]
+    public string? ManualPath { get; init; }
+
+    [JsonPropertyName("path_video")]
+    public string? VideoPath { get; init; }
+
+    /// <summary>
+    /// The ScreenScraper block, read for one field.
+    /// </summary>
+    /// <remarks>
+    /// <c>logo_path</c> is EmulationStation's marquee. ScreenScraper's own <c>marquee_path</c>
+    /// is an arcade cabinet marquee and is a different picture; RomM's exporter maps the same
+    /// way. Provider-scoped, so it is absent for about a fifth of a real library.
+    /// </remarks>
+    [JsonPropertyName("ss_metadata")]
+    public RomScreenScraperMetadata? ScreenScraper { get; init; }
+
+    /// <summary>Release regions, in RomM's vocabulary (<c>USA</c>, <c>Japan</c>, <c>World</c>).</summary>
+    [JsonPropertyName("regions")]
+    public IReadOnlyList<string> Regions { get; init; } = [];
+
+    /// <summary>Languages, in RomM's vocabulary (<c>English</c>). Present on only 18.3%.</summary>
+    [JsonPropertyName("languages")]
+    public IReadOnlyList<string> Languages { get; init; } = [];
+
     /// <summary>The display name a user would recognise, falling back to the file name.</summary>
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? FsName : Name;
 
@@ -138,6 +192,56 @@ public sealed record RomRow
             return null;
         }
     }
+}
+
+/// <summary>
+/// The metadata block, carried on every row of the paged read.
+/// </summary>
+/// <remarks>
+/// <b>Nothing here means what its name suggests without a conversion.</b>
+/// <see cref="FirstReleaseDate"/> is milliseconds, not seconds; <see cref="AverageRating"/>
+/// is 0-100, not 0-1; <see cref="Companies"/> merges developer and publisher into one
+/// alphabetically sorted array, so neither role survives. Only <see cref="PlayerCount"/> is
+/// already in EmulationStation's form. <c>RomMBat.Core.Metadata.GameMetadata</c> owns every
+/// one of those conversions; nothing else should do them inline.
+/// </remarks>
+public sealed record RomMetadata
+{
+    [JsonPropertyName("genres")]
+    public IReadOnlyList<string> Genres { get; init; } = [];
+
+    [JsonPropertyName("franchises")]
+    public IReadOnlyList<string> Franchises { get; init; } = [];
+
+    /// <summary>
+    /// Every company involved, in one sorted list.
+    /// </summary>
+    /// <remarks>
+    /// Sorted on 4,197 of 4,197 rows that carry one, so indexing it reads the alphabet rather
+    /// than a role. Chrono Trigger arrives as <c>["Squaresoft", "Squaresoft"]</c>.
+    /// </remarks>
+    [JsonPropertyName("companies")]
+    public IReadOnlyList<string> Companies { get; init; } = [];
+
+    /// <summary>Already <c>1</c>, <c>1-2</c>, <c>1-4</c>, which is what <c>&lt;players&gt;</c> wants.</summary>
+    [JsonPropertyName("player_count")]
+    public string? PlayerCount { get; init; }
+
+    /// <summary>Unix time in <b>milliseconds</b>. Read as seconds it lands in year 0.</summary>
+    [JsonPropertyName("first_release_date")]
+    public long? FirstReleaseDate { get; init; }
+
+    /// <summary>On a 0-100 scale. A gamelist rating is 0-1 to two decimals.</summary>
+    [JsonPropertyName("average_rating")]
+    public double? AverageRating { get; init; }
+}
+
+/// <summary>The ScreenScraper provider block, read only for the logo.</summary>
+public sealed record RomScreenScraperMetadata
+{
+    /// <summary>Relative to the asset prefix. This is EmulationStation's marquee.</summary>
+    [JsonPropertyName("logo_path")]
+    public string? LogoPath { get; init; }
 }
 
 /// <summary>One page of <see cref="RomRow"/>, with the sidecars deliberately absent.</summary>

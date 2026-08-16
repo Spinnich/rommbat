@@ -29,6 +29,29 @@ public enum HashScope
     ArchiveContent,
 }
 
+/// <summary>What a recorded file is.</summary>
+/// <remarks>
+/// Media shares its <see cref="LocalFile.RomId"/> with the ROM it decorates, so one ROM can
+/// have six rows. Everything that used to assume one row per ROM now says which kind it
+/// means.
+/// </remarks>
+public enum LocalFileKind
+{
+    /// <summary>The game itself. What every row was before M4.</summary>
+    Rom,
+
+    /// <summary>The large cover, which the gamelist calls <c>image</c>.</summary>
+    Image,
+
+    Thumbnail,
+
+    Marquee,
+
+    Video,
+
+    Manual,
+}
+
 /// <summary>Which check a file last passed.</summary>
 public enum VerifiedBy
 {
@@ -54,8 +77,11 @@ public sealed record LocalFile
     /// <summary>The RetroBat folder it lives in, which is what everything downstream groups by.</summary>
     public required string Folder { get; init; }
 
-    /// <summary>The ROM it is, or null for a file no ROM has been matched to.</summary>
+    /// <summary>The ROM it is, or belongs to, or null for a file no ROM has been matched to.</summary>
     public int? RomId { get; init; }
+
+    /// <summary>Whether this is the game or one of the five media files beside it.</summary>
+    public LocalFileKind Kind { get; init; } = LocalFileKind.Rom;
 
     public required string FileName { get; init; }
 
@@ -100,7 +126,7 @@ public sealed class LocalFileStore
 {
     private const string SelectColumns = """
         SELECT id, relative_path, folder, rom_id, file_name, size_bytes, md5_hash, sha1_hash,
-               crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin
+               crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin, kind
         FROM local_file
         """;
 
@@ -117,15 +143,16 @@ public sealed class LocalFileStore
             """
             INSERT INTO local_file (
               relative_path, folder, rom_id, file_name, size_bytes, md5_hash, sha1_hash,
-              crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin
+              crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin, kind
             )
             VALUES (
               $path, $folder, $romId, $fileName, $size, $md5, $sha1,
-              $crc, $scope, $mtime, $verifiedAt, $verifiedBy, $origin
+              $crc, $scope, $mtime, $verifiedAt, $verifiedBy, $origin, $kind
             )
             ON CONFLICT (relative_path) DO UPDATE SET
               folder      = excluded.folder,
               rom_id      = excluded.rom_id,
+              kind        = excluded.kind,
               file_name   = excluded.file_name,
               size_bytes  = excluded.size_bytes,
               md5_hash    = excluded.md5_hash,
@@ -150,7 +177,8 @@ public sealed class LocalFileStore
             .With("$mtime", SqliteValues.ToTextOrNull(file.ModifiedUtc))
             .With("$verifiedAt", SqliteValues.ToTextOrNull(file.VerifiedAt))
             .With("$verifiedBy", VerifiedText(file.VerifiedBy))
-            .With("$origin", OriginText(file.Origin));
+            .With("$origin", OriginText(file.Origin))
+            .With("$kind", KindText(file.Kind));
 
         return file with { Id = Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) };
     }
@@ -166,12 +194,25 @@ public sealed class LocalFileStore
         return reader.Read() ? Read(reader) : null;
     }
 
-    /// <summary>Every file recorded for a ROM. More than one means the same ROM in two folders.</summary>
-    public IReadOnlyList<LocalFile> ForRom(int romId)
+    /// <summary>
+    /// Every file recorded for a ROM, the game and its media alike.
+    /// </summary>
+    /// <remarks>
+    /// Since M4 this is normally several rows, so a caller that means the game itself has to
+    /// say so with <paramref name="kind"/>. More than one row of the same kind means the same
+    /// ROM in two folders.
+    /// </remarks>
+    public IReadOnlyList<LocalFile> ForRom(int romId, LocalFileKind? kind = null)
     {
+        var filter = kind is null ? string.Empty : " AND kind = $kind";
         using var command = _connection
-            .Command($"{SelectColumns} WHERE rom_id = $romId ORDER BY relative_path;")
+            .Command($"{SelectColumns} WHERE rom_id = $romId{filter} ORDER BY relative_path;")
             .With("$romId", romId);
+
+        if (kind is { } wanted)
+        {
+            command.With("$kind", KindText(wanted));
+        }
 
         using var reader = command.ExecuteReader();
         return ReadAll(reader);
@@ -198,14 +239,30 @@ public sealed class LocalFileStore
     }
 
     /// <summary>Everything in one folder, or everything when no folder is named.</summary>
-    public IReadOnlyList<LocalFile> List(string? folder = null)
+    public IReadOnlyList<LocalFile> List(string? folder = null, LocalFileKind? kind = null)
     {
-        var filter = folder is null ? string.Empty : " WHERE folder = $folder COLLATE NOCASE";
-        using var command = _connection.Command($"{SelectColumns}{filter} ORDER BY relative_path;");
+        var clauses = new List<string>();
+        if (folder is not null)
+        {
+            clauses.Add("folder = $folder COLLATE NOCASE");
+        }
+
+        if (kind is not null)
+        {
+            clauses.Add("kind = $kind");
+        }
+
+        var where = clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses);
+        using var command = _connection.Command($"{SelectColumns}{where} ORDER BY relative_path;");
 
         if (folder is not null)
         {
             command.With("$folder", folder);
+        }
+
+        if (kind is { } wanted)
+        {
+            command.With("$kind", KindText(wanted));
         }
 
         using var reader = command.ExecuteReader();
@@ -213,15 +270,31 @@ public sealed class LocalFileStore
     }
 
     /// <summary>How many files RomMBat holds and how many bytes they occupy.</summary>
-    public (int Files, long Bytes) Totals(string? folder = null)
+    public (int Files, long Bytes) Totals(string? folder = null, LocalFileKind? kind = null)
     {
-        var filter = folder is null ? string.Empty : " WHERE folder = $folder COLLATE NOCASE";
+        var clauses = new List<string>();
+        if (folder is not null)
+        {
+            clauses.Add("folder = $folder COLLATE NOCASE");
+        }
+
+        if (kind is not null)
+        {
+            clauses.Add("kind = $kind");
+        }
+
+        var where = clauses.Count == 0 ? string.Empty : " WHERE " + string.Join(" AND ", clauses);
         using var command = _connection.Command(
-            $"SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM local_file{filter};");
+            $"SELECT COUNT(*), COALESCE(SUM(size_bytes), 0) FROM local_file{where};");
 
         if (folder is not null)
         {
             command.With("$folder", folder);
+        }
+
+        if (kind is { } wanted)
+        {
+            command.With("$kind", KindText(wanted));
         }
 
         using var reader = command.ExecuteReader();
@@ -237,6 +310,26 @@ public sealed class LocalFileStore
 
         return command.ExecuteNonQuery() > 0;
     }
+
+    internal static string KindText(LocalFileKind kind) => kind switch
+    {
+        LocalFileKind.Image => "image",
+        LocalFileKind.Thumbnail => "thumbnail",
+        LocalFileKind.Marquee => "marquee",
+        LocalFileKind.Video => "video",
+        LocalFileKind.Manual => "manual",
+        _ => "rom",
+    };
+
+    internal static LocalFileKind ParseKind(string? text) => text switch
+    {
+        "image" => LocalFileKind.Image,
+        "thumbnail" => LocalFileKind.Thumbnail,
+        "marquee" => LocalFileKind.Marquee,
+        "video" => LocalFileKind.Video,
+        "manual" => LocalFileKind.Manual,
+        _ => LocalFileKind.Rom,
+    };
 
     internal static string OriginText(FileOrigin origin) => origin switch
     {
@@ -303,5 +396,6 @@ public sealed class LocalFileStore
         VerifiedAt = reader.GetTimestampOrNull(11),
         VerifiedBy = ParseVerified(reader.GetStringOrNull(12)),
         Origin = ParseOrigin(reader.GetStringOrNull(13)),
+        Kind = ParseKind(reader.GetStringOrNull(14)),
     };
 }

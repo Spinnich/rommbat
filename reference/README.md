@@ -14,6 +14,7 @@ review the diff, because a change here can invalidate a design decision.
 | `batocera-systems.json`        | `RetroBat-Official/emulatorlauncher` `batocera-systems/Resources/batocera-systems.json` | Required BIOS manifest: 99 systems, 353 entries of `{md5, file}` with destination paths                                                                                |
 | `config.batocera-retrobat.yml` | `rommapp/romm` `examples/config.batocera-retrobat.yml`                                  | Seed for the platform map (folder → RomM slug). A seed, **not** an answer                                                                                              |
 | `romm-known_bios_files.json`   | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                        |
+| `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference M4 writes to, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
 
 ## Derived facts
 
@@ -49,6 +50,29 @@ pair is. **This was a parser fault here, not drift upstream.**
 
 The operative consequence: **join firmware on md5 only.** Filenames differ between the two
 projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
+
+**The gamelist exporter settles two units and gets a third field wrong**
+
+`verify.py` asserts behaviours rather than counts here, because that is what M4 reads off it.
+Confirmed in upstream's own code: `first_release_date` is divided by 1000, so it is
+**milliseconds**, and `average_rating` is divided by 100, so it is on a **0-100** scale, with
+a comment saying as much. Both match what RomMBat measured live.
+
+**RomMBat deliberately diverges in three places**, and the checks exist so the divergence
+stays visible rather than becoming an accidental difference:
+
+- `developer` and `publisher` are `companies[0]` and `companies[1]` upstream. That array is
+  alphabetically sorted on every row measured, so indexing it writes the alphabet into two
+  role-bearing fields: KOTOR gets Activision as developer and Aspyr Media as publisher.
+  RomMBat writes the joined list into `developer` and omits `publisher`.
+- `region` and `lang` are `regions[0]` and `languages[0]` verbatim, so upstream writes `USA`
+  and `English` where EmulationStation's own vocabulary is `us` and `en`. RomMBat maps them.
+- `genre` is `genres[0]`. RomMBat joins with `, `, which is what a real scraped install
+  already contains (`Racing, Driving` in 2,079 of 4,440 entries).
+
+One thing to copy rather than diverge from: **`marquee` is sourced from ScreenScraper's
+`logo_path`, not its `marquee_path`.** EmulationStation's marquee is game logo art;
+ScreenScraper's marquee is an arcade cabinet marquee.
 
 ## Snapshot
 

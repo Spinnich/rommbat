@@ -103,6 +103,56 @@ def main():
     check("Overlap", len(rb_md5 & rm_md5), 63)
     check("RetroBat-required, unknown to RomM", len(rb_md5 - rm_md5), 94)
 
+    print("\nGamelist export")
+    exporter = (HERE / "romm-gamelist_exporter.py").read_text(encoding="utf-8")
+    # Behaviours rather than counts: M4 reads these off RomM's own exporter, and each is a
+    # conversion that would be silently wrong if upstream changed it.
+    check(
+        "first_release_date is milliseconds",
+        "datetime.fromtimestamp(timestamp / 1000" in exporter,
+        True,
+    )
+    check(
+        "average_rating is divided by 100",
+        "rom.metadatum.average_rating / 100" in exporter,
+        True,
+    )
+    check(
+        "releasedate format string",
+        '"%Y%m%dT%H%M%S"' in exporter,
+        True,
+    )
+    check(
+        "rating written to two decimals",
+        'f"{gamelist_rating:.2f}"' in exporter,
+        True,
+    )
+    # The plan diverges here deliberately: companies[] is alphabetically sorted, so indexing
+    # it writes the alphabet into two role-bearing fields. See finding 98.
+    check(
+        "upstream still indexes companies for developer/publisher",
+        "rom.metadatum.companies[0]" in exporter and "rom.metadatum.companies[1]" in exporter,
+        True,
+    )
+    check(
+        "upstream marquee is sourced from the ScreenScraper logo",
+        '"marquee": [ss.get("logo_path"' in exporter,
+        True,
+    )
+    check(
+        "gamelist elements RomMBat writes are all present upstream",
+        sum(
+            1
+            for tag in (
+                "path", "name", "desc", "image", "thumbnail", "marquee", "video", "manual",
+                "developer", "publisher", "genre", "family", "players", "lang", "region",
+                "releasedate", "rating",
+            )
+            if f'"{tag}"' in exporter
+        ),
+        17,
+    )
+
     print()
     if FAIL:
         print(f"{len(FAIL)} value(s) drifted. Revisit docs/PLAN.md before relying on them.")

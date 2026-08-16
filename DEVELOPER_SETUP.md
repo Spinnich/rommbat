@@ -271,6 +271,31 @@ works offline, so it is the cheap way to see what a set would cost before it cos
 deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by
 hand is safe, and the next sync starts that ROM again.
 
+### Metadata, media and gamelists
+
+```powershell
+dotnet run --project src/RomMBat.Agent -- gamelist --root D:
+etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:
+etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:
+etrobat-test
+```
+
+`sync` already does all of this. `gamelist` is the same pass on its own, and it needs no
+server: everything it writes comes from the local store, which is what lets it run on a
+handheld that has been off the network for a week.
+
+**Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
+opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against
+5.5 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes
+a comma-separated list, `all`, or `none`.
+
+After writing, the agent asks EmulationStation to reload over
+`http://127.0.0.1:1234/reloadgames`. That only answers while ES is running, and it is
+**ignored outright while a game is up**, so a message saying the reload did not happen is
+ordinary rather than a fault. `--no-reload` skips the call.
+
 ---
 
 ## 4. Stand up a throwaway RetroBat

@@ -3,6 +3,7 @@ using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core.Content;
 using RomMBat.Core.Mapping;
+using RomMBat.Core.Metadata;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
@@ -68,6 +69,17 @@ public sealed record SetResolution
 
     /// <summary>Folders the members land in. Two RomM platforms can share one.</summary>
     public IReadOnlyList<string> Folders { get; init; } = [];
+
+    /// <summary>
+    /// Gamelist metadata for the members, and only for them.
+    /// </summary>
+    /// <remarks>
+    /// Read out of the same pages the walk already fetches, so it costs no request. Held only
+    /// for candidates still in the selection buffer, so what is in memory is bounded by the
+    /// set's own cap rather than by the library: a scope of 83,000 ROMs resolving to a
+    /// 40-game set holds 40 of these, not 83,000.
+    /// </remarks>
+    public IReadOnlyList<GameMetadata> Metadata { get; init; } = [];
 
     /// <summary>Why the resolution stopped, when it did not finish.</summary>
     public string? Problem { get; init; }
@@ -260,7 +272,9 @@ public sealed class SetResolver
                     continue;
                 }
 
-                selector.Offer(Member(row, resolution.Folder, MemberState.Member, resolvedAt));
+                selector.Offer(
+                    Member(row, resolution.Folder, MemberState.Member, resolvedAt),
+                    GameMetadata.From(row, resolution.Folder, resolvedAt));
             }
         }
 
@@ -291,6 +305,7 @@ public sealed class SetResolver
             MultiFile = multiFile,
             TooLargeForFilesystem = tooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
+            Metadata = selector.MetadataFor(members),
             Problem = failure?.Message,
         };
 
@@ -496,6 +511,17 @@ public sealed class SetResolver
         private readonly PriorityQueue<SyncSetMember, SyncSetMember> _buffer;
         private readonly int _limit;
 
+        /// <summary>
+        /// Gamelist metadata for whatever is currently in the buffer, and nothing else.
+        /// </summary>
+        /// <remarks>
+        /// Kept in step with the buffer rather than accumulated, because a description runs to
+        /// 11,719 characters at the top of a real library and holding one per scanned row would
+        /// make the walk's memory a function of the library instead of the set. A candidate the
+        /// buffer turns away loses its metadata in the same call.
+        /// </remarks>
+        private readonly Dictionary<int, GameMetadata> _metadata = [];
+
         public BoundedSelection(SyncSetDefinition set)
         {
             _set = set;
@@ -511,7 +537,7 @@ public sealed class SetResolver
 
         public int OverBytes { get; private set; }
 
-        public void Offer(SyncSetMember candidate)
+        public void Offer(SyncSetMember candidate, GameMetadata? metadata = null)
         {
             // A ROM larger than the whole budget can never be selected, whatever it displaces.
             if (_set.MaxBytes is { } maxBytes && candidate.SizeBytes > maxBytes)
@@ -522,11 +548,32 @@ public sealed class SetResolver
 
             _buffer.Enqueue(candidate, candidate);
 
+            if (metadata is not null)
+            {
+                _metadata[candidate.RomId] = metadata;
+            }
+
             if (_buffer.Count > _limit)
             {
-                _buffer.Dequeue();
+                var turned = _buffer.Dequeue();
+                _metadata.Remove(turned.RomId);
                 Turned();
             }
+        }
+
+        /// <summary>The metadata for the members that survived, in their order.</summary>
+        public List<GameMetadata> MetadataFor(IEnumerable<SyncSetMember> members)
+        {
+            var kept = new List<GameMetadata>();
+            foreach (var member in members)
+            {
+                if (_metadata.TryGetValue(member.RomId, out var metadata))
+                {
+                    kept.Add(metadata);
+                }
+            }
+
+            return kept;
         }
 
         public List<SyncSetMember> Drain()

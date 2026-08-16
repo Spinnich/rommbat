@@ -25,6 +25,7 @@ internal static class Program
         "browse",     // one page of the catalog, to show the pager working
         "budget",     // how much of this drive RomMBat may use
         "evict",      // free space, dry run unless --apply
+        "gamelist",   // rewrite gamelist.xml from local state, no server needed
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
         "flush",      // drain the outbox if the server is reachable
@@ -67,6 +68,7 @@ internal static class Program
                 "sync" => await SyncCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "budget" => await BudgetCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 "evict" => await EvictCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "gamelist" => await GamelistCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }
@@ -103,6 +105,7 @@ internal static class Program
         Console.Error.WriteLine("  sync        Resolve a set and pull its ROMs into the tree");
         Console.Error.WriteLine("  budget      Show or set how much of this drive RomMBat may use");
         Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
+        Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  game-start  Not implemented yet (M6)");
         Console.Error.WriteLine("  game-end    Not implemented yet (M6)");
         Console.Error.WriteLine("  flush       Not implemented yet (M6)");
@@ -116,5 +119,7 @@ internal static class Program
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict: actually remove. Without it, nothing is deleted");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
+        Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
+        Console.Error.WriteLine("  --no-reload       gamelist: write the files without telling EmulationStation");
     }
 }

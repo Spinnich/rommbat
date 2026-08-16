@@ -26,6 +26,7 @@ public class LocalStoreTests
         "clock",
         "content_download",
         "setting",
+        "rom_metadata",
     ];
 
     /// <summary>Every column the "no absolute path" rule has to cover.</summary>
@@ -56,6 +57,8 @@ public class LocalStoreTests
         ("sync_set", "folder_override"),
         ("local_file", "folder"),
         ("local_file", "file_name"),
+        ("rom_metadata", "folder"),
+        ("rom_metadata", "fs_name"),
     ];
 
     [Fact]
@@ -180,6 +183,30 @@ public class LocalStoreTests
                 exception is SqliteException,
                 $"{table}.{column} accepted '{value}', which is a path where a name belongs");
         }
+    }
+
+    [Theory]
+    [InlineData("{\"Image\":\"/assets/romm/resources/roms/1/2/cover/big.png\"}")]
+    [InlineData("{\"Image\":\"roms\\\\1\\\\2\\\\cover\\\\big.png\"}")]
+    public void The_media_path_column_refuses_a_value_that_is_not_resource_relative(string json)
+    {
+        // media_paths holds server-side resource paths rather than local ones, so
+        // RelativePath cannot guard it. The CHECK still holds it to the same shape: no leading
+        // slash, no backslash. The prefix is put back at the point of use, which is also the
+        // step that stops a prefix-less request answering 200 with the web UI's page.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        using var command = store.Connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO rom_metadata (rom_id, folder, fs_name, name, media_paths, fetched_at)
+            VALUES (abs(random()), 'snes', 'Game.sfc', 'Game', $json, '2026-01-01T00:00:00Z');
+            """;
+
+        command.Parameters.AddWithValue("$json", json);
+
+        Assert.Throws<SqliteException>(() => command.ExecuteNonQuery());
     }
 
     [Fact]
@@ -551,6 +578,16 @@ public class LocalStoreTests
                 """
                 INSERT INTO local_file (relative_path, folder, file_name)
                 VALUES ('roms/snes/' || abs(random()) || '.sfc', 'snes', $name);
+                """,
+            ("rom_metadata", "folder") =>
+                """
+                INSERT INTO rom_metadata (rom_id, folder, fs_name, name, fetched_at)
+                VALUES (abs(random()), $name, 'Game.sfc', 'Game', '2026-01-01T00:00:00Z');
+                """,
+            ("rom_metadata", "fs_name") =>
+                """
+                INSERT INTO rom_metadata (rom_id, folder, fs_name, name, fetched_at)
+                VALUES (abs(random()), 'snes', $name, 'Game', '2026-01-01T00:00:00Z');
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };

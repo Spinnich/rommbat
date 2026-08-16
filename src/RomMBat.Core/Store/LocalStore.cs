@@ -49,6 +49,7 @@ public sealed class LocalStore : IDisposable
         Files = new LocalFileStore(connection);
         Downloads = new ContentDownloadStore(connection);
         Settings = new SettingStore(connection);
+        Metadata = new MetadataStore(connection);
     }
 
     /// <summary>The schema version this build expects.</summary>
@@ -86,6 +87,9 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Install-wide settings, including the global disk budget.</summary>
     public SettingStore Settings { get; }
+
+    /// <summary>What a gamelist is written from when the server is unreachable.</summary>
+    public MetadataStore Metadata { get; }
 
     /// <summary>Opens the store inside a located RetroBat install, creating it if needed.</summary>
     public static LocalStore Open(RetroBatInstall install)
