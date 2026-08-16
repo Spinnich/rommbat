@@ -16,7 +16,7 @@
     the e_sqlite3 native library, which single-file publish carries.
   -->
   <ItemGroup Label="Local store">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.2" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
     <!--
       Transitive pin. Microsoft.Data.Sqlite 10.0.2 still pulls the 2.1.11 native library,
       which carries GHSA-2m69-gcr7-jv3q (a vulnerable bundled SQLite). 2.1.12 is the first
