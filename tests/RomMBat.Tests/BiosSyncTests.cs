@@ -166,6 +166,44 @@ public sealed class BiosSyncTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task A_destination_several_systems_require_is_written_once_and_never_onto_itself()
+    {
+        // The other direction from the test above, and five destinations in the bundled
+        // manifest are like this: bios/syscard3.pce is required by pcengine, pcenginecd and
+        // supergrafx, so the plan carries three steps for one file. Copying the second onto
+        // the first throws, which would fail a pass in which the file actually landed.
+        var bytes = Content("syscard3.pce");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "pcengine", "pcengine", "PC Engine")
+        {
+            Firmware = [new StubFirmware(1, "syscard3.pce", bytes)],
+        });
+
+        var manifest = Manifest(
+            ("pcengine", Md5(bytes), "bios/syscard3.pce"),
+            ("pcenginecd", Md5(bytes), "bios/syscard3.pce"),
+            ("supergrafx", Md5(bytes), "bios/syscard3.pce"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, manifest);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(1, outcome.Written);
+        Assert.Single(stub.FirmwareRequests);
+
+        Assert.Equal(bytes, File.ReadAllBytes(Path.Combine(_tree.Root, "bios", "syscard3.pce")));
+        Assert.Single(store.Files.List(kind: LocalFileKind.Firmware));
+
+        // And the second pass says "present" once rather than once per system that wants it.
+        var second = await SyncAsync(stub, store, manifest);
+        Assert.True(second.IsNoOp);
+        Assert.Equal(1, second.AlreadyPresent);
+    }
+
     // ------------------------------------------------------------------ the third state
 
     [Fact]
@@ -446,6 +484,173 @@ public sealed class BiosSyncTests : IDisposable
 
         Assert.Equal(BiosAction.Blocked, step.Action);
         Assert.Contains("will not launch", step.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_full_budget_blocks_every_destination_of_the_hash_it_blocks()
+    {
+        // The transfer is what the budget refuses, so the other destinations of that hash have
+        // nothing to be copied from. Blocking only the first would leave the rest marked for
+        // download and fetch them, which is a full budget stopping nothing.
+        var bytes = Content("saturn_bios.bin");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "saturn", "saturn", "Saturn")
+        {
+            Firmware = [new StubFirmware(1, "sega_100.bin", bytes)],
+        });
+
+        var manifest = Manifest(
+            ("saturn", Md5(bytes), "bios/saturn_bios.bin"),
+            ("saturn", Md5(bytes), "bios/kronos/saturn_bios.bin"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        store.Settings.Set(SettingStore.ContentMaxBytes, 1L, DateTimeOffset.UtcNow);
+
+        var plan = await PlanAsync(stub, store, manifest);
+
+        Assert.Equal(2, plan.Count(BiosAction.Blocked));
+        Assert.Equal(0, plan.Count(BiosAction.Download));
+        Assert.Equal(0, plan.DownloadCount);
+        Assert.Equal(0, plan.BytesToTransfer);
+        Assert.True(plan.IsNoOp);
+
+        // And nothing is fetched when the plan is carried out anyway.
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan);
+
+        Assert.True(outcome.IsNoOp);
+        Assert.Empty(stub.FirmwareRequests);
+    }
+
+    [Fact]
+    public async Task Every_destination_of_one_hash_is_charged_against_the_disk_budget()
+    {
+        // The bytes cross the network once, but they land three times, and content.max_bytes is
+        // a disk budget: reserving one copy and writing three is what makes status lie.
+        var bytes = Content("bios.col");
+        var destinations = new[]
+        {
+            "bios/coleco.rom",
+            "bios/colecovision.rom",
+            "bios/openMSX/share/systemroms/coleco.rom",
+        };
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "colecovision", "colecovision", "ColecoVision")
+        {
+            Firmware = [new StubFirmware(1, "bios.col", bytes)],
+        });
+
+        var manifest = Manifest([.. destinations.Select(path => ("colecovision", Md5(bytes), path))]);
+
+        using var store = LocalStore.Open(_tree.Install());
+
+        // Room for two copies of it, and three are wanted.
+        store.Settings.Set(SettingStore.ContentMaxBytes, (bytes.Length * 2L) + 1, DateTimeOffset.UtcNow);
+
+        var plan = await PlanAsync(stub, store, manifest);
+
+        Assert.Equal(2, plan.Count(BiosAction.Download));
+        Assert.Equal(1, plan.Count(BiosAction.Blocked));
+
+        var outcome = await SyncAsync(stub, store, manifest);
+
+        // What the plan reserved is what the run put on the disk.
+        Assert.Equal(2, outcome.Written);
+        Assert.Equal(bytes.Length * 2L, new ContentPlanner(_tree.Install(), store).ManagedBytes());
+    }
+
+    // ------------------------------------------------------------------ adopting without a fetch
+
+    [Fact]
+    public async Task A_plan_that_only_adopts_is_still_a_pass_worth_running()
+    {
+        // 93 of the 156 required md5s are unknown to RomM, so a user who copied their BIOS in
+        // by hand can easily have a plan with nothing to download and rows to write. Gating the
+        // apply on DownloadCount would make the adopt half of the pass unreachable, and the
+        // AlreadyPresent fast path needs the row this writes.
+        var bytes = Content("bios_CD_U.bin");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "megacd", "megacd", "Mega CD"));
+
+        var manifest = Manifest(("megacd", Md5(bytes), "bios/bios_CD_U.bin"));
+        Write("bios/bios_CD_U.bin", bytes);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest);
+
+        Assert.Equal(0, plan.DownloadCount);
+        Assert.False(plan.IsNoOp);
+
+        var outcome = await SyncAsync(stub, store, manifest);
+
+        Assert.Equal(1, outcome.Adopted);
+
+        var recorded = Assert.Single(store.Files.List(kind: LocalFileKind.Firmware));
+        Assert.Equal(FileOrigin.Adopted, recorded.Origin);
+    }
+
+    [Fact]
+    public async Task An_adoption_is_recorded_with_the_server_never_asked()
+    {
+        // Principle 1. Recognising a file already on the disk is local work, so a pass that can
+        // only adopt does not need a connection to do it.
+        var bytes = Content("psxonpsp660.bin");
+
+        var manifest = Manifest(("psx", Md5(bytes), "bios/psxonpsp660.bin"));
+        Write("bios/psxonpsp660.bin", bytes);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = new BiosPlanner(_tree.Install(), store, manifest).Plan(["psx"], candidates: null);
+
+        Assert.False(plan.CheckedAgainstServer);
+        Assert.False(plan.IsNoOp);
+
+        var outcome = await new BiosSync(_tree.Install(), store, connection: null).ApplyAsync(plan);
+
+        Assert.Equal(1, outcome.Adopted);
+        Assert.Equal(0, outcome.Failed);
+        Assert.NotNull(store.Files.Find(RelativePath.Create("bios/psxonpsp660.bin")));
+    }
+
+    // ------------------------------------------------------------------ the window between plan and apply
+
+    [Fact]
+    public async Task A_file_that_appears_after_the_plan_was_built_is_reported_rather_than_overwritten()
+    {
+        // "Nothing is ever overwritten and nothing is ever deleted" is the class's own rule.
+        // The planner checks the destination, but the check and the write are not atomic, and
+        // whatever arrives in between is the user's.
+        var wanted = Content("dc_flash.bin");
+        var theirs = Content("a working flash the user dropped in mid-pass");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "dreamcast", "dreamcast", "Dreamcast")
+        {
+            Firmware = [new StubFirmware(1, "flash.bin", wanted)],
+        });
+
+        var manifest = Manifest(("dreamcast", Md5(wanted), "bios/dc_flash.bin"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest);
+
+        Assert.Equal(BiosAction.Download, Assert.Single(plan.Steps).Action);
+
+        var target = Write("bios/dc_flash.bin", theirs);
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(0, outcome.Written);
+        Assert.Equal(theirs, File.ReadAllBytes(target));
+        Assert.Empty(store.Files.List(kind: LocalFileKind.Firmware));
+
+        // And the transfer that could not be landed leaves nothing behind.
+        Assert.False(File.Exists(_tree.Install().Resolve(BiosPlanner.PartFor(Md5(wanted)))));
     }
 
     // ------------------------------------------------------------------ helpers

@@ -83,9 +83,11 @@ public sealed record BiosSyncProgress(BiosStep Step, int Index, int Total);
 /// arrives wrong is deleted rather than kept: firmware that fails to verify is worse than
 /// absent, because an emulator that loads it fails in ways that look like a bad ROM.
 /// <para>
-/// <b>One download can owe several writes.</b> Six required md5s name more than one
-/// destination, so the bytes cross the network once and are copied into each path from the
-/// verified file.
+/// <b>One download can owe several writes, and one write can answer several systems.</b> Six
+/// required md5s name more than one destination, so the bytes cross the network once and are
+/// copied into each path from the verified file. Five destinations run the other way, required
+/// by two or more systems and therefore carrying a plan step each: a destination is acted on
+/// the first time it is reached and skipped after that, so nothing is ever copied onto itself.
 /// </para>
 /// <para>
 /// <b>Nothing is ever overwritten and nothing is ever deleted.</b> A mismatch is reported and
@@ -97,18 +99,22 @@ public sealed class BiosSync
 {
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
-    private readonly RomMConnection _connection;
+    private readonly RomMConnection? _connection;
     private readonly TimeProvider _time;
 
+    /// <param name="connection">
+    /// Null when the server was not asked. An offline plan carries no <see cref="BiosAction.Download"/>
+    /// step, because nothing was asked about the library, but it can still carry adoptions:
+    /// recognising a file the user copied in by hand is local work and does not need a server.
+    /// </param>
     public BiosSync(
         RetroBatInstall install,
         LocalStore store,
-        RomMConnection connection,
+        RomMConnection? connection,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(connection);
 
         _install = install;
         _store = store;
@@ -127,7 +133,7 @@ public sealed class BiosSync
         var written = 0;
         var downloaded = 0;
         var adopted = 0;
-        var present = plan.Count(BiosAction.AlreadyPresent);
+        var present = 0;
         var failed = 0;
         var bytes = 0L;
         var problems = new List<string>();
@@ -137,15 +143,28 @@ public sealed class BiosSync
         var fetched = new Dictionary<string, RelativePath>(StringComparer.Ordinal);
         var refused = new HashSet<string>(StringComparer.Ordinal);
 
-        var downloads = plan.Downloads.ToList();
+        // Five destinations in the bundled manifest are required by more than one system, so
+        // the plan carries several steps for one file. It is written, recorded and counted once.
+        var handled = new HashSet<RelativePath>();
+
+        var destinations = plan.Downloads.Select(step => step.Path).Distinct().Count();
         var index = 0;
 
         foreach (var step in plan.Steps)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            if (!handled.Add(step.Path))
+            {
+                continue;
+            }
+
             switch (step.Action)
             {
+                case BiosAction.AlreadyPresent:
+                    present++;
+                    break;
+
                 case BiosAction.Adopt:
                     Record(step, FileOrigin.Adopted);
                     adopted++;
@@ -157,7 +176,7 @@ public sealed class BiosSync
 
                 case BiosAction.Download:
                     index++;
-                    progress?.Report(new BiosSyncProgress(step, index, downloads.Count));
+                    progress?.Report(new BiosSyncProgress(step, index, destinations));
 
                     var md5 = step.Requirement.Md5!;
 
@@ -221,6 +240,12 @@ public sealed class BiosSync
     private async Task<(long Bytes, string? Problem)> FetchAsync(BiosStep step, CancellationToken cancellationToken)
     {
         var wanted = step.Requirement.Md5!;
+
+        if (_connection is null)
+        {
+            return (0, "RomM was not asked about it, so there is nothing to fetch from.");
+        }
+
         var part = _install.Resolve(BiosPlanner.PartFor(wanted));
         var target = _install.Resolve(step.Path);
 
@@ -256,7 +281,9 @@ public sealed class BiosSync
                     $"what arrived hashes to {found}, and RetroBat requires {wanted}. Nothing was written.");
             }
 
-            File.Move(part, target, overwrite: true);
+            // Not overwrite: true. A file that appeared at the destination since the plan was
+            // built is the user's, and the IOException below reports it rather than losing it.
+            File.Move(part, target, overwrite: false);
             return (response.Value!.BytesWritten, null);
         }
         catch (RomMUnreachableException ex)

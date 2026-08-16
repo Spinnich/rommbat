@@ -251,9 +251,15 @@ public sealed class BiosPlanner
         var free = _limits.AvailableFreeBytes;
         var steps = new List<BiosStep>();
 
-        // One md5 can be required by several systems at several paths. The bytes cross the
-        // network once, so only the first destination of a hash is charged for them.
+        // Two counters, because the two costs are not the same. The bytes cross the network
+        // once per md5 however many systems want them, but they land once per destination and
+        // the budget is a disk budget: a hash owing three paths puts three files on the disk.
         var charged = new HashSet<string>(StringComparer.Ordinal);
+        var placed = new HashSet<RelativePath>();
+
+        // A hash whose transfer will not happen cannot be copied to its other destinations
+        // either, so the first refusal decides them all rather than each one deciding alone.
+        var refused = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var folder in wanted)
         {
@@ -261,37 +267,56 @@ public sealed class BiosPlanner
             {
                 var step = Inspect(requirement, candidates);
 
-                if (step.Action == BiosAction.Download && charged.Add(requirement.Md5!))
+                if (step.Action == BiosAction.Download)
                 {
-                    if (budget is { } cap && managed + step.BytesToTransfer > cap)
+                    var md5 = requirement.Md5!;
+
+                    if (refused.TryGetValue(md5, out var earlier))
                     {
-                        steps.Add(step with
-                        {
-                            Action = BiosAction.Blocked,
-                            BytesToTransfer = 0,
-                            Reason = $"the {ByteSize.Format(cap)} budget is full. Raise it, or evict a game "
-                                + "to make room. A system without its BIOS will not launch.",
-                        });
+                        steps.Add(Block(step, earlier));
                         continue;
                     }
 
-                    if (free - step.BytesToTransfer < floor)
+                    var transfers = !charged.Contains(md5);
+                    var disk = placed.Contains(requirement.Path) ? 0 : step.BytesToTransfer;
+
+                    if (budget is { } cap && managed + disk > cap)
                     {
-                        steps.Add(step with
-                        {
-                            Action = BiosAction.Blocked,
-                            BytesToTransfer = 0,
-                            Reason = $"this drive would drop below the {ByteSize.Format(floor)} of free space "
-                                + "RomMBat is told to leave.",
-                        });
+                        var reason = $"the {ByteSize.Format(cap)} budget is full. Raise it, or evict a game "
+                            + "to make room. A system without its BIOS will not launch.";
+
+                        Refuse(md5, reason, transfers);
+                        steps.Add(Block(step, reason));
                         continue;
                     }
 
-                    managed += step.BytesToTransfer;
-                    free -= step.BytesToTransfer;
+                    if (free - disk < floor)
+                    {
+                        var reason = $"this drive would drop below the {ByteSize.Format(floor)} of free space "
+                            + "RomMBat is told to leave.";
+
+                        Refuse(md5, reason, transfers);
+                        steps.Add(Block(step, reason));
+                        continue;
+                    }
+
+                    managed += disk;
+                    free -= disk;
+                    charged.Add(md5);
+                    placed.Add(requirement.Path);
                 }
 
                 steps.Add(step);
+            }
+        }
+
+        // Only a refusal of the transfer itself carries to the hash's other destinations. One
+        // destination blocked after the bytes were already paid for blocks nothing else.
+        void Refuse(string md5, string reason, bool transfers)
+        {
+            if (transfers)
+            {
+                refused[md5] = reason;
             }
         }
 
@@ -301,6 +326,13 @@ public sealed class BiosPlanner
             CheckedAgainstServer = candidates is not null,
         };
     }
+
+    private static BiosStep Block(BiosStep step, string reason) => step with
+    {
+        Action = BiosAction.Blocked,
+        BytesToTransfer = 0,
+        Reason = reason,
+    };
 
     /// <summary>Decides where one required file stands.</summary>
     private BiosStep Inspect(BiosRequirement requirement, IReadOnlyDictionary<string, FirmwareRow>? candidates)

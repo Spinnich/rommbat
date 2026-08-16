@@ -115,13 +115,27 @@ def main():
     # waiting to happen rather than a statistic.
     paths_by_md5 = {}
     md5s_by_path = {}
-    for _system, md5, file in entries:
+    systems_by_path = {}
+    for system, md5, file in entries:
+        systems_by_path.setdefault(file, set()).add(system)
         if md5:
             paths_by_md5.setdefault(md5, set()).add(file)
             md5s_by_path.setdefault(file, set()).add(md5)
 
     check("One md5 owing several destination paths", sum(1 for p in paths_by_md5.values() if len(p) > 1), 6)
     check("One destination path taking several md5s", sum(1 for m in md5s_by_path.values() if len(m) > 1), 0)
+
+    # The other direction, and it is a different question. A path several systems require is
+    # planned once per system, so the writer has to act on a destination once rather than once
+    # per step: msx1, msx2, msx2+ and msxturbor all want bios/openMSX/.../fmpac.rom.
+    shared = {f for f, s in systems_by_path.items() if len(s) > 1}
+    check("One destination path required by several systems", len(shared), 6)
+    check(
+        "  ...of those, joinable",
+        sum(1 for f in shared if md5s_by_path.get(f)),
+        5,
+    )
+    check("  ...widest, in systems", max(len(systems_by_path[f]) for f in shared), 4)
     check("Entries landing outside bios/", sum(1 for _s, _m, f in entries if not f.startswith("bios/")), 7)
     check(
         "  ...of those, joinable",

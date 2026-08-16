@@ -213,6 +213,35 @@ public sealed class BiosManifestTests
     }
 
     [Fact]
+    public void One_destination_can_be_required_by_several_systems()
+    {
+        // The other direction, and the one a writer keyed on md5 walks straight into: the plan
+        // carries a step per system, so a destination has to be acted on once rather than once
+        // per step, or the second write copies the file onto itself.
+        var manifest = Fixtures.LoadBiosManifest();
+
+        var shared = manifest.Requirements
+            .GroupBy(requirement => requirement.Path)
+            .Where(group => group.Select(requirement => requirement.System).Distinct(StringComparer.Ordinal).Count() > 1)
+            .ToList();
+
+        Assert.Equal(6, shared.Count);
+        Assert.Equal(5, shared.Count(group => group.Any(requirement => requirement.Md5 is not null)));
+
+        // openMSX's copy of fmpac.rom is the widest: four MSX systems name the same file.
+        var fmpac = Assert.Single(
+            shared,
+            group => group.Key == RelativePath.Create("bios/openMSX/share/systemroms/fmpac.rom"));
+
+        Assert.Equal(
+            ["msx", "msx2", "msx2+", "msxturbor"],
+            fmpac.Select(requirement => requirement.System).Order(StringComparer.Ordinal));
+
+        // And they are four different RetroBat folders, so every one of them is planned.
+        Assert.Equal(4, fmpac.Select(requirement => requirement.Folder).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
     public void Every_system_the_manifest_names_resolves_to_a_folder_RetroBat_has()
     {
         // The manifest is keyed by batocera system names, a third vocabulary beside
