@@ -91,6 +91,14 @@ internal static class SyncCommand
                 Console.WriteLine($"  plan: {plan.Summary}");
                 Report(plan);
 
+                // Collected before the run rather than after it, so an offline pass reaches
+                // the gamelist write below. The set is the plan's, not the outcome's, because
+                // a folder whose download failed still holds whatever was already there.
+                foreach (var step in plan.Steps.Where(step => step.Action != ContentAction.Blocked))
+                {
+                    folders.Add(step.Member.Folder!);
+                }
+
                 if (dryRun || offline)
                 {
                     if (offline && plan.Downloads.Any())
@@ -126,7 +134,6 @@ internal static class SyncCommand
 
                 foreach (var step in plan.Steps.Where(step => step.Action != ContentAction.Blocked))
                 {
-                    folders.Add(step.Member.Folder!);
                     syncedRoms.Add(step.Member.RomId);
                 }
             }
