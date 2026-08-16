@@ -123,6 +123,11 @@ public sealed class PlaytimeCorrelator
         // whichever carries the nearest timestamp.
         var openStarts = new Stack<JournalEntry>();
 
+        // A launch answers for exactly one game-end. Without this a second game-end with
+        // nothing behind it matches the same launch again and the user is told they played a
+        // game twice, which is the naive failure the plan names by hand.
+        var consumed = new HashSet<string>(StringComparer.Ordinal);
+
         foreach (var entry in open)
         {
             switch (entry.Event)
@@ -133,7 +138,12 @@ public sealed class PlaytimeCorrelator
 
                 case JournalEvent.GameEnd:
                     var start = openStarts.Count > 0 ? openStarts.Pop() : null;
-                    var launch = MatchLaunch(launches, start, entry);
+                    var launch = MatchLaunch(launches, start, entry, consumed);
+
+                    if (launch is not null)
+                    {
+                        consumed.Add(launch.Signature);
+                    }
 
                     if (launch?.IsMenuLaunch == true)
                     {
@@ -204,16 +214,23 @@ public sealed class PlaytimeCorrelator
     /// The <c>game-start</c> hook's rom path is used to corroborate rather than to decide,
     /// because it carries no system, emulator or core and because it is absent for exactly the
     /// cases that most need explaining. The launch log carries all three.
+    /// <para>
+    /// <b>A launch already claimed by an earlier <c>game-end</c> is not a candidate.</b> Without
+    /// that, a second <c>game-end</c> with nothing behind it matches the same launch and the
+    /// user is told they played a game they played once twice.
+    /// </para>
     /// </remarks>
     private static LaunchRecord? MatchLaunch(
         IReadOnlyList<LaunchRecord> launches,
         JournalEntry? start,
-        JournalEntry end)
+        JournalEntry end,
+        HashSet<string> consumed)
     {
         var earliest = end.RecordedAtUtc - LaunchWindow;
 
         var candidates = launches
             .Where(launch => launch.At <= end.RecordedAtUtc && launch.At >= earliest)
+            .Where(launch => !consumed.Contains(launch.Signature))
             .OrderByDescending(launch => launch.At)
             .ToList();
 

@@ -170,7 +170,20 @@ public sealed class SaveSync
                 save.FileMtimeUtc ?? DateTimeOffset.UnixEpoch,
                 save.SizeBytes))]);
 
-        var negotiated = await _connection.NegotiateSavesAsync(request, cancellationToken).ConfigureAwait(false);
+        RomMResponse<NegotiateResult> negotiated;
+
+        try
+        {
+            negotiated = await _connection.NegotiateSavesAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException ex)
+        {
+            // Being unreachable is a working state, not an exception the caller should have to
+            // handle: every save stays exactly where it is, still recorded as unsent, and the
+            // next flush negotiates the same set. This is the whole of "operations complete or
+            // queue" at the point where the network first enters the picture.
+            return new SaveSyncOutcome { Failed = saves.Count, Problems = [ex.Message] };
+        }
 
         if (!negotiated.IsSuccess || negotiated.Value is not { } result)
         {
@@ -242,11 +255,25 @@ public sealed class SaveSync
             }
         }
 
-        // Reported honestly rather than optimistically: a conflict is not a completed operation
-        // and the server's own counters should not say it was.
-        await _connection
-            .CompleteSyncSessionAsync(result.SessionId, uploaded + downloaded + noOps, failed + conflicts.Count, null, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            // Reported honestly rather than optimistically: a conflict is not a completed
+            // operation and the server's own counters should not say it was.
+            await _connection
+                .CompleteSyncSessionAsync(
+                    result.SessionId,
+                    uploaded + downloaded + noOps,
+                    failed + conflicts.Count,
+                    null,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException ex)
+        {
+            // The link dropped after the transfers. Everything that landed still landed, and a
+            // session left open costs the server a stale row rather than costing anyone a save.
+            problems.Add($"the sync session could not be closed: {ex.Message}");
+        }
 
         return new SaveSyncOutcome
         {

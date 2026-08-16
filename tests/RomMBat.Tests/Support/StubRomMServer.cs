@@ -131,7 +131,7 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 /// measured it as indistinguishable by type from a user cancellation.
 /// </para>
 /// </remarks>
-internal sealed class StubRomMServer : HttpMessageHandler
+internal sealed partial class StubRomMServer : HttpMessageHandler
 {
     private readonly Queue<Func<HttpResponseMessage>> _tokenResponses = new();
     private readonly List<string> _requestLog = [];
@@ -402,6 +402,12 @@ internal sealed class StubRomMServer : HttpMessageHandler
         if (path.EndsWith("/api/roms/by-hash", StringComparison.Ordinal))
         {
             return ByHash(request.RequestUri);
+        }
+
+        // Saves, sync sessions and play sessions live in the other half of this class.
+        if (IsSaveRoute(path))
+        {
+            return await SaveRouteAsync(request, path, cancellationToken).ConfigureAwait(false);
         }
 
         if (path.StartsWith("/assets/romm/resources/", StringComparison.Ordinal))
