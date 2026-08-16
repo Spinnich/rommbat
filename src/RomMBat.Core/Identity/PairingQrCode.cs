@@ -28,8 +28,10 @@ public sealed class QrMatrix
 /// The server returns a relative path on purpose and stays origin-agnostic, because in
 /// development its web UI and API run on different ports, so joining is the client's job.
 /// <para>
-/// QRCoder is used because it is MIT and pure managed, so it survives a self-contained
-/// single-file publish with no native dependency.
+/// QRCoder is used because it is MIT, and the generator below is pure managed, so it
+/// survives a self-contained single-file publish with no native dependency. Only the
+/// module matrix is read here, never QRCoder's image renderers, which are the part that
+/// wants System.Drawing.
 /// </para>
 /// </remarks>
 public static class PairingQrCode
