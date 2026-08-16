@@ -23,6 +23,24 @@ produced it and nowhere else.
 install, recorded by M0 probe 4. It carries system names, paths and extensions only, no
 library contents.
 
+`emulatorLauncher.log` is twelve lines cut verbatim out of a real install's five months and
+424 launches, with only the Windows user profile path replaced. It is assembled by trap
+rather than chronologically, so it is not a slice of the file, and each line is one of the
+things the M6 probe found (findings 112 to 118):
+
+| Line     | What it is                                                                              |
+| -------- | --------------------------------------------------------------------------------------- |
+| 1        | A UTF-8 BOM and a separator, which is how each rotation half opens                      |
+| 2        | `[Startup]` with no `-rom`: an `-updatestores` run, not a launch                        |
+| 3        | A launch rooted at `D:\RetroBat`, the drive letter this install used to have            |
+| 4        | A launch rooted at `E:\RetroBat`, the letter it has now                                 |
+| 5        | `-rom` **unquoted**, carrying spaces, commas and parentheses                            |
+| 6        | `-core` written **after** `-rom`                                                        |
+| 7        | An ES-menu launch: `-system retrobat`, a rom under `system\es_menu\`                    |
+| 8        | `-core` present but **empty**, plus a multi-disc rom inside its own folder              |
+| 9, 12    | A recorded exit and a failed launch, neither of which is a launch line                  |
+| 10, 11   | An unstamped .NET stack-trace continuation                                              |
+
 `es_systems.template.cfg` is the **shipped 8.2.0 template**, not a live capture, and it is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,

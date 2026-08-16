@@ -44,6 +44,7 @@ public sealed class LocalStore : IDisposable
         Clock = new ClockStore(connection);
         Outbox = new OutboxStore(connection, this);
         Journal = new JournalStore(connection, this);
+        LaunchCursor = new LaunchCursorStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -73,6 +74,9 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>What the ES hooks append, which is the only thing they do.</summary>
     public JournalStore Journal { get; }
+
+    /// <summary>Where emulatorLauncher.log was last read to, across its rotation.</summary>
+    public LaunchCursorStore LaunchCursor { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }
