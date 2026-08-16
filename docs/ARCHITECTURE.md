@@ -183,7 +183,7 @@ replay and partial failure. It exists as `OfflineSimulationTests` over
 throws on a connect timeout, because that shape is the thing the code has to tell apart from
 a user cancellation.
 
-Anything needing a live RomM is a `SkippableFact` gated on environment variables, so a clone
+Anything needing a live RomM calls `Assert.SkipUnless` on environment variables, so a clone
 with no server still runs green. Those tests drive the **real** pairing flow headlessly:
 `GET /api/auth/device/pending/{user_code}` and `POST /api/auth/device/approve` are ordinary
 protected routes, so `Support/ApprovingUser` holds a pre-made token and plays the approving

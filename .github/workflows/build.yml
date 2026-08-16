@@ -34,8 +34,10 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore -warnaserror
 
+      # xunit.v3 runs on Microsoft.Testing.Platform, which global.json selects. Its
+      # options are not VSTest's: --output Detailed replaces the console logger.
       - name: Test
-        run: dotnet test --configuration Release --no-build --logger "console;verbosity=normal"
+        run: dotnet test --configuration Release --no-build --output Detailed
 
   # A self-contained single-file publish is the shipped artefact, so a compile that
   # succeeds but cannot be published is not a green build.

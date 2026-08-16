@@ -33,19 +33,22 @@ namespace RomMBat.Tests;
 /// </remarks>
 public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCatalogFixture>
 {
+    private const string NotConfigured =
+        "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
+
     private static bool IsConfigured => LiveCatalogFixture.IsConfigured;
 
-    [SkippableFact]
+    [Fact]
     public async Task A_page_of_roms_arrives_without_the_sidecars()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
         var query = new CatalogQuery { Scope = CatalogScopeKind.Filter };
 
         var response = await session.Connection.GetRomPageAsync(query, limit: 5, offset: 0);
 
-        Skip.If(response.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
+        Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
         Assert.True(response.IsSuccess, response.Message);
 
         // The three costly sidecars are absent from the body, not merely unread. Checked on
@@ -57,19 +60,19 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.True(raw.RootElement.TryGetProperty("total", out _), "with_total should still be on.");
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task Order_by_id_is_accepted_and_pages_do_not_overlap()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
 
         var pager = new RomPager(session.Connection, new CatalogQuery { Scope = CatalogScopeKind.Filter }, pageSize: 25);
 
         var first = await pager.NextAsync();
-        Skip.If(first.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
+        Assert.SkipWhen(first.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
         Assert.True(first.IsSuccess, first.Message);
-        Skip.If(first.Value!.Total < 30, "The library is too small to page.");
+        Assert.SkipWhen(first.Value!.Total < 30, "The library is too small to page.");
 
         var second = await pager.NextAsync();
         Assert.True(second.IsSuccess, second.Message);
@@ -82,17 +85,17 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.True(secondIds[0] > firstIds[^1], "Ascending id order should make page two start after page one.");
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task Real_platforms_resolve_through_the_chain_and_record_where_each_answer_came_from()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
 
         var response = await session.Connection.ListPlatformsAsync();
-        Skip.If(response.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
+        Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
         Assert.True(response.IsSuccess, response.Message);
-        Skip.If(response.Value!.Count == 0, "The instance has no platforms.");
+        Assert.SkipWhen(response.Value!.Count == 0, "The instance has no platforms.");
 
         var install = Fixtures.LoadEsSystems();
         var resolver = new PlatformResolver(install);
@@ -128,10 +131,10 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.All(rows, row => Assert.NotNull(row.Explanation));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task Sync_config_round_trips_and_keeps_keys_this_client_does_not_own()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
 
@@ -155,7 +158,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         };
 
         var seeded = await session.Connection.UpdateDeviceSyncConfigAsync(session.DeviceId, foreign);
-        Skip.If(seeded.Status == RomMResponseStatus.Forbidden, "This token cannot write devices.");
+        Assert.SkipWhen(seeded.Status == RomMResponseStatus.Forbidden, "This token cannot write devices.");
         Assert.True(seeded.IsSuccess, seeded.Message);
 
         var before = await session.Connection.GetDeviceAsync(session.DeviceId);
@@ -184,15 +187,15 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             && element.TryGetProperty("someone_else", out _));
     }
 
-    [SkippableFact]
+    [Fact]
     public async Task A_set_scoped_to_a_real_platform_resolves_to_an_exact_list()
     {
-        Skip.IfNot(IsConfigured);
+        Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var session = fixture.Session;
 
         var platforms = await session.Connection.ListPlatformsAsync();
-        Skip.If(platforms.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
+        Assert.SkipWhen(platforms.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
         Assert.True(platforms.IsSuccess, platforms.Message);
 
         var install = Fixtures.LoadEsSystems();
@@ -204,7 +207,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                 .Resolve(new RomMPlatform(platform.Id, platform.Slug, platform.FsSlug, platform.Label))
                 .IsApplied);
 
-        Skip.If(candidate is null, "No platform on this instance both has ROMs and maps to a folder.");
+        Assert.SkipWhen(candidate is null, "No platform on this instance both has ROMs and maps to a folder.");
 
         var set = session.Store.SyncSets.Add(
             new SyncSetDefinition

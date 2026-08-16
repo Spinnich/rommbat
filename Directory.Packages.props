@@ -36,19 +36,19 @@
   -->
 
   <!--
-    xunit stays on the v2 line. The 4.x Visual Studio runner drives both v2 and v3
-    test projects, so the runner tracks current while the assertion library does not
-    force a rewrite of every test.
+    xunit is on the v3 line; the v2 packages are flagged Legacy. v3 skips at runtime on
+    its own (Assert.Skip and friends), which is what retired Xunit.SkippableFact: that
+    package pins the suite to v2 by depending on xunit.extensibility.execution, and is
+    MS-PL, which the FSF reads as GPL-incompatible.
+
+    v3 test projects are executables rather than libraries, so the test csproj sets
+    OutputType. v3 carries its own Microsoft.Testing.Platform runner, which is what the
+    .NET 10 SDK wants: it dropped support for driving that platform through VSTest, so
+    Microsoft.NET.Test.Sdk and xunit.runner.visualstudio are gone rather than upgraded.
+    dotnet.config at the root opts `dotnet test` into the same platform.
   -->
   <ItemGroup Label="Testing">
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
-    <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
-    <!--
-      Runtime skipping, for the tests that need a live RomM. A clone with no server must
-      still run green, and a silently-passing stub would be worse than a skip.
-    -->
-    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.61" />
+    <PackageVersion Include="xunit.v3" Version="4.0.0" />
   </ItemGroup>
 
 </Project>
