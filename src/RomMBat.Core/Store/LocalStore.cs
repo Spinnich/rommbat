@@ -45,6 +45,8 @@ public sealed class LocalStore : IDisposable
         Outbox = new OutboxStore(connection, this);
         Journal = new JournalStore(connection, this);
         LaunchCursor = new LaunchCursorStore(connection);
+        Saves = new LocalSaveStore(connection);
+        Unsyncable = new UnsyncableStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -77,6 +79,12 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Where emulatorLauncher.log was last read to, across its rotation.</summary>
     public LaunchCursorStore LaunchCursor { get; }
+
+    /// <summary>What is under saves/, and whether each has ever reached the server.</summary>
+    public LocalSaveStore Saves { get; }
+
+    /// <summary>What RomMBat found under saves/ and is not syncing, with the reason.</summary>
+    public UnsyncableStore Unsyncable { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }

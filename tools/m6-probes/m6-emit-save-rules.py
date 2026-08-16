@@ -1,0 +1,143 @@
+"""Derives data/retrobat/save_rules.json from a real install plus the measured findings.
+
+save_shapes.json says what class a system is. It does not say which files under saves/ are
+that class, and stage 1 cannot guess: megacd's shared 4Mbit_cart.brm sits beside per-game
+.brm files at the same level and only the name separates them, and xbox's two class-D files
+are loose under the system folder where class A normally lives.
+
+So this emits the mechanism: which extensions a loose battery save carries, and which exact
+filenames are shared containers that must never be attributed to a rom. The extension list
+comes from walking the install; the container list comes from probe 2, F18 and F19 and is
+declared here rather than inferred, because a container is recognised by being named in a
+finding and not by anything about the file.
+
+    python m6-emit-save-rules.py <retrobat-root>
+
+Reads the install. Writes data/retrobat/save_rules.json.
+"""
+
+from __future__ import annotations
+
+import collections
+import json
+import pathlib
+import sys
+
+from _common import REPO, record_offline
+
+if len(sys.argv) != 2:
+    print(__doc__)
+    raise SystemExit(2)
+
+root = pathlib.Path(sys.argv[1])
+saves = root / "saves"
+lines: list[str] = []
+
+shapes = json.loads((REPO / "data" / "retrobat" / "save_shapes.json").read_text(encoding="utf-8"))
+
+# Named in a finding, never inferred. A shared container holds several games' saves, so it has
+# no rom_id to carry and must not be attributed to whichever rom its name happens to resemble.
+SHARED_CONTAINERS = {
+    "megacd": {
+        "4Mbit_cart.brm": "the RAM cart, 512 KB, shared by every Mega CD game (probe 2)",
+    },
+    "xbox": {
+        "eeprom.bin": "console EEPROM, not per game (probe 2)",
+        "xbox_hdd.qcow2": "a whole disk image shared by every game (probe 2)",
+    },
+    "saturn": {
+        "kronos/bkram.bin": "Kronos backup RAM, one file for every Saturn game (M6 probe 2)",
+    },
+    "dreamcast": {
+        "flycast/vmu/vmu_save_A1.bin": "port-keyed VMU, shared by every game (probe 2)",
+        "flycast/vmu/vmu_save_B1.bin": "port-keyed VMU, shared by every game (probe 2)",
+        "flycast/vmu/vmu_save_C1.bin": "port-keyed VMU, shared by every game (probe 2)",
+        "flycast/vmu/vmu_save_D1.bin": "port-keyed VMU, shared by every game (probe 2)",
+    },
+    "ps2": {
+        "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
+        "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
+    },
+}
+
+# Written into the save tree by RetroArch and by RetroBat, and not a save. The .ldci is the
+# hostile one: it is small, it is JSON, and its image_path is an absolute path with a drive
+# letter, so relaying it through RomM restores a dangling pointer on any other install.
+NOT_A_SAVE = {
+    ".ldci": "RetroArch's record of which disc is in the drive; holds an absolute path (F18)",
+    ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",
+    ".png": "a save-state screenshot, which is stage 2",
+    ".jpg": "a save-state screenshot, which is stage 2",
+}
+
+lines.append("=== loose files directly under saves/<system>/, which is where class A lives")
+
+by_extension: collections.Counter[str] = collections.Counter()
+per_system: dict[str, dict] = {}
+containers_seen: list[str] = []
+
+for system_directory in sorted(p for p in saves.iterdir() if p.is_dir()):
+    system = system_directory.name
+    loose = sorted(p for p in system_directory.iterdir() if p.is_file())
+    if not loose:
+        continue
+
+    declared = SHARED_CONTAINERS.get(system, {})
+    extensions: collections.Counter[str] = collections.Counter()
+
+    for path in loose:
+        if path.name in declared:
+            containers_seen.append(f"{system}/{path.name}")
+            continue
+        if path.suffix.lower() in NOT_A_SAVE:
+            continue
+        extensions[path.suffix.lower()] += 1
+        by_extension[path.suffix.lower()] += 1
+
+    shape = shapes["shapes"].get(system)
+    per_system[system] = {
+        "class": shape["class"] if shape else None,
+        "loose_extensions": sorted(extensions),
+        "loose_files": sum(extensions.values()),
+    }
+    lines.append(
+        f"  {system:<14} class={per_system[system]['class'] or '?':<3} "
+        f"files={per_system[system]['loose_files']:<3} {sorted(extensions)}"
+    )
+
+lines.append("")
+lines.append(f"=== extensions across every system: {dict(by_extension)}")
+lines.append(f"=== declared shared containers found on disk: {containers_seen}")
+
+# Every container declared above, whether or not this install happens to hold it. A rule that
+# only covered what one tree contains would let the next tree's container through.
+declared_total = sum(len(v) for v in SHARED_CONTAINERS.values())
+lines.append(f"=== declared shared containers in total: {declared_total}")
+
+document = {
+    "_comment": (
+        "Generated by tools/m6-probes/m6-emit-save-rules.py. What save_shapes.json cannot say: "
+        "which files under saves/ are the class it names. Extensions are observed on a real "
+        "install; shared containers are declared from probe 2, F18 and F19, because a container "
+        "is recognised by being named in a finding and by nothing about the file itself."
+    ),
+    "_retrobat_version": (root / "system" / "version.info").read_text(encoding="utf-8").strip(),
+    "_loose_emulator_note": (
+        "A file loose directly under saves/<system>/ was written by libretro. Every standalone "
+        "emulator gets its own saves/<system>/<emulator>/ subdirectory, and libretro's own state "
+        "directory is saves/<system>/libretro.<core>/, so the loose level holds battery saves "
+        "and nothing else. Measured on a real install across saturn, megacd, psx, gb and 12 more."
+    ),
+    "loose_emulator": "libretro",
+    "battery_extensions": sorted(by_extension),
+    "not_a_save_extensions": NOT_A_SAVE,
+    "shared_containers": SHARED_CONTAINERS,
+    "observed": per_system,
+}
+
+out = REPO / "data" / "retrobat" / "save_rules.json"
+out.write_text(json.dumps(document, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+lines.append("")
+lines.append(f"=== wrote {out.relative_to(REPO)}, {out.stat().st_size} bytes")
+
+record_offline("m6-emit-save-rules", lines)
