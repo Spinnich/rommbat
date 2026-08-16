@@ -521,3 +521,9 @@ openapi-normalized.tmp.json
 .trunk/*notifications
 .trunk/*tools
 .trunk/plugins
+
+# Checked-in test fixtures, which are byte-exact captures and must be tracked whatever their
+# extension. `*.log` above is meant for build output, and it silently swallowed
+# emulatorLauncher.log: the tests passed locally against an untracked file and CI, cloning
+# fresh, had nothing to read.
+!tests/RomMBat.Tests/fixtures/**
