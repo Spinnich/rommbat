@@ -135,6 +135,34 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_screenshot_the_server_does_not_keep_is_counted_rather_than_called_success()
+    {
+        // Measured against a live instance: the image bytes arrive and are stored against the
+        // ROM, but the state comes back with screenshot: null and stays that way. The state
+        // itself is complete, so this is not a failure, but reporting plain success for
+        // something that did not happen is what this exists to prevent.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "ps2", "Game (USA).iso");
+        fixture.AddState("ps2/pcsx2", "Game (USA).01.p2s", "state");
+        fixture.AddState("ps2/pcsx2", "Game (USA).01.p2s.png", "png bytes");
+        fixture.Scan();
+
+        fixture.Stub.DropScreenshots = true;
+
+        var outcome = await fixture.PushAsync();
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.ScreenshotsDropped);
+        Assert.Contains("did not keep the screenshot", Assert.Single(outcome.Problems), StringComparison.Ordinal);
+        Assert.Contains("without the screenshot", outcome.Summary, StringComparison.Ordinal);
+
+        // Still recorded as sent, because the state is what matters and re-sending would
+        // orphan another copy of the image against the ROM.
+        Assert.False(Assert.Single(fixture.Store.States.List()).IsUnsent);
+    }
+
+    [Fact]
     public async Task A_zero_byte_screenshot_never_reaches_the_server()
     {
         // Measured: the server accepts one and stores it as a real screenshot row, and

@@ -30,6 +30,18 @@ internal sealed partial class StubRomMServer
     /// <summary>Fails the next state upload with this status, once.</summary>
     public HttpStatusCode? FailNextStateUpload { get; set; }
 
+    /// <summary>
+    /// Accepts a screenshot and answers as though it was never attached.
+    /// </summary>
+    /// <remarks>
+    /// Not invented. Measured against a live instance: the image bytes arrive and are stored
+    /// against the ROM at the right name and size, and the state still comes back with
+    /// <c>screenshot: null</c> and stays that way on re-read. It was not reproducible on
+    /// demand across thirty-five attempts, so the client has to report it rather than rely on
+    /// it not happening.
+    /// </remarks>
+    public bool DropScreenshots { get; set; }
+
     /// <summary>True when the path is one this half of the stub serves.</summary>
     public static bool IsStateRoute(string path) =>
         path.EndsWith("/api/states", StringComparison.Ordinal)
@@ -85,8 +97,8 @@ internal sealed partial class StubRomMServer
             Emulator = emulator,
             FileName = sentName,
             Bytes = body,
-            ScreenshotName = screenshot?.Name,
-            ScreenshotBytes = screenshot?.Bytes,
+            ScreenshotName = DropScreenshots ? null : screenshot?.Name,
+            ScreenshotBytes = DropScreenshots ? null : screenshot?.Bytes,
             UpdatedAt = ServerDate ?? DateTimeOffset.UnixEpoch,
         };
 

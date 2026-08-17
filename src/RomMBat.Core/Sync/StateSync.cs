@@ -13,6 +13,25 @@ public sealed record StateSyncOutcome
 
     public int Unattributed { get; init; }
 
+    /// <summary>
+    /// States sent with a screenshot the server did not attach.
+    /// </summary>
+    /// <remarks>
+    /// <b>Measured against a live instance and not reproducible on demand.</b> The screenshot
+    /// bytes arrive, and are stored against the ROM at the right size and name, but the state
+    /// comes back with <c>screenshot: null</c> and stays that way. Roughly a third of attempts
+    /// across thirty-five did it, varying the filename, the content type, the part header
+    /// order, the handler and connection reuse without finding what separates the two outcomes.
+    /// The request is provably well formed: dumped against a local listener it carries both
+    /// parts, the whole image payload and a correct <c>Content-Length</c>.
+    /// <para>
+    /// So this is counted rather than treated as a failure. The state itself is correct and
+    /// complete, and a screenshot is best-effort by nature, but silently reporting success for
+    /// something that did not happen is the thing worth avoiding.
+    /// </para>
+    /// </remarks>
+    public int ScreenshotsDropped { get; init; }
+
     public int Failed { get; init; }
 
     public long BytesTransferred { get; init; }
@@ -35,6 +54,11 @@ public sealed record StateSyncOutcome
             if (Uploaded > 0)
             {
                 parts.Add($"{Uploaded} up ({ByteSize.Format(BytesTransferred)})");
+            }
+
+            if (ScreenshotsDropped > 0)
+            {
+                parts.Add($"{ScreenshotsDropped} without the screenshot the server did not keep");
             }
 
             if (Failed > 0)
@@ -135,6 +159,7 @@ public sealed class StateSync
         var uploaded = 0;
         var inStep = 0;
         var unattributed = 0;
+        var dropped = 0;
         var failed = 0;
         var bytes = 0L;
         var problems = new List<string>();
@@ -161,6 +186,15 @@ public sealed class StateSync
             {
                 uploaded++;
                 bytes += state.SizeBytes;
+
+                if (attempt.ScreenshotDropped)
+                {
+                    dropped++;
+                    problems.Add(
+                        $"{state.Path}: the state went up but the server did not keep the "
+                            + "screenshot sent with it. The state itself is complete.");
+                }
+
                 continue;
             }
 
@@ -181,13 +215,14 @@ public sealed class StateSync
             Uploaded = uploaded,
             AlreadyInStep = inStep,
             Unattributed = unattributed,
+            ScreenshotsDropped = dropped,
             Failed = failed,
             BytesTransferred = bytes,
             Problems = problems,
         };
     }
 
-    private async Task<(string? Problem, bool Unreachable)> UploadAsync(
+    private async Task<(string? Problem, bool Unreachable, bool ScreenshotDropped)> UploadAsync(
         LocalState state,
         CancellationToken cancellationToken)
     {
@@ -195,7 +230,7 @@ public sealed class StateSync
 
         if (!File.Exists(path))
         {
-            return ($"{state.Path}: the file is gone since the scan.", false);
+            return ($"{state.Path}: the file is gone since the scan.", false, false);
         }
 
         try
@@ -217,11 +252,15 @@ public sealed class StateSync
 
                 if (!response.IsSuccess || response.Value is not { } row)
                 {
-                    return ($"{state.Path}: {response.Message}", false);
+                    return ($"{state.Path}: {response.Message}", false, false);
                 }
 
                 _store.States.MarkUploaded(state.Path, row.Id, name, state.ContentHash!, _time.GetUtcNow());
-                return (null, false);
+
+                // A screenshot was sent and the row came back without one. Reported rather than
+                // retried: the bytes do reach the server, so a retry uploads the image again
+                // and orphans another copy against the ROM.
+                return (null, false, screenshot is not null && row.Screenshot is null);
             }
             finally
             {
@@ -230,11 +269,11 @@ public sealed class StateSync
         }
         catch (RomMUnreachableException ex)
         {
-            return ($"{state.Path}: {ex.Message}", true);
+            return ($"{state.Path}: {ex.Message}", true, false);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return ($"{state.Path}: it could not be read: {ex.Message}", false);
+            return ($"{state.Path}: it could not be read: {ex.Message}", false, false);
         }
     }
 
