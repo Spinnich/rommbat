@@ -326,6 +326,61 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Everything_this_stage_adds_also_queues_offline_and_lands_in_one_flush()
+    {
+        // The offline simulation extended to the shapes this stage adds. Same assertion as the
+        // three-games case above, in the shapes that carry a state, a screenshot and a conflict
+        // rather than three class-A saves.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "battery progress");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "state progress");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1.png", "screenshot");
+        fixture.AddState("snes/libretro.bsnes", "ActRaiser (USA).state1", "other core");
+
+        fixture.Stub.IsReachable = false;
+
+        // Offline: both scans run, because the local half never needs a server.
+        Assert.Equal(1, fixture.Scan().Found);
+        Assert.Equal(2, fixture.ScanStates().Found);
+
+        var offlineSaves = await fixture.SyncAsync();
+        var offlineStates = await fixture.PushStatesAsync();
+
+        Assert.Equal(0, offlineSaves.Uploaded);
+        Assert.Equal(0, offlineStates.Uploaded);
+        Assert.All(fixture.Store.Saves.List(), save => Assert.True(save.IsUnsent));
+        Assert.All(fixture.Store.States.List(), state => Assert.True(state.IsUnsent));
+
+        // Nothing threw, which is the assertion. An unreachable server is a working state.
+        Assert.NotEmpty(offlineStates.Problems);
+
+        fixture.Stub.IsReachable = true;
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        var saves = await fixture.SyncAsync();
+        var states = await fixture.PushStatesAsync();
+
+        Assert.Equal(1, saves.Uploaded);
+        Assert.Equal(2, states.Uploaded);
+        Assert.All(fixture.Store.Saves.List(), save => Assert.False(save.IsUnsent));
+        Assert.All(fixture.Store.States.List(), state => Assert.False(state.IsUnsent));
+
+        // Replaying the whole flush sends nothing further and creates nothing further.
+        var serverStates = fixture.Stub.States.Count;
+
+        // Cleared so the replay negotiates for real. Leaving it set would assert the stub's
+        // content dedup rather than the client declining to send.
+        fixture.Stub.NegotiateActions.Remove((42, "libretro:battery"));
+
+        fixture.Scan();
+        fixture.ScanStates();
+
+        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(0, (await fixture.PushStatesAsync()).Uploaded);
+        Assert.Equal(serverStates, fixture.Stub.States.Count);
+    }
+
+    [Fact]
     public async Task A_replayed_play_session_batch_is_reconciled_per_index_rather_than_inferred()
     {
         using var fixture = SyncFixture.Create();
@@ -525,12 +580,26 @@ public class SaveSyncTests
                 new DateTimeOffset(2026, 8, 16, 10, 30, 0, TimeSpan.Zero));
         }
 
+        /// <summary>Puts a save state, or a file beside one, into a state directory.</summary>
+        public void AddState(string directory, string fileName, string contents)
+        {
+            var absolute = Install.Resolve(RelativePath.Create($"saves/{directory}/{fileName}"));
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+            File.WriteAllText(absolute, contents);
+        }
+
         public SaveScanOutcome Scan() => new SaveScanner(Install, Store).Scan();
+
+        public StateScanOutcome ScanStates() =>
+            new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
 
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
 
         public Task<SaveSyncOutcome> SyncAsync() =>
             new SaveSync(Install, Store, _connection, DeviceId).RunAsync();
+
+        public Task<StateSyncOutcome> PushStatesAsync() =>
+            new StateSync(Install, Store, _connection).RunAsync();
 
         public Task<OutboxFlushOutcome> FlushPlaytimeAsync() =>
             new OutboxFlush(Store, _connection, DeviceId).FlushPlaySessionsAsync();

@@ -5,13 +5,17 @@ namespace RomMBat.Core.Sync;
 
 /// <summary>What a drain pass did.</summary>
 /// <param name="Ingested">Records turned into journal rows.</param>
-/// <param name="Malformed">Files that were not a record this build understands.</param>
+/// <param name="Malformed">Files that were not a record in this format at all. Deleted.</param>
+/// <param name="Unreadable">
+/// Files in this format at a revision this build cannot read, written by a newer hook.
+/// <b>Left on disk</b>, so updating the agent recovers them rather than finding them gone.
+/// </param>
 /// <param name="Abandoned">Half-written <c>.tmp</c> files cleaned up.</param>
-public sealed record SpoolDrainOutcome(int Ingested, int Malformed, int Abandoned)
+public sealed record SpoolDrainOutcome(int Ingested, int Malformed, int Unreadable, int Abandoned)
 {
-    public static SpoolDrainOutcome Empty { get; } = new(0, 0, 0);
+    public static SpoolDrainOutcome Empty { get; } = new(0, 0, 0, 0);
 
-    public bool IsNoOp => Ingested == 0 && Malformed == 0 && Abandoned == 0;
+    public bool IsNoOp => Ingested == 0 && Malformed == 0 && Unreadable == 0 && Abandoned == 0;
 }
 
 /// <summary>
@@ -72,6 +76,7 @@ public sealed class SpoolDrain
 
         var ingested = 0;
         var malformed = 0;
+        var unreadable = 0;
         var abandoned = 0;
         var now = _time.GetUtcNow();
 
@@ -94,6 +99,17 @@ public sealed class SpoolDrain
 
             if (record is null)
             {
+                // A record whose first line names this format at a revision this build cannot
+                // read is left where it is, not deleted. An agent older than the installed hook
+                // would otherwise discard every event it found, permanently, and report only a
+                // count of them. Leaving it costs one file until the agent catches up; deleting
+                // it costs the play sessions it described. Issue #31.
+                if (SpoolRecord.IsFromNewerBuild(text))
+                {
+                    unreadable++;
+                    continue;
+                }
+
                 malformed++;
                 Remove(file);
                 continue;
@@ -120,7 +136,7 @@ public sealed class SpoolDrain
             }
         }
 
-        return new SpoolDrainOutcome(ingested, malformed, abandoned);
+        return new SpoolDrainOutcome(ingested, malformed, unreadable, abandoned);
     }
 
     private void Ingest(SpoolRecord record)

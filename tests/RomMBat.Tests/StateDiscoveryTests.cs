@@ -302,6 +302,58 @@ public class StateDiscoveryTests
     }
 
     [Fact]
+    public void Eviction_refuses_a_rom_whose_save_state_has_never_gone_up()
+    {
+        // A state is save data by any reading a user would recognise, and it is worthless once
+        // its ROM is gone. The battery save here is fully in step, so the state is the only
+        // thing holding the ROM.
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "snes", "ActRaiser (USA).zip");
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "unsent progress");
+        tree.Scan();
+
+        var verdict = new SaveGuard(tree.Store).Check(42, RelativePath.Create("roms/snes/ActRaiser (USA).zip"));
+
+        Assert.False(verdict.CanRemove);
+        Assert.Contains("save state", verdict.Reason!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Eviction_allows_a_rom_once_its_state_is_in_step()
+    {
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "snes", "ActRaiser (USA).zip");
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        tree.Scan();
+
+        var state = Assert.Single(tree.Store.States.List());
+        tree.Store.States.MarkUploaded(state.Path, 700, "x.state1", state.ContentHash!, DateTimeOffset.UnixEpoch);
+
+        Assert.True(new SaveGuard(tree.Store)
+            .Check(42, RelativePath.Create("roms/snes/ActRaiser (USA).zip"))
+            .CanRemove);
+    }
+
+    [Fact]
+    public void A_state_changed_since_its_upload_blocks_eviction_again()
+    {
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "snes", "ActRaiser (USA).zip");
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "first");
+        tree.Scan();
+
+        var state = Assert.Single(tree.Store.States.List());
+        tree.Store.States.MarkUploaded(state.Path, 700, "x.state1", state.ContentHash!, DateTimeOffset.UnixEpoch);
+
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "second");
+        tree.Scan();
+
+        Assert.False(new SaveGuard(tree.Store)
+            .Check(42, RelativePath.Create("roms/snes/ActRaiser (USA).zip"))
+            .CanRemove);
+    }
+
+    [Fact]
     public void Every_path_a_scan_records_is_relative_and_under_saves()
     {
         using var tree = StateTree.Create();

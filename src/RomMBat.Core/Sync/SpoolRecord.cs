@@ -16,6 +16,27 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
     /// <summary>The format marker, so a later change is detectable rather than silent.</summary>
     public const string Version = "rommbat-hook-1";
 
+    /// <summary>
+    /// The part of the marker that names the format, with the revision after it.
+    /// </summary>
+    /// <remarks>
+    /// <b>The marker is a family plus a revision, and the two are treated differently.</b> A
+    /// different family is a different grammar and is refused outright. Within the family, this
+    /// build reads its own revision and any older one, because the format only ever gains keys
+    /// and the parser already ignores keys it does not know.
+    /// <para>
+    /// <b>A newer revision is not read, and is not deleted either.</b> That is the half that
+    /// matters: this build cannot know what a later revision changed, so guessing at one risks
+    /// reading a record wrongly, while deleting it loses the play session it described.
+    /// Requiring the whole marker to match exactly did the second of those, permanently, and
+    /// reported only a count. Issue #31.
+    /// </para>
+    /// </remarks>
+    public const string VersionFamily = "rommbat-hook";
+
+    /// <summary>The revision this build writes and is the highest it can read.</summary>
+    public const int VersionRevision = 1;
+
     /// <summary>The four events RomMBat installs a hook for.</summary>
     public static IReadOnlyList<string> Events { get; } = ["start", "game-start", "game-end", "quit"];
 
@@ -66,6 +87,37 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
         return string.Join('\n', lines) + "\n";
     }
 
+    /// <summary>
+    /// The revision on the first line, or null when the line does not name this format at all.
+    /// </summary>
+    public static int? RevisionOf(string? text)
+    {
+        if (FirstLine(text) is not { } marker
+            || !marker.StartsWith(VersionFamily + "-", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return int.TryParse(
+            marker[(VersionFamily.Length + 1)..],
+            System.Globalization.NumberStyles.None,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var revision)
+            ? revision
+            : null;
+    }
+
+    /// <summary>
+    /// True when this is one of ours, written by a build that knows something this one does not.
+    /// </summary>
+    /// <remarks>
+    /// Used by the drain to tell "not one of ours, delete it" from "ours but ahead of us, leave
+    /// it for a newer agent". Without the distinction the spool would either grow without bound
+    /// on rubbish or lose events on an out-of-step update, and both are worse than one file
+    /// waiting.
+    /// </remarks>
+    public static bool IsFromNewerBuild(string? text) => RevisionOf(text) > VersionRevision;
+
     /// <summary>Parses what <see cref="Render"/> wrote.</summary>
     /// <returns>Null when the text is not a record this build understands.</returns>
     public static SpoolRecord? Parse(string text)
@@ -76,7 +128,12 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
         }
 
         var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        if (lines.Length == 0 || lines[0] != Version)
+
+        // This build's own revision and any older one. Everything after line 1 is key/value and
+        // unknown keys are already ignored, so an older record reads as the subset it carried.
+        // A newer one is refused here and kept by the drain, because what a later revision
+        // changed is exactly what this build cannot know.
+        if (lines.Length == 0 || RevisionOf(text) is not { } revision || revision > VersionRevision)
         {
             return null;
         }
@@ -133,6 +190,17 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
         }
 
         return new SpoolRecord(hookEvent, at.Value, processId, arguments);
+    }
+
+    private static string? FirstLine(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var end = text.IndexOfAny(['\r', '\n']);
+        return end < 0 ? text : text[..end];
     }
 
     private static string Escape(string value) => value
