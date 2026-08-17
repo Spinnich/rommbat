@@ -124,14 +124,23 @@ public sealed class SaveScanner
                 // Nine top-level directories on a real install are not declared systems at
                 // all, and 21 declared ones carry no shape. Both land here, and neither is
                 // touched: an unknown tree is not a tree to start writing into.
-                var files = CountFiles(systemDirectory);
+                //
+                // Save states under such a system are the exception, and they are excluded
+                // from the count for the same reason they are excluded below: state discovery
+                // is driven by es_savestates.cfg rather than by the save shapes, so a system
+                // with no shape at all still has its states synced. Measured on a real
+                // install: saves/ports/ holds a libretro state and its screenshot beside one
+                // battery save, and counting all three said three files were being ignored
+                // while two of them were going up.
+                var files = CountFiles(systemDirectory, savesRoot);
                 if (files > 0)
                 {
                     report.Add(
                         system,
                         string.Empty,
                         UnsyncableReason.UnknownShape,
-                        $"no shape definition covers saves/{system}/, so nothing under it is read",
+                        $"no shape definition covers saves/{system}/, so nothing under it is read "
+                            + "except any save states, which are found from es_savestates.cfg instead",
                         files);
                 }
 

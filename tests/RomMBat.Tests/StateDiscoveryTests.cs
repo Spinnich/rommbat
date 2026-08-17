@@ -341,6 +341,27 @@ public class StateDiscoveryTests
     }
 
     [Fact]
+    public void A_system_with_no_shape_at_all_still_has_its_states_excluded_from_the_count()
+    {
+        // Taken from a real install: saves/ports/ holds 2048.srm beside
+        // libretro.2048/2048.state1 and its screenshot. `ports` has no entry in
+        // save_shapes.json, so the whole system lands in the unknown-shape branch, and
+        // counting all three said three files were ignored while two of them were going up.
+        // State discovery is driven by es_savestates.cfg, so it does not need a save shape.
+        using var tree = StateTree.Create();
+        tree.AddState("ports", "2048.srm", "a battery save");
+        tree.AddState("ports/libretro.2048", "2048.state1", "a state");
+        tree.AddState("ports/libretro.2048", "2048.state1.png", "a screenshot");
+
+        tree.ScanSaves();
+
+        var reported = Assert.Single(tree.Store.Unsyncable.List());
+
+        Assert.Equal(UnsyncableReason.UnknownShape, reported.Reason);
+        Assert.Equal(1, reported.FileCount);
+    }
+
+    [Fact]
     public void Without_the_schema_a_state_directory_is_counted_the_way_it_used_to_be()
     {
         // No es_savestates.cfg means nothing under a state directory is being synced either,
