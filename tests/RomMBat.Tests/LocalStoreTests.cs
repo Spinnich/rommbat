@@ -31,6 +31,8 @@ public class LocalStoreTests
         "save_slot",
         "launch_cursor",
         "unsyncable",
+        "local_state",
+        "save_conflict",
     ];
 
     /// <summary>
@@ -52,6 +54,11 @@ public class LocalStoreTests
         ("content_download", "target_path", "roms/snes/Gradius 2 (Japan, Europe) (En).zip"),
         ("local_save", "relative_path", "saves/saturn/Battle Garegga (Japan).bcr"),
         ("local_save", "rom_relative_path", "roms/saturn/Battle Garegga (Japan).chd"),
+        ("local_state", "relative_path", "saves/snes/libretro.snes9x/ActRaiser (USA).state1"),
+        ("local_state", "rom_relative_path", "roms/snes/ActRaiser (USA).zip"),
+        ("local_state", "screenshot_path", "saves/snes/libretro.snes9x/ActRaiser (USA).state1.png"),
+        ("save_conflict", "local_path", "saves/snes/ActRaiser (USA).srm"),
+        ("save_conflict", "local_copy_path", "emulators/rommbat/replaced/20260817T120000-ActRaiser (USA).srm"),
     ];
 
     /// <summary>
@@ -77,6 +84,8 @@ public class LocalStoreTests
         ("local_save", "emulator"),
         ("outbox", "emulator"),
         ("unsyncable", "system"),
+        ("local_state", "system"),
+        ("local_state", "emulator"),
     ];
 
     [Fact]
@@ -574,6 +583,36 @@ public class LocalStoreTests
                     + "VALUES ('saves/saturn/' || abs(random()) || '.bcr', 'saturn', 'libretro', 'A', "
                     + "'libretro:battery:bcr', $path, '2026-01-01T00:00:00Z');",
 
+            // Three path columns on one table, so the two not under test carry valid values and
+            // relative_path is randomised where it is not the one being probed.
+            "local_state" => column switch
+            {
+                "relative_path" =>
+                    "INSERT INTO local_state (relative_path, system, emulator, slot, scanned_at_utc) "
+                        + "VALUES ($path, 'snes', 'libretro', 'libretro:snes9x:1', '2026-01-01T00:00:00Z');",
+                "rom_relative_path" =>
+                    "INSERT INTO local_state (relative_path, system, emulator, slot, "
+                        + "rom_relative_path, scanned_at_utc) "
+                        + "VALUES ('saves/snes/libretro.snes9x/' || abs(random()) || '.state1', 'snes', "
+                        + "'libretro', 'libretro:snes9x:1', $path, '2026-01-01T00:00:00Z');",
+                _ =>
+                    "INSERT INTO local_state (relative_path, system, emulator, slot, "
+                        + "screenshot_path, scanned_at_utc) "
+                        + "VALUES ('saves/snes/libretro.snes9x/' || abs(random()) || '.state1', 'snes', "
+                        + "'libretro', 'libretro:snes9x:1', $path, '2026-01-01T00:00:00Z');",
+            },
+
+            // local_copy_path points into emulators/rommbat/replaced/ rather than under saves/,
+            // so unlike local_state's columns it carries no subtree CHECK.
+            "save_conflict" => column == "local_path"
+                ? "INSERT INTO save_conflict (rom_id, slot, local_path, first_seen_at_utc, last_seen_at_utc) "
+                    + "VALUES (abs(random()), 'libretro:battery', $path, '2026-01-01T00:00:00Z', "
+                    + "'2026-01-01T00:00:00Z');"
+                : "INSERT INTO save_conflict (rom_id, slot, local_path, local_copy_path, "
+                    + "first_seen_at_utc, last_seen_at_utc) "
+                    + "VALUES (abs(random()), 'libretro:battery', 'saves/snes/Game.srm', $path, "
+                    + "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');",
+
             // The other path column has to carry a valid value, or a rejected insert could not
             // be attributed to the column under test.
             "content_download" => column == "part_path"
@@ -680,6 +719,22 @@ public class LocalStoreTests
                 INSERT INTO unsyncable (system, emulator, reason_kind, detail, observed_at_utc)
                 VALUES ($name, 'rpcs3', 'not_in_this_version', 'directory saves land in stage 2',
                         '2026-01-01T00:00:00Z');
+                """,
+            ("local_state", "system") =>
+                """
+                INSERT INTO local_state (relative_path, system, emulator, slot, scanned_at_utc)
+                VALUES ('saves/snes/libretro.snes9x/' || abs(random()) || '.state1', $name,
+                        'libretro', 'libretro:snes9x:1', '2026-01-01T00:00:00Z');
+                """,
+
+            // Measured live: the server writes `emulator` into the stored state's file_path as
+            // a directory segment and does not sanitise it, so a value carrying a separator
+            // becomes two segments there. The client refuses it before that can happen.
+            ("local_state", "emulator") =>
+                """
+                INSERT INTO local_state (relative_path, system, emulator, slot, scanned_at_utc)
+                VALUES ('saves/snes/libretro.snes9x/' || abs(random()) || '.state1', 'snes',
+                        $name, 'libretro:snes9x:1', '2026-01-01T00:00:00Z');
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };

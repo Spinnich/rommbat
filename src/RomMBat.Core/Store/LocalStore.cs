@@ -46,8 +46,10 @@ public sealed class LocalStore : IDisposable
         Journal = new JournalStore(connection, this);
         LaunchCursor = new LaunchCursorStore(connection);
         Saves = new LocalSaveStore(connection);
+        States = new LocalStateStore(connection);
         Unsyncable = new UnsyncableStore(connection);
         SaveSlots = new SaveSlotStore(connection);
+        SaveConflicts = new SaveConflictStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -84,11 +86,17 @@ public sealed class LocalStore : IDisposable
     /// <summary>What is under saves/, and whether each has ever reached the server.</summary>
     public LocalSaveStore Saves { get; }
 
+    /// <summary>Save states, which are tracked locally because they never negotiate.</summary>
+    public LocalStateStore States { get; }
+
     /// <summary>What RomMBat found under saves/ and is not syncing, with the reason.</summary>
     public UnsyncableStore Unsyncable { get; }
 
     /// <summary>The server-side identity of each (rom_id, slot).</summary>
     public SaveSlotStore SaveSlots { get; }
+
+    /// <summary>Slots where both sides moved, which outlive the flush that found them.</summary>
+    public SaveConflictStore SaveConflicts { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }
