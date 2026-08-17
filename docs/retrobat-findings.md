@@ -2043,6 +2043,35 @@ branch, so F1, F2, F3, F6 and F12 remain the authority for server behaviour.
 
 ---
 
+## Measured during M6 stage 2a
+
+Server-side only. The only probe authorised for this branch was against the live RomM instance
+in `DEVELOPER_SETUP.md`; **nothing read or wrote a RetroBat install**, so every RetroBat fact
+this stage builds on is inherited from probe 2 above rather than re-taken. Probe artifacts are
+under `probe-output/m6s2-*.txt`, which is gitignored; the durable half is checked in as tests.
+
+| #   | Previously                                                                     | Measurement says                                                                                                                                                                                                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 126 | `POST /api/states` had never been called from this repo (plan M6)              | **It is an upsert, not an append.** Three posts of one `file_name` reused one row (id 115) across two different payloads. So there is no slot history to prune, no `autocleanup` to ask for, and a replayed flush is idempotent for free. `PUT /api/states/{id}` works and is unnecessary                                             |
+| 127 | The `emulator` distinguishes one state from another (plan M6, by implication)  | **It does not. The key is `(rom_id, file_name)` and nothing else.** Five posts of one name under `libretro`, `bizhawk`, `libretro.snes9x`, `libretro.bsnes` and `libretro/evil` all reused id 119, overwriting the row's emulator and moving its stored file between directories each time                                            |
+| 128 | (not addressed) whether a bracketed tag separates two states                   | **It does.** `TagProbe [libretro.snes9x].state1` and `TagProbe [libretro.bsnes].state1` produced ids 121 and 122. So the key is the whole `file_name`, not `file_name_no_tags`, and scoping the uploaded name is a working fix for 127                                                                                                |
+| 129 | A state has a `slot` and a `content_hash` (plan M6, by implication)            | **Neither exists**, in the pinned schema or in the live response. `{emulator}:{core}:{slot}` is therefore a local identity only, and "is this state in step" is answerable only from a hash the device recorded itself                                                                                                                |
+| 130 | The server renames an upload (F6, for saves)                                   | **Not for states.** A save came back `Probe Save [2026-08-17_12-27-44].srm`; a state came back exactly as sent. `file_name_no_tags` is still computed, and strips `(USA)` out of a real ROM name, so it is not a way to recover the name that was sent                                                                                |
+| 131 | (not addressed) what a zero-byte `screenshotFile` does                         | **Accepted and stored as a real screenshot row** (id 151, `file_size_bytes: 0`). Since RetroBat's mirror races the emulator writing the image and a zero-byte result was measured across three saves of one game, the client has to suppress it, because nothing downstream does                                                      |
+| 132 | Two open download cases turn on whether negotiate volunteers slots (plan M6)   | **It never does, so both cases resolve negatively.** A device with a save on the server negotiated an **empty** `saves` array and got `operations: []`; negotiating one unrelated slot returned exactly that slot. Negotiate is client-driven over the set the client names, so a fresh device cannot discover its saves through it   |
+| 133 | (not addressed) whether `emulator` is sanitised server-side                    | **It is not.** `libretro/evil` was accepted and became two path segments in the stored state's `file_path`. Worth reporting upstream. RomMBat's own schema refuses a separator in that column, so it cannot send one                                                                                                                  |
+
+**Not measured, and named rather than left to read as done.** The cost of spawning the agent
+from the hook, which `docs/PLAN.md` assigned to stage 2 by name: taking it means replacing a
+binary on a real install and launching a game, and that was not authorised here. Whether
+`{{slot}}` renders as an empty string at libretro slot zero: the parser accepts zero digits and
+maps them to slot 0, so it is correct either way, but the question itself is unanswered.
+`bigpemu` remains the one emulator of thirteen never driven to a real state, so its template is
+still unverified. And no platform was certified, because that needs a human to start
+EmulationStation.
+
+---
+
 ## Still outstanding overall
 
 All seven probes are answered. Four items are left, and each is blocked on hardware or an

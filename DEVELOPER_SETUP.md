@@ -294,6 +294,10 @@ dotnet run --project src/RomMBat.Agent -- hooks install --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- saves --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
+
+# Picking a side once a slot has conflicted. There is no default side.
+dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-local
+dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-server
 ```
 
 `sync` installs the hooks on its first run and flushes before anything else it does, so none
@@ -319,8 +323,19 @@ invoking the agent themselves needs measuring inside the game-launch path and is
 
 `flush` is the only command that needs the lock. Draining the spool, correlating play sessions
 and rescanning saves all work with the server unreachable, so `--offline` is a real mode rather
-than a dry run. `saves` is the report of what is on disk, what has gone up, and what cannot go
-up and why.
+than a dry run. `saves` is the report of what is on disk, what has gone up, what cannot go up
+and why, and what is waiting on a decision.
+
+**Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
+conflict detection, so there is nothing to negotiate: a state goes up when its content changes
+and never comes back down. The uploaded name is not the name on disk. It carries the emulator
+and core, because the server keys a state on `(rom_id, file_name)` alone and two libretro cores
+writing one filename for one game would otherwise become one row with the second silently
+winning.
+
+**A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
+`--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
+the dated copy under `emulators/rommbat/replaced/` once the slot is back in step.
 
 **Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
 opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against

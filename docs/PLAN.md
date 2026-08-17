@@ -1511,25 +1511,35 @@ failing silently at launch, and BIOS is fetched before that platform's ROMs.
 The milestone with the most protocol nuance. Read `backend/endpoints/sync.py` and
 `backend/endpoints/saves.py` before writing code.
 
-**M6 ships in two stages, cut at the save-class boundary.** M1 through M5 were each one PR;
-this section is four independent pieces and the one milestone where a missed detail loses a
-save rather than a download, so it is split into two review surfaces instead of one nobody
-can hold.
+**M6 ships in three stages.** M1 through M5 were each one PR; this section is four independent
+pieces and the one milestone where a missed detail loses a save rather than a download, so it
+is split into review surfaces small enough to hold. The first cut is at the save-class
+boundary. **The second cut, taken during stage 2, is at what each piece needs from Game-ID
+attribution**, because that is the only hard dependency among the remaining pieces.
 
-|                                                                       | Stage 1                                    | Stage 2             |
-| --------------------------------------------------------------------- | ------------------------------------------ | ------------------- |
-| Hooks, journal, lock file, `emulatorLauncher.log`                     | **yes**                                    |                     |
-| Play sessions, standalone ingest                                      | **yes**                                    |                     |
-| Class A and B saves, attributed by filename                           | **yes**                                    |                     |
-| Negotiate, upload, download, ack, complete, conflicts, atomic restore | **yes**                                    |                     |
-| The logical-content hash                                              | **yes**, defined for the general case      | inherited unchanged |
-| `SaveGuard`'s third question                                          | **yes**, for the classes stage 1 discovers | widened to C and D  |
-| Save states, all 13 emulators                                         |                                            | yes                 |
-| Class C bundling                                                      |                                            | yes                 |
-| Class D conversion and the `es_settings.cfg` writer                   |                                            | yes                 |
-| Game-ID attribution, journal correlation and ROM header               |                                            | yes                 |
+|                                                                       | Stage 2a                                   | Stage 2b            | Stage 2c |
+| --------------------------------------------------------------------- | ------------------------------------------ | ------------------- | -------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                     | stage 1                                    |                     |          |
+| Play sessions, standalone ingest                                      | stage 1                                    |                     |          |
+| Class A and B saves, attributed by filename                           | stage 1                                    |                     |          |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore | stage 1                                    |                     |          |
+| The logical-content hash                                              | stage 1, defined for the general case      | inherited unchanged |          |
+| Save states, all 13 emulators                                         | **yes**                                    |                     |          |
+| Conflict resolution, `saves resolve`, pruning `replaced/`             | **yes**                                    |                     |          |
+| `SaveGuard`, widened to save states                                   | **yes**                                    | widened to C        | to D     |
+| Game-ID attribution, journal correlation and ROM header               |                                            | yes                 |          |
+| Class C bundling and `outbox.batch_key`'s writer                      |                                            | yes                 |          |
+| Class D conversion and the `es_settings.cfg` writer                   |                                            |                     | yes      |
 
-The cut is at the class boundary rather than at the local/network boundary because that is
+**Why states go first and alone.** A save state needs no Game-ID attribution at all: every
+`<file>` template in `es_savestates.cfg` is keyed on `{{romfilename}}`, and all twelve emulators
+driven on a real install wrote the name their template predicted, so a state resolves through
+the same `(folder, stem)` index a class A battery save does. Every other remaining piece is
+gated on attribution, so states are the only one that can land without it. Conflict resolution
+rides with them because it touches stage 1's code and nothing stage 2 adds, so the two surfaces
+do not interact.
+
+The first cut is at the class boundary rather than at the local/network boundary because that is
 the only split where stage 1 is provably correct end to end: a local-then-network cut defers
 every server-side surprise past a whole review cycle and leaves the offline simulation, the
 suite this plan calls its highest value, with nothing to flush.
@@ -1537,6 +1547,12 @@ suite this plan calls its highest value, with nothing to flush.
 **Stage 1 satisfies the offline half of "done when" and not the breadth half.** Three games
 played unplugged, one flush, and a newer save returning as a conflict are all provable on
 class A. "One game from each save shape" is stage 2 by construction.
+
+**Stage 2a adds two of the four shapes the "done when" names and the sentence it ends on.** A
+PCSX2 save state with its screenshot is provable here, and so is "a conflict **the user
+resolves**", which stage 1 could detect and had no way to settle. The PPSSPP `SAVEDATA/`
+directory is 2b and the converted PS2 memory card is 2c, so **M6 is not claimable as done until
+2c lands**.
 
 **What stage 1 does with the classes it does not ship is report them, not ignore them.**
 Everything class C, class D and every save state is recorded as unsyncable with a reason, so
@@ -1659,6 +1675,12 @@ mitigation and not an answer.
   game-launch path, where the cost of starting an 11 MB process has to be measured before it
   is added, not assumed. Stage 2 owns that measurement.
 
+  **Still not measured after M6 stage 2a, and the reason is permission rather than oversight.**
+  Taking it means replacing the hook binary on the real install and launching a game, which is a
+  write into the user's RetroBat tree; that was not authorised for this branch. So the trigger
+  set is unchanged, `sync` and a typed `flush` are still the whole of it, and this measurement
+  moves to whichever stage next has permission to write into a real install.
+
 - **Hook installation happens on the first `sync`, announced, and `hooks uninstall` reverses
   it.** The opt-in rule that governs class D exists because flipping a memory card mode
   changes where an emulator writes and strands the saves already there. Installing a hook
@@ -1725,6 +1747,25 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   and nothing is discarded. The upload with `overwrite=true` belongs to the resolution command
   that picks a side, tracked in issue #31, which is also where pruning `replaced/` lives.
 
+  **Amended after M6 stage 2a: the resolution command exists, and it is the only caller of
+  `overwrite=true` anywhere in this codebase.** `saves resolve <rom> <slot> --keep-local |
+  --keep-server` is the seam M7's UI binds to. There is deliberately **no default side**: either
+  default silently discards somebody's progress, and the whole reason a conflict exists is that
+  RomMBat cannot tell which side matters.
+
+  `--keep-local` retries the upload with `overwrite=true`, which replaces the row in the slot
+  rather than appending beside it. A 409 that survives the overwrite means the slot moved again
+  between the report the user read and the choice they made, so it is reported rather than
+  forced. `--keep-server` runs the same verified atomic restore an ordinary download does and
+  acks only after the bytes are written and checked. Both then prune the copy under
+  `replaced/`, which is the first time anything in this codebase has been the "next successful
+  sync" the retention rule was always written against.
+
+  The conflict itself now lives in a `save_conflict` table rather than on an in-memory list, so
+  it survives the flush that found it, and the copy aside is taken **once per conflict rather
+  than once per flush**: a slot that conflicted and was never resolved used to gain one dated
+  file per run with nothing pruning them, which was #31's third complaint.
+
 - Download: `GET /api/saves/{id}/content?device_id=&session_id=`**`&optimistic=false`**, then
   `POST /api/saves/{id}/downloaded` with `{device_id}` **after the bytes are written and
   verified**, so the server records the sync only once the device really has the save.
@@ -1749,11 +1790,60 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   for slots the client did not submit, which this branch did not drive live. Until that is
   measured, neither is worth guessing at.
 
+  **Settled in M6 stage 2a, and settled negatively: negotiate never volunteers a slot the
+  client did not submit.** Driven live. A device with a save on the server for its own user
+  negotiated with an **empty** `saves` array and got back `operations: []`. The same device
+  negotiating with one unrelated slot got back exactly that one slot and not the one it already
+  held server-side. So negotiate is strictly client-driven full-state reconciliation over the
+  set the client names, and both open cases resolve the same way: **neither is reachable through
+  negotiate at all.**
+
+  Two consequences, and the second is a real functional gap rather than a closed question.
+  `SaveSlotStore.Map`'s fallback for a slot with no local file is unreachable from the negotiate
+  path, so it is dead there. And **a fresh device cannot discover the saves the server holds for
+  it**: restoring a library onto a new install needs a separate inventory pass over
+  `GET /api/saves?rom_id=` or `GET /api/saves/summary`, not a negotiate. That is not in M6's
+  "done when", which only asks for a conflict on a device that already holds the save, so it is
+  recorded here rather than built: it belongs with whichever stage owns first-run restore.
+
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
 - **States are not part of the negotiate protocol.** `POST /api/states` takes only
   `rom_id` and `emulator`, with no slot, device or conflict detection. Treat state sync as
   best-effort push, tracked locally, and say so in the UI.
+
+  **M6 stage 2a drove it, because nothing in this repo had ever called it. Five results, and
+  three of them change the client.**
+
+  - **It is an upsert, not an append.** Three posts of one `file_name` reused a single row
+    across two different payloads. So there is no slot history to prune, no `autocleanup` to
+    ask for, and a replayed flush is idempotent for free. `PUT /api/states/{id}` works and is
+    unnecessary.
+  - **The upsert key is `(rom_id, file_name)` and the emulator is not part of it.** Five posts
+    of one name under five different `emulator` values reused one row, overwriting the row's
+    emulator and moving its stored file between directories while the id stayed put. **Two
+    libretro cores writing one filename for one ROM therefore collapse into one server row and
+    the second silently wins**, and that is not hypothetical: `libretro` declares
+    `{{romfilename}}.state{{slot}}` while `gopher64` declares `{{romfilename}}.state{{slot0}}`,
+    which render identically for slots 1 to 9, and both serve `n64`. **So the uploaded name has
+    to carry the scope**, `<stem> [<emulator>[.<core>]]<ext>`, unconditionally rather than only
+    where a collision is possible: a conditional rule gives two devices two names for one state,
+    and two names is two rows. Two names differing only in a bracketed group were measured to
+    produce two rows, so the group really does separate them.
+  - **A state carries no `content_hash` and no `slot`**, confirmed in the live response as well
+    as in the pinned schema. So this plan's "derive the RomM `slot` as `{emulator}:{core}:{slot}`"
+    describes a **local** identity that never goes on the wire, and "does this state still need
+    sending" is answerable only from the hash the device recorded when it last sent one.
+  - **The server does not rename a state.** A save comes back tagged
+    `<name> [YYYY-MM-DD_HH-MM-SS]<ext>` and a state comes back exactly as sent.
+  - **A zero-byte `screenshotFile` is accepted and stored as a real screenshot row.** Given
+    RetroBat's mirror races the emulator writing the image and a zero-byte result was measured,
+    the client has to suppress the empty case, because nothing downstream will.
+
+  One thing worth reporting upstream rather than working around: **the `emulator` query
+  parameter is not sanitised.** It becomes a directory segment in the stored state's
+  `file_path`, and `libretro/evil` was accepted and became two segments. RomMBat's own schema
+  refuses a separator in that column, so it cannot send one.
 
 #### Saves come in four shapes, and RomM's model only fits one
 
@@ -1805,6 +1895,25 @@ systems.
 
 A commented-out `<core name="..." enabled="false"/>` mechanism ships disabled; the parser
 must tolerate `<core>` children appearing, since a user can enable them.
+
+**M6 stage 2a found that three of those four traps are only traps for a parser that expands a
+slot range**, and built the parser the other way round. Compiling `<file>` into an anchored
+expression and matching it against what is on disk reads the slot **off the filename**, so
+`libretro` declaring no bounds needs no invented default, `bigpemu`'s three-digit bounds against
+a two-digit `{{slot2d}}` need no reconciling, and whether `{{slot}}` renders empty at slot zero
+stops being a question the client has to answer in advance. Declared bounds become validation
+only. `desmume` still needs handling, because no reading of the file makes its `<image>` differ
+from its `<file>`.
+
+The same reversal applies to `<directory>`: matching the template against directories that
+exist recovers the system and the core from the tree, which is the only reading that does not
+invent an emulator out of a directory name given that neither level of the save tree is
+positional.
+
+**The slot placeholder's width is load-bearing, not cosmetic.** `{{slot0}}` compiles to exactly
+one digit, `{{slot2d}}` to exactly two. DeSmuME declares `{{romfilename}}.ds{{slot0}}` and writes
+its **battery** save as `{{romfilename}}.dsv` in the same tree, so a one-character wildcard takes
+the battery save for slot "v" and uploads it as a save state.
 
 **Battery and internal saves are the hard half.** Classify each platform, store it in
 `data/retrobat/save_shapes.json` next to the save-directory map, and handle per class:
