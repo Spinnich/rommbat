@@ -2287,8 +2287,11 @@ must report itself unsyncable with an explanation rather than appearing to work.
   recommendation to use exFAT or NTFS for any library containing disc images.
 - README, getting-started guide, wombat mascot, and a compatibility table of tested
   RetroBat versions.
-- Once it works, open a PR against `rommapp/romm` adding it to the Community section of
-  the README, and post in the RomM Discord `#community-projects`.
+
+**Announcing RomMBat upstream is not a milestone step and is not automatic.** Listing it in
+`rommapp/romm`'s README or posting it in the RomM Discord is a conversation to have with the
+RomM maintainers, on their timing, and it is Spinnich's to open. Nothing in this plan should
+be read as scheduling it.
 
 ---
 
@@ -2299,22 +2302,65 @@ building horizontally and start certifying platforms one by one. Two reasons thi
 big-bang approach: the most-used platforms get correct first, and each platform surfaces
 its own edge cases in isolation instead of as a pile of intermixed bugs late on.
 
-Certify **per RetroBat system**, not per aggregate. "RetroArch works" is not a claim
-anything can be verified against, because each libretro core has its own save naming,
-state directory (`{{system}}/libretro.{{core}}`) and BIOS needs.
+**The certification unit is `(system, emulator, core)`, not the system.** An earlier revision
+of this plan said "per RetroBat system, not per aggregate", which was right about the aggregate
+and wrong about the unit. Two emulators for one system do not behave alike, and the repository's
+own measurements are the evidence:
 
-**Per-platform certification checklist**, one pass each, recorded in
-`docs/platforms/<system>.md`:
+- **The save shape is a property of `(system, emulator)`.** `psx` under libretro writes plain
+  `saves/psx/*.srm` and is class A; `psx` under DuckStation writes a memory card named from an
+  internal database title and needs Game-ID attribution. `save_shapes.json` carries a
+  `DependsOnEmulator` flag for exactly this.
+- **The state directory and filename are per emulator**, and `es_savestates.cfg` declares
+  thirteen different ones. Two of the thirteen declare a directory the emulator does not write
+  to, and which two is not derivable from the system.
+- **libretro and bizhawk are core-scoped**, `{{system}}/libretro.{{core}}` and
+  `{{system}}/bizhawk/sstates/{{core}}`, so the same game under two cores has independent state
+  sets. That is what makes the third element of the triple necessary rather than tidy.
+- **BIOS requirements move with the emulator too**, since `batocera-systems.json` keys firmware
+  on the system while the emulator decides which of it is actually consulted.
+
+So "snes is certified" is not a claim either. "`snes` under `libretro`/`snes9x` is certified" is,
+and it says nothing about `snes` under `bizhawk`. **This multiplies the rollout table below by
+roughly two to four**, and the honest reading is that the table names the systems to work
+through, not the number of passes.
+
+**Certification checklist**, one pass per `(system, emulator, core)`, recorded in
+`docs/platforms/<system>.md` with a section per emulator:
 
 1. Folder mapping resolves, and by which layer.
 2. `<extension>` list captured; a known-unsupported file is correctly excluded.
 3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
-4. Save shape classified (A/B/C/D) and battery save round-trips.
-5. Save state round-trips including its screenshot, per `es_savestates.cfg`.
+4. Save shape classified (A/B/C/D) **for this emulator** and battery save round-trips.
+5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
+   entry, and the declared directory is confirmed to be where the emulator really writes.
 6. Where class D applies, the per-game memory card option is verified.
 7. A game launches from ES after sync, with art and metadata.
 8. Play session recorded and reaches RomM.
 9. Re-sync is a clean no-op.
+
+Steps 1, 2, 3, 7, 8 and 9 are largely per system; **steps 4, 5 and 6 are the per-emulator
+ones**, and they are also the three where being wrong destroys data rather than costing a
+re-download.
+
+**When this happens.** The full checklist needs a human at the machine for every pass, so the
+wave rollout below **starts after M7**, when the gamepad UI makes the loop something other than
+alt-tabbing to a terminal between launches, and finishes against an M8 package, which is what a
+user would actually install.
+
+**One thing does not wait, and should not.** Steps 4, 5 and 6 are the data-loss steps, and M6
+ships them across three PRs. A save shape that has never had a real emulator write into it is an
+unverified claim no matter how good the tests are, and a fault found at M8 is a fault in code
+written milestones earlier. So each M6 stage owes **one** hands-on pass, not a certification: one
+game, one emulator, one real save or state of the shape that stage added, driven through ES and
+back. That is minutes rather than a wave, and it is the difference between "the tests pass" and
+"an emulator wrote this and RomMBat handled it".
+
+| M6 stage | The one shape to exercise by hand                                     |
+| -------- | --------------------------------------------------------------------- |
+| 2a       | A save state with its screenshot, ideally PCSX2 and one libretro core |
+| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       |
+| 2c       | A PS2 battery save after opting that game into a per-game memory card |
 
 **Suggested order**, 2nd through 6th generation consoles, which is where the usage is and
 where the save shapes stay tractable:
@@ -2590,9 +2636,10 @@ Paste this into Claude Code from an empty directory:
 > the outbox and relative-path rule) and M2 (paged catalog browsing and sync-set
 > resolution). Once M1 through M6 work end to end on one platform, stop building
 > horizontally and certify platforms one at a time against the checklist, starting with
-> `nes`/`snes`/`gb`/`gbc`/`gba`/`megadrive`/`mastersystem`. Certify per RetroBat system,
-> not per aggregate: "RetroArch works" is unverifiable, since each libretro core has its
-> own save naming, state directory and BIOS needs.
+> `nes`/`snes`/`gb`/`gbc`/`gba`/`megadrive`/`mastersystem`. Certify per
+> `(system, emulator, core)`, never per system alone and never per aggregate: two emulators
+> for one console differ on save shape, state directory and BIOS needs, and `libretro` and
+> `bizhawk` are core-scoped on top of that.
 >
 > Mine these for prior art rather than starting cold: `rommapp/playnite-plugin`
 > (`Models/RomM/*` for C# DTOs, `Downloads/DownloadQueueController.cs` for the queue),
