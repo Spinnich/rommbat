@@ -27,17 +27,31 @@ public class LocalStoreTests
         "content_download",
         "setting",
         "rom_metadata",
+        "local_save",
+        "save_slot",
+        "launch_cursor",
+        "unsyncable",
     ];
 
-    /// <summary>Every column the "no absolute path" rule has to cover.</summary>
-    private static readonly (string Table, string Column)[] PathColumns =
+    /// <summary>
+    /// Every column the "no absolute path" rule has to cover, with a value it must accept.
+    /// </summary>
+    /// <remarks>
+    /// The accepted value is per column rather than shared because two columns carry a second
+    /// CHECK pinning them to one subtree, the way 005 pinned firmware under <c>bios/</c>: a
+    /// <c>local_save</c> row has to be under <c>saves/</c>, so a ROM path is correctly refused
+    /// there and would make a shared example prove the wrong thing.
+    /// </remarks>
+    private static readonly (string Table, string Column, string Accepted)[] PathColumns =
     [
-        ("local_file", "relative_path"),
-        ("outbox", "relative_path"),
-        ("journal", "rom_relative_path"),
-        ("game_id_binding", "rom_relative_path"),
-        ("content_download", "part_path"),
-        ("content_download", "target_path"),
+        ("local_file", "relative_path", "roms/snes/Gradius 2 (Japan, Europe) (En).zip"),
+        ("outbox", "relative_path", "saves/snes/ActRaiser (USA).srm"),
+        ("journal", "rom_relative_path", "roms/snes/Gradius 2 (Japan, Europe) (En).zip"),
+        ("game_id_binding", "rom_relative_path", "roms/dreamcast/Bangai-O (USA).chd"),
+        ("content_download", "part_path", "emulators/rommbat/partial/1.part"),
+        ("content_download", "target_path", "roms/snes/Gradius 2 (Japan, Europe) (En).zip"),
+        ("local_save", "relative_path", "saves/saturn/Battle Garegga (Japan).bcr"),
+        ("local_save", "rom_relative_path", "roms/saturn/Battle Garegga (Japan).chd"),
     ];
 
     /// <summary>
@@ -59,6 +73,10 @@ public class LocalStoreTests
         ("local_file", "file_name"),
         ("rom_metadata", "folder"),
         ("rom_metadata", "fs_name"),
+        ("local_save", "system"),
+        ("local_save", "emulator"),
+        ("outbox", "emulator"),
+        ("unsyncable", "system"),
     ];
 
     [Fact]
@@ -142,7 +160,7 @@ public class LocalStoreTests
 
         Assert.False(RelativePath.TryCreate(value, out _));
 
-        foreach (var (table, column) in PathColumns)
+        foreach (var (table, column, _) in PathColumns)
         {
             var exception = Record.Exception(() => InsertPath(store, table, column, value));
 
@@ -158,10 +176,26 @@ public class LocalStoreTests
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
 
-        foreach (var (table, column) in PathColumns)
+        foreach (var (table, column, accepted) in PathColumns)
         {
-            InsertPath(store, table, column, "roms/snes/Gradius 2 (Japan, Europe) (En).zip");
+            InsertPath(store, table, column, accepted);
         }
+    }
+
+    [Theory]
+    [InlineData("roms/snes/Game.sfc")]
+    [InlineData("emulators/rommbat/rommbat.db")]
+    [InlineData("bios/scph5501.bin")]
+    public void A_save_row_is_refused_a_path_outside_the_saves_tree(string value)
+    {
+        // The same discipline 005 landed for firmware under bios/. A shape definition that
+        // named the wrong directory would otherwise have RomMBat treating a ROM as a save and,
+        // worse, restoring over it.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        Assert.True(RelativePath.TryCreate(value, out _));
+        Assert.Throws<SqliteException>(() => InsertPath(store, "local_save", "relative_path", value));
     }
 
     [Theory]
@@ -242,6 +276,12 @@ public class LocalStoreTests
                 VALUES ('roms/gb/Tetris (World).zip', 'gb', 42, 'Tetris (World).zip', 4105,
                         'fab05f70b7e480d9dee494f65b95ab52', 'adopted');
 
+                INSERT INTO outbox (local_sequence, kind, rom_id, slot, relative_path, content_hash,
+                                    size_bytes, file_mtime_utc, recorded_at_utc)
+                VALUES (3, 'save', 42, 'libretro:battery:srm', 'saves/gb/Tetris (World).srm',
+                        'fab05f70b7e480d9dee494f65b95ab52', 8192, '2026-01-01T00:00:00Z',
+                        '2026-01-01T00:00:00Z');
+
                 PRAGMA user_version = 1;
                 """);
         }
@@ -268,6 +308,17 @@ public class LocalStoreTests
         Assert.Equal("fab05f70b7e480d9dee494f65b95ab52", file.Md5Hash);
         Assert.Equal(FileOrigin.Adopted, file.Origin);
         Assert.Equal(HashScope.File, file.HashScope);
+
+        // 006 rebuilds outbox to put a CHECK on the emulator column it adds, so a queued save
+        // written by an earlier build has to survive the copy with its sequence intact. Losing
+        // one here is losing someone's save.
+        var queued = Assert.Single(store.Outbox.Pending());
+        Assert.Equal(3, queued.LocalSequence);
+        Assert.Equal(42, queued.RomId);
+        Assert.Equal("libretro:battery:srm", queued.Slot);
+        Assert.Equal("saves/gb/Tetris (World).srm", queued.RelativePath?.Value);
+        Assert.Null(queued.Emulator);
+        Assert.Null(queued.BatchKey);
     }
 
     [Fact]
@@ -282,6 +333,10 @@ public class LocalStoreTests
         InsertName(store, "sync_set", "folder_override", "fbneo");
         InsertName(store, "local_file", "folder", "megadrive");
         InsertName(store, "local_file", "file_name", "Gradius 2 (Japan, Europe) (En).zip");
+        InsertName(store, "local_save", "system", "megacd");
+        InsertName(store, "local_save", "emulator", "libretro.genesis_plus_gx");
+        InsertName(store, "outbox", "emulator", "libretro");
+        InsertName(store, "unsyncable", "system", "ps3");
     }
 
     [Fact]
@@ -507,7 +562,17 @@ public class LocalStoreTests
                     + "VALUES ((SELECT COALESCE(MAX(local_sequence), 0) + 1 FROM journal), 'game-end', $path, '2026-01-01T00:00:00Z');",
             "game_id_binding" =>
                 $"INSERT INTO game_id_binding (system, game_id, {column}, learned_from, learned_at) "
-                    + "VALUES ('dreamcast', $path, $path, 'journal', '2026-01-01T00:00:00Z');",
+                    + "VALUES ('dreamcast', 'id-' || abs(random()), $path, 'journal', '2026-01-01T00:00:00Z');",
+
+            // The other path column carries a valid value for the same reason content_download
+            // does, and relative_path is UNIQUE, so the fixed one is randomised.
+            "local_save" => column == "relative_path"
+                ? "INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, scanned_at_utc) "
+                    + "VALUES ($path, 'saturn', 'libretro', 'A', 'libretro:battery:bcr', '2026-01-01T00:00:00Z');"
+                : "INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, "
+                    + "rom_relative_path, scanned_at_utc) "
+                    + "VALUES ('saves/saturn/' || abs(random()) || '.bcr', 'saturn', 'libretro', 'A', "
+                    + "'libretro:battery:bcr', $path, '2026-01-01T00:00:00Z');",
 
             // The other path column has to carry a valid value, or a rejected insert could not
             // be attributed to the column under test.
@@ -588,6 +653,33 @@ public class LocalStoreTests
                 """
                 INSERT INTO rom_metadata (rom_id, folder, fs_name, name, fetched_at)
                 VALUES (abs(random()), 'snes', $name, 'Game', '2026-01-01T00:00:00Z');
+                """,
+            ("local_save", "system") =>
+                """
+                INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, scanned_at_utc)
+                VALUES ('saves/snes/' || abs(random()) || '.srm', $name, 'libretro', 'A',
+                        'libretro:battery:srm', '2026-01-01T00:00:00Z');
+                """,
+            ("local_save", "emulator") =>
+                """
+                INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, scanned_at_utc)
+                VALUES ('saves/snes/' || abs(random()) || '.srm', 'snes', $name, 'A',
+                        'libretro:battery:srm', '2026-01-01T00:00:00Z');
+                """,
+
+            // Whatever RomMBat sends as `emulator` becomes a directory segment in the stored
+            // save's server-side file_path, so it is a name and never a path.
+            ("outbox", "emulator") =>
+                """
+                INSERT INTO outbox (local_sequence, kind, emulator, recorded_at_utc)
+                VALUES ((SELECT COALESCE(MAX(local_sequence), 0) + 1 FROM outbox), 'save', $name,
+                        '2026-01-01T00:00:00Z');
+                """,
+            ("unsyncable", "system") =>
+                """
+                INSERT INTO unsyncable (system, emulator, reason_kind, detail, observed_at_utc)
+                VALUES ($name, 'rpcs3', 'not_in_this_version', 'directory saves land in stage 2',
+                        '2026-01-01T00:00:00Z');
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };

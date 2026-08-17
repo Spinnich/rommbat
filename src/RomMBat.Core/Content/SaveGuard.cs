@@ -18,25 +18,33 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// Refuses to evict a game whose local saves have not reached the server.
 /// </summary>
 /// <remarks>
-/// <b>This is M3 reaching into M6's territory on purpose, and it fails closed.</b> Saves,
-/// states and playtime are M6's, and nothing writes one yet, so the honest thing is to build
-/// the check against the seams that exist today and to refuse whenever it cannot answer.
-/// Deleting a ROM takes its save's only attribution with it, and that is not recoverable.
+/// <b>Written by M3 against the seams that existed then, and completed by M6.</b> Deleting a
+/// ROM takes its save's only attribution with it, and that is not recoverable, so every branch
+/// here fails closed.
 /// <para>
-/// Two seams exist today, and both are already declared in migration 001:
+/// Three questions, in the order they became answerable:
 /// </para>
 /// <list type="bullet">
 /// <item><c>outbox</c>: anything produced offline and not yet sent, keyed by ROM.</item>
 /// <item><c>journal</c>: what the ES hooks append, keyed by the ROM's path. An entry that is
 /// still <c>open</c> means a game was launched and nothing has yet worked out what it
 /// wrote.</item>
+/// <item><c>local_save</c>: <b>the third question, and the reason M3 shipped eviction with a
+/// mitigation instead of an answer.</b> A save file on disk whose <c>uploaded_content_hash</c>
+/// is null has never reached the server, and one whose hash no longer matches the file has
+/// changed since it did. Either way the bytes on disk are what would be lost.</item>
 /// </list>
 /// <para>
-/// <b>What M6 has to connect here.</b> When save shapes land, a game's save files become
-/// discoverable from its system and ROM name, and this check has to grow a third question:
-/// does a save file exist on disk that has never been uploaded. Until then a save produced
-/// while nothing was watching is invisible to this guard, which is why the plan records it and
-/// why eviction never touches a file RomMBat did not download.
+/// <b>The mitigation stays and is no longer load-bearing.</b> Eviction still never touches a
+/// file RomMBat did not download, but the gap that rule was covering, a save produced while
+/// nothing was watching, is now visible to this guard directly.
+/// </para>
+/// <para>
+/// <b>The answer is only as wide as discovery.</b> Stage 1 discovers class A and B, so a
+/// class C or D save is still invisible here. Those are reported as unsyncable rather than
+/// silently ignored, and a ROM carrying one is a case this guard cannot yet see; the honest
+/// statement is that the seam is closed for what this build syncs and stays open for what it
+/// does not.
 /// </para>
 /// </remarks>
 public sealed class SaveGuard
@@ -70,6 +78,12 @@ public sealed class SaveGuard
                     "this game was launched and what it wrote has not been worked out yet.");
             }
 
+            if (CountUnsentSaves(romId) is var unsentSaves && unsentSaves > 0)
+            {
+                return SaveGuardVerdict.Refuse(
+                    $"{unsentSaves} save file for this game on disk has not reached the server yet.");
+            }
+
             return SaveGuardVerdict.Allowed;
         }
         catch (SqliteException ex)
@@ -86,6 +100,30 @@ public sealed class SaveGuard
     {
         using var command = _store.Connection
             .Command("SELECT COUNT(*) FROM outbox WHERE rom_id = $romId AND state <> 'sent';")
+            .With("$romId", romId);
+
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Save files on disk that have never gone up, or have changed since they did.
+    /// </summary>
+    /// <remarks>
+    /// A save whose content hash could not be taken, because a running emulator held the file,
+    /// is stored with a null hash and counts here. That is the fail-closed direction: refusing
+    /// to evict a game that is very likely running is the correct outcome anyway.
+    /// </remarks>
+    private int CountUnsentSaves(int romId)
+    {
+        using var command = _store.Connection.Command(
+            """
+            SELECT COUNT(*)
+            FROM local_save
+            WHERE rom_id = $romId
+              AND (uploaded_content_hash IS NULL
+                   OR content_hash IS NULL
+                   OR uploaded_content_hash <> content_hash);
+            """)
             .With("$romId", romId);
 
         return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);

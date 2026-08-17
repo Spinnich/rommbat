@@ -29,12 +29,23 @@ public enum OutboxState
 /// The file's <b>real</b> mtime, never the sync time. Coarse on FAT and exFAT (2 seconds,
 /// rounded up), which is why <paramref name="ContentHash"/> is the primary comparison.
 /// </param>
+/// <param name="Emulator">
+/// Carried rather than re-derived from the slot at flush time, because the server writes it
+/// into the stored save's <c>file_path</c> as a directory segment.
+/// </param>
+/// <param name="BatchKey">
+/// Ties the rows of one logical save together. Class B takes one slot per file, so saturn's
+/// <c>.bcr</c> and <c>.bkr</c> are two entries describing one save and a flush that lands one
+/// and fails the other has to report that rather than two independent successes.
+/// </param>
 public sealed record OutboxEntry(
     long Id,
     long LocalSequence,
     OutboxKind Kind,
     long? RomId,
     string? Slot,
+    string? Emulator,
+    string? BatchKey,
     RelativePath? RelativePath,
     string? ContentHash,
     long? SizeBytes,
@@ -71,6 +82,8 @@ public sealed class OutboxStore
         DateTimeOffset recordedAt,
         long? romId = null,
         string? slot = null,
+        string? emulator = null,
+        string? batchKey = null,
         RelativePath? relativePath = null,
         string? contentHash = null,
         long? sizeBytes = null,
@@ -81,14 +94,18 @@ public sealed class OutboxStore
 
         using var command = _connection.Command(
             """
-            INSERT INTO outbox (local_sequence, kind, rom_id, slot, relative_path, content_hash,
-                                size_bytes, file_mtime_utc, recorded_at_utc, payload)
-            VALUES ($sequence, $kind, $romId, $slot, $path, $hash, $size, $mtime, $recordedAt, $payload);
+            INSERT INTO outbox (local_sequence, kind, rom_id, slot, emulator, batch_key,
+                                relative_path, content_hash, size_bytes, file_mtime_utc,
+                                recorded_at_utc, payload)
+            VALUES ($sequence, $kind, $romId, $slot, $emulator, $batchKey, $path, $hash, $size,
+                    $mtime, $recordedAt, $payload);
             """)
             .With("$sequence", sequence)
             .With("$kind", ToText(kind))
             .With("$romId", SqliteValues.OrNull(romId))
             .With("$slot", SqliteValues.OrNull(slot))
+            .With("$emulator", SqliteValues.OrNull(emulator))
+            .With("$batchKey", SqliteValues.OrNull(batchKey))
             .With("$path", relativePath.HasValue ? relativePath.Value.Value : DBNull.Value)
             .With("$hash", SqliteValues.OrNull(contentHash))
             .With("$size", SqliteValues.OrNull(sizeBytes))
@@ -108,24 +125,32 @@ public sealed class OutboxStore
     }
 
     /// <summary>The oldest pending entries, in sequence order.</summary>
-    public IReadOnlyList<OutboxEntry> Pending(int limit = 100)
+    /// <param name="kind">Restricts to one kind, so playtime can flush without saves.</param>
+    /// <remarks>
+    /// <c>POST /api/play-sessions</c> needs no open sync session, so an agent woken by
+    /// <c>game-end</c> with nothing to negotiate flushes playtime on its own rather than
+    /// opening a session it has no use for.
+    /// </remarks>
+    public IReadOnlyList<OutboxEntry> Pending(int limit = 100, OutboxKind? kind = null)
     {
         using var command = _connection.Command(
             """
-            SELECT id, local_sequence, kind, rom_id, slot, relative_path, content_hash, size_bytes,
-                   file_mtime_utc, recorded_at_utc, payload, state, attempts, last_error
+            SELECT id, local_sequence, kind, rom_id, slot, emulator, batch_key, relative_path,
+                   content_hash, size_bytes, file_mtime_utc, recorded_at_utc, payload, state,
+                   attempts, last_error
             FROM outbox
-            WHERE state = 'pending'
+            WHERE state = 'pending' AND ($kind IS NULL OR kind = $kind)
             ORDER BY local_sequence
             LIMIT $limit;
             """)
-            .With("$limit", limit);
+            .With("$limit", limit)
+            .With("$kind", kind is null ? DBNull.Value : ToText(kind.Value));
 
         using var reader = command.ExecuteReader();
         var entries = new List<OutboxEntry>();
         while (reader.Read())
         {
-            var pathText = reader.GetStringOrNull(5);
+            var pathText = reader.GetStringOrNull(7);
             RelativePath? path = pathText is not null && Paths.RelativePath.TryCreate(pathText, out var parsed)
                 ? parsed
                 : null;
@@ -136,15 +161,17 @@ public sealed class OutboxStore
                 ParseKind(reader.GetString(2)),
                 reader.GetInt64OrNull(3),
                 reader.GetStringOrNull(4),
-                path,
+                reader.GetStringOrNull(5),
                 reader.GetStringOrNull(6),
-                reader.GetInt64OrNull(7),
-                reader.GetTimestampOrNull(8),
-                reader.GetTimestampOrNull(9) ?? DateTimeOffset.MinValue,
-                reader.GetStringOrNull(10),
-                ParseState(reader.GetString(11)),
-                (int)reader.GetInt64(12),
-                reader.GetStringOrNull(13)));
+                path,
+                reader.GetStringOrNull(8),
+                reader.GetInt64OrNull(9),
+                reader.GetTimestampOrNull(10),
+                reader.GetTimestampOrNull(11) ?? DateTimeOffset.MinValue,
+                reader.GetStringOrNull(12),
+                ParseState(reader.GetString(13)),
+                (int)reader.GetInt64(14),
+                reader.GetStringOrNull(15)));
         }
 
         return entries;

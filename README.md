@@ -161,6 +161,25 @@ rommbat-agent.exe gamelist                   # rewrite gamelist.xml from local s
 rommbat-agent.exe gamelist --media all       # also fetch manuals, which are off by default
 ```
 
+### Saves and playtime
+
+```powershell
+rommbat-agent.exe saves                      # what is on disk, what went up, what cannot
+rommbat-agent.exe flush                      # send queued saves and play sessions
+rommbat-agent.exe flush --offline            # do the local half only
+rommbat-agent.exe hooks status               # are the EmulationStation hooks installed
+rommbat-agent.exe hooks uninstall            # take them back out
+```
+
+`sync` installs the hooks on its first run, naming every file it adds, and flushes at the
+end, so neither is normally typed. Without them there is no playtime and no way to tell which
+game wrote a save.
+
+**This release syncs battery saves, the one-file-per-game kind, and play sessions.** Save
+states, directory saves such as PSP and PS3, and shared containers such as a PS2 memory card
+land in the next one. `saves` lists everything it found that it is not syncing, and why,
+rather than leaving you to notice.
+
 `sync` re-resolves each set first, because smart-collection membership drifts server-side,
 then prints a plan before doing anything. A second run of an unchanged set downloads nothing
 and says so. `sync --dry-run` and `sync --offline` both work with the server unreachable,

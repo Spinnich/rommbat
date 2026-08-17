@@ -28,6 +28,9 @@ internal static class ExitCode
     /// <summary>The user cancelled.</summary>
     public const int Cancelled = 6;
 
+    /// <summary>Some of the work landed and some is still queued.</summary>
+    public const int Partial = 7;
+
     /// <summary>Not implemented in this milestone. EX_SOFTWARE.</summary>
     public const int NotImplemented = 70;
 }
