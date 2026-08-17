@@ -54,6 +54,8 @@
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\reference\batocera-systems.json" Link="fixtures\batocera-systems.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\reference\es_savestates.cfg" Link="fixtures\es_savestates.template.cfg"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

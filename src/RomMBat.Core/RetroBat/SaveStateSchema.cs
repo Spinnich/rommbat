@@ -1,0 +1,455 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using RomMBat.Core.Paths;
+
+namespace RomMBat.Core.RetroBat;
+
+/// <summary>Which placeholder an emulator uses for the slot number.</summary>
+/// <remarks>
+/// Three exist and they are not interchangeable. <c>{{slot2d}}</c> is exactly two digits,
+/// <c>{{slot0}}</c> exactly one, and <c>{{slot}}</c> is the free form only <c>libretro</c> uses.
+/// The width is what stops a glob picking up a neighbour: DeSmuME declares
+/// <c>{{romfilename}}.ds{{slot0}}</c> and writes its <b>battery</b> save as
+/// <c>{{romfilename}}.dsv</c>, so a one-digit anchor is the difference between finding one save
+/// state and uploading a battery save as slot "v".
+/// </remarks>
+public enum SlotToken
+{
+    /// <summary>No slot in the template at all, which is the autosave case.</summary>
+    None,
+
+    /// <summary><c>{{slot}}</c>, free width.</summary>
+    Free,
+
+    /// <summary><c>{{slot0}}</c>, exactly one digit.</summary>
+    OneDigit,
+
+    /// <summary><c>{{slot2d}}</c>, exactly two digits.</summary>
+    TwoDigit,
+}
+
+/// <summary>
+/// One <c>&lt;emulator&gt;</c> from <c>es_savestates.cfg</c>.
+/// </summary>
+/// <param name="Directory">
+/// The declared template. <b>Declared is not written.</b> Two of the twelve emulators driven on a
+/// real install write somewhere else entirely: <c>flycast</c> writes
+/// <c>saves/dreamcast/reicast/states/</c> against a declared
+/// <c>{{system}}/flycast/sstates</c>, and <c>openmsx</c> writes <c>bios/openmsx/savestates/</c>,
+/// a different top-level tree from the declared <c>saves/msx1/openmsx</c>. Both declared
+/// directories exist and are empty, so an empty declared directory means "you are looking in the
+/// wrong place" and never "this game has no states".
+/// </param>
+/// <param name="Image">
+/// The screenshot template, which maps onto RomM's optional <c>screenshotFile</c>.
+/// <b>DeSmuME declares this identical to <see cref="File"/></b>, so a caller that expands both
+/// and uploads what it finds uploads the state itself as its own preview. Compare the two
+/// expansions before sending anything.
+/// </param>
+/// <param name="FirstSlot">
+/// Declared bounds, absent on <c>libretro</c>. They are validation only here, never the source
+/// of the slot: this parser reads a slot off a filename on disk rather than expanding a range,
+/// so a missing bound costs nothing and <c>bigpemu</c>'s <c>001</c>/<c>999</c> against a
+/// two-digit template is simply unrepresentable rather than a defect to work around.
+/// </param>
+public sealed record SaveStateEmulator(
+    string Name,
+    string Directory,
+    string File,
+    string? Image,
+    string? AutosaveFile,
+    string? AutosaveImage,
+    string? FirstSlot,
+    string? LastSlot,
+    IReadOnlyDictionary<string, SaveStateCore> Cores)
+{
+    /// <summary>True when the same game has independent state sets per core.</summary>
+    /// <remarks>
+    /// <c>libretro</c> (<c>{{system}}/libretro.{{core}}</c>) and <c>bizhawk</c>
+    /// (<c>{{system}}/bizhawk/sstates/{{core}}</c>) both are, which is why a state's identity has
+    /// to carry the core and not just the emulator.
+    /// </remarks>
+    public bool IsCoreScoped => Directory.Contains("{{core}}", StringComparison.Ordinal);
+
+    /// <summary>Which slot placeholder <see cref="File"/> uses.</summary>
+    public SlotToken Slot => SlotTokenOf(File);
+
+    /// <summary>The declared bounds as numbers, where they parse.</summary>
+    /// <remarks>
+    /// <c>bigpemu</c> declares <c>firstslot="001"</c> and <c>lastslot="999"</c> while its
+    /// template is two-digit <c>{{slot2d}}</c>, so its upper bound cannot be written by its own
+    /// filename rule. The bounds are read as integers regardless of zero padding, and a slot
+    /// outside them is reported rather than refused, because the file on disk is evidence and
+    /// the declaration is only a claim.
+    /// </remarks>
+    public (int? First, int? Last) Bounds =>
+        (ParseBound(FirstSlot), ParseBound(LastSlot));
+
+    private static int? ParseBound(string? value) =>
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) ? parsed : null;
+
+    internal static SlotToken SlotTokenOf(string template) =>
+        template.Contains("{{slot2d}}", StringComparison.Ordinal) ? SlotToken.TwoDigit
+        : template.Contains("{{slot0}}", StringComparison.Ordinal) ? SlotToken.OneDigit
+        : template.Contains("{{slot}}", StringComparison.Ordinal) ? SlotToken.Free
+        : SlotToken.None;
+}
+
+/// <summary>
+/// A <c>&lt;core&gt;</c> child, which ships commented out and must still be tolerated.
+/// </summary>
+/// <remarks>
+/// The shipped file carries the mechanism only as a sample inside an XML comment, so nothing
+/// reads one today. A user can uncomment it, and the sample shows it overriding both the system
+/// and the directory (<c>&lt;core name="fceumm" system="nes" directory="{{system}}"/&gt;</c>)
+/// as well as disabling a core outright, so all three are carried.
+/// </remarks>
+public sealed record SaveStateCore(string Name, bool Enabled, string? System, string? Directory);
+
+/// <summary>
+/// The parsed <c>es_savestates.cfg</c>: where each emulator's save states live and what they are
+/// called.
+/// </summary>
+/// <remarks>
+/// <b>Parsed, never hardcoded</b>, and read from the live install so a user's edits count. The
+/// shipped 8.2 file declares 13 emulators, which is what bounds state sync: not the 243 systems
+/// <c>es_systems.cfg</c> declares.
+/// <para>
+/// <b>Discovery reverses the template rather than expanding a slot range.</b> Compiling
+/// <see cref="SaveStateEmulator.File"/> into an anchored expression and matching it against what
+/// is on disk reads the slot off the filename, which dissolves three of the four traps this file
+/// is known for: <c>libretro</c> declaring no bounds needs no invented default, <c>bigpemu</c>'s
+/// three-digit bounds against a two-digit template need no reconciling, and whether
+/// <c>{{slot}}</c> renders as an empty string at slot zero stops being a question the client has
+/// to answer in advance.
+/// </para>
+/// </remarks>
+public sealed class SaveStateSchema
+{
+    private readonly Dictionary<string, SaveStateEmulator> _emulators;
+
+    private SaveStateSchema(Dictionary<string, SaveStateEmulator> emulators) => _emulators = emulators;
+
+    /// <summary>Where the file lives, relative to the RetroBat root.</summary>
+    public static RelativePath ConfigPath { get; } =
+        RelativePath.Create("emulationstation/.emulationstation/es_savestates.cfg");
+
+    /// <summary>Every declared emulator, in file order.</summary>
+    public IReadOnlyCollection<SaveStateEmulator> Emulators => _emulators.Values;
+
+    /// <summary>One emulator by name, case-insensitively.</summary>
+    public SaveStateEmulator? For(string? emulator) =>
+        emulator is not null && _emulators.TryGetValue(emulator, out var found) ? found : null;
+
+    /// <summary>Reads the file at a path, or null when it is not there.</summary>
+    public static SaveStateSchema? Load(string path)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (!System.IO.File.Exists(path))
+        {
+            return null;
+        }
+
+        using var stream = System.IO.File.OpenRead(path);
+        return Parse(stream);
+    }
+
+    /// <summary>Parses the document.</summary>
+    /// <remarks>
+    /// An <c>&lt;emulator&gt;</c> with no <c>&lt;file&gt;</c> is dropped rather than defaulted:
+    /// with no filename rule there is nothing to recognise a state by, and inventing one is how
+    /// a client uploads a file that is not a save state.
+    /// </remarks>
+    public static SaveStateSchema Parse(Stream stream)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+
+        var document = XDocument.Load(stream);
+        var emulators = new Dictionary<string, SaveStateEmulator>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in document.Root?.Elements("emulator") ?? [])
+        {
+            var name = (string?)element.Attribute("name");
+            var directory = Text(element, "directory");
+            var file = Text(element, "file");
+
+            if (string.IsNullOrWhiteSpace(name)
+                || string.IsNullOrWhiteSpace(directory)
+                || string.IsNullOrWhiteSpace(file))
+            {
+                continue;
+            }
+
+            emulators[name] = new SaveStateEmulator(
+                name,
+                directory,
+                file,
+                Text(element, "image"),
+                Text(element, "autosave_file"),
+                Text(element, "autosave_image"),
+                (string?)element.Attribute("firstslot"),
+                (string?)element.Attribute("lastslot"),
+                ReadCores(element));
+        }
+
+        return new SaveStateSchema(emulators);
+    }
+
+    private static Dictionary<string, SaveStateCore> ReadCores(XElement emulator)
+    {
+        var cores = new Dictionary<string, SaveStateCore>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var element in emulator.Elements("core"))
+        {
+            if ((string?)element.Attribute("name") is not { Length: > 0 } name)
+            {
+                continue;
+            }
+
+            // Absent means enabled: the sample only ever writes the attribute to turn one off.
+            var enabled = (string?)element.Attribute("enabled") is not { } value
+                || !string.Equals(value, "false", StringComparison.OrdinalIgnoreCase);
+
+            cores[name] = new SaveStateCore(
+                name,
+                enabled,
+                (string?)element.Attribute("system"),
+                (string?)element.Attribute("directory"));
+        }
+
+        return cores;
+    }
+
+    private static string? Text(XElement parent, string name) =>
+        parent.Element(name)?.Value is { Length: > 0 } value ? value.Trim() : null;
+}
+
+/// <summary>
+/// One expansion of an emulator's templates for a given system and core.
+/// </summary>
+/// <remarks>
+/// Holds the directory the states are expected under and an expression that recognises one and
+/// hands back the ROM stem and the slot. Built once per (emulator, system, core) rather than per
+/// file.
+/// </remarks>
+public sealed partial class SaveStateTemplate
+{
+    private readonly Regex _file;
+    private readonly Regex? _autosave;
+
+    private SaveStateTemplate(
+        SaveStateEmulator emulator,
+        string system,
+        string? core,
+        RelativePath directory,
+        Regex file,
+        Regex? autosave)
+    {
+        Emulator = emulator;
+        System = system;
+        Core = core;
+        Directory = directory;
+        _file = file;
+        _autosave = autosave;
+    }
+
+    public SaveStateEmulator Emulator { get; }
+
+    public string System { get; }
+
+    /// <summary>The core, where the emulator is core-scoped. Null otherwise, never empty.</summary>
+    public string? Core { get; }
+
+    /// <summary>The directory the templates expand to, relative to the RetroBat root.</summary>
+    public RelativePath Directory { get; }
+
+    /// <summary>
+    /// Expands the directory and compiles the filename rules for one (system, core).
+    /// </summary>
+    /// <remarks>
+    /// Returns null when the directory template needs a core and none was given, because
+    /// <c>saves/snes/libretro./</c> is not a directory any emulator writes and guessing past a
+    /// missing core would invent one.
+    /// </remarks>
+    public static SaveStateTemplate? Create(SaveStateEmulator emulator, string system, string? core)
+    {
+        ArgumentNullException.ThrowIfNull(emulator);
+        ArgumentException.ThrowIfNullOrWhiteSpace(system);
+
+        if (emulator.IsCoreScoped && string.IsNullOrWhiteSpace(core))
+        {
+            return null;
+        }
+
+        var expanded = Expand(emulator.Directory, system, core);
+
+        // The declared directory is relative to saves/ in every shipped entry, and openmsx's
+        // real location under bios/ is a known exception this does not attempt to model: it is
+        // reported rather than read, because reading the wrong tree is worse than reading none.
+        if (!RelativePath.TryCreate("saves/" + expanded.Trim('/'), out var directory))
+        {
+            return null;
+        }
+
+        var file = Compile(emulator.File, system, core);
+
+        if (file is null)
+        {
+            return null;
+        }
+
+        var autosave = emulator.AutosaveFile is { } template ? Compile(template, system, core) : null;
+
+        return new SaveStateTemplate(emulator, system, core, directory, file, autosave);
+    }
+
+    /// <summary>
+    /// Recognises a filename as a save state and says which ROM and slot it belongs to.
+    /// </summary>
+    /// <remarks>
+    /// <b>The autosave rule is tried first.</b> <c>libretro</c> declares
+    /// <c>{{romfilename}}.state{{slot}}</c> beside <c>{{romfilename}}.state.auto</c>, and a free
+    /// slot expression matching zero digits would take <c>Game.state.auto</c> for a ROM called
+    /// <c>Game.state</c> at slot zero.
+    /// </remarks>
+    public SaveStateMatch? Match(string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        if (_autosave?.Match(fileName) is { Success: true } auto)
+        {
+            return new SaveStateMatch(auto.Groups["stem"].Value, Slot: null, IsAutosave: true);
+        }
+
+        if (_file.Match(fileName) is not { Success: true } match)
+        {
+            return null;
+        }
+
+        var digits = match.Groups["slot"].Value;
+
+        // A free-width token renders nothing at all for the first slot on some emulators, which
+        // is why an empty capture is slot zero rather than a failure to parse.
+        var slot = digits.Length == 0
+            ? 0
+            : int.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
+
+        return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false);
+    }
+
+    /// <summary>The screenshot beside a state, when the emulator declares a distinct one.</summary>
+    /// <remarks>
+    /// <b>Null when <c>&lt;image&gt;</c> is the same template as <c>&lt;file&gt;</c></b>, which
+    /// is what DeSmuME declares. Returning the state's own path here is how a client uploads a
+    /// save state as its own screenshot.
+    /// </remarks>
+    public string? ImageFor(string stem, int? slot, bool isAutosave)
+    {
+        var template = isAutosave ? Emulator.AutosaveImage : Emulator.Image;
+        var fileTemplate = isAutosave ? Emulator.AutosaveFile : Emulator.File;
+
+        if (template is null || string.Equals(template, fileTemplate, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return Expand(template, System, Core)
+            .Replace("{{romfilename}}", stem, StringComparison.Ordinal)
+            .Replace("{{slot2d}}", Format(slot, SlotToken.TwoDigit), StringComparison.Ordinal)
+            .Replace("{{slot0}}", Format(slot, SlotToken.OneDigit), StringComparison.Ordinal)
+            .Replace("{{slot}}", Format(slot, SlotToken.Free), StringComparison.Ordinal);
+    }
+
+    private static string Format(int? slot, SlotToken token) => slot is not { } value
+        ? string.Empty
+        : token == SlotToken.TwoDigit
+            ? value.ToString("D2", CultureInfo.InvariantCulture)
+            : value.ToString(CultureInfo.InvariantCulture);
+
+    private static string Expand(string template, string system, string? core) =>
+        template
+            .Replace("{{system}}", system, StringComparison.Ordinal)
+            .Replace("{{core}}", core ?? string.Empty, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Turns a filename template into an anchored expression capturing the stem and the slot.
+    /// </summary>
+    /// <remarks>
+    /// <b>The slot's width is taken from the token, not from what happens to be on disk.</b>
+    /// <c>{{slot0}}</c> compiles to exactly one digit, so DeSmuME's <c>.ds{{slot0}}</c> matches
+    /// <c>Game.ds1</c> and refuses <c>Game.dsv</c>, which is its battery save.
+    /// <para>
+    /// The stem is lazy and everything else is escaped, so a ROM whose own name contains the
+    /// literal text of the suffix still resolves: the anchor at the end is what decides.
+    /// </para>
+    /// </remarks>
+    private static Regex? Compile(string template, string system, string? core)
+    {
+        var expanded = Expand(template, system, core);
+
+        if (!expanded.Contains("{{romfilename}}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var slotToken = SaveStateEmulator.SlotTokenOf(expanded);
+
+        var slotPattern = slotToken switch
+        {
+            SlotToken.TwoDigit => @"(?<slot>\d{2})",
+            SlotToken.OneDigit => @"(?<slot>\d)",
+            SlotToken.Free => @"(?<slot>\d*)",
+            _ => string.Empty,
+        };
+
+        var placeholder = slotToken switch
+        {
+            SlotToken.TwoDigit => "{{slot2d}}",
+            SlotToken.OneDigit => "{{slot0}}",
+            SlotToken.Free => "{{slot}}",
+            _ => null,
+        };
+
+        // Split on the two placeholders and escape everything between them, so no character of a
+        // real template is ever read as an expression.
+        var pattern = string.Concat(
+            "^",
+            string.Join(
+                @"(?<stem>.+?)",
+                expanded
+                    .Split("{{romfilename}}", StringSplitOptions.None)
+                    .Select(part => placeholder is null
+                        ? Regex.Escape(part)
+                        : string.Join(
+                            slotPattern,
+                            part.Split(placeholder, StringSplitOptions.None).Select(Regex.Escape)))),
+            "$");
+
+        return new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    }
+}
+
+/// <summary>What a filename turned out to be.</summary>
+/// <param name="Stem">
+/// The ROM's filename without its extension, which is what <c>{{romfilename}}</c> expands to.
+/// Measured against the checked-in launch log: <c>Patapon (Europe) (En,Fr,De,Es,It).cso</c>
+/// launched and produced <c>Patapon (Europe) (En,Fr,De,Es,It)_0.ppst</c>.
+/// </param>
+/// <param name="Slot">Null for an autosave, which has no slot of its own.</param>
+public sealed record SaveStateMatch(string Stem, int? Slot, bool IsAutosave)
+{
+    /// <summary>
+    /// The slot a state pairs on locally, which never travels to the server.
+    /// </summary>
+    /// <remarks>
+    /// <b><c>POST /api/states</c> has no slot field</b>, measured against the pinned schema and
+    /// against a live instance, so this is a local identity only. The three-part shape is kept
+    /// even when there is no core, so the string is parseable by position rather than by counting
+    /// separators.
+    /// </remarks>
+    public string SlotKey(string emulator, string? core) =>
+        $"{emulator}:{core ?? string.Empty}:{(IsAutosave ? "auto" : Slot!.Value.ToString(CultureInfo.InvariantCulture))}";
+}
