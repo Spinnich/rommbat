@@ -1,0 +1,470 @@
+using System.Diagnostics;
+using System.Text.RegularExpressions;
+using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
+
+namespace RomMBat.Core.Content;
+
+/// <summary>What a state scan found.</summary>
+public sealed record StateScanOutcome
+{
+    /// <summary>States recorded, attributed or not.</summary>
+    public int Found { get; init; }
+
+    /// <summary>Of those, the ones tied to a ROM and therefore uploadable.</summary>
+    public int Attributed { get; init; }
+
+    /// <summary>Rows dropped because the file is gone.</summary>
+    public int Forgotten { get; init; }
+
+    /// <summary>Screenshots found beside a state and worth sending.</summary>
+    public int Screenshots { get; init; }
+
+    public long BytesHashed { get; init; }
+
+    public string Summary => Found == 0
+        ? "states: none found"
+        : $"states: {Attributed} of {Found} attributed";
+}
+
+/// <summary>
+/// Finds save states under the directories <c>es_savestates.cfg</c> declares.
+/// </summary>
+/// <remarks>
+/// <b>Discovery reverses both templates rather than enumerating anything.</b> The
+/// <c>&lt;directory&gt;</c> template is matched against directories that exist, which yields the
+/// system and the core from disk instead of from a guess, and the <c>&lt;file&gt;</c> template is
+/// matched against the names inside it, which yields the ROM stem and the slot. Neither level of
+/// the save tree is positional, so asking "which declaration could have produced this path" is
+/// the only reading that does not invent an emulator out of a directory name.
+/// <para>
+/// <b>Attribution needs no Game ID.</b> Every <c>&lt;file&gt;</c> template is keyed on
+/// <c>{{romfilename}}</c>, and all twelve emulators driven on a real install wrote the name the
+/// template predicted, so a state resolves through the same <c>(folder, stem)</c> index a class A
+/// battery save does. That is why states ship a stage ahead of directory saves.
+/// </para>
+/// <para>
+/// <b>Two declared directories are wrong and this scanner cannot see past that.</b>
+/// <c>flycast</c> writes <c>saves/dreamcast/reicast/states/</c> and <c>openmsx</c> writes
+/// <c>bios/openmsx/savestates/</c>, a different top-level tree. Both declared directories exist
+/// and are empty on a real install, so a scan of the declaration finds nothing there. Nothing is
+/// guessed in either case: the states are reported as unsyncable with the reason, because reading
+/// the wrong tree is worse than reading none.
+/// </para>
+/// </remarks>
+public sealed class StateScanner
+{
+    private readonly RetroBatInstall _install;
+    private readonly LocalStore _store;
+    private readonly SaveStateSchema _schema;
+    private readonly TimeProvider _time;
+    private readonly string? _retroBatVersion;
+    private readonly Dictionary<string, string?> _versions = new(StringComparer.OrdinalIgnoreCase);
+
+    public StateScanner(
+        RetroBatInstall install,
+        LocalStore store,
+        SaveStateSchema schema,
+        TimeProvider? timeProvider = null)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(schema);
+
+        _install = install;
+        _store = store;
+        _schema = schema;
+        _time = timeProvider ?? TimeProvider.System;
+        _retroBatVersion = install.ReadVersionString();
+    }
+
+    /// <summary>
+    /// Emulators whose declared directory is not where they write.
+    /// </summary>
+    /// <remarks>
+    /// Measured on a real install, and both declared directories exist and are empty, which is
+    /// the trap: a client that trusts the declaration concludes the game has no states rather
+    /// than concluding it is looking in the wrong place. Filed upstream as
+    /// RetroBat-Official/emulatorlauncher#1336.
+    /// </remarks>
+    public static IReadOnlyDictionary<string, string> WrongDeclaredDirectories { get; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["flycast"] = "flycast writes saves/dreamcast/reicast/states/, not the declared "
+                + "saves/<system>/flycast/sstates. The declared directory exists and stays empty.",
+            ["openmsx"] = "openMSX writes bios/openmsx/savestates/, which is a different tree "
+                + "from the declared saves/<system>/openmsx entirely.",
+        };
+
+    /// <summary>Opens the schema from the install, or null when the file is not there.</summary>
+    public static SaveStateSchema? LoadSchema(RetroBatInstall install)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        return SaveStateSchema.Load(install.Resolve(SaveStateSchema.ConfigPath));
+    }
+
+    /// <summary>Walks every declared state directory that exists and records what is in it.</summary>
+    public StateScanOutcome Scan()
+    {
+        var savesRoot = _install.Resolve(SaveScanner.SavesDirectory);
+        var now = _time.GetUtcNow();
+
+        if (!Directory.Exists(savesRoot))
+        {
+            return new StateScanOutcome();
+        }
+
+        var roms = RomIndex.Build(_store);
+        var seen = new HashSet<RelativePath>();
+        var found = 0;
+        var attributed = 0;
+        var screenshots = 0;
+        var bytes = 0L;
+
+        foreach (var (template, directory) in ResolveDirectories(savesRoot))
+        {
+            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            {
+                var state = Describe(template, file, roms, now);
+
+                if (state is null)
+                {
+                    continue;
+                }
+
+                _store.States.Record(state, now);
+                seen.Add(state.Path);
+                found++;
+                bytes += state.SizeBytes;
+
+                if (state.RomId is not null)
+                {
+                    attributed++;
+                }
+
+                if (state.ScreenshotPath is not null)
+                {
+                    screenshots++;
+                }
+            }
+        }
+
+        return new StateScanOutcome
+        {
+            Found = found,
+            Attributed = attributed,
+            Forgotten = ForgetMissing(seen),
+            Screenshots = screenshots,
+            BytesHashed = bytes,
+        };
+    }
+
+    /// <summary>
+    /// Every (emulator, system, core) whose declared directory is actually on disk.
+    /// </summary>
+    /// <remarks>
+    /// Built by matching each <c>&lt;directory&gt;</c> template against the directories that
+    /// exist, so the system and the core come from the tree rather than from a list this client
+    /// would have to keep in step with the user's emulator choices.
+    /// </remarks>
+    private List<(SaveStateTemplate Template, string Directory)> ResolveDirectories(string savesRoot)
+    {
+        var resolved = new List<(SaveStateTemplate, string)>();
+
+        foreach (var emulator in _schema.Emulators)
+        {
+            var pattern = DirectoryPattern(emulator.Directory);
+
+            if (pattern is null)
+            {
+                continue;
+            }
+
+            foreach (var directory in EnumerateDirectories(savesRoot, DepthOf(emulator.Directory)))
+            {
+                var relative = Path.GetRelativePath(savesRoot, directory).Replace('\\', '/');
+                var match = pattern.Match(relative);
+
+                if (!match.Success)
+                {
+                    continue;
+                }
+
+                var system = match.Groups["system"].Value;
+                var core = match.Groups["core"].Success ? match.Groups["core"].Value : null;
+
+                // A core the user disabled through the <core> mechanism is skipped, since
+                // RetroBat will not be writing there.
+                if (core is not null
+                    && emulator.Cores.TryGetValue(core, out var declared)
+                    && !declared.Enabled)
+                {
+                    continue;
+                }
+
+                if (SaveStateTemplate.Create(emulator, system, core) is { } template)
+                {
+                    resolved.Add((template, directory));
+                }
+            }
+        }
+
+        return resolved;
+    }
+
+    private LocalState? Describe(SaveStateTemplate template, string file, RomIndex roms, DateTimeOffset now)
+    {
+        if (!_install.Contains(file))
+        {
+            return null;
+        }
+
+        var name = Path.GetFileName(file);
+        var match = template.Match(name);
+
+        if (match is null)
+        {
+            // Not a state by this emulator's own filename rule. Left alone rather than reported
+            // per file: a state directory holds the .txt sidecar and the screenshots too, and
+            // naming each of those as unsyncable would drown the report it belongs in.
+            return null;
+        }
+
+        var path = _install.Relativize(file);
+        var info = new FileInfo(file);
+        var rom = roms.Find(template.System, match.Stem);
+
+        string? hash = null;
+
+        try
+        {
+            hash = LogicalContentHash.OfFile(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Held open by a running emulator. Recorded without a hash, which reads as unsent
+            // and is never uploaded, because sending bytes whose integrity was not checked is
+            // worse than sending nothing.
+        }
+
+        return new LocalState
+        {
+            Path = path,
+            System = template.System,
+            Emulator = template.Emulator.Name,
+            Core = template.Core ?? string.Empty,
+            EmulatorVersion = ReadEmulatorVersion(template),
+            RetroBatVersion = _retroBatVersion,
+            RomId = rom?.RomId,
+            RomPath = rom?.Path,
+            Slot = match.SlotKey(template.Emulator.Name, template.Core),
+            ScreenshotPath = ResolveScreenshot(template, match, file),
+            NativeName = ReadNativeName(file, match.Stem),
+            ContentHash = hash,
+            SizeBytes = info.Length,
+            FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+        };
+    }
+
+    /// <summary>
+    /// The screenshot beside a state, when there is a real one.
+    /// </summary>
+    /// <remarks>
+    /// Three things have to be true and each rules out a case that was actually observed. The
+    /// emulator has to declare an <c>&lt;image&gt;</c> distinct from its <c>&lt;file&gt;</c>,
+    /// which DeSmuME does not, so uploading blind would send the state as its own preview. The
+    /// file has to be there, and it was missing in four of seven emulators driven. And it has to
+    /// be non-empty, because RetroBat's mirror races the emulator writing it and a zero-byte
+    /// image was measured; the server accepts one and stores it, so nothing downstream catches
+    /// this if the client does not.
+    /// </remarks>
+    private RelativePath? ResolveScreenshot(SaveStateTemplate template, SaveStateMatch match, string statePath)
+    {
+        if (template.ImageFor(match.Stem, match.Slot, match.IsAutosave) is not { } imageName)
+        {
+            return null;
+        }
+
+        var image = Path.Combine(Path.GetDirectoryName(statePath)!, imageName);
+
+        if (!File.Exists(image) || new FileInfo(image).Length == 0 || !_install.Contains(image))
+        {
+            return null;
+        }
+
+        return _install.Relativize(image);
+    }
+
+    /// <summary>
+    /// The <c>.txt</c> sidecar's content, which is the emulator's own name for the game.
+    /// </summary>
+    /// <remarks>
+    /// RetroBat writes one beside every state unconditionally, so its presence signals nothing:
+    /// <c>jgenesis</c> and <c>desmume</c> both write one holding the ROM filename. Its content
+    /// is the mapping, and where it holds a serial (<c>SLUS-00404</c>, <c>GW7E69</c>) it is the
+    /// Game ID that directory-save attribution otherwise reads out of a ROM header.
+    /// </remarks>
+    private static string? ReadNativeName(string statePath, string stem)
+    {
+        var sidecar = Path.Combine(Path.GetDirectoryName(statePath)!, stem + ".txt");
+
+        try
+        {
+            if (!File.Exists(sidecar))
+            {
+                return null;
+            }
+
+            var text = File.ReadAllText(sidecar).Trim();
+
+            // Bounded, because this is an untrusted file in a directory the user owns and the
+            // column is a hint rather than a document.
+            return text.Length is > 0 and <= 256 ? text : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// What produced the state, so it is never restored silently onto a different build.
+    /// </summary>
+    /// <remarks>
+    /// <b>Best effort, and null is an honest answer.</b> RetroBat downloads emulators on demand
+    /// and does not record their versions anywhere this client can read, so the version comes
+    /// from the binary: a libretro core is one DLL under RetroArch's <c>cores/</c>, and every
+    /// other emulator is looked up only where its folder holds exactly one top-level executable.
+    /// Where it holds several there is no rule that says which one ran, and picking is worse than
+    /// declining. <c>retrobat_version</c> is recorded alongside for that reason, since RetroBat
+    /// ships the emulator builds and its own version always reads.
+    /// <para>
+    /// Neither lookup has been checked against a live install: this branch had no permission to
+    /// read one.
+    /// </para>
+    /// </remarks>
+    private string? ReadEmulatorVersion(SaveStateTemplate template)
+    {
+        var key = $"{template.Emulator.Name}/{template.Core}";
+
+        if (_versions.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var version = ReadVersion(template);
+        _versions[key] = version;
+        return version;
+    }
+
+    private string? ReadVersion(SaveStateTemplate template)
+    {
+        try
+        {
+            if (string.Equals(template.Emulator.Name, "libretro", StringComparison.OrdinalIgnoreCase))
+            {
+                if (template.Core is not { Length: > 0 } core)
+                {
+                    return null;
+                }
+
+                var dll = _install.Resolve(
+                    RelativePath.Create($"emulators/retroarch/cores/{core}_libretro.dll"));
+
+                return File.Exists(dll) ? Describe(FileVersionInfo.GetVersionInfo(dll)) : null;
+            }
+
+            var folder = _install.Resolve(
+                RelativePath.Create($"emulators/{template.Emulator.Name}"));
+
+            if (!Directory.Exists(folder))
+            {
+                return null;
+            }
+
+            var executables = Directory.GetFiles(folder, "*.exe", SearchOption.TopDirectoryOnly);
+
+            return executables.Length == 1 ? Describe(FileVersionInfo.GetVersionInfo(executables[0])) : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private static string? Describe(FileVersionInfo info) =>
+        info.ProductVersion?.Trim() is { Length: > 0 } product ? product
+        : info.FileVersion?.Trim() is { Length: > 0 } file ? file
+        : null;
+
+    private int ForgetMissing(HashSet<RelativePath> seen)
+    {
+        var gone = _store.States
+            .List()
+            .Where(state => !seen.Contains(state.Path))
+            .Select(state => state.Path)
+            .ToList();
+
+        return gone.Count == 0 ? 0 : _store.States.Forget(gone);
+    }
+
+    /// <summary>How many segments deep a directory template goes below <c>saves/</c>.</summary>
+    private static int DepthOf(string template) => template.Split('/', StringSplitOptions.RemoveEmptyEntries).Length;
+
+    /// <summary>Directories at exactly one depth, so a deep tree is not walked to find a shallow one.</summary>
+    private static List<string> EnumerateDirectories(string root, int depth)
+    {
+        var current = new List<string> { root };
+
+        for (var level = 0; level < depth; level++)
+        {
+            var next = new List<string>();
+
+            foreach (var directory in current)
+            {
+                try
+                {
+                    next.AddRange(Directory.EnumerateDirectories(directory));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A directory that cannot be listed is one this pass does not know about,
+                    // which is the same outcome as it not existing.
+                }
+            }
+
+            current = next;
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Compiles a <c>&lt;directory&gt;</c> template into an expression that recovers the system
+    /// and the core from a path.
+    /// </summary>
+    /// <remarks>
+    /// Both captures refuse a separator, so a template's own segment boundaries decide where the
+    /// system ends. Everything outside a placeholder is escaped, so no character of a real
+    /// template is read as an expression.
+    /// </remarks>
+    private static Regex? DirectoryPattern(string template)
+    {
+        if (!template.Contains("{{system}}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var pattern = string.Join(
+            @"(?<system>[^/]+)",
+            template
+                .Trim('/')
+                .Split("{{system}}", StringSplitOptions.None)
+                .Select(part => string.Join(
+                    @"(?<core>[^/]+)",
+                    part.Split("{{core}}", StringSplitOptions.None).Select(Regex.Escape))));
+
+        return new Regex("^" + pattern + "$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    }
+}

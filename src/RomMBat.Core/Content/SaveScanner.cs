@@ -104,7 +104,7 @@ public sealed class SaveScanner
         // (folder, ROM basename) to (rom_id, path), which is the whole of class A and B
         // attribution: the save is named after the ROM file, inside its system's folder.
         // Built once rather than queried per save.
-        var romsByStem = BuildRomIndex();
+        var romsByStem = RomIndex.Build(_store);
 
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
         {
@@ -226,10 +226,7 @@ public sealed class SaveScanner
             : $"{emulator}:battery";
     }
 
-    private LocalSave? Describe(
-        string system,
-        string file,
-        Dictionary<string, (long RomId, RelativePath Path)> romsByStem)
+    private LocalSave? Describe(string system, string file, RomIndex romsByStem)
     {
         if (!_install.Contains(file))
         {
@@ -248,7 +245,7 @@ public sealed class SaveScanner
 
         // Keyed on the folder the save was found under, so a save only ever matches a ROM in
         // its own system.
-        romsByStem.TryGetValue(IndexKey(system, stem), out var rom);
+        var rom = romsByStem.Find(system, stem);
 
         string? hash = null;
         try
@@ -268,48 +265,13 @@ public sealed class SaveScanner
             Emulator = _shapes.LooseEmulator,
             ShapeClass = shapeClass,
             Slot = SlotFor(_shapes.LooseEmulator, shapeClass, extension),
-            RomId = rom.RomId == 0 ? null : rom.RomId,
-            RomPath = rom.RomId == 0 ? null : rom.Path,
+            RomId = rom?.RomId,
+            RomPath = rom?.Path,
             ContentHash = hash,
             SizeBytes = info.Length,
             FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
         };
     }
-
-    /// <summary>
-    /// <c>(system folder, ROM stem)</c> to id, which is what a class A or B save is named after.
-    /// </summary>
-    /// <remarks>
-    /// <b>The folder is half the key, not decoration.</b> Contra, Aladdin, Tetris and Batman
-    /// all exist on several systems, which is the ordinary state of a multi-system library, and
-    /// a stem-only index gives <c>saves/snes/Contra.srm</c> to the NES ROM. That mis-attributes
-    /// the save on upload and puts two <c>local_save</c> rows on one <c>(rom_id, slot)</c>.
-    /// <para>
-    /// A save whose own folder holds no ROM of that name is left unattributed and reported,
-    /// rather than falling back to a match in some other system. Guessing across systems is the
-    /// failure this key exists to prevent.
-    /// </para>
-    /// </remarks>
-    private Dictionary<string, (long RomId, RelativePath Path)> BuildRomIndex()
-    {
-        var index = new Dictionary<string, (long, RelativePath)>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var file in _store.Files.List())
-        {
-            if (file.Kind != LocalFileKind.Rom || file.RomId is not { } romId || file.Folder is not { } folder)
-            {
-                continue;
-            }
-
-            // First wins, and within one folder a collision needs two ROMs with the same stem
-            // and different extensions, where either is as good an answer as the other.
-            index.TryAdd(IndexKey(folder, Path.GetFileNameWithoutExtension(file.FileName)), (romId, file.Path));
-        }
-
-        return index;
-    }
-
-    private static string IndexKey(string folder, string stem) => $"{folder}/{stem}";
 
     private static void AddSubdirectories(
         UnsyncableReport report,
