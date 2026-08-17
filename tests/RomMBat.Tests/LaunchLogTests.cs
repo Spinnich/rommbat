@@ -134,7 +134,7 @@ public class LaunchLogTests
         Assert.Empty(log.Read(position));
 
         // And a position taken before the last launch returns exactly the tail.
-        var earlier = new LaunchLogPosition(records[^3].At, records[^3].Signature, position.LiveSizeBytes);
+        var earlier = new LaunchLogPosition(records[^3].At, [records[^3].Signature], position.LiveSizeBytes);
         Assert.Equal(2, log.Read(earlier).Count);
     }
 
@@ -149,18 +149,20 @@ public class LaunchLogTests
         // what attributes a save produced before RomMBat was installed.
         var fresh = store.LaunchCursor.Read();
         Assert.Null(fresh.At);
-        Assert.Null(fresh.Signature);
+        Assert.Empty(fresh.Signatures);
 
+        // Two signatures, because a cursor sitting on a millisecond that two launches share
+        // has to remember both of them or it re-emits one.
         var position = new LaunchLogPosition(
             DateTimeOffset.Parse("2026-08-16T11:22:18Z", System.Globalization.CultureInfo.InvariantCulture),
-            "abc123def4567890",
+            ["abc123def4567890", "0987654321fedcba"],
             503225);
 
         store.LaunchCursor.Write(position, DateTimeOffset.UnixEpoch);
 
         var read = store.LaunchCursor.Read();
         Assert.Equal(position.At, read.At);
-        Assert.Equal(position.Signature, read.Signature);
+        Assert.Equal(position.Signatures, read.Signatures);
         Assert.Equal(503225, read.LiveSizeBytes);
     }
 
@@ -208,6 +210,67 @@ public class LaunchLogTests
         var records = new LaunchLog(install).Read();
 
         Assert.Equal(["roms/nes/Old.zip", "roms/snes/New.zip"], records.Select(r => r.RomPath?.Value));
+    }
+
+    [Fact]
+    public void A_stamp_is_read_as_local_wall_clock_time_and_not_as_UTC()
+    {
+        // Measured on three real logs on a UTC-4 host: each file's last stamp equals its own
+        // filesystem mtime to the millisecond in local time. Reading these as UTC compares them
+        // against genuinely-UTC hook timestamps, which orphans every game-end east of Greenwich
+        // and inflates every session west of it.
+        //
+        // A fixed offset rather than a named zone, so this asserts the same thing on a UTC
+        // runner as on the machine that took the measurement. Under the UTC reading it fails
+        // everywhere rather than only outside UTC, which is the point of injecting it.
+        var minusFive = TimeZoneInfo.CreateCustomTimeZone("test-utc-minus-5", TimeSpan.FromHours(-5), "test", "test");
+
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        var log = new LaunchLog(install, minusFive);
+
+        var record = log.Parse(
+            "2026-08-16 11:22:18.072 [INFO]      [Startup] \"D:\\RetroBat\\emulationstation"
+                + "\\emulatorLauncher.exe\" -system snes -emulator libretro -rom \"D:\\RetroBat\\roms\\snes\\A.zip\"");
+
+        Assert.NotNull(record);
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-08-16T16:22:18.072Z", System.Globalization.CultureInfo.InvariantCulture),
+            record.At);
+    }
+
+    [Fact]
+    public void Two_launches_sharing_a_millisecond_are_neither_dropped_nor_read_twice()
+    {
+        // Theoretical on the measured file, where all 424 launches carry a distinct
+        // millisecond, but the cost of being wrong is a play session counted twice. A cursor
+        // holding only the last signature reads the earlier launch at that instant as unseen.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        var live = install.Resolve(LaunchLog.LivePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(live)!);
+
+        const string Prefix = "2026-08-16 10:00:00.000 [INFO]      [Startup] \"D:\\RetroBat\\emulationstation"
+            + "\\emulatorLauncher.exe\" -system snes -emulator libretro -rom ";
+
+        File.WriteAllLines(
+            live,
+            [Prefix + "\"D:\\RetroBat\\roms\\snes\\First.zip\"", Prefix + "\"D:\\RetroBat\\roms\\snes\\Second.zip\""]);
+
+        var log = new LaunchLog(install);
+        var records = log.Read();
+
+        Assert.Equal(2, records.Count);
+        Assert.Equal(records[0].At, records[1].At);
+
+        // Both consumed, so neither comes back.
+        Assert.Empty(log.Read(log.PositionAfter(records)));
+
+        // And a third launch at that same instant is still new.
+        File.AppendAllLines(live, [Prefix + "\"D:\\RetroBat\\roms\\snes\\Third.zip\""]);
+
+        var third = Assert.Single(log.Read(log.PositionAfter(records)));
+        Assert.Equal("roms/snes/Third.zip", third.RomPath?.Value);
     }
 
     private static IReadOnlyList<LaunchRecord> Read(out LaunchLog log)

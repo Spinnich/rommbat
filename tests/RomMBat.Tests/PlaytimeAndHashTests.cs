@@ -59,7 +59,7 @@ public class PlaytimeAndHashTests
 
         // A real game, played and finished.
         fixture.Rom(42, "snes", "ActRaiser (USA).zip");
-        fixture.Launch("2026-08-16 10:00:00.000", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
+        fixture.Launch("2026-08-16T10:00:00Z", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
         fixture.Start("2026-08-16T10:00:01Z", "roms/snes/ActRaiser (USA).zip");
         fixture.End("2026-08-16T10:30:00Z");
 
@@ -85,12 +85,12 @@ public class PlaytimeAndHashTests
         using var fixture = Journal.Create();
 
         fixture.Rom(42, "snes", "ActRaiser (USA).zip");
-        fixture.Launch("2026-08-16 10:00:00.000", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
+        fixture.Launch("2026-08-16T10:00:00Z", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
         fixture.Start("2026-08-16T10:00:01Z", "roms/snes/ActRaiser (USA).zip");
         fixture.End("2026-08-16T10:30:00Z");
 
         // RomMBat itself, launched from the menu and quit.
-        fixture.Launch("2026-08-16 10:45:00.000", "retrobat", null, "system/es_menu/rommbat.menu");
+        fixture.Launch("2026-08-16T10:45:00Z", "retrobat", null, "system/es_menu/rommbat.menu");
         fixture.End("2026-08-16T10:50:00Z");
 
         var outcome = fixture.Correlate();
@@ -106,7 +106,7 @@ public class PlaytimeAndHashTests
         using var fixture = Journal.Create();
 
         fixture.Rom(42, "snes", "ActRaiser (USA).zip");
-        fixture.Launch("2026-08-16 10:00:00.000", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
+        fixture.Launch("2026-08-16T10:00:00Z", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
         fixture.Start("2026-08-16T10:00:01Z", "roms/snes/ActRaiser (USA).zip");
 
         var outcome = fixture.Correlate();
@@ -133,7 +133,7 @@ public class PlaytimeAndHashTests
         using var fixture = Journal.Create();
 
         fixture.Rom(42, "snes", "ActRaiser (USA).zip");
-        fixture.Launch("2026-08-16 10:00:00.000", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
+        fixture.Launch("2026-08-16T10:00:00Z", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
         fixture.Start("2026-08-16T10:30:00Z", "roms/snes/ActRaiser (USA).zip");
         fixture.End("2026-08-16T10:00:00Z");
 
@@ -150,7 +150,7 @@ public class PlaytimeAndHashTests
         using var fixture = Journal.Create();
 
         fixture.Rom(42, "snes", "ActRaiser (USA).zip");
-        fixture.Launch("2026-08-16 10:00:00.000", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
+        fixture.Launch("2026-08-16T10:00:00Z", "snes", "libretro", "roms/snes/ActRaiser (USA).zip");
         fixture.Start("2026-08-16T10:00:01Z", "roms/snes/ActRaiser (USA).zip");
         fixture.End("2026-08-16T10:30:00Z");
 
@@ -295,11 +295,23 @@ public class PlaytimeAndHashTests
             });
         }
 
-        /// <summary>Appends a launch line in the shape the real launcher writes.</summary>
-        public void Launch(string timestamp, string system, string? emulator, string relativeRom)
+        /// <summary>
+        /// Appends a launch line in the shape the real launcher writes.
+        /// </summary>
+        /// <param name="at">
+        /// The instant, in the same UTC form the hook timestamps use. Written to the log in
+        /// <b>local</b> time, because that is what the launcher writes, so these tests describe
+        /// one timeline rather than two and read the same in any zone.
+        /// </param>
+        public void Launch(string at, string system, string? emulator, string relativeRom)
         {
             var rom = Install.Resolve(RelativePath.Create(relativeRom));
             var emulatorFlag = emulator is null ? string.Empty : $" -emulator {emulator}";
+
+            var timestamp = DateTimeOffset
+                .Parse(at, System.Globalization.CultureInfo.InvariantCulture)
+                .ToLocalTime()
+                .ToString("yyyy-MM-dd HH:mm:ss.fff", System.Globalization.CultureInfo.InvariantCulture);
 
             _log.Add(
                 $"{timestamp} [INFO]      [Startup] \"{Install.RootPath}\\emulationstation\\emulatorLauncher.exe\""

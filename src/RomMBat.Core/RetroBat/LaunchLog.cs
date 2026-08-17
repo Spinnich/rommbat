@@ -30,11 +30,20 @@ public sealed record LaunchRecord(
     string Signature);
 
 /// <summary>Where a read stopped, so the next one resumes without replaying or skipping.</summary>
+/// <param name="Signatures">
+/// Every launch already consumed at <paramref name="At"/>, not just the last of them. One
+/// signature is enough only while timestamps are unique: where two launches share a
+/// millisecond and both are read in one pass, a cursor holding only the second one reads the
+/// first as unseen and emits it again, which is a play session counted twice.
+/// </param>
 /// <param name="LiveSizeBytes">
 /// The live file's length at the time. The only in-tree signal that a rotation happened: the
 /// file getting <i>smaller</i> is what says so.
 /// </param>
-public sealed record LaunchLogPosition(DateTimeOffset? At, string? Signature, long LiveSizeBytes);
+public sealed record LaunchLogPosition(
+    DateTimeOffset? At,
+    IReadOnlyList<string> Signatures,
+    long LiveSizeBytes);
 
 /// <summary>
 /// Reads launch facts out of <c>emulationstation/emulatorLauncher.log</c>.
@@ -46,7 +55,7 @@ public sealed record LaunchLogPosition(DateTimeOffset? At, string? Signature, lo
 /// launcher is told. <c>game-end</c> receives nothing at all. So <c>game-end</c> is the
 /// trigger and this file is the data.
 /// <para>
-/// <b>Six things about the real file decide the parser, and five of them are traps.</b> All
+/// <b>Seven things about the real file decide the parser, and six of them are traps.</b> All
 /// measured on a live install with five months of history (<c>tools/m6-probes/</c>):
 /// </para>
 /// <list type="number">
@@ -67,6 +76,9 @@ public sealed record LaunchLogPosition(DateTimeOffset? At, string? Signature, lo
 /// stack traces among them.</item>
 /// <item>An <b>ES-menu launch is identifiable</b>: <c>-system retrobat</c> with a rom under
 /// <c>system\es_menu\</c>, 27 of them.</item>
+/// <item><b>The stamps are local wall-clock time, not UTC</b>, and everything they are compared
+/// against is UTC. Measured on three real logs on a UTC-4 host: each file's last stamp equals
+/// its own mtime to the millisecond in local time. See <see cref="ReadTimestamp"/>.</item>
 /// </list>
 /// <para>
 /// Nothing here supplies an end time. <b>187 of the 424 launches never record an exit</b>, so
@@ -89,11 +101,18 @@ public sealed class LaunchLog
     private static readonly string[] AnchorSegments = ["roms", "system"];
 
     private readonly RetroBatInstall _install;
+    private readonly TimeZoneInfo _timeZone;
 
-    public LaunchLog(RetroBatInstall install)
+    /// <param name="timeZone">
+    /// The zone the log's wall-clock stamps are read in. Defaults to this machine's, which is
+    /// the zone the launcher wrote them in. Injectable so a test can prove the conversion
+    /// somewhere other than UTC, where the two readings are indistinguishable.
+    /// </param>
+    public LaunchLog(RetroBatInstall install, TimeZoneInfo? timeZone = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         _install = install;
+        _timeZone = timeZone ?? TimeZoneInfo.Local;
     }
 
     /// <summary>True when the log has been written at all.</summary>
@@ -139,10 +158,10 @@ public sealed class LaunchLog
     /// Where a read that consumed <paramref name="records"/> should resume.
     /// </summary>
     /// <remarks>
-    /// The newest record, which <see cref="Read"/> guarantees is the last one. Measured on the
-    /// real file, every one of 424 launches carries a distinct millisecond, so the signature
-    /// tiebreak below has never had to fire; it is kept because a collision would otherwise
-    /// silently drop a launch rather than fail.
+    /// The newest timestamp, which <see cref="Read"/> guarantees the last record carries, and
+    /// the signature of <b>every</b> record sharing it. Measured on the real file, all 424
+    /// launches carry a distinct millisecond, so the second signature has never been needed;
+    /// carrying them all is what makes a collision neither drop a launch nor repeat one.
     /// </remarks>
     public LaunchLogPosition PositionAfter(IReadOnlyList<LaunchRecord> records, LaunchLogPosition? previous = null)
     {
@@ -151,9 +170,13 @@ public sealed class LaunchLog
         var last = records.Count > 0 ? records[^1] : null;
         var live = new FileInfo(_install.Resolve(LivePath));
 
+        var signatures = last is null
+            ? previous?.Signatures ?? []
+            : [.. records.Where(record => record.At == last.At).Select(record => record.Signature)];
+
         return new LaunchLogPosition(
             last?.At ?? previous?.At,
-            last?.Signature ?? previous?.Signature,
+            signatures,
             live.Exists ? live.Length : 0);
     }
 
@@ -325,14 +348,30 @@ public sealed class LaunchLog
             return true;
         }
 
-        // Two launches can share a millisecond. Same timestamp and same line is the one we
-        // already consumed; same timestamp and a different line is a launch we have not.
+        // Two launches can share a millisecond. One already in the cursor's set is one this
+        // read consumed; any other line at that instant is a launch that has not been seen.
         return record.At == cutoff
-            && from.Signature is not null
-            && !string.Equals(record.Signature, from.Signature, StringComparison.Ordinal);
+            && from.Signatures.Count > 0
+            && !from.Signatures.Contains(record.Signature, StringComparer.Ordinal);
     }
 
-    private static DateTimeOffset? ReadTimestamp(string line)
+    /// <summary>
+    /// Reads the line's leading stamp as an instant.
+    /// </summary>
+    /// <remarks>
+    /// <b>The launcher writes local wall-clock time, not UTC.</b> Measured against three real
+    /// logs on a UTC-4 host: each file's last stamp matches its own filesystem mtime to the
+    /// millisecond in local time (<c>2026-08-12 06:59:45.343</c> against
+    /// <c>06:59:45.343 -0400</c>, and two more). Reading these as UTC compares them against
+    /// genuinely-UTC hook timestamps and puts every launch hours out, which orphans every
+    /// <c>game-end</c> east of Greenwich and inflates every session west of it.
+    /// <para>
+    /// An hour repeated by a DST fallback is resolved to standard time, and an hour skipped by
+    /// a spring-forward to the offset in force before it. Both are one hour a year and both
+    /// land inside <c>MatchLaunch</c>'s window, so neither is worth more than this note.
+    /// </para>
+    /// </remarks>
+    private DateTimeOffset? ReadTimestamp(string line)
     {
         // "2026-08-16 11:22:18.072 [INFO] ..."
         const int Length = 23;
@@ -342,14 +381,17 @@ public sealed class LaunchLog
             return null;
         }
 
-        return DateTime.TryParseExact(
+        if (!DateTime.TryParseExact(
             line[..Length],
             "yyyy-MM-dd HH:mm:ss.fff",
             CultureInfo.InvariantCulture,
             DateTimeStyles.None,
-            out var parsed)
-            ? new DateTimeOffset(parsed, TimeSpan.Zero)
-            : null;
+            out var parsed))
+        {
+            return null;
+        }
+
+        return new DateTimeOffset(parsed, _timeZone.GetUtcOffset(parsed));
     }
 
     /// <summary>

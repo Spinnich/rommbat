@@ -11,9 +11,15 @@ namespace RomMBat.Core.Store;
 /// <c>.log.old</c>, so an offset taken before a rotation points into the wrong file after one.
 /// A timestamp plus a signature of the line survives that, and consuming everything strictly
 /// newer is idempotent, which is what a flush interrupted halfway needs.
+/// <para>
+/// <c>last_signature</c> holds every signature at that timestamp, comma-separated, because two
+/// launches can share a millisecond and remembering only one of them re-emits the other.
+/// </para>
 /// </remarks>
 public sealed class LaunchCursorStore
 {
+    private const char SignatureSeparator = ',';
+
     private readonly SqliteConnection _connection;
 
     internal LaunchCursorStore(SqliteConnection connection) => _connection = connection;
@@ -28,12 +34,14 @@ public sealed class LaunchCursorStore
 
         if (!reader.Read())
         {
-            return new LaunchLogPosition(null, null, 0);
+            return new LaunchLogPosition(null, [], 0);
         }
 
         return new LaunchLogPosition(
             reader.GetTimestampOrNull(0),
-            reader.GetStringOrNull(1),
+            reader.GetStringOrNull(1) is { } stored
+                ? stored.Split(SignatureSeparator, StringSplitOptions.RemoveEmptyEntries)
+                : [],
             reader.GetInt64OrNull(2) ?? 0);
     }
 
@@ -50,7 +58,7 @@ public sealed class LaunchCursorStore
             WHERE id = 1;
             """)
             .With("$at", SqliteValues.ToTextOrNull(position.At))
-            .With("$signature", SqliteValues.OrNull(position.Signature))
+            .With("$signature", SqliteValues.OrNull(string.Join(SignatureSeparator, position.Signatures)))
             .With("$size", position.LiveSizeBytes)
             .With("$now", SqliteValues.ToText(now));
 
