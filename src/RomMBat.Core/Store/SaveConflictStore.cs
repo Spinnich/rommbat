@@ -126,6 +126,27 @@ public sealed class SaveConflictStore
         return existing is null;
     }
 
+    /// <summary>Notes where the copy taken aside went, once it has been taken.</summary>
+    /// <remarks>
+    /// Separate from <see cref="Record"/> because the conflict is written before the copy is
+    /// attempted: an unwritable <c>replaced/</c> must cost the copy and not the record of the
+    /// conflict itself.
+    /// </remarks>
+    public void RecordCopy(long romId, string slot, RelativePath copy)
+    {
+        using var command = _connection.Command(
+            """
+            UPDATE save_conflict
+            SET local_copy_path = $copy
+            WHERE rom_id = $romId AND slot = $slot;
+            """)
+            .With("$romId", romId)
+            .With("$slot", slot)
+            .With("$copy", copy.Value);
+
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>One conflict, resolved or not.</summary>
     public SaveConflictRecord? Read(long romId, string slot)
     {

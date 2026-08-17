@@ -104,6 +104,25 @@ internal static class FlushCommand
             Console.WriteLine(scanned.Summary);
         }
 
+        // 3b. And the states, which are found the same way and sent a different way.
+        var schema = StateScanner.LoadSchema(context.Install);
+
+        if (schema is not null)
+        {
+            var states = new StateScanner(context.Install, context.Store, schema).Scan();
+
+            if (!quiet)
+            {
+                Console.WriteLine(states.Summary);
+            }
+        }
+        else if (!quiet)
+        {
+            // The file ships with RetroBat, so its absence is a real fact about this install
+            // rather than a case to pass over quietly.
+            Console.WriteLine("states: es_savestates.cfg is not in this install, so none were looked for");
+        }
+
         if (command.Has("offline"))
         {
             ReportQueued(context, quiet);
@@ -160,9 +179,28 @@ internal static class FlushCommand
                     Console.Error.WriteLine($"  {problem}");
                 }
 
-                ReportConflicts(saves);
+                // States go last because they are the only part of this pass that cannot fail
+                // in a way anyone has to act on: nothing negotiates, nothing conflicts, and an
+                // unsent state is simply sent again next time.
+                var states = await new StateSync(context.Install, context.Store, connection)
+                    .RunAsync(cancellationToken)
+                    .ConfigureAwait(false);
 
-                return saves.Failed > 0 || playtime.Failed > 0 ? ExitCode.Partial : ExitCode.Ok;
+                if (!quiet || states.Failed > 0)
+                {
+                    Console.WriteLine(states.Summary);
+                }
+
+                foreach (var problem in states.Problems)
+                {
+                    Console.Error.WriteLine($"  {problem}");
+                }
+
+                ReportConflicts(context);
+
+                return saves.Failed > 0 || playtime.Failed > 0 || states.Failed > 0
+                    ? ExitCode.Partial
+                    : ExitCode.Ok;
             }
             catch (RomMUnreachableException ex)
             {
@@ -191,10 +229,17 @@ internal static class FlushCommand
     /// <remarks>
     /// Measured, the conflict body is a bare sentence with no save id and no timestamps, so
     /// everything shown here comes from the negotiate operation and the local row instead.
+    /// <para>
+    /// Read from the store rather than from this pass's outcome, so a conflict found by an
+    /// earlier flush and never resolved is still reported. Stage 1 printed the in-memory list
+    /// once and a user who looked away lost the only record of it.
+    /// </para>
     /// </remarks>
-    private static void ReportConflicts(SaveSyncOutcome outcome)
+    private static void ReportConflicts(AgentContext context)
     {
-        if (outcome.Unresolved.Count == 0)
+        var conflicts = context.Store.SaveConflicts.ListOpen();
+
+        if (conflicts.Count == 0)
         {
             return;
         }
@@ -202,17 +247,20 @@ internal static class FlushCommand
         Console.WriteLine();
         Console.WriteLine("These saves changed in both places and nothing was overwritten:");
 
-        foreach (var conflict in outcome.Unresolved)
+        foreach (var conflict in conflicts)
         {
-            Console.WriteLine($"  rom {conflict.RomId}, slot {conflict.Slot}");
+            Console.WriteLine($"  rom {conflict.RomId}, slot {conflict.Slot}, since {conflict.FirstSeenAtUtc:u}");
             Console.WriteLine($"    here    {conflict.LocalPath}  {Short(conflict.LocalHash)}");
             Console.WriteLine($"    server  {Short(conflict.ServerHash)}  {conflict.ServerUpdatedAt:u}");
 
-            if (conflict.LocalCopy is { } copy)
+            if (conflict.LocalCopyPath is { } copy)
             {
                 Console.WriteLine($"    a copy of the local file is at {copy}");
             }
         }
+
+        Console.WriteLine();
+        Console.WriteLine("Pick a side with: rommbat-agent saves resolve <rom> <slot> --keep-local | --keep-server");
     }
 
     private static string Short(string? hash) =>

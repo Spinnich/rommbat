@@ -32,6 +32,15 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
     /// <summary>
+    /// Slots that answer 409 even for an overwrite.
+    /// </summary>
+    /// <remarks>
+    /// The slot moving again between the conflict being reported and the user deciding, which
+    /// means they are choosing against something they never saw. Nothing may be forced past it.
+    /// </remarks>
+    public HashSet<(int RomId, string Slot)> RefuseOverwrite { get; } = [];
+
+    /// <summary>
     /// Slots negotiate offers a <c>download</c> for that the client did not submit.
     /// </summary>
     /// <remarks>
@@ -193,10 +202,20 @@ internal sealed partial class StubRomMServer
         var romId = int.Parse(query.GetValueOrDefault("rom_id", "0"), CultureInfo.InvariantCulture);
         var slot = query.GetValueOrDefault("slot", string.Empty);
 
-        if (ConflictOnUpload.Contains((romId, slot)))
+        var overwrite = string.Equals(
+            query.GetValueOrDefault("overwrite"),
+            "true",
+            StringComparison.Ordinal);
+
+        if (ConflictOnUpload.Contains((romId, slot))
+            && (!overwrite || RefuseOverwrite.Contains((romId, slot))))
         {
             // Measured at 5.1.1-beta.1: a bare string, not the structured object other clients
             // document, so a client reading it as an object gets null and shows nothing.
+            //
+            // overwrite=true is what gets past it, and it replaces in place rather than
+            // appending. That is why it is correct only after somebody has chosen a side, and
+            // why the stub honours it here rather than refusing unconditionally.
             return Detail(HttpStatusCode.Conflict, "Slot has a newer save since your last sync");
         }
 
@@ -214,7 +233,13 @@ internal sealed partial class StubRomMServer
             return Json(HttpStatusCode.OK, Describe(existing));
         }
 
-        var id = Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1;
+        // An overwrite replaces the row in the slot rather than appending beside it, which is
+        // the difference that makes it a resolution rather than a second opinion.
+        var replaced = overwrite
+            ? Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot)
+            : null;
+
+        var id = replaced?.Id ?? (Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1);
 
         var save = new StubSave
         {

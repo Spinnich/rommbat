@@ -531,32 +531,73 @@ public sealed class SaveSync
         }
     }
 
+    /// <summary>
+    /// Persists a conflict, and copies the local file aside the first time only.
+    /// </summary>
+    /// <remarks>
+    /// <b>The copy is taken once per conflict, not once per flush.</b> Stage 1 copied on every
+    /// pass, so a slot that conflicts and is never resolved gained one dated file under
+    /// <c>replaced/</c> each time and nothing pruned them. The store answers whether this slot
+    /// was already standing, and a standing conflict already has its copy.
+    /// <para>
+    /// Recording comes first and the copy second, so a copy that fails still leaves the conflict
+    /// visible. The other way round, an unwritable <c>replaced/</c> would lose the record of the
+    /// conflict as well as the copy.
+    /// </para>
+    /// </remarks>
     private SaveConflict RecordConflict(SyncOperation operation, LocalSave? local)
     {
-        RelativePath? aside = null;
+        var slot = operation.Slot ?? string.Empty;
+        var reason = operation.Reason
+            ?? "both this device and the server changed this slot since the last sync.";
+        var now = _time.GetUtcNow();
 
-        if (local is not null)
+        var isNew = _store.SaveConflicts.Record(
+            new SaveConflictRecord(
+                operation.RomId,
+                slot,
+                local?.Path ?? default,
+                null,
+                local?.ContentHash,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                operation.SaveId,
+                reason,
+                now,
+                now,
+                null,
+                null),
+            now);
+
+        var aside = _store.SaveConflicts.Read(operation.RomId, slot)?.LocalCopyPath;
+
+        if (isNew && local is not null)
         {
             try
             {
                 aside = MoveAside(local.Path);
+
+                if (aside is not null)
+                {
+                    _store.SaveConflicts.RecordCopy(operation.RomId, slot, aside.Value);
+                }
             }
             catch (IOException)
             {
                 // The copy is a courtesy here rather than a precondition: nothing is being
-                // overwritten, because a conflict is not resolved automatically.
+                // overwritten, because a conflict is never resolved automatically.
             }
         }
 
         return new SaveConflict(
             operation.RomId,
-            operation.Slot ?? string.Empty,
+            slot,
             local?.Path ?? default,
             aside,
             local?.ContentHash,
             operation.ServerContentHash,
             operation.ServerUpdatedAt,
-            operation.Reason ?? "both this device and the server changed this slot since the last sync.");
+            reason);
     }
 
     /// <summary>

@@ -410,6 +410,12 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             return await SaveRouteAsync(request, path, cancellationToken).ConfigureAwait(false);
         }
 
+        // States are a third half, because they share none of the save protocol.
+        if (IsStateRoute(path))
+        {
+            return await StateRouteAsync(request, path, cancellationToken).ConfigureAwait(false);
+        }
+
         if (path.StartsWith("/assets/romm/resources/", StringComparison.Ordinal))
         {
             return Asset(path);
