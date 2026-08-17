@@ -1517,19 +1517,19 @@ is split into review surfaces small enough to hold. The first cut is at the save
 boundary. **The second cut, taken during stage 2, is at what each piece needs from Game-ID
 attribution**, because that is the only hard dependency among the remaining pieces.
 
-|                                                                       | Stage 2a                                   | Stage 2b            | Stage 2c |
-| --------------------------------------------------------------------- | ------------------------------------------ | ------------------- | -------- |
-| Hooks, journal, lock file, `emulatorLauncher.log`                     | stage 1                                    |                     |          |
-| Play sessions, standalone ingest                                      | stage 1                                    |                     |          |
-| Class A and B saves, attributed by filename                           | stage 1                                    |                     |          |
-| Negotiate, upload, download, ack, complete, conflicts, atomic restore | stage 1                                    |                     |          |
-| The logical-content hash                                              | stage 1, defined for the general case      | inherited unchanged |          |
-| Save states, all 13 emulators                                         | **yes**                                    |                     |          |
-| Conflict resolution, `saves resolve`, pruning `replaced/`             | **yes**                                    |                     |          |
-| `SaveGuard`, widened to save states                                   | **yes**                                    | widened to C        | to D     |
-| Game-ID attribution, journal correlation and ROM header               |                                            | yes                 |          |
-| Class C bundling and `outbox.batch_key`'s writer                      |                                            | yes                 |          |
-| Class D conversion and the `es_settings.cfg` writer                   |                                            |                     | yes      |
+|                                                                       | Stage 2a                              | Stage 2b            | Stage 2c |
+| --------------------------------------------------------------------- | ------------------------------------- | ------------------- | -------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                     | stage 1                               |                     |          |
+| Play sessions, standalone ingest                                      | stage 1                               |                     |          |
+| Class A and B saves, attributed by filename                           | stage 1                               |                     |          |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore | stage 1                               |                     |          |
+| The logical-content hash                                              | stage 1, defined for the general case | inherited unchanged |          |
+| Save states, all 13 emulators                                         | **yes**                               |                     |          |
+| Conflict resolution, `saves resolve`, pruning `replaced/`             | **yes**                               |                     |          |
+| `SaveGuard`, widened to save states                                   | **yes**                               | widened to C        | to D     |
+| Game-ID attribution, journal correlation and ROM header               |                                       | yes                 |          |
+| Class C bundling and `outbox.batch_key`'s writer                      |                                       | yes                 |          |
+| Class D conversion and the `es_settings.cfg` writer                   |                                       |                     | yes      |
 
 **Why states go first and alone.** A save state needs no Game-ID attribution at all: every
 `<file>` template in `es_savestates.cfg` is keyed on `{{romfilename}}`, and all twelve emulators
@@ -1749,7 +1749,7 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
 
   **Amended after M6 stage 2a: the resolution command exists, and it is the only caller of
   `overwrite=true` anywhere in this codebase.** `saves resolve <rom> <slot> --keep-local |
-  --keep-server` is the seam M7's UI binds to. There is deliberately **no default side**: either
+--keep-server` is the seam M7's UI binds to. There is deliberately **no default side**: either
   default silently discards somebody's progress, and the whole reason a conflict exists is that
   RomMBat cannot tell which side matters.
 
@@ -1814,7 +1814,6 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
 
   **M6 stage 2a drove it, because nothing in this repo had ever called it. Five results, and
   three of them change the client.**
-
   - **It is an upsert, not an append.** Three posts of one `file_name` reused a single row
     across two different payloads. So there is no slot history to prune, no `autocleanup` to
     ask for, and a replayed flush is idempotent for free. `PUT /api/states/{id}` works and is
