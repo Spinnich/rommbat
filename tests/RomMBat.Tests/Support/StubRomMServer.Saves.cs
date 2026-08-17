@@ -32,6 +32,15 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
     /// <summary>
+    /// Slots that answer 409 even for an overwrite.
+    /// </summary>
+    /// <remarks>
+    /// The slot moving again between the conflict being reported and the user deciding, which
+    /// means they are choosing against something they never saw. Nothing may be forced past it.
+    /// </remarks>
+    public HashSet<(int RomId, string Slot)> RefuseOverwrite { get; } = [];
+
+    /// <summary>
     /// Slots negotiate offers a <c>download</c> for that the client did not submit.
     /// </summary>
     /// <remarks>
@@ -41,6 +50,17 @@ internal sealed partial class StubRomMServer
     /// local one first.
     /// </remarks>
     public HashSet<(int RomId, string Slot)> UnsolicitedDownloads { get; } = [];
+
+    /// <summary>
+    /// Slots negotiate offers a <c>conflict</c> for that the client did not submit.
+    /// </summary>
+    /// <remarks>
+    /// Measurement 132 says a real instance never does this, because negotiate reconciles only
+    /// the set the client names. Modelled anyway, because the client's answer to it was a
+    /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
+    /// and takes the whole flush down rather than the one operation.
+    /// </remarks>
+    public HashSet<(int RomId, string Slot)> UnsolicitedConflicts { get; } = [];
 
     /// <summary>
     /// Save ids the client acknowledged, in order.
@@ -182,6 +202,24 @@ internal sealed partial class StubRomMServer
             });
         }
 
+        foreach (var (romId, slot) in UnsolicitedConflicts)
+        {
+            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+
+            operations.Add(new
+            {
+                action = "conflict",
+                rom_id = romId,
+                save_id = existing?.Id,
+                file_name = existing?.FileName,
+                slot,
+                emulator = existing?.Emulator,
+                reason = "Both changed since the last sync",
+                server_updated_at = existing?.UpdatedAt,
+                server_content_hash = HashLie ?? existing?.ContentHash,
+            });
+        }
+
         return Json(HttpStatusCode.OK, new { session_id = 4242, operations = operations.ToArray() });
     }
 
@@ -193,10 +231,20 @@ internal sealed partial class StubRomMServer
         var romId = int.Parse(query.GetValueOrDefault("rom_id", "0"), CultureInfo.InvariantCulture);
         var slot = query.GetValueOrDefault("slot", string.Empty);
 
-        if (ConflictOnUpload.Contains((romId, slot)))
+        var overwrite = string.Equals(
+            query.GetValueOrDefault("overwrite"),
+            "true",
+            StringComparison.Ordinal);
+
+        if (ConflictOnUpload.Contains((romId, slot))
+            && (!overwrite || RefuseOverwrite.Contains((romId, slot))))
         {
             // Measured at 5.1.1-beta.1: a bare string, not the structured object other clients
             // document, so a client reading it as an object gets null and shows nothing.
+            //
+            // overwrite=true is what gets past it, and it replaces in place rather than
+            // appending. That is why it is correct only after somebody has chosen a side, and
+            // why the stub honours it here rather than refusing unconditionally.
             return Detail(HttpStatusCode.Conflict, "Slot has a newer save since your last sync");
         }
 
@@ -214,7 +262,13 @@ internal sealed partial class StubRomMServer
             return Json(HttpStatusCode.OK, Describe(existing));
         }
 
-        var id = Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1;
+        // An overwrite replaces the row in the slot rather than appending beside it, which is
+        // the difference that makes it a resolution rather than a second opinion.
+        var replaced = overwrite
+            ? Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot)
+            : null;
+
+        var id = replaced?.Id ?? (Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1);
 
         var save = new StubSave
         {

@@ -15,8 +15,11 @@ is a wombat.
 >
 > **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
 > mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
-> BIOS all work. **Saves, states and playtime do not yet cross**, which is M6. The
-> repository also holds the design of record
+> BIOS all work. **Battery saves, save states and playtime now cross**, along with conflict
+> resolution. **Directory saves and shared memory cards do not yet**, which is
+> the rest of M6. Nothing has been certified against a real emulator yet; see
+> [Platform certification](#platform-certification) for what that means and when it starts.
+> The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
@@ -219,9 +222,26 @@ framework works end to end.
 | M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance        |
 | M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance |
 | M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                     |
-| M6        | Offline-first save, state and playtime sync                                                                         | Not started                                                                                                    |
+| M6        | Offline-first save, state and playtime sync                                                                         | **In progress**, in three stages. See below                                                                    |
 | M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                                    |
 | M8        | Packaging, docs, release                                                                                            | Not started                                                                                                    |
+
+M6 is the one milestone where a missed detail loses a save rather than a download, so it
+ships in stages small enough to review. The first cut is at the save-class boundary; the
+second is at what each remaining piece needs from Game-ID attribution, which is the only hard
+dependency among them.
+
+| Stage | Scope                                                                                          | State                                                                                                |
+| ----- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                |
+| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** States are pushed one way; `saves resolve` picks a side and prunes the copy kept aside |
+| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | Not started                                                                                          |
+| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | Not started                                                                                          |
+
+**Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
+conflict detection, so there is nothing to negotiate: a state goes up when its contents change
+and does not come back down. Anything RomMBat cannot sync is reported by `saves` with the
+reason rather than passed over in silence.
 
 ### Known upstream issues
 
@@ -238,17 +258,32 @@ RomMBat should do rather than just closing a ticket.
 ### Platform certification
 
 A platform counts as supported only after a nine-point checklist passes against a real
-install, recorded in `docs/platforms/<system>.md`. Certification is per RetroBat system,
-never per aggregate: "RetroArch works" is unverifiable, because each libretro core has its
-own save naming, state directory and BIOS requirements.
+install, recorded in `docs/platforms/<system>.md`.
 
-| Wave | Systems                                                                                      | Status      |
-| ---- | -------------------------------------------------------------------------------------------- | ----------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Not started |
-| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Not started |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | Not started |
-| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Not started |
-| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Not started |
+**The unit is `(system, emulator, core)`, not the system.** Two emulators for one console do
+not behave alike, and the difference lands exactly where it hurts: `psx` under libretro writes
+a plain `.srm` and is class A, while `psx` under DuckStation writes a memory card named from an
+internal database title and needs Game-ID attribution. Save-state directories and filenames are
+per emulator, and `libretro` and `bizhawk` are core-scoped on top of that, so one game under
+two cores has independent state sets. So "snes is certified" is not a claim; "`snes` under
+`libretro`/`snes9x` is certified" is, and it says nothing about `snes` under `bizhawk`. Expect
+the table below to be two to four passes per row rather than one.
+
+**Certification starts after M7.** Every pass needs a person at the machine launching real
+games, and doing that through a terminal rather than the gamepad UI makes a long job longer.
+The waves then finish against an M8 package, which is what a user would actually install.
+
+Two things do not wait for that. Each M6 stage owes one hands-on check of the save shape it
+added, because that is where being wrong destroys data rather than costing a re-download; and
+the automated suite already drives the whole protocol, offline included, against a stub server.
+
+| Wave | Systems                                                                                      | Status                |
+| ---- | -------------------------------------------------------------------------------------------- | --------------------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Not started, after M7 |
+| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Not started, after M7 |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | Not started, after M7 |
+| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Not started, after M7 |
+| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Not started, after M7 |
 
 ### Compatibility
 

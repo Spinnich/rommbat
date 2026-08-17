@@ -15,8 +15,35 @@ handhelds run a narrow emulator set. RetroBat meets every case.
 ## Save states: parse, do not hardcode
 
 `.emulationstation/es_savestates.cfg` gives directory, file, image, autosave templates and
-slot bounds per emulator. See the `retrobat-layout` skill. Derive the RomM slot as
-`{emulator}:{core}:{slot}`. Map `<image>` onto the optional `screenshotFile`.
+slot bounds per emulator. See the `retrobat-layout` skill. Map `<image>` onto the optional
+`screenshotFile`, and derive `{emulator}:{core}:{slot}` as the slot.
+
+**That slot never leaves the device.** `POST /api/states` has no slot field, and the row it
+returns carries no `content_hash` either, both confirmed live and in the pinned schema. So it
+is a local pairing key, and "does this state still need sending" is answerable only from the
+hash the device wrote down when it last sent one.
+
+**Reverse the templates; do not expand a slot range.** Compiling `<file>` into an anchored
+expression and matching what is on disk reads the slot off the filename, and three of the four
+famous traps in that file stop being questions: `libretro` declares no bounds, `bigpemu`
+declares `001`/`999` against a two-digit `{{slot2d}}`, and whether `{{slot}}` renders empty at
+slot zero becomes "accept zero digits". The same reversal on `<directory>` recovers the system
+and the core from the tree, which is the only sound reading when neither level of the save tree
+is positional. `desmume` still needs handling: nothing makes its `<image>` differ from its
+`<file>`.
+
+**The uploaded name is not the name on disk, and getting this wrong loses a state silently.**
+Measured: the upsert keys on `(rom_id, file_name)` and the **emulator is not part of the key**,
+so five posts of one name under five different emulator values reused a single row. `libretro`
+declares `{{romfilename}}.state{{slot}}` and `gopher64` declares `{{romfilename}}.state{{slot0}}`,
+which render identically for slots 1 to 9 and both serve `n64`; two libretro cores do the same
+for one game. So upload as `<stem> [<emulator>[.<core>]]<ext>`, **unconditionally** rather than
+only where a collision is possible: a conditional rule gives two devices two names for one
+state, and two names is two rows.
+
+**Suppress a zero-byte screenshot.** The server accepts one and stores it as a real screenshot
+row, and RetroBat's mirror produces one by racing the emulator, so the client is the only place
+that case gets caught.
 
 **Read and write the declared directory, not the emulator's native one.** Several emulators
 write states under their own naming and RetroBat mirrors them into the declared path a moment
@@ -35,10 +62,17 @@ BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 
 Four traps, all confirmed across the eleven emulators M0 drove:
 
-- A **`.txt` sidecar** sits beside the state holding the native basename (`UCES00995_1.00`,
-  `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes and is not
-  disposable, so sync it. Its **presence signals nothing**: `jgenesis` and `desmume` write one
-  whose content is just the rom filename, so it is emitted unconditionally.
+- A **`.txt` sidecar** often sits beside the state holding the native basename
+  (`UCES00995_1.00`, `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes,
+  and where it holds a serial it is the Game ID that directory-save attribution would otherwise
+  read out of a ROM.
+
+  **It is not emitted unconditionally, and an earlier reading here said it was.** Driven on a
+  real install: `libretro` writes none at all, under either of two cores. `jgenesis` wrote one
+  holding the plain rom filename, and `bizhawk` wrote `Phantasy Star (B).SMSHawk`, which is
+  BizHawk's own truncated name plus the core. So its absence means nothing and its presence
+  means nothing; only its **contents** are worth anything, and only sometimes.
+
 - **`<image>` is absent more often than present**: missing outright for most emulators driven,
   and correct, zero-byte and missing across three runs of the same PPSSPP game. `screenshotFile`
   is best-effort everywhere; absent and empty are both normal and say nothing about the state.
@@ -180,6 +214,17 @@ hash, folded into one digest. The archive is transport only.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
   sync record is stale, not when the save is newest overall.
+- **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
+  that found it, the local file is copied aside **once per conflict rather than once per
+  flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no
+  default side, because either default silently discards somebody's progress. `--keep-local` is
+  the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
+  moved again between the report and the decision, so it is reported rather than forced. Both
+  outcomes prune the copy aside.
+- **Negotiate never volunteers a slot the client did not submit.** Measured: a device with a
+  save on the server negotiated an empty `saves` array and got back no operations at all. It is
+  full-state reconciliation over the set the client names, so a fresh device cannot discover its
+  saves this way; that needs an inventory pass over `GET /api/saves?rom_id=`.
 - Persist the `file_name` the server returns, not the one you sent. **Write a different name
   to disk**: `file_name_no_tags` + `file_extension`. A file called
   `Game [2026-08-10_22-58-26].srm` is invisible to the emulator, which matches on the rom

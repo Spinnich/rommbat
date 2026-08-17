@@ -278,7 +278,11 @@ public sealed class SaveSync
 
                     break;
 
-                case SyncAction.Conflict:
+                // Guarded like Upload, and for a harder reason: save_conflict.local_path is NOT
+                // NULL, so recording a conflict for a slot this device did not submit would fail
+                // the CHECK and take the whole flush down with it. It falls to default instead,
+                // which says exactly that.
+                case SyncAction.Conflict when local is not null:
                     conflicts.Add(RecordConflict(operation, local));
                     break;
 
@@ -531,32 +535,80 @@ public sealed class SaveSync
         }
     }
 
-    private SaveConflict RecordConflict(SyncOperation operation, LocalSave? local)
+    /// <summary>
+    /// Persists a conflict, and copies the local file aside the first time only.
+    /// </summary>
+    /// <remarks>
+    /// <b>The copy is taken once per conflict, not once per flush.</b> Stage 1 copied on every
+    /// pass, so a slot that conflicts and is never resolved gained one dated file under
+    /// <c>replaced/</c> each time and nothing pruned them. The row read back after recording
+    /// answers both halves of that: a standing conflict already points at its copy, and a slot
+    /// the user settled whose server side has not moved is not open at all.
+    /// <para>
+    /// Keying on the copy rather than on the conflict being new is what makes a reopened conflict
+    /// work. Resolving one prunes the copy, so a slot that conflicts again has no copy aside and
+    /// needs a fresh one taken.
+    /// </para>
+    /// <para>
+    /// Recording comes first and the copy second, so a copy that fails still leaves the conflict
+    /// visible. The other way round, an unwritable <c>replaced/</c> would lose the record of the
+    /// conflict as well as the copy.
+    /// </para>
+    /// </remarks>
+    private SaveConflict RecordConflict(SyncOperation operation, LocalSave local)
     {
-        RelativePath? aside = null;
+        var slot = operation.Slot ?? string.Empty;
+        var reason = operation.Reason
+            ?? "both this device and the server changed this slot since the last sync.";
+        var now = _time.GetUtcNow();
 
-        if (local is not null)
+        _store.SaveConflicts.Record(
+            new SaveConflictRecord(
+                operation.RomId,
+                slot,
+                local.Path,
+                null,
+                local.ContentHash,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                operation.SaveId,
+                reason,
+                now,
+                now,
+                null,
+                null),
+            now);
+
+        var stored = _store.SaveConflicts.Read(operation.RomId, slot);
+        var aside = stored?.LocalCopyPath;
+
+        if (aside is null && stored is { IsOpen: true })
         {
             try
             {
                 aside = MoveAside(local.Path);
+
+                if (aside is not null)
+                {
+                    _store.SaveConflicts.RecordCopy(operation.RomId, slot, aside.Value);
+                }
             }
             catch (IOException)
             {
                 // The copy is a courtesy here rather than a precondition: nothing is being
-                // overwritten, because a conflict is not resolved automatically.
+                // overwritten, because a conflict is never resolved automatically.
             }
         }
 
         return new SaveConflict(
             operation.RomId,
-            operation.Slot ?? string.Empty,
-            local?.Path ?? default,
+            slot,
+            local.Path,
             aside,
-            local?.ContentHash,
+            local.ContentHash,
             operation.ServerContentHash,
             operation.ServerUpdatedAt,
-            operation.Reason ?? "both this device and the server changed this slot since the last sync.");
+            reason);
     }
 
     /// <summary>

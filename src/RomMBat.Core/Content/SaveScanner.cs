@@ -60,12 +60,19 @@ public sealed class SaveScanner
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
     private readonly SaveShapes _shapes;
+    private readonly SaveStateSchema? _states;
     private readonly TimeProvider _time;
 
+    /// <param name="states">
+    /// The state schema, so save states are not reported as unsyncable while they are being
+    /// synced. Null means no <c>es_savestates.cfg</c> was found, in which case nothing under a
+    /// state directory is being synced either and counting it is correct.
+    /// </param>
     public SaveScanner(
         RetroBatInstall install,
         LocalStore store,
         SaveShapes? shapes = null,
+        SaveStateSchema? states = null,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(install);
@@ -74,6 +81,7 @@ public sealed class SaveScanner
         _install = install;
         _store = store;
         _shapes = shapes ?? SaveShapes.Bundled;
+        _states = states;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -104,7 +112,7 @@ public sealed class SaveScanner
         // (folder, ROM basename) to (rom_id, path), which is the whole of class A and B
         // attribution: the save is named after the ROM file, inside its system's folder.
         // Built once rather than queried per save.
-        var romsByStem = BuildRomIndex();
+        var romsByStem = RomIndex.Build(_store);
 
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
         {
@@ -116,14 +124,23 @@ public sealed class SaveScanner
                 // Nine top-level directories on a real install are not declared systems at
                 // all, and 21 declared ones carry no shape. Both land here, and neither is
                 // touched: an unknown tree is not a tree to start writing into.
-                var files = CountFiles(systemDirectory);
+                //
+                // Save states under such a system are the exception, and they are excluded
+                // from the count for the same reason they are excluded below: state discovery
+                // is driven by es_savestates.cfg rather than by the save shapes, so a system
+                // with no shape at all still has its states synced. Measured on a real
+                // install: saves/ports/ holds a libretro state and its screenshot beside one
+                // battery save, and counting all three said three files were being ignored
+                // while two of them were going up.
+                var files = CountFiles(systemDirectory, savesRoot);
                 if (files > 0)
                 {
                     report.Add(
                         system,
                         string.Empty,
                         UnsyncableReason.UnknownShape,
-                        $"no shape definition covers saves/{system}/, so nothing under it is read",
+                        $"no shape definition covers saves/{system}/, so nothing under it is read "
+                            + "except any save states, which are found from es_savestates.cfg instead",
                         files);
                 }
 
@@ -183,9 +200,10 @@ public sealed class SaveScanner
                 }
             }
 
-            // Every subdirectory of a system folder is class C, class D or a save state, and
-            // stage 1 ships none of them. Counted per system rather than per file.
-            AddSubdirectories(report, system, shape, systemDirectory);
+            // Every subdirectory of a system folder is class C, class D or a save state. States
+            // are synced by StateScanner, so they are excluded here rather than reported as
+            // unsyncable while they are going up. Counted per system rather than per file.
+            AddSubdirectories(report, system, shape, systemDirectory, savesRoot);
         }
 
         var forgotten = ForgetMissing(seen);
@@ -226,10 +244,7 @@ public sealed class SaveScanner
             : $"{emulator}:battery";
     }
 
-    private LocalSave? Describe(
-        string system,
-        string file,
-        Dictionary<string, (long RomId, RelativePath Path)> romsByStem)
+    private LocalSave? Describe(string system, string file, RomIndex romsByStem)
     {
         if (!_install.Contains(file))
         {
@@ -248,7 +263,7 @@ public sealed class SaveScanner
 
         // Keyed on the folder the save was found under, so a save only ever matches a ROM in
         // its own system.
-        romsByStem.TryGetValue(IndexKey(system, stem), out var rom);
+        var rom = romsByStem.Find(system, stem);
 
         string? hash = null;
         try
@@ -268,8 +283,8 @@ public sealed class SaveScanner
             Emulator = _shapes.LooseEmulator,
             ShapeClass = shapeClass,
             Slot = SlotFor(_shapes.LooseEmulator, shapeClass, extension),
-            RomId = rom.RomId == 0 ? null : rom.RomId,
-            RomPath = rom.RomId == 0 ? null : rom.Path,
+            RomId = rom?.RomId,
+            RomPath = rom?.Path,
             ContentHash = hash,
             SizeBytes = info.Length,
             FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
@@ -277,67 +292,55 @@ public sealed class SaveScanner
     }
 
     /// <summary>
-    /// <c>(system folder, ROM stem)</c> to id, which is what a class A or B save is named after.
+    /// Reports the emulator subdirectories whose contents this build does not carry.
     /// </summary>
     /// <remarks>
-    /// <b>The folder is half the key, not decoration.</b> Contra, Aladdin, Tetris and Batman
-    /// all exist on several systems, which is the ordinary state of a multi-system library, and
-    /// a stem-only index gives <c>saves/snes/Contra.srm</c> to the NES ROM. That mis-attributes
-    /// the save on upload and puts two <c>local_save</c> rows on one <c>(rom_id, slot)</c>.
+    /// <b>Files inside a declared save-state directory are excluded, because they are synced.</b>
+    /// Without that this report would count a state as unsyncable in the same pass that uploads
+    /// it, which is worse than saying nothing: a user checking why their states are not going up
+    /// would be told they are not, while they were.
     /// <para>
-    /// A save whose own folder holds no ROM of that name is left unattributed and reported,
-    /// rather than falling back to a match in some other system. Guessing across systems is the
-    /// failure this key exists to prevent.
+    /// The exclusion asks the schema rather than matching directory names, so the two passes
+    /// cannot disagree about what a state directory is.
     /// </para>
     /// </remarks>
-    private Dictionary<string, (long RomId, RelativePath Path)> BuildRomIndex()
-    {
-        var index = new Dictionary<string, (long, RelativePath)>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var file in _store.Files.List())
-        {
-            if (file.Kind != LocalFileKind.Rom || file.RomId is not { } romId || file.Folder is not { } folder)
-            {
-                continue;
-            }
-
-            // First wins, and within one folder a collision needs two ROMs with the same stem
-            // and different extensions, where either is as good an answer as the other.
-            index.TryAdd(IndexKey(folder, Path.GetFileNameWithoutExtension(file.FileName)), (romId, file.Path));
-        }
-
-        return index;
-    }
-
-    private static string IndexKey(string folder, string stem) => $"{folder}/{stem}";
-
-    private static void AddSubdirectories(
+    private void AddSubdirectories(
         UnsyncableReport report,
         string system,
         SaveShape shape,
-        string systemDirectory)
+        string systemDirectory,
+        string savesRoot)
     {
         var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(CountFiles);
+        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot));
 
         if (files == 0)
         {
             return;
         }
 
+        // Named only where something in them is genuinely not carried, so a system whose only
+        // subdirectory is a state directory is not listed at all.
+        var names = string.Join(
+            ", ",
+            subdirectories
+                .Where(directory => CountFiles(directory, savesRoot) > 0)
+                .Select(Path.GetFileName)
+                .Order(StringComparer.Ordinal));
+
         var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
-        var names = string.Join(", ", subdirectories.Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
         // The system's own class is named because a reader will ask why a class A system has
         // anything unsyncable at all. The answer is that the class describes its battery
         // saves, which are the loose files, and these subdirectories are the emulators' own
-        // trees: memory cards, directory saves and save states, none of which ship here.
+        // trees: memory cards and directory saves, which this release does not carry.
         report.Add(
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
-            $"{names} hold save states, directory saves or shared containers. This release syncs "
-                + $"the battery saves loose under saves/{system}/ (class {classes}) and nothing else.",
+            $"{names} hold directory saves or shared containers. This release syncs the battery "
+                + $"saves loose under saves/{system}/ (class {classes}) and the save states beside "
+                + "them, and nothing else.",
             files);
     }
 
@@ -365,6 +368,37 @@ public sealed class SaveScanner
         {
             return 0;
         }
+    }
+
+    /// <summary>Counts files, skipping any that sit in a declared save-state directory.</summary>
+    private int CountFiles(string directory, string savesRoot)
+    {
+        if (_states is null)
+        {
+            return CountFiles(directory);
+        }
+
+        try
+        {
+            return Directory
+                .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                .Count(file => !IsStateDirectory(Path.GetDirectoryName(file), savesRoot));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
+    private bool IsStateDirectory(string? directory, string savesRoot)
+    {
+        if (directory is null || _states is null)
+        {
+            return false;
+        }
+
+        var relative = Path.GetRelativePath(savesRoot, directory).Replace('\\', '/');
+        return _states.MatchDirectory(relative) is not null;
     }
 
     /// <summary>

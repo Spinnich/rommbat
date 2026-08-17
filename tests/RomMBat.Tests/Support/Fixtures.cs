@@ -22,6 +22,26 @@ internal static class Fixtures
     /// <summary>A live 8.2.0 install's parsed <c>es_systems.cfg</c>, from M0 probe 4.</summary>
     public static string LiveEsSystems => Path("es_systems.live.json");
 
+    /// <summary>
+    /// RetroBat 8.2.0's shipped <c>es_savestates.cfg</c>, which M0 measured byte-identical to
+    /// the live copy.
+    /// </summary>
+    /// <remarks>
+    /// Linked from <c>reference/</c> rather than copied, because every trap the state parser
+    /// exists to survive is a property of these exact bytes: <c>libretro</c> declaring no slot
+    /// bounds, <c>desmume</c> declaring <c>&lt;image&gt;</c> identical to <c>&lt;file&gt;</c>,
+    /// <c>bigpemu</c>'s three-digit bounds against a two-digit template, and two entries whose
+    /// directory is core-scoped.
+    /// </remarks>
+    public static string EsSaveStatesTemplate => Path("es_savestates.template.cfg");
+
+    /// <summary>Parses the shipped save-state schema.</summary>
+    public static SaveStateSchema LoadSaveStates()
+    {
+        using var stream = File.OpenRead(EsSaveStatesTemplate);
+        return SaveStateSchema.Parse(stream);
+    }
+
     /// <summary>RetroBat's own list of system folder names.</summary>
     public static string SystemsNames => Path("systems_names.lst");
 

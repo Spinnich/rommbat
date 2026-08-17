@@ -174,6 +174,11 @@ public class PlaytimeAndHashTests
             var first = new SaveScanner(install, store).Scan();
             Assert.Equal(1, first.Found);
             Assert.Equal(1, first.Attributed);
+
+            var states = new StateScanner(install, store, Fixtures.LoadSaveStates()).Scan();
+            Assert.Equal(1, states.Found);
+            Assert.Equal(1, states.Attributed);
+            Assert.Equal(1, states.Screenshots);
         }
 
         using var moved = original.CopyToNewLocation();
@@ -184,8 +189,13 @@ public class PlaytimeAndHashTests
         using var relocated = LocalStore.Open(movedInstall);
 
         var before = relocated.Saves.List();
+        var statesBefore = relocated.States.List();
+
         var outcome = new SaveScanner(movedInstall, relocated).Scan();
+        var stateOutcome = new StateScanner(movedInstall, relocated, Fixtures.LoadSaveStates()).Scan();
+
         var after = relocated.Saves.List();
+        var statesAfter = relocated.States.List();
 
         Assert.Equal(1, outcome.Found);
         Assert.Equal(0, outcome.Forgotten);
@@ -193,8 +203,23 @@ public class PlaytimeAndHashTests
             before.Select(save => (save.Path.Value, save.Slot, save.ContentHash)),
             after.Select(save => (save.Path.Value, save.Slot, save.ContentHash)));
 
+        // A state carries three paths rather than one, and a directory template that expands
+        // through the system and the core, so it has three more chances to have captured a root.
+        Assert.Equal(1, stateOutcome.Found);
+        Assert.Equal(0, stateOutcome.Forgotten);
+        Assert.Equal(
+            statesBefore.Select(state => (state.Path.Value, state.Slot, state.ContentHash, state.ScreenshotPath)),
+            statesAfter.Select(state => (state.Path.Value, state.Slot, state.ContentHash, state.ScreenshotPath)));
+
         // And nothing anywhere in the store holds the old root.
         Assert.All(after, save => Assert.DoesNotContain(":", save.Path.Value, StringComparison.Ordinal));
+
+        Assert.All(statesAfter, state =>
+        {
+            Assert.DoesNotContain(":", state.Path.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain(":", state.ScreenshotPath!.Value.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain(":", state.RomPath!.Value.Value, StringComparison.Ordinal);
+        });
     }
 
     [Fact]
@@ -207,6 +232,7 @@ public class PlaytimeAndHashTests
             SaveScanner.SavesDirectory,
             SaveSync.PartialDirectory,
             SaveSync.AsideDirectory,
+            SaveStateSchema.ConfigPath,
             SpoolDrain.Directory,
             TreeLock.Path,
             LaunchLog.LivePath,
@@ -251,6 +277,14 @@ public class PlaytimeAndHashTests
         var savePath = install.Resolve(RelativePath.Create("saves/snes/ActRaiser (USA).srm"));
         Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
         File.WriteAllText(savePath, "progress");
+
+        // A save state and its screenshot in the core-scoped directory beside the battery save,
+        // which is the shape the tree really has: states and battery saves share the parent.
+        var statePath = install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        Directory.CreateDirectory(Path.GetDirectoryName(statePath)!);
+        File.WriteAllText(statePath, "a state");
+        File.WriteAllText(statePath + ".png", "a screenshot");
     }
 
     /// <summary>A store with a journal and a launch log a test can write into.</summary>

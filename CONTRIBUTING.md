@@ -93,9 +93,13 @@ cd reference && ./refresh.sh    # re-pull upstream, then re-derive every quoted 
 
 ## Platform contributions
 
-RomMBat supports platforms one certified system at a time, not in bulk. Certify per RetroBat system, never per aggregate: "RetroArch works" is not a claim anything can be verified against, because each libretro core has its own save naming, state directory and BIOS requirements.
+RomMBat supports platforms one certified system at a time, not in bulk.
 
-If you are adding or fixing a platform, run the full checklist in the `platform-certification` skill and record the result in `docs/platforms/<system>.md`. A platform is not done at eight of nine. Never claim a platform works without having launched a game on it.
+**The unit is `(system, emulator, core)`, never the system alone and never an aggregate.** "RetroArch works" is not a claim anything can be verified against, and neither is "snes works": two emulators for one console differ on save shape, state directory and BIOS needs, and `libretro` and `bizhawk` are core-scoped on top of that. So a record names the emulator and the core it was taken against, and says nothing about the others.
+
+If you are adding or fixing a platform, run the full checklist in the `platform-certification` skill and record the result in `docs/platforms/<system>.md`, in a section for that emulator. A pass is not done at eight of nine. Never claim a platform works without having launched a game on it.
+
+**The wave rollout starts after M7**, because every pass needs a person at the machine launching real games and the gamepad UI is what makes that bearable. Save-shape changes landing before then owe one hands-on check of the shape they add rather than a full certification; see `docs/platforms/README.md`.
 
 ## Code Style
 

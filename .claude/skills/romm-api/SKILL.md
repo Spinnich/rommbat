@@ -217,7 +217,26 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   accumulate them.
 - **Asset uploads are capped at 512 MiB** and rejected with 413 before the body is spooled.
 - **States are not in the negotiate protocol.** `POST /api/states` has no slot, device or
-  conflict detection. Best-effort only.
+  conflict detection, and `StateSchema` carries **no `content_hash`**. Best-effort only, and
+  "is it in step" is answerable only from a hash the client recorded itself.
+- **`POST /api/states` is an upsert keyed on `(rom_id, file_name)`, and the `emulator` is not
+  part of the key.** Three posts of one name reused one row across two payloads; five posts of
+  one name under five different emulator values also reused one row, overwriting its emulator
+  and moving its stored path. So there is no append to prune and no `autocleanup` to ask for,
+  but **the uploaded name has to carry the emulator and core** or two cores writing one filename
+  for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
+  two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary.
+- **The server does not rename a state.** A save comes back tagged
+  `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; a state comes back exactly as sent.
+- **A zero-byte `screenshotFile` is accepted and stored** as a real screenshot row, so the
+  client has to refuse the empty case itself.
+- **`emulator` is not sanitised.** It becomes a directory segment in the stored asset's
+  `file_path`, and a value containing `/` became two segments. Never send one.
+- **`POST /api/sync/negotiate` answers only about slots the client submits.** An empty `saves`
+  array returns no operations even when the server holds saves for that device's user, and
+  submitting one slot returns that slot alone. It never volunteers an unsubmitted slot, so a
+  fresh device cannot discover its saves through negotiate; use `GET /api/saves?rom_id=` or
+  `/api/saves/summary`.
 - **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
   membership; playtime lives in play sessions.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and

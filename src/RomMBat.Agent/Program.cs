@@ -115,9 +115,12 @@ internal static class Program
         Console.Error.WriteLine("  evict       Show what would be removed to get back inside the budget");
         Console.Error.WriteLine("  bios        Report the BIOS RetroBat needs, and fetch it with --apply");
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
-        Console.Error.WriteLine("  game-start  Not implemented yet (M6)");
-        Console.Error.WriteLine("  game-end    Not implemented yet (M6)");
-        Console.Error.WriteLine("  flush       Not implemented yet (M6)");
+        Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
+        Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
+        Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
+        Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
+        Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
+        Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");
         Console.Error.WriteLine("  --root <path>     The RetroBat root, when discovery cannot find it");
@@ -131,5 +134,8 @@ internal static class Program
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
         Console.Error.WriteLine("  --no-reload       gamelist: write the files without telling EmulationStation");
+        Console.Error.WriteLine("  --no-scan         saves: report what is recorded without rescanning the tree");
+        Console.Error.WriteLine("  --keep-local      saves resolve: send this device's copy over the server's");
+        Console.Error.WriteLine("  --keep-server     saves resolve: take the server's copy over this device's");
     }
 }

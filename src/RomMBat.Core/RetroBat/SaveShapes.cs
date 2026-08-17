@@ -33,6 +33,14 @@ public enum SaveShapeClass
 /// True where the shape is a property of <c>(system, emulator)</c> rather than of the system.
 /// <c>psx</c> is the worked example: libretro writes a loose <c>.srm</c> and DuckStation
 /// writes a database-named memory card, and they share nothing.
+/// <para>
+/// <b>Nothing branches on this yet, and nothing needs to.</b> Discovery is path-based rather
+/// than shape-based, so both halves of <c>psx</c> already come out right without consulting it:
+/// a loose <c>.srm</c> is libretro's by <see cref="SaveShapes.LooseEmulator"/>, and
+/// <c>saves/psx/duckstation/memcards/</c> is a subdirectory and is reported as a shape this
+/// release does not carry. The flag exists for the stage that reads a memory card, where the
+/// class alone stops being enough to know what a file is.
+/// </para>
 /// </param>
 public sealed record SaveShape(
     string System,
@@ -40,7 +48,7 @@ public sealed record SaveShape(
     string Evidence,
     bool DependsOnEmulator)
 {
-    /// <summary>True when any declared class is one stage 1 can carry.</summary>
+    /// <summary>True when any declared class is a battery shape this build carries.</summary>
     public bool HasSyncableClass => Classes.Any(value => value is SaveShapeClass.A or SaveShapeClass.B);
 }
 

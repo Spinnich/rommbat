@@ -33,6 +33,9 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// mitigation instead of an answer.</b> A save file on disk whose <c>uploaded_content_hash</c>
 /// is null has never reached the server, and one whose hash no longer matches the file has
 /// changed since it did. Either way the bytes on disk are what would be lost.</item>
+/// <item><c>local_state</c>: the same question about save states, which are save data by any
+/// reading a user would recognise. A state is worthless once its ROM is gone, and a state that
+/// has never gone up is not recoverable from anywhere.</item>
 /// </list>
 /// <para>
 /// <b>The mitigation stays and is no longer load-bearing.</b> Eviction still never touches a
@@ -40,11 +43,11 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// nothing was watching, is now visible to this guard directly.
 /// </para>
 /// <para>
-/// <b>The answer is only as wide as discovery.</b> Stage 1 discovers class A and B, so a
-/// class C or D save is still invisible here. Those are reported as unsyncable rather than
-/// silently ignored, and a ROM carrying one is a case this guard cannot yet see; the honest
-/// statement is that the seam is closed for what this build syncs and stays open for what it
-/// does not.
+/// <b>The answer is only as wide as discovery.</b> This build discovers class A and B battery
+/// saves and save states, so a class C or D save is still invisible here. Those are reported as
+/// unsyncable rather than silently ignored, and a ROM carrying one is a case this guard cannot
+/// yet see; the honest statement is that the seam is closed for what this build syncs and stays
+/// open for what it does not.
 /// </para>
 /// </remarks>
 public sealed class SaveGuard
@@ -84,6 +87,12 @@ public sealed class SaveGuard
                     $"{unsentSaves} save file for this game on disk has not reached the server yet.");
             }
 
+            if (CountUnsentStates(romId) is var unsentStates && unsentStates > 0)
+            {
+                return SaveGuardVerdict.Refuse(
+                    $"{unsentStates} save state for this game on disk has not reached the server yet.");
+            }
+
             return SaveGuardVerdict.Allowed;
         }
         catch (SqliteException ex)
@@ -119,6 +128,35 @@ public sealed class SaveGuard
             """
             SELECT COUNT(*)
             FROM local_save
+            WHERE rom_id = $romId
+              AND (uploaded_content_hash IS NULL
+                   OR content_hash IS NULL
+                   OR uploaded_content_hash <> content_hash);
+            """)
+            .With("$romId", romId);
+
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Save states on disk that have never gone up, or have changed since they did.
+    /// </summary>
+    /// <remarks>
+    /// The same query as <see cref="CountUnsentSaves"/> against the other table, and the same
+    /// fail-closed rule: a state with no hash was held open by something, and refusing to evict
+    /// a game that is very likely running is the correct answer regardless.
+    /// <para>
+    /// A state that could not be attributed to a ROM has a null <c>rom_id</c> and cannot match
+    /// here. That is not a hole this query can close, since the ROM being asked about is exactly
+    /// the thing an unattributed state failed to name; it is the case reported as unsyncable.
+    /// </para>
+    /// </remarks>
+    private int CountUnsentStates(int romId)
+    {
+        using var command = _store.Connection.Command(
+            """
+            SELECT COUNT(*)
+            FROM local_state
             WHERE rom_id = $romId
               AND (uploaded_content_hash IS NULL
                    OR content_hash IS NULL
