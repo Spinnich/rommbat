@@ -32,6 +32,17 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> ConflictOnUpload { get; } = [];
 
     /// <summary>
+    /// Slots negotiate offers a <c>download</c> for that the client did not submit.
+    /// </summary>
+    /// <remarks>
+    /// The new-device restore: the server holds a save for a game this device has never played,
+    /// so nothing local names it and it cannot appear in the request. Modelled because the
+    /// client has to have somewhere to put such a save, and every other download test seeds a
+    /// local one first.
+    /// </remarks>
+    public HashSet<(int RomId, string Slot)> UnsolicitedDownloads { get; } = [];
+
+    /// <summary>
     /// Save ids the client acknowledged, in order.
     /// </summary>
     /// <remarks>
@@ -148,6 +159,24 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = save.GetProperty("emulator").GetString(),
                 reason = action == "conflict" ? "Both changed since the last sync" : "stub",
+                server_updated_at = existing?.UpdatedAt,
+                server_content_hash = HashLie ?? existing?.ContentHash,
+            });
+        }
+
+        foreach (var (romId, slot) in UnsolicitedDownloads)
+        {
+            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+
+            operations.Add(new
+            {
+                action = "download",
+                rom_id = romId,
+                save_id = existing?.Id,
+                file_name = existing?.FileName,
+                slot,
+                emulator = existing?.Emulator,
+                reason = "held on the server and not on this device",
                 server_updated_at = existing?.UpdatedAt,
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });

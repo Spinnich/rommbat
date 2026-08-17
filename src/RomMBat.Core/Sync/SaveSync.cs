@@ -92,7 +92,12 @@ public sealed record SaveConflict(
 /// <b>Nothing is overwritten without a copy aside first.</b> A restore writes to
 /// <c>emulators/rommbat/partial/</c>, verifies the bytes against the hash the server reported,
 /// moves the existing file aside, and only then puts the new one in place. A half-written save
-/// is a corrupt save, and the previous copy stays until the next successful sync.
+/// is a corrupt save.
+/// </para>
+/// <para>
+/// The copies under <c>emulators/rommbat/replaced/</c> are kept indefinitely and nothing prunes
+/// them, so a slot that conflicts on every flush accumulates one dated copy per run. Pruning
+/// belongs with the resolution command that ends the conflict, which is issue #31.
 /// </para>
 /// <para>
 /// <b>The first save seen for a ROM with no local baseline does not win on recency.</b> A
@@ -154,11 +159,30 @@ public sealed class SaveSync
             return new SaveSyncOutcome();
         }
 
-        var byKey = saves.ToDictionary(save => (save.RomId!.Value, save.Slot));
+        // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
+        // negotiate between them: the server would be told about the slot twice and answer
+        // once. Reported and skipped rather than thrown on, because discovering an attribution
+        // fault must not take the rest of the library's saves down with it.
+        var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
+        var problems = new List<string>();
+        var failed = 0;
+
+        foreach (var save in saves)
+        {
+            if (byKey.TryAdd((save.RomId!.Value, save.Slot), save))
+            {
+                continue;
+            }
+
+            failed++;
+            problems.Add(
+                $"{save.Path}: slot {save.Slot} on rom {save.RomId} is already held by "
+                    + $"{byKey[(save.RomId!.Value, save.Slot)].Path}, so it was not sent.");
+        }
 
         var request = new NegotiateRequest(
             _deviceId,
-            [.. saves.Select(save => new NegotiateSave(
+            [.. byKey.Values.Select(save => new NegotiateSave(
                 (int)save.RomId!.Value,
                 save.Path.Name,
                 save.Slot,
@@ -182,20 +206,20 @@ public sealed class SaveSync
             // handle: every save stays exactly where it is, still recorded as unsent, and the
             // next flush negotiates the same set. This is the whole of "operations complete or
             // queue" at the point where the network first enters the picture.
-            return new SaveSyncOutcome { Failed = saves.Count, Problems = [ex.Message] };
+            problems.Add(ex.Message);
+            return new SaveSyncOutcome { Failed = failed + byKey.Count, Problems = problems };
         }
 
         if (!negotiated.IsSuccess || negotiated.Value is not { } result)
         {
-            return new SaveSyncOutcome { Failed = saves.Count, Problems = [negotiated.Message ?? "negotiate failed"] };
+            problems.Add(negotiated.Message ?? "negotiate failed");
+            return new SaveSyncOutcome { Failed = failed + byKey.Count, Problems = problems };
         }
 
         var uploaded = 0;
         var downloaded = 0;
         var noOps = 0;
-        var failed = 0;
         var bytes = 0L;
-        var problems = new List<string>();
         var conflicts = new List<SaveConflict>();
 
         foreach (var operation in result.Operations)
@@ -454,7 +478,15 @@ public sealed class SaveSync
     /// <b>The untagged name, never the one the server holds.</b> The tagged
     /// <c>Game [2026-08-10_22-58-26].srm</c> is invisible to an emulator matching on the ROM
     /// name. Where this device already has the slot, its own path wins, because that is a path
-    /// this device has proven an emulator reads.
+    /// this device has proven an emulator reads. Otherwise the slot's recorded server identity
+    /// supplies the name and the ROM's own folder supplies the directory, which is the restore
+    /// of a save this device once had and no longer does.
+    /// <para>
+    /// A slot this device has never negotiated at all has no recorded identity, and the
+    /// negotiate operation carries only the tagged name. Stripping that tag client-side is what
+    /// the plan rules out, so such a slot still reports that it has nowhere to go, and closing
+    /// that needs the live negotiate this branch did not drive.
+    /// </para>
     /// </remarks>
     private RelativePath? ResolveTarget(SyncOperation operation, LocalSave? local)
     {

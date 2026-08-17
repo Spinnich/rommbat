@@ -67,11 +67,20 @@ public class SaveSyncTests
         fixture.Scan();
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
 
-        await fixture.SyncAsync();
+        var first = await fixture.SyncAsync();
+        Assert.Equal(1, first.Uploaded);
+
         var afterFirst = fixture.Stub.Saves.Count;
 
-        await fixture.SyncAsync();
+        // Cleared, so the second run negotiates for real rather than being told to upload
+        // again. Leaving it set asserts the stub's content dedup, not the client's behaviour.
+        fixture.Stub.NegotiateActions.Remove((42, "libretro:battery"));
 
+        var second = await fixture.SyncAsync();
+
+        Assert.Equal(0, second.Uploaded);
+        Assert.Equal(0, second.Downloaded);
+        Assert.True(second.IsNoOp);
         Assert.Equal(afterFirst, fixture.Stub.Saves.Count);
         Assert.Equal(2, fixture.Stub.CompletedSessions);
     }
@@ -96,6 +105,49 @@ public class SaveSyncTests
 
         Assert.Equal(
             "newer from another device",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_slot_this_device_no_longer_holds_a_file_for_restores_into_its_roms_folder()
+    {
+        // The restore case every other download test skips, because they all seed a local save
+        // first. Here the local file is gone and the slot's server identity is all that is
+        // left, which is what a device looks like after the save was deleted or evicted and
+        // another device then uploaded. Resolving the target only from local state answers
+        // "nowhere to write it" and the save can never come back.
+        using var fixture = SyncFixture.Create();
+
+        // A second game with a save that stays put, because a device holding nothing at all
+        // never negotiates: RunAsync has nothing to send and returns before asking. That is a
+        // separate gap, and a library with more than one game is the ordinary case anyway.
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "still here");
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+
+        // Uploading is what records the slot's server-side identity: the untagged stem and the
+        // extension, which is what a restore has to write on disk.
+        await fixture.SyncAsync();
+
+        // Then the file goes, and the next scan forgets the row that named its path.
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+        Assert.Equal(42, Assert.Single(fixture.Store.Saves.List()).RomId);
+
+        // Another device uploads. Nothing local names the slot, so it cannot be in the request.
+        fixture.Stub.NegotiateActions.Clear();
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+
+        // Back where libretro looks for it: the ROM's own folder, under the untagged name.
+        Assert.Equal(
+            "from the other device",
             File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
     }
 
