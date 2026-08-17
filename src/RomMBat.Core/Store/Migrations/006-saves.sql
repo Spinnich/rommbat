@@ -246,6 +246,10 @@ CREATE TABLE unsyncable (
 -- `batch_key` because class B takes one slot per file, so saturn's .bcr and .bkr are two rows
 -- describing one save. Without a key tying them, a flush that lands one and fails the other
 -- reports two independent results and each looks fine on its own.
+--
+-- Nothing writes `batch_key` yet. Stage 1 sends saves straight from local_save rather than
+-- through the outbox, so the column is carried for stage 2, which routes class B and class C
+-- through here and is where the batch acquires a second row to tie.
 CREATE TABLE outbox_v2 (
   id              INTEGER PRIMARY KEY,
   local_sequence  INTEGER NOT NULL UNIQUE,

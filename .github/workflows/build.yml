@@ -66,6 +66,16 @@ jobs:
           -p:PublishSingleFile=true
           -o publish/ui
 
+      # The only project in the tree that is trimmed, and a trimming regression compiles
+      # cleanly and fails here. Four copies of this are installed, one per ES event folder,
+      # so its size is the reason it is trimmed and this is what keeps that honest.
+      - name: Publish hook
+        run: >
+          dotnet publish src/RomMBat.Hook
+          -c Release -r win-x64 --self-contained
+          -p:PublishSingleFile=true
+          -o publish/hook
+
       - name: Upload artefacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:

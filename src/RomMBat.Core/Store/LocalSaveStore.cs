@@ -136,40 +136,6 @@ public sealed class LocalSaveStore
         """,
         command => command.With("$romId", SqliteValues.OrNull(romId)));
 
-    /// <summary>Saves that need to go up: never uploaded, or changed since they were.</summary>
-    public IReadOnlyList<LocalSave> Unsent() => Query(
-        """
-        SELECT relative_path, system, emulator, shape_class, rom_id, rom_relative_path, slot,
-               content_hash, size_bytes, file_mtime_utc, uploaded_content_hash, uploaded_at_utc
-        FROM local_save
-        WHERE rom_id IS NOT NULL
-          AND content_hash IS NOT NULL
-          AND (uploaded_content_hash IS NULL OR uploaded_content_hash <> content_hash)
-        ORDER BY relative_path;
-        """,
-        command => command);
-
-    /// <summary>
-    /// How many of a ROM's saves have never reached the server.
-    /// </summary>
-    /// <remarks>
-    /// <c>SaveGuard</c>'s third question, asked per ROM by eviction. Deliberately counts a
-    /// save changed since its upload too: the bytes on disk are what would be lost.
-    /// </remarks>
-    public int UnsentCount(long romId)
-    {
-        using var command = _connection.Command(
-            """
-            SELECT COUNT(*)
-            FROM local_save
-            WHERE rom_id = $romId
-              AND (uploaded_content_hash IS NULL OR uploaded_content_hash <> content_hash);
-            """)
-            .With("$romId", romId);
-
-        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
-    }
-
     /// <summary>Forgets saves whose files are gone, so a deleted save stops blocking eviction.</summary>
     /// <returns>How many rows were removed.</returns>
     public int Forget(IEnumerable<RelativePath> paths)
