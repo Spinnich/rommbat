@@ -116,14 +116,23 @@ task.
 | Subcommand   | Network       | Notes                                                                                 |
 | ------------ | ------------- | ------------------------------------------------------------------------------------- |
 | `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                       |
-| `sync`       | yes           | Resolve sets, then BIOS, then content, then media, then gamelists                     |
+| `sync`       | yes           | Flush first, then resolve sets, BIOS, content, media, gamelists, and scan saves       |
 | `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`              |
+| `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                |
+| `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision |
 | `game-start` | **never**     | Append a start record and exit                                                        |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit             |
-| `flush`      | yes           | Drain the outbox if the server is reachable                                           |
+| `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server      |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts |
 
-Everything but the three M6 subcommands is implemented; those exit 70 until that milestone.
+All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
+one subcommand that needs the network and a decision from a person, and the only caller of
+`overwrite=true` anywhere in the codebase.
+
+**Nothing invokes `flush` except `sync` and a person typing it.** The hooks write a spool file
+and exit without starting a process, and the UI that would drive one is M7. Having a hook spawn
+an agent puts an 11 MB process start inside the game-launch path, and that cost has to be
+measured on a real install before it is added; the measurement is still outstanding.
 
 `game-start` and `game-end` run inside the game launch path. They must not open a socket and
 must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
@@ -226,7 +235,7 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Four have been
+so each milestone has somewhere honest to write from the moment it starts. Six have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -240,6 +249,12 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |
 | `outbox`           | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number                       |
 | `journal`          | Hook events, correlated later against `emulatorLauncher.log`                                                                       |
+| `launch_cursor`    | Singleton: how far `emulatorLauncher.log` has been read, as a timestamp rather than an offset, because the file rotates            |
+| `local_save`       | One row per save unit on disk, with its logical content hash and the hash that was last uploaded. Answers `SaveGuard`              |
+| `local_state`      | One row per save state, with its emulator, core, version, screenshot and the name it was uploaded under                            |
+| `save_slot`        | The server-side identity of each `(rom_id, slot)`: `save_id`, both filenames, the server hash, the uploading device                |
+| `save_conflict`    | Slots where both sides moved, outliving the flush that found them, until a person picks a side                                     |
+| `unsyncable`       | What was found under `saves/` and is not being synced, with a reason a user can act on. Rewritten every scan                       |
 | `game_id_binding`  | Learned Game ID to `rom_id` bindings, for class C and D attribution                                                                |
 | `rom_metadata`     | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server                                  |
 | `setting`          | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy                 |
@@ -460,17 +475,33 @@ Three rules that are not obvious:
   "archival manual upload", is excluded from pairing, and negotiates as `upload` forever,
   piling up duplicates. Always send a stable, non-null slot.
 - **The server rewrites uploaded filenames** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`.
-  Persist the `file_name` from the response, never the one you sent.
+  Persist the `file_name` from the response, never the one you sent. **Measured: it does not
+  do this to a state**, which comes back exactly as sent.
 - **Hash the contents, not the archive.** Zip output is implementation-dependent, so
   hashing the bytes would make RomMBat and Grout disagree forever on identical saves.
   Define `content_hash` over sorted relative paths plus each file's own hash. The archive
   is transport only.
 
-Save states are the easier half, because `es_savestates.cfg` is a machine-readable
-per-emulator schema of directory, filename, screenshot, autosave and slot bounds. Parse
-it; do not hardcode. Note that states are **not** part of the negotiate protocol:
-`POST /api/states` has no slot, device or conflict detection, so state sync is
-best-effort push, tracked locally, and the UI says so.
+**A conflict is never resolved automatically.** Both sides are kept, the local file is copied
+once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
+`saves resolve` picks a side. `--keep-local` is the only thing that sends `overwrite=true`;
+resolving either way prunes the copy, which is what makes the plan's "keep the previous copy
+until the next successful sync" true rather than aspirational.
+
+Save states look like the easier half, because `es_savestates.cfg` is a machine-readable
+per-emulator schema of directory, filename, screenshot, autosave and slot bounds. Parse it; do
+not hardcode. Two things make it less easy than it looks, both measured:
+
+- **States are not in the negotiate protocol.** `POST /api/states` has no slot, no device and
+  no conflict detection, and the row it returns carries **no `content_hash`**. So state sync is
+  a best-effort push, "in step" is answerable only from a hash the device recorded itself, and
+  the `{emulator}:{core}:{slot}` slot is a **local** identity that never goes on the wire.
+- **The upsert keys on `(rom_id, file_name)` and the emulator is not part of it.** So the
+  uploaded name is not the name on disk: it carries the emulator and core, or two libretro
+  cores writing one filename for one game collapse into a single server row and the second
+  silently wins. Discovery reverses the `<file>` and `<directory>` templates rather than
+  expanding a slot range, which is what makes the four documented traps in that file mostly
+  stop being traps.
 
 Attribution for classes C and D is a real problem, because directory saves are keyed by
 Game ID and RomM stores no serial or title ID anywhere. The primary route is correlating

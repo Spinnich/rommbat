@@ -302,6 +302,59 @@ public class StateDiscoveryTests
     }
 
     [Fact]
+    public void A_state_directory_is_not_reported_as_unsyncable_while_its_states_are_syncing()
+    {
+        // The report would otherwise count a state as not carried in the same pass that
+        // uploads it, which is worse than saying nothing: a user asking why their states are
+        // not going up would be told they are not, while they were.
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "snes", "ActRaiser (USA).zip");
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "a state");
+
+        tree.ScanSaves();
+
+        Assert.Empty(tree.Store.Unsyncable.List());
+    }
+
+    [Fact]
+    public void A_directory_save_beside_a_state_directory_is_still_reported()
+    {
+        // The exclusion is the state directories and only those. psp holds both: ppsspp/ is
+        // where the states are mirrored, SAVEDATA/ is a class C shape this release cannot
+        // carry, and the report has to name the second without swallowing it alongside the
+        // first.
+        using var tree = StateTree.Create();
+        tree.AddRom(1, "psp", "Patapon (Europe).cso");
+        tree.AddState("psp/ppsspp", "Patapon (Europe)_0.ppst", "a state");
+        tree.AddState("psp/SAVEDATA/UCES00995", "DATA.BIN", "a directory save");
+
+        tree.ScanSaves();
+
+        var reported = Assert.Single(tree.Store.Unsyncable.List());
+
+        Assert.Equal(UnsyncableReason.NotInThisVersion, reported.Reason);
+
+        // One file counted, not two: the state does not appear in the count.
+        Assert.Equal(1, reported.FileCount);
+        Assert.Contains("SAVEDATA", reported.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("ppsspp", reported.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Without_the_schema_a_state_directory_is_counted_the_way_it_used_to_be()
+    {
+        // No es_savestates.cfg means nothing under a state directory is being synced either,
+        // so counting it is the correct answer rather than an oversight.
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "snes", "ActRaiser (USA).zip");
+        tree.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "a state");
+
+        new SaveScanner(tree.Install, tree.Store, states: null).Scan();
+
+        Assert.Equal(1, Assert.Single(tree.Store.Unsyncable.List()).FileCount);
+    }
+
+    [Fact]
     public void Eviction_refuses_a_rom_whose_save_state_has_never_gone_up()
     {
         // A state is save data by any reading a user would recognise, and it is worthless once
@@ -428,6 +481,10 @@ public class StateDiscoveryTests
 
         public StateScanOutcome Scan() =>
             new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
+
+        /// <summary>The battery-save pass, given the same schema the real callers give it.</summary>
+        public SaveScanOutcome ScanSaves() =>
+            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStates()).Scan();
 
         public void Dispose()
         {

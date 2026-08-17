@@ -34,10 +34,21 @@ the source of truth; the network is optional, probed with a short-timeout
   conflict. Keep a monotonic sequence alongside wall clock, compare against the server's
   `Date` header on first contact, and offer to re-stamp the outbox past a threshold.
 - **Conflicts are normal, not exceptional.** Default `keep_both`, never silently overwrite,
-  always copy aside first.
+  always copy aside first. Keeping both means keeping the local side **local**: uploading it
+  would make it the newest row in the slot and tell every other device to take it, which is an
+  unresolved conflict resolving itself in favour of whoever synced last. The conflict is
+  persisted and waits for `saves resolve` to pick a side.
 - **No daemon exists.** A portable install cannot register a service or scheduled task, so
-  the flush is a short-lived process invoked from `start`, `game-end` and `quit` hooks and
-  from the UI, guarded by a lock file in the tree. One pass, then exit.
+  the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
+
+  **What actually invokes it today is `sync` and a person typing `flush`, and nothing else.**
+  The intent was that `start`, `game-end` and `quit` each wake an agent and the UI drive one
+  while it runs; neither shipped. The hook writes a spool file and exits without starting a
+  process, and the UI is M7. That is tolerable because draining is idempotent and a spool file
+  waits indefinitely, and it is deliberately not fixed by having the hook spawn something: that
+  puts an 11 MB process start inside the game-launch path, and the cost has to be measured on a
+  real install first. **That measurement is still outstanding.**
+
 - Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
   under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave
   a half-written file in a folder EmulationStation scans and offers to launch. Only a

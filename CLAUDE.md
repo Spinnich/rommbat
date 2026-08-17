@@ -106,7 +106,12 @@ Baseline: RetroBat 8.2, RomM 5.1.0. Check both at startup, refuse below, warn ab
 fixtures from a real install, checked in.
 
 **Verify before handoff.** Never claim a platform works without running the
-`platform-certification` checklist against it.
+`platform-certification` checklist against it. **The unit is `(system, emulator, core)`**: two
+emulators for one console differ on save shape, state directory and BIOS needs, and `libretro`
+and `bizhawk` are core-scoped on top of that, so "snes works" is not a claim. The wave rollout
+starts after M7; a change to save logic before then owes one hands-on pass of the shape it
+touches, and a session that cannot take one says which claims are unproven rather than letting
+the test suite stand in for evidence.
 
 **English only** outside of localisation files.
 

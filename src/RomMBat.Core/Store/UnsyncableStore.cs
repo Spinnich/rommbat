@@ -31,14 +31,16 @@ public sealed record UnsyncableEntry(
 /// What RomMBat found and is not syncing.
 /// </summary>
 /// <remarks>
-/// <b>The alternative to this table is silence.</b> Stage 1 discovers class C, class D and
-/// every save state and ships none of them, so without a report a user's PS3 saves simply
-/// never go up and nothing says so. The plan's own words are "reported as not syncable, here
-/// is why", and that is a table rather than a log line because <c>status</c> has to be able to
-/// answer it with the server unreachable.
+/// <b>The alternative to this table is silence.</b> This build discovers class C and class D
+/// and ships neither, so without a report a user's PS3 saves simply never go up and nothing
+/// says so. The plan's own words are "reported as not syncable, here is why", and that is a
+/// table rather than a log line because <c>status</c> has to be able to answer it with the
+/// server unreachable.
 /// <para>
 /// Rewritten wholesale on each scan rather than accumulated, so a system that becomes
-/// syncable stops being listed. That is what makes the count an honest measure of coverage.
+/// syncable stops being listed. That is what makes the count an honest measure of coverage,
+/// and it is why save states stopped appearing here the moment they started syncing rather
+/// than needing the rows cleaned up.
 /// </para>
 /// </remarks>
 public sealed class UnsyncableStore

@@ -117,9 +117,8 @@ public sealed partial class RomMConnection
         using var file = new StreamContent(content);
         file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
 
-        // The screenshotFile half is deliberately unused here. desmume declares an <image>
-        // template identical to its <file>, so sending one blind uploads the state itself, and
-        // states are the next release's work in any case.
+        // A battery save has no screenshot to send. The screenshotFile half of this endpoint
+        // belongs to states, and UploadStateAsync is where it is used.
         form.Add(file, "saveFile", fileName);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, Resolve("api/saves?" + string.Join('&', query)))

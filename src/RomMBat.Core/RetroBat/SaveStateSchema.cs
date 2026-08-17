@@ -143,6 +143,82 @@ public sealed class SaveStateSchema
     public SaveStateEmulator? For(string? emulator) =>
         emulator is not null && _emulators.TryGetValue(emulator, out var found) ? found : null;
 
+    /// <summary>
+    /// Which emulator, system and core a directory under <c>saves/</c> belongs to, if any.
+    /// </summary>
+    /// <remarks>
+    /// <b>The reverse of the <c>&lt;directory&gt;</c> template, and shared rather than copied.</b>
+    /// State discovery uses it to find directories worth scanning, and battery-save discovery
+    /// uses it to know which subdirectories are already accounted for. Two implementations would
+    /// be two chances for the two passes to disagree about what a directory is, and a
+    /// disagreement there shows up as a file reported unsyncable while it is being synced.
+    /// </remarks>
+    /// <param name="relativeToSaves">A directory path relative to <c>saves/</c>, forward slashes.</param>
+    public SaveStateDirectory? MatchDirectory(string relativeToSaves)
+    {
+        if (string.IsNullOrWhiteSpace(relativeToSaves))
+        {
+            return null;
+        }
+
+        var normalized = relativeToSaves.Replace('\\', '/').Trim('/');
+
+        foreach (var emulator in _emulators.Values)
+        {
+            if (DirectoryPattern(emulator.Directory) is not { } pattern)
+            {
+                continue;
+            }
+
+            if (pattern.Match(normalized) is not { Success: true } match)
+            {
+                continue;
+            }
+
+            var core = match.Groups["core"].Success ? match.Groups["core"].Value : null;
+
+            // A core the user turned off through the <core> mechanism is not somewhere
+            // RetroBat will be writing, so it is not a state directory either.
+            if (core is not null
+                && emulator.Cores.TryGetValue(core, out var declared)
+                && !declared.Enabled)
+            {
+                continue;
+            }
+
+            return new SaveStateDirectory(emulator, match.Groups["system"].Value, core);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Compiles a <c>&lt;directory&gt;</c> template into an expression recovering system and core.
+    /// </summary>
+    /// <remarks>
+    /// Both captures refuse a separator, so the template's own segment boundaries decide where
+    /// the system ends. Everything outside a placeholder is escaped, so no character of a real
+    /// template is read as an expression.
+    /// </remarks>
+    private static Regex? DirectoryPattern(string template)
+    {
+        if (!template.Contains("{{system}}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var pattern = string.Join(
+            @"(?<system>[^/]+)",
+            template
+                .Trim('/')
+                .Split("{{system}}", StringSplitOptions.None)
+                .Select(part => string.Join(
+                    @"(?<core>[^/]+)",
+                    part.Split("{{core}}", StringSplitOptions.None).Select(Regex.Escape))));
+
+        return new Regex("^" + pattern + "$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+    }
+
     /// <summary>Reads the file at a path, or null when it is not there.</summary>
     public static SaveStateSchema? Load(string path)
     {
@@ -226,6 +302,10 @@ public sealed class SaveStateSchema
     private static string? Text(XElement parent, string name) =>
         parent.Element(name)?.Value is { Length: > 0 } value ? value.Trim() : null;
 }
+
+/// <summary>A directory under <c>saves/</c> that an emulator's state template claims.</summary>
+/// <param name="Core">Null where the emulator is not core-scoped, never empty.</param>
+public sealed record SaveStateDirectory(SaveStateEmulator Emulator, string System, string? Core);
 
 /// <summary>
 /// One expansion of an emulator's templates for a given system and core.

@@ -172,38 +172,18 @@ public sealed class StateScanner
     {
         var resolved = new List<(SaveStateTemplate, string)>();
 
-        foreach (var emulator in _schema.Emulators)
+        foreach (var depth in _schema.Emulators.Select(emulator => DepthOf(emulator.Directory)).Distinct())
         {
-            var pattern = DirectoryPattern(emulator.Directory);
-
-            if (pattern is null)
-            {
-                continue;
-            }
-
-            foreach (var directory in EnumerateDirectories(savesRoot, DepthOf(emulator.Directory)))
+            foreach (var directory in EnumerateDirectories(savesRoot, depth))
             {
                 var relative = Path.GetRelativePath(savesRoot, directory).Replace('\\', '/');
-                var match = pattern.Match(relative);
 
-                if (!match.Success)
+                if (_schema.MatchDirectory(relative) is not { } claimed)
                 {
                     continue;
                 }
 
-                var system = match.Groups["system"].Value;
-                var core = match.Groups["core"].Success ? match.Groups["core"].Value : null;
-
-                // A core the user disabled through the <core> mechanism is skipped, since
-                // RetroBat will not be writing there.
-                if (core is not null
-                    && emulator.Cores.TryGetValue(core, out var declared)
-                    && !declared.Enabled)
-                {
-                    continue;
-                }
-
-                if (SaveStateTemplate.Create(emulator, system, core) is { } template)
+                if (SaveStateTemplate.Create(claimed.Emulator, claimed.System, claimed.Core) is { } template)
                 {
                     resolved.Add((template, directory));
                 }
@@ -440,31 +420,4 @@ public sealed class StateScanner
         return current;
     }
 
-    /// <summary>
-    /// Compiles a <c>&lt;directory&gt;</c> template into an expression that recovers the system
-    /// and the core from a path.
-    /// </summary>
-    /// <remarks>
-    /// Both captures refuse a separator, so a template's own segment boundaries decide where the
-    /// system ends. Everything outside a placeholder is escaped, so no character of a real
-    /// template is read as an expression.
-    /// </remarks>
-    private static Regex? DirectoryPattern(string template)
-    {
-        if (!template.Contains("{{system}}", StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        var pattern = string.Join(
-            @"(?<system>[^/]+)",
-            template
-                .Trim('/')
-                .Split("{{system}}", StringSplitOptions.None)
-                .Select(part => string.Join(
-                    @"(?<core>[^/]+)",
-                    part.Split("{{core}}", StringSplitOptions.None).Select(Regex.Escape))));
-
-        return new Regex("^" + pattern + "$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
-    }
 }

@@ -100,7 +100,11 @@ internal static class FlushCommand
         }
 
         // 3. Work out what is on disk. Local, and the thing eviction depends on.
-        var scanned = new SaveScanner(context.Install, context.Store).Scan();
+        //
+        // The state schema goes into both passes: the save scan needs it so it does not report
+        // a state as unsyncable in the same run that uploads it.
+        var schema = StateScanner.LoadSchema(context.Install);
+        var scanned = new SaveScanner(context.Install, context.Store, states: schema).Scan();
 
         if (!quiet)
         {
@@ -108,8 +112,6 @@ internal static class FlushCommand
         }
 
         // 3b. And the states, which are found the same way and sent a different way.
-        var schema = StateScanner.LoadSchema(context.Install);
-
         if (schema is not null)
         {
             var states = new StateScanner(context.Install, context.Store, schema).Scan();

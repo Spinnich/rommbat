@@ -60,12 +60,19 @@ public sealed class SaveScanner
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
     private readonly SaveShapes _shapes;
+    private readonly SaveStateSchema? _states;
     private readonly TimeProvider _time;
 
+    /// <param name="states">
+    /// The state schema, so save states are not reported as unsyncable while they are being
+    /// synced. Null means no <c>es_savestates.cfg</c> was found, in which case nothing under a
+    /// state directory is being synced either and counting it is correct.
+    /// </param>
     public SaveScanner(
         RetroBatInstall install,
         LocalStore store,
         SaveShapes? shapes = null,
+        SaveStateSchema? states = null,
         TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(install);
@@ -74,6 +81,7 @@ public sealed class SaveScanner
         _install = install;
         _store = store;
         _shapes = shapes ?? SaveShapes.Bundled;
+        _states = states;
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -183,9 +191,10 @@ public sealed class SaveScanner
                 }
             }
 
-            // Every subdirectory of a system folder is class C, class D or a save state, and
-            // stage 1 ships none of them. Counted per system rather than per file.
-            AddSubdirectories(report, system, shape, systemDirectory);
+            // Every subdirectory of a system folder is class C, class D or a save state. States
+            // are synced by StateScanner, so they are excluded here rather than reported as
+            // unsyncable while they are going up. Counted per system rather than per file.
+            AddSubdirectories(report, system, shape, systemDirectory, savesRoot);
         }
 
         var forgotten = ForgetMissing(seen);
@@ -273,33 +282,56 @@ public sealed class SaveScanner
         };
     }
 
-    private static void AddSubdirectories(
+    /// <summary>
+    /// Reports the emulator subdirectories whose contents this build does not carry.
+    /// </summary>
+    /// <remarks>
+    /// <b>Files inside a declared save-state directory are excluded, because they are synced.</b>
+    /// Without that this report would count a state as unsyncable in the same pass that uploads
+    /// it, which is worse than saying nothing: a user checking why their states are not going up
+    /// would be told they are not, while they were.
+    /// <para>
+    /// The exclusion asks the schema rather than matching directory names, so the two passes
+    /// cannot disagree about what a state directory is.
+    /// </para>
+    /// </remarks>
+    private void AddSubdirectories(
         UnsyncableReport report,
         string system,
         SaveShape shape,
-        string systemDirectory)
+        string systemDirectory,
+        string savesRoot)
     {
         var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(CountFiles);
+        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot));
 
         if (files == 0)
         {
             return;
         }
 
+        // Named only where something in them is genuinely not carried, so a system whose only
+        // subdirectory is a state directory is not listed at all.
+        var names = string.Join(
+            ", ",
+            subdirectories
+                .Where(directory => CountFiles(directory, savesRoot) > 0)
+                .Select(Path.GetFileName)
+                .Order(StringComparer.Ordinal));
+
         var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
-        var names = string.Join(", ", subdirectories.Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
         // The system's own class is named because a reader will ask why a class A system has
         // anything unsyncable at all. The answer is that the class describes its battery
         // saves, which are the loose files, and these subdirectories are the emulators' own
-        // trees: memory cards, directory saves and save states, none of which ship here.
+        // trees: memory cards and directory saves, which this release does not carry.
         report.Add(
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
-            $"{names} hold save states, directory saves or shared containers. This release syncs "
-                + $"the battery saves loose under saves/{system}/ (class {classes}) and nothing else.",
+            $"{names} hold directory saves or shared containers. This release syncs the battery "
+                + $"saves loose under saves/{system}/ (class {classes}) and the save states beside "
+                + "them, and nothing else.",
             files);
     }
 
@@ -327,6 +359,37 @@ public sealed class SaveScanner
         {
             return 0;
         }
+    }
+
+    /// <summary>Counts files, skipping any that sit in a declared save-state directory.</summary>
+    private int CountFiles(string directory, string savesRoot)
+    {
+        if (_states is null)
+        {
+            return CountFiles(directory);
+        }
+
+        try
+        {
+            return Directory
+                .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
+                .Count(file => !IsStateDirectory(Path.GetDirectoryName(file), savesRoot));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return 0;
+        }
+    }
+
+    private bool IsStateDirectory(string? directory, string savesRoot)
+    {
+        if (directory is null || _states is null)
+        {
+            return false;
+        }
+
+        var relative = Path.GetRelativePath(savesRoot, directory).Replace('\\', '/');
+        return _states.MatchDirectory(relative) is not null;
     }
 
     /// <summary>

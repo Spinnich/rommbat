@@ -48,7 +48,7 @@ public sealed record SaveShape(
     string Evidence,
     bool DependsOnEmulator)
 {
-    /// <summary>True when any declared class is one stage 1 can carry.</summary>
+    /// <summary>True when any declared class is a battery shape this build carries.</summary>
     public bool HasSyncableClass => Classes.Any(value => value is SaveShapeClass.A or SaveShapeClass.B);
 }
 

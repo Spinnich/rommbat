@@ -36,9 +36,13 @@ internal static class SavesCommand
 
         if (!command.Has("no-scan"))
         {
-            Console.WriteLine(new SaveScanner(context.Install, context.Store).Scan().Summary);
+            // Both passes get the schema, so a state is never listed as unsyncable by one while
+            // the other is uploading it.
+            var schema = StateScanner.LoadSchema(context.Install);
 
-            if (StateScanner.LoadSchema(context.Install) is { } schema)
+            Console.WriteLine(new SaveScanner(context.Install, context.Store, states: schema).Scan().Summary);
+
+            if (schema is not null)
             {
                 Console.WriteLine(new StateScanner(context.Install, context.Store, schema).Scan().Summary);
             }
