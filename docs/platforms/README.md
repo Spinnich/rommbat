@@ -66,8 +66,24 @@ one real save or state, through EmulationStation and back. That is not a certifi
 not be filed as one, but "the tests pass" and "an emulator wrote this and RomMBat handled it"
 are different claims, and only the second is evidence.
 
-| M6 stage | The one shape to exercise by hand                                     | Done |
-| -------- | --------------------------------------------------------------------- | ---- |
-| 2a       | A save state with its screenshot, ideally PCSX2 and one libretro core | No   |
-| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | No   |
-| 2c       | A PS2 battery save after opting that game into a per-game memory card | No   |
+| M6 stage | The one shape to exercise by hand                                     | Done               |
+| -------- | --------------------------------------------------------------------- | ------------------ |
+| 2a       | A save state, across more than one emulator for one game              | **Yes**, see below |
+| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | No                 |
+| 2c       | A PS2 battery save after opting that game into a per-game memory card | No                 |
+
+**2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
+one game, one system, steps 4 and 5 only. Results are findings 134 to 139 in
+`docs/retrobat-findings.md`.
+
+| Emulator                     | On disk                                      | Slot                         | Landed |
+| ---------------------------- | -------------------------------------------- | ---------------------------- | ------ |
+| `libretro`/`genesis_plus_gx` | `libretro.genesis_plus_gx/….state1`          | `libretro:genesis_plus_gx:1` | yes    |
+| `libretro`/`picodrive`       | `libretro.picodrive/….state1`                | `libretro:picodrive:1`       | yes    |
+| `bizhawk`/`SMSHawk`          | `bizhawk/sstates/SMSHawk/….QuickSave2.State` | `bizhawk:SMSHawk:2`          | yes    |
+| `jgenesis`                   | `jgenesis/states/…_0.jst`                    | `jgenesis::0`                | yes    |
+
+The two libretro cores wrote the **identical** filename and became two server rows, which is
+the collision the scoped upload name exists to prevent, proven rather than argued. What did
+**not** work is the screenshot: uploaded, stored against the ROM, and not linked to the state.
+See finding 138.

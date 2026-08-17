@@ -2063,12 +2063,32 @@ under `probe-output/m6s2-*.txt`, which is gitignored; the durable half is checke
 
 **Not measured, and named rather than left to read as done.** The cost of spawning the agent
 from the hook, which `docs/PLAN.md` assigned to stage 2 by name: taking it means replacing a
-binary on a real install and launching a game, and that was not authorised here. Whether
-`{{slot}}` renders as an empty string at libretro slot zero: the parser accepts zero digits and
-maps them to slot 0, so it is correct either way, but the question itself is unanswered.
-`bigpemu` remains the one emulator of thirteen never driven to a real state, so its template is
-still unverified. And no platform was certified, because that needs a human to start
-EmulationStation.
+binary on a real install and launching a game, and that was not authorised at the time. And no
+platform was certified, because that needs a human to start EmulationStation.
+
+---
+
+## Measured during M6 stage 2a, hands-on pass
+
+Spinnich launched `mastersystem`/Phantasy Star (Brazil) on the K: install and made a save state
+under four emulators; the agent scanned and flushed. This is the first time anything in this
+repository has handled a state a real emulator wrote. It is **not** a certification: it is one
+game on one system, which is what `docs/platforms/README.md` asks of each M6 stage.
+
+| #   | Previously                                                                   | Measurement says                                                                                                                                                                                                                                                                                              |
+| --- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 134 | Two libretro cores writing one filename would collide server-side (126, 127) | **Confirmed end to end, and the scoped name holds.** `genesis_plus_gx` and `picodrive` both wrote `Phantasy Star (Brazil).state1` for one ROM and landed as two rows, 9,202 B and 6,282 B. Without the scope in the uploaded name one would have replaced the other                                           |
+| 135 | (not addressed) which slot a save-state hotkey writes                        | **Not slot 0, and not fixed.** libretro wrote `.state1` and BizHawk wrote `.QuickSave2.State`. Reading the slot off the filename is what makes both work; expanding `firstslot..lastslot` would have found neither                                                                                            |
+| 136 | The `.txt` sidecar is emitted unconditionally (probe 2, retracted reading)   | **Wrong, and this corrects it.** `libretro` wrote none under either core. `jgenesis` wrote the plain rom filename; `bizhawk` wrote `Phantasy Star (B).SMSHawk`, its own truncated name plus the core. Absence and presence both signal nothing; only the contents are ever useful                             |
+| 137 | The emulator version can be read from the binary (stage 2a design)           | **It cannot, on any emulator tried.** A libretro core DLL has empty `ProductVersion` and `FileVersion`, and `jgenesis` and `bizhawk` each ship two top-level executables, so the single-executable rule declines. `emulator_version` is null in practice and `retrobat_version` is what identifies the build  |
+| 138 | A state screenshot is best-effort because the emulator may not write one     | **True, and there is a second reason.** The image is uploaded, stored against the ROM at the right name and size, and then **not linked to the state**, which reads `screenshot: null` and stays so. Roughly a third of thirty-five attempts. Not reproducible on demand; the request is provably well formed |
+| 139 | (not addressed) whether an emulator's battery save keeps the ROM's name      | **BizHawk truncates it**: `Phantasy Star (Brazil).zip` produced `bizhawk/Phantasy Star (B).SaveRAM`. It sits in a subdirectory so this release reports it rather than syncing it, but any future attribution by filename has to expect a truncated stem                                                       |
+
+**Still not measured after the hands-on pass.** Whether `{{slot}}` renders as an empty string at
+libretro slot zero: the default slot turned out to be 1, so the zero case was never produced.
+The parser accepts zero digits and maps them to slot 0, so it is correct either way. `bigpemu`
+remains the one emulator of thirteen never driven to a real state. And the hook-spawn cost is
+still outstanding.
 
 ---
 

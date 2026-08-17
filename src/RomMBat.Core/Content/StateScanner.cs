@@ -320,8 +320,18 @@ public sealed class StateScanner
     /// declining. <c>retrobat_version</c> is recorded alongside for that reason, since RetroBat
     /// ships the emulator builds and its own version always reads.
     /// <para>
-    /// Neither lookup has been checked against a live install: this branch had no permission to
-    /// read one.
+    /// <b>Measured on a real install, and it finds nothing on any emulator tried.</b> A libretro
+    /// core DLL carries an empty <c>ProductVersion</c> and <c>FileVersion</c>, and both
+    /// <c>jgenesis</c> and <c>bizhawk</c> ship two top-level executables
+    /// (<c>jgenesis-cli</c>/<c>jgenesis-gui</c>, <c>EmuHawk</c>/<c>DiscoHawk</c>), so the
+    /// single-executable rule declines. So this column is null in practice today and
+    /// <c>retrobat_version</c> is what actually identifies the build.
+    /// </para>
+    /// <para>
+    /// Left declining rather than loosened. Picking one of two executables by name, or reading
+    /// RetroArch's version and calling it the core's, would put a number in the column that does
+    /// not describe what wrote the state, and a wrong version is worse than no version for the
+    /// one job this field has: refusing to restore a state onto a different build.
     /// </para>
     /// </remarks>
     private string? ReadEmulatorVersion(SaveStateTemplate template)

@@ -62,10 +62,17 @@ BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 
 Four traps, all confirmed across the eleven emulators M0 drove:
 
-- A **`.txt` sidecar** sits beside the state holding the native basename (`UCES00995_1.00`,
-  `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes and is not
-  disposable, so sync it. Its **presence signals nothing**: `jgenesis` and `desmume` write one
-  whose content is just the rom filename, so it is emitted unconditionally.
+- A **`.txt` sidecar** often sits beside the state holding the native basename
+  (`UCES00995_1.00`, `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes,
+  and where it holds a serial it is the Game ID that directory-save attribution would otherwise
+  read out of a ROM.
+
+  **It is not emitted unconditionally, and an earlier reading here said it was.** Driven on a
+  real install: `libretro` writes none at all, under either of two cores. `jgenesis` wrote one
+  holding the plain rom filename, and `bizhawk` wrote `Phantasy Star (B).SMSHawk`, which is
+  BizHawk's own truncated name plus the core. So its absence means nothing and its presence
+  means nothing; only its **contents** are worth anything, and only sometimes.
+
 - **`<image>` is absent more often than present**: missing outright for most emulators driven,
   and correct, zero-byte and missing across three runs of the same PPSSPP game. `screenshotFile`
   is best-effort everywhere; absent and empty are both normal and say nothing about the state.
