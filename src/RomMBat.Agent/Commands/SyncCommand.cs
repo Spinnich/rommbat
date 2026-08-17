@@ -26,10 +26,13 @@ namespace RomMBat.Agent.Commands;
 /// so ordering it first costs one request and not one per set.
 /// </para>
 /// <para>
-/// <b>The saves flush goes first, ahead of everything.</b> A user who never leaves
-/// EmulationStation and never opens the UI still has their saves and play sessions go up,
-/// because this is one of the few moments RomMBat is running with a link. It is also cheap
-/// when there is nothing waiting: one query.
+/// <b>The saves flush goes first, ahead of everything, including the BIOS pass.</b> It is what
+/// turns spooled hook events into play sessions and brings <c>local_save</c> up to date, and
+/// eviction inside this run asks <c>local_save</c> whether a game's saves are safely up.
+/// Flushing afterwards would answer that from the previous run. It is also the only thing that
+/// sends a save at all in this build, since the hooks spool and exit and nothing else wakes an
+/// agent, so a user who never leaves EmulationStation has this as their one trigger. Cheap when
+/// there is nothing waiting: one query.
 /// </para>
 /// <para>
 /// <b>The hooks are installed on the first run, and said so.</b> Without them there is no
@@ -61,13 +64,20 @@ internal static class SyncCommand
             return ExitCode.Usage;
         }
 
-        if (!command.Has("dry-run"))
-        {
-            InstallHooks(context);
-        }
-
         var dryRun = command.Has("dry-run");
         var offline = command.Has("offline");
+
+        if (!dryRun)
+        {
+            InstallHooks(context);
+
+            // First, before a byte is fetched. What the hooks spooled is turned into play
+            // sessions and local_save is brought up to date, which is what everything below
+            // depends on: eviction asks local_save whether a game's saves are safely up, and a
+            // sync that flushed last would answer that question from the previous run.
+            await FlushSavesAsync(context, command, cancellationToken).ConfigureAwait(false);
+        }
+
         var limits = FilesystemLimits.Inspect(context.Install.RootPath);
 
         ReportFilesystem(limits);
@@ -194,11 +204,6 @@ internal static class SyncCommand
                 await WriteGamelistsAsync(context, folders, cancellationToken).ConfigureAwait(false);
             }
 
-            if (!dryRun)
-            {
-                await FlushSavesAsync(context, command, cancellationToken).ConfigureAwait(false);
-            }
-
             ReportBudget(context, planner);
             return worst;
         }
@@ -242,13 +247,18 @@ internal static class SyncCommand
             Console.WriteLine();
         }
 
-        foreach (var problem in outcome.Problems)
+        // One line per cause, not one per event folder. The commonest failure by far is the
+        // hook executable not having been published yet, and that is the same sentence four
+        // times over: the same reason for all four folders is reported once.
+        foreach (var problem in outcome.Problems
+            .Select(problem => problem[(problem.IndexOf(':', StringComparison.Ordinal) + 1)..].Trim())
+            .Distinct(StringComparer.Ordinal))
         {
             Console.Error.WriteLine($"The hook could not be installed: {problem}");
         }
     }
 
-    /// <summary>Runs the same pass 'flush' does, quietly, at the end of a sync.</summary>
+    /// <summary>Runs the same pass 'flush' does, quietly, before the rest of a sync.</summary>
     private static async Task FlushSavesAsync(
         AgentContext context,
         CommandLine command,

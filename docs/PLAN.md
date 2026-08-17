@@ -1642,13 +1642,22 @@ mitigation and not an answer.
   write a heartbeat from the `start` hook, notice when play data exists with no corresponding
   hook activity, and report that state instead of silently losing every play session.
 - **The flush has no daemon to live in.** A portable install cannot register a service or
-  a scheduled task, so the outbox is flushed by a short-lived agent process invoked from
-  the `start`, `game-end` and `quit` hooks, and by the UI while it runs. Design for
+  a scheduled task, so the outbox is flushed by a short-lived agent process. Design for
   one-pass-and-exit, and make concurrent invocations safe with a lock file in the tree.
 
   **`sync` flushes first, before anything else it does.** A user who never leaves ES and
   never opens the UI still gets their saves up, and a flush that has already happened costs
   one query.
+
+  **Amended after M6 stage 1: the hooks do not invoke it, and in stage 1 nothing else does
+  either.** The intent was that `start`, `game-end` and `quit` each wake an agent, and the UI
+  drive one while it runs. Neither shipped: the hook writes a spool file and exits without
+  starting a process, and the UI is M7. So `sync` and a typed `flush` are the whole of the
+  trigger set, and an install that is never synced spools events and sends nothing. That is
+  tolerable because draining is idempotent and a spool file waits indefinitely, and it is
+  deliberately not fixed by having the hook spawn something: the hook runs inside the
+  game-launch path, where the cost of starting an 11 MB process has to be measured before it
+  is added, not assumed. Stage 2 owns that measurement.
 
 - **Hook installation happens on the first `sync`, announced, and `hooks uninstall` reverses
   it.** The opt-in rule that governs class D exists because flipping a memory card mode
@@ -1698,12 +1707,23 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   unusable. See finding F2.
 
   **Decided, as one decision rather than two.** Every upload carries
-  `autocleanup=true&autocleanup_limit=10`, and conflicts keep both: upload without
-  `overwrite`, which appends a row, having first copied the local file aside. So principle
-  1's "default to `keep_both`, never silently overwrite" holds, and the growth it would
-  otherwise cause is bounded at ten rows per slot by the server. Neither half works without
-  the other: `keep_both` unbounded fills the library, and autocleanup without `keep_both`
-  means a conflict silently discards one side.
+  `autocleanup=true&autocleanup_limit=10`, and conflicts keep both, having first copied the
+  local file aside. So principle 1's "default to `keep_both`, never silently overwrite" holds,
+  and the growth it would otherwise cause is bounded at ten rows per slot by the server.
+  Neither half works without the other: `keep_both` unbounded fills the library, and
+  autocleanup without `keep_both` means a conflict silently discards one side.
+
+  **Amended after M6 stage 1: keeping both does not mean uploading the local side.** The
+  original wording said a conflict uploads without `overwrite` so the server appends a row.
+  That is the wrong shape while there is no way to resolve a conflict. Appending makes the
+  local side the newest row in the slot, so the next negotiate tells every other device to
+  download it: an unresolved conflict would resolve itself in favour of whichever device
+  synced last, silently, which is exactly what `keep_both` exists to prevent. It would also
+  re-append on every flush, since nothing marks the conflict as handled. So stage 1 keeps both
+  by holding the local side **local**: the file stays where it is, a dated copy goes to
+  `emulators/rommbat/replaced/`, and the slot is reported unresolved. Nothing is overwritten
+  and nothing is discarded. The upload with `overwrite=true` belongs to the resolution command
+  that picks a side, tracked in issue #31, which is also where pruning `replaced/` lives.
 
 - Download: `GET /api/saves/{id}/content?device_id=&session_id=`**`&optimistic=false`**, then
   `POST /api/saves/{id}/downloaded` with `{device_id}` **after the bytes are written and
@@ -1718,6 +1738,16 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `.part` file is verified before the rename. **The parameter and the ack have to travel
   together**; the ack alone is decoration, because by then the record is already written. See
   finding F1.
+
+  **Open after M6 stage 1: a download has to have somewhere to go, and two cases still do
+  not.** A restore writes `saves/<folder>/<file_name_no_tags>.<file_extension>`, taking the
+  folder from the ROM's own `local_file` row, which covers a save this device once held and no
+  longer does. Not covered: a slot this device has **never** negotiated, where the only name
+  the operation carries is the tagged one and stripping that tag client-side is exactly what
+  the rule above forbids; and a device holding no saves at all, which never negotiates, since
+  the request is built from what is on disk. Both turn on whether the server returns operations
+  for slots the client did not submit, which this branch did not drive live. Until that is
+  measured, neither is worth guessing at.
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
@@ -1829,7 +1859,15 @@ two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32
 pull the deterministic-archive machinery into stage 1, which is most of what stage 2 owns.
 The cost is that a partial flush can land one file and not its sibling, so the two outbox
 rows go up as one batch and a partial result is reported as one, rather than each file
-looking independently fine. **MAME is the friendly class C
+looking independently fine.
+
+**Amended after M6 stage 1: the batch is not built, and the cost above stands unmitigated.**
+Saves never enter the outbox at all in stage 1. `SaveSync` reads `local_save` and posts
+directly, so saturn's `.bcr` landing while its `.bkr` fails reports one up and one failed with
+nothing tying them together, and `outbox.batch_key` has a schema and no writer. The column
+stays because the schema is already shipped and stage 2 is what fills it, when class C
+bundling gives it a second caller. Until then a sibling that fails is simply retried by the
+next flush, which is correct but says less than it should. **MAME is the friendly class C
 case**: `saves/mame/nvram/<shortname>/` across 1231 directories, where the short name _is_
 the rom basename, so attribution needs no Game ID lookup at all.
 

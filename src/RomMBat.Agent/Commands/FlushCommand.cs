@@ -9,9 +9,15 @@ namespace RomMBat.Agent.Commands;
 /// </summary>
 /// <remarks>
 /// <b>This is the whole of RomMBat's background work, and it has no daemon to live in.</b> A
-/// portable install cannot register a service or a scheduled task, so this is invoked from the
-/// <c>start</c>, <c>game-end</c> and <c>quit</c> hooks, by <c>sync</c> before anything else,
-/// and by the UI while it runs. One pass, then exit.
+/// portable install cannot register a service or a scheduled task, so the design is one short
+/// pass that anything can invoke, then exit.
+/// <para>
+/// <b>What invokes it today is <c>sync</c>, which runs it before anything else, and a person
+/// typing <c>flush</c>.</b> Nothing else does. The hooks write a spool file and exit without
+/// starting a process, and the UI that would drive this while it runs is M7. So an install that
+/// is never synced accumulates spool files and sends nothing, which is the stage-1 cut rather
+/// than a fault: draining is idempotent and a spool file waits indefinitely.
+/// </para>
 /// <para>
 /// <b>The local half always runs and the network half is optional.</b> Draining the spool,
 /// correlating play sessions and rescanning saves all happen with the server unreachable, so
@@ -19,10 +25,11 @@ namespace RomMBat.Agent.Commands;
 /// sending needs a link.
 /// </para>
 /// <para>
-/// <b>Failing to take the lock is success.</b> Three <c>game-end</c> hooks in flight at once is
-/// measured, not hypothetical, and each of them wakes one of these. The second and third exit
-/// rather than wait, because the work is already being done and waiting would put a process to
-/// sleep inside the game-launch path.
+/// <b>Failing to take the lock is success.</b> Two of these can overlap whenever a person runs
+/// <c>flush</c> beside a <c>sync</c>, and once hooks invoke it the measured case of three
+/// <c>game-end</c> hooks in flight at once applies. The second and third exit rather than wait,
+/// because the work is already being done and waiting would put a process to sleep inside the
+/// game-launch path.
 /// </para>
 /// </remarks>
 internal static class FlushCommand
