@@ -101,8 +101,9 @@ public sealed class SaveScanner
         // naming the last file and counting one, which understates the gap it exists to show.
         var report = new UnsyncableReport();
 
-        // ROM basename to (rom_id, path), which is the whole of class A and B attribution:
-        // the save is named after the ROM file. Built once rather than queried per save.
+        // (folder, ROM basename) to (rom_id, path), which is the whole of class A and B
+        // attribution: the save is named after the ROM file, inside its system's folder.
+        // Built once rather than queried per save.
         var romsByStem = BuildRomIndex();
 
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
@@ -245,7 +246,9 @@ public sealed class SaveScanner
         var shapeClass = _shapes.For(system)?.Classes.FirstOrDefault(value =>
             value is SaveShapeClass.A or SaveShapeClass.B) ?? SaveShapeClass.A;
 
-        romsByStem.TryGetValue(stem, out var rom);
+        // Keyed on the folder the save was found under, so a save only ever matches a ROM in
+        // its own system.
+        romsByStem.TryGetValue(IndexKey(system, stem), out var rom);
 
         string? hash = null;
         try
@@ -273,26 +276,40 @@ public sealed class SaveScanner
         };
     }
 
-    /// <summary>ROM stem to id, which is what a class A or B save is named after.</summary>
+    /// <summary>
+    /// <c>(system folder, ROM stem)</c> to id, which is what a class A or B save is named after.
+    /// </summary>
+    /// <remarks>
+    /// <b>The folder is half the key, not decoration.</b> Contra, Aladdin, Tetris and Batman
+    /// all exist on several systems, which is the ordinary state of a multi-system library, and
+    /// a stem-only index gives <c>saves/snes/Contra.srm</c> to the NES ROM. That mis-attributes
+    /// the save on upload and puts two <c>local_save</c> rows on one <c>(rom_id, slot)</c>.
+    /// <para>
+    /// A save whose own folder holds no ROM of that name is left unattributed and reported,
+    /// rather than falling back to a match in some other system. Guessing across systems is the
+    /// failure this key exists to prevent.
+    /// </para>
+    /// </remarks>
     private Dictionary<string, (long RomId, RelativePath Path)> BuildRomIndex()
     {
         var index = new Dictionary<string, (long, RelativePath)>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var file in _store.Files.List())
         {
-            if (file.Kind != LocalFileKind.Rom || file.RomId is not { } romId)
+            if (file.Kind != LocalFileKind.Rom || file.RomId is not { } romId || file.Folder is not { } folder)
             {
                 continue;
             }
 
-            // First wins. Two ROMs sharing a stem across systems is possible, and the save
-            // tree is already system-scoped, so a collision here would need the same stem
-            // inside one system, which the filesystem forbids.
-            index.TryAdd(Path.GetFileNameWithoutExtension(file.FileName), (romId, file.Path));
+            // First wins, and within one folder a collision needs two ROMs with the same stem
+            // and different extensions, where either is as good an answer as the other.
+            index.TryAdd(IndexKey(folder, Path.GetFileNameWithoutExtension(file.FileName)), (romId, file.Path));
         }
 
         return index;
     }
+
+    private static string IndexKey(string folder, string stem) => $"{folder}/{stem}";
 
     private static void AddSubdirectories(
         UnsyncableReport report,

@@ -303,6 +303,53 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Two_games_sharing_a_name_across_systems_each_keep_their_own_save()
+    {
+        // The ordinary state of a multi-system library: Contra, Aladdin, Tetris and Batman all
+        // exist on several systems. A stem-only attribution index gives both saves to whichever
+        // ROM was recorded first, which uploads one game's save against the other's id and puts
+        // two rows on one (rom_id, slot).
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(1, "nes", "Contra (USA).zip");
+        fixture.AddRom(2, "snes", "Contra (USA).zip");
+        fixture.AddSave("nes", "Contra (USA).srm", "nes progress");
+        fixture.AddSave("snes", "Contra (USA).srm", "snes progress");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(2, outcome.Found);
+        Assert.Equal(2, outcome.Attributed);
+
+        var saves = fixture.Store.Saves.List();
+
+        Assert.Equal(1, Assert.Single(saves, save => save.System == "nes").RomId);
+        Assert.Equal(2, Assert.Single(saves, save => save.System == "snes").RomId);
+
+        // Both carry the same slot, so nothing downstream may key on it alone.
+        Assert.Equal(2, saves.Count(save => save.Slot == "libretro:battery"));
+        Assert.Equal(2, saves.Select(save => (save.RomId, save.Slot)).Distinct().Count());
+    }
+
+    [Fact]
+    public void A_save_matching_no_rom_in_its_own_system_is_reported_rather_than_given_to_another()
+    {
+        // Fail closed across the system boundary too. Attributing saves/snes/Contra.srm to the
+        // NES ROM because that is the only Contra installed is the same mis-attribution, just
+        // harder to notice.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(1, "nes", "Contra (USA).zip");
+        fixture.AddSave("snes", "Contra (USA).srm", "snes progress");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(1, outcome.Found);
+        Assert.Equal(0, outcome.Attributed);
+        Assert.Null(Assert.Single(fixture.Store.Saves.List()).RomId);
+    }
+
+    [Fact]
     public void A_save_whose_hash_could_not_be_taken_still_blocks_eviction()
     {
         // Fail closed. The commonest cause is a running emulator holding the file, and
