@@ -291,10 +291,12 @@ public sealed class StateScanner
     /// The <c>.txt</c> sidecar's content, which is the emulator's own name for the game.
     /// </summary>
     /// <remarks>
-    /// RetroBat writes one beside every state unconditionally, so its presence signals nothing:
-    /// <c>jgenesis</c> and <c>desmume</c> both write one holding the ROM filename. Its content
-    /// is the mapping, and where it holds a serial (<c>SLUS-00404</c>, <c>GW7E69</c>) it is the
-    /// Game ID that directory-save attribution otherwise reads out of a ROM header.
+    /// Most states have none, so null is the ordinary answer here. Driven on a real install,
+    /// <c>libretro</c> wrote no sidecar under either core, <c>jgenesis</c> wrote the plain ROM
+    /// filename, and <c>bizhawk</c> wrote its own truncated name plus the core. Absence and
+    /// presence both signal nothing, and only the content is ever worth anything: where it holds
+    /// a serial (<c>SLUS-00404</c>, <c>GW7E69</c>) it is the Game ID that directory-save
+    /// attribution otherwise reads out of a ROM header. Finding 136.
     /// </remarks>
     private static string? ReadNativeName(string statePath, string stem)
     {

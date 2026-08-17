@@ -15,8 +15,8 @@ is a wombat.
 >
 > **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
 > mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
-> BIOS all work. **Battery saves, save states and playtime now cross**, along with playtime
-> and conflict resolution. **Directory saves and shared memory cards do not yet**, which is
+> BIOS all work. **Battery saves, save states and playtime now cross**, along with conflict
+> resolution. **Directory saves and shared memory cards do not yet**, which is
 > the rest of M6. Nothing has been certified against a real emulator yet; see
 > [Platform certification](#platform-certification) for what that means and when it starts.
 > The repository also holds the design of record
