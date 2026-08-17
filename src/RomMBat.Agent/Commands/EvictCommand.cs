@@ -30,6 +30,12 @@ internal static class EvictCommand
             return exitCode;
         }
 
+        // Before anything is planned, because SaveGuard's third question reads local_save and
+        // nothing else here refreshes it. Without this the guard answers from the last flush:
+        // play a game, evict, and the ROM goes while the save it just wrote is still unsent.
+        // The save then survives as bytes with no ROM to attribute it to, which is permanent.
+        new SaveScanner(context.Install, context.Store).Scan();
+
         var planner = new EvictionPlanner(context.Store);
         var requested = ByteSize.Parse(command.Value("bytes"));
         var plan = planner.Plan(requested);
