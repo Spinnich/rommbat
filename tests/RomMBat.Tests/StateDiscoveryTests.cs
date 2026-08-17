@@ -152,6 +152,53 @@ public class StateDiscoveryTests
     }
 
     [Fact]
+    public void A_libretro_state_at_slot_zero_still_finds_the_screenshot_beside_it()
+    {
+        // libretro's {{slot}} is the only free-width token and its <image> carries the same one,
+        // so rendering the parsed slot back looked for Game.state0.png beside Game.state and
+        // uploaded the state with no screenshot at all.
+        using var tree = StateTree.Create();
+        tree.AddRom(5, "megadrive", "Phantasy Star (Brazil).zip");
+        tree.AddState("megadrive/libretro.picodrive", "Phantasy Star (Brazil).state", "state bytes");
+        tree.AddState("megadrive/libretro.picodrive", "Phantasy Star (Brazil).state.png", "png bytes");
+
+        var outcome = tree.Scan();
+
+        Assert.Equal(1, outcome.Found);
+        Assert.Equal(1, outcome.Screenshots);
+
+        var state = Assert.Single(tree.Store.States.List());
+
+        Assert.Equal("libretro:picodrive:0", state.Slot);
+        Assert.Equal(
+            "saves/megadrive/libretro.picodrive/Phantasy Star (Brazil).state.png",
+            state.ScreenshotPath!.Value.Value);
+    }
+
+    [Fact]
+    public void Two_names_that_read_as_one_slot_cost_one_file_rather_than_the_whole_scan()
+    {
+        // local_state is UNIQUE on (rom_id, slot) as well as on the path, and the free-width
+        // token reads both of these as slot zero. The scanner takes any file its template
+        // matches, whoever wrote it, so the second one used to throw SqliteException out of the
+        // pass and take the flush with it.
+        using var tree = StateTree.Create();
+        tree.AddRom(5, "megadrive", "Phantasy Star (Brazil).zip");
+        tree.AddRom(6, "megadrive", "Sonic (World).zip");
+        tree.AddState("megadrive/libretro.picodrive", "Phantasy Star (Brazil).state", "no digit");
+        tree.AddState("megadrive/libretro.picodrive", "Phantasy Star (Brazil).state0", "a zero");
+        tree.AddState("megadrive/libretro.picodrive", "Sonic (World).state1", "another rom");
+
+        var outcome = tree.Scan();
+
+        Assert.Equal(2, outcome.Found);
+
+        var slots = tree.Store.States.List().Select(state => state.Slot).Order(StringComparer.Ordinal);
+
+        Assert.Equal(["libretro:picodrive:0", "libretro:picodrive:1"], slots);
+    }
+
+    [Fact]
     public void Desmume_never_offers_a_screenshot_because_its_image_is_its_state()
     {
         using var tree = StateTree.Create();

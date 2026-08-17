@@ -401,7 +401,7 @@ public sealed partial class SaveStateTemplate
 
         if (_autosave?.Match(fileName) is { Success: true } auto)
         {
-            return new SaveStateMatch(auto.Groups["stem"].Value, Slot: null, IsAutosave: true);
+            return new SaveStateMatch(auto.Groups["stem"].Value, Slot: null, IsAutosave: true, SlotText: string.Empty);
         }
 
         if (_file.Match(fileName) is not { Success: true } match)
@@ -417,7 +417,7 @@ public sealed partial class SaveStateTemplate
             ? 0
             : int.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
 
-        return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false);
+        return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false, digits);
     }
 
     /// <summary>The screenshot beside a state, when the emulator declares a distinct one.</summary>
@@ -425,11 +425,21 @@ public sealed partial class SaveStateTemplate
     /// <b>Null when <c>&lt;image&gt;</c> is the same template as <c>&lt;file&gt;</c></b>, which
     /// is what DeSmuME declares. Returning the state's own path here is how a client uploads a
     /// save state as its own screenshot.
+    /// <para>
+    /// <b><c>{{slot}}</c> renders the digits that were on disk, not the slot re-formatted.</b>
+    /// The free-width token accepts zero digits and reads them as slot zero, so rendering the
+    /// parsed integer back would compute <c>Game.state0.png</c> for a state called
+    /// <c>Game.state</c> and find nothing. The fixed-width tokens are formatted, because a
+    /// one- or two-digit capture round-trips through an int without loss and the file and image
+    /// templates are not obliged to use the same token.
+    /// </para>
     /// </remarks>
-    public string? ImageFor(string stem, int? slot, bool isAutosave)
+    public string? ImageFor(SaveStateMatch match)
     {
-        var template = isAutosave ? Emulator.AutosaveImage : Emulator.Image;
-        var fileTemplate = isAutosave ? Emulator.AutosaveFile : Emulator.File;
+        ArgumentNullException.ThrowIfNull(match);
+
+        var template = match.IsAutosave ? Emulator.AutosaveImage : Emulator.Image;
+        var fileTemplate = match.IsAutosave ? Emulator.AutosaveFile : Emulator.File;
 
         if (template is null || string.Equals(template, fileTemplate, StringComparison.Ordinal))
         {
@@ -437,10 +447,10 @@ public sealed partial class SaveStateTemplate
         }
 
         return Expand(template, System, Core)
-            .Replace("{{romfilename}}", stem, StringComparison.Ordinal)
-            .Replace("{{slot2d}}", Format(slot, SlotToken.TwoDigit), StringComparison.Ordinal)
-            .Replace("{{slot0}}", Format(slot, SlotToken.OneDigit), StringComparison.Ordinal)
-            .Replace("{{slot}}", Format(slot, SlotToken.Free), StringComparison.Ordinal);
+            .Replace("{{romfilename}}", match.Stem, StringComparison.Ordinal)
+            .Replace("{{slot2d}}", Format(match.Slot, SlotToken.TwoDigit), StringComparison.Ordinal)
+            .Replace("{{slot0}}", Format(match.Slot, SlotToken.OneDigit), StringComparison.Ordinal)
+            .Replace("{{slot}}", match.SlotText, StringComparison.Ordinal);
     }
 
     private static string Format(int? slot, SlotToken token) => slot is not { } value
@@ -519,7 +529,13 @@ public sealed partial class SaveStateTemplate
 /// launched and produced <c>Patapon (Europe) (En,Fr,De,Es,It)_0.ppst</c>.
 /// </param>
 /// <param name="Slot">Null for an autosave, which has no slot of its own.</param>
-public sealed record SaveStateMatch(string Stem, int? Slot, bool IsAutosave)
+/// <param name="SlotText">
+/// The digits exactly as they appeared in the filename, which is not always
+/// <see cref="Slot"/> rendered back: a free-width token matches zero digits and reads as slot
+/// zero, so <c>Game.state</c> and <c>Game.state0</c> parse to the same slot and only this
+/// distinguishes them. Empty for an autosave.
+/// </param>
+public sealed record SaveStateMatch(string Stem, int? Slot, bool IsAutosave, string SlotText)
 {
     /// <summary>
     /// The slot a state pairs on locally, which never travels to the server.

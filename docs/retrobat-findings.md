@@ -2086,9 +2086,10 @@ game on one system, which is what `docs/platforms/README.md` asks of each M6 sta
 
 **Still not measured after the hands-on pass.** Whether `{{slot}}` renders as an empty string at
 libretro slot zero: the default slot turned out to be 1, so the zero case was never produced.
-The parser accepts zero digits and maps them to slot 0, so it is correct either way. `bigpemu`
-remains the one emulator of thirteen never driven to a real state. And the hook-spawn cost is
-still outstanding.
+The parser accepts zero digits and maps them to slot 0, and the screenshot beside a state is
+rendered from the digits that were on disk rather than from the parsed slot, so both halves hold
+whichever way it renders. `bigpemu` remains the one emulator of thirteen never driven to a real
+state. And the hook-spawn cost is still outstanding.
 
 ---
 

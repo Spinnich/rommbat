@@ -57,7 +57,7 @@ public class SaveStateSchemaTests
         Assert.NotNull(template);
 
         // Uploading this as screenshotFile would upload the save state as its own preview.
-        Assert.Null(template.ImageFor("Game (USA)", 1, isAutosave: false));
+        Assert.Null(template.ImageFor(template.Match("Game (USA).ds1")!));
     }
 
     [Fact]
@@ -237,8 +237,31 @@ public class SaveStateSchemaTests
         var pcsx2 = Fixtures.LoadSaveStates().For("pcsx2")!;
         var template = SaveStateTemplate.Create(pcsx2, "ps2", core: null)!;
 
-        Assert.Equal("Game (USA).03.p2s.png", template.ImageFor("Game (USA)", 3, isAutosave: false));
-        Assert.Equal("Game (USA).resume.p2s.png", template.ImageFor("Game (USA)", null, isAutosave: true));
+        Assert.Equal(
+            "Game (USA).03.p2s.png",
+            template.ImageFor(template.Match("Game (USA).03.p2s")!));
+
+        Assert.Equal(
+            "Game (USA).resume.p2s.png",
+            template.ImageFor(template.Match("Game (USA).resume.p2s")!));
+    }
+
+    [Fact]
+    public void A_free_width_slot_renders_the_image_with_the_digits_that_were_on_disk()
+    {
+        // libretro is the only free-width declaration, and its <image> carries the same token, so
+        // formatting the parsed slot back would look for Game.state0.png beside Game.state and
+        // upload the state with no screenshot at all.
+        var libretro = Fixtures.LoadSaveStates().For("libretro")!;
+        var template = SaveStateTemplate.Create(libretro, "megadrive", "picodrive")!;
+
+        var zero = template.Match("Game (USA).state")!;
+
+        Assert.Equal(0, zero.Slot);
+        Assert.Equal("Game (USA).state.png", template.ImageFor(zero));
+
+        // And a slot that did render its digit still round-trips.
+        Assert.Equal("Game (USA).state1.png", template.ImageFor(template.Match("Game (USA).state1")!));
     }
 
     [Fact]

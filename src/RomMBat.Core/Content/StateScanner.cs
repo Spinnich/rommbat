@@ -117,6 +117,7 @@ public sealed class StateScanner
 
         var roms = RomIndex.Build(_store);
         var seen = new HashSet<RelativePath>();
+        var slots = new HashSet<(long RomId, string Slot)>();
         var found = 0;
         var attributed = 0;
         var screenshots = 0;
@@ -129,6 +130,16 @@ public sealed class StateScanner
                 var state = Describe(template, file, roms, now);
 
                 if (state is null)
+                {
+                    continue;
+                }
+
+                // local_state is UNIQUE on (rom_id, slot) as well as on the path, and a directory
+                // can hold two names that read as one slot: libretro's free-width token matches
+                // both Game.state and Game.state0 at slot zero. The scanner takes any file the
+                // template matches, whoever wrote it, so this has to cost one file rather than
+                // throwing SqliteException out of the whole pass.
+                if (state.RomId is { } romId && !slots.Add((romId, state.Slot)))
                 {
                     continue;
                 }
@@ -261,7 +272,7 @@ public sealed class StateScanner
     /// </remarks>
     private RelativePath? ResolveScreenshot(SaveStateTemplate template, SaveStateMatch match, string statePath)
     {
-        if (template.ImageFor(match.Stem, match.Slot, match.IsAutosave) is not { } imageName)
+        if (template.ImageFor(match) is not { } imageName)
         {
             return null;
         }
