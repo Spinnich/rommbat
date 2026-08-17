@@ -281,12 +281,15 @@ public sealed class SaveConflictResolver
     /// <remarks>
     /// The plan's rule is "keep the previous copy aside <b>until the next successful sync</b>",
     /// and until this existed nothing was ever the next successful sync for a conflicted slot.
-    /// The conflict row is dropped with it, since the file it pointed at is gone.
+    /// <para>
+    /// <b>The row itself stays, resolved.</b> Migration 007 keeps decided rows so <c>saves</c> can
+    /// say what was chosen and so a slot that conflicts again is recognised as one already
+    /// settled rather than as a brand new conflict taking another copy aside. Only the pointer to
+    /// the pruned file is cleared.
+    /// </para>
     /// </remarks>
     private string Prune(SaveConflictRecord conflict)
     {
-        _store.SaveConflicts.Forget(conflict.RomId, conflict.Slot);
-
         if (conflict.LocalCopyPath is not { } copy)
         {
             return string.Empty;
@@ -295,19 +298,21 @@ public sealed class SaveConflictResolver
         try
         {
             var path = _install.Resolve(copy);
+            var existed = File.Exists(path);
 
-            if (File.Exists(path))
+            if (existed)
             {
                 File.Delete(path);
-                return $" The copy at {copy} was removed.";
             }
+
+            _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);
+
+            return existed ? $" The copy at {copy} was removed." : string.Empty;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return $" The copy at {copy} could not be removed: {ex.Message}";
         }
-
-        return string.Empty;
     }
 
     private static void Delete(string path)

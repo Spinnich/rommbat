@@ -52,6 +52,17 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> UnsolicitedDownloads { get; } = [];
 
     /// <summary>
+    /// Slots negotiate offers a <c>conflict</c> for that the client did not submit.
+    /// </summary>
+    /// <remarks>
+    /// Measurement 132 says a real instance never does this, because negotiate reconciles only
+    /// the set the client names. Modelled anyway, because the client's answer to it was a
+    /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
+    /// and takes the whole flush down rather than the one operation.
+    /// </remarks>
+    public HashSet<(int RomId, string Slot)> UnsolicitedConflicts { get; } = [];
+
+    /// <summary>
     /// Save ids the client acknowledged, in order.
     /// </summary>
     /// <remarks>
@@ -186,6 +197,24 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = existing?.Emulator,
                 reason = "held on the server and not on this device",
+                server_updated_at = existing?.UpdatedAt,
+                server_content_hash = HashLie ?? existing?.ContentHash,
+            });
+        }
+
+        foreach (var (romId, slot) in UnsolicitedConflicts)
+        {
+            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
+
+            operations.Add(new
+            {
+                action = "conflict",
+                rom_id = romId,
+                save_id = existing?.Id,
+                file_name = existing?.FileName,
+                slot,
+                emulator = existing?.Emulator,
+                reason = "Both changed since the last sync",
                 server_updated_at = existing?.UpdatedAt,
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });

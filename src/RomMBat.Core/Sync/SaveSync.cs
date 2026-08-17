@@ -278,7 +278,11 @@ public sealed class SaveSync
 
                     break;
 
-                case SyncAction.Conflict:
+                // Guarded like Upload, and for a harder reason: save_conflict.local_path is NOT
+                // NULL, so recording a conflict for a slot this device did not submit would fail
+                // the CHECK and take the whole flush down with it. It falls to default instead,
+                // which says exactly that.
+                case SyncAction.Conflict when local is not null:
                     conflicts.Add(RecordConflict(operation, local));
                     break;
 
@@ -537,28 +541,34 @@ public sealed class SaveSync
     /// <remarks>
     /// <b>The copy is taken once per conflict, not once per flush.</b> Stage 1 copied on every
     /// pass, so a slot that conflicts and is never resolved gained one dated file under
-    /// <c>replaced/</c> each time and nothing pruned them. The store answers whether this slot
-    /// was already standing, and a standing conflict already has its copy.
+    /// <c>replaced/</c> each time and nothing pruned them. The row read back after recording
+    /// answers both halves of that: a standing conflict already points at its copy, and a slot
+    /// the user settled whose server side has not moved is not open at all.
+    /// <para>
+    /// Keying on the copy rather than on the conflict being new is what makes a reopened conflict
+    /// work. Resolving one prunes the copy, so a slot that conflicts again has no copy aside and
+    /// needs a fresh one taken.
+    /// </para>
     /// <para>
     /// Recording comes first and the copy second, so a copy that fails still leaves the conflict
     /// visible. The other way round, an unwritable <c>replaced/</c> would lose the record of the
     /// conflict as well as the copy.
     /// </para>
     /// </remarks>
-    private SaveConflict RecordConflict(SyncOperation operation, LocalSave? local)
+    private SaveConflict RecordConflict(SyncOperation operation, LocalSave local)
     {
         var slot = operation.Slot ?? string.Empty;
         var reason = operation.Reason
             ?? "both this device and the server changed this slot since the last sync.";
         var now = _time.GetUtcNow();
 
-        var isNew = _store.SaveConflicts.Record(
+        _store.SaveConflicts.Record(
             new SaveConflictRecord(
                 operation.RomId,
                 slot,
-                local?.Path ?? default,
+                local.Path,
                 null,
-                local?.ContentHash,
+                local.ContentHash,
                 operation.ServerContentHash,
                 operation.ServerUpdatedAt,
                 operation.SaveId,
@@ -569,9 +579,10 @@ public sealed class SaveSync
                 null),
             now);
 
-        var aside = _store.SaveConflicts.Read(operation.RomId, slot)?.LocalCopyPath;
+        var stored = _store.SaveConflicts.Read(operation.RomId, slot);
+        var aside = stored?.LocalCopyPath;
 
-        if (isNew && local is not null)
+        if (aside is null && stored is { IsOpen: true })
         {
             try
             {
@@ -592,9 +603,9 @@ public sealed class SaveSync
         return new SaveConflict(
             operation.RomId,
             slot,
-            local?.Path ?? default,
+            local.Path,
             aside,
-            local?.ContentHash,
+            local.ContentHash,
             operation.ServerContentHash,
             operation.ServerUpdatedAt,
             reason);

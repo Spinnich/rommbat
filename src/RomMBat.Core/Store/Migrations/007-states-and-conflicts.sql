@@ -241,8 +241,10 @@ CREATE TABLE save_conflict (
   first_seen_at_utc   TEXT    NOT NULL,
   last_seen_at_utc    TEXT    NOT NULL,
 
-  -- Null while it stands. Resolved rows are kept rather than deleted, so `saves` can say what
-  -- was decided and the copy under replaced/ has something pointing at it until it is pruned.
+  -- Null while it stands. Resolved rows are kept rather than deleted: `saves` reads them back to
+  -- say what was decided, and the record of the decision is what stops the same slot being
+  -- offered to the user again when the server side has not moved since. Resolving prunes the copy
+  -- under replaced/ and clears local_copy_path with it, so the row never points at a deleted file.
   resolved_at_utc     TEXT,
   resolution          TEXT    CHECK (resolution IS NULL OR resolution IN ('keep_local', 'keep_server')),
 

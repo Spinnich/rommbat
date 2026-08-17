@@ -111,6 +111,72 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task A_decided_conflict_keeps_its_row_and_stops_pointing_at_the_pruned_copy()
+    {
+        // Migration 007 keeps decided rows so `saves` can say what was chosen, and so a slot that
+        // conflicts again is recognised as one already settled. Pruning the copy aside used to
+        // delete the row with it, microseconds after the resolution was written.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync();
+
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepLocal)).Resolved);
+
+        var decided = Assert.Single(fixture.Store.SaveConflicts.List());
+
+        Assert.False(decided.IsOpen);
+        Assert.Equal(ConflictResolution.KeepLocal, decided.Resolution);
+        Assert.NotNull(decided.ResolvedAtUtc);
+
+        // The file is gone, so the pointer to it goes too rather than outliving it.
+        Assert.Null(decided.LocalCopyPath);
+    }
+
+    [Fact]
+    public async Task Deciding_a_conflict_is_not_undone_by_the_next_flush_finding_the_same_slot()
+    {
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync();
+
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+
+        // The server side has not moved since the decision, so re-reporting it would make the
+        // resolve command useless and would take a second copy aside.
+        fixture.Advance(TimeSpan.FromHours(1));
+        await fixture.ConflictAsync();
+
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Empty(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+    }
+
+    [Fact]
+    public async Task A_slot_that_moves_again_after_a_decision_reopens_with_a_fresh_copy_aside()
+    {
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync();
+
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+
+        // Somebody else changed the slot after the decision, so the decision was about two sides
+        // that no longer exist and the user has to be asked again.
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with
+        {
+            Bytes = System.Text.Encoding.UTF8.GetBytes("what a third device did"),
+        };
+
+        fixture.Advance(TimeSpan.FromHours(1));
+        await fixture.ConflictAsync();
+
+        var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.True(reopened.IsOpen);
+
+        // The copy taken for the first conflict was pruned when it was decided, so this one needs
+        // its own rather than inheriting a path to a deleted file.
+        Assert.NotNull(reopened.LocalCopyPath);
+        Assert.True(File.Exists(fixture.Resolve(reopened.LocalCopyPath.Value.Value)));
+    }
+
+    [Fact]
     public async Task Keeping_the_server_side_writes_it_atomically_and_acks_after_the_bytes_land()
     {
         using var fixture = ConflictFixture.Create();
@@ -182,6 +248,10 @@ public class SaveConflictTests
         var second = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
 
         Assert.False(second.Resolved);
+
+        // Refused because the row says it was decided, not because the row is gone. The two read
+        // the same from the caller and only one of them lets a user see what they chose.
+        Assert.Contains("already resolved", second.Message, StringComparison.Ordinal);
     }
 
     [Fact]

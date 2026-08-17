@@ -263,6 +263,35 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_conflict_for_a_slot_this_device_did_not_submit_costs_one_operation()
+    {
+        // save_conflict.local_path is NOT NULL and CHECKs for a non-blank value, so recording a
+        // conflict with no local save behind it raised SQLITE_CONSTRAINT_CHECK out of the flush,
+        // taking the states pass down with it. Measurement 132 says negotiate never volunteers a
+        // slot like this, which is why it is a guard and a reported problem rather than a
+        // download path.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what this device did");
+        fixture.Scan();
+
+        fixture.SeedServerSave(9, "libretro:battery", "Zelda (USA)", "srm", "a game never played here");
+        fixture.Stub.UnsolicitedConflicts.Add((9, "libretro:battery"));
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(
+            outcome.Problems,
+            problem => problem.Contains("no local save to act on", StringComparison.Ordinal));
+
+        // Nothing was written for it, and the slot this device did submit still went up.
+        Assert.Empty(fixture.Store.SaveConflicts.List());
+        Assert.Equal(1, outcome.Uploaded);
+    }
+
+    [Fact]
     public async Task A_409_on_upload_is_surfaced_rather_than_retried_with_overwrite()
     {
         using var fixture = SyncFixture.Create();

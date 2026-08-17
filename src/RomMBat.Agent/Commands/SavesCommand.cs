@@ -116,32 +116,59 @@ internal static class SavesCommand
         }
     }
 
+    /// <summary>
+    /// What is still waiting on the user, and what was already decided.
+    /// </summary>
+    /// <remarks>
+    /// Decided rows are kept rather than deleted, which is migration 007's own decision, and this
+    /// is what reads them back: without it a user has no record of which side they picked once
+    /// the console output has scrolled away.
+    /// </remarks>
     private static void ReportConflicts(AgentContext context)
     {
-        var conflicts = context.Store.SaveConflicts.ListOpen();
+        var all = context.Store.SaveConflicts.List();
+        var open = all.Where(conflict => conflict.IsOpen).OrderBy(conflict => conflict.FirstSeenAtUtc).ToList();
 
-        if (conflicts.Count == 0)
+        if (open.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"{open.Count} saves changed in both places. Nothing was overwritten:");
+
+            foreach (var conflict in open)
+            {
+                Console.WriteLine($"  rom {conflict.RomId}, slot {conflict.Slot}, since {conflict.FirstSeenAtUtc:u}");
+                Console.WriteLine($"    here    {conflict.LocalPath}  {Short(conflict.LocalHash)}");
+                Console.WriteLine($"    server  {Short(conflict.ServerHash)}  {conflict.ServerUpdatedAt:u}");
+
+                if (conflict.LocalCopyPath is { } copy)
+                {
+                    Console.WriteLine($"    a copy of the local file is at {copy}");
+                }
+
+                Console.WriteLine(
+                    $"    resolve with: rommbat-agent saves resolve {conflict.RomId} \"{conflict.Slot}\" "
+                        + "--keep-local | --keep-server");
+            }
+        }
+
+        var decided = all.Where(conflict => !conflict.IsOpen).OrderBy(conflict => conflict.ResolvedAtUtc).ToList();
+
+        if (decided.Count == 0)
         {
             return;
         }
 
         Console.WriteLine();
-        Console.WriteLine($"{conflicts.Count} saves changed in both places. Nothing was overwritten:");
+        Console.WriteLine("Conflicts already decided:");
 
-        foreach (var conflict in conflicts)
+        foreach (var conflict in decided)
         {
-            Console.WriteLine($"  rom {conflict.RomId}, slot {conflict.Slot}, since {conflict.FirstSeenAtUtc:u}");
-            Console.WriteLine($"    here    {conflict.LocalPath}  {Short(conflict.LocalHash)}");
-            Console.WriteLine($"    server  {Short(conflict.ServerHash)}  {conflict.ServerUpdatedAt:u}");
-
-            if (conflict.LocalCopyPath is { } copy)
-            {
-                Console.WriteLine($"    a copy of the local file is at {copy}");
-            }
+            var side = conflict.Resolution == ConflictResolution.KeepLocal
+                ? "kept this device's copy"
+                : "took the server's copy";
 
             Console.WriteLine(
-                $"    resolve with: rommbat-agent saves resolve {conflict.RomId} \"{conflict.Slot}\" "
-                    + "--keep-local | --keep-server");
+                $"  rom {conflict.RomId}, slot {conflict.Slot}: {side} on {conflict.ResolvedAtUtc:u}");
         }
     }
 

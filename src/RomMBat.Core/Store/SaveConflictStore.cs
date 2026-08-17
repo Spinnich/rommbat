@@ -52,8 +52,10 @@ public sealed record SaveConflictRecord(
 /// <c>emulators/rommbat/replaced/</c> each time, and once the console output scrolled away the
 /// only evidence was a file. That is issue #31.
 /// <para>
-/// Resolved rows are kept rather than deleted, so <c>saves</c> can say what was decided and the
-/// copy taken aside has something pointing at it until it is pruned.
+/// <b>Resolved rows are kept rather than deleted.</b> <c>saves</c> reads them back to say what was
+/// decided, and <see cref="Record"/> reads them to tell a slot conflicting again over an unmoved
+/// server side from one conflicting over a genuinely new one. Deleting them would put every
+/// settled slot back in front of the user on the next flush, with another copy taken aside.
 /// </para>
 /// </remarks>
 public sealed class SaveConflictStore
@@ -65,29 +67,24 @@ public sealed class SaveConflictStore
     /// <summary>
     /// Records a conflict, or notes that a standing one was seen again.
     /// </summary>
-    /// <returns>True when this is the first time this slot has conflicted.</returns>
     /// <remarks>
-    /// The return value is what stops <c>replaced/</c> growing: the caller takes a copy aside
-    /// only when the conflict is new, so a slot that conflicts on every flush accumulates one
-    /// copy rather than one per run.
-    /// <para>
     /// A slot that conflicts again after being resolved is reopened rather than left resolved,
-    /// because the decision the user took was about the two sides as they then were.
-    /// </para>
+    /// because the decision the user took was about the two sides as they then were. A slot whose
+    /// server side has not moved since the decision is left settled, so the row the caller reads
+    /// back says whether there is anything still waiting on the user.
     /// </remarks>
-    public bool Record(SaveConflictRecord conflict, DateTimeOffset now)
+    public void Record(SaveConflictRecord conflict, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(conflict);
 
         var existing = Read(conflict.RomId, conflict.Slot);
 
-        // Reopened when the server side has moved since the decision, and left alone when it
-        // has not: re-reporting a conflict the user already settled would make the resolution
-        // command useless.
+        // Re-reporting a conflict the user already settled would make the resolution command
+        // useless, so an unmoved server side leaves the row exactly as the decision left it.
         if (existing is { IsOpen: false }
             && string.Equals(existing.ServerHash, conflict.ServerHash, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return;
         }
 
         using var command = _connection.Command(
@@ -122,8 +119,6 @@ public sealed class SaveConflictStore
             .With("$now", SqliteValues.ToText(now));
 
         command.ExecuteNonQuery();
-
-        return existing is null;
     }
 
     /// <summary>Notes where the copy taken aside went, once it has been taken.</summary>
@@ -193,15 +188,23 @@ public sealed class SaveConflictStore
         return command.ExecuteNonQuery() > 0;
     }
 
-    /// <summary>Drops a resolved conflict once its copy aside has been pruned.</summary>
-    public int Forget(long romId, string slot)
+    /// <summary>Forgets where the copy aside was, once the copy itself has been removed.</summary>
+    /// <remarks>
+    /// The row stays. Only the pointer goes, so a slot that conflicts again is not offered a copy
+    /// that was pruned when the previous conflict was settled.
+    /// </remarks>
+    public void ForgetCopy(long romId, string slot)
     {
-        using var command = _connection
-            .Command("DELETE FROM save_conflict WHERE rom_id = $romId AND slot = $slot;")
+        using var command = _connection.Command(
+            """
+            UPDATE save_conflict
+            SET local_copy_path = NULL
+            WHERE rom_id = $romId AND slot = $slot;
+            """)
             .With("$romId", romId)
             .With("$slot", slot);
 
-        return command.ExecuteNonQuery();
+        command.ExecuteNonQuery();
     }
 
     private const string Select =
