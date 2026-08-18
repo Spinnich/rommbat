@@ -379,7 +379,7 @@ public class StateDiscoveryTests
 
         // The unit is recorded whether or not it could be attributed, because that row is what
         // stops eviction taking a ROM out from under a save that has never gone up.
-        var unit = Assert.Single(tree.Store.Saves.List().Where(save => save.ShapeClass == SaveShapeClass.C));
+        var unit = Assert.Single(tree.Store.Saves.List(), save => save.ShapeClass == SaveShapeClass.C);
 
         Assert.Equal("UCES00995", unit.UnitKey);
         Assert.Equal("saves/psp/SAVEDATA", unit.Path.Value);
