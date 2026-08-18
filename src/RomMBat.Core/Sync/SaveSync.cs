@@ -706,11 +706,13 @@ public sealed class SaveSync
     }
 
     /// <summary>
-    /// Fetches a bundled unit and swaps it into place whole.
+    /// Fetches a bundled unit, stages it whole, and then swaps its members in one at a time.
     /// </summary>
     /// <remarks>
     /// <b>A half-written directory save is a corrupt one</b>, so nothing touches the live tree
-    /// until the whole unit is on disk and readable. The archive is fetched to a <c>.part</c>,
+    /// until the whole unit is on disk and readable. <b>The swap that follows is not atomic</b>,
+    /// since the container is shared and only the unit's own members may move; #38 has the
+    /// consequence and why a whole-container swap is the wrong fix. The archive is fetched to a <c>.part</c>,
     /// extracted into a staging directory beside it, the existing members are copied aside under
     /// <c>replaced/</c>, and only then are the new ones moved in.
     /// <para>

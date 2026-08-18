@@ -48,12 +48,21 @@ public static class SaveUnitTransfer
     }
 
     /// <summary>
-    /// Unpacks a fetched archive over a unit, atomically.
+    /// Unpacks a fetched archive over a unit, staged and copied aside but not atomically.
     /// </summary>
     /// <remarks>
     /// Nothing touches the live tree until the whole unit is extracted and readable, and the
     /// current members are copied aside before anything is replaced. A half-written directory
     /// save is a corrupt one.
+    /// <para>
+    /// <b>The swap itself is not atomic, and calling it atomic would be worse than the gap.</b>
+    /// The members are removed and then moved in one at a time, so a failure partway leaves some
+    /// new members and some old ones in the container, which an emulator may read as corrupt.
+    /// Nothing is lost: the pre-restore members are under <c>replaced/</c> and the staged copy
+    /// was extracted and hashed before any of this ran, so recovery exists and is manual.
+    /// A whole-container swap is not the fix, because the container is shared: <c>saves/psp/SAVEDATA</c>
+    /// holds every PSP game on the install. Tracked in #38.
+    /// </para>
     /// <para>
     /// <b>This replaces the unit rather than merging into it.</b> A member the archive does not
     /// name is one the device that sent it deleted, usually an in-game slot, so it is removed

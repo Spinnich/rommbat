@@ -312,8 +312,12 @@ hash, folded into one digest. The archive is transport only.
 - **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10.
   Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
   default compounds it.
-- Restores are atomic: extract to a temp directory beside the target, verify, swap, keep
-  the previous copy until the next successful sync.
+- Restores stage everything off to one side: extract to a temp directory beside the target, keep
+  the previous copy until the next successful sync. **A class C swap is not atomic**, and do not
+  write that it is. Members are removed and moved in one at a time, so a failure partway leaves a
+  mixed unit; nothing is lost, because `replaced/` holds the previous members and the staged copy
+  was hashed first, but recovery is manual. A whole-container swap is the wrong fix: the container
+  is shared, and `saves/psp/SAVEDATA` holds every PSP game on the install. Open as #38.
 - **A bundled restore replaces the unit, it does not merge into it.** Delete the members the
   archive does not name before moving the new ones in; they are under `replaced/` by then. The
   members the archive omits are the slots another device deleted, and leaving them makes the

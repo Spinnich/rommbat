@@ -1789,12 +1789,12 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   second as the save they are deciding against. The server's older copy stays one row down and
   `autocleanup_limit=10` is what bounds the slot, so a resolution is untidy rather than lossy;
   the newest row is this device's, which is what makes the choice take effect. Measurement 160.
-  A 409 that survives the overwrite means the slot moved again
-  between the report the user read and the choice they made, so it is reported rather than
-  forced. `--keep-server` runs the same verified atomic restore an ordinary download does and
-  acks only after the bytes are written and checked. Both then prune the copy under
-  `replaced/`, which is the first time anything in this codebase has been the "next successful
-  sync" the retention rule was always written against.
+  A 409 that survives the overwrite means the slot moved again between the report the user read
+  and the choice they made, so it is reported rather than forced. `--keep-server` runs the same
+  verified restore an ordinary download does, atomic for a single file and staged-but-not-atomic
+  for a unit (#38), and acks only after the bytes are written and checked. Both then prune the
+  copy under `replaced/`, which is the first time anything in this codebase has been the "next
+  successful sync" the retention rule was always written against.
 
   The conflict itself now lives in a `save_conflict` table rather than on an in-memory list, so
   it survives the flush that found it, and the copy aside is taken **once per conflict rather
@@ -2369,6 +2369,16 @@ measurements 148 and 149.
 Extract to a temporary directory beside the target, verify, then swap, and keep the
 previous copy aside until the next successful sync.
 
+**Stated as the requirement, and it is not met for class C today.** Everything that can be
+done off to one side is: the archive is extracted, CRC-checked per entry and hashed, and the
+previous members are copied under `replaced/`, all before the live tree is touched. The swap
+that follows is per member, so a failure partway leaves a mixed unit and recovery is manual.
+The obvious fix is not available: a temp-dir-and-swap needs a directory of the unit's own, and
+a class C container is **shared**, with `saves/psp/SAVEDATA` holding every PSP game on the
+install and a GameCube region folder holding every GameCube game. Only the unit's own members
+may move. Open as #38, with the code deferred and this paragraph the honest statement of where
+it stands.
+
 - Play sessions: `{rom_id, save_slot, start_time, end_time, duration_ms}`, at most 100 per
   call, `end_time` strictly after `start_time`, microseconds truncated server-side for
   dedup. A long offline binge flushes in chunks; replaying a failed chunk is safe.
@@ -2555,7 +2565,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | Coarse FAT/exFAT mtime granularity causes false or missed conflicts                                                             | Compare on `content_hash` first, use mtime only as an ordering tiebreak                                                                                                                                                                                                |
 | Long portable paths exceed MAX_PATH                                                                                             | Long-path-aware APIs and `\\?\` prefixes where needed                                                                                                                                                                                                                  |
 | Emulator save paths differ per system and RetroBat version                                                                      | Data-driven `save_directories.json`, user-overridable, with a clear "unmapped system" state                                                                                                                                                                            |
-| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, restore atomically via temp-dir-and-swap                                                                                                                                                                      |
+| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, stage and verify off to one side, copy the previous members aside, then move the unit's own members in. The container is shared, so it is not a whole-container swap and the move is not atomic (#38)         |
 | Shared memory cards cannot be attributed to a `rom_id`                                                                          | Convert to per-game cards via the RetroBat option (`pcsx2_slot1_memory`, `dolphin_slotA`) written to `es_settings.cfg`; PS1 and GameCube are already per-game by default, and PS1 must be left alone rather than converted                                             |
 | Converting a per-game memory card splits a multi-disc set and loses the save at the disc change                                 | Decide the conversion per game, not per system, using the `<system>["<rom>"]` form; never convert a set with several disc files, and leave DuckStation at stock `PerGameTitle`, which binds a set through its own database                                             |
 | RetroArch writes an absolute image path into the save tree (`<playlist>.ldci`), which does not survive a drive-letter change    | Exclude it from the sync set, or rewrite `image_path` on restore; never round-trip it verbatim. Its `image_index` is worth keeping, so exclusion is a real cost, not a free win                                                                                        |
