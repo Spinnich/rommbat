@@ -26,7 +26,8 @@
 --    directory or a filename (`UCES01011`, `1944`, `GXBE`, `RSBE`) and a separator in it would
 --    mean the grammar matched something it should not have.
 --
--- 2. `game_id_binding.learned_from` admits 'sidecar'.
+-- 2. `game_id_binding.learned_from` admits 'sidecar' and 'contested', and the key it is
+--    looked up by is NOCASE.
 --
 --    Stage 2a recorded the save-state `.txt` sidecar's contents onto `local_state` and noted
 --    that 2b should read it before building the ROM-header route. It should: measured, PPSSPP's
@@ -38,6 +39,14 @@
 --    trusting is different: 'rom_header' trusts bytes in the game, 'sidecar' trusts a file
 --    RetroBat wrote about the game. A reviewer deciding whether to keep a binding needs to know
 --    which. Rebuilt rather than ALTERed, because the value list is a CHECK.
+--
+--    By the same argument 'contested' is its own value: a refusal is a row no route taught, and
+--    storing it as 'journal' claimed a launch was involved when the two routes that disagreed
+--    could as easily be a sidecar and a ROM header.
+--
+--    The collation is the other half of the same table being honest. Every reader compares
+--    these keys case-insensitively and the columns did not, so a hand-typed binding was written
+--    where nothing would ever read it.
 --
 -- What this migration deliberately does NOT add, since 006's header set the precedent of
 -- saying so:
@@ -160,12 +169,18 @@ CREATE INDEX ix_local_save_container ON local_save (relative_path, unit_key);
 
 CREATE TABLE game_id_binding_v2 (
   id                INTEGER PRIMARY KEY,
-  system            TEXT NOT NULL CHECK (
+  -- NOCASE on both halves of the key, because every reader already treats them that way and
+  -- the column did not. SaveUnitPath.KeyOf upper-cases what it reads off the tree, so the
+  -- attributor only ever looks up ULES01513, while `saves bind psp ules01513 42` wrote a row a
+  -- BINARY comparison could never find again: the insert succeeded, the command said the next
+  -- scan would use it, and nothing ever did. The UNIQUE below is case-insensitive with it, so
+  -- one key cannot hold two rows that differ only in case.
+  system            TEXT NOT NULL COLLATE NOCASE CHECK (
                       length(trim(system)) > 0
                       AND system NOT LIKE '%/%'
                       AND system NOT LIKE '%\%'
                     ),
-  game_id           TEXT NOT NULL CHECK (
+  game_id           TEXT NOT NULL COLLATE NOCASE CHECK (
                       length(trim(game_id)) > 0
                       AND game_id NOT LIKE '%/%'
                       AND game_id NOT LIKE '%\%'
@@ -192,7 +207,14 @@ CREATE TABLE game_id_binding_v2 (
 
   -- 'sidecar' is new. 'user' now has a caller too: `saves bind` is what unlearns a wrong
   -- binding, which is the answer this stage owes to "a wrong binding is permanent otherwise".
-  learned_from      TEXT NOT NULL CHECK (learned_from IN ('journal', 'rom_header', 'sidecar', 'user')),
+  --
+  -- 'contested' is new as well, and it is the row no route taught. A refusal used to be stored
+  -- as 'journal' whatever disagreed, which asserted a launch was involved even when a sidecar
+  -- and a ROM header were the two that read something. `saves` shows detail rather than the
+  -- source for an unresolved row, so the wrong value was invisible and outlived the scan.
+  learned_from      TEXT NOT NULL CHECK (
+                      learned_from IN ('journal', 'rom_header', 'sidecar', 'user', 'contested')
+                    ),
 
   -- Why the binding is what it is, or which routes disagreed when rom_id is null. Shown by
   -- `saves` so a user can see what a binding rests on before trusting or clearing it.

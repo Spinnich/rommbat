@@ -293,6 +293,68 @@ public class GameIdAttributionTests
     }
 
     [Fact]
+    public void A_contested_row_records_that_nothing_taught_it_rather_than_naming_a_route()
+    {
+        // The row asserts a provenance, and `saves` prints detail rather than the source for an
+        // unresolved one, so a wrong value here is both invisible and durable. Migration 008 is
+        // the authority: a reviewer deciding whether to keep a binding needs to know what it
+        // rests on, and this one rests on nothing.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSBE");
+        var other = fixture.AddRom("wii", "Wii Play (USA).rvz", romId: 42, gameCode: "RZTE");
+
+        // A sidecar and a ROM header disagreeing, with no launch involved at all.
+        fixture.AddStateSidecar("wii", other, romId: 42, native: "RSBE_1.00");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+
+        Assert.Equal(AttributionOutcome.Contested, fixture.Attributor().Attribute(unit).Outcome);
+
+        var stored = Assert.Single(fixture.Store.GameIdBindings.List());
+
+        Assert.Equal(BindingSource.Contested, stored.LearnedFrom);
+        Assert.False(stored.IsResolved);
+    }
+
+    [Fact]
+    public void A_binding_typed_in_lower_case_is_the_one_the_scan_reads()
+    {
+        // `saves bind psp ules01513 42` types what a person read off a report; the attributor
+        // only ever looks up ULES01513, because SaveUnitPath.KeyOf upper-cases every key it
+        // reads off the tree. Without NOCASE on the column the insert succeeded, the command
+        // said the next scan would use it, and nothing ever did.
+        using var fixture = new AttributionFixture();
+        var rom = fixture.AddRom("psp", "3rd Birthday, The (Europe).cso", romId: 42);
+
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psp",
+            "ules01513",
+            42,
+            rom,
+            BindingSource.User,
+            "bound by hand",
+            fixture.Now));
+
+        var found = fixture.Store.GameIdBindings.Find("PSP", "ULES01513");
+
+        Assert.NotNull(found);
+        Assert.Equal(42, found.RomId);
+
+        // And the same key does not become a second row, whichever case it arrives in.
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psp",
+            "ULES01513",
+            43,
+            rom,
+            BindingSource.User,
+            "bound again",
+            fixture.Now));
+
+        Assert.Equal(43, Assert.Single(fixture.Store.GameIdBindings.List()).RomId);
+        Assert.True(fixture.Store.GameIdBindings.Forget("psp", "ules01513"));
+    }
+
+    [Fact]
     public void A_mame_short_name_resolves_by_filename_and_learns_nothing()
     {
         // The friendly case, and the reason MAME proves bundling without any attribution at

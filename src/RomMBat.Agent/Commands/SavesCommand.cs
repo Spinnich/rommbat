@@ -274,7 +274,6 @@ internal static class SavesCommand
     }
 
     /// <summary>
-    /// <summary>
     /// <c>saves bind &lt;system&gt; &lt;game id&gt; &lt;rom id&gt;</c>, or <c>--forget</c>.
     /// </summary>
     /// <remarks>
@@ -361,6 +360,7 @@ internal static class SavesCommand
         return ExitCode.Ok;
     }
 
+    /// <summary>
     /// <c>saves resolve &lt;rom&gt; &lt;slot&gt; --keep-local|--keep-server</c>.
     /// </summary>
     /// <remarks>
@@ -435,6 +435,14 @@ internal static class SavesCommand
         hash is null ? "(no hash)" : hash[..Math.Min(8, hash.Length)];
 
     /// <summary>
+    /// How many unsettled bindings are worth printing before the list stops being useful.
+    /// </summary>
+    private const int MaxListedBindings = 20;
+
+    /// <summary>How many saves are worth listing before the report stops being readable.</summary>
+    private const int MaxListedSaves = 25;
+
+    /// <summary>
     /// Shows what directory-save attribution currently rests on, including where it gave up.
     /// </summary>
     /// <remarks>
@@ -443,14 +451,6 @@ internal static class SavesCommand
     /// listed too: it is a decision that nothing could name the game, and it stays until
     /// <c>saves bind</c> settles it.
     /// </remarks>
-    /// <summary>
-    /// How many unsettled bindings are worth printing before the list stops being useful.
-    /// </summary>
-    private const int MaxListedBindings = 20;
-
-    /// <summary>How many saves are worth listing before the report stops being readable.</summary>
-    private const int MaxListedSaves = 25;
-
     private static void ReportBindings(AgentContext context)
     {
         var bindings = context.Store.GameIdBindings.List();
@@ -497,6 +497,7 @@ internal static class SavesCommand
         BindingSource.RomHeader => "the game code in the ROM's header",
         BindingSource.Sidecar => "the name sidecar beside a save state",
         BindingSource.User => "you, with saves bind",
+        BindingSource.Contested => "nothing: two routes named different games",
         _ => source.ToString(),
     };
 

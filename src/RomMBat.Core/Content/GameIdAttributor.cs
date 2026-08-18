@@ -189,7 +189,11 @@ public sealed class GameIdAttributor
                     + string.Join("; ", answers.Select(answer => answer.Detail))
                     + ". It is left alone until `saves bind` settles it";
 
-            Remember(unit, null, null, BindingSource.Journal, reason, now);
+            // Its own provenance, because no route taught this row anything. Recording the
+            // journal here asserted a launch was involved even where a sidecar and a ROM header
+            // were the two that disagreed, and `saves` prints the detail rather than the source
+            // for an unresolved row, so the wrong value was invisible and persisted.
+            Remember(unit, null, null, BindingSource.Contested, reason, now);
             return new Attribution(null, null, null, reason, AttributionOutcome.Contested);
         }
 
@@ -267,11 +271,19 @@ public sealed class GameIdAttributor
     /// The launch-window route: whoever was running when the newest member was written.
     /// </summary>
     /// <remarks>
-    /// The window is bounded by the next launch of the same system rather than by a duration,
-    /// so a long session is not lost and a save written a week after anything ran is not given
-    /// to the last thing that did. Two launches naming different ROMs within
-    /// <see cref="LaunchAmbiguity"/> of the mtime are refused, since a coarse filesystem clock
-    /// cannot separate them.
+    /// The most recent launch of the system at or before the save's own mtime wins, so a long
+    /// session is not lost to a duration cap. <b>There is no lower bound</b>: a unit written a
+    /// month after the last launch of that system still attributes to it, because a save's mtime
+    /// moves long after a session for ordinary reasons and a cutoff loses real saves. Two
+    /// launches naming different ROMs within <see cref="LaunchAmbiguity"/> of the mtime are
+    /// refused, since a coarse filesystem clock cannot separate them.
+    /// <para>
+    /// That open end is why this is the weakest of the three routes, and it binds and caches
+    /// like the others. For a unit copied in by hand, with no ROM header to read and no state
+    /// sidecar beside it, this is the only route with anything to say, so nothing disagrees with
+    /// it and the fail-closed rule never engages. A binding it gets wrong stands until
+    /// <c>saves bind --forget</c> clears it.
+    /// </para>
     /// </remarks>
     private RouteAnswer? FromLaunchWindow(SaveUnit unit)
     {

@@ -17,6 +17,15 @@ public enum BindingSource
 
     /// <summary>Somebody typed it, via <c>saves bind</c>.</summary>
     User,
+
+    /// <summary>
+    /// Nothing taught it: two routes read something real and named different games.
+    /// </summary>
+    /// <remarks>
+    /// A provenance rather than an absence, and it only ever appears with a null
+    /// <c>rom_id</c>. Which routes disagreed is in <c>detail</c>.
+    /// </remarks>
+    Contested,
 }
 
 /// <summary>
@@ -159,6 +168,7 @@ public sealed class GameIdBindingStore
         BindingSource.RomHeader => "rom_header",
         BindingSource.Sidecar => "sidecar",
         BindingSource.User => "user",
+        BindingSource.Contested => "contested",
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 
@@ -168,6 +178,7 @@ public sealed class GameIdBindingStore
         "rom_header" => BindingSource.RomHeader,
         "sidecar" => BindingSource.Sidecar,
         "user" => BindingSource.User,
+        "contested" => BindingSource.Contested,
         _ => throw new InvalidOperationException($"Unknown binding source '{value}' in the database."),
     };
 }
