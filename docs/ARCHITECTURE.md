@@ -127,7 +127,9 @@ task.
 
 All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
 one subcommand that needs the network and a decision from a person, and the only caller of
-`overwrite=true` anywhere in the codebase.
+`overwrite=true` anywhere in the codebase. `saves bind <system> <game id> <rom id>`, and
+`--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
+one by hand.
 
 **Nothing invokes `flush` except `sync` and a person typing it.** The hooks write a spool file
 and exit without starting a process, and the UI that would drive one is M7. Having a hook spawn
@@ -235,7 +237,7 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Six have been
+so each milestone has somewhere honest to write from the moment it starts. Seven have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -250,12 +252,12 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `outbox`           | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number                       |
 | `journal`          | Hook events, correlated later against `emulatorLauncher.log`                                                                       |
 | `launch_cursor`    | Singleton: how far `emulatorLauncher.log` has been read, as a timestamp rather than an offset, because the file rotates            |
-| `local_save`       | One row per save unit on disk, with its logical content hash and the hash that was last uploaded. Answers `SaveGuard`              |
+| `local_save`       | One row per save unit on disk, identified by `(relative_path, unit_key)`, with its logical content hash and the last uploaded one  |
 | `local_state`      | One row per save state, with its emulator, core, version, screenshot and the name it was uploaded under                            |
 | `save_slot`        | The server-side identity of each `(rom_id, slot)`: `save_id`, both filenames, the server hash, the uploading device                |
 | `save_conflict`    | Slots where both sides moved, outliving the flush that found them, until a person picks a side                                     |
 | `unsyncable`       | What was found under `saves/` and is not being synced, with a reason a user can act on. Rewritten every scan                       |
-| `game_id_binding`  | Learned Game ID to `rom_id` bindings, for class C and D attribution                                                                |
+| `game_id_binding`  | Learned Game ID to `rom_id` bindings for class C and D attribution, with the route that taught each one, or a recorded refusal     |
 | `rom_metadata`     | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server                                  |
 | `setting`          | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy                 |
 | `content_download` | One interrupted transfer per ROM: its `.part`, its target, the expected length and the validator to resume against                 |
@@ -462,12 +464,20 @@ RomM's `Save` is strictly one file with a `slot` and an MD5 `content_hash`. Retr
 produces four different shapes, and squeezing them through that model is where this gets
 hard.
 
-| Class | Shape                              | Handling                                                                  |
-| ----- | ---------------------------------- | ------------------------------------------------------------------------- |
-| A     | One file per game                  | Direct 1:1 map to a `Save`. Slot `{emulator}:battery`                     |
-| B     | Several files per game             | One slot per file when the set is small and stable, otherwise bundle as C |
-| C     | Directory per game                 | Bundle to a single archive; hash the **contents**, not the archive        |
-| D     | One container shared by many games | Convert to per-game via a RetroBat option, or report as unsyncable        |
+| Class | Shape                                             | Handling                                                                  |
+| ----- | ------------------------------------------------- | ------------------------------------------------------------------------- |
+| A     | One file per game                                 | Direct 1:1 map to a `Save`. Slot `{emulator}:battery`                     |
+| B     | Several files per game                            | One slot per file when the set is small and stable, otherwise bundle as C |
+| C     | Several files under a container, keyed by Game ID | Bundle to a single archive; hash the **contents**, not the archive        |
+| D     | One container shared by many games                | Convert to per-game via a RetroBat option, or report as unsyncable        |
+
+**A class C unit is a `(container, key)` pair, not a directory.** Measured on a real install:
+`ps3` keeps three directories under one title id, `psp`'s key is a **prefix** of the directory
+name (`ULES01513SYSDATA`), and `gamecube` has no per-game directory at all, two `.gci` files
+sharing a region folder with every other game on the system. So the path alone is not an
+identity, which is what `local_save.unit_key` exists for. Containers are declared in
+`data/retrobat/save_shapes.json` and never discovered: hashing an emulator's whole data root
+took 426 s where the scoped subtree took 0.06 s.
 
 Three rules that are not obvious:
 
@@ -481,11 +491,16 @@ Three rules that are not obvious:
   hashing the bytes would make RomMBat and Grout disagree forever on identical saves.
   Define `content_hash` over sorted relative paths plus each file's own hash. The archive
   is transport only.
+- **So a bundled save carries two hashes and they are never compared.** RomM digests an
+  archive's contents too, by a function this client cannot reproduce, so the logical fold is
+  the local change detector and the digest the server returned on the last upload is the value
+  that goes back on the wire. Sending the fold instead answers `download` forever.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
-`saves resolve` picks a side. `--keep-local` is the only thing that sends `overwrite=true`;
-resolving either way prunes the copy, which is what makes the plan's "keep the previous copy
+`saves resolve` picks a side. A conflict is keyed on the server row and not only on its digest,
+because a slot returning to contents it once held is a different row carrying a decided hash.
+`--keep-local` is the only thing that sends `overwrite=true`; resolving either way prunes the copy, which is what makes the plan's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 
 Save states look like the easier half, because `es_savestates.cfg` is a machine-readable
@@ -503,10 +518,20 @@ not hardcode. Two things make it less easy than it looks, both measured:
   expanding a slot range, which is what makes the four documented traps in that file mostly
   stop being traps.
 
-Attribution for classes C and D is a real problem, because directory saves are keyed by
-Game ID and RomM stores no serial or title ID anywhere. The primary route is correlating
-with the `game-start` journal that already exists, caching the learned binding; reading
-the ID out of the ROM is the fallback.
+Attribution for classes C and D is a real problem, because these saves are keyed by Game ID
+and RomM stores no serial, title id or product code anywhere. Under `mame` the key is the ROM's
+own basename and the join is direct. Everywhere else three routes are asked, **all of them
+rather than the first that answers**, because their agreement is the only evidence a binding
+has: the launch window `emulatorLauncher.log` records, the `.txt` sidecar RetroBat writes beside
+a save state, and the ROM header. The header route reaches GameCube and Wii and nothing else,
+measured across five systems on a real library, so it supplements the other two rather than
+backing them up.
+
+**Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
+games bind nothing and record the refusal, because picking a side uploads one game's save under
+another's name and the cache would then make that permanent; `saves bind` is how a person settles
+or clears one. Nothing answering at all is cached nowhere, since the usual cause is that the ROM
+has not been synced yet and a stale refusal would outlive its own reason.
 
 ---
 

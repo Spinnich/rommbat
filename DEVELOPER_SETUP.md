@@ -298,6 +298,10 @@ dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-tes
 # Picking a side once a slot has conflicted. There is no default side.
 dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-local
 dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-server
+
+# Saying which game a directory save belongs to, when the routes cannot or disagree.
+dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 391
+dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 --forget
 ```
 
 `sync` installs the hooks on its first run and flushes before anything else it does, so none
@@ -336,6 +340,12 @@ winning.
 **A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
 `--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
 the dated copy under `emulators/rommbat/replaced/` once the slot is back in step.
+
+**A directory save goes up as one archive, and `saves` names the unit rather than the path.**
+Every PSP save on an install shares the container `saves/psp/SAVEDATA`, so the report prints
+`<container>/<key>`. The key is a Game ID, worked out from the launch window, the ROM header or
+the save-state sidecar, and `saves bind` is the way to correct one or to settle a binding two
+routes disagreed on. A binding is local: there is nowhere on the server to put one.
 
 **Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
 opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against

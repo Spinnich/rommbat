@@ -15,9 +15,11 @@ is a wombat.
 >
 > **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
 > mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
-> BIOS all work. **Battery saves, save states and playtime now cross**, along with conflict
-> resolution. **Directory saves and shared memory cards do not yet**, which is
-> the rest of M6. Nothing has been certified against a real emulator yet; see
+> BIOS all work. **Battery saves, save states, directory saves and playtime now cross**,
+> along with conflict resolution and the Game-ID attribution that directory saves need.
+> **Shared containers such as a PS2 memory card do not yet**, which is the rest of M6, and a
+> device that has never held a directory save cannot receive one yet. No platform has been
+> certified against a real emulator; see
 > [Platform certification](#platform-certification) for what that means and when it starts.
 > The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
@@ -36,7 +38,7 @@ and through the companion-app protocol RomM already ships.
 |              |                                                                                                                                               |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Pull**     | ROMs, `gamelist.xml` metadata, box art / video / manuals, and BIOS, into `roms/<system>/` and `bios/`                                         |
-| **Push**     | Battery saves, save states and play sessions, back into RomM                                                                                  |
+| **Push**     | Battery saves, save states, directory saves and play sessions, back into RomM                                                                 |
 | **Curate**   | Sync Sets: a named scope (collection, smart collection, platform, or a saved filter) plus a policy (max games, max bytes, ordering, eviction) |
 | **Offline**  | Everything works with the server unreachable and reconciles on reconnect                                                                      |
 | **Portable** | Lives entirely inside the RetroBat tree, survives a drive-letter change and a move to another PC                                              |
@@ -168,6 +170,9 @@ rommbat-agent.exe gamelist --media all       # also fetch manuals, which are off
 
 ```powershell
 rommbat-agent.exe saves                      # what is on disk, what went up, what cannot
+rommbat-agent.exe saves resolve 42 "ppsspp:savedata" --keep-local  # pick a side on a conflict
+rommbat-agent.exe saves bind psp ULUS10057 391                     # whose directory save is this
+rommbat-agent.exe saves bind psp ULUS10057 --forget                # work it out again from scratch
 rommbat-agent.exe flush                      # send queued saves and play sessions
 rommbat-agent.exe flush --offline            # do the local half only
 rommbat-agent.exe hooks status               # are the EmulationStation hooks installed
@@ -178,10 +183,19 @@ rommbat-agent.exe hooks uninstall            # take them back out
 end, so neither is normally typed. Without them there is no playtime and no way to tell which
 game wrote a save.
 
-**This release syncs battery saves, the one-file-per-game kind, and play sessions.** Save
-states, directory saves such as PSP and PS3, and shared containers such as a PS2 memory card
-land in the next one. `saves` lists everything it found that it is not syncing, and why,
-rather than leaving you to notice.
+**This release syncs battery saves, save states, directory saves and play sessions.** A
+directory save such as PPSSPP's `SAVEDATA/` goes up as one archive and comes back down as one.
+Shared containers, where a single file holds every game on the system as a PS2 memory card
+does, are the last shape and land in the next release. `saves` lists everything it found that
+it is not syncing, and why, rather than leaving you to notice.
+
+**A directory save is attributed, not named.** It is keyed by a Game ID (`ULUS10057`, a PS3
+title id, a GameCube disc id) and RomM stores no serial, title id or product code anywhere, so
+RomMBat works the game out from the launch journal, from the ROM header, or from the sidecar
+RetroBat writes beside a save state. Two routes naming different games bind nothing and
+reports both candidates, because guessing uploads one game's save under another's name and the
+cache would then make that permanent. `saves bind` settles one by hand, or clears one that is
+wrong.
 
 `sync` re-resolves each set first, because smart-collection membership drifts server-side,
 then prints a plan before doing anything. A second run of an unchanged set downloads nothing
@@ -231,12 +245,12 @@ ships in stages small enough to review. The first cut is at the save-class bound
 second is at what each remaining piece needs from Game-ID attribution, which is the only hard
 dependency among them.
 
-| Stage | Scope                                                                                          | State                                                                                                |
-| ----- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                |
-| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** States are pushed one way; `saves resolve` picks a side and prunes the copy kept aside |
-| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | Not started                                                                                          |
-| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | Not started                                                                                          |
+| Stage | Scope                                                                                          | State                                                                                                                     |
+| ----- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                                     |
+| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** States are pushed one way; `saves resolve` picks a side and prunes the copy kept aside                      |
+| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | **Complete.** A PPSSPP `SAVEDATA/` directory went up, came back as a conflict, and the game loaded what the restore wrote |
+| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | Not started                                                                                                               |
 
 **Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
 conflict detection, so there is nothing to negotiate: a state goes up when its contents change
@@ -320,7 +334,8 @@ docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
-tools/m0-probes/      Throwaway probes, kept so every measured number is reproducible
+tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
+                      number is reproducible
 .claude/skills/       Task-scoped guides for agents working in this repository
 ```
 
