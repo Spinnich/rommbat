@@ -284,6 +284,17 @@ hash, folded into one digest. The archive is transport only.
   fold over the tree disagree with the fold over the archive, so the next scan reads the unit
   as changed and puts the merged copy back over the server's. Somebody who chose to discard the
   local side gets a merge instead, and it propagates.
+- **Record the slot's server identity when a bundled restore lands**, not only the local fold.
+  The wire hash for an unchanged class C unit is `server_content_hash`, since the server's digest
+  over an archive cannot be recomputed client-side. A restore that leaves the slot holding the
+  pre-download digest submits a hash the server no longer recognises, and negotiate answers
+  `upload` for a unit that is already identical. Measured: the flush after a class C restore
+  reported one upload, which the server then deduplicated into a row it already had.
+- **A settled conflict is settled for one server row, not for one digest.** `content_hash` is
+  over an archive's contents, so a slot returning to contents it held before carries a digest
+  that was already decided while being a different row. Compare the save id too, or a real
+  conflict is dropped: no row to list, `resolve` answering "already resolved", and the local
+  write refused with a 409 on every flush with no way out.
 - Never evict a ROM whose saves are still in the outbox.
 
 ## `device_id` is bookkeeping, never a filter
