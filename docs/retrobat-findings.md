@@ -2093,6 +2093,90 @@ state. And the hook-spawn cost is still outstanding.
 
 ---
 
+## Measured during M6 stage 2b
+
+Spinnich authorised every probe: the live RomM instance, a read-only sweep of the real
+`E:\RetroBat` install (the one probe 2 measured), and the `K:` development stick. Probe
+artifacts are under `probe-output/m6/`, which is gitignored; the scripts are checked in under
+`tools/m6-probes/`. **Fourteen results, and five of them refute something this document or
+`docs/PLAN.md` currently asserts.**
+
+| #   | Previously                                                                         | Measurement says                                                                                                                                                                                                                                                                                                                                                                |
+| --- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 140 | Class C is "a directory per game" (plan, the class table)                          | **Refuted, on three systems at once.** `ps3` holds `BLUS30109G6A383E91`, `BLUS30109G6A3B071C` and `BLUS30109S` for one title id, and `BCUS98111-AUTOSAVE` beside `BCUS98111-USERDATA`. `psp` holds `UCES01011` and `ULES01513SYSDATA`. **`gamecube` has no per-game directory at all**: `69-GXBE-game1.ssx.gci` and `69-GXBE-settings.ssx.gci` are two files in a shared folder |
+| 141 | The unit key is the directory's name                                               | **It is a prefix of it.** `ULES01513SYSDATA` carries key `ULES01513`, and `BLUS30187GAMEDAT9ZLDR0F5K7M4000` carries `BLUS30187`. Matching the whole segment finds nothing                                                                                                                                                                                                       |
+| 142 | RPCS3 hashing costs 426 s and the scoped subtree 0.06 s (plan, M6)                 | **Confirmed to two decimal places**, re-run rather than inherited: the data root is 32,451 files / 52,868.4 MB / **426.07 s**, its `dev_hdd0/home/*/savedata` subtree 77 files / 16.3 MB / **0.06 s**, MAME's whole `nvram` 1,531 files / 137.3 MB / 8.02 s                                                                                                                     |
+| 143 | Reading the ID out of the ROM is the fallback route (plan, M6; F17)                | **It reaches nothing this stage needs.** Every image in five systems, head read only: `gamecube` 178 `.rvz`, **100%** readable at `0x58` with the version checked; `wii` 40 `.rvz` + 13 `.wad`, **75.5%**; `psp` 147 `.cso` + 7 `.chd`, **0%**; `ps3` 23 `.dec.iso`, **0%**; `psx` 386 `.chd`, **0%**. No constant offset reaches a `.cso`, a `.chd` or an ISO9660 image        |
+| 144 | `PARAM.SFO` yields the Game ID (start-m6-stage2b brief)                            | **It yields nothing the directory name does not.** Its keys are `SAVEDATA_DIRECTORY`, which is the directory's own name, and `TITLE`, a human string (`'echochrome'`, `'The 3rd Birthday'`). So parsing it buys a fuzzy title match, never an exact key                                                                                                                         |
+| 145 | The state `.txt` sidecar may be a cheaper third route (stage 2a ledger)            | **It is, and it is measured.** `ppsspp/3rd Birthday, The (Europe).txt` holds `ULES01513_1.00`, whose `ULES01513` prefix joins `SAVEDATA/ULES01513SYSDATA`, while the stem resolves through `RomIndex`. It needs no ROM read and no observed launch, and it covers only games that have a state                                                                                  |
+| 146 | Wii's NAND "is not all attributable" and what counts as a save unit is open (plan) | **Decided from data.** `title/00010000/<hex>/` is the disc-game tree and the hex is the ASCII game code (`52534245` = `RSBE`), which joins exactly to what route 2 reads at `0x58`. `title/00000001/*` is system titles, and `shared2/`, `sys/` and `fst.bin` are system state. A title with `content/title.tmd` and no `data/` is an installed stub, not a save                |
+| 147 | The server renames a save (F6, measurement 130)                                    | **True for a bundled directory save too, and the untagged name is the unit key.** `UCES01011.zip` came back `'UCES01011 [2026-08-17_23-52-18].zip'` with `file_name_no_tags` `'UCES01011'` and `file_extension` `'zip'`                                                                                                                                                         |
+| 148 | `content_hash` is the MD5 of the bytes uploaded (F3, and the download verify)      | **True for a plain file, false for an archive.** A 24 B payload, 570 B of `'A'`, 570 B random and 570 B of NUL all match exactly. A 570 B zip does not, independent of `Content-Type` and of filename. Rebuilding one member at a different compression level and timestamp gives a different zip and **the same** digest; renaming the member changes it                       |
+| 149 | (not addressed) what negotiate compares for a bundled save                         | **The server's own returned digest, and only that.** Sending it answers `no_op (Content is identical)`; sending our logical fold or the archive's MD5 answers `download (Server save is newer)`. Eight candidate reconstructions of the server function reproduce none of the observed values, so it is **not reproducible client-side** and must not be guessed at             |
+| 150 | Different content into one slot appends a row (F3)                                 | **Not on this version. The key is `(rom_id, slot, file_name)` and it replaces.** Same name and different content reused id 136 with the content hash updated and no `overwrite` flag; a different name in the same slot made a second row. F3's two uploads shared a name, so its reading does not hold here                                                                    |
+| 151 | Negotiate never volunteers a slot the client did not submit (**measurement 132**)  | **Refuted, and 132 is withdrawn.** An **empty** `saves` array returned **13 downloads across two ROMs**, one never named by the client. The mechanism, driven: 13 ops, then `GET /api/saves/134/content` plus `POST /api/saves/134/downloaded`, then 12 ops with that save gone. Negotiate returns a download for every save the **device** has no current sync record for      |
+| 152 | A restore writes `file_name_no_tags` plus `file_extension` (plan, M6; F6)          | **Refuted on a real save, which is what 130 half-saw.** `Phantasy Star (Brazil) [2026-08-17_17-01-00].srm` has `file_name_no_tags` `'Phantasy Star'`: the server strips `(Brazil)` as a tag. Writing that produces a filename libretro cannot see. The ROM's own stem plus the extension is the only sound source, and the negotiate operation carries neither                  |
+| 153 | MAME's short name **is** the rom basename, so attribution is free (probe 2, plan)  | **Structurally sound and unprovable on this install.** 1,231 `nvram` unit directories against 3 `.zip` files in `roms/mame`, so nothing joins. The names are well-formed MAME short names (`1944`, `19xx`, `1on1gov`, `20pacgal`) and a MAME set names each archive after one, but this library cannot demonstrate it                                                           |
+
+**What 151 costs, beyond the correction.** `docs/PLAN.md`, the `save-sync` skill and stage 2a's
+ledger all record "a fresh device cannot discover the saves the server holds for it" as a real
+functional gap needing a separate inventory pass. There is no gap: negotiating with an empty
+`saves` array **is** the inventory pass. And `SaveSlotStore.Map`'s fallback for a slot with no
+local file, which 2a called provably unreachable, is provably reachable, so the two download
+cases 2a closed negatively are open again.
+
+**Not measured, and named rather than left to read as done.** The cost of spawning the agent
+from the hook is **still** outstanding, now for a third stage. Permission was granted this time
+and the blocker changed rather than lifted: it needs a game launched on an install carrying the
+replaced binary, which is a hands-on step and not a probe this session can take alone.
+
+---
+
+## Measured during M6 stage 2b, hands-on pass
+
+Spinnich synced `Bust-A-Move - Deluxe (USA)` onto the `K:` install, launched it through
+EmulationStation, saved from the game's own menu, and confirmed the restored save loaded. This
+is the first time anything in this repository has handled a directory save a real emulator
+wrote. It is **not** a certification: one game, one system, steps 4 and 9 only.
+
+**Four defects came out of it, and none was reachable from a test that existed**, because each
+needed either a real tree or a genuine two-sided divergence against a live server.
+
+| #   | Previously                                                                   | The pass says                                                                                                                                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 154 | The PSP unit key is a prefix of the directory name (141, measured on `E:`)   | **Confirmed on a second, independently produced sample.** PPSSPP wrote `SAVEDATA/ULUS100570000/`, four files and 91,607 B, and the key extracted as `ULUS10057`. Matching the whole segment would have found nothing                                                                                           |
+| 155 | Route 1 is the only route that can attribute a PSP save (143, 144, 145)      | **True, and it works.** No `.cso` header and no state sidecar existed, and the launch window bound it: `Bust-A-Move - Deluxe (USA).cso was running when ULUS10057 was last written`. The hook fired all four events and the launch log carried `-system psp -emulator ppsspp`                                  |
+| 156 | A conflict arrives as a negotiate `conflict` action (stage 1's whole design) | **Not for a real divergence.** A save changed on both sides negotiated as **`upload`**, reason `Client save is newer (no sync history)`, and the POST returned **409**. Negotiate decides from the hashes it is handed; the stale sync record is the part it cannot see. So 409 is the path, not the exception |
+| 157 | The server's archive digest is not our fold (148, 149)                       | **Confirmed on real data.** Our fold `4eea879a…` against the server's `a92d31a4…` for the same unit, and a re-sync answered `no_op` only when the server's own value went back on the wire                                                                                                                     |
+| 158 | (not addressed) what a class C scan costs on a real tree                     | **4.1 s wall** for the whole `K:` saves tree, 1,231 MAME nvram units and everything else, including hashing                                                                                                                                                                                                    |
+| 159 | (not addressed) whether an emulator loads a unit RomMBat restored            | **PPSSPP does.** The atomic restore put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way                                                                                                |
+
+**The four defects, in the order they surfaced:**
+
+1. **A refusal was cached when it was only an absence.** K:'s MAME nvram tree has 1,231 units
+   and no MAME ROMs beside it, so one scan wrote 1,231 negative bindings. A later sync bringing
+   those ROMs in would have found every save still unattributed behind a stale row nothing
+   clears. Only a contested key is cached now.
+2. **A 409 was reported as a failure rather than recorded as a conflict**, which made the
+   milestone's own "done when" unreachable through the path a real divergence takes.
+3. **A class C conflict recorded no copy aside**, because `File.Exists` is false for a
+   container, so the record promised a copy it did not have.
+4. **Resolving one could never succeed.** The resolver had its own restore that verified the
+   download against `server_content_hash`; for an archive that comparison is always false. It
+   refused itself with `what arrived hashes to 0391c0a9 and the conflict recorded 174b2e82`,
+   and **failed closed**, which is the one thing that went right. This is why the restore now
+   lives in one shared helper: the same code existed twice, one copy was fixed and the other
+   was not.
+
+**What the pass did not prove.** The server side of the conflict was synthetic, 141 bytes
+substituted into `GAME.DAT` to force divergence, so "the game loads it" was tested against a
+payload Bust-A-Move never wrote. It loaded anyway, and byte-preservation is proven separately by
+the fold, so the two together carry the claim; a round trip of untouched game-written content
+would carry it in one step and was not run. MAME's short-name join is still undemonstrated, Wii
+is still undriven, and the hook-spawn cost is still unmeasured.
+
+---
+
 ## Still outstanding overall
 
 All seven probes are answered. Four items are left, and each is blocked on hardware or an

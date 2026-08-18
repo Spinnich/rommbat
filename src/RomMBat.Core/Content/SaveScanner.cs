@@ -10,6 +10,12 @@ public sealed record SaveScanOutcome
     /// <summary>Class A and B saves recorded, attributed or not.</summary>
     public int Found { get; init; }
 
+    /// <summary>Class C save units recorded, attributed or not.</summary>
+    public int Units { get; init; }
+
+    /// <summary>Of those, the ones tied to a ROM and therefore uploadable.</summary>
+    public int UnitsAttributed { get; init; }
+
     /// <summary>Of those, the ones tied to a ROM and therefore uploadable.</summary>
     public int Attributed { get; init; }
 
@@ -23,9 +29,11 @@ public sealed record SaveScanOutcome
     public long BytesHashed { get; init; }
 
     public string Summary =>
-        Found == 0 && Unsyncable == 0
+        Found == 0 && Units == 0 && Unsyncable == 0
             ? "saves: nothing found"
-            : $"saves: {Attributed} of {Found} attributed, {Unsyncable} reported unsyncable";
+            : $"saves: {Attributed} of {Found} attributed"
+                + (Units > 0 ? $", {UnitsAttributed} of {Units} directory saves attributed" : string.Empty)
+                + $", {Unsyncable} reported unsyncable";
 }
 
 /// <summary>
@@ -62,6 +70,7 @@ public sealed class SaveScanner
     private readonly SaveShapes _shapes;
     private readonly SaveStateSchema? _states;
     private readonly TimeProvider _time;
+    private readonly SaveUnitScanner _units;
 
     /// <param name="states">
     /// The state schema, so save states are not reported as unsyncable while they are being
@@ -83,6 +92,7 @@ public sealed class SaveScanner
         _shapes = shapes ?? SaveShapes.Bundled;
         _states = states;
         _time = timeProvider ?? TimeProvider.System;
+        _units = new SaveUnitScanner(install, _shapes);
     }
 
     /// <summary>Where saves live.</summary>
@@ -101,8 +111,11 @@ public sealed class SaveScanner
 
         var found = 0;
         var attributed = 0;
+        var units = 0;
+        var unitsAttributed = 0;
         var bytes = 0L;
         var seen = new HashSet<RelativePath>();
+        var seenUnits = new HashSet<(RelativePath Container, string Key)>();
 
         // Accumulated rather than written per file, because the report is keyed on
         // (system, emulator, reason): writing each file as it is met would leave one row
@@ -113,6 +126,9 @@ public sealed class SaveScanner
         // attribution: the save is named after the ROM file, inside its system's folder.
         // Built once rather than queried per save.
         var romsByStem = RomIndex.Build(_store);
+        // Built once for the whole pass rather than per system: the launch log is read once and
+        // the ROM-header index is built per system on first use inside it.
+        var attributor = new GameIdAttributor(_install, _store, romsByStem, timeProvider: _time);
 
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
         {
@@ -132,7 +148,7 @@ public sealed class SaveScanner
                 // install: saves/ports/ holds a libretro state and its screenshot beside one
                 // battery save, and counting all three said three files were being ignored
                 // while two of them were going up.
-                var files = CountFiles(systemDirectory, savesRoot);
+                var files = CountFiles(systemDirectory, savesRoot, []);
                 if (files > 0)
                 {
                     report.Add(
@@ -200,13 +216,16 @@ public sealed class SaveScanner
                 }
             }
 
-            // Every subdirectory of a system folder is class C, class D or a save state. States
-            // are synced by StateScanner, so they are excluded here rather than reported as
-            // unsyncable while they are going up. Counted per system rather than per file.
-            AddSubdirectories(report, system, shape, systemDirectory, savesRoot);
+            // Class C, before the subdirectory report, because the report has to know which
+            // files this pass is carrying. Stage 2a shipped exactly this bug for save states:
+            // the report counted them as unsyncable in the same pass that uploaded them.
+            var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
+
+            // Every remaining subdirectory of a system folder is class D or a save state.
+            AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried);
         }
 
-        var forgotten = ForgetMissing(seen);
+        var forgotten = ForgetMissing(seen, seenUnits);
         var unsyncable = report.WriteTo(_store.Unsyncable, now);
 
         // Anything not re-observed in this pass is no longer true, so a system that becomes
@@ -217,6 +236,8 @@ public sealed class SaveScanner
         {
             Found = found,
             Attributed = attributed,
+            Units = units,
+            UnitsAttributed = unitsAttributed,
             Forgotten = forgotten,
             Unsyncable = unsyncable,
             BytesHashed = bytes,
@@ -292,6 +313,92 @@ public sealed class SaveScanner
     }
 
     /// <summary>
+    /// Records every class C unit under one system, and reports the ones nothing could attribute.
+    /// </summary>
+    /// <remarks>
+    /// <b>The unit is scoped by the shape definition and never discovered.</b> Hashing an
+    /// emulator's data root takes 426.07 s on a real install against 0.06 s for the savedata
+    /// subtree, so a container is expanded from what was declared and nothing else is read.
+    /// <para>
+    /// <b>An unattributed unit is recorded and never uploaded.</b> It still needs a row, because
+    /// that row is what stops eviction taking the ROM out from under a save that has not gone
+    /// up; the row simply has no <c>rom_id</c> and the reason is in the report.
+    /// </para>
+    /// </remarks>
+    /// <returns>Every file this pass is carrying, so the subdirectory report can exclude them.</returns>
+    private HashSet<RelativePath> ScanUnits(
+        string system,
+        GameIdAttributor attributor,
+        UnsyncableReport report,
+        HashSet<(RelativePath Container, string Key)> seenUnits,
+        DateTimeOffset now,
+        ref int units,
+        ref int attributed,
+        ref long bytes)
+    {
+        var carried = new HashSet<RelativePath>();
+
+        foreach (var unit in _units.Scan(system))
+        {
+            var attribution = attributor.Attribute(unit);
+
+            string? hash = null;
+
+            try
+            {
+                hash = SaveArchive.HashOf(_install, unit);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Held open by a running emulator. Recorded without a hash, which reads as
+                // unsent and therefore blocks eviction, which is the fail-closed direction.
+            }
+
+            _store.Saves.Record(
+                new LocalSave
+                {
+                    Path = unit.Container,
+                    UnitKey = unit.Key,
+                    System = unit.System,
+                    Emulator = unit.Emulator,
+                    ShapeClass = SaveShapeClass.C,
+                    Slot = $"{unit.Emulator}:{unit.Slot}",
+                    RomId = attribution.RomId,
+                    RomPath = attribution.RomPath,
+                    ContentHash = hash,
+                    SizeBytes = unit.SizeBytes,
+                    FileMtimeUtc = unit.NewestMtimeUtc,
+                },
+                now);
+
+            seenUnits.Add((unit.Container, unit.Key));
+            units++;
+            bytes += unit.SizeBytes;
+
+            foreach (var file in unit.Files)
+            {
+                carried.Add(file.Path);
+            }
+
+            if (attribution.IsResolved)
+            {
+                attributed++;
+            }
+            else
+            {
+                report.Add(
+                    system,
+                    unit.Emulator,
+                    UnsyncableReason.Unattributed,
+                    attribution.Detail,
+                    unit.Files.Count);
+            }
+        }
+
+        return carried;
+    }
+
+    /// <summary>
     /// Reports the emulator subdirectories whose contents this build does not carry.
     /// </summary>
     /// <remarks>
@@ -309,10 +416,11 @@ public sealed class SaveScanner
         string system,
         SaveShape shape,
         string systemDirectory,
-        string savesRoot)
+        string savesRoot,
+        HashSet<RelativePath> carried)
     {
         var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot));
+        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried));
 
         if (files == 0)
         {
@@ -324,7 +432,7 @@ public sealed class SaveScanner
         var names = string.Join(
             ", ",
             subdirectories
-                .Where(directory => CountFiles(directory, savesRoot) > 0)
+                .Where(directory => CountFiles(directory, savesRoot, carried) > 0)
                 .Select(Path.GetFileName)
                 .Order(StringComparer.Ordinal));
 
@@ -338,51 +446,62 @@ public sealed class SaveScanner
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
-            $"{names} hold directory saves or shared containers. This release syncs the battery "
-                + $"saves loose under saves/{system}/ (class {classes}) and the save states beside "
-                + "them, and nothing else.",
+            $"{names} hold shared containers or a shape no declaration covers. This release syncs "
+                + $"the battery saves loose under saves/{system}/ (class {classes}), the save states "
+                + "beside them, and the directory saves the shape definition names.",
             files);
     }
 
-    private int ForgetMissing(HashSet<RelativePath> seen)
+    /// <summary>
+    /// Drops rows for saves that are no longer on disk, so a deleted save stops blocking eviction.
+    /// </summary>
+    /// <remarks>
+    /// Class C is matched on the whole (container, key) pair rather than on the path. A class C
+    /// container outlives every unit in it, so forgetting by path would drop every PSP save on
+    /// the install the first time one game's savedata was deleted, and eviction would then take
+    /// ROMs whose saves had never gone up.
+    /// </remarks>
+    private int ForgetMissing(
+        HashSet<RelativePath> seen,
+        HashSet<(RelativePath Container, string Key)> seenUnits)
     {
-        // A save whose file is gone must stop blocking eviction, but only class A and B rows
-        // are rescanned here, so nothing else is touched.
         var gone = _store.Saves
             .List()
-            .Where(save => save.ShapeClass is SaveShapeClass.A or SaveShapeClass.B)
-            .Where(save => !seen.Contains(save.Path))
-            .Select(save => save.Path)
+            .Where(save => save.ShapeClass switch
+            {
+                SaveShapeClass.A or SaveShapeClass.B => !seen.Contains(save.Path),
+                SaveShapeClass.C => !seenUnits.Contains((save.Path, save.UnitKey)),
+
+                // Class D is not discovered by this build at all, so a row for one could only
+                // have come from somewhere that knows more than this pass does.
+                _ => false,
+            })
+            .Select(save => (save.Path, save.UnitKey))
             .ToList();
 
         return gone.Count == 0 ? 0 : _store.Saves.Forget(gone);
     }
 
-    private static int CountFiles(string directory)
+    /// <summary>
+    /// Counts files that no other pass is carrying.
+    /// </summary>
+    /// <remarks>
+    /// <b>Two exclusions, and both exist because of the same bug shipped once already.</b> Stage
+    /// 2a's report counted a save state as unsyncable in the very pass that uploaded it, which
+    /// is worse than saying nothing: a user checking why their states were not going up was told
+    /// they were not, while they were. Class C would reintroduce it exactly, so its members are
+    /// excluded here too, and the state exclusion asks the schema rather than matching directory
+    /// names so the two passes cannot disagree about what a state directory is.
+    /// </remarks>
+    private int CountFiles(string directory, string savesRoot, HashSet<RelativePath> carried)
     {
-        try
-        {
-            return Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Count();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return 0;
-        }
-    }
-
-    /// <summary>Counts files, skipping any that sit in a declared save-state directory.</summary>
-    private int CountFiles(string directory, string savesRoot)
-    {
-        if (_states is null)
-        {
-            return CountFiles(directory);
-        }
-
         try
         {
             return Directory
                 .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
-                .Count(file => !IsStateDirectory(Path.GetDirectoryName(file), savesRoot));
+                .Count(file =>
+                    !IsStateDirectory(Path.GetDirectoryName(file), savesRoot)
+                    && !(_install.Contains(file) && carried.Contains(_install.Relativize(file))));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

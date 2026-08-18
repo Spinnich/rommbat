@@ -41,6 +41,7 @@ public sealed class SaveConflictResolver
     private readonly RomMConnection _connection;
     private readonly string _deviceId;
     private readonly TimeProvider _time;
+    private readonly SaveUnitScanner _units;
 
     public SaveConflictResolver(
         RetroBatInstall install,
@@ -59,6 +60,79 @@ public sealed class SaveConflictResolver
         _connection = connection;
         _deviceId = deviceId;
         _time = timeProvider ?? TimeProvider.System;
+        _units = new SaveUnitScanner(install);
+    }
+
+    /// <summary>
+    /// Finishes a keep-server resolution for a bundled unit.
+    /// </summary>
+    /// <remarks>
+    /// Everything that differs from the single-file path is here rather than branched through
+    /// it, because the two verify differently and mixing them is what produced a resolution that
+    /// could never succeed. The restore itself is the same helper the ordinary sync path uses,
+    /// so the atomicity and the copy-aside cannot drift between the two callers.
+    /// </remarks>
+    private async Task<ConflictResolutionOutcome> FinishUnitAsync(
+        SaveConflictRecord conflict,
+        LocalSave unitRow,
+        int saveId,
+        string part,
+        CancellationToken cancellationToken)
+    {
+        var now = _time.GetUtcNow();
+
+        var restored = SaveUnitTransfer.Restore(
+            _install,
+            _units,
+            unitRow,
+            part,
+            _install.Resolve(SaveSync.PartialDirectory),
+            SaveSync.AsideDirectory,
+            now);
+
+        Delete(part);
+
+        var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var refreshed = SaveUnitTransfer.Find(_units, unitRow);
+
+        _store.Saves.Record(
+            unitRow with
+            {
+                ContentHash = restored.ContentHash,
+                SizeBytes = refreshed?.SizeBytes ?? unitRow.SizeBytes,
+                FileMtimeUtc = refreshed?.NewestMtimeUtc ?? unitRow.FileMtimeUtc,
+
+                // Both sides now hold the same contents, so the next scan must not read this as
+                // unsent and offer it straight back up.
+                UploadedContentHash = restored.ContentHash,
+                UploadedAtUtc = now,
+            },
+            now);
+
+        // The slot's new server identity travels with the unit, for the same reason the
+        // download path records it: the wire hash for an unchanged bundled save is the server's
+        // digest, and a slot left holding the old one negotiates as `upload` next flush.
+        _store.SaveSlots.RecordRestored(
+            conflict.RomId,
+            conflict.Slot,
+            saveId,
+            conflict.ServerHash,
+            conflict.ServerUpdatedAt,
+            now);
+
+        _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepServer, now);
+        var pruned = Prune(conflict);
+
+        var warning = ack.IsSuccess
+            ? string.Empty
+            : $" The server was not told it arrived: {ack.Message}";
+
+        return new ConflictResolutionOutcome(
+            true,
+            $"Took the server's copy into {unitRow.Path}/{unitRow.UnitKey}, "
+                + $"{restored.Entries.Count} files.{pruned}{warning}");
     }
 
     /// <summary>Resolves one slot the way the user asked.</summary>
@@ -111,26 +185,65 @@ public sealed class SaveConflictResolver
         }
 
         var path = _install.Resolve(save.Path);
+        var isUnit = save.ShapeClass == RetroBat.SaveShapeClass.C;
 
-        if (!File.Exists(path))
+        if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
         {
             return ConflictResolutionOutcome.Failed($"{save.Path} is gone, so there is nothing to send.");
         }
 
-        await using var content = File.OpenRead(path);
+        // <b>A class C row's path is a container, not a file.</b> Opening it as one failed with
+        // "is gone, so there is nothing to send", which is both wrong and misleading, and the
+        // hands-on pass hit it on the first PSP conflict.
+        string? bundle = null;
+        Stream content;
+        var name = save.Path.Name;
 
-        var response = await _connection.UploadSaveAsync(
-            (int)conflict.RomId,
-            conflict.Slot,
-            save.Emulator,
-            _deviceId,
-            sessionId: null,
-            save.Path.Name,
-            content,
+        if (isUnit)
+        {
+            var unit = SaveUnitTransfer.Find(_units, save);
 
-            // The one place this is true, and only because a person asked for it.
-            overwrite: true,
-            cancellationToken).ConfigureAwait(false);
+            if (unit is null)
+            {
+                return ConflictResolutionOutcome.Failed(
+                    $"{save.Path}/{save.UnitKey} is gone, so there is nothing to send.");
+            }
+
+            bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(SaveSync.PartialDirectory));
+            content = File.OpenRead(bundle);
+            name = unit.UploadFileName;
+        }
+        else
+        {
+            content = File.OpenRead(path);
+        }
+
+        RomMResponse<SaveUploadResult> response;
+
+        try
+        {
+            await using var stream = content;
+
+            response = await _connection.UploadSaveAsync(
+                (int)conflict.RomId,
+                conflict.Slot,
+                save.Emulator,
+                _deviceId,
+                sessionId: null,
+                name,
+                stream,
+
+                // The one place this is true, and only because a person asked for it.
+                overwrite: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (bundle is not null && File.Exists(bundle))
+            {
+                File.Delete(bundle);
+            }
+        }
 
         if (!response.IsSuccess || response.Value is not { } result)
         {
@@ -155,7 +268,7 @@ public sealed class SaveConflictResolver
 
         if (save.ContentHash is { } hash)
         {
-            _store.Saves.MarkUploaded(save.Path, hash, now);
+            _store.Saves.MarkUploaded(save.Path, save.UnitKey, hash, now);
         }
 
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepLocal, now);
@@ -205,6 +318,26 @@ public sealed class SaveConflictResolver
                 {
                     return ConflictResolutionOutcome.Failed($"The download failed: {response.Message}");
                 }
+            }
+
+            var unitRow = _store.Saves.List(conflict.RomId)
+                .FirstOrDefault(row =>
+                    row.ShapeClass == RetroBat.SaveShapeClass.C
+                    && string.Equals(row.Slot, conflict.Slot, StringComparison.Ordinal));
+
+            if (unitRow is not null)
+            {
+                // <b>A bundled save cannot be verified the way a file is, and trying is a
+                // guaranteed failure rather than a safety net.</b> The server's content_hash for
+                // an archive is a digest over its contents by a function this client cannot
+                // reproduce, so comparing it against the MD5 of the bytes never matches. Driven:
+                // the first real PSP conflict refused itself with "what arrived hashes to
+                // 0391c0a9 and the conflict recorded 174b2e82", and nothing was written.
+                //
+                // The shared restore verifies what can be verified, by CRC per entry, and swaps
+                // the unit in atomically with the previous members copied aside.
+                return await FinishUnitAsync(conflict, unitRow, saveId, part, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             if (conflict.ServerHash is { } expected)

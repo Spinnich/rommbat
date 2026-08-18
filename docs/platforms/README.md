@@ -69,8 +69,33 @@ are different claims, and only the second is evidence.
 | M6 stage | The one shape to exercise by hand                                     | Done               |
 | -------- | --------------------------------------------------------------------- | ------------------ |
 | 2a       | A save state, across more than one emulator for one game              | **Yes**, see below |
-| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | No                 |
+| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **Yes**, see below |
 | 2c       | A PS2 battery save after opting that game into a per-game memory card | No                 |
+
+**2b, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
+system, steps 4 and 9 only. Results are findings 154 to 159 in `docs/retrobat-findings.md`.
+
+| Step                                  | Result                                                                      |
+| ------------------------------------- | --------------------------------------------------------------------------- |
+| PPSSPP wrote a save                   | `SAVEDATA/ULUS100570000/`, 4 files, 91,607 B, from the game's own save menu |
+| The grammar scoped it                 | container `saves/psp/SAVEDATA`, key `ULUS10057` read as a prefix            |
+| Attribution                           | route 1, the launch window, with no header and no sidecar available         |
+| Upload                                | one archive, 87,559 B, returned as `ULUS10057 [2026-08-18_02-30-06].zip`    |
+| Re-sync with no changes               | `no_op`, slot reports in step                                               |
+| Both sides diverged                   | reported as a conflict, all four files copied aside                         |
+| `saves resolve --keep-server`         | atomic restore, 4 files swapped in                                          |
+| **The game loaded the restored save** | **yes**                                                                     |
+
+**Four defects came out of the pass**, none reachable from a test: a cached refusal that was
+only an absence, a 409 reported as a failure rather than a conflict, a conflict that recorded no
+copy aside, and a resolver whose verification could never pass for an archive. All four are
+fixed and covered.
+
+**Still not done for 2b.** MAME's short-name join is structurally sound and undemonstrated: the
+measured install holds 1,231 nvram directories against 3 mame ROMs, so nothing joins. Wii ships
+its grammar on tree structure alone with no game ever launched. And the conflict's server side
+was synthetic, so the emulator-loads-it result rests on that plus the fold rather than on one
+untouched round trip.
 
 **2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
 one game, one system, steps 4 and 5 only. Results are findings 134 to 139 in

@@ -14,6 +14,17 @@ public sealed record LocalSave
 {
     public required RelativePath Path { get; init; }
 
+    /// <summary>
+    /// What names this unit inside <see cref="Path"/>, or empty for class A and B.
+    /// </summary>
+    /// <remarks>
+    /// <b>Half the identity of a class C row.</b> The unit is a (container, key) pair, so
+    /// <see cref="Path"/> alone does not identify one: every PSP save on an install shares the
+    /// container <c>saves/psp/SAVEDATA</c>, and every GameCube save shares one region folder.
+    /// Empty for class A and B, whose unit is the file at <see cref="Path"/> itself.
+    /// </remarks>
+    public string UnitKey { get; init; } = string.Empty;
+
     public required string System { get; init; }
 
     public required string Emulator { get; init; }
@@ -72,13 +83,13 @@ public sealed class LocalSaveStore
 
         using var command = _connection.Command(
             """
-            INSERT INTO local_save (relative_path, system, emulator, shape_class, rom_id,
-                                    rom_relative_path, slot, content_hash, size_bytes,
+            INSERT INTO local_save (relative_path, unit_key, system, emulator, shape_class,
+                                    rom_id, rom_relative_path, slot, content_hash, size_bytes,
                                     file_mtime_utc, scanned_at_utc, uploaded_content_hash,
                                     uploaded_at_utc)
-            VALUES ($path, $system, $emulator, $class, $romId, $romPath, $slot, $hash, $size,
-                    $mtime, $scannedAt, $uploaded, $uploadedAt)
-            ON CONFLICT (relative_path) DO UPDATE SET
+            VALUES ($path, $unitKey, $system, $emulator, $class, $romId, $romPath, $slot, $hash,
+                    $size, $mtime, $scannedAt, $uploaded, $uploadedAt)
+            ON CONFLICT (relative_path, unit_key) DO UPDATE SET
               system                = excluded.system,
               emulator              = excluded.emulator,
               shape_class           = excluded.shape_class,
@@ -93,6 +104,7 @@ public sealed class LocalSaveStore
               uploaded_at_utc       = COALESCE(excluded.uploaded_at_utc, local_save.uploaded_at_utc);
             """)
             .With("$path", save.Path.Value)
+            .With("$unitKey", save.UnitKey)
             .With("$system", save.System)
             .With("$emulator", save.Emulator)
             .With("$class", ToText(save.ShapeClass))
@@ -110,15 +122,21 @@ public sealed class LocalSaveStore
     }
 
     /// <summary>Records that a save reached the server with the content it then had.</summary>
-    public void MarkUploaded(RelativePath path, string contentHash, DateTimeOffset now)
+    /// <remarks>
+    /// Keyed on the unit rather than on the path, because a path is shared: marking
+    /// <c>saves/psp/SAVEDATA</c> uploaded would mark every PSP game on the install uploaded and
+    /// let eviction take every one of their ROMs.
+    /// </remarks>
+    public void MarkUploaded(RelativePath path, string unitKey, string contentHash, DateTimeOffset now)
     {
         using var command = _connection.Command(
             """
             UPDATE local_save
             SET uploaded_content_hash = $hash, uploaded_at_utc = $now
-            WHERE relative_path = $path;
+            WHERE relative_path = $path AND unit_key = $unitKey;
             """)
             .With("$path", path.Value)
+            .With("$unitKey", unitKey ?? string.Empty)
             .With("$hash", contentHash)
             .With("$now", SqliteValues.ToText(now));
 
@@ -129,26 +147,33 @@ public sealed class LocalSaveStore
     public IReadOnlyList<LocalSave> List(long? romId = null) => Query(
         """
         SELECT relative_path, system, emulator, shape_class, rom_id, rom_relative_path, slot,
-               content_hash, size_bytes, file_mtime_utc, uploaded_content_hash, uploaded_at_utc
+               content_hash, size_bytes, file_mtime_utc, uploaded_content_hash, uploaded_at_utc,
+               unit_key
         FROM local_save
         WHERE ($romId IS NULL OR rom_id = $romId)
-        ORDER BY relative_path;
+        ORDER BY relative_path, unit_key;
         """,
         command => command.With("$romId", SqliteValues.OrNull(romId)));
 
     /// <summary>Forgets saves whose files are gone, so a deleted save stops blocking eviction.</summary>
+    /// <remarks>
+    /// By unit, not by path. A class C container outlives every unit in it, so deleting by path
+    /// would forget every PSP save on the install the first time one game's savedata was
+    /// removed, and eviction would then happily take ROMs whose saves had never gone up.
+    /// </remarks>
     /// <returns>How many rows were removed.</returns>
-    public int Forget(IEnumerable<RelativePath> paths)
+    public int Forget(IEnumerable<(RelativePath Path, string UnitKey)> units)
     {
-        ArgumentNullException.ThrowIfNull(paths);
+        ArgumentNullException.ThrowIfNull(units);
 
         var removed = 0;
 
-        foreach (var path in paths)
+        foreach (var (path, unitKey) in units)
         {
             using var command = _connection
-                .Command("DELETE FROM local_save WHERE relative_path = $path;")
-                .With("$path", path.Value);
+                .Command("DELETE FROM local_save WHERE relative_path = $path AND unit_key = $unitKey;")
+                .With("$path", path.Value)
+                .With("$unitKey", unitKey ?? string.Empty);
 
             removed += command.ExecuteNonQuery();
         }
@@ -182,6 +207,7 @@ public sealed class LocalSaveStore
                 FileMtimeUtc = reader.GetTimestampOrNull(9),
                 UploadedContentHash = reader.GetStringOrNull(10),
                 UploadedAtUtc = reader.GetTimestampOrNull(11),
+                UnitKey = reader.GetString(12),
             });
         }
 

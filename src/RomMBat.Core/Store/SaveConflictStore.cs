@@ -69,9 +69,19 @@ public sealed class SaveConflictStore
     /// </summary>
     /// <remarks>
     /// A slot that conflicts again after being resolved is reopened rather than left resolved,
-    /// because the decision the user took was about the two sides as they then were. A slot whose
-    /// server side has not moved since the decision is left settled, so the row the caller reads
+    /// because the decision the user took was about the two sides as they then were. A slot where
+    /// neither side has moved since the decision is left settled, so the row the caller reads
     /// back says whether there is anything still waiting on the user.
+    /// <para>
+    /// <b>The save id is compared as well as the digest, and comparing the digest alone produced
+    /// a slot with no way out.</b> A bundled save's <c>content_hash</c> is computed over the
+    /// archive's contents, so a slot that returns to contents it held before carries the digest
+    /// that was already settled while being a different row entirely. The guard then dropped a
+    /// real conflict: nothing was stored, so <c>saves</c> listed nothing and <c>saves resolve</c>
+    /// answered "already resolved", while every flush went on counting it and this device's write
+    /// was refused with a 409 forever. Driven on hardware, one device deleting a save slot and
+    /// another restoring it. A new row in the slot is the server side moving, whatever it holds.
+    /// </para>
     /// </remarks>
     public void Record(SaveConflictRecord conflict, DateTimeOffset now)
     {
@@ -80,9 +90,10 @@ public sealed class SaveConflictStore
         var existing = Read(conflict.RomId, conflict.Slot);
 
         // Re-reporting a conflict the user already settled would make the resolution command
-        // useless, so an unmoved server side leaves the row exactly as the decision left it.
+        // useless, so a slot where neither side has moved is left exactly as the decision left it.
         if (existing is { IsOpen: false }
-            && string.Equals(existing.ServerHash, conflict.ServerHash, StringComparison.OrdinalIgnoreCase))
+            && string.Equals(existing.ServerHash, conflict.ServerHash, StringComparison.OrdinalIgnoreCase)
+            && existing.ServerSaveId == conflict.ServerSaveId)
         {
             return;
         }

@@ -255,6 +255,37 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task A_new_save_in_a_settled_slot_reopens_it_rather_than_stranding_it()
+    {
+        // A bundled save's content_hash is over the archive's contents, so a slot that returns to
+        // contents it held before carries a digest that was already settled while being a
+        // different row. Comparing the digest alone dropped that conflict on the floor: nothing
+        // stored, `saves` listing nothing, `saves resolve` answering "already resolved", and
+        // every flush still counting it while the local write was refused forever. Driven on
+        // hardware, one device deleting a PSP save slot and another putting it back.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync();
+
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        // The same contents arrive as a new row, and this device has written since.
+        File.WriteAllText(fixture.Resolve("saves/gb/Tetris (World).srm"), "written after deciding");
+        fixture.Advance(TimeSpan.FromMinutes(5));
+        fixture.ReplaceServerSave(id: 101);
+        await fixture.ConflictAsync();
+
+        var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.Equal(101, reopened.ServerSaveId);
+        Assert.Null(reopened.Resolution);
+
+        // And it is settleable, which is the point: a conflict nothing can end is worse than one
+        // that was never reported.
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+    }
+
+    [Fact]
     public async Task An_unreachable_server_leaves_the_conflict_open_rather_than_half_applied()
     {
         using var fixture = ConflictFixture.Create();
@@ -347,6 +378,15 @@ public class SaveConflictTests
         public Task<ConflictResolutionOutcome> ResolveAsync(ConflictResolution resolution) =>
             new SaveConflictResolver(Install, Store, _connection, DeviceId, _time)
                 .ResolveAsync(7, Slot, resolution);
+
+        /// <summary>Puts the same contents in the slot under a new id, as another device would.</summary>
+        public void ReplaceServerSave(int id)
+        {
+            var current = Stub.Saves.Values.Single();
+
+            Stub.Saves.Clear();
+            Stub.Saves[id] = current with { Id = id, OriginDeviceId = "some-other-device" };
+        }
 
         private void Seed()
         {

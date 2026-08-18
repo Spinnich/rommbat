@@ -50,6 +50,7 @@ public sealed class LocalStore : IDisposable
         Unsyncable = new UnsyncableStore(connection);
         SaveSlots = new SaveSlotStore(connection);
         SaveConflicts = new SaveConflictStore(connection);
+        GameIdBindings = new GameIdBindingStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -97,6 +98,9 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Slots where both sides moved, which outlive the flush that found them.</summary>
     public SaveConflictStore SaveConflicts { get; }
+
+    /// <summary>Learned Game ID to ROM bindings, and the keys nothing could bind.</summary>
+    public GameIdBindingStore GameIdBindings { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }

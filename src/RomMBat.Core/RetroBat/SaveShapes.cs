@@ -42,14 +42,28 @@ public enum SaveShapeClass
 /// class alone stops being enough to know what a file is.
 /// </para>
 /// </param>
+/// <param name="UnitPaths">
+/// Where this system's class C save units live. Empty for every class A, B and D system, and
+/// empty for a class C system whose layout has not been measured, which is what makes an
+/// unmeasured tree report as unknown rather than get walked under a guessed rule.
+/// </param>
 public sealed record SaveShape(
     string System,
     IReadOnlyList<SaveShapeClass> Classes,
     string Evidence,
-    bool DependsOnEmulator)
+    bool DependsOnEmulator,
+    IReadOnlyList<SaveUnitPath> UnitPaths)
 {
     /// <summary>True when any declared class is a battery shape this build carries.</summary>
     public bool HasSyncableClass => Classes.Any(value => value is SaveShapeClass.A or SaveShapeClass.B);
+
+    /// <summary>True when this system declares class C and somewhere to look for it.</summary>
+    /// <remarks>
+    /// Both halves are needed. A system declared class C with no measured container is exactly
+    /// the case that must report rather than guess: the cost of picking a plausible directory
+    /// is hashing an emulator's whole data root, which was measured at 426.07 s.
+    /// </remarks>
+    public bool HasUnitPaths => Classes.Contains(SaveShapeClass.C) && UnitPaths.Count > 0;
 }
 
 /// <summary>
@@ -183,7 +197,8 @@ public sealed class SaveShapes
                 entry.Key,
                 ParseClasses(entry.Value.Class),
                 entry.Value.Evidence ?? string.Empty,
-                entry.Value.ShapeDependsOnEmulator),
+                entry.Value.ShapeDependsOnEmulator,
+                ParseUnitPaths(entry.Value.UnitPaths)),
             StringComparer.OrdinalIgnoreCase);
 
         return new SaveShapes(
@@ -221,6 +236,32 @@ public sealed class SaveShapes
                 _ => SaveShapeClass.Unknown,
             })];
 
+    /// <summary>
+    /// Reads the declared class C containers, dropping any this build cannot act on.
+    /// </summary>
+    /// <remarks>
+    /// A container with no path, no emulator, no slot or an unrecognised key kind is dropped
+    /// rather than defaulted. Every default available here is a guess about where to read
+    /// someone's saves from, and the shipped alternative is reporting the system as unknown.
+    /// </remarks>
+    private static IReadOnlyList<SaveUnitPath> ParseUnitPaths(List<UnitPathEntry> entries) =>
+    [
+        .. entries
+            .Select(entry => (entry, key: SaveUnitPath.ParseKey(entry.Key)))
+            .Where(parsed =>
+                parsed.key != SaveUnitKeyKind.Unknown
+                && !string.IsNullOrWhiteSpace(parsed.entry.Container)
+                && !string.IsNullOrWhiteSpace(parsed.entry.Emulator)
+                && !string.IsNullOrWhiteSpace(parsed.entry.Slot))
+            .Select(parsed => new SaveUnitPath(
+                parsed.entry.Container!.Replace('\\', '/').Trim('/'),
+                parsed.entry.Emulator!,
+                parsed.key,
+                parsed.entry.Slot!,
+                string.IsNullOrWhiteSpace(parsed.entry.Include) ? null : parsed.entry.Include,
+                parsed.entry.Evidence ?? string.Empty)),
+    ];
+
     private static string Read(System.Reflection.Assembly assembly, string name)
     {
         using var stream = assembly.GetManifestResourceStream(name)
@@ -248,6 +289,30 @@ public sealed class SaveShapes
 
         [JsonPropertyName("shape_depends_on_emulator")]
         public bool ShapeDependsOnEmulator { get; init; }
+
+        [JsonPropertyName("unit_paths")]
+        public List<UnitPathEntry> UnitPaths { get; init; } = [];
+    }
+
+    private sealed record UnitPathEntry
+    {
+        [JsonPropertyName("container")]
+        public string? Container { get; init; }
+
+        [JsonPropertyName("emulator")]
+        public string? Emulator { get; init; }
+
+        [JsonPropertyName("key")]
+        public string? Key { get; init; }
+
+        [JsonPropertyName("slot")]
+        public string? Slot { get; init; }
+
+        [JsonPropertyName("include")]
+        public string? Include { get; init; }
+
+        [JsonPropertyName("evidence")]
+        public string? Evidence { get; init; }
     }
 
     private sealed record RulesDocument

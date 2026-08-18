@@ -364,12 +364,12 @@ public class StateDiscoveryTests
     }
 
     [Fact]
-    public void A_directory_save_beside_a_state_directory_is_still_reported()
+    public void A_directory_save_beside_a_state_directory_is_carried_and_reported_on_its_own_terms()
     {
-        // The exclusion is the state directories and only those. psp holds both: ppsspp/ is
-        // where the states are mirrored, SAVEDATA/ is a class C shape this release cannot
-        // carry, and the report has to name the second without swallowing it alongside the
-        // first.
+        // psp holds both shapes at once: ppsspp/ is where states are mirrored and SAVEDATA/ is
+        // a class C unit. Stage 2a could carry neither and reported SAVEDATA as not in this
+        // version; this stage carries it, so the report changes from "not supported" to the
+        // narrower and truer "nothing could say which game it is".
         using var tree = StateTree.Create();
         tree.AddRom(1, "psp", "Patapon (Europe).cso");
         tree.AddState("psp/ppsspp", "Patapon (Europe)_0.ppst", "a state");
@@ -377,14 +377,28 @@ public class StateDiscoveryTests
 
         tree.ScanSaves();
 
+        // The unit is recorded whether or not it could be attributed, because that row is what
+        // stops eviction taking a ROM out from under a save that has never gone up.
+        var unit = Assert.Single(tree.Store.Saves.List(), save => save.ShapeClass == SaveShapeClass.C);
+
+        Assert.Equal("UCES00995", unit.UnitKey);
+        Assert.Equal("saves/psp/SAVEDATA", unit.Path.Value);
+        Assert.Equal("ppsspp:savedata", unit.Slot);
+        Assert.Null(unit.RomId);
+
         var reported = Assert.Single(tree.Store.Unsyncable.List());
 
-        Assert.Equal(UnsyncableReason.NotInThisVersion, reported.Reason);
+        Assert.Equal(UnsyncableReason.Unattributed, reported.Reason);
 
-        // One file counted, not two: the state does not appear in the count.
+        // One file counted, not two: the state does not appear in the count, which is the half
+        // of this test that has not changed.
         Assert.Equal(1, reported.FileCount);
-        Assert.Contains("SAVEDATA", reported.Detail, StringComparison.Ordinal);
-        Assert.DoesNotContain("ppsspp", reported.Detail, StringComparison.Ordinal);
+        // The detail is phrased for the aggregate rather than naming one key, because this row
+        // counts every unattributed unit under the system and a real install produced 1,231 of
+        // them from one MAME tree.
+        Assert.Contains("no route could say", reported.Detail, StringComparison.Ordinal);
+        Assert.Contains("not on this device", reported.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("ppsspp/", reported.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

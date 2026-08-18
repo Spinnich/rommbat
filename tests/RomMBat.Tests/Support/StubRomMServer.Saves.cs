@@ -24,6 +24,18 @@ internal sealed partial class StubRomMServer
     /// <summary>Saves the stub holds, by id. Filled by an upload or seeded by a test.</summary>
     public IDictionary<int, StubSave> Saves { get; } = new Dictionary<int, StubSave>();
 
+    /// <summary>
+    /// The content hash the client last submitted per <c>(rom_id, slot)</c>.
+    /// </summary>
+    /// <remarks>
+    /// Recorded because the real server reconciles against this value and the stub does not: a
+    /// client that submits a stale hash gets whatever <see cref="NegotiateActions"/> says, so
+    /// without capturing it the suite cannot see the difference. Driven on hardware, the flush
+    /// after a class C restore submitted the pre-download digest and was answered <c>upload</c>.
+    /// </remarks>
+    public IDictionary<(int RomId, string Slot), string?> NegotiatedHashes { get; } =
+        new Dictionary<(int, string), string?>();
+
     /// <summary>What negotiate answers per <c>(rom_id, slot)</c>. Absent means <c>no_op</c>.</summary>
     public IDictionary<(int RomId, string Slot), string> NegotiateActions { get; } =
         new Dictionary<(int, string), string>();
@@ -98,6 +110,16 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public string? HashLie { get; set; }
 
+    /// <summary>
+    /// Fail the upload for this slot, as a dropped link mid-flush would.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="ConflictOnUpload"/>, which is the server refusing on purpose.
+    /// This is the transport giving out partway through a set, which is the only way to produce
+    /// a class B save where one file lands and its sibling does not.
+    /// </remarks>
+    public string? RefuseUploadForSlot { get; set; }
+
     /// <summary>Sessions already seen, keyed the way the server dedups: truncated to the second.</summary>
     private HashSet<string> SeenPlaySessions { get; } = new(StringComparer.Ordinal);
 
@@ -167,6 +189,11 @@ internal sealed partial class StubRomMServer
         {
             var romId = save.GetProperty("rom_id").GetInt32();
             var slot = save.GetProperty("slot").GetString() ?? string.Empty;
+
+            NegotiatedHashes[(romId, slot)] = save.TryGetProperty("content_hash", out var submitted)
+                ? submitted.GetString()
+                : null;
+
             var action = NegotiateActions.TryGetValue((romId, slot), out var told) ? told : "no_op";
             var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
 
@@ -235,6 +262,11 @@ internal sealed partial class StubRomMServer
             query.GetValueOrDefault("overwrite"),
             "true",
             StringComparison.Ordinal);
+
+        if (RefuseUploadForSlot is { } refused && string.Equals(slot, refused, StringComparison.Ordinal))
+        {
+            return Detail(HttpStatusCode.InternalServerError, "the upload did not complete");
+        }
 
         if (ConflictOnUpload.Contains((romId, slot))
             && (!overwrite || RefuseOverwrite.Contains((romId, slot))))
@@ -433,18 +465,68 @@ internal sealed partial class StubRomMServer
     /// <remarks>
     /// Latin-1 throughout, so a byte round-trips unchanged and a save's binary content is not
     /// mangled by a decode that assumes text.
+    /// <para>
+    /// <b>Both markers are looked for in the part's headers only, and the part ends at the real
+    /// boundary.</b> The earlier version searched the whole body for both, which held for as
+    /// long as every uploaded save was a small text fixture and broke the moment class C started
+    /// sending a zip. Deflate output contains the literal bytes of a filename marker and of a
+    /// boundary-looking sequence often enough to hit both traps at once: the name was read from
+    /// inside the archive, and the body was truncated at the first thing that looked like a
+    /// terminator. A save is arbitrary bytes, so a parser over it has to be anchored.
+    /// </para>
+    /// <para>
+    /// <b>The filename is quoted only when it has to be, and reading only the quoted form stored
+    /// every bundled save as an empty one.</b> .NET writes <c>filename="Tetris (World).srm"</c>
+    /// because of the space and the brackets, and a bare <c>filename=25pacman.zip</c> because a
+    /// token needs no quotes. So the class C tests uploaded archives the stub recorded as zero
+    /// bytes under no name, and every assertion they made about counts and slots still passed.
+    /// Third stub shortcut in this suite to hide behind tidy fixtures.
+    /// </para>
     /// </remarks>
     private static byte[] ExtractSaveFile(byte[] content, out string fileName)
     {
         var text = System.Text.Encoding.Latin1.GetString(content);
 
-        const string NameMarker = "filename=\"";
-        var nameStart = text.IndexOf(NameMarker, StringComparison.Ordinal) + NameMarker.Length;
-        var nameEnd = text.IndexOf('"', nameStart);
-        fileName = text[nameStart..nameEnd];
+        // The boundary is the first line of the body, which is where multipart puts it.
+        var firstBreak = text.IndexOf("\r\n", StringComparison.Ordinal);
+        var boundary = firstBreak < 0 ? "--" : text[..firstBreak];
 
-        var bodyStart = text.IndexOf("\r\n\r\n", nameEnd, StringComparison.Ordinal) + 4;
-        var bodyEnd = text.IndexOf("\r\n--", bodyStart, StringComparison.Ordinal);
+        // The headers of the first part end at the first blank line, and everything after that
+        // is bytes the sender chose.
+        var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        var headers = headerEnd < 0 ? text : text[..headerEnd];
+
+        const string NameMarker = "filename=";
+        var nameStart = headers.IndexOf(NameMarker, StringComparison.Ordinal);
+
+        // filename*= is the RFC 5987 copy .NET writes beside the plain one. Skipped, because the
+        // plain value is what the server reads and what the client is being tested on.
+        while (nameStart > 0 && headers[nameStart - 1] == '*')
+        {
+            nameStart = headers.IndexOf(NameMarker, nameStart + NameMarker.Length, StringComparison.Ordinal);
+        }
+
+        if (nameStart < 0)
+        {
+            fileName = string.Empty;
+            return [];
+        }
+
+        nameStart += NameMarker.Length;
+
+        if (nameStart < headers.Length && headers[nameStart] == '"')
+        {
+            var quoted = headers.IndexOf('"', nameStart + 1);
+            fileName = quoted < 0 ? headers[(nameStart + 1)..] : headers[(nameStart + 1)..quoted];
+        }
+        else
+        {
+            var token = headers.IndexOfAny([';', '\r', '\n'], nameStart);
+            fileName = (token < 0 ? headers[nameStart..] : headers[nameStart..token]).Trim();
+        }
+
+        var bodyStart = headerEnd + 4;
+        var bodyEnd = text.IndexOf("\r\n" + boundary, bodyStart, StringComparison.Ordinal);
 
         return System.Text.Encoding.Latin1.GetBytes(text[bodyStart..(bodyEnd < 0 ? text.Length : bodyEnd)]);
     }

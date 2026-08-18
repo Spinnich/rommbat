@@ -82,6 +82,8 @@ public class LocalStoreTests
         ("rom_metadata", "fs_name"),
         ("local_save", "system"),
         ("local_save", "emulator"),
+        ("game_id_binding", "system"),
+        ("game_id_binding", "game_id"),
         ("outbox", "emulator"),
         ("unsyncable", "system"),
         ("local_state", "system"),
@@ -189,6 +191,65 @@ public class LocalStoreTests
         {
             InsertPath(store, table, column, accepted);
         }
+    }
+
+    [Theory]
+    [InlineData("UCES01011/nested")]
+    [InlineData("UCES01011\\nested")]
+    [InlineData("C:UCES01011")]
+    [InlineData("UCES01011\nsecond line")]
+    public void A_unit_key_is_refused_anything_shaped_like_a_path(string value)
+    {
+        // A unit key is one segment read off a directory or a filename (UCES01011, 1944, GXBE,
+        // RSBE), and it is concatenated into a real location when a unit is restored. It is not
+        // in the shared name-column table for one reason: the empty string is legal here and
+        // nowhere else, because class A and B rows carry it to mean "the unit is the file at
+        // relative_path". That is also why the column is NOT NULL DEFAULT '' rather than
+        // nullable, since SQLite treats NULLs as distinct in the UNIQUE index it takes part in.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        Assert.Throws<SqliteException>(() => InsertUnitKey(store, value));
+    }
+
+    [Fact]
+    public void A_unit_key_may_be_empty_because_that_is_what_a_class_A_row_carries()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        InsertUnitKey(store, string.Empty);
+        InsertUnitKey(store, "UCES01011");
+    }
+
+    [Fact]
+    public void One_container_holds_many_units_and_one_unit_only_once()
+    {
+        // The whole point of migration 008. Every PSP save on an install shares the container
+        // saves/psp/SAVEDATA, so the identity is the pair, and a repeat of the pair is the
+        // rescan case that must update rather than duplicate.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        InsertUnitKey(store, "UCES01011");
+        InsertUnitKey(store, "ULES01513");
+
+        Assert.Throws<SqliteException>(() => InsertUnitKey(store, "UCES01011"));
+    }
+
+    private static void InsertUnitKey(LocalStore store, string value)
+    {
+        using var command = store.Connection.CreateCommand();
+        command.CommandText =
+            """
+            INSERT INTO local_save (relative_path, unit_key, system, emulator, shape_class,
+                                    slot, scanned_at_utc)
+            VALUES ('saves/psp/SAVEDATA', $key, 'psp', 'ppsspp', 'C',
+                    'ppsspp:savedata', '2026-01-01T00:00:00Z');
+            """;
+
+        command.Parameters.AddWithValue("$key", value);
+        command.ExecuteNonQuery();
     }
 
     [Theory]
@@ -704,6 +765,20 @@ public class LocalStoreTests
                 INSERT INTO local_save (relative_path, system, emulator, shape_class, slot, scanned_at_utc)
                 VALUES ('saves/snes/' || abs(random()) || '.srm', 'snes', $name, 'A',
                         'libretro:battery:srm', '2026-01-01T00:00:00Z');
+                """,
+
+            ("game_id_binding", "system") =>
+                """
+                INSERT INTO game_id_binding (system, game_id, learned_from, learned_at)
+                VALUES ($name, 'ID-' || abs(random()), 'journal', '2026-01-01T00:00:00Z');
+                """,
+
+            // The Game ID reaches a path on two routes: it is the unit key a container is
+            // joined to, and it is what a report names back to the user.
+            ("game_id_binding", "game_id") =>
+                """
+                INSERT INTO game_id_binding (system, game_id, learned_from, learned_at)
+                VALUES ('sys-' || abs(random()), $name, 'journal', '2026-01-01T00:00:00Z');
                 """,
 
             // Whatever RomMBat sends as `emulator` becomes a directory segment in the stored
