@@ -138,6 +138,16 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var session = fixture.Session;
 
+        // This class shares one store, because POST /api/auth/device/init is rate limited to 10
+        // per minute and pairing per test would exceed it alone. So a sibling test's sync set is
+        // in here too, and Assert.Single below is only about the round trip if this test owns its
+        // own input. Clearing rather than asserting on the named set: the count is what notices
+        // the document gaining a set it should not have.
+        foreach (var existing in session.Store.SyncSets.List())
+        {
+            session.Store.SyncSets.Remove(existing.Name);
+        }
+
         session.Store.SyncSets.Add(
             new SyncSetDefinition
             {
