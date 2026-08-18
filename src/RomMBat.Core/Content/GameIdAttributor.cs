@@ -7,13 +7,31 @@ namespace RomMBat.Core.Content;
 /// <summary>What one route said about a key.</summary>
 internal sealed record RouteAnswer(BindingSource Source, long RomId, RelativePath RomPath, string Detail);
 
+/// <summary>Why attribution ended where it did.</summary>
+public enum AttributionOutcome
+{
+    /// <summary>A route named a ROM, or the cache remembered one.</summary>
+    Resolved,
+
+    /// <summary>Nothing had anything to say. Not cached, because nothing was learned.</summary>
+    NotFound,
+
+    /// <summary>Two routes named different ROMs. Cached, because that is a decision.</summary>
+    Contested,
+}
+
 /// <summary>The outcome of attributing one save unit.</summary>
 /// <param name="Detail">
 /// Why the answer is what it is, or which routes disagreed. Carried into the binding row and
 /// into the unsyncable report, so a user asking "why is this save not going up" gets the
 /// reason rather than the absence.
 /// </param>
-public sealed record Attribution(long? RomId, RelativePath? RomPath, BindingSource? Source, string Detail)
+public sealed record Attribution(
+    long? RomId,
+    RelativePath? RomPath,
+    BindingSource? Source,
+    string Detail,
+    AttributionOutcome Outcome = AttributionOutcome.Resolved)
 {
     public bool IsResolved => RomId is not null;
 }
@@ -110,7 +128,12 @@ public sealed class GameIdAttributor
             // decision too, and repeating the work would not change it.
             return cached.IsResolved
                 ? new Attribution(cached.RomId, cached.RomPath, cached.LearnedFrom, Describe(cached))
-                : new Attribution(null, null, null, cached.Detail ?? "nothing could attribute this unit");
+                : new Attribution(
+                    null,
+                    null,
+                    null,
+                    cached.Detail ?? "nothing could attribute this unit",
+                    AttributionOutcome.Contested);
         }
 
         var answers = new List<RouteAnswer>();
@@ -134,12 +157,22 @@ public sealed class GameIdAttributor
 
         if (answers.Count == 0)
         {
+            // <b>Deliberately not cached.</b> A refusal is only worth remembering when it is a
+            // decision, and "nothing had anything to say" is an absence: usually the ROM is not
+            // on this device yet. Caching it would outlive its own reason, so a later sync that
+            // brings the ROM in would find the unit still unattributed behind a stale row that
+            // nothing clears. Measured on a real install, where a MAME nvram tree with no ROMs
+            // beside it produced 1,231 of these in one scan.
+            //
+            // Recomputing costs a dictionary lookup against indexes already built once per pass,
+            // so there is nothing to save by remembering it.
             var reason =
-                $"no route could say which game {unit.Key} belongs to: no save state names it, "
-                    + "no launch of this system covers when it was written, and no ROM header carries it";
+                "no route could say which game these directory saves belong to: no save state "
+                    + "names them, no launch of this system covers when they were written, and no "
+                    + "ROM header carries their key. The usual cause is that their ROMs are not on "
+                    + "this device";
 
-            Remember(unit, null, null, BindingSource.Journal, reason, now);
-            return new Attribution(null, null, null, reason);
+            return new Attribution(null, null, null, reason, AttributionOutcome.NotFound);
         }
 
         var distinct = answers.Select(answer => answer.RomId).Distinct().ToList();
@@ -148,13 +181,16 @@ public sealed class GameIdAttributor
         {
             // The fail-closed case. Named in full rather than counted, because the user is the
             // only one who can settle it and `saves bind` is how.
+            // Cached, unlike the case above, because this one IS a decision: both routes read
+            // something real and they disagree, and re-deriving that every scan would re-report
+            // it every scan without ever changing the answer.
             var reason =
                 $"two routes disagree about {unit.Key}: "
                     + string.Join("; ", answers.Select(answer => answer.Detail))
                     + ". It is left alone until `saves bind` settles it";
 
             Remember(unit, null, null, BindingSource.Journal, reason, now);
-            return new Attribution(null, null, null, reason);
+            return new Attribution(null, null, null, reason, AttributionOutcome.Contested);
         }
 
         var agreed = answers[0];

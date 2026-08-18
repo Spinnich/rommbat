@@ -391,6 +391,11 @@ internal static class SavesCommand
     /// listed too: it is a decision that nothing could name the game, and it stays until
     /// <c>saves bind</c> settles it.
     /// </remarks>
+    /// <summary>
+    /// How many unsettled bindings are worth printing before the list stops being useful.
+    /// </summary>
+    private const int MaxListedBindings = 20;
+
     private static void ReportBindings(AgentContext context)
     {
         var bindings = context.Store.GameIdBindings.List();
@@ -402,21 +407,30 @@ internal static class SavesCommand
 
         Console.WriteLine("Game ID bindings");
 
-        foreach (var binding in bindings)
+        foreach (var binding in bindings.Where(entry => entry.IsResolved))
         {
-            if (binding.IsResolved)
-            {
-                Console.WriteLine(
-                    $"  {binding.System}/{binding.GameId} -> {binding.RomPath?.Name ?? "?"} "
-                        + $"(learned from {Describe(binding.LearnedFrom)})");
-            }
-            else
-            {
-                Console.WriteLine($"  {binding.System}/{binding.GameId} -> not bound");
-                Console.WriteLine($"    {binding.Detail}");
-                Console.WriteLine(
-                    $"    settle it with: rommbat-agent saves bind {binding.System} {binding.GameId} <rom id>");
-            }
+            Console.WriteLine(
+                $"  {binding.System}/{binding.GameId} -> {binding.RomPath?.Name ?? "?"} "
+                    + $"(learned from {Describe(binding.LearnedFrom)})");
+        }
+
+        // Contested ones are listed rather than summarised, because each needs a person to
+        // settle it and the command that does is per key. Capped all the same: a report nobody
+        // can scroll through is a report nobody reads.
+        var contested = bindings.Where(entry => !entry.IsResolved).ToList();
+
+        foreach (var binding in contested.Take(MaxListedBindings))
+        {
+            Console.WriteLine($"  {binding.System}/{binding.GameId} -> not bound");
+            Console.WriteLine($"    {binding.Detail}");
+            Console.WriteLine(
+                $"    settle it with: rommbat-agent saves bind {binding.System} {binding.GameId} <rom id>");
+        }
+
+        if (contested.Count > MaxListedBindings)
+        {
+            Console.WriteLine(
+                $"  and {contested.Count - MaxListedBindings} more unsettled bindings, not listed.");
         }
 
         Console.WriteLine();

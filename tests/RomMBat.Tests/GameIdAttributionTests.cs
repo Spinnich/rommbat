@@ -213,6 +213,59 @@ public class GameIdAttributionTests
     }
 
     [Fact]
+    public void Nothing_resolving_a_unit_is_not_cached_so_the_rom_arriving_later_still_attributes_it()
+    {
+        // Found on a real install, not by reasoning: a MAME nvram tree with no MAME ROMs beside
+        // it produced 1,231 unattributable units in one scan, and caching each refusal would
+        // have meant a later sync bringing those ROMs in left every save still unattributed
+        // behind a stale row nothing clears.
+        //
+        // A refusal is only worth remembering when it is a decision. "Nothing had anything to
+        // say" is an absence, and it must not outlive its own reason.
+        using var fixture = new AttributionFixture();
+
+        fixture.WriteFile("saves/mame/nvram/25pacman/eeprom", "nvram nobody can place yet");
+
+        var unit = Assert.Single(new SaveUnitScanner(fixture.Install).Scan("mame"));
+        var first = fixture.Attributor().Attribute(unit);
+
+        Assert.Null(first.RomId);
+        Assert.Equal(AttributionOutcome.NotFound, first.Outcome);
+
+        // The important half: nothing was written down.
+        Assert.Empty(fixture.Store.GameIdBindings.List());
+
+        // The ROM arrives on a later sync, and the same unit now attributes with no
+        // intervention and nothing to forget.
+        fixture.AddRom("mame", "25pacman.zip", romId: 8);
+
+        var second = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(8, second.RomId);
+    }
+
+    [Fact]
+    public void A_contested_key_is_cached_because_that_one_is_a_decision()
+    {
+        // The other side of the same rule. Both routes read something real and disagree, so
+        // re-deriving it every scan would re-report it every scan without ever changing the
+        // answer, and only a person can settle it.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSBE");
+        var other = fixture.AddRom("wii", "Wii Play (USA).rvz", romId: 42, gameCode: "RZTE");
+        fixture.AddStateSidecar("wii", other, romId: 42, native: "RSBE_1.00");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+        var attributed = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(AttributionOutcome.Contested, attributed.Outcome);
+
+        var stored = Assert.Single(fixture.Store.GameIdBindings.List());
+
+        Assert.False(stored.IsResolved);
+    }
+
+    [Fact]
     public void Two_routes_disagreeing_refuses_and_records_that_it_refused()
     {
         // Both routes are right about what they read and they name different games, which is

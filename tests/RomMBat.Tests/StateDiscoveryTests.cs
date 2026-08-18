@@ -393,7 +393,11 @@ public class StateDiscoveryTests
         // One file counted, not two: the state does not appear in the count, which is the half
         // of this test that has not changed.
         Assert.Equal(1, reported.FileCount);
-        Assert.Contains("UCES00995", reported.Detail, StringComparison.Ordinal);
+        // The detail is phrased for the aggregate rather than naming one key, because this row
+        // counts every unattributed unit under the system and a real install produced 1,231 of
+        // them from one MAME tree.
+        Assert.Contains("no route could say", reported.Detail, StringComparison.Ordinal);
+        Assert.Contains("not on this device", reported.Detail, StringComparison.Ordinal);
         Assert.DoesNotContain("ppsspp/", reported.Detail, StringComparison.Ordinal);
     }
 
