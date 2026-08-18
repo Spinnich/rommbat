@@ -24,6 +24,18 @@ internal sealed partial class StubRomMServer
     /// <summary>Saves the stub holds, by id. Filled by an upload or seeded by a test.</summary>
     public IDictionary<int, StubSave> Saves { get; } = new Dictionary<int, StubSave>();
 
+    /// <summary>
+    /// The content hash the client last submitted per <c>(rom_id, slot)</c>.
+    /// </summary>
+    /// <remarks>
+    /// Recorded because the real server reconciles against this value and the stub does not: a
+    /// client that submits a stale hash gets whatever <see cref="NegotiateActions"/> says, so
+    /// without capturing it the suite cannot see the difference. Driven on hardware, the flush
+    /// after a class C restore submitted the pre-download digest and was answered <c>upload</c>.
+    /// </remarks>
+    public IDictionary<(int RomId, string Slot), string?> NegotiatedHashes { get; } =
+        new Dictionary<(int, string), string?>();
+
     /// <summary>What negotiate answers per <c>(rom_id, slot)</c>. Absent means <c>no_op</c>.</summary>
     public IDictionary<(int RomId, string Slot), string> NegotiateActions { get; } =
         new Dictionary<(int, string), string>();
@@ -177,6 +189,11 @@ internal sealed partial class StubRomMServer
         {
             var romId = save.GetProperty("rom_id").GetInt32();
             var slot = save.GetProperty("slot").GetString() ?? string.Empty;
+
+            NegotiatedHashes[(romId, slot)] = save.TryGetProperty("content_hash", out var submitted)
+                ? submitted.GetString()
+                : null;
+
             var action = NegotiateActions.TryGetValue((romId, slot), out var told) ? told : "no_op";
             var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot);
 

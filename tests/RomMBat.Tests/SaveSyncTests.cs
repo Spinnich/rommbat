@@ -570,6 +570,83 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_restored_directory_save_negotiates_as_in_step_rather_than_offering_itself_back()
+    {
+        // The other half of a restore leaving the device in step, and the half a rescan cannot
+        // show: the wire hash for an unchanged bundled unit is the server's digest, which this
+        // client cannot recompute, so it comes from save_slot. A restore that does not record
+        // the save it just took submits the pre-download digest, the server does not recognise
+        // it, and the next flush uploads a unit that is already identical. Found on hardware,
+        // where the flush after a class C restore reported one upload that the server then
+        // deduplicated into a row it already had.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        await fixture.SyncAsync();
+
+        Assert.Equal(100, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
+
+        // Another device deletes a member and uploads, which is a new row carrying a digest
+        // this device has never seen.
+        fixture.Stub.Saves.Remove(100);
+        fixture.Stub.Saves[101] = new StubRomMServer.StubSave
+        {
+            Id = 101,
+            RomId = 8,
+            Slot = "mame:nvram",
+            Emulator = "mame",
+            Bytes = Archive(("25pacman/eeprom", "one")),
+            FileNameNoTags = "25pacman",
+            FileExtension = "zip",
+            OriginDeviceId = "some-other-device",
+            UpdatedAt = fixture.Stub.ServerDate ?? DateTimeOffset.UnixEpoch,
+        };
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        Assert.Equal(1, (await fixture.SyncAsync()).Downloaded);
+
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
+
+        // The slot names what came down, rather than what this device sent before it.
+        var slot = fixture.Store.SaveSlots.Read(8, "mame:nvram");
+
+        Assert.NotNull(slot);
+        Assert.Equal(101, slot.SaveId);
+        Assert.Equal(fixture.Stub.Saves[101].ContentHash, slot.ServerContentHash);
+
+        // And the next negotiate says so in the server's own vocabulary, which is the thing a
+        // rescan cannot tell you and the server answers `upload` to when it is wrong.
+        fixture.Stub.NegotiateActions.Clear();
+        fixture.Scan();
+
+        var replay = await fixture.SyncAsync();
+
+        Assert.Equal(0, replay.Uploaded);
+        Assert.Equal(
+            fixture.Stub.Saves[101].ContentHash,
+            fixture.Stub.NegotiatedHashes[(8, "mame:nvram")]);
+    }
+
+    /// <summary>A zip holding the named entries, which is what another device would have sent.</summary>
+    private static byte[] Archive(params (string Path, string Contents)[] entries)
+    {
+        using var buffer = new MemoryStream();
+
+        using (var archive = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (path, contents) in entries)
+            {
+                using var writer = new StreamWriter(archive.CreateEntry(path).Open());
+                writer.Write(contents);
+            }
+        }
+
+        return buffer.ToArray();
+    }
+
+    [Fact]
     public async Task Keeping_the_server_side_of_a_directory_save_copies_it_aside_and_swaps_it_whole()
     {
         // The resolver's own route into the same restore, which the hands-on pass found broken
@@ -582,7 +659,24 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
         Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
 
-        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/extra"), "a slot deleted elsewhere");
+        // Another device drops a member and uploads, so the row in the slot is one this device
+        // has never held.
+        fixture.Stub.Saves.Remove(100);
+        fixture.Stub.Saves[101] = new StubRomMServer.StubSave
+        {
+            Id = 101,
+            RomId = 8,
+            Slot = "mame:nvram",
+            Emulator = "mame",
+            Bytes = Archive(("25pacman/eeprom", "one")),
+            FileNameNoTags = "25pacman",
+            FileExtension = "zip",
+            OriginDeviceId = "some-other-device",
+            UpdatedAt = fixture.Stub.ServerDate ?? DateTimeOffset.UnixEpoch,
+        };
+
+        // And this device wrote too, which is what makes it a conflict rather than a download.
+        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/extra"), "written here");
         fixture.Scan();
 
         // A real divergence: negotiate answers upload from the hashes it was handed, and the
@@ -592,6 +686,7 @@ public class SaveSyncTests
 
         var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
+        // Every member copied aside, which File.Exists on a container reported as nothing.
         Assert.NotNull(conflict.LocalCopyPath);
         Assert.Equal(
             3,
@@ -603,12 +698,18 @@ public class SaveSyncTests
         var outcome = await fixture.ResolveAsync(8, "mame:nvram", ConflictResolution.KeepServer);
 
         Assert.True(outcome.Resolved, outcome.Message);
-        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
-        Assert.Equal("two", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
 
+        // In step on both counts: the fold over what landed, and the slot's server identity.
         fixture.Scan();
         Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
+
+        var slot = fixture.Store.SaveSlots.Read(8, "mame:nvram");
+
+        Assert.Equal(101, slot!.SaveId);
+        Assert.Equal(fixture.Stub.Saves[101].ContentHash, slot.ServerContentHash);
     }
 
     [Fact]

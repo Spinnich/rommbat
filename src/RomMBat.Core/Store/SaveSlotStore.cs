@@ -80,6 +80,54 @@ public sealed class SaveSlotStore
         command.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// Records the server identity a restore just took, which no upload response will supply.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only a class C restore needs this, and without it the next flush uploads.</b> The wire
+    /// hash for a bundled save that has not changed since it was written is
+    /// <c>server_content_hash</c>, because the server's digest over an archive cannot be
+    /// recomputed here. A restore that leaves this row holding the pre-download digest therefore
+    /// submits a hash the server no longer recognises, and negotiate answers <c>upload</c> for a
+    /// unit that is already in step. Found on hardware: the flush after a class C restore
+    /// reported one upload, which the server then deduplicated into an existing row.
+    /// <para>
+    /// The names are left as they were, since a download carries the tagged name only, and
+    /// <c>origin_device_id</c> is cleared rather than kept: the device that uploaded this save
+    /// is not the one recorded against the save it replaced, and null reads as "not known"
+    /// rather than as a claim.
+    /// </para>
+    /// </remarks>
+    public void RecordRestored(
+        long romId,
+        string slot,
+        int? saveId,
+        string? serverContentHash,
+        DateTimeOffset? serverUpdatedAt,
+        DateTimeOffset now)
+    {
+        using var command = _connection.Command(
+            """
+            INSERT INTO save_slot (rom_id, slot, save_id, server_content_hash, server_updated_at,
+                                   last_negotiated_at)
+            VALUES ($romId, $slot, $saveId, $hash, $updatedAt, $now)
+            ON CONFLICT (rom_id, slot) DO UPDATE SET
+              save_id             = excluded.save_id,
+              server_content_hash = excluded.server_content_hash,
+              server_updated_at   = excluded.server_updated_at,
+              origin_device_id    = NULL,
+              last_negotiated_at  = excluded.last_negotiated_at;
+            """)
+            .With("$romId", romId)
+            .With("$slot", slot)
+            .With("$saveId", SqliteValues.OrNull(saveId))
+            .With("$hash", SqliteValues.OrNull(serverContentHash))
+            .With("$updatedAt", SqliteValues.ToTextOrNull(serverUpdatedAt))
+            .With("$now", SqliteValues.ToText(now));
+
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>What is known about one slot, or null when nothing is.</summary>
     public SaveSlotRecord? Read(long romId, string slot)
     {

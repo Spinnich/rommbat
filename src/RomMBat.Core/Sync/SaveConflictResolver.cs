@@ -111,6 +111,17 @@ public sealed class SaveConflictResolver
             },
             now);
 
+        // The slot's new server identity travels with the unit, for the same reason the
+        // download path records it: the wire hash for an unchanged bundled save is the server's
+        // digest, and a slot left holding the old one negotiates as `upload` next flush.
+        _store.SaveSlots.RecordRestored(
+            conflict.RomId,
+            conflict.Slot,
+            saveId,
+            conflict.ServerHash,
+            conflict.ServerUpdatedAt,
+            now);
+
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepServer, now);
         var pruned = Prune(conflict);
 

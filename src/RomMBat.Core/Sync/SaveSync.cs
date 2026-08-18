@@ -727,6 +727,17 @@ public sealed class SaveSync
             // step rather than one that needs sending straight back.
             _store.Saves.MarkUploaded(local.Path, local.UnitKey, outcome.ContentHash, _time.GetUtcNow());
 
+            // And the slot's new server identity, which is the other half of being in step: the
+            // wire hash for an unchanged unit is the server's digest, so a slot still holding
+            // the pre-download one negotiates as `upload` for a unit that just came down.
+            _store.SaveSlots.RecordRestored(
+                operation.RomId,
+                operation.Slot ?? local.Slot,
+                saveId,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                _time.GetUtcNow());
+
             return (written, null);
         }
         catch (RomMUnreachableException ex)
