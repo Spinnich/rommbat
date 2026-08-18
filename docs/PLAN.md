@@ -1950,13 +1950,18 @@ systems.
 A commented-out `<core name="..." enabled="false"/>` mechanism ships disabled; the parser
 must tolerate `<core>` children appearing, since a user can enable them.
 
-**M6 stage 2a found that three of those four traps are only traps for a parser that expands a
+**M6 stage 2a found that two of those four traps are only traps for a parser that expands a
 slot range**, and built the parser the other way round. Compiling `<file>` into an anchored
 expression and matching it against what is on disk reads the slot **off the filename**, so
-`libretro` declaring no bounds needs no invented default, `bigpemu`'s three-digit bounds against
-a two-digit `{{slot2d}}` need no reconciling, and whether `{{slot}}` renders empty at slot zero
-stops being a question the client has to answer in advance. Declared bounds become validation
-only. `desmume` still needs handling, because no reading of the file makes its `<image>` differ
+`libretro` declaring no bounds needs no invented default, and whether `{{slot}}` renders empty at
+slot zero stops being a question the client has to answer in advance. Declared bounds become
+validation only.
+
+**`bigpemu`'s is not one of the two, and stage 2a recorded that it was.** Reading the slot off
+disk answers slots 01 to 99, which is what a two-digit `{{slot2d}}` can express; a three-digit
+name matches no expression, so it is not recognised as a state and is dropped with no report.
+Whether BigPEmu writes one is unmeasured, because its save state is reachable only through its
+own gamepad overlay and no Jaguar launch has been driven. Open as #34. `desmume` still needs handling, because no reading of the file makes its `<image>` differ
 from its `<file>`.
 
 The same reversal applies to `<directory>`: matching the template against directories that
