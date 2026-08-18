@@ -245,6 +245,33 @@ public class GameIdAttributionTests
     }
 
     [Fact]
+    public void Two_sidecars_naming_one_identifier_resolve_first_wins_like_the_header_route_does()
+    {
+        // The sidecar index took last-wins where the ROM-header index takes first-wins, so the
+        // two routes answered the same question by opposite rules and which ROM won depended on
+        // where a state sorted in local_state. The scan is ordered by relative path, so first is
+        // a stable answer; last was stable too, and inconsistent with the route beside it.
+        using var fixture = new AttributionFixture();
+
+        // Game codes that are not RSBE, so the header route has nothing to say and this is a
+        // test about the sidecar index rather than about the fail-closed rule.
+        var play = fixture.AddRom("wii", "Wii Play (USA).rvz", romId: 42, gameCode: "RZTE");
+        var sports = fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSPE");
+
+        // Both states claim the same native identifier. Their paths carry the ROM stems, so
+        // Wii Play sorts first.
+        fixture.AddStateSidecar("wii", play, romId: 42, native: "RSBE_1.00");
+        fixture.AddStateSidecar("wii", sports, romId: 41, native: "RSBE_1.00");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+        var attributed = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(AttributionOutcome.Resolved, attributed.Outcome);
+        Assert.Equal(42, attributed.RomId);
+        Assert.Equal(BindingSource.Sidecar, attributed.Source);
+    }
+
+    [Fact]
     public void A_contested_key_is_cached_because_that_one_is_a_decision()
     {
         // The other side of the same rule. Both routes read something real and disagree, so

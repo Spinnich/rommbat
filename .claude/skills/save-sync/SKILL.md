@@ -211,6 +211,13 @@ never cached.
    `SAVEDATA/ULES01513SYSDATA` to a ROM filename the ordinary index resolves. It needs no ROM
    read and no observed launch, and it covers only games that have a state.
 
+**Both indexes are first-wins, and the two must not diverge.** Within one route a key that two
+ROMs answer to takes the first, because either is as good an answer as the other: for the header
+that is a revision pair sharing a game code, and for the sidecar it is two states naming one
+identifier. Both scans are ordered, by ROM path and by state path, so first is a stable answer
+rather than whichever row the database returned last. The sidecar index was last-wins until the
+sweep after stage 2b, which meant the two routes settled the same question by opposite rules.
+
 **Disagreement fails closed.** Two routes naming different games binds nothing, records the
 refusal so it is not recomputed every scan, and reports both candidates. Picking a side uploads
 one game's save under another's name and the cache then makes it permanent. `saves bind` is how a
