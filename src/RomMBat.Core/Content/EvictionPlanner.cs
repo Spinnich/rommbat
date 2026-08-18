@@ -160,6 +160,18 @@ public sealed class EvictionPlanner
     public EvictionPlan Plan(long? bytesToFree = null)
     {
         var target = bytesToFree ?? BytesOverBudget();
+
+        // Nothing to free is the ordinary case, and the walk below is not free: it reads every
+        // downloaded file and asks SaveGuard about each, which is four queries against the
+        // outbox, the journal and the two save tables. The cost scaled with the size of the
+        // local library rather than with the amount to remove. Summary answers from
+        // BytesToFree rather than from the candidate lists, so an empty plan here still reads
+        // as "inside its budget" and never as "found no candidates".
+        if (target <= 0)
+        {
+            return new EvictionPlan { BytesToFree = target };
+        }
+
         var ordered = Candidates().ToList();
         var selected = new List<EvictionCandidate>();
         var refused = new List<EvictionCandidate>();
@@ -167,7 +179,7 @@ public sealed class EvictionPlanner
 
         foreach (var candidate in ordered)
         {
-            if (target > 0 && freed >= target)
+            if (freed >= target)
             {
                 break;
             }
@@ -187,7 +199,7 @@ public sealed class EvictionPlanner
         return new EvictionPlan
         {
             BytesToFree = target,
-            Selected = target > 0 ? selected : [],
+            Selected = selected,
             Refused = refused,
         };
     }
