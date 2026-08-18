@@ -1517,19 +1517,20 @@ is split into review surfaces small enough to hold. The first cut is at the save
 boundary. **The second cut, taken during stage 2, is at what each piece needs from Game-ID
 attribution**, because that is the only hard dependency among the remaining pieces.
 
-|                                                                       | Stage 2a                              | Stage 2b            | Stage 2c |
-| --------------------------------------------------------------------- | ------------------------------------- | ------------------- | -------- |
-| Hooks, journal, lock file, `emulatorLauncher.log`                     | stage 1                               |                     |          |
-| Play sessions, standalone ingest                                      | stage 1                               |                     |          |
-| Class A and B saves, attributed by filename                           | stage 1                               |                     |          |
-| Negotiate, upload, download, ack, complete, conflicts, atomic restore | stage 1                               |                     |          |
-| The logical-content hash                                              | stage 1, defined for the general case | inherited unchanged |          |
-| Save states, all 13 emulators                                         | **yes**                               |                     |          |
-| Conflict resolution, `saves resolve`, pruning `replaced/`             | **yes**                               |                     |          |
-| `SaveGuard`, widened to save states                                   | **yes**                               | widened to C        | to D     |
-| Game-ID attribution, journal correlation and ROM header               |                                       | yes                 |          |
-| Class C bundling and `outbox.batch_key`'s writer                      |                                       | yes                 |          |
-| Class D conversion and the `es_settings.cfg` writer                   |                                       |                     | yes      |
+|                                                                          | Stage 2a                              | Stage 2b            | Stage 2c |
+| ------------------------------------------------------------------------ | ------------------------------------- | ------------------- | -------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                        | stage 1                               |                     |          |
+| Play sessions, standalone ingest                                         | stage 1                               |                     |          |
+| Class A and B saves, attributed by filename                              | stage 1                               |                     |          |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore    | stage 1                               |                     |          |
+| The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |          |
+| Save states, all 13 emulators                                            | **yes**                               |                     |          |
+| Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |          |
+| `SaveGuard`, widened to save states                                      | **yes**                               | widened to C        | to D     |
+| Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |          |
+| Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |          |
+| The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |          |
+| Class D conversion and the `es_settings.cfg` writer                      |                                       |                     | yes      |
 
 **Why states go first and alone.** A save state needs no Game-ID attribution at all: every
 `<file>` template in `es_savestates.cfg` is keyed on `{{romfilename}}`, and all twelve emulators
@@ -1706,10 +1707,20 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
 
   **The name to persist and the name to write on disk are different fields.** A file written
   under the tagged name is invisible to the emulator, which finds a battery save by matching
-  the rom name, so restoring one writes **`file_name_no_tags` plus `file_extension`** and
-  keeps `file_name` only as the server-side identity. No client-side regex is involved; the
-  server returns the untagged stem already. Freegosy hit this as its issues #42 and #28 and
-  answered it by stripping the tag by hand, which is work the response makes unnecessary.
+  the rom name, so `file_name` is kept only as the server-side identity. Freegosy hit this as
+  its issues #42 and #28 and answered it by stripping the tag by hand.
+
+  **Amended after M6 stage 2b: `file_name_no_tags` is not the name to write, and measurement
+  130 half-saw this before a real save proved it.** The server does not undo its own timestamp
+  tag, it runs a general tag stripper, and a real save measured live came back as
+  `Phantasy Star (Brazil) [2026-08-17_17-01-00].srm` with `file_name_no_tags` of
+  **`Phantasy Star`**: `(Brazil)` is part of the ROM's name and the server took it for a tag.
+  Writing that produces a file libretro cannot see, which is the exact failure this rule exists
+  to prevent, arrived at from the other direction.
+
+  **The ROM's own filename stem is the only sound source**, joined to the extension, which is
+  unambiguous from the tagged name. That is the same `(folder, stem)` key class A attribution
+  already uses, run backwards. See [retrobat-findings.md](retrobat-findings.md), measurement 152.
   See [freegosy-findings.md](freegosy-findings.md), F6.
 
   **The 409 body carries nothing to show the user.** Measured at 5.1.1-beta.1 it is a bare
@@ -1790,21 +1801,24 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   for slots the client did not submit, which this branch did not drive live. Until that is
   measured, neither is worth guessing at.
 
-  **Settled in M6 stage 2a, and settled negatively: negotiate never volunteers a slot the
-  client did not submit.** Driven live. A device with a save on the server for its own user
-  negotiated with an **empty** `saves` array and got back `operations: []`. The same device
-  negotiating with one unrelated slot got back exactly that one slot and not the one it already
-  held server-side. So negotiate is strictly client-driven full-state reconciliation over the
-  set the client names, and both open cases resolve the same way: **neither is reachable through
-  negotiate at all.**
+  **Stage 2a settled this negatively, and M6 stage 2b withdraws that reading entirely.** 2a
+  reported that negotiate never volunteers a slot the client did not submit, having sent an
+  **empty** `saves` array and received `operations: []`. Re-driven at stage 2b, the same call
+  returned **13 downloads across two ROMs**, one of which the client never named. The mechanism
+  was then driven directly: 13 operations, then `GET /api/saves/134/content` with
+  `optimistic=false` followed by `POST /api/saves/134/downloaded`, then 12 operations with that
+  save no longer offered.
 
-  Two consequences, and the second is a real functional gap rather than a closed question.
-  `SaveSlotStore.Map`'s fallback for a slot with no local file is unreachable from the negotiate
-  path, so it is dead there. And **a fresh device cannot discover the saves the server holds for
-  it**: restoring a library onto a new install needs a separate inventory pass over
-  `GET /api/saves?rom_id=` or `GET /api/saves/summary`, not a negotiate. That is not in M6's
-  "done when", which only asks for a conflict on a device that already holds the save, so it is
-  recorded here rather than built: it belongs with whichever stage owns first-run restore.
+  **So negotiate returns a download for every save row the queried device has no current sync
+  record for.** 2a's empty answer meant "nothing you do not already have", not "nothing is
+  volunteered": that device was current for the only save then on the account. See
+  [retrobat-findings.md](retrobat-findings.md), measurement 151, which withdraws 132.
+
+  Two consequences, and neither is what 2a recorded. **There is no fresh-device gap and nothing
+  to build for it**: negotiating with an empty `saves` array _is_ the inventory pass, so a new
+  install discovers the library's saves through the protocol it already speaks. And
+  `SaveSlotStore.Map`'s fallback for a slot with no local file is **reachable**, not dead, so
+  the two download cases stage 1 left open are open again and are answered below.
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
@@ -1972,9 +1986,21 @@ looking independently fine.
 **Amended after M6 stage 1: the batch is not built, and the cost above stands unmitigated.**
 Saves never enter the outbox at all in stage 1. `SaveSync` reads `local_save` and posts
 directly, so saturn's `.bcr` landing while its `.bkr` fails reports one up and one failed with
-nothing tying them together, and `outbox.batch_key` has a schema and no writer. The column
-stays because the schema is already shipped and stage 2 is what fills it, when class C
-bundling gives it a second caller. Until then a sibling that fails is simply retried by the
+nothing tying them together, and `outbox.batch_key` has a schema and no writer.
+
+**Amended after M6 stage 2b: class C does not give the column a second caller, and the batch
+report is delivered without it.** The expectation above, repeated in migration 006's own header,
+was that stage 2 would route class B and class C through the outbox and that class C would
+supply the second row a batch needs to tie. It does not: a class C unit is one (container, key)
+pair, so it bundles to **one archive, one slot and one upload**, GameCube's several `.gci` per
+game code included. There is no second row.
+
+So `batch_key`'s only genuine caller is class B's siblings, and class B is not in the outbox.
+Rather than retrofit stage 1's proven upload path onto a queue it does not use, stage 2b delivers
+the behaviour the column was a proxy for: `SaveSync` already holds every sibling of a slot in one
+map, so a partial result is grouped by `(rom_id, base slot)` and reported as one batch. The column
+stays unwritten and is kept, because a future queued-upload design would want it back and the
+schema is already shipped. Until then a sibling that fails is simply retried by the
 next flush, which is correct but says less than it should. **MAME is the friendly class C
 case**: `saves/mame/nvram/<shortname>/` across 1231 directories, where the short name _is_
 the rom basename, so attribution needs no Game ID lookup at all.
@@ -1989,7 +2015,41 @@ MAME's whole `nvram` tree is 1,531 files and 8.0 s, and per game it is trivial.
 So the design input is not "class C needs a hashing budget". It is **the shape definition
 must scope the save unit, and hashing an emulator's data root is the bug**. A shape that
 names `saves/ps3/rpcs3` is wrong in a way that costs seven minutes per sync; one that names
-`saves/ps3/rpcs3/dev_hdd0/home/*/savedata/<TITLEID>/` is right and costs nothing. Stage 1's
+`saves/ps3/rpcs3/dev_hdd0/home/*/savedata/<TITLEID>/` is right and costs nothing.
+
+**Amended after M6 stage 2b, which re-ran the measurement and confirmed it exactly** (32,451
+files / 52,868.4 MB / **426.07 s** for the data root against 77 files / 16.3 MB / **0.06 s** for
+the savedata subtree, and 1,531 files / 8.02 s for MAME's whole `nvram`), **and then found the
+unit itself is not what this table says.**
+
+**A class C save unit is not "a directory per game".** Measured on three systems at once:
+
+```text
+ps3   BLUS30109G6A383E91  BLUS30109G6A3B071C  BLUS30109S    three directories, one title id
+      BCUS98111-AUTOSAVE  BCUS98111-USERDATA                two more, one title id
+psp   UCES01011           ULES01513SYSDATA                  the key is a PREFIX of the segment
+gc    69-GXBE-game1.ssx.gci   69-GXBE-settings.ssx.gci      two FILES, no directory exists
+```
+
+GameCube settles it: there is no directory that is the unit, so "the unit root is a directory"
+cannot be the model. **A save unit is a (container path, key) pair**, and its members are the
+entries under the container whose name carries the key. That covers all four cases with one
+rule, and it is what `save_shapes.json` declares from stage 2b onward:
+
+```text
+mame       saves/mame/nvram                                   key = the directory name
+psp        saves/psp/SAVEDATA                                 key = title-id prefix
+ps3        saves/ps3/rpcs3/dev_hdd0/home/*/savedata           key = title-id prefix
+gamecube   saves/gamecube/dolphin-emu/User/GC/<region>        key = game code, .gci.deleted excluded
+wii        saves/wii/dolphin-emu/User/Wii/title/00010000      key = the ASCII game code in hex
+```
+
+**Wii's NAND is decided from data rather than left open.** `title/00010000/<hex>/` is the
+disc-game tree and the hex is the ASCII game code, so `52534245` is `RSBE`, which joins exactly
+to what route 2 reads at `0x58`. `title/00000001/*` is system titles, and `shared2/`, `sys/` and
+`fst.bin` are system state; none is a save. A title holding `content/title.tmd` with no `data/`
+is an installed stub rather than a save, so only `data/` travels. See
+[retrobat-findings.md](retrobat-findings.md), measurements 140, 141, 142 and 146. Stage 1's
 real workload, every loose file under every system folder, is **37 files, 43 MB, 0.51 s**,
 and 38 MB of that is `xbox`'s class-D disk image which it must not read at all.
 
@@ -2199,6 +2259,19 @@ routes, in order of preference:
 2. **Read the ID out of the ROM** (PSP/PS3 `PARAM.SFO`, GameCube/Wii disc header) as a
    fallback for saves that predate any observed launch.
 
+   **Amended after M6 stage 2b: this route reaches GameCube and Wii, and nothing else.** Every
+   image in five systems was head-read on a real install: `gamecube` 178 `.rvz` at **100%**
+   readable, `wii` 40 `.rvz` and 13 `.wad` at **75.5%**, and `psp` (147 `.cso`, 7 `.chd`), `ps3`
+   (23 `.dec.iso`) and `psx` (386 `.chd`) at **0%**. No constant offset reaches a `.cso`, a
+   `.chd` or an ISO9660 image, so **the system this milestone's "done when" names is exactly the
+   one this route cannot serve**, and so is every disc system stage 2c needs. Route 1 and the
+   sidecar route below carry those. See [retrobat-findings.md](retrobat-findings.md), 143.
+
+   **`PARAM.SFO` is not the answer it looks like either.** Parsed on two real PSP save
+   directories, its keys are `SAVEDATA_DIRECTORY`, which is the directory's own name and
+   therefore says nothing new, and `TITLE`, a human string (`'echochrome'`,
+   `'The 3rd Birthday'`). It buys a fuzzy title match and never an exact key. Measurement 144.
+
    **Measured, and the fallback is narrower than it sounds.** On a real library, GameCube is
    **1,792 of 1,793 `.rvz`** and Wii is **148 `.rvz`, 33 `.wad`, zero `.iso` across both**. So
    the raw disc header at offset `0x00` is correct in principle and never exercised: a reader
@@ -2212,6 +2285,19 @@ routes, in order of preference:
    offset**. Reading 256 bytes over a bounded `Range` is enough for all of this and no image
    need be downloaded. See [freegosy-findings.md](freegosy-findings.md), F17.
 
+3. **Read the ID out of the save-state name-mapping sidecar, added in M6 stage 2b.** RetroBat
+   writes a `.txt` beside a save state holding the emulator's native basename, and where that
+   basename is identifier-keyed the sidecar is a Game ID already joined to a ROM filename, which
+   `RomIndex` resolves. Measured: `ppsspp/3rd Birthday, The (Europe).txt` holds `ULES01513_1.00`,
+   whose `ULES01513` prefix matches `SAVEDATA/ULES01513SYSDATA`. It reads no ROM and needs no
+   observed launch, so it reaches saves that predate RomMBat on any game that has a state, and
+   reaches nothing on a game that has none. Stage 2a already collects the sidecar's contents onto
+   `local_state`, so the data is on disk before this route exists. Measurement 145.
+
+   Its absence and its presence both mean nothing on their own: `libretro` writes no sidecar at
+   all and `bizhawk` writes its own truncated name plus the core, so only the **contents** are
+   ever worth anything, and only where they parse as an identifier.
+
 **Hash the contents, not the archive.** For bundled class C saves, defining
 `content_hash` as the MD5 of the zip bytes is a trap: archive output is
 implementation-dependent (entry ordering, timestamps, compression level differ between
@@ -2220,6 +2306,31 @@ hashes for an identical logical save and conflict forever, and a library upgrade
 the same to RomMBat alone. Define the hash over the logical contents instead: sorted
 relative paths plus each file's own hash, folded into one digest. Keep the archive purely
 as transport.
+
+**Amended after M6 stage 2b: the server does the same thing, by a different function, and
+that means class C carries two hashes rather than one.** Measured live. RomM's `content_hash`
+for a plain file is exactly the MD5 of the bytes uploaded, confirmed on four payloads. For an
+**archive** it is not: the same single member rebuilt at a different compression level and
+timestamp gives a different zip and **the same** digest, while renaming that member changes it.
+So RomM also hashes member names and member contents and ignores archive framing, which is this
+rule reached independently from the server side. Eight candidate reconstructions of the exact
+function reproduce none of the observed values, so **it is not reproducible client-side and must
+not be guessed at**.
+
+The consequence is a hard one and it decides the code. Negotiate compares the client's
+`content_hash` against the server's own, so for class C:
+
+- **the logical fold is the local change detector**, answering "has this unit changed since the
+  last upload", and it never goes on the wire;
+- **the digest the server returned on the last successful upload is what goes on the wire**, and
+  sending anything else answers `download (Server save is newer)` forever.
+
+Driven: sending the server's returned digest answers `no_op (Content is identical)`; sending
+the logical fold or the archive's MD5 answers `download`. **The two hashes are different
+functions and comparing one against the other is always false**, which also means stage 1's
+verification of downloaded bytes against `server_content_hash` is sound for class A and B and
+would fail every class C restore. See [retrobat-findings.md](retrobat-findings.md),
+measurements 148 and 149.
 
 **Restores must be atomic.** A half-written directory save is a corrupt directory save.
 Extract to a temporary directory beside the target, verify, then swap, and keep the
