@@ -355,6 +355,62 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_class_B_save_that_half_lands_is_reported_as_one_save_not_two_results()
+    {
+        // What outbox.batch_key was for, delivered without it. saturn writes .bcr and .bkr for
+        // every game and they take one slot each, so a flush that lands one and fails the other
+        // otherwise reports two independent results where each looks fine on its own.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(9, "saturn", "Battle Garegga (Japan)", ".chd", ".bcr", "the big one");
+
+        // The sibling, in the same folder under the same stem, which is the class B shape.
+        File.WriteAllText(
+            fixture.Resolve("saves/saturn/Battle Garegga (Japan).bkr"),
+            "the small one");
+
+        Assert.Equal(2, fixture.Scan().Found);
+
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bcr")] = "upload";
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bkr")] = "upload";
+
+        // One of the two refused, which is what a dropped link mid-flush looks like.
+        fixture.Stub.RefuseUploadForSlot = "libretro:battery:bkr";
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(1, outcome.Failed);
+
+        // The batch line, naming the save rather than the file, is the point.
+        var batch = Assert.Single(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
+
+        Assert.Contains("1 of 2 files", batch, StringComparison.Ordinal);
+        Assert.Contains("libretro:battery", batch, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_class_B_save_that_lands_whole_is_not_reported_as_a_batch()
+    {
+        // Only partial batches are named. One that landed whole is the ordinary case and saying
+        // so on every flush would drown the report it belongs to.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(9, "saturn", "Battle Garegga (Japan)", ".chd", ".bcr", "the big one");
+
+        File.WriteAllText(
+            fixture.Resolve("saves/saturn/Battle Garegga (Japan).bkr"),
+            "the small one");
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bcr")] = "upload";
+        fixture.Stub.NegotiateActions[(9, "libretro:battery:bkr")] = "upload";
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(2, outcome.Uploaded);
+        Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_directory_save_queues_offline_and_lands_in_one_flush()
     {
         // The offline simulation extended to class C. Same assertion as the class A case: every

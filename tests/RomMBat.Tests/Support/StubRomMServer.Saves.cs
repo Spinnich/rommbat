@@ -98,6 +98,16 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public string? HashLie { get; set; }
 
+    /// <summary>
+    /// Fail the upload for this slot, as a dropped link mid-flush would.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="ConflictOnUpload"/>, which is the server refusing on purpose.
+    /// This is the transport giving out partway through a set, which is the only way to produce
+    /// a class B save where one file lands and its sibling does not.
+    /// </remarks>
+    public string? RefuseUploadForSlot { get; set; }
+
     /// <summary>Sessions already seen, keyed the way the server dedups: truncated to the second.</summary>
     private HashSet<string> SeenPlaySessions { get; } = new(StringComparer.Ordinal);
 
@@ -235,6 +245,11 @@ internal sealed partial class StubRomMServer
             query.GetValueOrDefault("overwrite"),
             "true",
             StringComparison.Ordinal);
+
+        if (RefuseUploadForSlot is { } refused && string.Equals(slot, refused, StringComparison.Ordinal))
+        {
+            return Detail(HttpStatusCode.InternalServerError, "the upload did not complete");
+        }
 
         if (ConflictOnUpload.Contains((romId, slot))
             && (!overwrite || RefuseOverwrite.Contains((romId, slot))))
