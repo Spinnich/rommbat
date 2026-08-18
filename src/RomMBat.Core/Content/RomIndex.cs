@@ -52,5 +52,25 @@ public sealed class RomIndex
     public (long RomId, RelativePath Path)? Find(string folder, string stem) =>
         _byFolderAndStem.TryGetValue(Key(folder, stem), out var found) ? found : null;
 
+    /// <summary>
+    /// Every ROM in one folder, which is what a reverse lookup has to walk.
+    /// </summary>
+    /// <remarks>
+    /// The Game ID route asks "which ROM carries this code", and a code cannot be turned back
+    /// into a filename, so the only way round is to read every ROM in the system once and index
+    /// what comes out. That is 178 files of 256 bytes on the largest measured system.
+    /// </remarks>
+    public IEnumerable<(long RomId, RelativePath Path)> InFolder(string folder)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folder);
+
+        var prefix = $"{folder}/";
+
+        return _byFolderAndStem
+            .Where(entry => entry.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => entry.Value)
+            .OrderBy(entry => entry.Path.Value, StringComparer.Ordinal);
+    }
+
     private static string Key(string folder, string stem) => $"{folder}/{stem}";
 }

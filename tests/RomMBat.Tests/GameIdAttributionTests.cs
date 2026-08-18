@@ -1,0 +1,369 @@
+using RomMBat.Core.Content;
+using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
+using RomMBat.Tests.Support;
+using Xunit;
+
+namespace RomMBat.Tests;
+
+/// <summary>
+/// Working out which ROM a directory save belongs to, and refusing to guess when it cannot.
+/// </summary>
+/// <remarks>
+/// The fail-closed direction is the whole point. A wrong binding uploads one game's save under
+/// another game's name, and the cache then makes the mistake permanent, so every test here that
+/// asserts a refusal is asserting the more important half.
+/// </remarks>
+public class GameIdAttributionTests
+{
+    [Fact]
+    public void An_rvz_game_code_is_read_at_0x58_with_the_version_checked()
+    {
+        // Confirmed on 218 real images, all format version 1: gamecube 178 of 178 and wii 40 of
+        // 40 .rvz. The version check is not decoration, since a later revision that moves the
+        // embedded disc header moves this offset with it.
+        Assert.Equal("GW7E", RomGameId.Parse(Rvz("GW7E", version: 1)).GameId);
+        Assert.Equal("RUUE", RomGameId.Parse(Rvz("RUUE", version: 1)).GameId);
+
+        var newer = RomGameId.Parse(Rvz("GW7E", version: 2));
+
+        Assert.Null(newer.GameId);
+        Assert.Contains("format version 2", newer.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_wad_is_refused_rather_than_misread()
+    {
+        // 13 of 53 Wii images on a real install. Its title id sits inside the ticket behind a
+        // certificate chain of variable length, so no constant offset reaches it, and the
+        // dangerous outcome is not "no answer" but "a confident wrong answer".
+        var head = new byte[256];
+        head[3] = 0x20;
+        head[4] = (byte)'I';
+        head[5] = (byte)'s';
+
+        var read = RomGameId.Parse(head);
+
+        Assert.Null(read.GameId);
+        Assert.Contains("WAD", read.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_rvz_read_at_offset_zero_would_have_taken_the_magic_for_a_game_code()
+    {
+        // The trap F17 names. A reader that handles only raw .iso resolves nothing on a real
+        // library and would read the literal bytes "RVZ." as a code, so the raw-image path
+        // checks the disc magic rather than the shape of the first four bytes.
+        var head = Rvz("GW7E", version: 1);
+
+        Assert.Equal("RVZ"u8.ToArray(), head[..4]);
+        Assert.Equal("GW7E", RomGameId.Parse(head).GameId);
+    }
+
+    [Theory]
+    [InlineData("CISO", "compressed UMD")]
+    [InlineData("MCom", "CHD")]
+    public void A_container_with_no_header_in_the_clear_is_refused_with_its_reason(string magic, string expected)
+    {
+        // psp is 147 .cso and 7 .chd and psx is 386 .chd, all measured at 0% readable. Saying
+        // which container it is, rather than "unattributed", is what tells a user this is a
+        // property of their library rather than a fault.
+        var head = new byte[256];
+        System.Text.Encoding.ASCII.GetBytes(magic).CopyTo(head, 0);
+        head[4] = (byte)'p';
+
+        var read = RomGameId.Parse(head);
+
+        Assert.Null(read.GameId);
+        Assert.Contains(expected, read.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_launch_covering_when_the_unit_was_written_attributes_it()
+    {
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41);
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now.AddMinutes(-5));
+
+        var attributor = fixture.Attributor(
+            Launch(fixture.Now.AddMinutes(-10), "wii", "roms/wii/Wii Sports (USA).rvz"));
+
+        var attributed = attributor.Attribute(unit);
+
+        Assert.Equal(41, attributed.RomId);
+        Assert.Equal(BindingSource.Journal, attributed.Source);
+        Assert.Contains("was running when", attributed.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_launch_of_another_system_does_not_attribute_a_unit()
+    {
+        // The system is half the key, for the same reason it is half of RomIndex's: Contra and
+        // Tetris exist on several systems and a save must never cross one.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("mastersystem", "Phantasy Star (Brazil).zip", romId: 7);
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now.AddMinutes(-5));
+
+        var attributed = fixture
+            .Attributor(Launch(fixture.Now.AddMinutes(-10), "mastersystem", "roms/mastersystem/Phantasy Star (Brazil).zip"))
+            .Attribute(unit);
+
+        Assert.Null(attributed.RomId);
+    }
+
+    [Fact]
+    public void Two_launches_covering_one_window_are_refused_rather_than_guessed_between()
+    {
+        // exFAT and FAT32 both quantise mtime to two seconds and round up, so two launches this
+        // close cannot be separated by when a file says it was written. Picking the later one
+        // would upload one game's save under the other's name.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41);
+        fixture.AddRom("wii", "Wii Play (USA).rvz", romId: 42);
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+
+        var attributed = fixture
+            .Attributor(
+                Launch(fixture.Now.AddSeconds(-3), "wii", "roms/wii/Wii Sports (USA).rvz"),
+                Launch(fixture.Now.AddSeconds(-1), "wii", "roms/wii/Wii Play (USA).rvz"))
+            .Attribute(unit);
+
+        Assert.Null(attributed.RomId);
+        Assert.Contains("no route could say", attributed.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_es_menu_launch_never_attributes_a_save()
+    {
+        // RomMBat's own exit is an es_menu launch, and 27 of 424 launches on a real install
+        // were. Attributing a save to one is how a user gets a save against a game they never
+        // played.
+        using var fixture = new AttributionFixture();
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+
+        var menu = new LaunchRecord(
+            fixture.Now.AddMinutes(-1),
+            RelativePath.Create("system/es_menu/start.exe"),
+            "wii",
+            "libretro",
+            null,
+            IsMenuLaunch: true,
+            "menu");
+
+        Assert.Null(fixture.Attributor(menu).Attribute(unit).RomId);
+    }
+
+    [Fact]
+    public void A_learned_binding_is_reused_without_reading_the_rom_again()
+    {
+        // The cache is what makes an odd case cost one lookup rather than one per scan. Proven
+        // by deleting the ROM after the first pass: nothing can read a header off a file that
+        // is gone, so a second success can only have come from the binding.
+        using var fixture = new AttributionFixture();
+        var romPath = fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSBE");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+
+        var first = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(41, first.RomId);
+        Assert.Equal(BindingSource.RomHeader, first.Source);
+
+        File.Delete(fixture.Install.Resolve(romPath));
+
+        var second = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(41, second.RomId);
+        Assert.Equal(BindingSource.RomHeader, second.Source);
+    }
+
+    [Fact]
+    public void A_wrong_binding_can_be_corrected_and_the_correction_sticks()
+    {
+        // "How is a wrong binding unlearned" is the question the cache creates, and it has to
+        // have an answer or the first mistake is permanent.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSBE");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+
+        Assert.Equal(41, fixture.Attributor().Attribute(unit).RomId);
+
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "wii",
+            "RSBE",
+            99,
+            RelativePath.Create("roms/wii/Something Else.rvz"),
+            BindingSource.User,
+            "corrected by hand",
+            fixture.Now));
+
+        var corrected = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(99, corrected.RomId);
+        Assert.Equal(BindingSource.User, corrected.Source);
+
+        // And forgetting one lets the routes run again from scratch.
+        Assert.True(fixture.Store.GameIdBindings.Forget("wii", "RSBE"));
+        Assert.Equal(41, fixture.Attributor().Attribute(unit).RomId);
+    }
+
+    [Fact]
+    public void Two_routes_disagreeing_refuses_and_records_that_it_refused()
+    {
+        // Both routes are right about what they read and they name different games, which is
+        // exactly the case where guessing costs a save. The refusal is stored so the same work
+        // is not redone and re-reported on every scan.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("wii", "Wii Sports (USA).rvz", romId: 41, gameCode: "RSBE");
+        var other = fixture.AddRom("wii", "Wii Play (USA).rvz", romId: 42, gameCode: "RZTE");
+
+        // The sidecar says RSBE belongs to Wii Play; the header says it belongs to Wii Sports.
+        fixture.AddStateSidecar("wii", other, romId: 42, native: "RSBE_1.00");
+
+        var unit = fixture.WriteWiiUnit("52534245", written: fixture.Now);
+        var attributed = fixture.Attributor().Attribute(unit);
+
+        Assert.Null(attributed.RomId);
+        Assert.Contains("two routes disagree", attributed.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves bind", attributed.Detail, StringComparison.Ordinal);
+
+        var stored = fixture.Store.GameIdBindings.Find("wii", "RSBE");
+
+        Assert.NotNull(stored);
+        Assert.False(stored.IsResolved);
+        Assert.Contains("two routes disagree", stored.Detail!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_mame_short_name_resolves_by_filename_and_learns_nothing()
+    {
+        // The friendly case, and the reason MAME proves bundling without any attribution at
+        // all. Nothing was learned, so nothing is cached: a binding row here would be a fact
+        // about the ROM index rather than about a Game ID.
+        using var fixture = new AttributionFixture();
+        fixture.AddRom("mame", "25pacman.zip", romId: 8);
+
+        fixture.WriteFile("saves/mame/nvram/25pacman/eeprom", "nvram");
+
+        var unit = Assert.Single(new SaveUnitScanner(fixture.Install).Scan("mame"));
+        var attributed = fixture.Attributor().Attribute(unit);
+
+        Assert.Equal(8, attributed.RomId);
+        Assert.Null(attributed.Source);
+        Assert.Empty(fixture.Store.GameIdBindings.List());
+    }
+
+    /// <summary>An <c>.rvz</c> head: the magic, a format version, and a code at 0x58.</summary>
+    private static byte[] Rvz(string code, uint version)
+    {
+        var head = new byte[256];
+        "RVZ"u8.ToArray().CopyTo(head, 0);
+        BitConverter.GetBytes(version).CopyTo(head, 4);
+        System.Text.Encoding.ASCII.GetBytes(code).CopyTo(head, 0x58);
+        return head;
+    }
+
+    private static LaunchRecord Launch(DateTimeOffset at, string system, string romPath) =>
+        new(at, RelativePath.Create(romPath), system, "dolphin", null, IsMenuLaunch: false, $"{at:O}|{romPath}");
+
+    private sealed class AttributionFixture : IDisposable
+    {
+        private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
+
+        public AttributionFixture()
+        {
+            Install = _tree.Install();
+            Store = LocalStore.Open(Install);
+        }
+
+        public DateTimeOffset Now { get; } = new(2026, 8, 17, 12, 0, 0, TimeSpan.Zero);
+
+        public RetroBatInstall Install { get; }
+
+        public LocalStore Store { get; }
+
+        public RelativePath AddRom(string folder, string fileName, long romId, string? gameCode = null)
+        {
+            var path = RelativePath.Create($"roms/{folder}/{fileName}");
+            var absolute = Install.Resolve(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+
+            if (gameCode is not null)
+            {
+                var head = new byte[256];
+                "RVZ"u8.ToArray().CopyTo(head, 0);
+                BitConverter.GetBytes(1u).CopyTo(head, 4);
+                System.Text.Encoding.ASCII.GetBytes(gameCode).CopyTo(head, 0x58);
+                File.WriteAllBytes(absolute, head);
+            }
+            else
+            {
+                File.WriteAllText(absolute, "a rom");
+            }
+
+            Store.Files.Record(new LocalFile
+            {
+                Path = path,
+                Kind = LocalFileKind.Rom,
+                RomId = (int)romId,
+                Folder = folder,
+                FileName = fileName,
+                SizeBytes = new FileInfo(absolute).Length,
+            });
+
+            return path;
+        }
+
+        public void AddStateSidecar(string system, RelativePath romPath, long romId, string native)
+        {
+            var statePath = RelativePath.Create($"saves/{system}/dolphin/{Path.GetFileNameWithoutExtension(romPath.Value)}.state1");
+            WriteFile(statePath.Value, "a state");
+
+            Store.States.Record(
+                new LocalState
+                {
+                    Path = statePath,
+                    System = system,
+                    Emulator = "dolphin",
+                    Slot = "dolphin::1",
+                    RomId = (int)romId,
+                    RomPath = romPath,
+                    ContentHash = new string('a', 32),
+                    SizeBytes = 7,
+                    NativeName = native,
+                    UploadedFileName = $"{Path.GetFileNameWithoutExtension(romPath.Value)} [dolphin].state1",
+                },
+                Now);
+        }
+
+        public SaveUnit WriteWiiUnit(string hexCode, DateTimeOffset written)
+        {
+            var path = $"saves/wii/dolphin-emu/User/Wii/title/00010000/{hexCode}/data/save.bin";
+            WriteFile(path, "the save");
+            File.SetLastWriteTimeUtc(Install.Resolve(path), written.UtcDateTime);
+
+            return Assert.Single(new SaveUnitScanner(Install).Scan("wii"));
+        }
+
+        public void WriteFile(string relativePath, string content)
+        {
+            var absolute = Install.Resolve(relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+            File.WriteAllText(absolute, content);
+        }
+
+        public GameIdAttributor Attributor(params LaunchRecord[] launches) =>
+            new(Install, Store, RomIndex.Build(Store), launches, new TestTimeProvider(Now));
+
+        public void Dispose()
+        {
+            Store.Dispose();
+            _tree.Dispose();
+        }
+    }
+}
