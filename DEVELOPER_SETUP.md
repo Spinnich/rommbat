@@ -269,7 +269,10 @@ works offline, so it is the cheap way to see what a set would cost before it cos
 
 `evict` is a dry run unless you pass `--apply`, and it is the only command in the agent that
 deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by
-hand is safe, and the next sync starts that ROM again.
+hand is safe, and the next sync starts that ROM again. `evict` also reports what under that
+directory is dead, and reclaims it on `--apply`, which is the only thing that ever does:
+those bytes carry no database row, so the disk budget cannot count them and eviction proper
+cannot reach them.
 
 ### Metadata, media and gamelists
 

@@ -52,6 +52,27 @@ internal static class EvictCommand
         var requested = ByteSize.Parse(command.Value("bytes"));
         var plan = planner.Plan(requested);
 
+        // Reported before the budget question and applied after it, because these bytes are the
+        // ones neither bound can see: they carry no local_file row, so the budget does not count
+        // them, and they are gone from the volume's free space attributed to nothing. An install
+        // inside its budget with dead transfers under partial/ has nothing to evict and space to
+        // reclaim, which is exactly the case the old early return walked away from.
+        var sweep = new PartialSweep(context.Install, context.Store);
+        var abandoned = sweep.Plan();
+
+        if (!abandoned.IsEmpty)
+        {
+            Console.WriteLine(abandoned.Summary);
+
+            foreach (var candidate in abandoned.Candidates)
+            {
+                Console.WriteLine(
+                    $"  {ByteSize.Format(candidate.SizeBytes),10}  {Describe(candidate)}  {candidate.Name}");
+            }
+
+            Console.WriteLine();
+        }
+
         if (plan.BytesToFree <= 0)
         {
             var budget = context.Store.Settings.GetInt64(SettingStore.ContentMaxBytes);
@@ -59,7 +80,7 @@ internal static class EvictCommand
                 ? "No disk budget is set, so nothing is over it. Set one with 'budget --max 64GB'."
                 : plan.Summary);
 
-            return ExitCode.Ok;
+            return Finish(command, sweep, abandoned);
         }
 
         Console.WriteLine(plan.Summary);
@@ -97,6 +118,8 @@ internal static class EvictCommand
             return ExitCode.Ok;
         }
 
+        Sweep(sweep, abandoned);
+
         var outcome = planner.Apply(plan, context.Install);
 
         Console.WriteLine();
@@ -125,6 +148,55 @@ internal static class EvictCommand
 
         return ExitCode.Ok;
     }
+
+    /// <summary>
+    /// The dry-run exit, which still has the sweep to do.
+    /// </summary>
+    /// <remarks>
+    /// Taken when nothing is over budget, which is the ordinary case and the one where dead
+    /// transfers would otherwise sit forever: eviction has nothing to plan, so without this the
+    /// command returns having reported bytes it then declines to reclaim.
+    /// </remarks>
+    private static int Finish(CommandLine command, PartialSweep sweep, PartialSweepPlan abandoned)
+    {
+        if (abandoned.IsEmpty)
+        {
+            return ExitCode.Ok;
+        }
+
+        if (!command.Has("apply"))
+        {
+            Console.WriteLine();
+            Console.WriteLine("Nothing was removed. Run 'evict --apply' to reclaim these.");
+            return ExitCode.Ok;
+        }
+
+        Console.WriteLine();
+        Sweep(sweep, abandoned);
+        return ExitCode.Ok;
+    }
+
+    private static void Sweep(PartialSweep sweep, PartialSweepPlan abandoned)
+    {
+        if (abandoned.IsEmpty)
+        {
+            return;
+        }
+
+        var swept = sweep.Apply(abandoned);
+        Console.WriteLine(swept.Summary);
+
+        foreach (var problem in swept.Problems)
+        {
+            Console.Error.WriteLine($"  {problem}");
+        }
+    }
+
+    private static string Describe(PartialCandidate candidate) => candidate.Reason switch
+    {
+        PartialReason.Unclaimed => "no set wants it",
+        _ => "transfer died",
+    };
 
     private static string Describe(EvictionCandidate candidate) => candidate.Reason switch
     {

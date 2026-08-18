@@ -54,6 +54,18 @@ the source of truth; the network is optional, probed with a short-timeout
   a half-written file in a folder EmulationStation scans and offers to launch. Only a
   verified file is renamed into `roms/`.
 
+- **`partial/` needs its own sweep, because neither bound can see it.** The budget counts
+  through `local_file` and a partial has no row until commit; the free-space floor reads the
+  volume, so the bytes are gone from free space attributed to nothing. `evict` runs
+  `PartialSweep` for that. Five producers write here and they die differently: only the ROM
+  transfer resumes, so only it is kept, and it is kept on **set membership rather than age**,
+  because an interrupted transfer waiting to resume looks exactly like an orphan on disk. The
+  other four (`bios-`, `save-`, `resolve-`, `unit-`) open with `FileMode.Create` or delete in a
+  `finally`, so anything of theirs left behind is from a pass that died. **A live transfer is
+  protected by the filesystem, not by bookkeeping**: every producer holds its partial with
+  `FileShare.None`, so the delete throws and the sweep skips it, which is what makes this safe
+  without the tree lock that only `flush` takes. A name none of the five writes is left alone.
+
 ## Portable
 
 RetroBat runs from a USB drive and moves between machines.

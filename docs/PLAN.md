@@ -1205,6 +1205,14 @@ the rollout order below can be derived rather than hand-maintained.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished
   file is renamed into place only after it verifies.
+- **That directory needs sweeping, and neither of this milestone's two bounds can do it.**
+  The budget counts through `local_file`, which has no row until commit, and the free-space
+  floor reads the volume live, so an abandoned transfer is bytes gone from free space
+  attributed to nothing. `evict` runs the sweep. It keeps a ROM partial while an enabled set
+  still claims the game, keyed on **membership rather than age** because a transfer waiting to
+  resume is indistinguishable from an orphan on disk. M5 and M6 added four more producers here
+  (`bios-`, `save-`, `resolve-`, `unit-`), none of which resumes, so anything of theirs left
+  behind is dead. A live transfer is protected by `FileShare.None` rather than by bookkeeping.
 - **A `.part` that is already complete is verified and renamed, never resumed.** The body is
   flushed before the verify and the rename, so the power-cut window this whole design exists
   for leaves a complete, correct partial file and a live row. Asking to resume from the end of
