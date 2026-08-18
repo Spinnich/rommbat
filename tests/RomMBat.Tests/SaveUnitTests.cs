@@ -369,4 +369,97 @@ public class SaveUnitTests
         var remaining = Assert.Single(store.Saves.List(), save => save.ShapeClass == SaveShapeClass.C);
         Assert.Equal("ULES01513", remaining.UnitKey);
     }
+
+    [Fact]
+    public void Moving_the_whole_install_leaves_the_directory_saves_exactly_as_they_were()
+    {
+        // The relocation check, now with class C present. RetroBat is portable and the drive
+        // letter changes, so a rescan after a move has to be a clean no-op: nothing forgotten,
+        // nothing re-added, and the same hashes, because every stored path is relative.
+        using var tree = TempRetroBatTree.Create();
+
+        Write(tree, "saves/psp/SAVEDATA/UCES01011/DATA.BIN", "one");
+        Write(tree, "saves/psp/SAVEDATA/ULES01513SYSDATA/SYSDATA.BIN", "two");
+        Write(tree, "saves/mame/nvram/25pacman/eeprom", "three");
+
+        List<LocalSave> before;
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            new SaveScanner(tree.Install(), store).Scan();
+            before = [.. store.Saves.List()];
+        }
+
+        Assert.Equal(3, before.Count);
+
+        using var moved = tree.CopyToNewLocation();
+        var relocated = moved.Install();
+
+        using var after = LocalStore.OpenAt(relocated.DatabasePath);
+        var outcome = new SaveScanner(relocated, after).Scan();
+
+        // Nothing was forgotten, which is what a stored absolute path would have caused.
+        Assert.Equal(0, outcome.Forgotten);
+        Assert.Equal(3, outcome.Units);
+
+        var now = after.Saves.List();
+
+        Assert.Equal(
+            before.Select(save => (save.Path.Value, save.UnitKey, save.ContentHash)),
+            now.Select(save => (save.Path.Value, save.UnitKey, save.ContentHash)));
+
+        // And not one of them mentions a drive letter or a root.
+        Assert.All(now, save => Assert.False(Path.IsPathRooted(save.Path.Value)));
+    }
+
+    [Fact]
+    public void Every_path_a_unit_produces_stays_inside_the_tree_and_within_the_filesystem_limits()
+    {
+        // The two portability rules applied to the paths this stage constructs, which are the
+        // ones nothing else checks: a container expanded from a grammar, and an archive entry
+        // built from a member's position under it.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        // The longest real unit key measured on an install, at 30 characters.
+        Write(tree, "saves/ps3/rpcs3/dev_hdd0/home/00000001/savedata/BLUS30187GAMEDAT9ZLDR0F5K7M4000/SAVE.DAT", "a save");
+        Write(tree, "saves/wii/dolphin-emu/User/Wii/title/00010000/52534245/data/collect.vff", "another");
+
+        var units = new SaveUnitScanner(install)
+            .Scan("ps3")
+            .Concat(new SaveUnitScanner(install).Scan("wii"))
+            .ToList();
+
+        Assert.Equal(2, units.Count);
+
+        var limits = FilesystemLimits.For("FAT32", availableFreeBytes: 64L * 1024 * 1024 * 1024);
+
+        foreach (var unit in units)
+        {
+            // The container is relative and inside saves/, which is what stops a stored path
+            // surviving a move as a dangling absolute one.
+            Assert.False(Path.IsPathRooted(unit.Container.Value));
+            Assert.StartsWith("saves/", unit.Container.Value, StringComparison.Ordinal);
+
+            // The key is one segment. A separator here would be concatenated into a real
+            // location on restore.
+            Assert.DoesNotContain('/', unit.Key);
+            Assert.DoesNotContain('\\', unit.Key);
+
+            foreach (var file in unit.Files)
+            {
+                // Every member resolves back inside the tree it came from.
+                Assert.True(install.Contains(install.Resolve(file.Path)));
+                Assert.False(Path.IsPathRooted(file.ArchivePath));
+                Assert.DoesNotContain("..", file.ArchivePath, StringComparison.Ordinal);
+
+                // And an archive entry re-joined to its container is a path the filesystem the
+                // install sits on can actually hold.
+                var rejoined = unit.Container.Combine(file.ArchivePath);
+
+                Assert.True(RelativePath.TryCreate(rejoined.Value, out _));
+                Assert.True(limits.CanHold(file.SizeBytes));
+            }
+        }
+    }
 }
