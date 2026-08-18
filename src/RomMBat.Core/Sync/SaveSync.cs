@@ -114,6 +114,7 @@ public sealed class SaveSync
     private readonly RomMConnection _connection;
     private readonly string _deviceId;
     private readonly TimeProvider _time;
+    private readonly SaveUnitScanner _units;
 
     public SaveSync(
         RetroBatInstall install,
@@ -132,6 +133,7 @@ public sealed class SaveSync
         _connection = connection;
         _deviceId = deviceId;
         _time = timeProvider ?? TimeProvider.System;
+        _units = new SaveUnitScanner(install);
     }
 
     /// <summary>Where a download lands before it is verified.</summary>
@@ -184,10 +186,10 @@ public sealed class SaveSync
             _deviceId,
             [.. byKey.Values.Select(save => new NegotiateSave(
                 (int)save.RomId!.Value,
-                save.Path.Name,
+                NameFor(save),
                 save.Slot,
                 save.Emulator,
-                save.ContentHash,
+                WireHash(save),
 
                 // The file's real mtime, never the sync time. Sending the sync time makes
                 // every offline edit lose every conflict it is in.
@@ -222,6 +224,9 @@ public sealed class SaveSync
         var bytes = 0L;
         var conflicts = new List<SaveConflict>();
 
+        // What each upload did, so siblings of one save can be reported together below.
+        var sent = new List<(long RomId, string Slot, bool Ok)>();
+
         foreach (var operation in result.Operations)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -241,10 +246,12 @@ public sealed class SaveSync
                     {
                         failed++;
                         problems.Add(uploadProblem);
+                        sent.Add((local.RomId!.Value, local.Slot, false));
                     }
                     else
                     {
                         uploaded++;
+                        sent.Add((local.RomId!.Value, local.Slot, true));
                     }
 
                     break;
@@ -295,6 +302,8 @@ public sealed class SaveSync
             }
         }
 
+        problems.AddRange(DescribePartialBatches(sent));
+
         try
         {
             // Reported honestly rather than optimistically: a conflict is not a completed
@@ -328,18 +337,147 @@ public sealed class SaveSync
         };
     }
 
+    /// <summary>
+    /// Names any save whose siblings did not all land, as one batch rather than as parts.
+    /// </summary>
+    /// <remarks>
+    /// <b>This is what <c>outbox.batch_key</c> was for, delivered without the column.</b> Class
+    /// B takes one slot per file, so saturn's <c>.bcr</c> and <c>.bkr</c> are two rows
+    /// describing one save, and a flush that lands one and fails the other otherwise reports two
+    /// independent results where each looks fine on its own.
+    /// <para>
+    /// The column stays unwritten, and migration 006's header, which expected class C to give it
+    /// a second caller, is wrong about that: a class C unit is one (container, key) pair and
+    /// bundles to one archive, one slot and one upload, so it never supplies a second row to
+    /// tie. Class B's siblings are the only real batch, and <c>SaveSync</c> already holds them
+    /// all in one map, so grouping here needs no queue and does not disturb the upload path
+    /// stage 1 proved.
+    /// </para>
+    /// <para>
+    /// Only partial batches are named. A batch that landed whole is the ordinary case and a
+    /// batch that failed whole is already one message per file saying the same thing.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<string> DescribePartialBatches(List<(long RomId, string Slot, bool Ok)> sent) =>
+        sent
+            .GroupBy(entry => (entry.RomId, Batch: BatchKeyFor(entry.Slot)))
+            .Where(batch => batch.Count() > 1 && batch.Any(entry => entry.Ok) && batch.Any(entry => !entry.Ok))
+            .Select(batch =>
+                $"rom {batch.Key.RomId}: {batch.Count(entry => entry.Ok)} of {batch.Count()} files in "
+                    + $"the {batch.Key.Batch} save reached the server. They are one save, so the "
+                    + "next flush sends the rest; until then the server holds a partial one.");
+
+    /// <summary>
+    /// What ties two slots into one save.
+    /// </summary>
+    /// <remarks>
+    /// Class B's slot is <c>{emulator}:battery:{ext}</c>, so dropping the extension leaves
+    /// <c>{emulator}:battery</c>, which every file of one save shares and nothing else does.
+    /// Any other slot is its own batch of one.
+    /// </remarks>
+    private static string BatchKeyFor(string slot)
+    {
+        var separator = slot.LastIndexOf(':');
+
+        return separator > 0 && slot.AsSpan(0, separator).EndsWith(":battery", StringComparison.Ordinal)
+            ? slot[..separator]
+            : slot;
+    }
+
+    /// <summary>
+    /// The hash to put on the wire for a save, which is not always the one on the row.
+    /// </summary>
+    /// <remarks>
+    /// <b>Class C carries two hashes and sending the wrong one uploads forever.</b> Measured:
+    /// RomM's <c>content_hash</c> is the MD5 of the bytes for a plain file, and for an archive
+    /// it is a digest over the archive's <i>contents</i> computed by a function this client
+    /// cannot reproduce. Eight candidate reconstructions matched none of the observed values.
+    /// <para>
+    /// So the logical fold is the <b>local change detector</b> and the digest the server
+    /// returned on the last upload is the <b>wire value</b>. Driven against a live instance:
+    /// sending the server's own digest answers <c>no_op (Content is identical)</c>, while
+    /// sending the fold or the archive's MD5 answers <c>download (Server save is newer)</c>.
+    /// </para>
+    /// <para>
+    /// A unit whose fold has moved since the upload is deliberately sent with the fold, which
+    /// cannot match anything the server holds, so negotiate answers <c>upload</c>. That is the
+    /// intended outcome and not a coincidence: the client already knows the contents changed,
+    /// and the server has no way to be told so in its own vocabulary.
+    /// </para>
+    /// </remarks>
+    private string? WireHash(LocalSave save)
+    {
+        if (save.ShapeClass != SaveShapeClass.C)
+        {
+            return save.ContentHash;
+        }
+
+        var unchanged = save.ContentHash is not null
+            && string.Equals(save.ContentHash, save.UploadedContentHash, StringComparison.OrdinalIgnoreCase);
+
+        if (!unchanged)
+        {
+            return save.ContentHash;
+        }
+
+        return _store.SaveSlots.Read(save.RomId!.Value, save.Slot)?.ServerContentHash ?? save.ContentHash;
+    }
+
+    /// <summary>The file name a save is negotiated and uploaded under.</summary>
+    /// <remarks>
+    /// For class A and B the file's own name. For class C the unit key plus <c>.zip</c>, so the
+    /// untagged name the server hands back is the key itself: <c>UCES01011.zip</c> came back as
+    /// <c>UCES01011 [2026-08-17_23-52-18].zip</c> with <c>file_name_no_tags</c> of
+    /// <c>UCES01011</c>. Nothing depends on this matching, since negotiate pairs on the slot,
+    /// but a name that means something is worth more than one that does not.
+    /// </remarks>
+    private static string NameFor(LocalSave save) =>
+        save.ShapeClass == SaveShapeClass.C ? $"{save.UnitKey}.zip" : save.Path.Name;
+
     private async Task<string?> UploadAsync(LocalSave save, int sessionId, CancellationToken cancellationToken)
     {
         var path = _install.Resolve(save.Path);
+        var isUnit = save.ShapeClass == SaveShapeClass.C;
 
-        if (!File.Exists(path))
+        if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
         {
-            return $"{save.Path}: the file is gone since the scan.";
+            return $"{Describe(save)}: it is gone since the scan.";
         }
+
+        string? bundle = null;
 
         try
         {
-            await using var content = File.OpenRead(path);
+            Stream content;
+
+            if (isUnit)
+            {
+                // Rebuilt from the tree rather than from the scan's record, so a unit that
+                // gained a member between the scan and the flush goes up whole. The hash is
+                // re-taken with it for the same reason.
+                var unit = FindUnit(save);
+
+                if (unit is null)
+                {
+                    return $"{Describe(save)}: it is gone since the scan.";
+                }
+
+                bundle = Path.Combine(_install.Resolve(PartialDirectory), $"unit-{Guid.NewGuid():N}.zip");
+                Directory.CreateDirectory(Path.GetDirectoryName(bundle)!);
+
+                await using (var archive = new FileStream(bundle, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    SaveArchive.Pack(_install, unit, archive);
+                }
+
+                content = File.OpenRead(bundle);
+            }
+            else
+            {
+                content = File.OpenRead(path);
+            }
+
+            await using var stream = content;
 
             var response = await _connection.UploadSaveAsync(
                 (int)save.RomId!.Value,
@@ -347,42 +485,56 @@ public sealed class SaveSync
                 save.Emulator,
                 _deviceId,
                 sessionId,
-                save.Path.Name,
-                content,
+                NameFor(save),
+                stream,
                 overwrite: false,
                 cancellationToken).ConfigureAwait(false);
 
             if (!response.IsSuccess || response.Value is not { } result)
             {
-                return $"{save.Path}: {response.Message}";
+                return $"{Describe(save)}: {response.Message}";
             }
 
             if (result.Conflict)
             {
                 // The server refused because this device's record is stale. Surfaced rather
                 // than retried with overwrite, which would discard whatever moved.
-                return $"{save.Path}: {result.Detail ?? "the slot moved since the last sync."}";
+                return $"{Describe(save)}: {result.Detail ?? "the slot moved since the last sync."}";
             }
 
             if (result.Save is { } row)
             {
-                // The server's identity, which is the tagged name, alongside the untagged one
-                // that is what would be written on a restore. Both, because they differ.
+                // The server's identity, which is the tagged name, alongside the untagged one.
+                // For class C this row also carries the only value negotiate will accept back
+                // as "unchanged", since the server's archive digest cannot be recomputed here.
                 _store.SaveSlots.Record(row, _time.GetUtcNow());
             }
 
+            // The logical fold, never the server's digest. This is the local record of what was
+            // sent, and it is the value a later scan compares the tree against.
             _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
             return null;
         }
         catch (RomMUnreachableException ex)
         {
-            return $"{save.Path}: {ex.Message}";
+            return $"{Describe(save)}: {ex.Message}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return $"{save.Path}: it could not be read: {ex.Message}";
+            return $"{Describe(save)}: it could not be read: {ex.Message}";
+        }
+        finally
+        {
+            if (bundle is not null)
+            {
+                SafeDelete(bundle);
+            }
         }
     }
+
+    /// <summary>How a save is named in a message, since a class C row's path is a container.</summary>
+    private static string Describe(LocalSave save) =>
+        save.ShapeClass == SaveShapeClass.C ? $"{save.Path}/{save.UnitKey}" : save.Path.Value;
 
     /// <summary>
     /// Fetches a save and puts it in place atomically.
@@ -413,6 +565,12 @@ public sealed class SaveSync
         try
         {
             Directory.CreateDirectory(partialDirectory);
+
+            if (local?.ShapeClass == SaveShapeClass.C)
+            {
+                return await RestoreUnitAsync(operation, saveId, local, sessionId, part, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             long written;
 
@@ -472,6 +630,191 @@ public sealed class SaveSync
         {
             SafeDelete(part);
             return (0, $"{destination}: it could not be written: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Fetches a bundled unit and swaps it into place whole.
+    /// </summary>
+    /// <remarks>
+    /// <b>A half-written directory save is a corrupt one</b>, so nothing touches the live tree
+    /// until the whole unit is on disk and readable. The archive is fetched to a <c>.part</c>,
+    /// extracted into a staging directory beside it, the existing members are copied aside under
+    /// <c>replaced/</c>, and only then are the new ones moved in.
+    /// <para>
+    /// <b>What can and cannot be verified, stated because the difference matters.</b> A class A
+    /// download is checked against <c>server_content_hash</c>, which is the MD5 of the bytes.
+    /// For an archive that field is a digest over the contents computed by a function this
+    /// client cannot reproduce, measured, so the same check is impossible and pretending
+    /// otherwise would fail every restore. What is checked instead is real but weaker:
+    /// extraction validates every entry's CRC, so a truncated or corrupted archive fails before
+    /// anything is replaced, and an entry that would escape the container is refused outright.
+    /// </para>
+    /// <para>
+    /// The previous copy is kept under <c>replaced/</c> until the next successful sync, which is
+    /// the retention rule this plan has always been written against.
+    /// </para>
+    /// </remarks>
+    private async Task<(long Bytes, string? Problem)> RestoreUnitAsync(
+        SyncOperation operation,
+        int saveId,
+        LocalSave local,
+        int sessionId,
+        string part,
+        CancellationToken cancellationToken)
+    {
+        var staging = Path.Combine(_install.Resolve(PartialDirectory), $"unit-{saveId}-{Guid.NewGuid():N}");
+        var container = _install.Resolve(local.Path);
+
+        try
+        {
+            long written;
+
+            await using (var stream = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                var response = await _connection
+                    .DownloadSaveAsync(saveId, _deviceId, sessionId, stream, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!response.IsSuccess)
+                {
+                    return (0, $"{Describe(local)}: {response.Message}");
+                }
+
+                written = response.Value;
+            }
+
+            Directory.CreateDirectory(staging);
+
+            IReadOnlyList<string> entries;
+
+            await using (var archive = File.OpenRead(part))
+            {
+                entries = SaveArchive.Extract(archive, staging);
+            }
+
+            if (entries.Count == 0)
+            {
+                return (0, $"{Describe(local)}: the server returned an archive holding nothing, so "
+                    + "nothing was replaced.");
+            }
+
+            // The one comparison both sides can make: the fold over what came out of the archive
+            // is the same function as the fold over what went in.
+            var restored = SaveArchive.HashOfExtracted(staging, entries);
+
+            // Nothing above this line has touched the live tree.
+            MoveUnitAside(local);
+
+            foreach (var entry in entries)
+            {
+                var native = entry.Replace('/', Path.DirectorySeparatorChar);
+                var destination = Path.Combine(container, native);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Move(Path.Combine(staging, native), destination, overwrite: true);
+            }
+
+            var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
+
+            if (!ack.IsSuccess)
+            {
+                // The unit is in place and the server does not know. The next negotiate offers it
+                // again and the second restore lands identical content, so this costs a transfer
+                // rather than a save.
+                return (written, $"{Describe(local)}: written, but the server was not told: {ack.Message}");
+            }
+
+            // Against the fold of what actually landed, so the next scan sees a unit already in
+            // step rather than one that needs sending straight back.
+            _store.Saves.MarkUploaded(local.Path, local.UnitKey, restored, _time.GetUtcNow());
+
+            return (written, null);
+        }
+        catch (RomMUnreachableException ex)
+        {
+            return (0, $"{Describe(local)}: {ex.Message}");
+        }
+        catch (InvalidDataException ex)
+        {
+            // A corrupt archive, or one naming an entry that would escape the container. The
+            // live tree is untouched at this point, which is the whole shape of this method.
+            return (0, $"{Describe(local)}: the archive could not be unpacked: {ex.Message}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return (0, $"{Describe(local)}: it could not be written: {ex.Message}");
+        }
+        finally
+        {
+            SafeDelete(part);
+            SafeDeleteDirectory(staging);
+        }
+    }
+
+    /// <summary>Copies a unit's current members aside, and returns where they went.</summary>
+    /// <remarks>
+    /// Copied rather than moved, for the reason <see cref="MoveAside"/> gives for a single file:
+    /// if anything after this fails, the unit the emulator reads is still the one that was
+    /// always there. A unit with nothing on disk yet is the new-device restore and has nothing
+    /// to keep.
+    /// </remarks>
+    private RelativePath? MoveUnitAside(LocalSave local)
+    {
+        var unit = FindUnit(local);
+
+        if (unit is null || unit.Files.Count == 0)
+        {
+            return null;
+        }
+
+        var aside = AsideDirectory.Combine($"{_time.GetUtcNow():yyyyMMddTHHmmss}-{local.System}-{local.UnitKey}");
+        var asidePath = _install.Resolve(aside);
+
+        try
+        {
+            foreach (var file in unit.Files)
+            {
+                var destination = Path.Combine(
+                    asidePath,
+                    file.ArchivePath.Replace('/', Path.DirectorySeparatorChar));
+
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(_install.Resolve(file.Path), destination, overwrite: true);
+            }
+
+            return aside;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Reported by the caller failing rather than swallowed: replacing a unit with no
+            // copy aside is exactly what principle 1 forbids.
+            throw new IOException(
+                $"the existing save at {Describe(local)} could not be copied aside, so it was not "
+                    + $"replaced: {ex.Message}",
+                ex);
+        }
+    }
+
+    /// <summary>Re-reads a unit off disk, since a stored row is a record and not the tree.</summary>
+    private SaveUnit? FindUnit(LocalSave local) =>
+        _units
+            .Scan(local.System)
+            .FirstOrDefault(candidate =>
+                candidate.Container == local.Path
+                && string.Equals(candidate.Key, local.UnitKey, StringComparison.OrdinalIgnoreCase));
+
+    private static void SafeDeleteDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Staging litter under partial/ costs disk and nothing else.
         }
     }
 

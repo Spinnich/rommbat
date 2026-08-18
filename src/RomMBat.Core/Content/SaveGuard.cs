@@ -43,11 +43,23 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// nothing was watching, is now visible to this guard directly.
 /// </para>
 /// <para>
-/// <b>The answer is only as wide as discovery.</b> This build discovers class A and B battery
-/// saves and save states, so a class C or D save is still invisible here. Those are reported as
-/// unsyncable rather than silently ignored, and a ROM carrying one is a case this guard cannot
-/// yet see; the honest statement is that the seam is closed for what this build syncs and stays
-/// open for what it does not.
+/// <b>The answer is only as wide as discovery, and M6 stage 2b widened discovery rather than
+/// this class.</b> Class C units are recorded into <c>local_save</c> like any other save, so
+/// the <c>local_save</c> question above already counts them and no fourth query was needed. A
+/// unit that could not be attributed has a null <c>rom_id</c> and cannot match any ROM here;
+/// that is not a hole this query can close, since the ROM being asked about is exactly what
+/// attribution failed to name, and it is the case reported as unsyncable instead.
+/// </para>
+/// <para>
+/// <b>Class D is still invisible</b>, and stays so until stage 2c. A shared container has no
+/// <c>rom_id</c> to belong to by definition, so it is reported rather than guarded.
+/// </para>
+/// <para>
+/// <b>The pairing stage 2a's ledger warned about is satisfied by construction here.</b> Its
+/// lesson was that anything adding a question to this guard has to extend
+/// <c>EvictCommand</c>'s scan in the same commit. Class C added no question: it added rows to a
+/// table the existing question already reads, and the scan that refreshes them is the same
+/// <c>SaveScanner</c> pass eviction already runs.
 /// </para>
 /// </remarks>
 public sealed class SaveGuard

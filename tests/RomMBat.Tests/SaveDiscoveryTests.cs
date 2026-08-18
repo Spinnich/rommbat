@@ -1,3 +1,4 @@
+using RomM.Client.Saves;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
@@ -436,5 +437,53 @@ public class SaveDiscoveryTests
             Store.Dispose();
             _tree.Dispose();
         }
+    }
+
+    [Fact]
+    public void A_restore_for_a_slot_this_device_never_held_is_named_from_the_rom_not_from_file_name_no_tags()
+    {
+        // Measurement 152. The server does not undo its own timestamp tag, it runs a general
+        // tag stripper: a real save came back as
+        // "Phantasy Star (Brazil) [2026-08-17_17-01-00].srm" with file_name_no_tags of
+        // "Phantasy Star", because (Brazil) is part of the ROM's name. Writing that produces a
+        // file libretro cannot see, so this fails on the old code, which used the untagged name.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/mastersystem/Phantasy Star (Brazil).zip"),
+            Kind = LocalFileKind.Rom,
+            RomId = 239719,
+            Folder = "mastersystem",
+            FileName = "Phantasy Star (Brazil).zip",
+            SizeBytes = 128,
+        });
+
+        store.SaveSlots.Record(
+            new SaveRow(
+                134,
+                239719,
+                "Phantasy Star (Brazil) [2026-08-17_17-01-00].srm",
+                "Phantasy Star",
+                "srm",
+                32768,
+                "338dd456da3b26ae7b1fedf63a289a14",
+                "libretro:battery",
+                "libretro",
+                null,
+                DateTimeOffset.UnixEpoch,
+                null),
+            DateTimeOffset.UnixEpoch);
+
+        var slot = store.SaveSlots.Read(239719, "libretro:battery");
+
+        Assert.NotNull(slot);
+        Assert.Equal("saves/mastersystem/Phantasy Star (Brazil).srm", slot.OnDiskPath?.Value);
+
+        // And the server's own two names are still kept, because they are its identity for the
+        // row even though neither is what goes on disk.
+        Assert.Equal("Phantasy Star (Brazil) [2026-08-17_17-01-00].srm", slot.FileName);
+        Assert.Equal("Phantasy Star", slot.FileNameNoTags);
     }
 }

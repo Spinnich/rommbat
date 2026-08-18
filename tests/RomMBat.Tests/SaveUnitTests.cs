@@ -1,5 +1,7 @@
 using RomMBat.Core.Content;
+using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -264,5 +266,107 @@ public class SaveUnitTests
         var absolute = Path.Combine(tree.Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
         File.WriteAllText(absolute, content);
+    }
+
+    [Fact]
+    public void Eviction_refuses_a_rom_with_an_un_uploaded_directory_save_on_disk()
+    {
+        // The seam M3 shipped with a mitigation instead of an answer, now closed for class C.
+        // The guard needed no new question: a unit is a local_save row like any other, so the
+        // query that already asks "is there a save on disk that never went up" counts it.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var store = LocalStore.Open(install);
+
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/mame/25pacman.zip"),
+            Kind = LocalFileKind.Rom,
+            RomId = 8,
+            Folder = "mame",
+            FileName = "25pacman.zip",
+            SizeBytes = 64,
+        });
+
+        Write(tree, "saves/mame/nvram/25pacman/eeprom", "an nvram nobody has uploaded");
+
+        new SaveScanner(install, store).Scan();
+
+        var guard = new SaveGuard(store);
+        var verdict = guard.Check(8, RelativePath.Create("roms/mame/25pacman.zip"));
+
+        Assert.False(verdict.CanRemove);
+        Assert.Contains("has not reached the server", verdict.Reason!, StringComparison.Ordinal);
+
+        // Once it is up, the guard stops objecting. Marked on the unit, which is what makes
+        // this different from class A: the path alone names a container shared by every game.
+        var unit = Assert.Single(store.Saves.List(), save => save.ShapeClass == SaveShapeClass.C);
+        store.Saves.MarkUploaded(unit.Path, unit.UnitKey, unit.ContentHash!, DateTimeOffset.UnixEpoch);
+
+        Assert.True(guard.Check(8, RelativePath.Create("roms/mame/25pacman.zip")).CanRemove);
+    }
+
+    [Fact]
+    public void Marking_one_unit_uploaded_leaves_its_neighbours_in_the_same_container_unsent()
+    {
+        // The container is shared by every game on the system, so a MarkUploaded keyed on the
+        // path would clear all of them at once and let eviction take every one of their ROMs.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var store = LocalStore.Open(install);
+
+        foreach (var (romId, name) in new[] { (1L, "UCES01011"), (2L, "ULES01513") })
+        {
+            store.Files.Record(new LocalFile
+            {
+                Path = RelativePath.Create($"roms/psp/{name}.cso"),
+                Kind = LocalFileKind.Rom,
+                RomId = (int)romId,
+                Folder = "psp",
+                FileName = $"{name}.cso",
+                SizeBytes = 64,
+            });
+
+            Write(tree, $"saves/psp/SAVEDATA/{name}/DATA.BIN", $"the save for {name}");
+        }
+
+        new SaveScanner(install, store).Scan();
+
+        var units = store.Saves.List().Where(save => save.ShapeClass == SaveShapeClass.C).ToList();
+
+        Assert.Equal(2, units.Count);
+        Assert.Equal(["saves/psp/SAVEDATA", "saves/psp/SAVEDATA"], units.Select(unit => unit.Path.Value));
+
+        var first = units[0];
+        store.Saves.MarkUploaded(first.Path, first.UnitKey, first.ContentHash!, DateTimeOffset.UnixEpoch);
+
+        var after = store.Saves.List().Where(save => save.ShapeClass == SaveShapeClass.C).ToList();
+
+        Assert.Single(after, unit => !unit.IsUnsent);
+        Assert.Single(after, unit => unit.IsUnsent);
+    }
+
+    [Fact]
+    public void Forgetting_one_unit_leaves_its_neighbours_recorded()
+    {
+        // The same trap on the other side. Forgetting by path would drop every PSP row the
+        // moment one game's savedata was deleted, and eviction would then take ROMs whose saves
+        // had never gone up.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var store = LocalStore.Open(install);
+
+        Write(tree, "saves/psp/SAVEDATA/UCES01011/DATA.BIN", "one");
+        Write(tree, "saves/psp/SAVEDATA/ULES01513/DATA.BIN", "two");
+
+        new SaveScanner(install, store).Scan();
+        Assert.Equal(2, store.Saves.List().Count(save => save.ShapeClass == SaveShapeClass.C));
+
+        Directory.Delete(Path.Combine(tree.Root, "saves", "psp", "SAVEDATA", "UCES01011"), recursive: true);
+
+        new SaveScanner(install, store).Scan();
+
+        var remaining = Assert.Single(store.Saves.List(), save => save.ShapeClass == SaveShapeClass.C);
+        Assert.Equal("ULES01513", remaining.UnitKey);
     }
 }

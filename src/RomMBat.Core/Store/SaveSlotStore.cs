@@ -11,10 +11,11 @@ namespace RomMBat.Core.Store;
 /// <param name="OnDiskPath">
 /// Where a restore of this slot goes. The path the local save already occupies when there is
 /// one, because that is a path this device has watched an emulator read. Otherwise
-/// <c>saves/&lt;folder&gt;/&lt;file_name_no_tags&gt;.&lt;file_extension&gt;</c>, built from the
-/// ROM's own folder, which is the ordinary new-device restore: nothing local exists yet, and
-/// that is exactly where libretro writes a battery save. Null only when the ROM is not held
-/// either, where there is genuinely no folder to name.
+/// <c>saves/&lt;folder&gt;/&lt;the ROM's own stem&gt;.&lt;file_extension&gt;</c>, which is the
+/// ordinary new-device restore. <b>Not <c>file_name_no_tags</c></b>: the server strips general
+/// tags rather than only its own, so a real save came back with <c>Phantasy Star</c> for a ROM
+/// called <c>Phantasy Star (Brazil)</c>, and that filename is invisible to libretro. Null only
+/// when the ROM is not held either, where there is genuinely no folder to name.
 /// </param>
 public sealed record SaveSlotRecord(
     long RomId,
@@ -89,6 +90,8 @@ public sealed class SaveSlotStore
                    (SELECT l.relative_path FROM local_save l
                     WHERE l.rom_id = s.rom_id AND l.slot = s.slot LIMIT 1),
                    (SELECT f.folder FROM local_file f
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1),
+                   (SELECT f.file_name FROM local_file f
                     WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1)
             FROM save_slot s
             WHERE s.rom_id = $romId AND s.slot = $slot;
@@ -110,6 +113,8 @@ public sealed class SaveSlotStore
                    (SELECT l.relative_path FROM local_save l
                     WHERE l.rom_id = s.rom_id AND l.slot = s.slot LIMIT 1),
                    (SELECT f.folder FROM local_file f
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1),
+                   (SELECT f.file_name FROM local_file f
                     WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1)
             FROM save_slot s
             ORDER BY s.rom_id, s.slot;
@@ -137,28 +142,50 @@ public sealed class SaveSlotStore
         Read(romId, slot)?.OriginDeviceId is { } origin
         && string.Equals(origin, deviceId, StringComparison.Ordinal);
 
+    /// <summary>
+    /// Builds the record, including where a downloaded save would go on disk.
+    /// </summary>
+    /// <remarks>
+    /// <b>The name comes from the ROM's own stem, not from <c>file_name_no_tags</c>, and that is
+    /// a correction rather than a preference.</b> The server does not undo its own timestamp
+    /// tag, it runs a general tag stripper: a real save measured live came back as
+    /// <c>Phantasy Star (Brazil) [2026-08-17_17-01-00].srm</c> with <c>file_name_no_tags</c> of
+    /// <c>Phantasy Star</c>, because <c>(Brazil)</c> is part of the ROM's name and the server
+    /// took it for a tag. Writing that produces a file libretro cannot see, which is exactly the
+    /// failure the untagged-name rule exists to prevent.
+    /// <para>
+    /// The ROM's stem is the only sound source, and it needs no regex: it is the same
+    /// <c>(folder, stem)</c> key class A attribution already uses, run backwards. The extension
+    /// still comes from the server, since nothing local knows what the save was called.
+    /// </para>
+    /// <para>
+    /// <b>This path is reachable, which stage 2a said it was not.</b> Measurement 132 read
+    /// negotiate's empty answer as "never volunteers a slot the client did not submit"; re-driven,
+    /// negotiate returns a download for every save the device has no sync record for, so a
+    /// restore onto a device that never held the slot is an ordinary case rather than a dead one.
+    /// </para>
+    /// </remarks>
     private static SaveSlotRecord Map(SqliteDataReader reader)
     {
         var noTags = reader.GetStringOrNull(4);
         var extension = reader.GetStringOrNull(5);
         var storedPath = reader.GetStringOrNull(9);
         var romFolder = reader.GetStringOrNull(10);
+        var romFileName = reader.GetStringOrNull(11);
 
         RelativePath? onDisk = null;
 
         if (storedPath is not null && RelativePath.TryCreate(storedPath, out var parsed))
         {
+            // A path this device already holds, which is a path an emulator has proven it reads.
             onDisk = parsed;
         }
-        else if (romFolder is not null && noTags is not null && extension is not null)
+        else if (romFolder is not null && romFileName is not null && extension is not null)
         {
-            // The new-device restore: the server holds a save for a game this device has but
-            // has never played. The folder is not a guess, it is the folder the ROM is in, and
-            // the untagged name plus the extension is what libretro matches a battery save on.
-            // The tagged server name would be invisible to it.
+            var stem = Path.GetFileNameWithoutExtension(romFileName);
             var trimmed = extension.TrimStart('.');
 
-            if (RelativePath.TryCreate($"saves/{romFolder}/{noTags}.{trimmed}", out var derived))
+            if (RelativePath.TryCreate($"saves/{romFolder}/{stem}.{trimmed}", out var derived))
             {
                 onDisk = derived;
             }
