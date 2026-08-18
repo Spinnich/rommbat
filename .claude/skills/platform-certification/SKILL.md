@@ -56,6 +56,12 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    record all four states rather than a pass or fail: present, fetched, not in the library, and
    the ones RetroBat names no hash for. A system whose whole requirement is hashless (28 of the
    99 are) is certified on the other eight steps, and step 3 says so in those words.
+
+   Three answers, not two, and the difference matters when a system name is mistyped.
+   `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
+   step 3 passing. A name the install's `es_systems.cfg` does not declare is refused with a
+   non-zero exit and is a typo, never a pass.
+
 4. Save shape classified A/B/C/D **for this emulator**, and a battery save round-trips.
 5. A save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, and **the declared `<directory>` is confirmed to be where the emulator really
