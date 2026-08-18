@@ -457,6 +457,14 @@ internal sealed partial class StubRomMServer
     /// inside the archive, and the body was truncated at the first thing that looked like a
     /// terminator. A save is arbitrary bytes, so a parser over it has to be anchored.
     /// </para>
+    /// <para>
+    /// <b>The filename is quoted only when it has to be, and reading only the quoted form stored
+    /// every bundled save as an empty one.</b> .NET writes <c>filename="Tetris (World).srm"</c>
+    /// because of the space and the brackets, and a bare <c>filename=25pacman.zip</c> because a
+    /// token needs no quotes. So the class C tests uploaded archives the stub recorded as zero
+    /// bytes under no name, and every assertion they made about counts and slots still passed.
+    /// Third stub shortcut in this suite to hide behind tidy fixtures.
+    /// </para>
     /// </remarks>
     private static byte[] ExtractSaveFile(byte[] content, out string fileName)
     {
@@ -471,8 +479,15 @@ internal sealed partial class StubRomMServer
         var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
         var headers = headerEnd < 0 ? text : text[..headerEnd];
 
-        const string NameMarker = "filename=\"";
+        const string NameMarker = "filename=";
         var nameStart = headers.IndexOf(NameMarker, StringComparison.Ordinal);
+
+        // filename*= is the RFC 5987 copy .NET writes beside the plain one. Skipped, because the
+        // plain value is what the server reads and what the client is being tested on.
+        while (nameStart > 0 && headers[nameStart - 1] == '*')
+        {
+            nameStart = headers.IndexOf(NameMarker, nameStart + NameMarker.Length, StringComparison.Ordinal);
+        }
 
         if (nameStart < 0)
         {
@@ -481,8 +496,17 @@ internal sealed partial class StubRomMServer
         }
 
         nameStart += NameMarker.Length;
-        var nameEnd = headers.IndexOf('"', nameStart);
-        fileName = nameEnd < 0 ? headers[nameStart..] : headers[nameStart..nameEnd];
+
+        if (nameStart < headers.Length && headers[nameStart] == '"')
+        {
+            var quoted = headers.IndexOf('"', nameStart + 1);
+            fileName = quoted < 0 ? headers[(nameStart + 1)..] : headers[(nameStart + 1)..quoted];
+        }
+        else
+        {
+            var token = headers.IndexOfAny([';', '\r', '\n'], nameStart);
+            fileName = (token < 0 ? headers[nameStart..] : headers[nameStart..token]).Trim();
+        }
 
         var bodyStart = headerEnd + 4;
         var bodyEnd = text.IndexOf("\r\n" + boundary, bodyStart, StringComparison.Ordinal);

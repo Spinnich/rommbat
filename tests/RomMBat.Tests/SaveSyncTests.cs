@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using RomM.Client;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
@@ -457,9 +458,20 @@ public class SaveSyncTests
         Assert.Equal(1, online.Uploaded);
         Assert.All(fixture.Store.Saves.List(), save => Assert.False(save.IsUnsent));
 
-        // One archive on the server holding both members, not two saves.
+        // One archive on the server holding both members, not two saves. The entries are read
+        // back rather than the row counted: the stub took the filename from the quoted form
+        // only, so a bundled upload arrived as zero bytes under no name and every count here
+        // still agreed with it.
         var uploaded = Assert.Single(fixture.Stub.Saves.Values);
+
         Assert.Equal("mame:nvram", uploaded.Slot);
+        Assert.Equal("25pacman", uploaded.FileNameNoTags);
+
+        using var archive = new ZipArchive(new MemoryStream(uploaded.Bytes), ZipArchiveMode.Read);
+
+        Assert.Equal(
+            ["25pacman/eeprom", "25pacman/flash"],
+            archive.Entries.Select(entry => entry.FullName).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -516,6 +528,87 @@ public class SaveSyncTests
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
         Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+    }
+
+    [Fact]
+    public async Task Restoring_a_directory_save_replaces_the_unit_rather_than_merging_into_it()
+    {
+        // A member the server's archive does not name was deleted on the device that wrote it,
+        // usually an in-game slot. Leaving it behind made the restore a merge: the fold over the
+        // tree then disagreed with the fold over the archive, the next scan read the unit as
+        // changed, and the merged copy went back over the server's. Somebody who asked to discard
+        // the local side got the opposite, silently.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+
+        // Another device replaced the archive. Without that this never downloads at all: a save
+        // whose origin_device_id is this device is recognised as its own and skipped.
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { OriginDeviceId = "some-other-device" };
+
+        // A third member appears locally, which is what the server's archive does not hold.
+        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/extra"), "a slot deleted elsewhere");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        Assert.Equal(1, (await fixture.SyncAsync()).Downloaded);
+
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
+        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.Equal("two", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
+
+        // In step rather than changed, which is the assertion that catches the re-upload: a
+        // rescan folds two files and the stored hash was folded over the archive's two entries.
+        fixture.Scan();
+        Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
+
+        fixture.Stub.NegotiateActions.Clear();
+        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
+    }
+
+    [Fact]
+    public async Task Keeping_the_server_side_of_a_directory_save_copies_it_aside_and_swaps_it_whole()
+    {
+        // The resolver's own route into the same restore, which the hands-on pass found broken
+        // twice: no copy aside at all for a container, because File.Exists is false for one, and
+        // a verification against server_content_hash that an archive can never satisfy.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+
+        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/extra"), "a slot deleted elsewhere");
+        fixture.Scan();
+
+        // A real divergence: negotiate answers upload from the hashes it was handed, and the
+        // server refuses because this device's sync record is stale.
+        fixture.Stub.ConflictOnUpload.Add((8, "mame:nvram"));
+        Assert.Equal(1, (await fixture.SyncAsync()).Conflicts);
+
+        var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.NotNull(conflict.LocalCopyPath);
+        Assert.Equal(
+            3,
+            Directory.GetFiles(
+                fixture.Resolve(conflict.LocalCopyPath.Value.Value),
+                "*",
+                SearchOption.AllDirectories).Length);
+
+        var outcome = await fixture.ResolveAsync(8, "mame:nvram", ConflictResolution.KeepServer);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
+        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.Equal("two", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
+
+        fixture.Scan();
+        Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
     }
 
     [Fact]
@@ -823,6 +916,9 @@ public class SaveSyncTests
 
         public Task<SaveSyncOutcome> SyncAsync() =>
             new SaveSync(Install, Store, _connection, DeviceId).RunAsync();
+
+        public Task<ConflictResolutionOutcome> ResolveAsync(long romId, string slot, ConflictResolution resolution) =>
+            new SaveConflictResolver(Install, Store, _connection, DeviceId).ResolveAsync(romId, slot, resolution);
 
         public Task<StateSyncOutcome> PushStatesAsync() =>
             new StateSync(Install, Store, _connection).RunAsync();

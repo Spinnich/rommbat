@@ -54,6 +54,13 @@ public static class SaveUnitTransfer
     /// Nothing touches the live tree until the whole unit is extracted and readable, and the
     /// current members are copied aside before anything is replaced. A half-written directory
     /// save is a corrupt one.
+    /// <para>
+    /// <b>This replaces the unit rather than merging into it.</b> A member the archive does not
+    /// name is one the device that sent it deleted, usually an in-game slot, so it is removed
+    /// here. Leaving it made the fold over the tree disagree with the fold over the archive, and
+    /// the next scan then read the merged unit as changed and put it back over the server's copy:
+    /// a user who asked to discard the local side got a merge, propagated silently.
+    /// </para>
     /// </remarks>
     /// <param name="part">The archive already on disk, as fetched.</param>
     public static SaveUnitRestoreResult Restore(
@@ -93,8 +100,16 @@ public static class SaveUnitTransfer
 
             var restored = SaveArchive.HashOfExtracted(staging, entries);
 
+            // Read once and used twice, since a scan of the system is what finds a unit and the
+            // copy aside and the removal below must agree on the same member list.
+            var existing = Find(units, local);
+
             // Everything above this line is off to one side. Only now is the live tree touched.
-            var aside = CopyAside(install, units, local, asideDirectory, now);
+            var aside = CopyAside(install, existing, local, asideDirectory, now);
+
+            // Before the moves, so a member that cannot be deleted fails the restore with the
+            // unit still whole rather than half swapped.
+            Remove(install, existing, entries, container);
 
             foreach (var entry in entries)
             {
@@ -138,11 +153,20 @@ public static class SaveUnitTransfer
         RelativePath asideDirectory,
         DateTimeOffset now)
     {
-        ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(units);
-        ArgumentNullException.ThrowIfNull(local);
 
-        var unit = Find(units, local);
+        return CopyAside(install, Find(units, local), local, asideDirectory, now);
+    }
+
+    private static RelativePath? CopyAside(
+        RetroBatInstall install,
+        SaveUnit? unit,
+        LocalSave local,
+        RelativePath asideDirectory,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(local);
 
         if (unit is null || unit.Files.Count == 0)
         {
@@ -174,6 +198,77 @@ public static class SaveUnitTransfer
                 $"the existing save at {local.Path}/{local.UnitKey} could not be copied aside, so "
                     + $"it was not replaced: {ex.Message}",
                 ex);
+        }
+    }
+
+    /// <summary>
+    /// Deletes the members the archive does not name, which is what makes this a replace.
+    /// </summary>
+    /// <remarks>
+    /// Matched case-insensitively, because the archive was written by another device and Windows
+    /// does not distinguish the two names anyway. The directories emptied by it go too: a class C
+    /// member is a savedata folder the emulator lists, and an empty one is a slot the game shows
+    /// as present. Nothing above the container is touched, since other games live there.
+    /// </remarks>
+    private static void Remove(
+        RetroBatInstall install,
+        SaveUnit? unit,
+        IReadOnlyList<string> entries,
+        string container)
+    {
+        if (unit is null)
+        {
+            return;
+        }
+
+        var keep = new HashSet<string>(entries, StringComparer.OrdinalIgnoreCase);
+        var emptied = new List<string>();
+
+        foreach (var file in unit.Files)
+        {
+            if (keep.Contains(file.ArchivePath))
+            {
+                continue;
+            }
+
+            var absolute = install.Resolve(file.Path);
+            File.Delete(absolute);
+            emptied.Add(Path.GetDirectoryName(absolute)!);
+        }
+
+        PruneEmpty(container, emptied);
+    }
+
+    /// <summary>Removes the directories the deletes left empty, no further up than the container.</summary>
+    private static void PruneEmpty(string container, IEnumerable<string> directories)
+    {
+        var root = Path.GetFullPath(container).TrimEnd(Path.DirectorySeparatorChar);
+
+        foreach (var directory in directories.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var current = Path.GetFullPath(directory);
+
+            while (current.Length > root.Length
+                && current.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    if (Directory.EnumerateFileSystemEntries(current).Any())
+                    {
+                        break;
+                    }
+
+                    Directory.Delete(current);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // An empty directory left behind is untidy and not a corrupt save, so it
+                    // never fails a restore that has already put every member in place.
+                    break;
+                }
+
+                current = Path.GetDirectoryName(current) ?? root;
+            }
         }
     }
 

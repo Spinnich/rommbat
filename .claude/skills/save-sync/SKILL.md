@@ -278,6 +278,12 @@ hash, folded into one digest. The archive is transport only.
   default compounds it.
 - Restores are atomic: extract to a temp directory beside the target, verify, swap, keep
   the previous copy until the next successful sync.
+- **A bundled restore replaces the unit, it does not merge into it.** Delete the members the
+  archive does not name before moving the new ones in; they are under `replaced/` by then. The
+  members the archive omits are the slots another device deleted, and leaving them makes the
+  fold over the tree disagree with the fold over the archive, so the next scan reads the unit
+  as changed and puts the merged copy back over the server's. Somebody who chose to discard the
+  local side gets a merge instead, and it propagates.
 - Never evict a ROM whose saves are still in the outbox.
 
 ## `device_id` is bookkeeping, never a filter
