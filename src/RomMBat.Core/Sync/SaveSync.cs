@@ -275,13 +275,7 @@ public sealed class SaveSync
                     break;
 
                 case SyncAction.Download when operation.SaveId is { } saveId:
-                    // origin_device_id names the uploader, so a save this device sent that is
-                    // being offered back is bytes this device already has. Skipped rather than
-                    // fetched, which is the cheapest saving in the protocol and the reason the
-                    // field is persisted at all.
-                    if (local?.ContentHash is { } held
-                        && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase)
-                        && _store.SaveSlots.IsOwnUpload(operation.RomId, operation.Slot ?? string.Empty, _deviceId))
+                    if (AlreadyHeld(operation, local))
                     {
                         noOps++;
                         break;
@@ -553,6 +547,61 @@ public sealed class SaveSync
                 SafeDelete(bundle);
             }
         }
+    }
+
+    /// <summary>
+    /// True when the save the server is offering is one this device already has on disk.
+    /// </summary>
+    /// <remarks>
+    /// <c>origin_device_id</c> names the uploader, so a save this device sent that is being
+    /// offered back is bytes this device already holds. Skipped rather than fetched, which is
+    /// the cheapest saving in the protocol and the reason the field is persisted at all.
+    /// <para>
+    /// <b>Two questions, and the shape decides which hash answers the first.</b> A class A or B
+    /// save's <c>content_hash</c> is the MD5 of its bytes, which is exactly what the server
+    /// holds for a plain file, so the local fold and the wire value are the same function and
+    /// comparing them settles it. For a bundled unit they are two different functions by
+    /// construction: the fold is over the unit's contents and the server's is a digest over the
+    /// archive, measured as not reproducible client-side. They are never equal, so the original
+    /// single comparison was always false for class C and the download always ran.
+    /// </para>
+    /// <para>
+    /// So a bundled unit is asked in the server's own vocabulary instead, which needs both
+    /// halves rather than one. The slot's recorded <c>server_content_hash</c> against the
+    /// operation's says the server is offering back the save this device last exchanged, and
+    /// <see cref="LocalSave.HasChangedSinceUpload"/> says the tree still holds what went up.
+    /// Either alone would skip a download that was needed: the first cannot see a unit edited
+    /// since, and the second cannot see the server moving on.
+    /// </para>
+    /// </remarks>
+    private bool AlreadyHeld(SyncOperation operation, LocalSave? local)
+    {
+        if (local is null || operation.ServerContentHash is not { } offered)
+        {
+            return false;
+        }
+
+        var slot = operation.Slot ?? string.Empty;
+
+        if (local.ShapeClass == SaveShapeClass.C)
+        {
+            // A null content hash is a unit something held open, which is never evidence that
+            // the tree matches anything.
+            if (local.ContentHash is null || local.IsUnsent || local.HasChangedSinceUpload)
+            {
+                return false;
+            }
+
+            var recorded = _store.SaveSlots.Read(operation.RomId, slot)?.ServerContentHash;
+
+            return recorded is not null
+                && string.Equals(recorded, offered, StringComparison.OrdinalIgnoreCase)
+                && _store.SaveSlots.IsOwnUpload(operation.RomId, slot, _deviceId);
+        }
+
+        return local.ContentHash is { } held
+            && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase)
+            && _store.SaveSlots.IsOwnUpload(operation.RomId, slot, _deviceId);
     }
 
     /// <summary>How a save is named in a message, since a class C row's path is a container.</summary>

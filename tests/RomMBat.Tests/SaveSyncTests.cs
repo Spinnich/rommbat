@@ -570,6 +570,53 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_bundled_save_this_device_uploaded_is_recognised_rather_than_fetched_again()
+    {
+        // The download skip, which was dead for every class C save. It compared the local fold
+        // against the server's digest, and for a bundled unit those are two different functions
+        // by construction, so the guard was always false and the archive was fetched and swapped
+        // in even when the server was offering back this device's own upload. Noticed on the K:
+        // install: bandwidth and a pointless write of the live tree, not a lost save.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+
+        // The server offers back the row this device just uploaded, untouched on both sides.
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Equal(0, outcome.BytesTransferred);
+    }
+
+    [Fact]
+    public async Task A_bundled_unit_edited_since_it_went_up_is_still_fetched()
+    {
+        // The half that keeps the skip above safe. The slot's recorded digest still matches what
+        // the server is offering and this device is still the uploader, so the server-vocabulary
+        // question alone would skip. The tree has moved on, so the download has to run.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+
+        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom"), "edited here since");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+    }
+
+    [Fact]
     public async Task A_restored_directory_save_negotiates_as_in_step_rather_than_offering_itself_back()
     {
         // The other half of a restore leaving the device in step, and the half a rescan cannot

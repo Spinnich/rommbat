@@ -241,6 +241,15 @@ server returned on the last upload is the **wire value**; sending anything else 
 `server_content_hash` the way a plain file can, and the CRC that extraction validates is what
 stands in for it.
 
+**Which hash answers "have I already got this" follows from that split, and getting it wrong
+costs a transfer.** The download skip that recognises this device's own upload compares the
+local fold against the offered digest, which is the right comparison for class A and B and can
+never be true for class C. A bundled unit is asked in the server's vocabulary instead: the
+slot's recorded `server_content_hash` against the operation's says the server is offering back
+what this device last exchanged, and `uploaded_content_hash` against the fold says the tree
+still holds it. Both halves, because the first cannot see a unit edited since and the second
+cannot see the server moving on.
+
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout
 would disagree on identical saves forever, and a library upgrade could do the same to
