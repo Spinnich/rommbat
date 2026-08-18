@@ -53,7 +53,16 @@
         "set_to": "8",
         "keys_by": "game code",
         "note": "already the stock default; still needs attribution because .gci names carry the game code, not the filename"
-      }
+      },
+      "unit_paths": [
+        {
+          "container": "gamecube/dolphin-emu/User/GC/*",
+          "emulator": "dolphin-emu",
+          "key": "gci",
+          "slot": "gci",
+          "evidence": "the * is the region subdirectory. 69-GXBE-game1.ssx.gci and 69-GXBE-settings.ssx.gci are one unit under key GXBE, and two .gci.deleted files sit beside live ones and must not travel"
+        }
+      ]
     },
     "gamegear": {
       "class": "A",
@@ -78,7 +87,16 @@
     "mame": {
       "class": "C",
       "evidence": "nvram/<shortname>/ where shortname is the rom basename, so attribution is by filename",
-      "provenance": "observed"
+      "provenance": "observed",
+      "unit_paths": [
+        {
+          "container": "mame/nvram",
+          "emulator": "mame",
+          "key": "name",
+          "slot": "nvram",
+          "evidence": "1231 unit directories, 1531 files, 137.3 MB, 8.02 s for the whole tree. The short name is the rom basename, so this is the one class C system needing no game-id attribution. Unprovable on the measured install, which holds 3 mame roms against 1231 units (measurement 153)"
+        }
+      ]
     },
     "mastersystem": {
       "class": "A",
@@ -128,12 +146,30 @@
     "ps3": {
       "class": "C",
       "evidence": "rpcs3/dev_hdd0/**/savedata keyed by TITLEID; 32k+ files, hashing is expensive",
-      "provenance": "observed"
+      "provenance": "observed",
+      "unit_paths": [
+        {
+          "container": "ps3/rpcs3/dev_hdd0/home/*/savedata",
+          "emulator": "rpcs3",
+          "key": "title_id",
+          "slot": "savedata",
+          "evidence": "77 files, 16.3 MB, 0.06 s, against 32451 files and 426.07 s for the rpcs3 data root above it. BLUS30109 owns three directories and BCUS98111 owns two. dev_hdd0/savedata is NOT declared: it held only an empty vmc directory and nothing measured says it is a save"
+        }
+      ]
     },
     "psp": {
       "class": "C",
       "evidence": "SAVEDATA/<GAMEID>/ containing PARAM.SFO, keyed by game id not filename",
-      "provenance": "observed"
+      "provenance": "observed",
+      "unit_paths": [
+        {
+          "container": "psp/SAVEDATA",
+          "emulator": "ppsspp",
+          "key": "title_id",
+          "slot": "savedata",
+          "evidence": "UCES01011 and ULES01513SYSDATA measured side by side, so the key is a prefix and one game can own several directories. PARAM.SFO adds nothing the directory name does not (measurement 144)"
+        }
+      ]
     },
     "psx": {
       "class": "A",
@@ -166,12 +202,32 @@
     "wii": {
       "class": "C",
       "evidence": "NAND tree under dolphin-emu/User/Wii/title/, mixed with non-per-game system state",
-      "provenance": "observed"
+      "provenance": "observed",
+      "unit_paths": [
+        {
+          "container": "wii/dolphin-emu/User/Wii/title/00010000",
+          "emulator": "dolphin-emu",
+          "key": "hex_ascii",
+          "slot": "nand",
+          "include": "data",
+          "evidence": "the disc-game title tree. 52534245 decodes to RSBE and 524d4745 to RMGE. Only data/ travels: a title holding content/title.tmd with no data/ is an installed stub rather than a save. title/00000001 is system titles and shared2/, sys/ and fst.bin are system state, so none is declared"
+        }
+      ]
     },
     "xbox": {
       "class": "D",
       "evidence": "eeprom.bin and xbox_hdd.qcow2, a whole disk image shared by every game",
       "provenance": "observed"
     }
+  },
+  "_unit_paths": {
+    "_comment": "Where a class C save unit lives, added in M6 stage 2b from a read-only sweep of a real install. A unit is a (container, key) pair and NOT a directory: ps3 keeps three directories under one title id and gamecube keeps two files and no directory at all (measurements 140 and 141). Paths are relative to <retrobat root>/saves/ and contain no absolute component. A '*' matches exactly one path segment. Anything no container names is reported unknown and never read, so a shape that named an emulator data root would cost 426 s per sync (142) and no shape names one.",
+    "_key_kinds": {
+      "title_id": "the entry is a directory and the key is a leading 4-letter 5-digit title id; the rest of the segment is the game's own suffix (UCES01011 bare, ULES01513SYSDATA suffixed, BLUS30187GAMEDAT9ZLDR0F5K7M4000)",
+      "name": "the entry is a directory and the key is the whole segment (mame short names)",
+      "gci": "the entry is a file named <makercode>-<gamecode>-<internal>.gci and the key is the game code; a soft-deleted .gci.deleted does not match and is excluded by construction rather than by a suffix list",
+      "hex_ascii": "the entry is a directory whose 8 hex characters decode to a 4-character ASCII game code (52534245 -> RSBE), which is the same code the .rvz header carries at 0x58"
+    },
+    "_slot_note": "slot is declared rather than derived because it has to be stable forever and two containers on one system can end in the same segment. It becomes {emulator}:{slot}."
   }
 }
