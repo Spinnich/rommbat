@@ -6,6 +6,11 @@ be re-derived offline and so drift is visible in a diff.
 **These are upstream artifacts. Never hand-edit them.** Refresh with `refresh.sh` and
 review the diff, because a change here can invalidate a design decision.
 
+`refresh.sh` also checks `data/retrobat/bios.json` and `data/retrobat/platforms.json`
+against the generators that derive them from these files, and exits non-zero naming the
+generator to run. It never regenerates them itself: rewriting a committed generated file
+mid-refresh would hide the change the script exists to surface.
+
 | File                           | Source                                                                                  | What it settles                                                                                                                                                        |
 | ------------------------------ | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `systems_names.lst`            | `RetroBat-Official/retrobat` `system/configgen/systems_names.lst`                       | The authoritative list of RetroBat system folder names (240)                                                                                                           |
