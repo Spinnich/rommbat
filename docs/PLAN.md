@@ -1526,7 +1526,7 @@ attribution**, because that is the only hard dependency among the remaining piec
 | The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |          |
 | Save states, all 13 emulators                                            | **yes**                               |                     |          |
 | Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |          |
-| `SaveGuard`, widened to save states                                      | **yes**                               | widened to C        | to D     |
+| `SaveGuard`, widened to save states                                      | **yes**                               | **yes**, to C       | to D     |
 | Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |          |
 | Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |          |
 | The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |          |
@@ -1548,6 +1548,18 @@ suite this plan calls its highest value, with nothing to flush.
 **Stage 1 satisfies the offline half of "done when" and not the breadth half.** Three games
 played unplugged, one flush, and a newer save returning as a conflict are all provable on
 class A. "One game from each save shape" is stage 2 by construction.
+
+**Stage 2b adds the third shape, driven on hardware.** A PPSSPP `SAVEDATA/` directory written by
+the game itself went up as one archive, came back down as a conflict, was resolved, and the game
+loaded what the restore wrote. The converted PS2 memory card is the last of the four, so **M6 is
+still not claimable until 2c lands.**
+
+**The pass also moved one of this plan's own assumptions.** Stage 1 designed conflict handling
+around negotiate answering `conflict`. A real two-sided divergence does not take that route: it
+negotiates as **`upload`**, because negotiate compares the hashes it was handed and the client's
+mtime was newer, and the server then answers **409** because this device's sync record is stale,
+which negotiate cannot see. So the 409 is the ordinary path to a conflict rather than the
+exception, and it is recorded as one. See [retrobat-findings.md](retrobat-findings.md), 156.
 
 **Stage 2a adds two of the four shapes the "done when" names and the sentence it ends on.** A
 PCSX2 save state with its screenshot is provable here, and so is "a conflict **the user

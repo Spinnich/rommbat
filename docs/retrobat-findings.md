@@ -2132,6 +2132,51 @@ replaced binary, which is a hands-on step and not a probe this session can take 
 
 ---
 
+## Measured during M6 stage 2b, hands-on pass
+
+Spinnich synced `Bust-A-Move - Deluxe (USA)` onto the `K:` install, launched it through
+EmulationStation, saved from the game's own menu, and confirmed the restored save loaded. This
+is the first time anything in this repository has handled a directory save a real emulator
+wrote. It is **not** a certification: one game, one system, steps 4 and 9 only.
+
+**Four defects came out of it, and none was reachable from a test that existed**, because each
+needed either a real tree or a genuine two-sided divergence against a live server.
+
+| #   | Previously                                                                   | The pass says                                                                                                                                                                                                                                                                                                  |
+| --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 154 | The PSP unit key is a prefix of the directory name (141, measured on `E:`)   | **Confirmed on a second, independently produced sample.** PPSSPP wrote `SAVEDATA/ULUS100570000/`, four files and 91,607 B, and the key extracted as `ULUS10057`. Matching the whole segment would have found nothing                                                                                           |
+| 155 | Route 1 is the only route that can attribute a PSP save (143, 144, 145)      | **True, and it works.** No `.cso` header and no state sidecar existed, and the launch window bound it: `Bust-A-Move - Deluxe (USA).cso was running when ULUS10057 was last written`. The hook fired all four events and the launch log carried `-system psp -emulator ppsspp`                                  |
+| 156 | A conflict arrives as a negotiate `conflict` action (stage 1's whole design) | **Not for a real divergence.** A save changed on both sides negotiated as **`upload`**, reason `Client save is newer (no sync history)`, and the POST returned **409**. Negotiate decides from the hashes it is handed; the stale sync record is the part it cannot see. So 409 is the path, not the exception |
+| 157 | The server's archive digest is not our fold (148, 149)                       | **Confirmed on real data.** Our fold `4eea879a…` against the server's `a92d31a4…` for the same unit, and a re-sync answered `no_op` only when the server's own value went back on the wire                                                                                                                     |
+| 158 | (not addressed) what a class C scan costs on a real tree                     | **4.1 s wall** for the whole `K:` saves tree, 1,231 MAME nvram units and everything else, including hashing                                                                                                                                                                                                    |
+| 159 | (not addressed) whether an emulator loads a unit RomMBat restored            | **PPSSPP does.** The atomic restore put the server's four files into `SAVEDATA/ULUS100570000/` and Bust-A-Move loaded the save. With the fold proving the bytes identical, a real save round-trips the same way                                                                                                |
+
+**The four defects, in the order they surfaced:**
+
+1. **A refusal was cached when it was only an absence.** K:'s MAME nvram tree has 1,231 units
+   and no MAME ROMs beside it, so one scan wrote 1,231 negative bindings. A later sync bringing
+   those ROMs in would have found every save still unattributed behind a stale row nothing
+   clears. Only a contested key is cached now.
+2. **A 409 was reported as a failure rather than recorded as a conflict**, which made the
+   milestone's own "done when" unreachable through the path a real divergence takes.
+3. **A class C conflict recorded no copy aside**, because `File.Exists` is false for a
+   container, so the record promised a copy it did not have.
+4. **Resolving one could never succeed.** The resolver had its own restore that verified the
+   download against `server_content_hash`; for an archive that comparison is always false. It
+   refused itself with `what arrived hashes to 0391c0a9 and the conflict recorded 174b2e82`,
+   and **failed closed**, which is the one thing that went right. This is why the restore now
+   lives in one shared helper: the same code existed twice, one copy was fixed and the other
+   was not.
+
+**What the pass did not prove.** The server side of the conflict was synthetic, 141 bytes
+substituted into `GAME.DAT` to force divergence, so "the game loads it" was tested against a
+payload Bust-A-Move never wrote. It loaded anyway, and byte-preservation is proven separately by
+the fold, so the two together carry the claim; a round trip of untouched game-written content
+would carry it in one step and was not run. MAME's short-name join is still undemonstrated, Wii
+is still undriven, and the hook-spawn cost is still unmeasured.
+
+---
+
 ## Still outstanding overall
 
 All seven probes are answered. Four items are left, and each is blocked on hardware or an
