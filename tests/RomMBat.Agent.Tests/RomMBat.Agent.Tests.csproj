@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>RomMBat.Agent.Tests</RootNamespace>
+    <AssemblyName>RomMBat.Agent.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- xunit.v3 runs tests from an executable, not a library. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <!--
+    Its own project rather than a reference added to RomMBat.Tests. The Agent is an Exe
+    carrying an app.manifest, and pulling that into the existing test host would put a
+    Windows manifest and an executable dependency behind every unit test in the repo. This
+    project is where the command layer is exercised and nothing else changes.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RomMBat.Agent\RomMBat.Agent.csproj" />
+  </ItemGroup>
+
+  <!--
+    Linked, not copied. TempRetroBatTree is the only fixture both suites need, and two copies
+    of a helper that builds a RetroBat tree is two chances for the two suites to disagree
+    about what a RetroBat tree looks like. A third shared project would carry more weight
+    than one file is worth.
+  -->
+  <ItemGroup>
+    <Compile Include="..\RomMBat.Tests\Support\TempRetroBatTree.cs"
+             Link="Support\TempRetroBatTree.cs" />
+  </ItemGroup>
+
+  <!--
+    The same upstream template the Core tests read, so both suites agree on which systems an
+    install declares. Every path here must be a tracked file.
+  -->
+  <ItemGroup>
+    <None Include="..\..\reference\es_systems.cfg" Link="fixtures\es_systems.template.cfg"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -324,7 +324,9 @@ src/RomM.Client/openapi
 src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
 src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
 src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)
-tests/RomMBat.Tests   xUnit
+tests/RomMBat.Tests   xUnit, over Core and Client
+tests/RomMBat.Agent.Tests
+                      xUnit, over the Agent's subcommands and their gates
 
 docs/PLAN.md          The design of record. Read this before anything else
 docs/retrobat-findings.md
