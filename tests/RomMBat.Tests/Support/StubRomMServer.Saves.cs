@@ -433,18 +433,44 @@ internal sealed partial class StubRomMServer
     /// <remarks>
     /// Latin-1 throughout, so a byte round-trips unchanged and a save's binary content is not
     /// mangled by a decode that assumes text.
+    /// <para>
+    /// <b>Both markers are looked for in the part's headers only, and the part ends at the real
+    /// boundary.</b> The earlier version searched the whole body for both, which held for as
+    /// long as every uploaded save was a small text fixture and broke the moment class C started
+    /// sending a zip. Deflate output contains the literal bytes of a filename marker and of a
+    /// boundary-looking sequence often enough to hit both traps at once: the name was read from
+    /// inside the archive, and the body was truncated at the first thing that looked like a
+    /// terminator. A save is arbitrary bytes, so a parser over it has to be anchored.
+    /// </para>
     /// </remarks>
     private static byte[] ExtractSaveFile(byte[] content, out string fileName)
     {
         var text = System.Text.Encoding.Latin1.GetString(content);
 
-        const string NameMarker = "filename=\"";
-        var nameStart = text.IndexOf(NameMarker, StringComparison.Ordinal) + NameMarker.Length;
-        var nameEnd = text.IndexOf('"', nameStart);
-        fileName = text[nameStart..nameEnd];
+        // The boundary is the first line of the body, which is where multipart puts it.
+        var firstBreak = text.IndexOf("\r\n", StringComparison.Ordinal);
+        var boundary = firstBreak < 0 ? "--" : text[..firstBreak];
 
-        var bodyStart = text.IndexOf("\r\n\r\n", nameEnd, StringComparison.Ordinal) + 4;
-        var bodyEnd = text.IndexOf("\r\n--", bodyStart, StringComparison.Ordinal);
+        // The headers of the first part end at the first blank line, and everything after that
+        // is bytes the sender chose.
+        var headerEnd = text.IndexOf("\r\n\r\n", StringComparison.Ordinal);
+        var headers = headerEnd < 0 ? text : text[..headerEnd];
+
+        const string NameMarker = "filename=\"";
+        var nameStart = headers.IndexOf(NameMarker, StringComparison.Ordinal);
+
+        if (nameStart < 0)
+        {
+            fileName = string.Empty;
+            return [];
+        }
+
+        nameStart += NameMarker.Length;
+        var nameEnd = headers.IndexOf('"', nameStart);
+        fileName = nameEnd < 0 ? headers[nameStart..] : headers[nameStart..nameEnd];
+
+        var bodyStart = headerEnd + 4;
+        var bodyEnd = text.IndexOf("\r\n" + boundary, bodyStart, StringComparison.Ordinal);
 
         return System.Text.Encoding.Latin1.GetBytes(text[bodyStart..(bodyEnd < 0 ? text.Length : bodyEnd)]);
     }

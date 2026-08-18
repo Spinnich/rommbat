@@ -355,6 +355,96 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_directory_save_queues_offline_and_lands_in_one_flush()
+    {
+        // The offline simulation extended to class C. Same assertion as the class A case: every
+        // operation completes locally or queues, and one flush lands all of it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Stub.IsReachable = false;
+
+        // The scan is entirely local, so being offline costs it nothing.
+        var offlineScan = fixture.Scan();
+
+        Assert.Equal(1, offlineScan.Units);
+        Assert.Equal(1, offlineScan.UnitsAttributed);
+
+        var offline = await fixture.SyncAsync();
+
+        Assert.Equal(0, offline.Uploaded);
+        Assert.All(fixture.Store.Saves.List(), save => Assert.True(save.IsUnsent));
+
+        fixture.Stub.IsReachable = true;
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+
+        var online = await fixture.SyncAsync();
+
+        Assert.Equal(1, online.Uploaded);
+        Assert.All(fixture.Store.Saves.List(), save => Assert.False(save.IsUnsent));
+
+        // One archive on the server holding both members, not two saves.
+        var uploaded = Assert.Single(fixture.Stub.Saves.Values);
+        Assert.Equal("mame:nvram", uploaded.Slot);
+    }
+
+    [Fact]
+    public async Task Replaying_a_directory_save_flush_sends_nothing_further()
+    {
+        // Idempotence under replay, which is what makes a flush interrupted halfway safe. It
+        // rests on the archive being deterministic and on the wire hash being the one the
+        // server itself returned.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+
+        var afterFirst = fixture.Stub.Saves.Count;
+
+        // Cleared so the replay negotiates for real rather than being told to upload again.
+        fixture.Stub.NegotiateActions.Clear();
+
+        fixture.Scan();
+        var replay = await fixture.SyncAsync();
+
+        Assert.Equal(0, replay.Uploaded);
+        Assert.Equal(afterFirst, fixture.Stub.Saves.Count);
+    }
+
+    [Fact]
+    public async Task A_changed_directory_save_goes_up_again_and_an_unchanged_one_does_not()
+    {
+        // The two halves of the two-hash design, which is the part most likely to be wrong in a
+        // way nothing notices: send the wrong value and a unit either uploads forever or never
+        // uploads again.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        await fixture.SyncAsync();
+        fixture.Stub.NegotiateActions.Clear();
+
+        // Unchanged: the fold matches what was uploaded, so the wire carries the server's own
+        // digest and negotiate answers no_op.
+        fixture.Scan();
+        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
+
+        // Changed: a new member appears, so the fold moves and the unit is sent whole again.
+        File.WriteAllText(
+            fixture.Resolve("saves/mame/nvram/25pacman/flash"),
+            "a second member the game just wrote");
+
+        fixture.Scan();
+        Assert.True(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+    }
+
+    [Fact]
     public async Task Everything_this_stage_adds_also_queues_offline_and_lands_in_one_flush()
     {
         // The offline simulation extended to the shapes this stage adds. Same assertion as the
@@ -607,6 +697,39 @@ public class SaveSyncTests
             Store.Journal.Append(
                 JournalEvent.GameEnd,
                 new DateTimeOffset(2026, 8, 16, 10, 30, 0, TimeSpan.Zero));
+        }
+
+        /// <summary>
+        /// Puts a MAME rom and its nvram unit on disk, which is class C needing no attribution.
+        /// </summary>
+        /// <remarks>
+        /// MAME because its unit key is the rom basename, so the unit attributes through the
+        /// same index class A uses and this stays a test about syncing rather than about the
+        /// attribution routes, which have their own suite.
+        /// </remarks>
+        public void AddUnit(int romId, string shortName, params (string Name, string Contents)[] members)
+        {
+            var romPath = RelativePath.Create($"roms/mame/{shortName}.zip");
+            var romAbsolute = Install.Resolve(romPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(romAbsolute)!);
+            File.WriteAllText(romAbsolute, "rom");
+
+            Store.Files.Record(new LocalFile
+            {
+                Path = romPath,
+                Folder = "mame",
+                RomId = romId,
+                Kind = LocalFileKind.Rom,
+                FileName = $"{shortName}.zip",
+                SizeBytes = 3,
+            });
+
+            foreach (var (name, contents) in members)
+            {
+                var member = Install.Resolve(RelativePath.Create($"saves/mame/nvram/{shortName}/{name}"));
+                Directory.CreateDirectory(Path.GetDirectoryName(member)!);
+                File.WriteAllText(member, contents);
+            }
         }
 
         /// <summary>Puts a save state, or a file beside one, into a state directory.</summary>
