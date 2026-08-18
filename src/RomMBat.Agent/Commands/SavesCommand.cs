@@ -34,6 +34,11 @@ internal static class SavesCommand
             return await ResolveAsync(context, command, cancellationToken).ConfigureAwait(false);
         }
 
+        if (command.Positional is ["bind", ..])
+        {
+            return Bind(context, command);
+        }
+
         if (!command.Has("no-scan"))
         {
             // Both passes get the schema, so a state is never listed as unsyncable by one while
@@ -53,6 +58,7 @@ internal static class SavesCommand
         ReportSaves(context);
         ReportStates(context);
         ReportConflicts(context);
+        ReportBindings(context);
         ReportUnsyncable(context);
         ReportQueue(context);
 
@@ -216,6 +222,93 @@ internal static class SavesCommand
     }
 
     /// <summary>
+    /// <summary>
+    /// <c>saves bind &lt;system&gt; &lt;game id&gt; &lt;rom id&gt;</c>, or <c>--forget</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>The answer to "a wrong binding is permanent, because the cache makes it so".</b>
+    /// Attribution caches what it learns so an odd case costs one lookup rather than one per
+    /// scan, and that same cache is what would keep a mistake alive forever. This is how a
+    /// person corrects or clears one, and it is the only writer of <c>learned_from = 'user'</c>.
+    /// <para>
+    /// It is also how a refusal is settled. Two routes naming different games leaves a binding
+    /// with no rom, which is deliberate and permanent until somebody who knows which game it is
+    /// says so.
+    /// </para>
+    /// <para>
+    /// Local only, and deliberately so: a binding is this device's understanding of its own save
+    /// tree, and there is nowhere on the server to put one.
+    /// </para>
+    /// </remarks>
+    private static int Bind(AgentContext context, CommandLine command)
+    {
+        var forget = command.Has("forget");
+
+        if (command.Positional.Count < 3 || (!forget && command.Positional.Count < 4))
+        {
+            Console.Error.WriteLine(
+                "Usage: rommbat-agent saves bind <system> <game id> <rom id>");
+            Console.Error.WriteLine(
+                "       rommbat-agent saves bind <system> <game id> --forget");
+            return ExitCode.Usage;
+        }
+
+        var system = command.Positional[1];
+        var gameId = command.Positional[2];
+
+        if (forget)
+        {
+            if (context.Store.GameIdBindings.Forget(system, gameId))
+            {
+                Console.WriteLine(
+                    $"Forgot the binding for {gameId} under {system}. The next scan works it out "
+                        + "again from scratch.");
+                return ExitCode.Ok;
+            }
+
+            Console.Error.WriteLine($"No binding for {gameId} under {system}.");
+            return ExitCode.Usage;
+        }
+
+        if (!long.TryParse(
+                command.Positional[3],
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var romId))
+        {
+            Console.Error.WriteLine($"'{command.Positional[3]}' is not a rom id.");
+            return ExitCode.Usage;
+        }
+
+        // The rom has to be one this device holds, because the binding's whole job is to name a
+        // local file. Binding to a rom that is not here would record something no scan could act
+        // on and no user could see the effect of.
+        var rom = context.Store.Files
+            .List()
+            .FirstOrDefault(file => file.Kind == LocalFileKind.Rom && file.RomId == romId);
+
+        if (rom is null)
+        {
+            Console.Error.WriteLine(
+                $"This device holds no rom with id {romId}, so there is nothing to bind {gameId} to.");
+            return ExitCode.Usage;
+        }
+
+        context.Store.GameIdBindings.Record(new GameIdBinding(
+            system,
+            gameId,
+            romId,
+            rom.Path,
+            BindingSource.User,
+            $"bound by hand to {rom.FileName}",
+            DateTimeOffset.UtcNow));
+
+        Console.WriteLine($"{gameId} under {system} is now {rom.FileName}.");
+        Console.WriteLine("The next scan attributes its saves to that game.");
+
+        return ExitCode.Ok;
+    }
+
     /// <c>saves resolve &lt;rom&gt; &lt;slot&gt; --keep-local|--keep-server</c>.
     /// </summary>
     /// <remarks>
@@ -288,6 +381,55 @@ internal static class SavesCommand
 
     private static string Short(string? hash) =>
         hash is null ? "(no hash)" : hash[..Math.Min(8, hash.Length)];
+
+    /// <summary>
+    /// Shows what directory-save attribution currently rests on, including where it gave up.
+    /// </summary>
+    /// <remarks>
+    /// Worth showing rather than hiding, because a binding is a claim about which game owns a
+    /// save and the user is the only one who can tell when it is wrong. An unresolved row is
+    /// listed too: it is a decision that nothing could name the game, and it stays until
+    /// <c>saves bind</c> settles it.
+    /// </remarks>
+    private static void ReportBindings(AgentContext context)
+    {
+        var bindings = context.Store.GameIdBindings.List();
+
+        if (bindings.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine("Game ID bindings");
+
+        foreach (var binding in bindings)
+        {
+            if (binding.IsResolved)
+            {
+                Console.WriteLine(
+                    $"  {binding.System}/{binding.GameId} -> {binding.RomPath?.Name ?? "?"} "
+                        + $"(learned from {Describe(binding.LearnedFrom)})");
+            }
+            else
+            {
+                Console.WriteLine($"  {binding.System}/{binding.GameId} -> not bound");
+                Console.WriteLine($"    {binding.Detail}");
+                Console.WriteLine(
+                    $"    settle it with: rommbat-agent saves bind {binding.System} {binding.GameId} <rom id>");
+            }
+        }
+
+        Console.WriteLine();
+    }
+
+    private static string Describe(BindingSource source) => source switch
+    {
+        BindingSource.Journal => "a launch covering when the save was written",
+        BindingSource.RomHeader => "the game code in the ROM's header",
+        BindingSource.Sidecar => "the name sidecar beside a save state",
+        BindingSource.User => "you, with saves bind",
+        _ => source.ToString(),
+    };
 
     private static string Describe(UnsyncableReason reason) => reason switch
     {
