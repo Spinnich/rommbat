@@ -1826,11 +1826,20 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   volunteered": that device was current for the only save then on the account. See
   [retrobat-findings.md](retrobat-findings.md), measurement 151, which withdraws 132.
 
-  Two consequences, and neither is what 2a recorded. **There is no fresh-device gap and nothing
-  to build for it**: negotiating with an empty `saves` array _is_ the inventory pass, so a new
+  Two consequences, and neither is what 2a recorded. **The fresh-device gap closes for a save
+  that is one file**: negotiating with an empty `saves` array _is_ the inventory pass, so a new
   install discovers the library's saves through the protocol it already speaks. And
   `SaveSlotStore.Map`'s fallback for a slot with no local file is **reachable**, not dead, so
   the two download cases stage 1 left open are open again and are answered below.
+
+  **It does not close for a bundled one, and 2b ships knowing that.** `SaveSync.DownloadAsync`
+  selects the unit restore on the local row's shape class, so a download for a slot this device
+  holds nothing in takes the single-file branch: it either reports that there is nowhere to
+  write it, or writes a `.zip` under the ROM's stem and checks it against `server_content_hash`,
+  which for an archive is a digest this client cannot reproduce. A device that has never held a
+  class C slot therefore cannot receive it. Closing it needs the container and the unit key
+  derived from the server's row rather than from a local one, which is a download-side grammar
+  this stage did not build and no measurement yet covers, so it is 2c's to answer.
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.

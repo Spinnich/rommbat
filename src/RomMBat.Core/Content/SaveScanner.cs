@@ -117,7 +117,6 @@ public sealed class SaveScanner
         var seen = new HashSet<RelativePath>();
         var seenUnits = new HashSet<(RelativePath Container, string Key)>();
 
-
         // Accumulated rather than written per file, because the report is keyed on
         // (system, emulator, reason): writing each file as it is met would leave one row
         // naming the last file and counting one, which understates the gap it exists to show.
