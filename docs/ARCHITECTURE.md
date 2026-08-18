@@ -180,8 +180,23 @@ No primary flow may require a mouse.
 
 ### `tests/RomMBat.Tests`
 
-xUnit, one project for now, covering Core and Client. Split into `<Project>.Tests` when
-that stops being comfortable; nothing depends on the current shape.
+xUnit, covering Core and Client.
+
+### `tests/RomMBat.Agent.Tests`
+
+xUnit, covering the Agent's subcommands. Its own project rather than a reference added to
+the one above, because the Agent is an `Exe` carrying an `app.manifest` and pulling that
+into the existing test host would put a Windows manifest behind every unit test in the
+repo. `TempRetroBatTree` is linked from `RomMBat.Tests` rather than copied, so both suites
+agree on what a RetroBat tree looks like.
+
+**The commands are where milestones meet**, each wiring a planner to a sync to a store to
+an exit code, and that is the layer a defect survives a full green suite in. One did:
+`BiosCommand` and `SyncCommand` both returned before constructing `BiosSync` when nothing
+needed downloading, which made `BiosAction.Adopt` unreachable from either entry point, and
+a user who had copied their BIOS in by hand would have been told "N already on disk to
+adopt" forever with no row ever written. The planner was covered, the sync was covered, and
+the gate between them was neither.
 
 Fixtures come from a real install and are checked in under `tests/**/fixtures/`, byte
 exact and excluded from linting. Save-shape and mapping logic without a fixture is not

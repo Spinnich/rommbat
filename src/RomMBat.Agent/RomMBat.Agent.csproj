@@ -16,4 +16,13 @@
     <ProjectReference Include="..\RomMBat.Core\RomMBat.Core.csproj" />
   </ItemGroup>
 
+  <!--
+    The command classes are internal, because nothing outside this exe dispatches them. The
+    gates inside them are where a milestone's planner, sync, store and exit code meet, which
+    is the layer a defect survives a green suite in, so the test project sees them.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomMBat.Agent.Tests" />
+  </ItemGroup>
+
 </Project>

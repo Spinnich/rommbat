@@ -2,6 +2,7 @@ using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
 using RomMBat.Core.Content;
+using RomMBat.Core.RetroBat;
 
 namespace RomMBat.Agent.Commands;
 
@@ -36,11 +37,25 @@ internal static class BiosCommand
         // whole-library report; the default is the folders this install actually holds ROMs
         // for, because BIOS for a system with no games is noise.
         var planner = new BiosPlanner(context.Install, context.Store);
-        var folders = command.Has("all")
-            ? null
-            : command.Positional.Count > 0
-                ? command.Positional
-                : planner.FoldersNeedingBios();
+        IReadOnlyList<string>? folders;
+
+        if (command.Has("all"))
+        {
+            folders = null;
+        }
+        else if (command.Positional.Count > 0)
+        {
+            if (Validate(context, command.Positional) is { } usage)
+            {
+                return usage;
+            }
+
+            folders = command.Positional;
+        }
+        else
+        {
+            folders = planner.FoldersNeedingBios();
+        }
 
         RomMConnection? connection = null;
 
@@ -105,6 +120,64 @@ internal static class BiosCommand
         {
             connection?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Checks the named systems against the install, and answers the two cases that are not
+    /// the report.
+    /// </summary>
+    /// <remarks>
+    /// <b>Here rather than in the planner, because it is a question about user input.</b>
+    /// <c>--all</c> passes null and <c>FoldersNeedingBios()</c> returns names that came off
+    /// this install in the first place, so neither wants validating.
+    /// <para>
+    /// <b>The manifest cannot answer this on its own.</b> Only 99 of RetroBat's 240 systems
+    /// appear in <c>batocera-systems.json</c>, so absent from it is the ordinary case rather
+    /// than the error, and refusing every unknown key would refuse <c>snes</c>, <c>n64</c> and
+    /// <c>atari2600</c>. <see cref="EsSystemsFile"/> is the authority on what an install has,
+    /// which splits one outcome into three: named and required is the report, named and not in
+    /// the manifest says RetroBat needs no BIOS for it, and not named at all is a typo.
+    /// </para>
+    /// </remarks>
+    /// <returns>An exit code when the run should stop, or null to carry on.</returns>
+    private static int? Validate(AgentContext context, IReadOnlyList<string> folders)
+    {
+        var systems = EsSystemsFile.Load(context.Install);
+        var unknown = folders.Where(folder => !systems.HasFolder(folder)).ToList();
+
+        if (unknown.Count > 0)
+        {
+            // Named rather than counted: the whole point is that the user gets told which of
+            // the words they typed this install has never heard of.
+            Console.Error.WriteLine(
+                unknown.Count == 1
+                    ? $"'{unknown[0]}' is not a system in this install's es_systems.cfg."
+                    : $"these are not systems in this install's es_systems.cfg: {string.Join(", ", unknown)}.");
+            Console.Error.WriteLine("Run 'platforms' to see the systems this install declares.");
+
+            return ExitCode.Usage;
+        }
+
+        // A real system RetroBat asks no firmware for. Said explicitly, because the alternative
+        // is the same "no BIOS is required" line a mistyped name used to produce, and a user who
+        // cannot tell those apart cannot trust either.
+        var needNothing = folders
+            .Where(folder => BiosManifest.Bundled.For(folder).Count == 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var folder in needNothing)
+        {
+            Console.WriteLine($"RetroBat requires no BIOS for {folder}.");
+        }
+
+        // Only the named systems, and none of them needs anything, so there is no report to
+        // print. Not an error: the answer is a clean bill of health for a system that was
+        // actually consulted this time.
+        return needNothing.Count == folders.Distinct(StringComparer.OrdinalIgnoreCase).Count()
+            ? ExitCode.Ok
+            : null;
     }
 
     /// <summary>
