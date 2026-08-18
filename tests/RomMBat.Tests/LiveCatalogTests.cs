@@ -126,7 +126,15 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             }
         }
 
-        var rows = session.Store.PlatformMap.List();
+        // Resolved rows only. This class shares one store, and a sibling test writes a user
+        // override into the same table, so the unfiltered count passes or fails on test order.
+        // The resolver here is built with no overrides, so nothing it produces can be a user
+        // row and this stays "every platform the server returned made exactly one row, and
+        // nothing else resolved".
+        var rows = session.Store.PlatformMap.List()
+            .Where(row => row.ResolvedBy != MappingSource.User)
+            .ToList();
+
         Assert.Equal(response.Value.Count, rows.Count);
         Assert.All(rows, row => Assert.NotNull(row.Explanation));
     }
