@@ -59,7 +59,9 @@ public class DevicePairingTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var time = new TestTimeProvider(Start);
 
-        var session = await new DevicePairing(connection, time).BeginAsync(Payload());
+        var session = await new DevicePairing(connection, time).BeginAsync(
+            Payload(),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal("K7M2PQRS", session.UserCode);
         Assert.Equal("K7M2-PQRS", session.DisplayCode);
@@ -79,8 +81,10 @@ public class DevicePairingTests
         var time = new TestTimeProvider(Start);
         var pairing = new DevicePairing(connection, time);
 
-        var session = await pairing.BeginAsync(Payload());
-        var result = await pairing.AwaitApprovalAsync(session);
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Approved, result.Outcome);
         Assert.Equal(3, stub.TokenPolls);
@@ -97,11 +101,11 @@ public class DevicePairingTests
         var time = new TestTimeProvider(Start);
         var pairing = new DevicePairing(connection, time);
 
-        var session = await pairing.BeginAsync(Payload());
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
 
         var reported = new List<PairingProgress>();
         var progress = new Progress<PairingProgress>(reported.Add);
-        var result = await pairing.AwaitApprovalAsync(session, progress);
+        var result = await pairing.AwaitApprovalAsync(session, progress, TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Approved, result.Outcome);
 
@@ -118,8 +122,10 @@ public class DevicePairingTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new DevicePairing(connection, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(Payload());
-        var result = await pairing.AwaitApprovalAsync(session);
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Denied, result.Outcome);
         Assert.Equal(2, stub.TokenPolls);
@@ -134,8 +140,10 @@ public class DevicePairingTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new DevicePairing(connection, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(Payload());
-        var result = await pairing.AwaitApprovalAsync(session);
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Expired, result.Outcome);
     }
@@ -151,8 +159,10 @@ public class DevicePairingTests
         var time = new TestTimeProvider(Start);
         var pairing = new DevicePairing(connection, time);
 
-        var session = await pairing.BeginAsync(Payload());
-        var result = await pairing.AwaitApprovalAsync(session);
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Expired, result.Outcome);
         Assert.True(time.GetUtcNow() >= session.ExpiresAt);
@@ -171,8 +181,10 @@ public class DevicePairingTests
         var time = new TestTimeProvider(Start);
         var pairing = new DevicePairing(connection, time);
 
-        var session = await pairing.BeginAsync(Payload());
-        var result = await pairing.AwaitApprovalAsync(session);
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Approved, result.Outcome);
         Assert.True(time.GetUtcNow() >= Start.AddSeconds(30));
@@ -185,7 +197,7 @@ public class DevicePairingTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new DevicePairing(connection, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(Payload());
+        var session = await pairing.BeginAsync(Payload(), TestContext.Current.CancellationToken);
 
         using var source = new CancellationTokenSource();
         await source.CancelAsync();

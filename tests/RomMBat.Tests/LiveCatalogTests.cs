@@ -46,7 +46,11 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var session = fixture.Session;
         var query = new CatalogQuery { Scope = CatalogScopeKind.Filter };
 
-        var response = await session.Connection.GetRomPageAsync(query, limit: 5, offset: 0);
+        var response = await session.Connection.GetRomPageAsync(
+            query,
+            limit: 5,
+            offset: 0,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
         Assert.True(response.IsSuccess, response.Message);
@@ -67,14 +71,17 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var session = fixture.Session;
 
-        var pager = new RomPager(session.Connection, new CatalogQuery { Scope = CatalogScopeKind.Filter }, pageSize: 25);
+        var pager = new RomPager(
+            session.Connection,
+            new CatalogQuery { Scope = CatalogScopeKind.Filter },
+            pageSize: 25);
 
-        var first = await pager.NextAsync();
+        var first = await pager.NextAsync(TestContext.Current.CancellationToken);
         Assert.SkipWhen(first.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
         Assert.True(first.IsSuccess, first.Message);
         Assert.SkipWhen(first.Value!.Total < 30, "The library is too small to page.");
 
-        var second = await pager.NextAsync();
+        var second = await pager.NextAsync(TestContext.Current.CancellationToken);
         Assert.True(second.IsSuccess, second.Message);
 
         var firstIds = first.Value!.Items.Select(row => row.Id).ToList();
@@ -92,7 +99,8 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var session = fixture.Session;
 
-        var response = await session.Connection.ListPlatformsAsync();
+        var response = await session.Connection.ListPlatformsAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
         Assert.True(response.IsSuccess, response.Message);
         Assert.SkipWhen(response.Value!.Count == 0, "The instance has no platforms.");
@@ -175,21 +183,25 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             ["someone_else"] = new Dictionary<string, string> { ["keep"] = "me" },
         };
 
-        var seeded = await session.Connection.UpdateDeviceSyncConfigAsync(session.DeviceId, foreign);
+        var seeded = await session.Connection.UpdateDeviceSyncConfigAsync(
+            session.DeviceId,
+            foreign,
+            TestContext.Current.CancellationToken);
         Assert.SkipWhen(seeded.Status == RomMResponseStatus.Forbidden, "This token cannot write devices.");
         Assert.True(seeded.IsSuccess, seeded.Message);
 
-        var before = await session.Connection.GetDeviceAsync(session.DeviceId);
+        var before = await session.Connection.GetDeviceAsync(session.DeviceId, TestContext.Current.CancellationToken);
         Assert.True(before.IsSuccess, before.Message);
 
         var document = RoamingSyncConfig.FromStore(session.Store, DateTimeOffset.UtcNow);
         var pushed = await session.Connection.UpdateDeviceSyncConfigAsync(
             session.DeviceId,
-            document.MergeInto(before.Value!.Sync_config));
+            document.MergeInto(before.Value!.Sync_config),
+            TestContext.Current.CancellationToken);
 
         Assert.True(pushed.IsSuccess, pushed.Message);
 
-        var after = await session.Connection.GetDeviceAsync(session.DeviceId);
+        var after = await session.Connection.GetDeviceAsync(session.DeviceId, TestContext.Current.CancellationToken);
         Assert.True(after.IsSuccess, after.Message);
 
         var recovered = RoamingSyncConfig.Extract(after.Value!.Sync_config);
@@ -212,7 +224,8 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var session = fixture.Session;
 
-        var platforms = await session.Connection.ListPlatformsAsync();
+        var platforms = await session.Connection.ListPlatformsAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(platforms.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
         Assert.True(platforms.IsSuccess, platforms.Message);
 
@@ -239,7 +252,11 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var setResolver = new SetResolver(install, resolver);
         var pager = new RomPager(session.Connection, SetResolver.QueryFor(set), pageSize: 250);
-        var resolution = await setResolver.ResolveAsync(set, pager, DateTimeOffset.UtcNow);
+        var resolution = await setResolver.ResolveAsync(
+            set,
+            pager,
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
         Assert.True(resolution.Members.Count <= 5);

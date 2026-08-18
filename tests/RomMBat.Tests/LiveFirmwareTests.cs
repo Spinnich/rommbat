@@ -53,7 +53,9 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
 
         Assert.SkipWhen(widest is null || widest.Firmware.Count == 0, "This instance holds no firmware.");
 
-        var dedicated = await fixture.Session.Connection.ListFirmwareAsync(widest!.Id);
+        var dedicated = await fixture.Session.Connection.ListFirmwareAsync(
+            widest!.Id,
+            TestContext.Current.CancellationToken);
 
         Assert.True(dedicated.IsSuccess, dedicated.Message);
         Assert.Equal(
@@ -81,7 +83,10 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Assert.SkipWhen(match.row is null, "This instance holds none of the firmware RetroBat requires.");
 
         await using var buffer = new MemoryStream();
-        var response = await fixture.Session.Connection.DownloadFirmwareAsync(match.row!, buffer);
+        var response = await fixture.Session.Connection.DownloadFirmwareAsync(
+            match.row!,
+            buffer,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccess, response.Message);
         Assert.Equal(match.row!.SizeBytes, buffer.Length);
@@ -90,7 +95,7 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         // RetroBat's hash rather than RomM's.
         var path = Path.Combine(fixture.Session.Install.RootPath, "bios", match.requirement.FileName);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        await File.WriteAllBytesAsync(path, buffer.ToArray());
+        await File.WriteAllBytesAsync(path, buffer.ToArray(), TestContext.Current.CancellationToken);
 
         Assert.Equal(match.requirement.Md5, ContentHasher.ComputeFileMd5(path));
 
@@ -110,7 +115,10 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Assert.SkipWhen(lost is null, "This instance has no firmware row whose file is gone.");
 
         await using var buffer = new MemoryStream();
-        var response = await fixture.Session.Connection.DownloadFirmwareAsync(lost!, buffer);
+        var response = await fixture.Session.Connection.DownloadFirmwareAsync(
+            lost!,
+            buffer,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // 500 rather than 404, measured, so the message has to say what it actually means or a
         // user goes looking through the server's logs for a fault that is not there.

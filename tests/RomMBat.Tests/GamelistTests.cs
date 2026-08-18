@@ -300,7 +300,7 @@ public sealed class GamelistTests : IDisposable
         var sync = new GamelistSync(_tree.Install(), _store);
         sync.Write("gamegear");
 
-        var outcome = await sync.ApplyAsync(["gamegear"]);
+        var outcome = await sync.ApplyAsync(["gamegear"], cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.IsNoOp);
         Assert.Contains("unchanged", outcome.Summary, StringComparison.Ordinal);
@@ -317,7 +317,7 @@ public sealed class GamelistTests : IDisposable
         Populate("snes", (2, "Super Mario World (Japan).sfc"));
 
         var sync = new GamelistSync(_tree.Install(), _store);
-        var outcome = await sync.ApplyAsync();
+        var outcome = await sync.ApplyAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var folder = Assert.Single(outcome.Folders);
         Assert.Equal("snes", folder.Folder);
@@ -341,7 +341,10 @@ public sealed class GamelistTests : IDisposable
         // No RomMConnection is constructed anywhere in this test, and nothing here can reach a
         // network: everything written comes out of the store.
         var sync = new GamelistSync(_tree.Install(), _store);
-        var outcome = await sync.ApplyAsync(["gamegear"], emulationStation: null);
+        var outcome = await sync.ApplyAsync(
+            ["gamegear"],
+            emulationStation: null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Folders.Single().Wrote);
         Assert.Equal(EsCallResult.NotRunning, outcome.Reload);
@@ -416,7 +419,7 @@ public sealed class GamelistTests : IDisposable
         _store.Settings.Set(GamelistSync.WarnEntriesSetting, 10L, DateTimeOffset.UtcNow);
 
         var sync = new GamelistSync(_tree.Install(), _store);
-        var outcome = await sync.ApplyAsync(["gamegear"]);
+        var outcome = await sync.ApplyAsync(["gamegear"], cancellationToken: TestContext.Current.CancellationToken);
 
         // Every game is still written. The threshold reports; it does not truncate, because
         // EmulationStation lists the rom files whether or not they have an entry.
@@ -434,7 +437,9 @@ public sealed class GamelistTests : IDisposable
         Populate("gamegear", (10, "Sonic Chaos (USA).zip"));
         _store.Settings.Set(GamelistSync.WarnEntriesSetting, 0L, DateTimeOffset.UtcNow);
 
-        var outcome = await new GamelistSync(_tree.Install(), _store).ApplyAsync(["gamegear"]);
+        var outcome = await new GamelistSync(_tree.Install(), _store).ApplyAsync(
+            ["gamegear"],
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(outcome.Warnings);
     }
