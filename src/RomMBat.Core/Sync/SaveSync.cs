@@ -241,8 +241,26 @@ public sealed class SaveSync
                     break;
 
                 case SyncAction.Upload when local is not null:
-                    if (await UploadAsync(local, result.SessionId, cancellationToken).ConfigureAwait(false)
-                        is { } uploadProblem)
+                    var attempt = await UploadAsync(local, result.SessionId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (attempt.Conflicted)
+                    {
+                        // <b>A 409 is a conflict, not a failure, and this is where the two
+                        // meet.</b> Negotiate decides from the hashes it was given and answers
+                        // `upload` whenever the client's mtime is newer; the server then refuses
+                        // if THIS device's sync record is stale, which is the case negotiate
+                        // could not see. Driven on real hardware: a save changed on both sides
+                        // negotiated as `upload` and came back 409, so without this the only
+                        // route to a conflict would be the one negotiate happens to name, and a
+                        // real divergence would report as a bare failure with nothing to settle.
+                        //
+                        // The operation carries save_id, server_content_hash and
+                        // server_updated_at even on an `upload`, so the record is complete.
+                        conflicts.Add(RecordConflict(operation, local));
+                        sent.Add((local.RomId!.Value, local.Slot, false));
+                    }
+                    else if (attempt.Problem is { } uploadProblem)
                     {
                         failed++;
                         problems.Add(uploadProblem);
@@ -434,14 +452,25 @@ public sealed class SaveSync
     private static string NameFor(LocalSave save) =>
         save.ShapeClass == SaveShapeClass.C ? $"{save.UnitKey}.zip" : save.Path.Name;
 
-    private async Task<string?> UploadAsync(LocalSave save, int sessionId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Sends one save, and says whether a refusal was a conflict or an ordinary failure.
+    /// </summary>
+    /// <remarks>
+    /// The two are different events with different remedies. A failure is retried by the next
+    /// flush and costs nothing; a conflict needs a person to choose a side, so it is persisted
+    /// and reported rather than retried, and <c>saves resolve</c> is the only thing that ends it.
+    /// </remarks>
+    private async Task<(bool Conflicted, string? Problem)> UploadAsync(
+        LocalSave save,
+        int sessionId,
+        CancellationToken cancellationToken)
     {
         var path = _install.Resolve(save.Path);
         var isUnit = save.ShapeClass == SaveShapeClass.C;
 
         if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
         {
-            return $"{Describe(save)}: it is gone since the scan.";
+            return (false, $"{Describe(save)}: it is gone since the scan.");
         }
 
         string? bundle = null;
@@ -455,21 +484,14 @@ public sealed class SaveSync
                 // Rebuilt from the tree rather than from the scan's record, so a unit that
                 // gained a member between the scan and the flush goes up whole. The hash is
                 // re-taken with it for the same reason.
-                var unit = FindUnit(save);
+                var unit = SaveUnitTransfer.Find(_units, save);
 
                 if (unit is null)
                 {
-                    return $"{Describe(save)}: it is gone since the scan.";
+                    return (false, $"{Describe(save)}: it is gone since the scan.");
                 }
 
-                bundle = Path.Combine(_install.Resolve(PartialDirectory), $"unit-{Guid.NewGuid():N}.zip");
-                Directory.CreateDirectory(Path.GetDirectoryName(bundle)!);
-
-                await using (var archive = new FileStream(bundle, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    SaveArchive.Pack(_install, unit, archive);
-                }
-
+                bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(PartialDirectory));
                 content = File.OpenRead(bundle);
             }
             else
@@ -492,14 +514,15 @@ public sealed class SaveSync
 
             if (!response.IsSuccess || response.Value is not { } result)
             {
-                return $"{Describe(save)}: {response.Message}";
+                return (false, $"{Describe(save)}: {response.Message}");
             }
 
             if (result.Conflict)
             {
-                // The server refused because this device's record is stale. Surfaced rather
-                // than retried with overwrite, which would discard whatever moved.
-                return $"{Describe(save)}: {result.Detail ?? "the slot moved since the last sync."}";
+                // The server refused because this device's record is stale. Never retried with
+                // overwrite here, which would discard whatever moved; the caller records it as a
+                // conflict and `saves resolve --keep-local` is the only caller of overwrite.
+                return (true, null);
             }
 
             if (result.Save is { } row)
@@ -513,15 +536,15 @@ public sealed class SaveSync
             // The logical fold, never the server's digest. This is the local record of what was
             // sent, and it is the value a later scan compares the tree against.
             _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
-            return null;
+            return (false, null);
         }
         catch (RomMUnreachableException ex)
         {
-            return $"{Describe(save)}: {ex.Message}";
+            return (false, $"{Describe(save)}: {ex.Message}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return $"{Describe(save)}: it could not be read: {ex.Message}";
+            return (false, $"{Describe(save)}: it could not be read: {ex.Message}");
         }
         finally
         {
@@ -663,9 +686,6 @@ public sealed class SaveSync
         string part,
         CancellationToken cancellationToken)
     {
-        var staging = Path.Combine(_install.Resolve(PartialDirectory), $"unit-{saveId}-{Guid.NewGuid():N}");
-        var container = _install.Resolve(local.Path);
-
         try
         {
             long written;
@@ -684,35 +704,14 @@ public sealed class SaveSync
                 written = response.Value;
             }
 
-            Directory.CreateDirectory(staging);
-
-            IReadOnlyList<string> entries;
-
-            await using (var archive = File.OpenRead(part))
-            {
-                entries = SaveArchive.Extract(archive, staging);
-            }
-
-            if (entries.Count == 0)
-            {
-                return (0, $"{Describe(local)}: the server returned an archive holding nothing, so "
-                    + "nothing was replaced.");
-            }
-
-            // The one comparison both sides can make: the fold over what came out of the archive
-            // is the same function as the fold over what went in.
-            var restored = SaveArchive.HashOfExtracted(staging, entries);
-
-            // Nothing above this line has touched the live tree.
-            MoveUnitAside(local);
-
-            foreach (var entry in entries)
-            {
-                var native = entry.Replace('/', Path.DirectorySeparatorChar);
-                var destination = Path.Combine(container, native);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Move(Path.Combine(staging, native), destination, overwrite: true);
-            }
+            var outcome = SaveUnitTransfer.Restore(
+                _install,
+                _units,
+                local,
+                part,
+                _install.Resolve(PartialDirectory),
+                AsideDirectory,
+                _time.GetUtcNow());
 
             var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
 
@@ -726,7 +725,7 @@ public sealed class SaveSync
 
             // Against the fold of what actually landed, so the next scan sees a unit already in
             // step rather than one that needs sending straight back.
-            _store.Saves.MarkUploaded(local.Path, local.UnitKey, restored, _time.GetUtcNow());
+            _store.Saves.MarkUploaded(local.Path, local.UnitKey, outcome.ContentHash, _time.GetUtcNow());
 
             return (written, null);
         }
@@ -747,74 +746,6 @@ public sealed class SaveSync
         finally
         {
             SafeDelete(part);
-            SafeDeleteDirectory(staging);
-        }
-    }
-
-    /// <summary>Copies a unit's current members aside, and returns where they went.</summary>
-    /// <remarks>
-    /// Copied rather than moved, for the reason <see cref="MoveAside"/> gives for a single file:
-    /// if anything after this fails, the unit the emulator reads is still the one that was
-    /// always there. A unit with nothing on disk yet is the new-device restore and has nothing
-    /// to keep.
-    /// </remarks>
-    private RelativePath? MoveUnitAside(LocalSave local)
-    {
-        var unit = FindUnit(local);
-
-        if (unit is null || unit.Files.Count == 0)
-        {
-            return null;
-        }
-
-        var aside = AsideDirectory.Combine($"{_time.GetUtcNow():yyyyMMddTHHmmss}-{local.System}-{local.UnitKey}");
-        var asidePath = _install.Resolve(aside);
-
-        try
-        {
-            foreach (var file in unit.Files)
-            {
-                var destination = Path.Combine(
-                    asidePath,
-                    file.ArchivePath.Replace('/', Path.DirectorySeparatorChar));
-
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Copy(_install.Resolve(file.Path), destination, overwrite: true);
-            }
-
-            return aside;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Reported by the caller failing rather than swallowed: replacing a unit with no
-            // copy aside is exactly what principle 1 forbids.
-            throw new IOException(
-                $"the existing save at {Describe(local)} could not be copied aside, so it was not "
-                    + $"replaced: {ex.Message}",
-                ex);
-        }
-    }
-
-    /// <summary>Re-reads a unit off disk, since a stored row is a record and not the tree.</summary>
-    private SaveUnit? FindUnit(LocalSave local) =>
-        _units
-            .Scan(local.System)
-            .FirstOrDefault(candidate =>
-                candidate.Container == local.Path
-                && string.Equals(candidate.Key, local.UnitKey, StringComparison.OrdinalIgnoreCase));
-
-    private static void SafeDeleteDirectory(string path)
-    {
-        try
-        {
-            if (Directory.Exists(path))
-            {
-                Directory.Delete(path, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            // Staging litter under partial/ costs disk and nothing else.
         }
     }
 
@@ -929,7 +860,13 @@ public sealed class SaveSync
         {
             try
             {
-                aside = MoveAside(local.Path);
+                // Dispatched on the shape, because a class C row's path is a container and
+                // File.Exists is false for one: taking the single-file route there quietly
+                // copied nothing and left the record promising a copy it did not have. Found on
+                // real hardware, where the first PSP conflict recorded local_copy_path as null.
+                aside = local.ShapeClass == SaveShapeClass.C
+                    ? SaveUnitTransfer.CopyAside(_install, _units, local, AsideDirectory, _time.GetUtcNow())
+                    : MoveAside(local.Path);
 
                 if (aside is not null)
                 {

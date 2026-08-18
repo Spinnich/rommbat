@@ -292,8 +292,17 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task A_409_on_upload_is_surfaced_rather_than_retried_with_overwrite()
+    public async Task A_409_on_upload_becomes_a_conflict_the_user_can_resolve()
     {
+        // Stage 1 reported a 409 as a failure with a message. Driven on real hardware in the
+        // 2b hands-on pass, that turned out to be the only outcome a genuine two-sided
+        // divergence produces: a PSP save changed on both sides negotiated as `upload`, because
+        // negotiate decides from the hashes it was handed and the client's mtime was newer, and
+        // the server then refused with 409 because this device's sync record was stale, which is
+        // the part negotiate could not see.
+        //
+        // Reported as a failure it is retried forever and never resolved. It is a conflict: both
+        // sides moved, and only a person can say which one matters.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();
@@ -304,13 +313,22 @@ public class SaveSyncTests
         var outcome = await fixture.SyncAsync();
 
         Assert.Equal(0, outcome.Uploaded);
-        Assert.Equal(1, outcome.Failed);
-        Assert.Contains(
-            outcome.Problems,
-            problem => problem.Contains("newer save since your last sync", StringComparison.Ordinal));
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Conflicts);
 
-        // Still unsent, so nothing believes this reached the server.
+        // Persisted, so it outlives the flush that found it and `saves resolve` has something
+        // to settle.
+        var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.Equal(42, conflict.RomId);
+        Assert.Equal("libretro:battery", conflict.Slot);
+
+        // The local file is untouched and still unsent, and the copy aside was taken before
+        // anything else. The safety property from stage 1 is unchanged: a 409 is never retried
+        // with overwrite, because that would discard whatever moved on the other side.
         Assert.True(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
+        Assert.NotNull(conflict.LocalCopyPath);
+        Assert.Empty(fixture.Stub.Saves);
     }
 
     [Fact]
