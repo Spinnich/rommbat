@@ -180,6 +180,11 @@ Class A and B match by filename. Class C is keyed by **Game ID** (`UCUS98751`, a
 `TITLEID`, a GameCube disc ID), and **RomM stores no serial, title ID or product code
 anywhere**, so no API lookup exists.
 
+**Ask every route, not the first one that answers.** They are cheap next to the scan that
+already ran, and their agreement is the only evidence a binding has. One exception comes before
+all of them: under `mame` the key _is_ the ROM basename, so that join needs no route and is
+never cached.
+
 1. **Correlate with the launch journal.** A save directory touched inside a known launch
    window belongs to that rom. Cache the learned binding. This generalises to every odd case
    and needs no format parsing.
@@ -210,6 +215,13 @@ anywhere**, so no API lookup exists.
 refusal so it is not recomputed every scan, and reports both candidates. Picking a side uploads
 one game's save under another's name and the cache then makes it permanent. `saves bind` is how a
 person settles or clears one.
+
+**Cache a decision, never an absence.** "Both routes read something and they disagree" is worth
+a row; "nothing had anything to say" is not, because the usual cause is that the ROM has not been
+synced yet and a cached refusal outlives its own reason, leaving the unit unattributed behind a
+row nothing clears. Recomputing costs one dictionary lookup against indexes the pass already
+built. Measured on a real install, where a MAME `nvram/` tree with no ROMs beside it produced
+1,231 of these in one scan.
 
 **A save unit is a (container, key) pair, not a directory.** `ps3` keeps three directories under
 one title id, `psp`'s key is a _prefix_ of the segment (`ULES01513SYSDATA`), and `gamecube` has
