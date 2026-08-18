@@ -155,7 +155,7 @@ public sealed class SaveConflictResolver
 
         if (save.ContentHash is { } hash)
         {
-            _store.Saves.MarkUploaded(save.Path, hash, now);
+            _store.Saves.MarkUploaded(save.Path, save.UnitKey, hash, now);
         }
 
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepLocal, now);

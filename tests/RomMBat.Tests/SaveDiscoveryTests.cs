@@ -253,7 +253,7 @@ public class SaveDiscoveryTests
         fixture.Scan();
 
         var save = Assert.Single(fixture.Store.Saves.List());
-        fixture.Store.Saves.MarkUploaded(save.Path, save.ContentHash!, DateTimeOffset.UnixEpoch);
+        fixture.Store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, DateTimeOffset.UnixEpoch);
 
         // A rescan must not forget that a save went up, or eviction refuses forever and every
         // sync re-uploads everything.
@@ -294,7 +294,7 @@ public class SaveDiscoveryTests
 
         // Once it is up, the guard stops objecting.
         var save = Assert.Single(fixture.Store.Saves.List());
-        fixture.Store.Saves.MarkUploaded(save.Path, save.ContentHash!, DateTimeOffset.UnixEpoch);
+        fixture.Store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, DateTimeOffset.UnixEpoch);
 
         Assert.True(guard.Check(42, romPath).CanRemove);
 

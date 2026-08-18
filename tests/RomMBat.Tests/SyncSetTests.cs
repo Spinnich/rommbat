@@ -39,8 +39,8 @@ public class SyncSetTests : IDisposable
     [Fact]
     public void The_schema_is_at_the_version_this_build_expects()
     {
-        Assert.Equal(7, LocalStore.ExpectedSchemaVersion);
-        Assert.Equal(7, _store.SchemaVersion);
+        Assert.Equal(8, LocalStore.ExpectedSchemaVersion);
+        Assert.Equal(8, _store.SchemaVersion);
     }
 
     [Fact]

@@ -371,7 +371,7 @@ public sealed class SaveSync
                 _store.SaveSlots.Record(row, _time.GetUtcNow());
             }
 
-            _store.Saves.MarkUploaded(save.Path, save.ContentHash!, _time.GetUtcNow());
+            _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
             return null;
         }
         catch (RomMUnreachableException ex)

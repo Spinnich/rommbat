@@ -352,7 +352,7 @@ public sealed class SaveScanner
             .List()
             .Where(save => save.ShapeClass is SaveShapeClass.A or SaveShapeClass.B)
             .Where(save => !seen.Contains(save.Path))
-            .Select(save => save.Path)
+            .Select(save => (save.Path, save.UnitKey))
             .ToList();
 
         return gone.Count == 0 ? 0 : _store.Saves.Forget(gone);
