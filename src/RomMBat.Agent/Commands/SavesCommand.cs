@@ -77,15 +77,67 @@ internal static class SavesCommand
 
         Console.WriteLine($"{saves.Count} saves on disk:");
 
-        foreach (var save in saves.OrderBy(save => save.Path.Value, StringComparer.Ordinal))
-        {
-            var state = save.IsUnsent
-                ? "not sent"
-                : save.HasChangedSinceUpload ? "changed" : "in step";
+        var ordered = saves
+            .OrderBy(save => save.Path.Value, StringComparer.Ordinal)
+            .ThenBy(save => save.UnitKey, StringComparer.Ordinal)
+            .ToList();
 
-            Console.WriteLine(
-                $"  {state,-9} {ByteSize.Format(save.SizeBytes),8}  {save.Slot,-24}  {save.Path}");
+        // Anything still to send is what a person is looking for, so it is listed first and in
+        // full before the cap applies to the rest.
+        foreach (var save in ordered.Where(save => save.IsUnsent || save.HasChangedSinceUpload).Take(MaxListedSaves))
+        {
+            WriteSave(save);
         }
+
+        var pending = ordered.Count(save => save.IsUnsent || save.HasChangedSinceUpload);
+
+        if (pending > MaxListedSaves)
+        {
+            // A real install reached 1,231 of these in one directory: a MAME nvram tree whose
+            // ROMs are not on the device. Listing them all buries everything else in the report.
+            foreach (var group in ordered
+                .Where(save => save.IsUnsent || save.HasChangedSinceUpload)
+                .Skip(MaxListedSaves)
+                .GroupBy(save => (save.System, save.Slot))
+                .OrderByDescending(group => group.Count()))
+            {
+                Console.WriteLine(
+                    $"  {"and",-9} {ByteSize.Format(group.Sum(save => save.SizeBytes)),8}  "
+                        + $"{group.Key.Slot,-24}  {group.Count()} more not listed");
+            }
+        }
+
+        foreach (var save in ordered.Where(save => !save.IsUnsent && !save.HasChangedSinceUpload).Take(MaxListedSaves))
+        {
+            WriteSave(save);
+        }
+
+        var settled = ordered.Count(save => !save.IsUnsent && !save.HasChangedSinceUpload);
+
+        if (settled > MaxListedSaves)
+        {
+            Console.WriteLine($"  {"and",-9} {settled - MaxListedSaves} more already in step, not listed.");
+        }
+    }
+
+    /// <summary>
+    /// One line for one save, naming the unit rather than only its container.
+    /// </summary>
+    /// <remarks>
+    /// A class C row's path is a container shared by every game on the system, so the path alone
+    /// is not an identity: a real install printed 1,231 rows all reading
+    /// <c>saves/mame/nvram</c>. The key is what tells them apart.
+    /// </remarks>
+    private static void WriteSave(LocalSave save)
+    {
+        var state = save.IsUnsent
+            ? "not sent"
+            : save.HasChangedSinceUpload ? "changed" : "in step";
+
+        var where = save.UnitKey.Length > 0 ? $"{save.Path}/{save.UnitKey}" : save.Path.Value;
+
+        Console.WriteLine(
+            $"  {state,-9} {ByteSize.Format(save.SizeBytes),8}  {save.Slot,-24}  {where}");
     }
 
     /// <summary>
@@ -395,6 +447,9 @@ internal static class SavesCommand
     /// How many unsettled bindings are worth printing before the list stops being useful.
     /// </summary>
     private const int MaxListedBindings = 20;
+
+    /// <summary>How many saves are worth listing before the report stops being readable.</summary>
+    private const int MaxListedSaves = 25;
 
     private static void ReportBindings(AgentContext context)
     {
