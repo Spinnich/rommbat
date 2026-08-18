@@ -40,6 +40,19 @@ dotnet build
 dotnet test
 ```
 
+**Two things about `dotnet test` will waste an hour each if nobody says them.** `global.json`
+opts this repo into Microsoft.Testing.Platform, so `dotnet test` is MTP's command and not
+VSTest's, and it takes a different set of options. Run `dotnet test --help` for the real list.
+
+- **An option MTP does not recognise is forwarded to the test module, which refuses it and
+  reports `Zero tests ran` with exit code 5, naming neither the option nor the problem.**
+  `--nologo` is the one that catches people, because every other `dotnet` verb takes it. A run
+  that reports zero tests has almost certainly been handed a bad option rather than lost its
+  tests.
+- **A `--filter` that matches nothing in one of the two test projects makes the whole run exit
+  non-zero**, because a module running zero tests is an error. Scope the run with `--project` as
+  well, or the filtered run fails on the project you were not aiming at.
+
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
 
@@ -187,7 +200,7 @@ Then source it for the run. `dotnet test` reads the process environment and noth
 
 ```bash
 set -a; . ./.env; set +a; dotnet test
-set -a; . ./.env; set +a; dotnet test --filter "FullyQualifiedName~LivePairingTests"
+set -a; . ./.env; set +a; dotnet test --project tests/RomMBat.Tests --filter "FullyQualifiedName~LivePairingTests"
 ```
 
 ```powershell
