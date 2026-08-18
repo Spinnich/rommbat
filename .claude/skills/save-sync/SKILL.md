@@ -192,10 +192,42 @@ anywhere**, so no API lookup exists.
    and use the `game-end` hook as the trigger to go read it. See
    `docs/retrobat-findings.md` probes 1 and 7b.
 
-2. **Read the ID from the ROM** (`PARAM.SFO`, disc headers) as a fallback for saves
-   predating any observed launch.
+2. **Read the ID from the ROM's header**, and know how little that reaches. Measured across
+   every image in five systems on a real install: GameCube **100%** and Wii **75.5%** (a `.wad`
+   has no disc header and its title id sits behind a variable-length certificate chain), and
+   **0% of PSP, PS3 and PSX**, because no constant offset reaches a `.cso`, a `.chd` or an
+   ISO9660 filesystem. Check the `.rvz` format version before trusting `0x58`. **`PARAM.SFO`
+   adds nothing**: its `SAVEDATA_DIRECTORY` is the directory's own name and its `TITLE` is a
+   human string. So this route serves the two systems whose save key _is_ the game code, and
+   nothing else.
+
+3. **Read it out of the save-state name sidecar**, which is free and reaches what route 2
+   cannot. `ppsspp/3rd Birthday, The (Europe).txt` holds `ULES01513_1.00`, joining the key of
+   `SAVEDATA/ULES01513SYSDATA` to a ROM filename the ordinary index resolves. It needs no ROM
+   read and no observed launch, and it covers only games that have a state.
+
+**Disagreement fails closed.** Two routes naming different games binds nothing, records the
+refusal so it is not recomputed every scan, and reports both candidates. Picking a side uploads
+one game's save under another's name and the cache then makes it permanent. `saves bind` is how a
+person settles or clears one.
+
+**A save unit is a (container, key) pair, not a directory.** `ps3` keeps three directories under
+one title id, `psp`'s key is a _prefix_ of the segment (`ULES01513SYSDATA`), and `gamecube` has
+no per-game directory at all: two `.gci` files share a region folder with every other game. The
+container is declared in `save_shapes.json` and never discovered, because hashing an emulator's
+data root costs 426 s where the scoped subtree costs 0.06 s.
 
 ## Hash contents, not the archive
+
+**RomM does the same thing, by a different function, so class C carries two hashes.** Its
+`content_hash` is the MD5 of the bytes for a plain file and, for an archive, a digest over the
+archive's _contents_: the same member rebuilt at another compression level and timestamp gives a
+different zip and the same digest, and renaming the member changes it. That function is not
+reproducible client-side. So the logical fold is the **local change detector** and the digest the
+server returned on the last upload is the **wire value**; sending anything else answers
+`download` forever. It also means a downloaded archive cannot be verified against
+`server_content_hash` the way a plain file can, and the CRC that extraction validates is what
+stands in for it.
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout
@@ -221,14 +253,21 @@ hash, folded into one digest. The archive is transport only.
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced. Both
   outcomes prune the copy aside.
-- **Negotiate never volunteers a slot the client did not submit.** Measured: a device with a
-  save on the server negotiated an empty `saves` array and got back no operations at all. It is
-  full-state reconciliation over the set the client names, so a fresh device cannot discover its
-  saves this way; that needs an inventory pass over `GET /api/saves?rom_id=`.
-- Persist the `file_name` the server returns, not the one you sent. **Write a different name
-  to disk**: `file_name_no_tags` + `file_extension`. A file called
-  `Game [2026-08-10_22-58-26].srm` is invisible to the emulator, which matches on the rom
-  name. The server returns the untagged stem, so no client-side regex is needed.
+- **Negotiate returns a download for every save the device has no sync record for**, including
+  slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
+  two ROMs, one never named by the client, and acking one dropped the next answer to 12. An
+  earlier reading of this was backwards: a device that is already current for everything gets no
+  operations, which is not the same as nothing being volunteered. **So negotiating with an empty
+  array is the fresh-device inventory pass**, and no separate one over `GET /api/saves` is
+  needed. A restore onto a device that never held the slot is an ordinary case, not a dead one.
+- Persist the `file_name` the server returns, not the one you sent, and **write a different name
+  to disk**, because `Game [2026-08-10_22-58-26].srm` is invisible to an emulator matching on the
+  rom name. **The name to write is the ROM's own stem plus `file_extension`, and it is not
+  `file_name_no_tags`.** The server strips general tags rather than only its own timestamp: a real
+  save came back as `Phantasy Star (Brazil) [2026-08-17_17-01-00].srm` with `file_name_no_tags` of
+  `Phantasy Star`, because `(Brazil)` is part of the ROM's name. Writing that produces a file the
+  emulator cannot see, which is the exact failure this rule exists to prevent. The ROM stem needs
+  no regex: it is the `(folder, stem)` key class A attribution already uses, run backwards.
 - **Download with `optimistic=false`, then ack.** The parameter defaults to true and records
   the device as current on the request rather than on receipt, so a transfer that dies
   mid-body leaves the server sure the device has a save it does not, and the next negotiate

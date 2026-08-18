@@ -69,8 +69,26 @@ are different claims, and only the second is evidence.
 | M6 stage | The one shape to exercise by hand                                     | Done               |
 | -------- | --------------------------------------------------------------------- | ------------------ |
 | 2a       | A save state, across more than one emulator for one game              | **Yes**, see below |
-| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | No                 |
+| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **No**, see below  |
 | 2c       | A PS2 battery save after opting that game into a per-game memory card | No                 |
+
+**2b is not done, and what it needs is specific.** The code path exists and is covered by
+tests, and every RetroBat fact it rests on came from a read-only sweep of a real install, but
+**no emulator has written a directory save that RomMBat then handled**. Two things are unproven
+because of it, and neither is provable from a test:
+
+- **The PPSSPP round trip.** The `SAVEDATA/` grammar was measured against a real tree, so the
+  scoping and the key extraction are evidence rather than guesses. What is not evidence is that
+  PPSSPP reads back a unit RomMBat restored, which is the half that loses a save when it is
+  wrong. It needs a `.cso` and its savedata copied onto the `K:` install, a game launched, an
+  in-game save made, a `sync`, an edit on the server side, and a second `sync` producing the
+  conflict. That is the milestone's own "done when" for this stage.
+- **MAME `nvram/`.** The unit key is the ROM basename, so attribution is free, and the measured
+  install cannot demonstrate it: it holds 1,231 nvram directories against 3 mame ROMs, so nothing
+  joins. See measurement 153.
+
+Wii ships its grammar on measured tree structure alone. No Wii game has been launched, and the
+restore path there is unproven in the same way.
 
 **2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
 one game, one system, steps 4 and 5 only. Results are findings 134 to 139 in
