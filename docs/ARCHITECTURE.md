@@ -500,7 +500,11 @@ Three rules that are not obvious:
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
 `saves resolve` picks a side. A conflict is keyed on the server row and not only on its digest,
 because a slot returning to contents it once held is a different row carrying a decided hash.
-`--keep-local` is the only thing that sends `overwrite=true`; resolving either way prunes the copy, which is what makes the plan's "keep the previous copy
+`--keep-local` is the only thing that sends `overwrite=true`, which gets past the 409 and
+**appends** rather than replacing: row identity is the server's own datetime-tagged filename at
+one-second resolution, so no decision a person takes lands on the row it is overwriting. The
+server's copy stays one row down and `autocleanup_limit=10` bounds the slot. Resolving either way
+prunes the copy, which is what makes the plan's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 
 Save states look like the easier half, because `es_savestates.cfg` is a machine-readable

@@ -1746,10 +1746,18 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   **Decide the retention policy rather than inheriting it.** `autocleanup` defaults to false
   and `autocleanup_limit` to 10, and a slot grows one row per genuine change forever without
   them. Measured: `autocleanup=true&autocleanup_limit=2` held a slot at exactly two across
-  three further uploads, keeping the newest. Uploading changed content into a slot **appends**
-  a row unless `overwrite=true`, which replaces in place. This interacts with the `keep_both`
-  conflict default, since `keep_both` under an unbounded slot is how a library becomes
-  unusable. See finding F2.
+  three further uploads, keeping the newest. This interacts with the `keep_both` conflict
+  default, since `keep_both` under an unbounded slot is how a library becomes unusable. See
+  finding F2.
+
+  **What decides whether an upload appends is the clock, not `overwrite`.** Corrected against
+  the server's own source at 5.1.0 and 5.1.1-beta.2 and measured live: a slotted upload is
+  renamed to carry a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is then looked up by **that**
+  name, so two postings into one slot inside one second are one row and two a second apart are
+  two. `overwrite=true` never replaces a row. What it does is suppress the 409 checks **and**
+  the identical-content dedup, so an overwrite re-sending unchanged bytes makes a row where an
+  ordinary upload would have reused one. Measurement 160, which withdraws the earlier reading
+  in both this paragraph and measurement 150.
 
   **Decided, as one decision rather than two.** Every upload carries
   `autocleanup=true&autocleanup_limit=10`, and conflicts keep both, having first copied the
@@ -1776,8 +1784,12 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   default silently discards somebody's progress, and the whole reason a conflict exists is that
   RomMBat cannot tell which side matters.
 
-  `--keep-local` retries the upload with `overwrite=true`, which replaces the row in the slot
-  rather than appending beside it. A 409 that survives the overwrite means the slot moved again
+  `--keep-local` retries the upload with `overwrite=true`, which gets past the 409 and **appends
+  a row rather than replacing one**, since no decision a person takes lands inside the same
+  second as the save they are deciding against. The server's older copy stays one row down and
+  `autocleanup_limit=10` is what bounds the slot, so a resolution is untidy rather than lossy;
+  the newest row is this device's, which is what makes the choice take effect. Measurement 160.
+  A 409 that survives the overwrite means the slot moved again
   between the report the user read and the choice they made, so it is reported rather than
   forced. `--keep-server` runs the same verified atomic restore an ordinary download does and
   acks only after the bytes are written and checked. Both then prune the copy under

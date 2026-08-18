@@ -2202,3 +2202,23 @@ upstream bug rather than on effort:
 Two things measured here are worth re-checking rather than treating as permanent: the
 FAT local-time round trip, which was clean on this machine's timezone and may not be
 elsewhere, and both filed upstream bugs.
+
+## Measured during the issue sweep after M6 stage 2b
+
+`tools/m6-probes/m6-probe7-slot-overwrite.py`, run against the live instance at
+5.1.1-beta.2 with `autocleanup` off throughout, on a probe-only slot cleaned up afterwards.
+Read alongside `backend/endpoints/saves.py` at both the `5.1.0` baseline tag and
+`5.1.1-beta.2`, which agree with each other and with the probe.
+
+| #   | Previously                                                                             | The probe says                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 160 | `overwrite=true` replaces the row in the slot (plan, M6; **measurement 150**)          | **It never replaces. Row identity is the datetime-tagged filename at one-second resolution, so the clock decides.** Two postings inside one second updated row 167 in place; the same pair a second apart made rows 167 and 168. `overwrite` is not part of row identity at all: it suppresses the 409 checks **and** the identical-content dedup. 150 read a same-second update as the general rule and is withdrawn |
+| 161 | Identical content into one slot reuses the row unconditionally (F3, 148, and the stub) | **Only without `overwrite`.** The server guards that check with `not overwrite`, measured: identical bytes with `overwrite=true` made a new row where the same bytes without it reused row 155. So a replayed flush is still free, because a flush never sends `overwrite`, and a repeated `--keep-local` is not                                                                                                      |
+| 162 | An unregistered `device_id` resolves to no device and skips the conflict checks        | **It is a 404.** `overwrite=true` with `device_id=not-a-registered-device` answered 404 and wrote nothing, so a client must send a registered device id and cannot dodge the 409 path by omitting one                                                                                                                                                                                                                 |
+
+**What this changes.** `SaveConflictResolver.KeepLocalAsync` is the only caller of
+`overwrite=true`, so a resolution appends a row and leaves the server's copy one row down.
+That is untidy rather than lossy: every upload carries `autocleanup=true&autocleanup_limit=10`,
+which bounds the slot, and the newest row is this device's, which is what makes the choice take
+effect. The command's own success message said it "replaced the server's copy" and no longer
+does. The stub modelled the replacement, so no test in the suite could see the append.

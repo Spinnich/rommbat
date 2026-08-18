@@ -93,8 +93,10 @@ public class SaveConflictTests
 
         Assert.True(outcome.Resolved, outcome.Message);
 
-        // The server now holds this device's bytes, in the row that was already there rather
-        // than in a second one beside it.
+        // The server now holds this device's bytes. One row here only because the fixture holds
+        // the server clock still, so the upload carries the same datetime tag as the row it is
+        // overwriting and updates it. A resolution taken a second later appends instead, which
+        // the test below drives. Measurement 160.
         var stored = Assert.Single(fixture.Stub.Saves.Values);
         Assert.Equal("what this device did", System.Text.Encoding.UTF8.GetString(stored.Bytes));
 
@@ -108,6 +110,43 @@ public class SaveConflictTests
 
         // In step, so the next scan does not offer it straight back up.
         Assert.False(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
+    }
+
+    [Fact]
+    public async Task Keeping_the_local_side_a_second_later_appends_a_row_rather_than_replacing_one()
+    {
+        // overwrite=true does not replace the row in the slot, which both docs/PLAN.md and this
+        // stub used to say it did. The server renames a slotted upload to carry the current second
+        // and keys the row on that name, so what decides between updating and appending is the
+        // clock. A person deciding a conflict is never inside the same second as the save they are
+        // deciding against, so the real answer for the only caller of overwrite=true is: it
+        // appends, and autocleanup bounds the slot at ten rather than the resolution bounding it
+        // at one. Measurement 160.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync();
+
+        fixture.Stub.ConflictOnUpload.Add((7, Slot));
+
+        // The clock has moved on by the time the person answers, which is the ordinary case.
+        fixture.Stub.ServerDate = fixture.Stub.ServerDate!.Value.AddMinutes(5);
+
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+
+        // Two rows: the other device's, still there, and this device's beside it.
+        Assert.Equal(2, fixture.Stub.Saves.Count);
+        Assert.Contains(fixture.Stub.Saves.Values, row => row.Id == 100);
+
+        var mine = Assert.Single(
+            fixture.Stub.Saves.Values,
+            row => System.Text.Encoding.UTF8.GetString(row.Bytes) == "what this device did");
+
+        Assert.NotEqual(100, mine.Id);
+
+        // And the client followed the slot onto the new row, which is what any later download or
+        // ack has to address. A stub that reused the id could not tell whether it did.
+        Assert.Equal(mine.Id, fixture.Store.SaveSlots.Read(7, Slot)!.SaveId);
     }
 
     [Fact]

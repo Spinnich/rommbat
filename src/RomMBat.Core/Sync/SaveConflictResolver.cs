@@ -274,9 +274,13 @@ public sealed class SaveConflictResolver
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepLocal, now);
         var pruned = Prune(conflict);
 
+        // Not "replaced the server's copy". overwrite=true gets past the 409 and does not
+        // replace the row: the server tags a slotted upload with the current second and keys the
+        // row on that name, so a decision taken later than the same second appends. The older
+        // copy is still there, one row down, and autocleanup bounds the slot at ten.
         return new ConflictResolutionOutcome(
             true,
-            $"Kept this device's {save.Path} and replaced the server's copy." + pruned);
+            $"Kept this device's {save.Path} and sent it as the newest copy in the slot." + pruned);
     }
 
     private async Task<ConflictResolutionOutcome> KeepServerAsync(

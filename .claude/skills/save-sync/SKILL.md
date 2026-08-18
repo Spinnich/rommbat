@@ -270,6 +270,14 @@ hash, folded into one digest. The archive is transport only.
 - Compare on `content_hash` first, mtime second: **exFAT and FAT32 both quantise mtime to
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
+- **`overwrite=true` does not replace a row in the slot, whatever it looks like.** A slotted
+  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name, so the
+  clock decides: same second updates, a second later appends. `overwrite` only suppresses the 409
+  checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
+  row down, and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
+  it at one. Never tell a user their copy replaced the server's. Measurement 160.
+- An unregistered `device_id` is a **404**, not a request that quietly proceeds without a device.
+  Measurement 162.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
@@ -339,7 +347,8 @@ returning.
 ## Determinism is what makes replay safe
 
 Identical content uploaded twice into one slot reuses the same row, which is what makes a
-replayed flush idempotent. That only holds if the bytes are identical, so a bundled class-C
+replayed flush idempotent. **That dedup is off under `overwrite=true`**, measured, so it covers
+the flush path and not `saves resolve --keep-local`: a repeated resolution makes a row. That only holds if the bytes are identical, so a bundled class-C
 save must produce a **byte-identical archive** for unchanged contents. Freegosy writes a
 timestamp file into every bundle specifically to defeat this dedup, and pays for it with a
 new server row on every sync of an unchanged save. Hash the logical contents, and keep the
