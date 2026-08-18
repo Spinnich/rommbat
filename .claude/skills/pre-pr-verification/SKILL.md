@@ -46,6 +46,31 @@ update the expected number.**
 
 Run the full `platform-certification` checklist. A platform is not done at eight of nine.
 
+## Documentation parity
+
+`docs/PLAN.md` is the design of record and is usually the one that gets amended. It is not the
+only document the change can falsify. Work the table, and grep rather than remember: search the
+docs for the terms the diff touches (the command name, the class, the table, the version).
+
+| The diff contains                                            | Then re-read, and correct what it falsifies                                                          |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, `DEVELOPER_SETUP.md` examples                  |
+| A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                    |
+| A migration, table or column                                 | `docs/ARCHITECTURE.md` §4, both the table and the count of migrations in the paragraph               |
+| Sync protocol, the save or state model, attribution, hashing | `docs/ARCHITECTURE.md` §9 and the `save-sync` skill                                                  |
+| A rule that only exists because something was measured       | The skill for that area, plus `docs/retrobat-findings.md`, and `docs/PLAN.md` if it amends a reading |
+| A milestone or stage changing state                          | The stage tables in `README.md` and `docs/PLAN.md`, which are separate and both go stale             |
+| A minimum RomM or RetroBat version                           | `README.md` requirements and compatibility tables, and the startup check                             |
+| A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/ARCHITECTURE.md` §2 and §3                                      |
+
+Three rules that keep this from becoming its own scope creep:
+
+- **Correct the sentences the change falsifies.** Do not rewrite a document to sound current.
+- **A stale claim is a defect at the same severity as the bug it describes.** "Directory saves
+  do not sync yet" in a release that syncs them is wrong in the same way a wrong return value is.
+- **Say what you checked.** The PR body names the docs that moved and the ones you read and
+  found already correct. "Docs unchanged" with no statement is indistinguishable from not looking.
+
 ## Before claiming done
 
 State plainly what was verified and what was not. Never claim a platform works without

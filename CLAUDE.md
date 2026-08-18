@@ -105,6 +105,15 @@ Baseline: RetroBat 8.2, RomM 5.1.0. Check both at startup, refuse below, warn ab
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get
 fixtures from a real install, checked in.
 
+**Docs travel with code, in the same PR.** `docs/PLAN.md` is the design of record, and it is
+not the whole of it: `README.md`, `docs/ARCHITECTURE.md`, `DEVELOPER_SETUP.md` and the skills in
+`.claude/skills/` are what a user, an operator and the next agent read instead. A statement in
+any of them that the merged code contradicts is a defect and not a tidy-up, and the PR that
+changed the behaviour owes the correction, because a follow-up PR means everyone reading in
+between was told something false. What a given change owes is tabulated in the
+`pre-pr-verification` skill. A rule that exists only because something was measured belongs in
+the skill for that area, or the next session re-derives it from nothing.
+
 **Verify before handoff.** Never claim a platform works without running the
 `platform-certification` checklist against it. **The unit is `(system, emulator, core)`**: two
 emulators for one console differ on save shape, state directory and BIOS needs, and `libretro`
