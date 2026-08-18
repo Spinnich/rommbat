@@ -51,8 +51,16 @@ public enum SlotToken
 /// <param name="FirstSlot">
 /// Declared bounds, absent on <c>libretro</c>. They are validation only here, never the source
 /// of the slot: this parser reads a slot off a filename on disk rather than expanding a range,
-/// so a missing bound costs nothing and <c>bigpemu</c>'s <c>001</c>/<c>999</c> against a
-/// two-digit template is simply unrepresentable rather than a defect to work around.
+/// so a missing bound costs nothing.
+/// <para>
+/// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not resolved by
+/// that, and saying it was is what #34 is about.</b> Reading the slot off disk covers slots 01
+/// to 99. A three-digit name matches the compiled <c>{{slot2d}}</c> expression nowhere, so it is
+/// not recognised as a state at all and <see cref="StateScanner"/> drops it silently, along with
+/// the sidecars and screenshots the same rule is there to ignore. Whether BigPEmu writes three
+/// digits is unmeasured: it is reachable only through its own gamepad overlay and no Jaguar
+/// launch has been driven.
+/// </para>
 /// </param>
 public sealed record SaveStateEmulator(
     string Name,
@@ -119,11 +127,17 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// <para>
 /// <b>Discovery reverses the template rather than expanding a slot range.</b> Compiling
 /// <see cref="SaveStateEmulator.File"/> into an anchored expression and matching it against what
-/// is on disk reads the slot off the filename, which dissolves three of the four traps this file
-/// is known for: <c>libretro</c> declaring no bounds needs no invented default, <c>bigpemu</c>'s
-/// three-digit bounds against a two-digit template need no reconciling, and whether
+/// is on disk reads the slot off the filename, which dissolves two of the four traps this file
+/// is known for: <c>libretro</c> declaring no bounds needs no invented default, and whether
 /// <c>{{slot}}</c> renders as an empty string at slot zero stops being a question the client has
 /// to answer in advance.
+/// </para>
+/// <para>
+/// <b>It does not dissolve <c>bigpemu</c>'s.</b> Its declared range runs to 999 and its template
+/// is two-digit, so reading the slot off disk answers slots 01 to 99 and nothing above; a
+/// three-digit name matches no expression and is dropped without being reported. Whether the
+/// emulator writes such a name is unmeasured, so this is recorded rather than worked around.
+/// See #34.
 /// </para>
 /// </remarks>
 public sealed class SaveStateSchema

@@ -24,10 +24,12 @@ is a local pairing key, and "does this state still need sending" is answerable o
 hash the device wrote down when it last sent one.
 
 **Reverse the templates; do not expand a slot range.** Compiling `<file>` into an anchored
-expression and matching what is on disk reads the slot off the filename, and three of the four
-famous traps in that file stop being questions: `libretro` declares no bounds, `bigpemu`
-declares `001`/`999` against a two-digit `{{slot2d}}`, and whether `{{slot}}` renders empty at
-slot zero becomes "accept zero digits". The same reversal on `<directory>` recovers the system
+expression and matching what is on disk reads the slot off the filename, and two of the four
+famous traps in that file stop being questions: `libretro` declares no bounds, and whether
+`{{slot}}` renders empty at slot zero becomes "accept zero digits". **`bigpemu` is not one of
+them**: it declares `001`/`999` against a two-digit `{{slot2d}}`, and reversal answers slots 01
+to 99 only, so a three-digit name is recognised as nothing and dropped without a report. Open as
+#34 and unmeasured, since its states are reachable only through its own gamepad overlay. The same reversal on `<directory>` recovers the system
 and the core from the tree, which is the only sound reading when neither level of the save tree
 is positional. `desmume` still needs handling: nothing makes its `<image>` differ from its
 `<file>`.
