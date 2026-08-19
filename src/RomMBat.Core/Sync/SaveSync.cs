@@ -592,11 +592,13 @@ public sealed class SaveSync
                 return false;
             }
 
-            var recorded = _store.SaveSlots.Read(operation.RomId, slot)?.ServerContentHash;
+            // One read answers both halves. IsOwnUpload would re-run this same query, and it
+            // carries three correlated subqueries.
+            var recorded = _store.SaveSlots.Read(operation.RomId, slot);
 
-            return recorded is not null
-                && string.Equals(recorded, offered, StringComparison.OrdinalIgnoreCase)
-                && _store.SaveSlots.IsOwnUpload(operation.RomId, slot, _deviceId);
+            return recorded?.ServerContentHash is { } lastExchanged
+                && string.Equals(lastExchanged, offered, StringComparison.OrdinalIgnoreCase)
+                && recorded.IsFrom(_deviceId);
         }
 
         return local.ContentHash is { } held
