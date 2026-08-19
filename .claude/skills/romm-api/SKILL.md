@@ -189,10 +189,17 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `POST /api/saves/{id}/downloaded` after the bytes are written and verified, or a download
   that dies mid-body leaves the server sure the device is current and the next negotiate
   answers `no_op` forever.
-- **Identical uploads dedup within a slot** (same row reused, count unchanged), which is what
-  makes a replayed flush safe. Different content **appends** a row unless `overwrite=true`,
-  which replaces in place. `autocleanup` defaults to **false** and `autocleanup_limit` to 10,
-  so a slot grows unboundedly unless you ask it not to.
+- **What decides whether a slotted upload appends is the clock, not `overwrite`.** The server
+  renames the upload to carry a `[YYYY-MM-DD_HH-MM-SS]` tag and then looks the row up by
+  **that** name, at one-second resolution, so two postings into one slot inside one second are
+  one row and two a second apart are two. **`overwrite=true` never replaces a row.** What it
+  does is suppress the 409 checks **and** the identical-content dedup. Measurement 160.
+- **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
+  `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
+  `--keep-local` not. Measurement 161. `autocleanup` defaults to **false** and
+  `autocleanup_limit` to 10, so a slot grows unboundedly unless you ask it not to.
+- **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
+  a client cannot dodge the 409 path by sending an id the server does not know. Measurement 162.
 - **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
 last sync"}`, with no save id and no timestamps. Fetch the save row separately to show the
   user anything. It fires when **this device's** record is stale, so the device that wrote the
@@ -232,11 +239,21 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   client has to refuse the empty case itself.
 - **`emulator` is not sanitised.** It becomes a directory segment in the stored asset's
   `file_path`, and a value containing `/` became two segments. Never send one.
-- **`POST /api/sync/negotiate` answers only about slots the client submits.** An empty `saves`
-  array returns no operations even when the server holds saves for that device's user, and
-  submitting one slot returns that slot alone. It never volunteers an unsubmitted slot, so a
-  fresh device cannot discover its saves through negotiate; use `GET /api/saves?rom_id=` or
-  `/api/saves/summary`.
+- **`POST /api/sync/negotiate` volunteers slots the client did not submit**, so negotiating
+  with an **empty** `saves` array is the inventory pass a fresh device needs. It answers a
+  `download` for every slot the device has no current sync record for, and stays quiet about a
+  slot the device did sync and no longer sends, which it reads as a deliberate local delete.
+  Measurement 151, which withdraws 132.
+- **What negotiate pairs on is the newest row per `(rom_id, slot)`, and only that row.** Read
+  from `backend/endpoints/sync.py` at both `5.1.0` and `5.1.1-beta.2`, which are identical
+  here: the server folds its slotted saves to one row per slot by `updated_at` before matching
+  anything, and both the submitted and the unsubmitted pass walk that fold. **A superseded row
+  in a slot is history and is never offered as an operation**, which is what makes an appending
+  upload untidy rather than dangerous. Measurement 163, read from source and then driven against
+  a slot holding a superseded row.
+- **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
+  that earlier one answers **400** `Session is already cancelled`. Complete a session before
+  negotiating again, or accept that the first one can never be tidied up. Measurement 164.
 - **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
   membership; playtime lives in play sessions.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and

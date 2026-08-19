@@ -28,9 +28,9 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// device to take it, resolving the conflict silently in favour of whoever synced last.
 /// </para>
 /// <para>
-/// <b>Nothing is discarded either way.</b> Keeping the server's copy runs the same verified,
-/// atomic restore an ordinary download does, and the local file it replaces was already copied
-/// aside when the conflict was first seen. Keeping the local copy leaves the server's previous
+/// <b>Nothing is discarded either way.</b> Keeping the server's copy runs the same verified
+/// restore an ordinary download does, and the local file it replaces was already copied aside
+/// when the conflict was first seen. Keeping the local copy leaves the server's previous
 /// row in the slot's history, which <c>autocleanup_limit=10</c> bounds.
 /// </para>
 /// </remarks>
@@ -70,7 +70,8 @@ public sealed class SaveConflictResolver
     /// Everything that differs from the single-file path is here rather than branched through
     /// it, because the two verify differently and mixing them is what produced a resolution that
     /// could never succeed. The restore itself is the same helper the ordinary sync path uses,
-    /// so the atomicity and the copy-aside cannot drift between the two callers.
+    /// so the staging and the copy-aside cannot drift between the two callers, and neither can
+    /// the gap #38 records.
     /// </remarks>
     private async Task<ConflictResolutionOutcome> FinishUnitAsync(
         SaveConflictRecord conflict,
@@ -274,9 +275,13 @@ public sealed class SaveConflictResolver
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepLocal, now);
         var pruned = Prune(conflict);
 
+        // Not "replaced the server's copy". overwrite=true gets past the 409 and does not
+        // replace the row: the server tags a slotted upload with the current second and keys the
+        // row on that name, so a decision taken later than the same second appends. The older
+        // copy is still there, one row down, and autocleanup bounds the slot at ten.
         return new ConflictResolutionOutcome(
             true,
-            $"Kept this device's {save.Path} and replaced the server's copy." + pruned);
+            $"Kept this device's {save.Path} and sent it as the newest copy in the slot." + pruned);
     }
 
     private async Task<ConflictResolutionOutcome> KeepServerAsync(
@@ -335,7 +340,7 @@ public sealed class SaveConflictResolver
                 // 0391c0a9 and the conflict recorded 174b2e82", and nothing was written.
                 //
                 // The shared restore verifies what can be verified, by CRC per entry, and swaps
-                // the unit in atomically with the previous members copied aside.
+                // the unit in with the previous members copied aside. Not atomically: see #38.
                 return await FinishUnitAsync(conflict, unitRow, saveId, part, cancellationToken)
                     .ConfigureAwait(false);
             }

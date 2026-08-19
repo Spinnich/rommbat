@@ -83,7 +83,7 @@ system, steps 4 and 9 only. Results are findings 154 to 159 in `docs/retrobat-fi
 | Upload                                | one archive, 87,559 B, returned as `ULUS10057 [2026-08-18_02-30-06].zip`    |
 | Re-sync with no changes               | `no_op`, slot reports in step                                               |
 | Both sides diverged                   | reported as a conflict, all four files copied aside                         |
-| `saves resolve --keep-server`         | atomic restore, 4 files swapped in                                          |
+| `saves resolve --keep-server`         | staged restore, 4 files swapped in                                          |
 | **The game loaded the restored save** | **yes**                                                                     |
 
 **Four defects came out of the pass**, none reachable from a test: a cached refusal that was

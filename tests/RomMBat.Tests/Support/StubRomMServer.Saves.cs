@@ -18,6 +18,13 @@ namespace RomMBat.Tests.Support;
 /// this suite tests is what the client does with each answer, so the answer is dictated by
 /// <see cref="NegotiateActions"/> rather than computed.
 /// </para>
+/// <para>
+/// <b>A slot's row identity is the tagged name, not the flag.</b> <c>overwrite=true</c> suppresses
+/// the 409 checks and the identical-content dedup and does <b>not</b> replace a row, so whether an
+/// upload updates one or appends one turns on whether it lands in the same second as the row it
+/// would replace. Tests holding <see cref="ServerDate"/> fixed therefore see one row per slot;
+/// advancing it between uploads is how a slot is made to grow. Measurement 160.
+/// </para>
 /// </remarks>
 internal sealed partial class StubRomMServer
 {
@@ -274,9 +281,9 @@ internal sealed partial class StubRomMServer
             // Measured at 5.1.1-beta.1: a bare string, not the structured object other clients
             // document, so a client reading it as an object gets null and shows nothing.
             //
-            // overwrite=true is what gets past it, and it replaces in place rather than
-            // appending. That is why it is correct only after somebody has chosen a side, and
-            // why the stub honours it here rather than refusing unconditionally.
+            // overwrite=true is what gets past it, which is why it is correct only after
+            // somebody has chosen a side and why the stub honours it here rather than refusing
+            // unconditionally. What it does NOT do is replace the row: see below.
             return Detail(HttpStatusCode.Conflict, "Slot has a newer save since your last sync");
         }
 
@@ -284,35 +291,59 @@ internal sealed partial class StubRomMServer
         var body = ExtractSaveFile(content, out var sentName);
         var hash = HashOf(body);
 
-        var existing = Saves.Values.FirstOrDefault(row =>
-            row.RomId == romId && row.Slot == slot && row.ContentHash == hash);
-
-        if (existing is not null)
+        if (!overwrite)
         {
-            // Identical content into one slot reuses the row. This is what makes replaying a
-            // failed flush free, and it only holds if the client's hash is deterministic.
-            return Json(HttpStatusCode.OK, Describe(existing));
+            var identical = Saves.Values.FirstOrDefault(row =>
+                row.RomId == romId && row.Slot == slot && row.ContentHash == hash);
+
+            if (identical is not null)
+            {
+                // Identical content into one slot reuses the row. This is what makes replaying a
+                // failed flush free, and it only holds if the client's hash is deterministic.
+                //
+                // Inside the !overwrite branch on purpose. The server guards this check with
+                // `not overwrite`, so an overwrite that re-sends unchanged bytes still makes a
+                // row rather than deduplicating into the one it matches. Measurement 160.
+                return Json(HttpStatusCode.OK, Describe(identical));
+            }
         }
 
-        // An overwrite replaces the row in the slot rather than appending beside it, which is
-        // the difference that makes it a resolution rather than a second opinion.
-        var replaced = overwrite
-            ? Saves.Values.FirstOrDefault(row => row.RomId == romId && row.Slot == slot)
-            : null;
+        var stem = Path.GetFileNameWithoutExtension(sentName);
+        var extension = Path.GetExtension(sentName).TrimStart('.');
+        var now = ServerDate ?? DateTimeOffset.UnixEpoch;
 
-        var id = replaced?.Id ?? (Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1);
-
-        var save = new StubSave
+        // <b>overwrite=true does not replace the row in the slot.</b> The server renames a
+        // slotted upload to carry a datetime tag at one-second resolution and looks the row up
+        // by that name, so what decides between updating a row and appending one is the clock
+        // and never the flag. Two uploads inside one second are one row; a second apart they are
+        // two. Measurement 160, and it is why this stub previously hid an append: it reused the
+        // id in the slot outright, so a resolution could not be seen to grow the slot.
+        var candidate = new StubSave
         {
-            Id = id,
+            Id = 0,
             RomId = romId,
             Slot = slot,
             Emulator = query.GetValueOrDefault("emulator", string.Empty),
             Bytes = body,
-            FileNameNoTags = Path.GetFileNameWithoutExtension(sentName),
-            FileExtension = Path.GetExtension(sentName).TrimStart('.'),
-            OriginDeviceId = query.GetValueOrDefault("device_id", string.Empty),
-            UpdatedAt = ServerDate ?? DateTimeOffset.UnixEpoch,
+            FileNameNoTags = stem,
+            FileExtension = extension,
+            UpdatedAt = now,
+        };
+
+        var named = Saves.Values.FirstOrDefault(row =>
+            row.RomId == romId
+            && row.Slot == slot
+            && string.Equals(row.FileName, candidate.FileName, StringComparison.Ordinal));
+
+        var id = named?.Id ?? (Saves.Count == 0 ? 100 : Saves.Keys.Max() + 1);
+
+        // Only a new row records the uploader. The server sets origin_device_id when it inserts
+        // and never touches it on the update path, so a row updated in place keeps naming
+        // whoever first created it.
+        var save = candidate with
+        {
+            Id = id,
+            OriginDeviceId = named?.OriginDeviceId ?? query.GetValueOrDefault("device_id", string.Empty),
         };
 
         Saves[id] = save;

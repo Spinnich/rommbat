@@ -4,7 +4,7 @@ using RomMBat.Core.Paths;
 namespace RomMBat.Core.Content;
 
 /// <summary>
-/// Packs a save unit into one archive, and puts one back atomically.
+/// Packs a save unit into one archive, and puts one back.
 /// </summary>
 /// <remarks>
 /// <b>The archive is transport and the hash is identity, and the two must not be confused.</b>
@@ -22,9 +22,12 @@ namespace RomMBat.Core.Content;
 /// sort the hash folds.
 /// </para>
 /// <para>
-/// <b>Restores are atomic because a half-written directory save is a corrupt one.</b> The unit
-/// is extracted beside its container, verified against the hash of what came out, and only then
-/// swapped in, with the previous copy kept until the next successful sync.
+/// <b>A half-written directory save is a corrupt one, so everything that can be done off to one
+/// side is.</b> The unit is extracted beside its container, verified against the hash of what
+/// came out, and only then swapped in, with the previous copy kept until the next successful
+/// sync. <b>The swap is not itself atomic</b>: members go in one at a time, because the container
+/// is shared with every other game on the system and cannot be swapped whole. See
+/// <see cref="SaveUnitTransfer.Restore"/> and #38.
 /// </para>
 /// </remarks>
 public static class SaveArchive

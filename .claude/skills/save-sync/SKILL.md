@@ -270,6 +270,14 @@ hash, folded into one digest. The archive is transport only.
 - Compare on `content_hash` first, mtime second: **exFAT and FAT32 both quantise mtime to
   2 seconds and round up**, so a save can be stamped 2 s in the future and several saves
   written together share one timestamp. Mtimes are not bit-stable across filesystems.
+- **`overwrite=true` does not replace a row in the slot, whatever it looks like.** A slotted
+  upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name, so the
+  clock decides: same second updates, a second later appends. `overwrite` only suppresses the 409
+  checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
+  row down, and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
+  it at one. Never tell a user their copy replaced the server's. Measurement 160.
+- An unregistered `device_id` is a **404**, not a request that quietly proceeds without a device.
+  Measurement 162.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
@@ -304,8 +312,12 @@ hash, folded into one digest. The archive is transport only.
 - **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10.
   Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
   default compounds it.
-- Restores are atomic: extract to a temp directory beside the target, verify, swap, keep
-  the previous copy until the next successful sync.
+- Restores stage everything off to one side: extract to a temp directory beside the target, keep
+  the previous copy until the next successful sync. **A class C swap is not atomic**, and do not
+  write that it is. Members are removed and moved in one at a time, so a failure partway leaves a
+  mixed unit; nothing is lost, because `replaced/` holds the previous members and the staged copy
+  was hashed first, but recovery is manual. A whole-container swap is the wrong fix: the container
+  is shared, and `saves/psp/SAVEDATA` holds every PSP game on the install. Open as #38.
 - **A bundled restore replaces the unit, it does not merge into it.** Delete the members the
   archive does not name before moving the new ones in; they are under `replaced/` by then. The
   members the archive omits are the slots another device deleted, and leaving them makes the
@@ -343,7 +355,8 @@ replayed flush idempotent. That only holds if the bytes are identical, so a bund
 save must produce a **byte-identical archive** for unchanged contents. Freegosy writes a
 timestamp file into every bundle specifically to defeat this dedup, and pays for it with a
 new server row on every sync of an unchanged save. Hash the logical contents, and keep the
-archive deterministic.
+archive deterministic. **The dedup is off under `overwrite=true`**, measured, so it covers the
+flush path and not `saves resolve --keep-local`: a repeated resolution makes a row.
 
 Play sessions replay safely too, and say so: `POST /api/play-sessions` returns a per-index
 result array and marks a repeat `"status": "duplicate"`, so a partial flush is reconciled
