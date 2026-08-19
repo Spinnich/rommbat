@@ -1787,8 +1787,14 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `--keep-local` retries the upload with `overwrite=true`, which gets past the 409 and **appends
   a row rather than replacing one**, since no decision a person takes lands inside the same
   second as the save they are deciding against. The server's older copy stays one row down and
-  `autocleanup_limit=10` is what bounds the slot, so a resolution is untidy rather than lossy;
-  the newest row is this device's, which is what makes the choice take effect. Measurement 160.
+  `autocleanup_limit=10` is what bounds the slot, so a resolution is untidy rather than lossy.
+  Measurement 160. **What makes it merely untidy is that negotiate pairs on the newest row per
+  `(rom_id, slot)` and never looks at the rest**, so the copy the user rejected is history the
+  moment the resolution lands and cannot be offered back to this device as a download.
+  Measurement 163, read from the server's source at both the baseline and the running version.
+  This is a dependency on server behaviour: were negotiate ever to volunteer a superseded row,
+  the resolution would be undone by the next flush, because the client holds no sync record for
+  the row it did not ack and `AlreadyHeld` compares hashes that by construction differ.
   A 409 that survives the overwrite means the slot moved again between the report the user read
   and the choice they made, so it is reported rather than forced. `--keep-server` runs the same
   verified restore an ordinary download does, atomic for a single file and staged-but-not-atomic
