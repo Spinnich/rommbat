@@ -169,8 +169,9 @@ means. Several are single lines of code that look obviously right and are wrong.
 - **The server renames a save and does not rename a state.** Measurement 130: a save came back as
   `Probe Save [2026-08-17_12-27-44].srm`. Whatever a bundled directory is uploaded as, the name that
   comes back is not the name you sent.
-- **Negotiate never volunteers a slot the client did not submit** (measurement 132), so nothing about
-  class C changes the fact that a fresh device cannot discover what the server holds for it.
+- **Negotiate does volunteer slots the client did not submit** (measurement 151, which withdraws
+  132), so an empty `saves` array is the inventory pass a fresh device needs. It pairs on the newest
+  row per slot and never offers a superseded one (measurement 163).
 - **mtime cannot decide whether a file needs uploading, for any class**, and a launch alone writes a
   battery save. Content hashing is general.
 
@@ -207,8 +208,12 @@ which is gitignored; if a test needs one, check in the fixture. Never hand-edit 
 
 - **Hash the logical contents, never the archive bytes.** Sorted relative paths plus each file's own
   hash, folded into one digest, deterministic across implementations and across runs.
-- **Restores are atomic.** Extract beside the target, verify, swap, keep the previous copy until the
-  next successful sync. A half-written directory save is a corrupt one.
+- **Restores must be atomic**, because a half-written directory save is a corrupt one. Extract beside
+  the target, verify, swap, keep the previous copy until the next successful sync. Met for a single
+  file. **Not met for the class C unit this stage introduces, and not reachable by swapping**: the
+  container is shared with every other game on the system, so only the unit's own members may move and
+  they go in one at a time. Staging, CRC checks and the copy under `replaced/` all happen first, and a
+  correct version is a rollback from `replaced/` rather than a swap. Open as #38.
 - **Never persist an absolute path**, including a save-unit root discovered by walking a tree.
 - **Fail closed.** Where attribution is uncertain, keep the file, report it, and do not guess a
   `rom_id`. A wrong binding uploads one game's save under another game's name and the cache makes the

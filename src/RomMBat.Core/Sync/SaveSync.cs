@@ -609,12 +609,19 @@ public sealed class SaveSync
         save.ShapeClass == SaveShapeClass.C ? $"{save.Path}/{save.UnitKey}" : save.Path.Value;
 
     /// <summary>
-    /// Fetches a save and puts it in place atomically.
+    /// Fetches a save and puts it in place.
     /// </summary>
     /// <remarks>
-    /// Written to a <c>.part</c>, verified against the hash the server reported, the existing
-    /// file moved aside, then the new one moved in. The ack goes last, after all of that, which
-    /// is the whole point of <c>optimistic=false</c> on the request.
+    /// <para>
+    /// A single file is written to a <c>.part</c>, verified against the hash the server reported,
+    /// the existing file moved aside, then the new one moved in, so that path is atomic. The ack
+    /// goes last, after all of that, which is the whole point of <c>optimistic=false</c>.
+    /// </para>
+    /// <para>
+    /// A class C unit goes to <see cref="RestoreUnitAsync"/> instead, which stages and verifies
+    /// everything up front but <b>swaps the members in one at a time</b>, so that path is not
+    /// atomic. See #38.
+    /// </para>
     /// </remarks>
     private async Task<(long Bytes, string? Problem)> DownloadAsync(
         SyncOperation operation,
