@@ -573,6 +573,37 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_plan_with_nothing_to_free_asks_the_guard_nothing()
+    {
+        using var stub = Library(2);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store);
+
+        // The same unsent entry the test above uses. Its refusal is the observable: reaching it
+        // means the walk ran and SaveGuard was asked, which is invisible in the summary and is
+        // why this asserts the mechanism rather than the output.
+        store.Outbox.Enqueue(
+            OutboxKind.Save,
+            DateTimeOffset.UtcNow,
+            romId: 2,
+            slot: "libretro:battery",
+            contentHash: "abc",
+            sizeBytes: 32,
+            fileMtimeUtc: DateTimeOffset.UtcNow);
+
+        // No budget is set, so nothing is over it, which is what every sync under the cap hits.
+        var plan = new EvictionPlanner(store).Plan();
+
+        Assert.Equal(0, plan.BytesToFree);
+        Assert.Empty(plan.Selected);
+        Assert.Empty(plan.Refused);
+
+        // Still the right sentence, and for the right reason rather than for want of candidates.
+        Assert.Equal("nothing to evict: the install is inside its budget", plan.Summary);
+    }
+
+    [Fact]
     public async Task Eviction_never_removes_a_file_the_user_put_there()
     {
         using var stub = Library(1);

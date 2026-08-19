@@ -254,11 +254,18 @@ public sealed class GameIdAttributor
                     continue;
                 }
 
-                byKey[identifier] = new RouteAnswer(
-                    BindingSource.Sidecar,
-                    romId,
-                    romPath,
-                    $"the save state beside {romPath.Name} names {native}");
+                // First wins, matching the ROM-header route below rather than contradicting it.
+                // This was last-wins, so which ROM answered depended on where a state sorted in
+                // local_state, and the two routes disagreed about the same question. The scan is
+                // ordered by relative path, so first is a stable answer rather than whichever row
+                // came back last.
+                byKey.TryAdd(
+                    identifier,
+                    new RouteAnswer(
+                        BindingSource.Sidecar,
+                        romId,
+                        romPath,
+                        $"the save state beside {romPath.Name} names {native}"));
             }
 
             _sidecars[unit.System] = byKey;

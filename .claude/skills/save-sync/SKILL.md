@@ -211,6 +211,13 @@ never cached.
    `SAVEDATA/ULES01513SYSDATA` to a ROM filename the ordinary index resolves. It needs no ROM
    read and no observed launch, and it covers only games that have a state.
 
+**Both indexes are first-wins, and the two must not diverge.** Within one route a key that two
+ROMs answer to takes the first, because either is as good an answer as the other: for the header
+that is a revision pair sharing a game code, and for the sidecar it is two states naming one
+identifier. Both scans are ordered, by ROM path and by state path, so first is a stable answer
+rather than whichever row the database returned last. The sidecar index was last-wins until the
+sweep after stage 2b, which meant the two routes settled the same question by opposite rules.
+
 **Disagreement fails closed.** Two routes naming different games binds nothing, records the
 refusal so it is not recomputed every scan, and reports both candidates. Picking a side uploads
 one game's save under another's name and the cache then makes it permanent. `saves bind` is how a
@@ -240,6 +247,15 @@ server returned on the last upload is the **wire value**; sending anything else 
 `download` forever. It also means a downloaded archive cannot be verified against
 `server_content_hash` the way a plain file can, and the CRC that extraction validates is what
 stands in for it.
+
+**Which hash answers "have I already got this" follows from that split, and getting it wrong
+costs a transfer.** The download skip that recognises this device's own upload compares the
+local fold against the offered digest, which is the right comparison for class A and B and can
+never be true for class C. A bundled unit is asked in the server's vocabulary instead: the
+slot's recorded `server_content_hash` against the operation's says the server is offering back
+what this device last exchanged, and `uploaded_content_hash` against the fold says the tree
+still holds it. Both halves, because the first cannot see a unit edited since and the second
+cannot see the server moving on.
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout

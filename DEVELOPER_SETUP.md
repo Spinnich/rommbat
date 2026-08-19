@@ -442,7 +442,10 @@ To re-pull upstream data:
 cd reference && ./refresh.sh
 ```
 
-`refresh.sh` is a shell script, so run it from Git Bash or WSL on Windows.
+`refresh.sh` is a shell script, so run it from Git Bash or WSL on Windows. It ends by
+checking the two bundled data files derived from this data, `data/retrobat/bios.json` and
+`data/retrobat/platforms.json`, and exits non-zero naming the generator to run if either has
+gone stale. Regenerating is left to you, because the diff is the point.
 
 ---
 

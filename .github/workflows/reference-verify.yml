@@ -5,9 +5,10 @@ name: Verify reference data
 # hand-edited a vendored artifact. Either way the fix is to revisit docs/PLAN.md,
 # not to update the expected number. See reference/README.md.
 #
-# The bundled platform map is derived from the same vendored files, so it is checked
-# here too: nothing else would notice data/retrobat/platforms.json drifting from the
-# generator that owns it.
+# The bundled platform map and BIOS manifest are derived from the same vendored files,
+# so both are checked here too: nothing else would notice data/retrobat/platforms.json
+# drifting from the generator that owns it, and a stale data/retrobat/bios.json fails only
+# in the .NET suite, a long way from the refresh that caused it.
 
 on:
   push:
@@ -17,7 +18,9 @@ on:
       - reference/**
       - docs/PLAN.md
       - data/retrobat/platforms.json
+      - data/retrobat/bios.json
       - tools/build-platform-map.py
+      - tools/build-bios-manifest.py
       - .github/workflows/reference-verify.yml
 
 permissions:
@@ -45,3 +48,6 @@ jobs:
 
       - name: Check the bundled platform map is what its generator emits
         run: python3 tools/build-platform-map.py --check
+
+      - name: Check the bundled BIOS manifest is what its generator emits
+        run: python3 tools/build-bios-manifest.py --check

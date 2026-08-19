@@ -80,7 +80,7 @@ Two more that only bite once there is code:
 are reproducible offline and drift shows up in a diff.
 
 ```bash
-cd reference && ./refresh.sh    # re-pull upstream, then re-derive every quoted number
+cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check the generated data
 ```
 
 `verify.py` fails loudly when a value moves. **A drift there is a signal to revisit
@@ -142,7 +142,7 @@ dotnet build
 dotnet test
 dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
-cd reference && ./refresh.sh    # refresh vendored upstream data + verify
+cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 trunk fmt && trunk check        # lint
 
 # Only when deliberately moving the pinned RomM schema version. Needs `dotnet tool restore`.
