@@ -202,9 +202,12 @@ public sealed class MediaSyncTests : IDisposable
         // Nothing may have recorded where the install used to be, so a second pass at the new
         // location writes nothing and fetches nothing.
         var media = new MediaSync(relocated, store2, Connect(stub));
-        var mediaOutcome = await media.ApplyAsync([1, 2, 3]);
+        var mediaOutcome = await media.ApplyAsync([1, 2, 3], cancellationToken: TestContext.Current.CancellationToken);
 
-        var gamelists = await new GamelistSync(relocated, store2).ApplyAsync(["snes"], emulationStation: null);
+        var gamelists = await new GamelistSync(relocated, store2).ApplyAsync(
+            ["snes"],
+            emulationStation: null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotEqual(_tree.Root, moved.Root);
         Assert.Equal(0, mediaOutcome.Downloaded);
@@ -245,7 +248,10 @@ public sealed class MediaSyncTests : IDisposable
         Assert.Empty(store.Files.List());
 
         // The gamelist is rewritten from local state, with no server involved at all.
-        await new GamelistSync(install, store).ApplyAsync(outcome.FoldersToRewrite, emulationStation: null);
+        await new GamelistSync(install, store).ApplyAsync(
+            outcome.FoldersToRewrite,
+            emulationStation: null,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         var written = new System.Xml.XmlDocument();
         written.Load(Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml"));

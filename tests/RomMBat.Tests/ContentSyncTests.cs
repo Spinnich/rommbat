@@ -374,7 +374,9 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(ContentAction.Adopt, Assert.Single(plan.Steps).Action);
 
         using var connection = Connect(stub);
-        var outcome = await new ContentSync(install, store, connection).ApplyAsync(plan);
+        var outcome = await new ContentSync(install, store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Adopted);
         Assert.Empty(stub.ContentRequests);
@@ -410,7 +412,8 @@ public sealed class ContentSyncTests : IDisposable
         var resolution = await resolver.ResolveAsync(
             set,
             new RomPager(connection, SetResolver.QueryFor(set)),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(resolution.Members);
         Assert.Equal(1, resolution.TooLargeForFilesystem);
@@ -446,7 +449,8 @@ public sealed class ContentSyncTests : IDisposable
         var resolution = await resolver.ResolveAsync(
             set,
             new RomPager(connection, SetResolver.QueryFor(set)),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(resolution.Members);
         Assert.Equal(1, resolution.MultiFile);
@@ -619,7 +623,9 @@ public sealed class ContentSyncTests : IDisposable
 
         using var connection = Connect(stub);
         var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
-        await new ContentSync(install, store, connection).ApplyAsync(plan);
+        await new ContentSync(install, store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         var eviction = new EvictionPlanner(store).Plan(bytesToFree: long.MaxValue);
 
@@ -644,7 +650,8 @@ public sealed class ContentSyncTests : IDisposable
         // set. The client still has to answer it in words rather than in a status code.
         var response = await connection.DownloadRomContentAsync(
             new RomContentRequest { RomId = 1, FsName = "Disc", IsMultiFile = false },
-            destination);
+            destination,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(response.IsSuccess);
         Assert.Equal(RomMResponseStatus.Forbidden, response.Status);
@@ -660,11 +667,14 @@ public sealed class ContentSyncTests : IDisposable
 
         // Measured at 504 after 300 s on an 83k library, which is why deletion is reconciled
         // through set re-resolution and this is only ever a cross-check.
-        Assert.Null(await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5)));
+        Assert.Null(
+            await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
         stub.IdentifiersStatus = System.Net.HttpStatusCode.OK;
 
-        Assert.Equal([1], await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(
+            [1],
+            await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -681,7 +691,9 @@ public sealed class ContentSyncTests : IDisposable
         using var connection = Connect(stub);
         stub.DropContentAfterBytes = 1024;
 
-        var outcome = await new ContentSync(install, store, connection).ApplyAsync(plan);
+        var outcome = await new ContentSync(install, store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // One game is lost to the drop and the other two still arrive: a set of forty should
         // not be abandoned over one of them.

@@ -110,7 +110,8 @@ public class TransportTests
         using var stub = new StubRomMServer { IsReachable = false };
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-        var exception = await Assert.ThrowsAsync<RomMUnreachableException>(() => connection.ProbeAsync());
+        var exception = await Assert.ThrowsAsync<RomMUnreachableException>(
+            () => connection.ProbeAsync(TestContext.Current.CancellationToken));
 
         Assert.Equal(UnreachableReason.ConnectTimeout, exception.Reason);
     }
@@ -122,7 +123,7 @@ public class TransportTests
         using var stub = new StubRomMServer { ServerVersion = "5.1.1-beta.1", ServerDate = serverNow };
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-        var probe = await connection.ProbeAsync();
+        var probe = await connection.ProbeAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("5.1.1-beta.1", probe.ReportedVersion);
         Assert.Equal(CompatibilityVerdict.Supported, probe.Compatibility.Verdict);
@@ -140,7 +141,7 @@ public class TransportTests
             new RomMClientOptions { Origin = Origin, AccessToken = "rmm_expired" },
             stub);
 
-        var response = await connection.ListDevicesAsync();
+        var response = await connection.ListDevicesAsync(TestContext.Current.CancellationToken);
 
         Assert.False(response.IsSuccess);
         Assert.True(response.NeedsRepairing);
@@ -155,7 +156,7 @@ public class TransportTests
             new RomMClientOptions { Origin = Origin, AccessToken = "rmm_narrow" },
             stub);
 
-        var response = await connection.ListDevicesAsync();
+        var response = await connection.ListDevicesAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(RomMResponseStatus.Forbidden, response.Status);
         Assert.False(response.NeedsRepairing);
@@ -167,7 +168,7 @@ public class TransportTests
         using var stub = new StubRomMServer();
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-        var response = await connection.ListDevicesAsync();
+        var response = await connection.ListDevicesAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(RomMResponseStatus.Unauthorized, response.Status);
         Assert.Empty(stub.RequestLog);

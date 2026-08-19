@@ -7,12 +7,6 @@
     <IsTestProject>true</IsTestProject>
     <!-- xunit.v3 runs tests from an executable, not a library. -->
     <OutputType>Exe</OutputType>
-    <!--
-      xUnit1051 asks every call taking a CancellationToken to pass
-      TestContext.Current.CancellationToken. That is ~100 call sites, tracked in #24;
-      the build runs -warnaserror, so the rule fails it until that lands.
-    -->
-    <NoWarn>$(NoWarn);xUnit1051</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

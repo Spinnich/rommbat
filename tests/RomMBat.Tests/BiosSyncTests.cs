@@ -517,7 +517,9 @@ public sealed class BiosSyncTests : IDisposable
 
         // And nothing is fetched when the plan is carried out anyway.
         using var connection = Connect(stub);
-        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan);
+        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.IsNoOp);
         Assert.Empty(stub.FirmwareRequests);
@@ -608,7 +610,9 @@ public sealed class BiosSyncTests : IDisposable
         Assert.False(plan.CheckedAgainstServer);
         Assert.False(plan.IsNoOp);
 
-        var outcome = await new BiosSync(_tree.Install(), store, connection: null).ApplyAsync(plan);
+        var outcome = await new BiosSync(_tree.Install(), store, connection: null).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Adopted);
         Assert.Equal(0, outcome.Failed);
@@ -642,7 +646,9 @@ public sealed class BiosSyncTests : IDisposable
         var target = Write("bios/dc_flash.bin", theirs);
 
         using var connection = Connect(stub);
-        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan);
+        var outcome = await new BiosSync(_tree.Install(), store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Failed);
         Assert.Equal(0, outcome.Written);

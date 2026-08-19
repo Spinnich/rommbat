@@ -236,7 +236,8 @@ public sealed class MetadataAndMediaTests
 
         var result = await connection.DownloadMediaAsync(
             new MediaResource { Kind = MediaKind.Manual, SourcePath = "roms/1/2/manual/2.pdf" },
-            destination);
+            destination,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.IsSuccess);
         Assert.Contains("web page", result.Message, StringComparison.Ordinal);
@@ -263,7 +264,8 @@ public sealed class MetadataAndMediaTests
         var result = await connection.DownloadMediaAsync(
             new MediaResource { Kind = MediaKind.Image, SourcePath = "roms/1/2/cover/big.png" },
             destination,
-            maximumBytes: 1024);
+            maximumBytes: 1024,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(0, destination.Length);
@@ -289,7 +291,8 @@ public sealed class MetadataAndMediaTests
         var result = await connection.DownloadMediaAsync(
             new MediaResource { Kind = MediaKind.Image, SourcePath = "roms/1/2/cover/big.png" },
             destination,
-            maximumBytes: 4096);
+            maximumBytes: 4096,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(2048, destination.Length);

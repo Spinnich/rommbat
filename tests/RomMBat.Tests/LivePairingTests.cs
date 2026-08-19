@@ -94,15 +94,24 @@ public sealed class LivePairingTests : IAsyncDisposable
         using (var store = LocalStore.Open(install))
         using (var connection = new RomMConnection(new RomMClientOptions { Origin = origin }))
         {
-            var contact = await ServerProbes.TryContactAsync(connection, store);
+            var contact = await ServerProbes.TryContactAsync(
+                connection,
+                store,
+                cancellationToken: TestContext.Current.CancellationToken);
             Assert.NotNull(contact);
             Assert.False(contact.MustRefuse);
 
             var pairing = new PairingService(install, store);
-            var session = await pairing.BeginAsync(connection, "RomMBat integration test");
+            var session = await pairing.BeginAsync(
+                connection,
+                "RomMBat integration test",
+                TestContext.Current.CancellationToken);
 
             Assert.True(PairingCode.IsWellFormed(session.UserCode));
-            Assert.StartsWith(origin.ToString().TrimEnd('/'), session.VerificationUri.ToString(), StringComparison.Ordinal);
+            Assert.StartsWith(
+                origin.ToString().TrimEnd('/'),
+                session.VerificationUri.ToString(),
+                StringComparison.Ordinal);
 
             var completion = await ApproveWhilePollingAsync(pairing, connection, session, RomMScopes.Requested);
 
@@ -126,7 +135,7 @@ public sealed class LivePairingTests : IAsyncDisposable
             using var authenticated = new RomMConnection(
                 new RomMClientOptions { Origin = origin, AccessToken = token });
 
-            var devices = await authenticated.ListDevicesAsync();
+            var devices = await authenticated.ListDevicesAsync(TestContext.Current.CancellationToken);
 
             Assert.True(devices.IsSuccess);
             Assert.Equal(1, devices.Value!.Count(d => string.Equals(d.Id, deviceId, StringComparison.Ordinal)));
@@ -150,7 +159,7 @@ public sealed class LivePairingTests : IAsyncDisposable
         var first = await ApproveWhilePollingAsync(
             pairing,
             connection,
-            await pairing.BeginAsync(connection, "RomMBat integration test"),
+            await pairing.BeginAsync(connection, "RomMBat integration test", TestContext.Current.CancellationToken),
             RomMScopes.Requested);
 
         Assert.True(first.IsPaired);
@@ -162,7 +171,10 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var movedStore = LocalStore.Open(movedInstall);
         var movedPairing = new PairingService(movedInstall, movedStore);
 
-        var session = await movedPairing.BeginAsync(connection, "RomMBat integration test");
+        var session = await movedPairing.BeginAsync(
+            connection,
+            "RomMBat integration test",
+            TestContext.Current.CancellationToken);
         Assert.Equal(DeviceIdentity.Read(install), session.ClientDeviceIdentifier);
 
         var second = await ApproveWhilePollingAsync(movedPairing, connection, session, RomMScopes.Requested);
@@ -172,7 +184,7 @@ public sealed class LivePairingTests : IAsyncDisposable
 
         var token = movedPairing.UnlockToken(null);
         using var authenticated = new RomMConnection(new RomMClientOptions { Origin = origin, AccessToken = token });
-        var devices = await authenticated.ListDevicesAsync();
+        var devices = await authenticated.ListDevicesAsync(TestContext.Current.CancellationToken);
 
         Assert.True(devices.IsSuccess);
         Assert.Equal(
@@ -193,7 +205,10 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var connection = new RomMConnection(new RomMClientOptions { Origin = origin });
 
         var pairing = new PairingService(install, store);
-        var session = await pairing.BeginAsync(connection, "RomMBat integration test (narrowed)");
+        var session = await pairing.BeginAsync(
+            connection,
+            "RomMBat integration test (narrowed)",
+            TestContext.Current.CancellationToken);
 
         string[] narrowed = [RomMScopes.MeRead, RomMScopes.RomsRead, RomMScopes.PlatformsRead];
         var completion = await ApproveWhilePollingAsync(pairing, connection, session, narrowed);
@@ -214,10 +229,13 @@ public sealed class LivePairingTests : IAsyncDisposable
         using (var narrowedConnection = new RomMConnection(
             new RomMClientOptions { Origin = origin, AccessToken = pairing.UnlockToken(null) }))
         {
-            var platforms = await narrowedConnection.ListPlatformsAsync();
+            var platforms = await narrowedConnection.ListPlatformsAsync(
+                cancellationToken: TestContext.Current.CancellationToken);
             Assert.True(platforms.IsSuccess, platforms.Message);
 
-            var listed = await narrowedConnection.ListFirmwareAsync(platforms.Value![0].Id);
+            var listed = await narrowedConnection.ListFirmwareAsync(
+                platforms.Value![0].Id,
+                TestContext.Current.CancellationToken);
             Assert.Equal(RomMResponseStatus.Forbidden, listed.Status);
 
             var fetchable = platforms.Value
@@ -226,7 +244,10 @@ public sealed class LivePairingTests : IAsyncDisposable
 
             if (fetchable is not null)
             {
-                var refused = await narrowedConnection.DownloadFirmwareAsync(fetchable, Stream.Null);
+                var refused = await narrowedConnection.DownloadFirmwareAsync(
+                    fetchable,
+                    Stream.Null,
+                    cancellationToken: TestContext.Current.CancellationToken);
 
                 Assert.Equal(RomMResponseStatus.Forbidden, refused.Status);
                 Assert.Contains("firmware.read", refused.Message, StringComparison.Ordinal);
@@ -238,7 +259,10 @@ public sealed class LivePairingTests : IAsyncDisposable
         var widened = await ApproveWhilePollingAsync(
             pairing,
             connection,
-            await pairing.BeginAsync(connection, "RomMBat integration test (narrowed)"),
+            await pairing.BeginAsync(
+                connection,
+                "RomMBat integration test (narrowed)",
+                TestContext.Current.CancellationToken),
             RomMScopes.Requested);
 
         Assert.True(widened.IsPaired);
@@ -260,12 +284,18 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var connection = new RomMConnection(new RomMClientOptions { Origin = origin });
 
         var pairing = new PairingService(install, store);
-        var session = await pairing.BeginAsync(connection, "RomMBat integration test (declined)");
+        var session = await pairing.BeginAsync(
+            connection,
+            "RomMBat integration test (declined)",
+            TestContext.Current.CancellationToken);
 
         using var approver = new ApprovingUser(origin, ApproverToken!);
-        var pollTask = pairing.CompleteAsync(connection, session);
+        var pollTask = pairing.CompleteAsync(
+            connection,
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
-        await approver.DenyAsync(session.UserCode);
+        await approver.DenyAsync(session.UserCode, TestContext.Current.CancellationToken);
 
         var completion = await pollTask;
 
