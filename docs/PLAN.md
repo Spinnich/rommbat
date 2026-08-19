@@ -1791,10 +1791,13 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   Measurement 160. **What makes it merely untidy is that negotiate pairs on the newest row per
   `(rom_id, slot)` and never looks at the rest**, so the copy the user rejected is history the
   moment the resolution lands and cannot be offered back to this device as a download.
-  Measurement 163, read from the server's source at both the baseline and the running version.
-  This is a dependency on server behaviour: were negotiate ever to volunteer a superseded row,
-  the resolution would be undone by the next flush, because the client holds no sync record for
-  the row it did not ack and `AlreadyHeld` compares hashes that by construction differ.
+  Measurement 163, read from the server's source at both the baseline and the running version
+  and then driven against a live slot holding exactly that leftover row: the negotiate answered
+  `no_op` on this device's copy and never mentioned the other, and an empty `saves` array
+  mentioned neither. This is a dependency on server behaviour rather than a property of the
+  client: were negotiate ever to volunteer a superseded row, the resolution would be undone by
+  the next flush, because the client holds no sync record for the row it did not ack and
+  `AlreadyHeld` compares hashes that by construction differ.
   A 409 that survives the overwrite means the slot moved again between the report the user read
   and the choice they made, so it is reported rather than forced. `--keep-server` runs the same
   verified restore an ordinary download does, atomic for a single file and staged-but-not-atomic

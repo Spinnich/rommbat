@@ -504,7 +504,7 @@ because a slot returning to contents it once held is a different row carrying a 
 **appends** rather than replacing: row identity is the server's own datetime-tagged filename at
 one-second resolution, so no decision a person takes lands on the row it is overwriting. The
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
-row per slot alone; `autocleanup_limit=10` bounds the slot. Resolving either way
+row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. Resolving either way
 prunes the copy, which is what makes the plan's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 

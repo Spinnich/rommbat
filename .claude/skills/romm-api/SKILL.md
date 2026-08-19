@@ -249,7 +249,11 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   here: the server folds its slotted saves to one row per slot by `updated_at` before matching
   anything, and both the submitted and the unsubmitted pass walk that fold. **A superseded row
   in a slot is history and is never offered as an operation**, which is what makes an appending
-  upload untidy rather than dangerous. Measurement 163.
+  upload untidy rather than dangerous. Measurement 163, read from source and then driven against
+  a slot holding a superseded row.
+- **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
+  that earlier one answers **400** `Session is already cancelled`. Complete a session before
+  negotiating again, or accept that the first one can never be tidied up. Measurement 164.
 - **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
   membership; playtime lives in play sessions.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and
