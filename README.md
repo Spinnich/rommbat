@@ -347,7 +347,7 @@ dotnet test
 dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
 trunk fmt && trunk check        # lint, from WSL on Windows
-cd reference && ./refresh.sh    # refresh vendored upstream data and verify
+cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 ```
 
 Trunk has no Windows-native CLI, so run it under WSL. [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)
