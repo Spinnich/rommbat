@@ -115,6 +115,7 @@ public sealed class SaveSync
     private readonly string _deviceId;
     private readonly TimeProvider _time;
     private readonly SaveUnitScanner _units;
+    private readonly SaveShapes _shapes = SaveShapes.Bundled;
 
     public SaveSync(
         RetroBatInstall install,
@@ -149,17 +150,25 @@ public sealed class SaveSync
     public static RelativePath AsideDirectory { get; } =
         RetroBatInstall.AppDirectory.Combine("replaced");
 
-    /// <summary>Negotiates and applies, in one pass.</summary>
+    /// <summary>
+    /// Negotiates and applies, in one pass.
+    /// </summary>
+    /// <remarks>
+    /// <b>An empty local set still negotiates, because that is the inventory pass.</b> Measured:
+    /// negotiate returns a download for every save the device has no current sync record for,
+    /// including slots the client did not submit, and an empty <c>saves</c> array came back with
+    /// 13 downloads across two ROMs. A device that has never synced is <b>absent</b> from
+    /// <c>device_syncs</c> rather than <c>is_current: false</c>, so it is the device with the
+    /// strongest reason to pull, and returning early here made it the one that never asked.
+    /// Driven against a real instance: a second device paired with the same ROM and no
+    /// <c>SAVEDATA</c> flushed to "nothing to sync", and seeding one local unit was enough to
+    /// make the same flush answer one down and restore it. See #63.
+    /// </remarks>
     public async Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default)
     {
         var saves = _store.Saves.List()
             .Where(save => save.RomId is not null && save.ContentHash is not null)
             .ToList();
-
-        if (saves.Count == 0)
-        {
-            return new SaveSyncOutcome();
-        }
 
         // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
         // negotiate between them: the server would be told about the slot twice and answer
@@ -278,6 +287,20 @@ public sealed class SaveSync
                     if (AlreadyHeld(operation, local))
                     {
                         noOps++;
+                        break;
+                    }
+
+                    // A bundled slot this device has never held has no container to expand and
+                    // no key to place under, so the archive has nowhere to go. Reported rather
+                    // than written to the class A path, which would leave a .zip where an
+                    // emulator expects a save.
+                    if (local is null && IsUnplaceableUnit(operation))
+                    {
+                        failed++;
+                        problems.Add(
+                            $"rom {operation.RomId} slot {operation.Slot}: this is a directory "
+                                + "save and this device holds none for that game yet, so there is "
+                                + "no folder to put it in. Run the game once, then flush again.");
                         break;
                     }
 
@@ -833,10 +856,13 @@ public sealed class SaveSync
     /// supplies the name and the ROM's own folder supplies the directory, which is the restore
     /// of a save this device once had and no longer does.
     /// <para>
-    /// A slot this device has never negotiated at all has no recorded identity, and the
-    /// negotiate operation carries only the tagged name. Stripping that tag client-side is what
-    /// the plan rules out, so such a slot still reports that it has nowhere to go, and closing
-    /// that needs the live negotiate this branch did not drive.
+    /// <b>A slot this device has never negotiated has no recorded identity, and that is the
+    /// ordinary case on a fresh install</b>, which is the half of #63 the entry gate was hiding.
+    /// The stem still comes from the ROM, because it is the only sound source: the server strips
+    /// general tags rather than only its own, so <c>file_name_no_tags</c> reads
+    /// <c>Phantasy Star</c> for a ROM called <c>Phantasy Star (Brazil)</c> and produces a file
+    /// libretro cannot see. Only the extension comes off the operation's tagged name, where it
+    /// sits after the tag and never inside it.
     /// </para>
     /// </remarks>
     private RelativePath? ResolveTarget(SyncOperation operation, LocalSave? local)
@@ -847,7 +873,56 @@ public sealed class SaveSync
         }
 
         var known = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty);
-        return known?.OnDiskPath;
+
+        if (known?.OnDiskPath is { } recorded)
+        {
+            return recorded;
+        }
+
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+        var rom = roms.Count > 0 ? roms[0] : null;
+
+        if (rom?.Folder is not { } folder || operation.FileName is not { } named)
+        {
+            return null;
+        }
+
+        var extension = Path.GetExtension(named);
+        var stem = Path.GetFileNameWithoutExtension(rom.FileName);
+
+        return RelativePath.TryCreate($"saves/{folder}/{stem}{extension}", out var derived)
+            ? derived
+            : null;
+    }
+
+    /// <summary>
+    /// True when a slot this device has never held is a bundled one, which cannot be placed yet.
+    /// </summary>
+    /// <remarks>
+    /// A class C restore needs a container and a unit key, and both come from the local unit the
+    /// device already holds. With no local unit there is nothing to expand the declared
+    /// container against: <c>saves/psp/SAVEDATA</c> may not exist at all until PPSSPP has run
+    /// once. Writing the archive to the class A path instead would put a <c>.zip</c> where an
+    /// emulator expects a save, so this is reported and the transfer is not attempted.
+    /// <para>
+    /// Answered from the shapes table rather than from the filename, because a <c>.zip</c>
+    /// extension is not evidence of anything: the slot is what a declared unit path names.
+    /// </para>
+    /// </remarks>
+    private bool IsUnplaceableUnit(SyncOperation operation)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+        var rom = roms.Count > 0 ? roms[0] : null;
+
+        if (rom?.Folder is not { } folder || _shapes.For(folder) is not { } shape)
+        {
+            return false;
+        }
+
+        var slot = operation.Slot ?? string.Empty;
+
+        return shape.UnitPaths.Any(declared =>
+            string.Equals($"{declared.Emulator}:{declared.Slot}", slot, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>

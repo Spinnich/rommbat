@@ -312,7 +312,13 @@ hash, folded into one digest. The archive is transport only.
   earlier reading of this was backwards: a device that is already current for everything gets no
   operations, which is not the same as nothing being volunteered. **So negotiating with an empty
   array is the fresh-device inventory pass**, and no separate one over `GET /api/saves` is
-  needed. A restore onto a device that never held the slot is an ordinary case, not a dead one.
+  needed. A restore onto a device that never held the slot is an ordinary case, not a dead one,
+  so **never return early because the local save list is empty**: that is the device with the
+  strongest reason to pull. The target for such a slot comes from the ROM's own folder and stem,
+  with only the extension read off the operation's tagged filename. **A bundled slot is the
+  exception and is refused with a reason**, because a class C restore needs a container and a
+  unit key and both come from a local unit this device does not have; recognise it from the
+  shapes table, never from a `.zip` extension.
 - Persist the `file_name` the server returns, not the one you sent, and **write a different name
   to disk**, because `Game [2026-08-10_22-58-26].srm` is invisible to an emulator matching on the
   rom name. **The name to write is the ROM's own stem plus `file_extension`, and it is not

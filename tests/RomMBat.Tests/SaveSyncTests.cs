@@ -119,9 +119,9 @@ public class SaveSyncTests
         // "nowhere to write it" and the save can never come back.
         using var fixture = SyncFixture.Create();
 
-        // A second game with a save that stays put, because a device holding nothing at all
-        // never negotiates: RunAsync has nothing to send and returns before asking. That is a
-        // separate gap, and a library with more than one game is the ordinary case anyway.
+        // A second game with a save that stays put, so the request is not the empty one the
+        // fresh-device test below drives. A library with more than one game is the ordinary
+        // case anyway.
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "still here");
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
         fixture.Scan();
@@ -150,6 +150,78 @@ public class SaveSyncTests
         Assert.Equal(
             "from the other device",
             File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_device_with_no_local_saves_negotiates_anyway_and_pulls_what_the_server_holds()
+    {
+        // RunAsync returned before negotiating when the device held no attributed saves, so the
+        // one device with the strongest reason to pull was the one case that never asked. A
+        // freshly paired install with ROMs and no saves printed "saves: nothing to sync" and
+        // made no negotiate call; every save already on the server stayed there, and the install
+        // only started pulling once it happened to write a save of its own.
+        //
+        // Measured, and the reason the empty request is worth sending: negotiate returns a
+        // download for every save the device has no current sync record for, including slots the
+        // client did not submit. An empty saves array came back with 13 downloads across two
+        // ROMs, one never named by the client.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "not kept");
+
+        // The ROM is synced and nothing under saves/ is, which is a fresh install exactly.
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        // Where libretro looks for it: the ROM's own folder and the ROM's own stem. The stem is
+        // never file_name_no_tags, which strips general tags and would have written
+        // "Tetris.srm" for a ROM whose name carries a region.
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_bundled_slot_this_device_has_never_held_is_reported_rather_than_written_as_a_file()
+    {
+        // The half of the entry gate that is not simply deletable. A class C restore needs a
+        // container and a unit key, and both come from the local unit the device holds; with
+        // none, saves/psp/SAVEDATA may not exist at all until PPSSPP has run once. Taking the
+        // single-file route instead would put a .zip where an emulator expects a save.
+        //
+        // Answered from the shapes table rather than from the filename, because a .zip extension
+        // is not evidence of anything: the slot is what a declared unit path names.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(391, "psp", "3rd Birthday, The (Europe)", ".cso", ".srm", "not kept");
+
+        File.Delete(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(391, "ppsspp:savedata", "ULES01513", "zip", "an archive");
+        fixture.Stub.UnsolicitedDownloads.Add((391, "ppsspp:savedata"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(
+            outcome.Problems,
+            problem => problem.Contains("directory save", StringComparison.Ordinal));
+
+        // Nothing was written, least of all an archive under a save's name.
+        Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).zip")));
+        Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).srm")));
     }
 
     [Fact]
