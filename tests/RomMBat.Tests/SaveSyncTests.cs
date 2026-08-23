@@ -221,11 +221,14 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task A_bundled_save_for_a_game_this_device_lacks_is_skipped_not_told_to_run_it()
+    public async Task A_bundled_save_for_a_game_this_device_lacks_is_skipped_rather_than_refused()
     {
-        // Ordering: the unplaceable-unit branch fires on any bundled slot with no local unit, so
-        // without the ROM check ahead of it a psp save for a game that is not on this device is
-        // answered "run the game once, then flush again". There is no game to run.
+        // A class C slot for an absent game takes the skip, not the unplaceable-unit refusal.
+        // Those two are not in competition today, because IsUnplaceableUnit needs the ROM's
+        // folder to find the shape and so answers false for a ROM that is not here; driven on a
+        // real install, the psp operation fell through it to "nowhere to write it" rather than
+        // to "run the game once". Pinned so the shape lookup gaining another route cannot start
+        // telling someone to run a game this device does not have.
         using var fixture = SyncFixture.Create();
 
         fixture.SeedServerSave(4243, "ppsspp:savedata", "ULES09999", "zip", "an archive");

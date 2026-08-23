@@ -325,8 +325,11 @@ hash, folded into one digest. The archive is transport only.
   Counting those as failures gives a per-operation stderr line each and a `Partial` exit on every
   flush a partial-library device ever runs, which is what sync sets are for. It is one count in
   the summary, and it is kept out of `Problems` so a quiet hook-driven flush stays quiet. Check
-  it **before** the bundled-slot refusal: "run the game once, then flush again" is the wrong
-  advice for a game that is not there to run.
+  it **before** the bundled-slot refusal. Those two do not compete today, because
+  `IsUnplaceableUnit` needs the ROM's folder to reach the shapes table and so answers false for
+  an absent ROM: driven on a real install, a `ppsspp:savedata` operation for an unsynced game
+  fell through it to "nowhere to write it". Deciding the absent ROM first keeps that from
+  depending on the shape lookup's internals.
 - Persist the `file_name` the server returns, not the one you sent, and **write a different name
   to disk**, because `Game [2026-08-10_22-58-26].srm` is invisible to an emulator matching on the
   rom name. **The name to write is the ROM's own stem plus `file_extension`, and it is not

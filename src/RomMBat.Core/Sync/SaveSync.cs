@@ -321,11 +321,16 @@ public sealed class SaveSync
 
                     var (target, targetProblem) = ResolveTarget(operation, local);
 
-                    // Before the bundled check, because "run the game once" is the wrong advice
-                    // for a game that is not on this device. Negotiate is unscoped, so a device
-                    // holding a subset is offered every save in the library and most of them
-                    // land here: counted, not reported per operation, and never counted as
-                    // failed, or a partial-library device exits Partial on every flush.
+                    // Negotiate is unscoped, so a device holding a subset is offered every save
+                    // in the library and most of them land here: counted, not reported per
+                    // operation, and never counted as failed, or a partial-library device exits
+                    // Partial on every flush.
+                    //
+                    // Ahead of the bundled check by choice, not necessity. IsUnplaceableUnit
+                    // needs the ROM's folder to find the shape, so it already answers false for
+                    // a ROM that is not here and either order gives the same answer today.
+                    // Deciding it here keeps that true if the shape lookup ever stops needing
+                    // the ROM, which is what would turn an absent game into "run the game once".
                     if (targetProblem == TargetProblem.RomNotHere)
                     {
                         skipped++;
