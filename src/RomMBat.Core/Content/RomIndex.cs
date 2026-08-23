@@ -23,11 +23,11 @@ namespace RomMBat.Core.Content;
 public sealed class RomIndex
 {
     private readonly Dictionary<string, (long RomId, RelativePath Path)> _byFolderAndStem;
-    private readonly Dictionary<string, List<(long RomId, RelativePath Path)>> _byFolder;
+    private readonly Dictionary<string, IReadOnlyList<(long RomId, RelativePath Path)>> _byFolder;
 
     private RomIndex(
         Dictionary<string, (long, RelativePath)> index,
-        Dictionary<string, List<(long RomId, RelativePath Path)>> byFolder)
+        Dictionary<string, IReadOnlyList<(long RomId, RelativePath Path)>> byFolder)
     {
         _byFolderAndStem = index;
         _byFolder = byFolder;
@@ -72,15 +72,24 @@ public sealed class RomIndex
             inFolder.Add((romId, file.Path));
         }
 
-        foreach (var inFolder in byFolder.Values)
+        var sealedByFolder =
+            new Dictionary<string, IReadOnlyList<(long RomId, RelativePath Path)>>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (folder, inFolder) in byFolder)
         {
             // Sorted once at build rather than on every call, since InFolder's order is what
             // makes a Game ID binding the same one twice over an unchanged tree.
             inFolder.Sort((left, right) =>
                 string.CompareOrdinal(left.Path.Value, right.Path.Value));
+
+            // Wrapped rather than handed out live: InFolder returns this, and a caller casting
+            // the sequence back to List would be mutating the index. The prefix scan it replaced
+            // built a fresh sequence per call and could not be reached that way.
+            sealedByFolder[folder] = inFolder.AsReadOnly();
         }
 
-        return new RomIndex(index, byFolder);
+        return new RomIndex(index, sealedByFolder);
     }
 
     /// <summary>The ROM a name in a folder refers to, or null when that folder holds no such ROM.</summary>
@@ -101,7 +110,7 @@ public sealed class RomIndex
     /// at a hundred thousand ROMs.
     /// </para>
     /// </remarks>
-    public IEnumerable<(long RomId, RelativePath Path)> InFolder(string folder)
+    public IReadOnlyList<(long RomId, RelativePath Path)> InFolder(string folder)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(folder);
 

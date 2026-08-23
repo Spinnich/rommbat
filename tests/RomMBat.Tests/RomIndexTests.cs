@@ -107,4 +107,16 @@ public sealed class RomIndexTests : IDisposable
             FileName = fileName,
             SizeBytes = 1024,
         });
+
+    [Fact]
+    public void The_folder_lookup_hands_out_nothing_a_caller_can_mutate()
+    {
+        // The prefix scan this replaced built a fresh sequence per call, so handing out the live
+        // List is a new way for a caller to edit the index from outside it.
+        Add(1, "snes", "Contra III (USA).sfc");
+
+        var index = RomIndex.Build(_store);
+
+        Assert.IsNotAssignableFrom<List<(long RomId, RelativePath Path)>>(index.InFolder("snes"));
+    }
 }
