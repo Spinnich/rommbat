@@ -29,10 +29,14 @@ expression and matching what is on disk reads the slot off the filename, which a
 the four: whether `{{slot}}` renders empty at slot zero becomes "accept zero digits".
 **`bigpemu` is not answered**: it declares `001`/`999` against a two-digit `{{slot2d}}`, which
 compiles to `\d{2}`, so reversal reads 00 to 99 and misses the declaration at both ends. A
-three-digit name is recognised as nothing and dropped without a report (#34), and `_state00` is
-read as slot 0 below the declared floor with nothing refusing or reporting it, because `Bounds`
-has no caller outside the tests (#65). Both ends unmeasured, since its states are reachable only
-through its own gamepad overlay. The same reversal on `<directory>` recovers the system and the
+three-digit name is still recognised as nothing and `_state00` is still read as slot 0 below the
+declared floor and still synced. **Both are reported now, and neither is refused** (#65): a
+`StateScanner` near-miss covers a name that matches a `<file>` template except for the width of
+its slot, and a slot outside the declared `firstslot`/`lastslot`. Only the slot widens, so the
+`.txt` sidecar and the screenshots in the same directory stay silent, which is the rule that is
+deliberately not relaxed. Whether BigPEmu writes a three-digit name is still unmeasured, since
+its states are reachable only through its own gamepad overlay, and the near-miss report is how
+that gets measured without a Jaguar launch (#34). The same reversal on `<directory>` recovers the system and the
 core from the tree, which answers `bizhawk`'s core scoping and is the only sound reading when
 neither level of the save tree is positional. `desmume` still needs handling: nothing makes its
 `<image>` differ from its `<file>`.

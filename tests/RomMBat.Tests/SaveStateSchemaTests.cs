@@ -96,9 +96,81 @@ public class SaveStateSchemaTests
         Assert.Null(template.Match("Rayman (USA)_state999.bigpstate"));
 
         // The other end. Two digits reach 00, which the declaration excludes, and the slot is
-        // read off the name regardless: Bounds has no caller, so nothing refuses or reports it.
+        // read off the name regardless, because the file is evidence and the declaration is
+        // only a claim. It is reported now rather than accepted in silence.
         Assert.Equal(0, template.Match("Rayman (USA)_state00.bigpstate")?.Slot);
         Assert.Equal(99, template.Match("Rayman (USA)_state99.bigpstate")?.Slot);
+    }
+
+    [Fact]
+    public void A_bigpemu_name_that_misses_only_on_slot_width_is_reported_rather_than_dropped()
+    {
+        // #34: three digits cannot be produced by {{slot2d}}, so the name matched nothing and
+        // was passed over by the same rule that ignores the .txt sidecar and the screenshots.
+        // A state the emulator really wrote is not one of those.
+        var bigpemu = Fixtures.LoadSaveStates().For("bigpemu")!;
+        var template = SaveStateTemplate.Create(bigpemu, "jaguar", core: null)!;
+
+        var miss = template.NearMiss("Rayman (USA)_state999.bigpstate");
+
+        Assert.NotNull(miss);
+        Assert.Equal(NearMissKind.SlotWidth, miss.Kind);
+        Assert.Contains("999", miss.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_slot_below_the_declared_floor_is_reported_and_still_synced()
+    {
+        // #65: Bounds had no caller, so slot 0 was accepted, uploaded and never mentioned even
+        // though bigpemu declares firstslot="001". Reported rather than refused.
+        var bigpemu = Fixtures.LoadSaveStates().For("bigpemu")!;
+        var template = SaveStateTemplate.Create(bigpemu, "jaguar", core: null)!;
+
+        var miss = template.NearMiss("Rayman (USA)_state00.bigpstate");
+
+        Assert.NotNull(miss);
+        Assert.Equal(NearMissKind.SlotOutsideDeclaredBounds, miss.Kind);
+
+        // Still a state, still read, still uploadable. The report is the whole change.
+        Assert.Equal(0, template.Match("Rayman (USA)_state00.bigpstate")?.Slot);
+    }
+
+    [Fact]
+    public void A_slot_inside_the_declared_bounds_says_nothing()
+    {
+        var bigpemu = Fixtures.LoadSaveStates().For("bigpemu")!;
+        var template = SaveStateTemplate.Create(bigpemu, "jaguar", core: null)!;
+
+        Assert.Null(template.NearMiss("Rayman (USA)_state07.bigpstate"));
+        Assert.Null(template.NearMiss("Rayman (USA)_state99.bigpstate"));
+    }
+
+    [Fact]
+    public void A_sidecar_or_a_screenshot_is_still_passed_over_without_a_word()
+    {
+        // The rule this deliberately does not relax. Only the slot widens; the rest of the
+        // expression stays anchored and escaped, so a state directory's other contents are as
+        // silent as they were.
+        var bigpemu = Fixtures.LoadSaveStates().For("bigpemu")!;
+        var template = SaveStateTemplate.Create(bigpemu, "jaguar", core: null)!;
+
+        Assert.Null(template.NearMiss("Rayman (USA).txt"));
+        Assert.Null(template.NearMiss("Rayman (USA)_state07.png"));
+        Assert.Null(template.NearMiss("Rayman (USA)_state999.png"));
+        Assert.Null(template.NearMiss("notes.md"));
+    }
+
+    [Fact]
+    public void An_emulator_with_a_free_width_slot_has_no_near_miss_to_report()
+    {
+        // {{slot}} already accepts any number of digits, so there is no wider reading of it to
+        // compare against, and libretro declares no bounds either.
+        var libretro = Fixtures.LoadSaveStates().For("libretro")!;
+        var template = SaveStateTemplate.Create(libretro, "snes", "snes9x")!;
+
+        Assert.Null(template.NearMiss("ActRaiser (USA).state3"));
+        Assert.Null(template.NearMiss("ActRaiser (USA).state123"));
+        Assert.Null(template.NearMiss("ActRaiser (USA).state.auto"));
     }
 
     [Theory]

@@ -119,6 +119,13 @@ internal static class FlushCommand
             if (!quiet)
             {
                 Console.WriteLine(states.Summary);
+
+                foreach (var miss in states.NearMisses)
+                {
+                    // One line here rather than the two `saves` prints: a flush is not the
+                    // report, and the point is that the file stops being invisible.
+                    Console.WriteLine($"  {miss.FileName}: {miss.Detail}");
+                }
             }
         }
         else if (!quiet)

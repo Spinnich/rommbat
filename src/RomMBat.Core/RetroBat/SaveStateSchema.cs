@@ -49,20 +49,19 @@ public enum SlotToken
 /// expansions before sending anything.
 /// </param>
 /// <param name="FirstSlot">
-/// Declared bounds, absent on <c>libretro</c>. They are validation only here, never the source
-/// of the slot: this parser reads a slot off a filename on disk rather than expanding a range,
-/// so a missing bound costs nothing.
+/// Declared bounds, absent on <c>libretro</c>. They are never the source of the slot: this
+/// parser reads a slot off a filename on disk rather than expanding a range, so a missing bound
+/// costs nothing.
 /// <para>
 /// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not resolved by
 /// that, and saying it was is what #34 is about.</b> The compiled <c>{{slot2d}}</c> expression
 /// is <c>(?&lt;slot&gt;\d{2})</c>, so reading the slot off disk covers 00 to 99 and misses the
-/// declared range at both ends. A three-digit name matches nowhere, so it is not recognised as a
-/// state at all and <see cref="Content.StateScanner"/> drops it silently, along with the
-/// sidecars and screenshots the same rule is there to ignore. <c>_state00</c> matches and is
-/// read as slot 0, below the declared floor, and nothing refuses or reports it because
-/// <see cref="Bounds"/> has no caller outside the tests (#65). Whether BigPEmu writes either
-/// name is unmeasured: it is reachable only through its own gamepad overlay and no Jaguar launch
-/// has been driven.
+/// declared range at both ends. A three-digit name matches nowhere and is not synced;
+/// <c>_state00</c> matches, is read as slot 0 below the declared floor, and is synced. Both were
+/// silent, and <see cref="SaveStateTemplate.NearMiss"/> is what ended that: they are reported
+/// and neither is refused, because the file on disk is evidence and the declaration is only a
+/// claim. Whether BigPEmu writes a three-digit name is still unmeasured, since it is reachable
+/// only through its own gamepad overlay and no Jaguar launch has been driven.
 /// </para>
 /// </param>
 public sealed record SaveStateEmulator(
@@ -93,7 +92,8 @@ public sealed record SaveStateEmulator(
     /// template is two-digit <c>{{slot2d}}</c>, so its upper bound cannot be written by its own
     /// filename rule. The bounds are read as integers regardless of zero padding, and a slot
     /// outside them is reported rather than refused, because the file on disk is evidence and
-    /// the declaration is only a claim.
+    /// the declaration is only a claim. <see cref="SaveStateTemplate.NearMiss"/> is the caller
+    /// that does the reporting.
     /// </remarks>
     public (int? First, int? Last) Bounds =>
         (ParseBound(FirstSlot), ParseBound(LastSlot));
@@ -138,10 +138,10 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// <para>
 /// <b>It does not answer <c>bigpemu</c>'s.</b> Its declared range is <c>001</c> to <c>999</c>
 /// and its template is two-digit, so reading the slot off disk answers 00 to 99 and misses that
-/// declaration at both ends: a three-digit name matches no expression and is dropped without
-/// being reported, and <c>_state00</c> is read as slot 0 below the declared floor with nothing
-/// refusing it. Whether the emulator writes either name is unmeasured, so this is recorded
-/// rather than worked around. See #34 and #65.
+/// declaration at both ends: a three-digit name matches no expression and is not synced, and
+/// <c>_state00</c> is read as slot 0 below the declared floor and is. Neither is worked around,
+/// because whether the emulator writes either name is unmeasured, and both are now reported by
+/// <see cref="SaveStateTemplate.NearMiss"/> rather than passed over in silence. See #34 and #65.
 /// </para>
 /// </remarks>
 public sealed class SaveStateSchema
@@ -337,6 +337,7 @@ public sealed partial class SaveStateTemplate
 {
     private readonly Regex _file;
     private readonly Regex? _autosave;
+    private readonly Regex? _anyWidthSlot;
 
     private SaveStateTemplate(
         SaveStateEmulator emulator,
@@ -344,7 +345,8 @@ public sealed partial class SaveStateTemplate
         string? core,
         RelativePath directory,
         Regex file,
-        Regex? autosave)
+        Regex? autosave,
+        Regex? anyWidthSlot)
     {
         Emulator = emulator;
         System = system;
@@ -352,6 +354,7 @@ public sealed partial class SaveStateTemplate
         Directory = directory;
         _file = file;
         _autosave = autosave;
+        _anyWidthSlot = anyWidthSlot;
     }
 
     public SaveStateEmulator Emulator { get; }
@@ -401,7 +404,13 @@ public sealed partial class SaveStateTemplate
 
         var autosave = emulator.AutosaveFile is { } template ? Compile(template, system, core) : null;
 
-        return new SaveStateTemplate(emulator, system, core, directory, file, autosave);
+        // Only a fixed-width token can be near-missed: {{slot}} already accepts any number of
+        // digits, so there is no wider reading of it to compare against.
+        var anyWidthSlot = emulator.Slot is SlotToken.TwoDigit or SlotToken.OneDigit
+            ? Compile(emulator.File, system, core, anySlotWidth: true)
+            : null;
+
+        return new SaveStateTemplate(emulator, system, core, directory, file, autosave, anyWidthSlot);
     }
 
     /// <summary>
@@ -436,6 +445,67 @@ public sealed partial class SaveStateTemplate
             : int.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
 
         return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false, digits);
+    }
+
+    /// <summary>
+    /// A name this emulator very nearly wrote, or null when there is nothing to say about it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Two shapes, and neither is a file the scanner should be silent about.</b> A name that
+    /// matches the template except for the width of its slot is a state this emulator really
+    /// wrote and this client cannot read; <c>bigpemu</c> declares <c>firstslot="001"</c> and
+    /// <c>lastslot="999"</c> against a two-digit <c>{{slot2d}}</c>, so 100 to 999 is
+    /// unrepresentable and a three-digit name matched nothing and was dropped along with the
+    /// <c>.txt</c> sidecars (#34). A slot outside the declared bounds is the other end of the
+    /// same declaration: <c>_state00</c> reads as slot 0, below <c>bigpemu</c>'s floor, and was
+    /// accepted in silence because <see cref="SaveStateEmulator.Bounds"/> had no caller (#65).
+    /// <para>
+    /// <b>Reported, never refused.</b> The file on disk is evidence and the declaration is only
+    /// a claim, so an out-of-bounds slot is still recorded and still uploaded. What changes is
+    /// that it is no longer invisible.
+    /// </para>
+    /// <para>
+    /// Only the slot widens. Everything else in the expression stays anchored and escaped, so a
+    /// <c>.txt</c> sidecar or a <c>.png</c> screenshot beside a state still matches nothing and
+    /// is still passed over without a word, which is the rule this deliberately does not relax.
+    /// </para>
+    /// </remarks>
+    public SaveStateNearMiss? NearMiss(string fileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        if (_autosave?.IsMatch(fileName) == true)
+        {
+            return null;
+        }
+
+        var (first, last) = Emulator.Bounds;
+
+        if (Match(fileName) is { IsAutosave: false, Slot: { } slot })
+        {
+            return (first is { } floor && slot < floor) || (last is { } ceiling && slot > ceiling)
+                ? new SaveStateNearMiss(
+                    fileName,
+                    NearMissKind.SlotOutsideDeclaredBounds,
+                    $"slot {slot} is outside the {first?.ToString(CultureInfo.InvariantCulture) ?? "?"}"
+                        + $" to {last?.ToString(CultureInfo.InvariantCulture) ?? "?"} range "
+                        + $"{Emulator.Name} declares. Synced anyway, since the file is evidence "
+                        + "and the declaration is only a claim.")
+                : null;
+        }
+
+        if (_anyWidthSlot?.Match(fileName) is not { Success: true } wide)
+        {
+            return null;
+        }
+
+        return new SaveStateNearMiss(
+            fileName,
+            NearMissKind.SlotWidth,
+            $"{Emulator.Name} names slots {first?.ToString(CultureInfo.InvariantCulture) ?? "?"} to "
+                + $"{last?.ToString(CultureInfo.InvariantCulture) ?? "?"} and its own filename rule "
+                + $"'{Emulator.File}' cannot write slot {wide.Groups["slot"].Value}. Not synced, and "
+                + "RetroBat's own es_savestates.cfg is what disagrees with itself here.");
     }
 
     /// <summary>The screenshot beside a state, when the emulator declares a distinct one.</summary>
@@ -494,7 +564,7 @@ public sealed partial class SaveStateTemplate
     /// literal text of the suffix still resolves: the anchor at the end is what decides.
     /// </para>
     /// </remarks>
-    private static Regex? Compile(string template, string system, string? core)
+    private static Regex? Compile(string template, string system, string? core, bool anySlotWidth = false)
     {
         var expanded = Expand(template, system, core);
 
@@ -505,13 +575,15 @@ public sealed partial class SaveStateTemplate
 
         var slotToken = SaveStateEmulator.SlotTokenOf(expanded);
 
-        var slotPattern = slotToken switch
-        {
-            SlotToken.TwoDigit => @"(?<slot>\d{2})",
-            SlotToken.OneDigit => @"(?<slot>\d)",
-            SlotToken.Free => @"(?<slot>\d*)",
-            _ => string.Empty,
-        };
+        var slotPattern = anySlotWidth && slotToken is SlotToken.TwoDigit or SlotToken.OneDigit
+            ? @"(?<slot>\d+)"
+            : slotToken switch
+            {
+                SlotToken.TwoDigit => @"(?<slot>\d{2})",
+                SlotToken.OneDigit => @"(?<slot>\d)",
+                SlotToken.Free => @"(?<slot>\d*)",
+                _ => string.Empty,
+            };
 
         var placeholder = slotToken switch
         {
@@ -539,6 +611,24 @@ public sealed partial class SaveStateTemplate
         return new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     }
 }
+
+/// <summary>Why a name in a state directory is worth mentioning.</summary>
+public enum NearMissKind
+{
+    /// <summary>The name matches the template except for the width of its slot.</summary>
+    SlotWidth,
+
+    /// <summary>The name matches, and the slot falls outside the declared range.</summary>
+    SlotOutsideDeclaredBounds,
+}
+
+/// <summary>One name a state directory holds that neither synced cleanly nor is a sidecar.</summary>
+/// <remarks>
+/// The alternative to this type is silence, which is what #34 and #65 are both about. A
+/// three-digit <c>bigpemu</c> name matched nothing and was dropped with the screenshots, and a
+/// slot below the declared floor was accepted without a word.
+/// </remarks>
+public sealed record SaveStateNearMiss(string FileName, NearMissKind Kind, string Detail);
 
 /// <summary>What a filename turned out to be.</summary>
 /// <param name="Stem">

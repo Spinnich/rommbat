@@ -1976,17 +1976,25 @@ range**, and built the parser the other way round. Compiling `<file>` into an an
 expression and matching it against what is on disk reads the slot **off the filename**, so
 `libretro` declaring no bounds needs no invented default. It settles one more question, which is
 not in the table above: whether `{{slot}}` renders empty at slot zero stops being something the
-client has to answer in advance. Declared bounds become validation only. `desmume` still needs
+client has to answer in advance. Declared bounds become a report rather than a refusal, since
+the file on disk is evidence and the declaration is only a claim. `desmume` still needs
 handling, because no reading of the file makes its `<image>` differ from its `<file>`.
 
 **`bigpemu`'s is not a trap the reversal answers, and stage 2a recorded that it was.** The
 compiled `{{slot2d}}` is `(?<slot>\d{2})`, so reading the slot off disk answers **00 to 99** and
 misses the declared `001`/`999` at both ends. A three-digit name matches no expression, so it is
-not recognised as a state and is dropped with no report. `<rom>_state00.bigpstate` matches and is
-read as slot 0, below the declared floor, and nothing refuses or reports it because
-`SaveStateEmulator.Bounds` has no caller outside the tests. Whether BigPEmu writes either name is
-unmeasured, because its save state is reachable only through its own gamepad overlay and no
-Jaguar launch has been driven. Open as #34 for the upper end and #65 for the lower.
+still not synced, and `<rom>_state00.bigpstate` matches and is read as slot 0, below the declared
+floor, and is still synced. Both were silent, which was the part that bit: a state an emulator
+really wrote left no trace anywhere a user could find it.
+
+**Both ends are now reported, and neither is refused.** `StateScanner` carries a near-miss list:
+a name matching an emulator's `<file>` template except for the width of its slot, and a slot
+outside the declared `firstslot`/`lastslot`. Only the slot widens when looking for the first of
+those, so the `.txt` sidecar and the screenshots in the same directory stay as silent as they
+were. Whether BigPEmu writes a three-digit name is still unmeasured, because its save state is
+reachable only through its own gamepad overlay and no Jaguar launch has been driven; the report
+is how that gets measured without one. Open as #34 until a Jaguar launch settles what BigPEmu
+actually writes.
 
 The same reversal applies to `<directory>`: matching the template against directories that
 exist recovers the system and the core from the tree, which answers `bizhawk`'s core scoping and
