@@ -25,6 +25,16 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
     private const string ServerVariable = "ROMMBAT_TEST_SERVER";
     private const string TokenVariable = "ROMMBAT_TEST_APPROVER_TOKEN";
 
+    /// <summary>
+    /// How long the class-wide pairing and its cleanup may take before they are abandoned.
+    /// </summary>
+    /// <remarks>
+    /// Generous, because a person is approving the request by hand at the other end. It is a
+    /// bound rather than a deadline: without one an approval that never arrives hangs the
+    /// class, and no test's cancellation can reach a fixture.
+    /// </remarks>
+    private static readonly TimeSpan SetupTimeout = TimeSpan.FromMinutes(5);
+
     private readonly PairingLitter _litter = new();
 
     private TempRetroBatTree? _tree;
@@ -43,6 +53,16 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
     internal LiveSession Session =>
         _session ?? throw new InvalidOperationException("The live fixture is not configured.");
 
+    /// <summary>
+    /// Pairs once for the whole class, and bounds the pairing long-poll while doing it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Its own token, not <c>TestContext.Current.CancellationToken</c>.</b> A fixture's
+    /// <c>InitializeAsync</c> runs outside any test, so <c>TestContext.Current</c> there is the
+    /// fixture's context rather than a test's and cancelling a test would not reach it. The
+    /// bound is what matters: <see cref="PairingService.CompleteAsync"/> is a long poll against
+    /// a real server, and an approval that never arrives hangs the whole class without one.
+    /// </remarks>
     public async ValueTask InitializeAsync()
     {
         if (!IsConfigured)
@@ -50,6 +70,8 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
             return;
         }
 
+        using var setup = new CancellationTokenSource(SetupTimeout);
+        var cancellationToken = setup.Token;
         var origin = new Uri(Server!);
         _tree = TempRetroBatTree.Create();
         var install = _tree.Install();
@@ -57,11 +79,14 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
 
         using var unauthenticated = new RomMConnection(new RomMClientOptions { Origin = origin });
         var pairing = new PairingService(install, _store);
-        var session = await pairing.BeginAsync(unauthenticated, "RomMBat catalog test");
+        var session = await pairing.BeginAsync(unauthenticated, "RomMBat catalog test", cancellationToken);
 
         using var approver = new ApprovingUser(origin, ApproverToken!);
-        var polling = pairing.CompleteAsync(unauthenticated, session);
-        await approver.ApproveAsync(session.UserCode, RomMScopes.Requested);
+        var polling = pairing.CompleteAsync(unauthenticated, session, cancellationToken: cancellationToken);
+        await approver.ApproveAsync(
+            session.UserCode,
+            RomMScopes.Requested,
+            cancellationToken: cancellationToken);
         var completion = await polling;
 
         Assert.True(completion.IsPaired, "Live pairing did not complete.");
@@ -88,7 +113,8 @@ public sealed class LiveCatalogFixture : IAsyncLifetime
             return;
         }
 
-        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!);
+        using var teardown = new CancellationTokenSource(SetupTimeout);
+        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!, teardown.Token);
 
         Assert.True(
             problems.Count == 0,
@@ -122,13 +148,14 @@ internal sealed class LiveSession(LocalStore store, string deviceId, Uri origin,
         new(new RomMClientOptions { Origin = origin, AccessToken = token });
 
     /// <summary>Reads a response as raw JSON, for asserting on fields the typed row drops.</summary>
-    public async Task<JsonDocument> RawAsync(string path)
+    public async Task<JsonDocument> RawAsync(string path, CancellationToken cancellationToken = default)
     {
         using var http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         return JsonDocument.Parse(
-            await http.GetStringAsync(RomMConnection.JoinOrigin(origin, path)).ConfigureAwait(false));
+            await http.GetStringAsync(RomMConnection.JoinOrigin(origin, path), cancellationToken)
+                .ConfigureAwait(false));
     }
 
     public void Dispose() => Connection.Dispose();

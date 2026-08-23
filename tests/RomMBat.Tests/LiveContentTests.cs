@@ -45,7 +45,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var rom = await SmallSingleFileAsync();
+        var rom = await SmallSingleFileAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No small single-file ROM on this instance.");
 
         var connection = fixture.Session.Connection;
@@ -85,7 +85,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var rom = await SmallSingleFileAsync();
+        var rom = await SmallSingleFileAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No small single-file ROM on this instance.");
 
         var connection = fixture.Session.Connection;
@@ -120,7 +120,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var rom = await MultiFileAsync();
+        var rom = await MultiFileAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No multi-file ROM on this instance.");
 
         // Deliberately lying about the ROM's shape, to prove the header is what breaks it. The
@@ -140,7 +140,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var rom = await SmallSingleFileAsync(extension: "zip");
+        var rom = await SmallSingleFileAsync(extension: "zip", cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No small zipped ROM on this instance.");
 
         await using var buffer = new MemoryStream();
@@ -313,14 +313,17 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     }
 
     /// <summary>The smallest single-file ROM that carries an md5, optionally of one format.</summary>
-    private async Task<RomRow?> SmallSingleFileAsync(string? extension = null)
+    private async Task<RomRow?> SmallSingleFileAsync(
+        string? extension = null,
+        CancellationToken cancellationToken = default)
     {
         for (var offset = 0; offset < 1500; offset += 250)
         {
             var page = await fixture.Session.Connection.GetRomPageAsync(
                 new CatalogQuery { Scope = CatalogScopeKind.Filter, OrderBy = "fs_size_bytes" },
                 limit: 250,
-                offset: offset);
+                offset: offset,
+                cancellationToken: cancellationToken);
 
             if (!page.IsSuccess)
             {
@@ -347,9 +350,10 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     /// They are all disc images, so a size-ordered scan from the bottom of the library never
     /// reaches one.
     /// </remarks>
-    private async Task<RomRow?> MultiFileAsync()
+    private async Task<RomRow?> MultiFileAsync(CancellationToken cancellationToken = default)
     {
-        var platforms = await fixture.Session.Connection.ListPlatformsAsync();
+        var platforms = await fixture.Session.Connection
+            .ListPlatformsAsync(cancellationToken: cancellationToken);
         if (!platforms.IsSuccess)
         {
             return null;
@@ -368,7 +372,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                     OrderBy = "fs_size_bytes",
                 },
                 limit: 100,
-                offset: 0);
+                offset: 0,
+                cancellationToken: cancellationToken);
 
             if (page.IsSuccess && page.Value!.Items.FirstOrDefault(row => row.HasMultipleFiles) is { } found)
             {

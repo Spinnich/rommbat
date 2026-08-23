@@ -57,7 +57,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         // The three costly sidecars are absent from the body, not merely unread. Checked on
         // the raw JSON because the slim row would drop them silently either way.
-        using var raw = await session.RawAsync("api/roms?" + query.ToQueryString(limit: 5, offset: 0));
+        using var raw = await session.RawAsync("api/roms?" + query.ToQueryString(limit: 5, offset: 0), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(raw.RootElement.TryGetProperty("rom_id_index", out var index) && index.GetArrayLength() > 0);
         Assert.False(raw.RootElement.TryGetProperty("char_index", out var chars) && chars.EnumerateObject().Any());

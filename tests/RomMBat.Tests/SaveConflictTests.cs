@@ -27,7 +27,7 @@ public class SaveConflictTests
     public async Task A_conflict_survives_the_flush_that_found_it()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
@@ -50,9 +50,9 @@ public class SaveConflictTests
         // one dated file under replaced/ per flush and nothing pruned them.
         using var fixture = ConflictFixture.Create();
 
-        await fixture.ConflictAsync();
-        await fixture.ConflictAsync();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var replaced = fixture.Resolve(SaveSync.AsideDirectory.Value);
 
@@ -64,12 +64,12 @@ public class SaveConflictTests
     public async Task Re_observing_a_conflict_does_not_reset_how_long_it_has_stood()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var first = Assert.Single(fixture.Store.SaveConflicts.ListOpen()).FirstSeenAtUtc;
 
         fixture.Advance(TimeSpan.FromDays(3));
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var again = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
@@ -81,7 +81,7 @@ public class SaveConflictTests
     public async Task Keeping_the_local_side_overwrites_the_server_and_prunes_the_copy()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var copy = Assert.Single(fixture.Store.SaveConflicts.ListOpen()).LocalCopyPath!.Value;
 
@@ -89,7 +89,7 @@ public class SaveConflictTests
         // refuses an ordinary upload on this slot exactly as a stale device record does.
         fixture.Stub.ConflictOnUpload.Add((7, Slot));
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Resolved, outcome.Message);
 
@@ -123,14 +123,14 @@ public class SaveConflictTests
         // appends, and autocleanup bounds the slot at ten rather than the resolution bounding it
         // at one. Measurement 160.
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         fixture.Stub.ConflictOnUpload.Add((7, Slot));
 
         // The clock has moved on by the time the person answers, which is the ordinary case.
         fixture.Stub.ServerDate = fixture.Stub.ServerDate!.Value.AddMinutes(5);
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Resolved, outcome.Message);
 
@@ -156,9 +156,9 @@ public class SaveConflictTests
         // conflicts again is recognised as one already settled. Pruning the copy aside used to
         // delete the row with it, microseconds after the resolution was written.
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepLocal)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
 
         var decided = Assert.Single(fixture.Store.SaveConflicts.List());
 
@@ -174,14 +174,14 @@ public class SaveConflictTests
     public async Task Deciding_a_conflict_is_not_undone_by_the_next_flush_finding_the_same_slot()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
 
         // The server side has not moved since the decision, so re-reporting it would make the
         // resolve command useless and would take a second copy aside.
         fixture.Advance(TimeSpan.FromHours(1));
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
         Assert.Empty(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
@@ -191,9 +191,9 @@ public class SaveConflictTests
     public async Task A_slot_that_moves_again_after_a_decision_reopens_with_a_fresh_copy_aside()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
 
         // Somebody else changed the slot after the decision, so the decision was about two sides
         // that no longer exist and the user has to be asked again.
@@ -203,7 +203,7 @@ public class SaveConflictTests
         };
 
         fixture.Advance(TimeSpan.FromHours(1));
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
@@ -219,9 +219,9 @@ public class SaveConflictTests
     public async Task Keeping_the_server_side_writes_it_atomically_and_acks_after_the_bytes_land()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepServer);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Resolved, outcome.Message);
 
@@ -247,14 +247,14 @@ public class SaveConflictTests
     public async Task A_download_that_does_not_match_the_recorded_hash_writes_nothing()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         // What a corrupted transfer looks like from here: the bytes arrive and do not match the
         // hash the conflict was recorded with.
         fixture.Stub.HashLie = "ffffffffffffffffffffffffffffffff";
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepServer);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(outcome.Resolved);
         Assert.Contains("hashes to", outcome.Message, StringComparison.Ordinal);
@@ -270,7 +270,7 @@ public class SaveConflictTests
     {
         using var fixture = ConflictFixture.Create();
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(outcome.Resolved);
         Assert.Contains("no conflict recorded", outcome.Message, StringComparison.Ordinal);
@@ -280,11 +280,11 @@ public class SaveConflictTests
     public async Task Resolving_the_same_conflict_twice_is_refused_rather_than_repeated()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
 
-        var second = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var second = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(second.Resolved);
 
@@ -303,16 +303,16 @@ public class SaveConflictTests
         // every flush still counting it while the local write was refused forever. Driven on
         // hardware, one device deleting a PSP save slot and another putting it back.
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
         Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
 
         // The same contents arrive as a new row, and this device has written since.
         File.WriteAllText(fixture.Resolve("saves/gb/Tetris (World).srm"), "written after deciding");
         fixture.Advance(TimeSpan.FromMinutes(5));
         fixture.ReplaceServerSave(id: 101);
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
@@ -321,18 +321,18 @@ public class SaveConflictTests
 
         // And it is settleable, which is the point: a conflict nothing can end is worse than one
         // that was never reported.
-        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer)).Resolved);
+        Assert.True((await fixture.ResolveAsync(ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken)).Resolved);
     }
 
     [Fact]
     public async Task An_unreachable_server_leaves_the_conflict_open_rather_than_half_applied()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         fixture.Stub.IsReachable = false;
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(outcome.Resolved);
         Assert.Contains("not reachable", outcome.Message, StringComparison.Ordinal);
@@ -346,14 +346,14 @@ public class SaveConflictTests
     public async Task A_slot_that_moves_again_before_the_decision_is_reported_rather_than_forced()
     {
         using var fixture = ConflictFixture.Create();
-        await fixture.ConflictAsync();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         // 409 even with overwrite=true, which is the server saying the slot moved between the
         // report the user read and the choice they made.
         fixture.Stub.RefuseOverwrite.Add((7, Slot));
         fixture.Stub.ConflictOnUpload.Add((7, Slot));
 
-        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal);
+        var outcome = await fixture.ResolveAsync(ConflictResolution.KeepLocal, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(outcome.Resolved);
         Assert.Contains("moved again", outcome.Message, StringComparison.Ordinal);
@@ -407,16 +407,18 @@ public class SaveConflictTests
         public void Advance(TimeSpan by) => _time.Advance(by);
 
         /// <summary>Runs a sync that negotiates this slot as a conflict.</summary>
-        public async Task ConflictAsync()
+        public async Task ConflictAsync(CancellationToken cancellationToken = default)
         {
             Stub.NegotiateActions[(7, Slot)] = "conflict";
 
-            await new SaveSync(Install, Store, _connection, DeviceId, _time).RunAsync();
+            await new SaveSync(Install, Store, _connection, DeviceId, _time).RunAsync(cancellationToken);
         }
 
-        public Task<ConflictResolutionOutcome> ResolveAsync(ConflictResolution resolution) =>
+        public Task<ConflictResolutionOutcome> ResolveAsync(
+            ConflictResolution resolution,
+            CancellationToken cancellationToken = default) =>
             new SaveConflictResolver(Install, Store, _connection, DeviceId, _time)
-                .ResolveAsync(7, Slot, resolution);
+                .ResolveAsync(7, Slot, resolution, cancellationToken);
 
         /// <summary>Puts the same contents in the slot under a new id, as another device would.</summary>
         public void ReplaceServerSave(int id)

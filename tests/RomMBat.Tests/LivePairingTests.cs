@@ -64,6 +64,11 @@ public sealed class LivePairingTests : IAsyncDisposable
     /// <remarks>
     /// Not optional politeness. Each approval mints a real credential with the full RomMBat
     /// scope set, and without this a suite run leaves one set behind every time.
+    /// <para>
+    /// Its own token rather than a test's: teardown runs after the test that created the
+    /// litter has finished, so <c>TestContext.Current.CancellationToken</c> is either gone or
+    /// already cancelled and would abandon the cleanup rather than bound it.
+    /// </para>
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
@@ -72,7 +77,8 @@ public sealed class LivePairingTests : IAsyncDisposable
             return;
         }
 
-        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!);
+        using var teardown = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        var problems = await _litter.CleanUpAsync(new Uri(Server!), ApproverToken!, teardown.Token);
 
         Assert.True(
             problems.Count == 0,
@@ -113,7 +119,7 @@ public sealed class LivePairingTests : IAsyncDisposable
                 session.VerificationUri.ToString(),
                 StringComparison.Ordinal);
 
-            var completion = await ApproveWhilePollingAsync(pairing, connection, session, RomMScopes.Requested);
+            var completion = await ApproveWhilePollingAsync(pairing, connection, session, RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(completion.IsPaired);
             Assert.NotNull(completion.RomMDeviceId);
@@ -160,7 +166,7 @@ public sealed class LivePairingTests : IAsyncDisposable
             pairing,
             connection,
             await pairing.BeginAsync(connection, "RomMBat integration test", TestContext.Current.CancellationToken),
-            RomMScopes.Requested);
+            RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(first.IsPaired);
 
@@ -177,7 +183,7 @@ public sealed class LivePairingTests : IAsyncDisposable
             TestContext.Current.CancellationToken);
         Assert.Equal(DeviceIdentity.Read(install), session.ClientDeviceIdentifier);
 
-        var second = await ApproveWhilePollingAsync(movedPairing, connection, session, RomMScopes.Requested);
+        var second = await ApproveWhilePollingAsync(movedPairing, connection, session, RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(second.IsPaired);
         Assert.Equal(first.RomMDeviceId, second.RomMDeviceId);
@@ -211,7 +217,7 @@ public sealed class LivePairingTests : IAsyncDisposable
             TestContext.Current.CancellationToken);
 
         string[] narrowed = [RomMScopes.MeRead, RomMScopes.RomsRead, RomMScopes.PlatformsRead];
-        var completion = await ApproveWhilePollingAsync(pairing, connection, session, narrowed);
+        var completion = await ApproveWhilePollingAsync(pairing, connection, session, narrowed, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(completion.IsPaired);
         Assert.Equal(narrowed.Order(StringComparer.Ordinal), completion.Scopes.All);
@@ -263,7 +269,7 @@ public sealed class LivePairingTests : IAsyncDisposable
                 connection,
                 "RomMBat integration test (narrowed)",
                 TestContext.Current.CancellationToken),
-            RomMScopes.Requested);
+            RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(widened.IsPaired);
         Assert.Equal(completion.RomMDeviceId, widened.RomMDeviceId);
@@ -311,11 +317,12 @@ public sealed class LivePairingTests : IAsyncDisposable
         PairingService pairing,
         RomMConnection connection,
         PairingSession session,
-        IEnumerable<string> approvedScopes)
+        IEnumerable<string> approvedScopes,
+        CancellationToken cancellationToken = default)
     {
         using var approver = new ApprovingUser(new Uri(Server!), ApproverToken!);
 
-        var pending = await approver.ReadPendingAsync(session.UserCode);
+        var pending = await approver.ReadPendingAsync(session.UserCode, cancellationToken);
         Assert.Equal(session.ClientDeviceIdentifier, pending.Client_device_identifier);
         Assert.Equal("RomMBat", pending.Client);
 
@@ -324,8 +331,15 @@ public sealed class LivePairingTests : IAsyncDisposable
         var grantable = approvedScopes.Where(pending.Allowed_scopes.Contains).ToArray();
         Assert.NotEmpty(grantable);
 
-        var pollTask = pairing.CompleteAsync(connection, session);
-        await approver.ApproveAsync(session.UserCode, grantable, session.DeviceName);
+        // The long poll that actually hangs a run, and the sibling call in a test body got the
+        // token in #45 while this one did not. It is a real approval against a real server, so
+        // an approval that never arrives is what this bounds.
+        var pollTask = pairing.CompleteAsync(connection, session, cancellationToken: cancellationToken);
+        await approver.ApproveAsync(
+            session.UserCode,
+            grantable,
+            session.DeviceName,
+            cancellationToken: cancellationToken);
 
         var completion = await pollTask;
 

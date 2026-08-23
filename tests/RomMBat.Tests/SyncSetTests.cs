@@ -58,7 +58,7 @@ public class SyncSetTests : IDisposable
             MaxBytes = 8L * 1024 * 1024 * 1024,
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
         Assert.Equal(40, resolution.Members.Count);
@@ -85,7 +85,7 @@ public class SyncSetTests : IDisposable
             MaxGames = 10,
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
         _store.SyncSets.ReplaceMembers(set.Id, [.. resolution.Members, .. resolution.Excluded], resolution.Summary, Now);
 
         stub.IsReachable = false;
@@ -118,7 +118,7 @@ public class SyncSetTests : IDisposable
             MaxBytes = 10_000,
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         // Greedy, not a knapsack: A wins on name order, B does not fit alongside it, C does.
         Assert.Equal(["A", "C"], resolution.Members.Select(member => member.DisplayName));
@@ -144,7 +144,7 @@ public class SyncSetTests : IDisposable
             Ordering = SetOrdering.SizeAscending,
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["C", "B"], resolution.Members.Select(member => member.DisplayName));
     }
@@ -183,8 +183,8 @@ public class SyncSetTests : IDisposable
         using var forwardConnection = Connect(forward);
         using var reverseConnection = Connect(reverse);
 
-        var first = await Resolve(set, forwardConnection, pageSize: 1);
-        var second = await Resolve(set, reverseConnection, pageSize: 1);
+        var first = await Resolve(set, forwardConnection, pageSize: 1, cancellationToken: TestContext.Current.CancellationToken);
+        var second = await Resolve(set, reverseConnection, pageSize: 1, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["Actraiser", "Mario"], first.Members.Select(member => member.DisplayName));
         Assert.Equal(first.Members.Select(m => m.RomId), second.Members.Select(m => m.RomId));
@@ -201,7 +201,7 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(resolution.Members);
         Assert.Equal(2, resolution.ExcludedExtensions["chd"]);
@@ -227,7 +227,7 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         // A real instance had 23 of these on one platform. Reporting the format as a bare dot
         // would read as a bug in RomMBat rather than a gap in the library.
@@ -246,7 +246,7 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "orphans", Scope = CatalogScopeKind.Platform, ScopeValue = "9" });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(resolution.Members);
         Assert.Equal(1, resolution.UnmappedPlatforms["some-console-nobody-has"]);
@@ -262,7 +262,7 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "arcade", Scope = CatalogScopeKind.Platform, ScopeValue = "2" });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.NeedsFolderChoice, resolution.Outcome);
         Assert.Contains("mame", resolution.Problem!, StringComparison.Ordinal);
@@ -284,7 +284,7 @@ public class SyncSetTests : IDisposable
             FolderOverride = "fbneo",
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
         Assert.Equal("fbneo", resolution.Members[0].Folder);
@@ -299,7 +299,7 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "everything", Scope = CatalogScopeKind.Filter, ScopeValue = "{}" });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Refused, resolution.Outcome);
         Assert.Contains("no game or size cap", resolution.Problem!, StringComparison.Ordinal);
@@ -313,13 +313,13 @@ public class SyncSetTests : IDisposable
 
         var set = Add(new SyncSetDefinition { Name = "drifting", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
-        var first = await Resolve(set, connection);
+        var first = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
         _store.SyncSets.ReplaceMembers(set.Id, [.. first.Members], first.Summary, Now);
 
         // The scope shrinks server-side, which is what a smart collection does on its own.
         stub.Library.RemoveAt(2);
 
-        var second = await Resolve(set, connection);
+        var second = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
         _store.SyncSets.ReplaceMembers(set.Id, [.. second.Members], second.Summary, Now.AddMinutes(1));
 
         Assert.Equal(2, _store.SyncSets.Members(set.Id).Count);
@@ -339,8 +339,8 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "steady", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
-        await ResolveSegment(set, connection, Now);
-        await ResolveSegment(set, connection, Now.AddMinutes(1));
+        await ResolveSegment(set, connection, Now, cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(set, connection, Now.AddMinutes(1), cancellationToken: TestContext.Current.CancellationToken);
 
         // The no-op re-sync check, one milestone early: a second resolve over a library that
         // did not move must not depart anyone or double-count what it skipped.
@@ -361,14 +361,14 @@ public class SyncSetTests : IDisposable
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "cleaning", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
-        await ResolveSegment(set, connection, Now);
+        await ResolveSegment(set, connection, Now, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(MemberState.ExcludedExtension, _store.SyncSets.Exclusions(set.Id)[0].State);
 
         // The user deletes the unplayable disc image in RomM. The reason it was skipped is a
         // fact about the last resolution, so it has to go with it rather than be reported
         // forever against a game that is no longer in the scope.
         stub.Library.RemoveAt(2);
-        await ResolveSegment(set, connection, Now.AddMinutes(1));
+        await ResolveSegment(set, connection, Now.AddMinutes(1), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(_store.SyncSets.Exclusions(set.Id));
     }
@@ -384,12 +384,12 @@ public class SyncSetTests : IDisposable
         // The server drops out after the first page, which is the case resume_offset exists
         // for. The segment already read is an accumulator, not the membership.
         stub.FailRomsAfterPages = 1;
-        var first = await ResolveSegment(set, connection, Now, pageSize: 4);
+        var first = await ResolveSegment(set, connection, Now, pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Interrupted, first.Outcome);
         Assert.Equal(4, _store.Cursors.Read($"roms:set:{set.Id}")!.ResumeOffset);
 
-        var second = await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4);
+        var second = await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, second.Outcome);
         Assert.Equal(10, _store.SyncSets.Members(set.Id).Count);
@@ -414,8 +414,8 @@ public class SyncSetTests : IDisposable
         });
 
         stub.FailRomsAfterPages = 1;
-        await ResolveSegment(set, connection, Now, pageSize: 4);
-        await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4);
+        await ResolveSegment(set, connection, Now, pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
 
         // Six, not six per segment, and the six the ordering actually asks for.
         var members = _store.SyncSets.Members(set.Id);
@@ -453,8 +453,8 @@ public class SyncSetTests : IDisposable
             using var first = Connect(byName);
             using var second = Connect(byImport);
 
-            var ordered = await Resolve(set, first);
-            var shuffled = await Resolve(set, second);
+            var ordered = await Resolve(set, first, cancellationToken: TestContext.Current.CancellationToken);
+            var shuffled = await Resolve(set, second, cancellationToken: TestContext.Current.CancellationToken);
 
             // B is the one that does not fit alongside A. Dropping the ordering-worst as the
             // budget filled would instead have thrown C away before B ever arrived.
@@ -481,7 +481,7 @@ public class SyncSetTests : IDisposable
             MaxBytes = 10_000,
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["Small"], resolution.Members.Select(member => member.DisplayName));
         Assert.Equal(1, resolution.OverBytes);
@@ -585,12 +585,20 @@ public class SyncSetTests : IDisposable
 
     private SyncSetDefinition Add(SyncSetDefinition definition) => _store.SyncSets.Add(definition, Now);
 
-    private async Task<SetResolution> Resolve(SyncSetDefinition set, RomMConnection connection, int pageSize = 250)
+    private async Task<SetResolution> Resolve(
+        SyncSetDefinition set,
+        RomMConnection connection,
+        int pageSize = 250,
+        CancellationToken cancellationToken = default)
     {
         var install = Fixtures.LoadEsSystems();
         var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
 
-        return await resolver.ResolveAsync(set, new RomPager(connection, SetResolver.QueryFor(set), pageSize), Now);
+        return await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set), pageSize),
+            Now,
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -605,7 +613,8 @@ public class SyncSetTests : IDisposable
         SyncSetDefinition set,
         RomMConnection connection,
         DateTimeOffset now,
-        int pageSize = 250)
+        int pageSize = 250,
+        CancellationToken cancellationToken = default)
     {
         var endpoint = $"roms:set:{set.Id}";
         var cursor = _store.Cursors.BeginWalk(endpoint, now);
@@ -620,7 +629,7 @@ public class SyncSetTests : IDisposable
         var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
         var pager = new RomPager(connection, SetResolver.QueryFor(set), pageSize, startOffset);
 
-        var resolution = await resolver.ResolveAsync(set, pager, walkStartedAt, carried);
+        var resolution = await resolver.ResolveAsync(set, pager, walkStartedAt, carried, cancellationToken);
         var complete = resolution.Outcome == ResolutionOutcome.Resolved;
 
         _store.SyncSets.ReplaceMembers(

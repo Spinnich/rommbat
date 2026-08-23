@@ -35,7 +35,7 @@ public sealed class ContentSyncTests : IDisposable
         using var stub = Library(3);
         using var store = LocalStore.Open(_tree.Install());
 
-        var first = await SyncAsync(stub, store);
+        var first = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, first.Downloaded);
         Assert.Equal(0, first.Failed);
@@ -54,7 +54,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.True(plan.IsNoOp);
         Assert.Contains("nothing to do", plan.Summary, StringComparison.Ordinal);
 
-        var second = await SyncAsync(stub, store);
+        var second = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(second.IsNoOp);
         Assert.Equal(0, second.Downloaded);
@@ -70,7 +70,7 @@ public sealed class ContentSyncTests : IDisposable
 
         using (var store = LocalStore.Open(_tree.Install()))
         {
-            var outcome = await SyncAsync(stub, store);
+            var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(3, outcome.Downloaded);
         }
 
@@ -97,7 +97,7 @@ public sealed class ContentSyncTests : IDisposable
         var expected = stub.Content[1];
         stub.DropContentAfterBytes = expected.Length / 3;
 
-        var interrupted = await SyncAsync(stub, store);
+        var interrupted = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, interrupted.Failed);
         Assert.Equal(0, interrupted.Downloaded);
@@ -110,7 +110,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.True(File.Exists(part));
         Assert.Equal(expected.Length / 3, new FileInfo(part).Length);
 
-        var resumed = await SyncAsync(stub, store);
+        var resumed = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, resumed.Resumed);
         Assert.Equal(0, resumed.Failed);
@@ -140,13 +140,13 @@ public sealed class ContentSyncTests : IDisposable
         stub.DropContentAfterBytes = expected.Length / 2;
         var original = stub.ContentETag;
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // The file changed on the server, so the partial bytes describe something that no
         // longer exists. Measured behaviour: a full 200, never a 206 spliced onto stale bytes.
         stub.ContentETag = "\"deadbeef-2000\"";
 
-        var resumed = await SyncAsync(stub, store);
+        var resumed = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, resumed.Failed);
         Assert.Equal(expected, File.ReadAllBytes(Absolute(Members(store).Single())));
@@ -165,7 +165,7 @@ public sealed class ContentSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
 
         var expected = stub.Content[1];
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var member = Members(store).Single();
         var part = ContentPlanner.PartFor(member.RomId);
@@ -186,7 +186,7 @@ public sealed class ContentSyncTests : IDisposable
             UpdatedAt = DateTimeOffset.UtcNow,
         });
 
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Failed);
         Assert.Equal(expected, File.ReadAllBytes(Absolute(member)));
@@ -204,7 +204,7 @@ public sealed class ContentSyncTests : IDisposable
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
 
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // The server's copy shrank under a resume point the catalogue still describes as
         // further out, so the range names a byte that no longer exists.
@@ -226,7 +226,7 @@ public sealed class ContentSyncTests : IDisposable
             UpdatedAt = DateTimeOffset.UtcNow,
         });
 
-        var refused = await SyncAsync(stub, store);
+        var refused = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, refused.Failed);
 
@@ -236,7 +236,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Null(store.Downloads.Find(member.RomId));
 
         // Proof that it broke out: the next run asks for the whole file, not for the range.
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Contains(stub.ContentRequests, request => request.Contains("bytes=0-", StringComparison.Ordinal));
     }
 
@@ -259,7 +259,7 @@ public sealed class ContentSyncTests : IDisposable
         stub.Content[1] = content;
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -268,7 +268,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(VerifiedBy.Size, recorded.VerifiedBy);
 
         // And it stays done. The permanent-failure shape is a second run that fetches it again.
-        var second = await SyncAsync(stub, store);
+        var second = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(second.IsNoOp);
         Assert.Equal(1, second.AlreadyPresent);
     }
@@ -290,7 +290,7 @@ public sealed class ContentSyncTests : IDisposable
         stub.Content[1] = archive;
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -299,7 +299,7 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(HashScope.File, recorded.HashScope);
         Assert.Equal(VerifiedBy.Size, recorded.VerifiedBy);
 
-        var second = await SyncAsync(stub, store);
+        var second = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(second.IsNoOp);
     }
 
@@ -319,7 +319,7 @@ public sealed class ContentSyncTests : IDisposable
         stub.Content[1] = damaged;
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Failed);
         Assert.Empty(store.Files.List());
@@ -344,7 +344,7 @@ public sealed class ContentSyncTests : IDisposable
         stub.Content[1] = archive;
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -362,7 +362,7 @@ public sealed class ContentSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         var install = _tree.Install();
 
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var member = Members(store).Single();
         var target = install.Resolve(ContentPlanner.TargetFor(member));
@@ -469,7 +469,7 @@ public sealed class ContentSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         var install = _tree.Install();
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var member = Members(store).Single();
         var target = install.Resolve(ContentPlanner.TargetFor(member));
@@ -495,7 +495,7 @@ public sealed class ContentSyncTests : IDisposable
         // Room for one of the three, which are 4 KB each.
         store.Settings.Set(SettingStore.ContentMaxBytes, 6000L, DateTimeOffset.UtcNow);
 
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(2, outcome.Blocked);
@@ -510,7 +510,7 @@ public sealed class ContentSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         var install = _tree.Install();
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // One game leaves the scope. It is the least surprising thing to remove, so it goes
         // before any current member, whatever its rank.
@@ -553,7 +553,7 @@ public sealed class ContentSyncTests : IDisposable
         using var stub = Library(2);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // M6 owns saves and nothing writes one yet, so the guard answers from the seams that do
         // exist. An unsent outbox entry is the one that matters most: evicting the ROM would
@@ -582,7 +582,7 @@ public sealed class ContentSyncTests : IDisposable
         using var stub = Library(2);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // The same unsent entry the test above uses. Its refusal is the observable: reaching it
         // means the walk ran and SaveGuard was asked, which is invisible in the summary and is
@@ -614,7 +614,7 @@ public sealed class ContentSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         var install = _tree.Install();
 
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var member = Members(store).Single();
         var target = install.Resolve(ContentPlanner.TargetFor(member));
@@ -683,7 +683,7 @@ public sealed class ContentSyncTests : IDisposable
         using var stub = Library(3);
         using var store = LocalStore.Open(_tree.Install());
 
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var install = _tree.Install();
         var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
@@ -740,18 +740,25 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     /// <summary>Resolves the set and returns the outcome of syncing what it holds.</summary>
-    private async Task<ContentSyncOutcome> SyncAsync(StubRomMServer stub, LocalStore store)
+    private async Task<ContentSyncOutcome> SyncAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        CancellationToken cancellationToken = default)
     {
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken);
 
         var install = _tree.Install();
         var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
 
         using var connection = Connect(stub);
-        return await new ContentSync(install, store, connection).ApplyAsync(plan);
+        return await new ContentSync(install, store, connection)
+            .ApplyAsync(plan, cancellationToken: cancellationToken);
     }
 
-    private static async Task ResolveAsync(StubRomMServer stub, LocalStore store)
+    private static async Task ResolveAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        CancellationToken cancellationToken = default)
     {
         var set = store.SyncSets.Find("snes")
             ?? store.SyncSets.Add(
@@ -765,7 +772,8 @@ public sealed class ContentSyncTests : IDisposable
         var resolution = await resolver.ResolveAsync(
             set,
             new RomPager(connection, SetResolver.QueryFor(set)),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            cancellationToken: cancellationToken);
 
         store.SyncSets.ReplaceMembers(
             set.Id,

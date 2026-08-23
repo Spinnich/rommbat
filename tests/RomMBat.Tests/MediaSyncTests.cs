@@ -38,7 +38,7 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(6);
         using var store = LocalStore.Open(_tree.Install());
 
-        var resolution = await ResolveAsync(stub, store);
+        var resolution = await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         // The claim this milestone's whole shape rests on. GET /api/roms/{id} would be one
         // request per game, 0.15 s each; the paged read already carries every field.
@@ -67,7 +67,7 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(2_000);
         using var store = LocalStore.Open(_tree.Install());
 
-        var resolution = await ResolveAsync(stub, store, maxGames: 25);
+        var resolution = await ResolveAsync(stub, store, maxGames: 25, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2_000, resolution.Scanned);
         Assert.Equal(25, resolution.Members.Count);
@@ -86,7 +86,7 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(2);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var images = Path.Combine(_tree.Root, "roms", "snes", "images");
         var videos = Path.Combine(_tree.Root, "roms", "snes", "videos");
@@ -112,13 +112,13 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(2);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var requestsAfterFirst = stub.AssetRequests.Count;
         var gamelist = Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml");
         var bytes = File.ReadAllBytes(gamelist);
 
-        var second = await SyncAsync(stub, store);
+        var second = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, second.Media.Downloaded);
         Assert.Equal(8, second.Media.AlreadyPresent);
@@ -140,7 +140,7 @@ public sealed class MediaSyncTests : IDisposable
         var theirs = Path.Combine(images, "Game 1 (USA)-image.png");
         File.WriteAllBytes(theirs, [1, 2, 3, 4, 5]);
 
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal([1, 2, 3, 4, 5], File.ReadAllBytes(theirs));
         Assert.True(outcome.Media.Adopted >= 1);
@@ -163,7 +163,7 @@ public sealed class MediaSyncTests : IDisposable
         // Enough for the ROMs and almost nothing else.
         store.Settings.Set(SettingStore.ContentMaxBytes, 3 * 1024L + 512, DateTimeOffset.UtcNow);
 
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, outcome.Content.Downloaded);
         Assert.True(outcome.Media.Blocked > 0);
@@ -183,7 +183,7 @@ public sealed class MediaSyncTests : IDisposable
 
         using (var store = LocalStore.Open(_tree.Install()))
         {
-            await SyncAsync(stub, store);
+            await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var requestsBefore = stub.AssetRequests.Count;
@@ -230,7 +230,7 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(3);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var install = _tree.Install();
         var planner = new EvictionPlanner(store);
@@ -270,7 +270,7 @@ public sealed class MediaSyncTests : IDisposable
         var theirs = Path.Combine(images, "Game 1 (USA)-image.png");
         File.WriteAllBytes(theirs, [9, 9, 9]);
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var planner = new EvictionPlanner(store);
         var outcome = planner.Apply(planner.Plan(bytesToFree: long.MaxValue), _tree.Install());
@@ -289,7 +289,7 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
 
-        await SyncAsync(stub, store);
+        await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         var video = store.Files.ForRom(1, LocalFileKind.Video).Single();
         var absolute = _tree.Install().Resolve(video.Path);
@@ -323,7 +323,7 @@ public sealed class MediaSyncTests : IDisposable
         // Content-Length there is nothing to refuse up front, so the read has to stop.
         store.Settings.Set(SettingStore.ContentMaxBytes, 1024L + 32, DateTimeOffset.UtcNow);
 
-        var outcome = await SyncAsync(stub, store);
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Content.Downloaded);
         Assert.True(outcome.Media.Failed > 0);
@@ -376,7 +376,11 @@ public sealed class MediaSyncTests : IDisposable
     private static RomMConnection Connect(StubRomMServer stub) =>
         new(new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" }, stub);
 
-    private static async Task<SetResolution> ResolveAsync(StubRomMServer stub, LocalStore store, int? maxGames = null)
+    private static async Task<SetResolution> ResolveAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        int? maxGames = null,
+        CancellationToken cancellationToken = default)
     {
         using var connection = Connect(stub);
 
@@ -397,7 +401,8 @@ public sealed class MediaSyncTests : IDisposable
         var resolution = await resolver.ResolveAsync(
             set,
             new RomPager(connection, SetResolver.QueryFor(set)),
-            resolvedAt);
+            resolvedAt,
+            cancellationToken: cancellationToken);
 
         store.SyncSets.ReplaceMembers(
             set.Id,
@@ -414,9 +419,12 @@ public sealed class MediaSyncTests : IDisposable
     }
 
     /// <summary>Resolves, pulls, fetches media and writes gamelists, as <c>sync</c> does.</summary>
-    private async Task<SyncOutcome> SyncAsync(StubRomMServer stub, LocalStore store)
+    private async Task<SyncOutcome> SyncAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        CancellationToken cancellationToken = default)
     {
-        await ResolveAsync(stub, store);
+        await ResolveAsync(stub, store, cancellationToken: cancellationToken);
 
         using var connection = Connect(stub);
         var install = _tree.Install();
@@ -424,12 +432,15 @@ public sealed class MediaSyncTests : IDisposable
         var members = store.SyncSets.Members(set.Id);
 
         var plan = new ContentPlanner(install, store).Plan(set, members);
-        var content = await new ContentSync(install, store, connection).ApplyAsync(plan);
+        var content = await new ContentSync(install, store, connection)
+            .ApplyAsync(plan, cancellationToken: cancellationToken);
 
         var romIds = members.Select(member => member.RomId).ToList();
-        var media = await new MediaSync(install, store, connection).ApplyAsync(romIds);
+        var media = await new MediaSync(install, store, connection)
+            .ApplyAsync(romIds, cancellationToken: cancellationToken);
 
-        var gamelists = await new GamelistSync(install, store).ApplyAsync(["snes"], emulationStation: null);
+        var gamelists = await new GamelistSync(install, store)
+            .ApplyAsync(["snes"], emulationStation: null, cancellationToken);
 
         return new SyncOutcome(content, media, gamelists);
     }

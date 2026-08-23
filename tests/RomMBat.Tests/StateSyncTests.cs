@@ -50,7 +50,7 @@ public class StateSyncTests
         fixture.AddState("snes/libretro.bsnes", "ActRaiser (USA).state1", "bsnes progress");
         fixture.Scan();
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, outcome.Uploaded);
         Assert.Equal(0, outcome.Failed);
@@ -77,13 +77,13 @@ public class StateSyncTests
         fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
         fixture.Scan();
 
-        var first = await fixture.PushAsync();
+        var first = await fixture.PushAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, first.Uploaded);
 
         var id = fixture.Stub.States.Keys.Single();
 
         fixture.Scan();
-        var second = await fixture.PushAsync();
+        var second = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         // Nothing sent, because the local row remembers the hash it sent. The server would have
         // accepted the upsert without complaint, so this is the client declining rather than the
@@ -100,14 +100,14 @@ public class StateSyncTests
         fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
         fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "first");
         fixture.Scan();
-        await fixture.PushAsync();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         var id = fixture.Stub.States.Keys.Single();
 
         fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "second, longer");
         fixture.Scan();
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Uploaded);
 
@@ -125,7 +125,7 @@ public class StateSyncTests
         fixture.AddState("ps2/pcsx2", "Game (USA).01.p2s.png", "png bytes");
         fixture.Scan();
 
-        await fixture.PushAsync();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         var state = Assert.Single(fixture.Stub.States.Values);
 
@@ -149,7 +149,7 @@ public class StateSyncTests
 
         fixture.Stub.DropScreenshots = true;
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Equal(0, outcome.Failed);
@@ -173,7 +173,7 @@ public class StateSyncTests
         fixture.AddState("ps2/pcsx2", "Game (USA).01.p2s.png", string.Empty);
         fixture.Scan();
 
-        await fixture.PushAsync();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Null(Assert.Single(fixture.Stub.States.Values).ScreenshotBytes);
     }
@@ -185,7 +185,7 @@ public class StateSyncTests
         fixture.AddState("snes/libretro.snes9x", "Not In The Library (USA).state1", "progress");
         fixture.Scan();
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Uploaded);
         Assert.Equal(1, outcome.Unattributed);
@@ -204,7 +204,7 @@ public class StateSyncTests
 
         fixture.Stub.IsReachable = false;
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         // Offline is a working state: nothing threw, nothing was lost, and both states are
         // still waiting.
@@ -217,7 +217,7 @@ public class StateSyncTests
 
         fixture.Stub.IsReachable = true;
 
-        var second = await fixture.PushAsync();
+        var second = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, second.Uploaded);
     }
@@ -234,7 +234,7 @@ public class StateSyncTests
 
         fixture.Stub.FailNextStateUpload = HttpStatusCode.InternalServerError;
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Equal(1, outcome.Failed);
@@ -243,7 +243,7 @@ public class StateSyncTests
         // costs a retry rather than a state.
         Assert.Single(fixture.Store.States.List(), state => state.IsUnsent);
 
-        var second = await fixture.PushAsync();
+        var second = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, second.Uploaded);
         Assert.DoesNotContain(fixture.Store.States.List(), state => state.IsUnsent);
@@ -262,7 +262,7 @@ public class StateSyncTests
         var scanned = Assert.Single(fixture.Store.States.List());
         fixture.Store.States.Record(scanned with { ContentHash = null }, DateTimeOffset.UnixEpoch);
 
-        var outcome = await fixture.PushAsync();
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Uploaded);
         Assert.Empty(fixture.Stub.States);
@@ -330,8 +330,8 @@ public class StateSyncTests
         public StateScanOutcome Scan() =>
             new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
 
-        public Task<StateSyncOutcome> PushAsync() =>
-            new StateSync(Install, Store, _connection).RunAsync();
+        public Task<StateSyncOutcome> PushAsync(CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).RunAsync(cancellationToken);
 
         public void Dispose()
         {
