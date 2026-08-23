@@ -39,14 +39,19 @@ internal static class EvictCommand
         // Both tables, not just the first. A save state is save data the guard refuses on, so
         // scanning one and not the other leaves exactly the stale-table gap for states that
         // this line exists to close for battery saves.
+        //
+        // States first, because the sidecar attribution route reads local_state and SaveScanner
+        // is what runs it. Scanning saves first meant the route saw an empty table on any tree
+        // whose states had not been recorded yet, so a class C unit went unattributed until a
+        // second invocation. See #64.
         var schema = StateScanner.LoadSchema(context.Install);
-
-        new SaveScanner(context.Install, context.Store, states: schema).Scan();
 
         if (schema is not null)
         {
             new StateScanner(context.Install, context.Store, schema).Scan();
         }
+
+        new SaveScanner(context.Install, context.Store, states: schema).Scan();
 
         var planner = new EvictionPlanner(context.Store);
         var requested = ByteSize.Parse(command.Value("bytes"));
