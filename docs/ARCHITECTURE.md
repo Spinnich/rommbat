@@ -264,7 +264,7 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Seven have been
+so each milestone has somewhere honest to write from the moment it starts. Eight have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -274,7 +274,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                      |
 | `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5/sha1/crc, mtime, last verified, synced or adopted |
 | `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                 |
-| `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible                                           |
+| `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, and whether RomM serves each as one file |
 | `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |
 | `outbox`           | Pending saves, states and play sessions, with real local mtime, content hash and a monotonic sequence number                       |
 | `journal`          | Hook events, correlated later against `emulatorLauncher.log`                                                                       |
