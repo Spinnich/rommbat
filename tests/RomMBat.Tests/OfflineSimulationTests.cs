@@ -30,7 +30,10 @@ public class OfflineSimulationTests
         using var stub = new StubRomMServer { IsReachable = false };
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-        var contact = await ServerProbes.TryContactAsync(connection, store);
+        var contact = await ServerProbes.TryContactAsync(
+            connection,
+            store,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Null(contact);
     }
@@ -45,7 +48,11 @@ public class OfflineSimulationTests
         using var stub = new StubRomMServer { ServerDate = Start };
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-        var contact = await ServerProbes.TryContactAsync(connection, store, time);
+        var contact = await ServerProbes.TryContactAsync(
+            connection,
+            store,
+            time,
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(contact);
         Assert.True(contact.IsSkewSuspicious);
@@ -68,9 +75,12 @@ public class OfflineSimulationTests
         var pairing = new DevicePairing(connection, time);
 
         var session = await pairing.BeginAsync(
-            DevicePairing.BuildPayload("11111111-2222-3333-4444-555555555555", "Handheld", "0.1.0"));
+            DevicePairing.BuildPayload("11111111-2222-3333-4444-555555555555", "Handheld", "0.1.0"),
+            TestContext.Current.CancellationToken);
 
-        var result = await pairing.AwaitApprovalAsync(session);
+        var result = await pairing.AwaitApprovalAsync(
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PairingOutcome.Approved, result.Outcome);
         Assert.Equal(5, stub.TokenPolls);
@@ -89,14 +99,20 @@ public class OfflineSimulationTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new PairingService(install, store, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(connection);
-        var completion = await pairing.CompleteAsync(connection, session);
+        var session = await pairing.BeginAsync(connection, cancellationToken: TestContext.Current.CancellationToken);
+        var completion = await pairing.CompleteAsync(
+            connection,
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(completion.IsPaired);
 
         stub.IsReachable = false;
 
-        Assert.Null(await ServerProbes.TryContactAsync(connection, store));
+        Assert.Null(await ServerProbes.TryContactAsync(
+                connection,
+                store,
+                cancellationToken: TestContext.Current.CancellationToken));
 
         var device = store.Device.Read();
         Assert.NotNull(device);
@@ -115,7 +131,10 @@ public class OfflineSimulationTests
             using var stub = new StubRomMServer { IsReachable = false };
             using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
-            Assert.Null(await ServerProbes.TryContactAsync(connection, store));
+            Assert.Null(await ServerProbes.TryContactAsync(
+                connection,
+                store,
+                cancellationToken: TestContext.Current.CancellationToken));
 
             store.Outbox.Enqueue(
                 OutboxKind.PlaySession,
@@ -158,8 +177,8 @@ public class OfflineSimulationTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new PairingService(install, store, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(connection);
-        await pairing.CompleteAsync(connection, session);
+        var session = await pairing.BeginAsync(connection, cancellationToken: TestContext.Current.CancellationToken);
+        await pairing.CompleteAsync(connection, session, cancellationToken: TestContext.Current.CancellationToken);
 
         store.Outbox.Enqueue(OutboxKind.PlaySession, Start, romId: 1, payload: "{}");
         var identifier = store.Device.Read()!.ClientDeviceIdentifier;
@@ -169,7 +188,7 @@ public class OfflineSimulationTests
             new RomMClientOptions { Origin = Origin, AccessToken = "rmm_stale" },
             stub);
 
-        var response = await authenticated.ListDevicesAsync();
+        var response = await authenticated.ListDevicesAsync(TestContext.Current.CancellationToken);
         Assert.True(response.NeedsRepairing);
 
         pairing.DropTokenForRepairing();
@@ -200,8 +219,10 @@ public class OfflineSimulationTests
             using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
             var pairing = new PairingService(original.Install(), store, new TestTimeProvider(Start));
-            var session = await pairing.BeginAsync(connection);
-            await pairing.CompleteAsync(connection, session);
+            var session = await pairing.BeginAsync(
+                connection,
+                cancellationToken: TestContext.Current.CancellationToken);
+            await pairing.CompleteAsync(connection, session, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         using var moved = original.CopyToNewLocation();
@@ -212,12 +233,17 @@ public class OfflineSimulationTests
         using var movedConnection = new RomMConnection(new RomMClientOptions { Origin = Origin }, movedStub);
 
         var movedPairing = new PairingService(moved.Install(), movedStore, new TestTimeProvider(Start));
-        var movedSession = await movedPairing.BeginAsync(movedConnection);
+        var movedSession = await movedPairing.BeginAsync(
+            movedConnection,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(firstIdentifier, movedSession.ClientDeviceIdentifier);
         Assert.Equal(firstIdentifier, DeviceIdentity.Read(moved.Install()));
 
-        var completion = await movedPairing.CompleteAsync(movedConnection, movedSession);
+        var completion = await movedPairing.CompleteAsync(
+            movedConnection,
+            movedSession,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("device-77", completion.RomMDeviceId);
     }
@@ -238,8 +264,11 @@ public class OfflineSimulationTests
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
         var pairing = new PairingService(install, store, new TestTimeProvider(Start));
 
-        var session = await pairing.BeginAsync(connection);
-        var completion = await pairing.CompleteAsync(connection, session);
+        var session = await pairing.BeginAsync(connection, cancellationToken: TestContext.Current.CancellationToken);
+        var completion = await pairing.CompleteAsync(
+            connection,
+            session,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(completion.IsPaired);
         Assert.True(completion.Scopes.Allows(RomMFeature.Library));

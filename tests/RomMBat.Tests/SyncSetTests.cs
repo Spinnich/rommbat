@@ -499,7 +499,7 @@ public class SyncSetTests : IDisposable
         _store.Cursors.BeginWalk(endpoint, Now);
 
         var pager = new RomPager(connection, SetResolver.QueryFor(set), pageSize: 4);
-        await pager.NextAsync();
+        await pager.NextAsync(TestContext.Current.CancellationToken);
         _store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, Now);
 
         var cursor = _store.Cursors.Read(endpoint);

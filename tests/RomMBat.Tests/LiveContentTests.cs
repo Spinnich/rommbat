@@ -52,7 +52,10 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var request = new RomContentRequest { RomId = rom!.Id, FsName = rom.FsName };
 
         await using var whole = new MemoryStream();
-        var full = await connection.DownloadRomContentAsync(request, whole);
+        var full = await connection.DownloadRomContentAsync(
+            request,
+            whole,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(full.IsSuccess, full.Message);
         Assert.Equal(rom.SizeBytes, whole.Length);
@@ -68,7 +71,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         var resumed = await connection.DownloadRomContentAsync(
             request with { ResumeFrom = cut, Validator = full.Value.Validator },
-            spliced);
+            spliced,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(resumed.IsSuccess, resumed.Message);
         Assert.True(resumed.Value!.Resumed, "A range request should have been honoured with a 206.");
@@ -88,7 +92,12 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var request = new RomContentRequest { RomId = rom!.Id, FsName = rom.FsName };
 
         await using var whole = new MemoryStream();
-        Assert.True((await connection.DownloadRomContentAsync(request, whole)).IsSuccess);
+        var fetched = await connection.DownloadRomContentAsync(
+            request,
+            whole,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(fetched.IsSuccess);
 
         await using var partial = new MemoryStream();
         partial.Write(whole.ToArray().AsSpan(0, (int)(whole.Length / 2)));
@@ -98,7 +107,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         // that into a restart rather than a hybrid file.
         var response = await connection.DownloadRomContentAsync(
             request with { ResumeFrom = partial.Length, Validator = "\"rommbat-stale-validator\"" },
-            partial);
+            partial,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccess, response.Message);
         Assert.True(response.Value!.RestartedFromScratch);
@@ -118,7 +128,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         await using var destination = new MemoryStream();
         var response = await fixture.Session.Connection.DownloadRomContentAsync(
             new RomContentRequest { RomId = rom!.Id, FsName = rom.FsName, IsMultiFile = false },
-            destination);
+            destination,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(response.IsSuccess);
         Assert.Equal(RomMResponseStatus.Forbidden, response.Status);
@@ -135,7 +146,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         await using var buffer = new MemoryStream();
         var response = await fixture.Session.Connection.DownloadRomContentAsync(
             new RomContentRequest { RomId = rom!.Id, FsName = rom.FsName },
-            buffer);
+            buffer,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccess, response.Message);
 
@@ -148,7 +160,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         await using var inner = entries[0].Open();
         await using var content = new MemoryStream();
-        await inner.CopyToAsync(content);
+        await inner.CopyToAsync(content, TestContext.Current.CancellationToken);
 
         // The measurement that reshaped verification: md5 and sha1 describe what is inside the
         // archive, not the archive. Hashing the bytes that arrived would fail every zipped ROM.
@@ -159,7 +171,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var temporary = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".part");
         try
         {
-            await File.WriteAllBytesAsync(temporary, bytes);
+            await File.WriteAllBytesAsync(temporary, bytes, TestContext.Current.CancellationToken);
             var fingerprint = ContentHasher.Compute(temporary, rom.FsName);
 
             Assert.Equal(HashScope.ArchiveContent, fingerprint.Scope);
@@ -179,7 +191,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var page = await fixture.Session.Connection.GetRomPageAsync(
             new CatalogQuery { Scope = CatalogScopeKind.Filter },
             limit: 100,
-            offset: 0);
+            offset: 0,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.SkipWhen(page.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
         Assert.True(page.IsSuccess, page.Message);
@@ -205,7 +218,9 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         // through set re-resolution. It stays a fast-path cross-check, so what matters is that
         // it answers inside its budget either way.
         var started = System.Diagnostics.Stopwatch.StartNew();
-        var identifiers = await fixture.Session.Connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(10));
+        var identifiers = await fixture.Session.Connection.TryGetRomIdentifiersAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
         started.Stop();
 
         Assert.True(
@@ -227,7 +242,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var systems = Fixtures.LoadEsSystems();
         var resolver = new PlatformResolver(systems);
 
-        var platforms = await session.Connection.ListPlatformsAsync();
+        var platforms = await session.Connection.ListPlatformsAsync(
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(platforms.Status == RomMResponseStatus.Forbidden, "This account cannot read platforms.");
         Assert.True(platforms.IsSuccess, platforms.Message);
 
@@ -255,7 +271,8 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var resolution = await new SetResolver(systems, resolver).ResolveAsync(
             set,
             new RomPager(session.Connection, SetResolver.QueryFor(set)),
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
         Assert.SkipWhen(resolution.Members.Count == 0, "The chosen platform resolved to nothing syncable.");
@@ -269,7 +286,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var members = session.Store.SyncSets.Members(set.Id);
         var planner = new ContentPlanner(session.Install, session.Store);
         var outcome = await new ContentSync(session.Install, session.Store, session.Connection)
-            .ApplyAsync(planner.Plan(set, members));
+            .ApplyAsync(planner.Plan(set, members), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Failed);
         Assert.Equal(members.Count, outcome.Downloaded);

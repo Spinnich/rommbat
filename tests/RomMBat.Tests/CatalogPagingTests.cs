@@ -112,7 +112,7 @@ public class CatalogPagingTests
 
         while (!pager.IsComplete)
         {
-            var response = await pager.NextAsync();
+            var response = await pager.NextAsync(TestContext.Current.CancellationToken);
             Assert.True(response.IsSuccess);
             Assert.True(response.Value!.Items.Count <= 250);
             seen += response.Value.Items.Count;
@@ -130,13 +130,13 @@ public class CatalogPagingTests
         using var connection = Connect(stub);
 
         var first = new RomPager(connection, Platform(1), pageSize: 250);
-        await first.NextAsync();
-        await first.NextAsync();
+        await first.NextAsync(TestContext.Current.CancellationToken);
+        await first.NextAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(500, first.Offset);
 
         var resumed = new RomPager(connection, Platform(1), pageSize: 250, startOffset: first.Offset);
-        var response = await resumed.NextAsync();
+        var response = await resumed.NextAsync(TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccess);
         Assert.Equal(501, response.Value!.Items[0].Id);
@@ -149,15 +149,15 @@ public class CatalogPagingTests
         using var connection = Connect(stub);
 
         var pager = new RomPager(connection, Platform(1), pageSize: 250);
-        await pager.NextAsync();
+        await pager.NextAsync(TestContext.Current.CancellationToken);
 
         stub.NextRomsStatus = HttpStatusCode.Unauthorized;
-        var failed = await pager.NextAsync();
+        var failed = await pager.NextAsync(TestContext.Current.CancellationToken);
 
         Assert.True(failed.NeedsRepairing);
         Assert.Equal(250, pager.Offset);
 
-        var recovered = await pager.NextAsync();
+        var recovered = await pager.NextAsync(TestContext.Current.CancellationToken);
 
         Assert.True(recovered.IsSuccess);
         Assert.Equal(251, recovered.Value!.Items[0].Id);
@@ -175,7 +175,7 @@ public class CatalogPagingTests
         using var connection = Connect(stub);
         var pager = new RomPager(connection, Platform(1), pageSize: 250);
 
-        var response = await pager.NextAsync();
+        var response = await pager.NextAsync(TestContext.Current.CancellationToken);
 
         Assert.True(response.IsSuccess);
         Assert.Equal(4_294_967_296L, response.Value!.Items[0].SizeBytes);
@@ -188,12 +188,12 @@ public class CatalogPagingTests
         using var connection = Connect(stub);
 
         var pager = new RomPager(connection, Platform(1), pageSize: 250);
-        await pager.NextAsync();
+        await pager.NextAsync(TestContext.Current.CancellationToken);
 
         stub.IsReachable = false;
 
         await Assert.ThrowsAsync<RomMUnreachableException>(
-            () => pager.NextAsync());
+            () => pager.NextAsync(TestContext.Current.CancellationToken));
 
         // The offset is untouched, so the next run picks up exactly where this one stopped.
         Assert.Equal(250, pager.Offset);
