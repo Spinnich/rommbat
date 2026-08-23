@@ -367,6 +367,14 @@ internal static class SavesCommand
     /// The side has to be named. There is no default, because either default silently discards
     /// somebody's progress and the whole reason a conflict exists is that RomMBat cannot tell
     /// which side matters.
+    /// <para>
+    /// <b>Under <see cref="TreeLock"/>, like a flush.</b> Resolving a class C conflict runs the
+    /// same <c>SaveUnitTransfer.Restore</c> a flush does, extracting into
+    /// <c>partial/unit-&lt;guid&gt;/</c> and swapping members into a shared container one at a
+    /// time. Two of those at once, or one racing <c>PartialSweep</c>, leaves the container half
+    /// swapped. Unlike a flush, failing to acquire is refused rather than treated as done: a
+    /// person asked for this and silently doing nothing would read as having resolved it.
+    /// </para>
     /// </remarks>
     private static async Task<int> ResolveAsync(
         AgentContext context,
@@ -395,6 +403,18 @@ internal static class SavesCommand
                 "Name one side: --keep-local or --keep-server. There is no default, because either "
                     + "one discards somebody's progress.");
             return ExitCode.Usage;
+        }
+
+        // Before authenticating, because a resolution that cannot run is not worth a round trip
+        // to the server first.
+        using var held = TreeLock.TryAcquire(context.Install);
+
+        if (held is null)
+        {
+            Console.Error.WriteLine(
+                "A flush is running, and resolving a conflict writes the same save files it does. "
+                    + "Nothing was changed. Try again once it has finished.");
+            return ExitCode.Refused;
         }
 
         var connection = context.Authenticate(command, Console.Error, out var exitCode);

@@ -16,7 +16,10 @@ internal static class ExitCode
     /// <summary>The command line was wrong.</summary>
     public const int Usage = 2;
 
-    /// <summary>A precondition failed: no RetroBat root, or a version below the minimum.</summary>
+    /// <summary>
+    /// A precondition failed: no RetroBat root, a version below the minimum, or another agent
+    /// holding the tree lock over work this command would have to write.
+    /// </summary>
     public const int Refused = 3;
 
     /// <summary>Not paired, or the stored token no longer works.</summary>

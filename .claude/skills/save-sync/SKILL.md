@@ -289,6 +289,18 @@ hash, folded into one digest. The archive is transport only.
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced. Both
   outcomes prune the copy aside.
+- **`saves resolve` takes `TreeLock`, and refuses rather than treating a held lock as done.** It
+  runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or one racing
+  `evict`'s sweep of `partial/`, leaves a shared container half swapped. Unlike a flush, where
+  failing to acquire means another agent is already doing the work, a person asked for this one
+  and silently returning `Ok` would read as having resolved it: it exits `Refused` and says why.
+- **`partial/unit-<guid>/` is live state for the length of a class C restore, and nothing holds
+  a handle on it.** `SaveArchive.Extract` closes each entry's writer inside its own loop, so the
+  staging directory sits unprotected across the hash, the copy aside, the `Remove` and the whole
+  move loop. Anything that deletes under `partial/` must hold `TreeLock`. **A `FileShare.None`
+  sentinel inside the directory is not a substitute**, measured rather than assumed:
+  `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
+  sentinel, so the staged members are gone regardless.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
   two ROMs, one never named by the client, and acking one dropped the next answer to 12. An

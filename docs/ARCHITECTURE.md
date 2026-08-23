@@ -159,7 +159,11 @@ hook is never told the system, emulator or core, so
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
-hook execution is the normal case.
+hook execution is the normal case. Anything else that writes the same save files takes it
+too: `saves resolve`, which runs the same class C restore a flush does, and `evict`'s sweep of
+`partial/`, which would otherwise delete a restore's staging directory out from under it. A
+flush that cannot get the lock is done, because another process is doing the work; the other
+two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for the next pass.
 
 ### `src/RomMBat.UI`
 
