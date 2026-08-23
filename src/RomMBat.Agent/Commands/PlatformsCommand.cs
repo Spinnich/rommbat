@@ -153,10 +153,13 @@ internal static class PlatformsCommand
         var install = EsSystemsFile.Load(context.Install);
         if (!install.HasFolder(folder))
         {
+            // Usage, not Refused, for the same reason the folder gate in `sets add` answers
+            // Usage: the folder is a positional the user typed, so this is a wrong command line
+            // rather than a failed precondition about the install.
             Console.Error.WriteLine(
                 $"'{folder}' is not a system in this install's es_systems.cfg. Games synced there would "
                     + "never appear in EmulationStation.");
-            return ExitCode.Refused;
+            return ExitCode.Usage;
         }
 
         var known = context.Store.PlatformMap.Find(fsSlug);

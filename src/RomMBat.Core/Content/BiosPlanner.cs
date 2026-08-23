@@ -215,13 +215,24 @@ public sealed class BiosPlanner
         return index;
     }
 
-    /// <summary>Every RetroBat folder that has a BIOS requirement and holds ROMs RomMBat synced.</summary>
-    public IReadOnlyList<string> FoldersNeedingBios() =>
+    /// <summary>
+    /// Every RetroBat folder RomMBat has synced a ROM into, whatever its firmware needs.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="FoldersNeedingBios"/> so a caller can tell an install that has
+    /// synced nothing from one whose systems simply need no firmware. Only 99 of RetroBat's 240
+    /// systems appear in the manifest, so the second is the ordinary case for a snes, n64 or
+    /// atari2600 library and reads as the first if the two are collapsed.
+    /// </remarks>
+    public IReadOnlyList<string> SyncedFolders() =>
         [.. _store.Files.List(kind: LocalFileKind.Rom)
             .Select(file => file.Folder!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(folder => _manifest.For(folder).Count > 0)
             .Order(StringComparer.OrdinalIgnoreCase)];
+
+    /// <summary>Every RetroBat folder that has a BIOS requirement and holds ROMs RomMBat synced.</summary>
+    public IReadOnlyList<string> FoldersNeedingBios() =>
+        [.. SyncedFolders().Where(folder => _manifest.For(folder).Count > 0)];
 
     /// <summary>
     /// Works out what a BIOS pass over these folders would do.
