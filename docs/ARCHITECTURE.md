@@ -250,8 +250,9 @@ a drift by updating the expected number.
 | File                    | Shape                                                | Derived from                                                                             |
 | ----------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `platforms.json`        | RomM slug to an **ordered list** of RetroBat folders | Seeded from RomM's `config.batocera-retrobat.yml`, corrected against `systems_names.lst` |
-| `save_directories.json` | RomM slug to emulator save subdirectories            | M0 experiment 2, in Grout's shape                                                        |
+| `save_directories.json` | **RetroBat system** to emulator save subdirectories  | M0 experiment 2, in Grout's shape                                                        |
 | `save_shapes.json`      | RetroBat system to save class A/B/C/D                | M0 experiment 2                                                                          |
+| `bios.json`             | RetroBat system to the firmware it requires          | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                   |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
