@@ -125,10 +125,14 @@ public sealed record PartialSweepOutcome
 public sealed class PartialSweep
 {
     private const string RomSuffix = ".part";
+    private const string ZipSuffix = ".zip";
     private const string BiosPrefix = "bios-";
     private const string SavePrefix = "save-";
     private const string ResolvePrefix = "resolve-";
     private const string UnitPrefix = "unit-";
+
+    /// <summary>An md5 as <c>BiosPlanner</c> writes it, and a <c>Guid("N")</c>, are both this long.</summary>
+    private const int HexDigits = 32;
 
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
@@ -247,12 +251,16 @@ public sealed class PartialSweep
     }
 
     /// <summary>Which name shapes are dead, and why. Null means leave it alone.</summary>
+    /// <remarks>
+    /// Every branch matches the whole name against the shape its producer writes, never a
+    /// prefix. A prefix would make <c>partial/save-notes.txt</c> and a directory called
+    /// <c>partial/unit-tests/</c> into candidates, which is the opposite of the rule in the
+    /// class remarks that a name no producer writes is left alone.
+    /// </remarks>
     private static PartialReason? Classify(string name, HashSet<int> claimed)
     {
-        if (name.StartsWith(BiosPrefix, StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith(SavePrefix, StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith(ResolvePrefix, StringComparison.OrdinalIgnoreCase)
-            || name.StartsWith(UnitPrefix, StringComparison.OrdinalIgnoreCase))
+        if (IsHexPart(name, BiosPrefix) || IsIdPart(name, SavePrefix) || IsIdPart(name, ResolvePrefix)
+            || IsUnit(name))
         {
             return PartialReason.Abandoned;
         }
@@ -272,6 +280,55 @@ public sealed class PartialSweep
         }
 
         return claimed.Contains(romId) ? null : PartialReason.Unclaimed;
+    }
+
+    /// <summary><c>bios-&lt;md5&gt;.part</c>, the one name <c>BiosPlanner</c> builds.</summary>
+    private static bool IsHexPart(string name, string prefix) =>
+        name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+        && name.EndsWith(RomSuffix, StringComparison.OrdinalIgnoreCase)
+        && IsHex(name.AsSpan()[prefix.Length..^RomSuffix.Length]);
+
+    /// <summary><c>save-&lt;id&gt;.part</c> and <c>resolve-&lt;id&gt;.part</c>, where the id is a save row.</summary>
+    private static bool IsIdPart(string name, string prefix) =>
+        name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+        && name.EndsWith(RomSuffix, StringComparison.OrdinalIgnoreCase)
+        && int.TryParse(
+            name.AsSpan()[prefix.Length..^RomSuffix.Length],
+            NumberStyles.None,
+            CultureInfo.InvariantCulture,
+            out _);
+
+    /// <summary>The <c>unit-&lt;guid&gt;</c> staging directory, and the <c>.zip</c> bundle beside it.</summary>
+    private static bool IsUnit(string name)
+    {
+        if (!name.StartsWith(UnitPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var stem = name.EndsWith(ZipSuffix, StringComparison.OrdinalIgnoreCase)
+            ? name.AsSpan()[..^ZipSuffix.Length]
+            : name.AsSpan();
+
+        return stem.Length > UnitPrefix.Length && IsHex(stem[UnitPrefix.Length..]);
+    }
+
+    private static bool IsHex(ReadOnlySpan<char> value)
+    {
+        if (value.Length != HexDigits)
+        {
+            return false;
+        }
+
+        foreach (var character in value)
+        {
+            if (!char.IsAsciiHexDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>

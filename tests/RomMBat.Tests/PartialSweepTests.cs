@@ -80,8 +80,8 @@ public sealed class PartialSweepTests : IDisposable
         Write("bios-0123456789abcdef0123456789abcdef.part", "half a bios");
         Write("save-42.part", "half a save");
         Write("resolve-42.part", "half a resolution");
-        Write("unit-deadbeef.zip", "half a unit");
-        WriteDirectory("unit-deadbeef", "SAVEDATA/GAME.DAT", "staged member");
+        Write("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0.zip", "half a unit");
+        WriteDirectory("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0", "SAVEDATA/GAME.DAT", "staged member");
 
         var plan = new PartialSweep(_tree.Install(), store).Plan();
 
@@ -109,6 +109,28 @@ public sealed class PartialSweepTests : IDisposable
         Assert.Empty(new PartialSweep(_tree.Install(), store).Plan().Candidates);
         Assert.True(File.Exists(Resolve("notes.txt")));
         Assert.True(File.Exists(Resolve("12abc.part")));
+    }
+
+    [Fact]
+    public void A_name_that_only_starts_like_a_producer_is_left_alone_too()
+    {
+        // The rule above held for the ROM branch alone: the other four matched on prefix, so
+        // save-notes.txt and a directory called unit-tests were both candidates. Each name here
+        // carries a producer's prefix and none of them is a shape a producer writes.
+        using var store = LocalStore.Open(_tree.Install());
+
+        Write("save-notes.txt", "not a save transfer");
+        Write("save-.part", "no id at all");
+        Write("bios-nothex.part", "an md5 is 32 hex digits and this is not");
+        Write("resolve-conflicts.md", "somebody's working notes");
+        WriteDirectory("unit-tests", "readme.md", "not a staging directory");
+
+        Assert.Empty(new PartialSweep(_tree.Install(), store).Plan().Candidates);
+        Assert.True(File.Exists(Resolve("save-notes.txt")));
+        Assert.True(File.Exists(Resolve("save-.part")));
+        Assert.True(File.Exists(Resolve("bios-nothex.part")));
+        Assert.True(File.Exists(Resolve("resolve-conflicts.md")));
+        Assert.True(Directory.Exists(Resolve("unit-tests")));
     }
 
     [Fact]
