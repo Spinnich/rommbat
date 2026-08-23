@@ -156,9 +156,11 @@ public static class SaveUnitTransfer
             var aside = CopyAside(install, existing, local, asideDirectory, now);
 
             // Everything from here to the end of the loop is the destructive half, and a
-            // failure anywhere in it is undone rather than left where it stopped. Remove is
-            // still first, so a member that cannot be deleted fails with the unit whole and
-            // nothing to undo.
+            // failure anywhere in it is undone rather than left where it stopped: RollBack
+            // deletes what this pass placed and copies every member of the old unit back from
+            // replaced/. Remove is still first, which is what keeps that rollback simple: a
+            // member that cannot be deleted fails before any new one has moved in, so the
+            // rollback has only removals to reverse and never a half-populated container.
             var placed = new List<string>();
 
             try

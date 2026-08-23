@@ -319,6 +319,14 @@ hash, folded into one digest. The archive is transport only.
   exception and is refused with a reason**, because a class C restore needs a container and a
   unit key and both come from a local unit this device does not have; recognise it from the
   shapes table, never from a `.zip` extension.
+- **Unscoped negotiate means most of the answer is for games the device does not hold, and that
+  is not a failure.** A device carrying a 10-game sync set out of a 500-save library is offered
+  every one of them, and each has no local ROM, so no folder and no stem to build a target from.
+  Counting those as failures gives a per-operation stderr line each and a `Partial` exit on every
+  flush a partial-library device ever runs, which is what sync sets are for. It is one count in
+  the summary, and it is kept out of `Problems` so a quiet hook-driven flush stays quiet. Check
+  it **before** the bundled-slot refusal: "run the game once, then flush again" is the wrong
+  advice for a game that is not there to run.
 - Persist the `file_name` the server returns, not the one you sent, and **write a different name
   to disk**, because `Game [2026-08-10_22-58-26].srm` is invisible to an emulator matching on the
   rom name. **The name to write is the ROM's own stem plus `file_extension`, and it is not

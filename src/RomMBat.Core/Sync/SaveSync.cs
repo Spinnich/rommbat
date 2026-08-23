@@ -20,6 +20,18 @@ public sealed record SaveSyncOutcome
 
     public int Failed { get; init; }
 
+    /// <summary>
+    /// Downloads passed over because the ROM they belong to is not on this device.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, and the ordinary majority on any device that syncs a subset.</b>
+    /// Negotiate is unscoped and answers with a download for every save the device has no sync
+    /// record for, so a library of 500 saves against a synced set of 10 offers ~490 slots whose
+    /// ROM is not here. There is no folder to name a save after and nothing has gone wrong, so
+    /// this is one count rather than one stderr line each, and it must not reach the exit code.
+    /// </remarks>
+    public int Skipped { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
@@ -27,7 +39,8 @@ public sealed record SaveSyncOutcome
     /// <summary>Conflicts, with what the user has to choose between.</summary>
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
-    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0;
+    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
+        && Skipped == 0;
 
     public string Summary
     {
@@ -58,6 +71,14 @@ public sealed record SaveSyncOutcome
             if (Failed > 0)
             {
                 parts.Add($"{Failed} failed");
+            }
+
+            if (Skipped > 0)
+            {
+                // Carried by the summary rather than by Problems, because Problems is printed
+                // even on a quiet hook-driven flush and this is the case that does not need
+                // saying every time.
+                parts.Add($"{Skipped} skipped, for games not synced here");
             }
 
             return "saves: " + string.Join(", ", parts);
@@ -163,6 +184,13 @@ public sealed class SaveSync
     /// Driven against a real instance: a second device paired with the same ROM and no
     /// <c>SAVEDATA</c> flushed to "nothing to sync", and seeding one local unit was enough to
     /// make the same flush answer one down and restore it. See #63.
+    /// <para>
+    /// <b>Most of what comes back is for games this device does not hold, and that is not a
+    /// failure.</b> Negotiate is unscoped, so a device carrying a 10-game sync set out of a
+    /// 500-save library is offered every one of them. Those have no ROM to name a save after,
+    /// and counting them as failures would exit <c>Partial</c> on every flush a partial-library
+    /// device ever runs. They are one count in the summary instead.
+    /// </para>
     /// </remarks>
     public async Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default)
     {
@@ -177,6 +205,7 @@ public sealed class SaveSync
         var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
         var problems = new List<string>();
         var failed = 0;
+        var skipped = 0;
 
         foreach (var save in saves)
         {
@@ -290,6 +319,19 @@ public sealed class SaveSync
                         break;
                     }
 
+                    var (target, targetProblem) = ResolveTarget(operation, local);
+
+                    // Before the bundled check, because "run the game once" is the wrong advice
+                    // for a game that is not on this device. Negotiate is unscoped, so a device
+                    // holding a subset is offered every save in the library and most of them
+                    // land here: counted, not reported per operation, and never counted as
+                    // failed, or a partial-library device exits Partial on every flush.
+                    if (targetProblem == TargetProblem.RomNotHere)
+                    {
+                        skipped++;
+                        break;
+                    }
+
                     // A bundled slot this device has never held has no container to expand and
                     // no key to place under, so the archive has nowhere to go. Reported rather
                     // than written to the class A path, which would leave a .zip where an
@@ -304,7 +346,23 @@ public sealed class SaveSync
                         break;
                     }
 
-                    var download = await DownloadAsync(operation, saveId, local, result.SessionId, cancellationToken)
+                    if (target is not { } destination)
+                    {
+                        failed++;
+                        problems.Add(
+                            $"rom {operation.RomId} slot {operation.Slot}: nowhere to write it. "
+                                + "The server named no file and this device holds no save in "
+                                + "that slot.");
+                        break;
+                    }
+
+                    var download = await DownloadAsync(
+                            operation,
+                            saveId,
+                            local,
+                            destination,
+                            result.SessionId,
+                            cancellationToken)
                         .ConfigureAwait(false);
 
                     if (download.Problem is { } downloadProblem)
@@ -366,6 +424,7 @@ public sealed class SaveSync
             Conflicts = conflicts.Count,
             NoOps = noOps,
             Failed = failed,
+            Skipped = skipped,
             BytesTransferred = bytes,
             Problems = problems,
             Unresolved = conflicts,
@@ -653,17 +712,10 @@ public sealed class SaveSync
         SyncOperation operation,
         int saveId,
         LocalSave? local,
+        RelativePath destination,
         int sessionId,
         CancellationToken cancellationToken)
     {
-        var target = ResolveTarget(operation, local);
-
-        if (target is not { } destination)
-        {
-            return (0, $"rom {operation.RomId} slot {operation.Slot}: nowhere to write it. "
-                + "The server named no file and this device holds no save in that slot.");
-        }
-
         var partialDirectory = _install.Resolve(PartialDirectory);
         var part = Path.Combine(partialDirectory, $"save-{saveId}.part");
 
@@ -864,35 +916,67 @@ public sealed class SaveSync
     /// libretro cannot see. Only the extension comes off the operation's tagged name, where it
     /// sits after the tag and never inside it.
     /// </para>
+    /// <para>
+    /// <b>Failing to resolve has two causes and they are not the same event</b>, which is why
+    /// the reason comes back rather than a bare null. A ROM this device does not hold offers no
+    /// folder and no stem, and that is the ordinary state of every save outside the sync set;
+    /// a ROM that is here but unnameable is a real fault.
+    /// </para>
     /// </remarks>
-    private RelativePath? ResolveTarget(SyncOperation operation, LocalSave? local)
+    private (RelativePath? Path, TargetProblem Problem) ResolveTarget(
+        SyncOperation operation,
+        LocalSave? local)
     {
         if (local is not null)
         {
-            return local.Path;
+            return (local.Path, TargetProblem.None);
         }
 
         var known = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty);
 
         if (known?.OnDiskPath is { } recorded)
         {
-            return recorded;
+            return (recorded, TargetProblem.None);
         }
 
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
-        var rom = roms.Count > 0 ? roms[0] : null;
 
-        if (rom?.Folder is not { } folder || operation.FileName is not { } named)
+        if (roms.Count == 0)
         {
-            return null;
+            return (null, TargetProblem.RomNotHere);
+        }
+
+        var rom = roms[0];
+
+        if (rom.Folder is not { } folder || operation.FileName is not { } named)
+        {
+            return (null, TargetProblem.Unnameable);
         }
 
         var extension = Path.GetExtension(named);
         var stem = Path.GetFileNameWithoutExtension(rom.FileName);
 
         return RelativePath.TryCreate($"saves/{folder}/{stem}{extension}", out var derived)
-            ? derived
-            : null;
+            ? (derived, TargetProblem.None)
+            : (null, TargetProblem.Unnameable);
+    }
+
+    /// <summary>Why a download has nowhere to go, when it has nowhere to go.</summary>
+    private enum TargetProblem
+    {
+        /// <summary>It has somewhere to go.</summary>
+        None,
+
+        /// <summary>
+        /// The ROM is not on this device, so there is no folder to put a save beside. Ordinary
+        /// on any device that syncs a subset, and not a failure of the flush that met it.
+        /// </summary>
+        RomNotHere,
+
+        /// <summary>
+        /// The ROM is here and no name could still be built for the save, which is a fault.
+        /// </summary>
+        Unnameable,
     }
 
     /// <summary>

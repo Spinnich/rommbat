@@ -193,6 +193,54 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_save_for_a_game_this_device_has_not_synced_is_skipped_rather_than_failed()
+    {
+        // Negotiate is unscoped: it answers with a download for every save the device has no
+        // sync record for, so a device holding a subset is offered the whole library. Those
+        // have no local ROM, so no folder and no stem, and they used to come back as
+        // "nowhere to write it" on stderr, one line each, counted as failures. A user with 500
+        // saves in RomM and one 10-game set synced got ~490 lines and ExitCode.Partial on every
+        // flush. The message was false as well: the server had named a file, and the device had
+        // not "no save in that slot", it had no game.
+        using var fixture = SyncFixture.Create();
+
+        fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game (USA)", "srm", "not ours");
+        fixture.Stub.UnsolicitedDownloads.Add((4242, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Skipped);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Empty(outcome.Problems);
+        Assert.Contains("skipped", outcome.Summary, StringComparison.Ordinal);
+
+        // Nothing was acked, because nothing landed: the server must keep offering it for the
+        // day the game does get synced.
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_bundled_save_for_a_game_this_device_lacks_is_skipped_not_told_to_run_it()
+    {
+        // Ordering: the unplaceable-unit branch fires on any bundled slot with no local unit, so
+        // without the ROM check ahead of it a psp save for a game that is not on this device is
+        // answered "run the game once, then flush again". There is no game to run.
+        using var fixture = SyncFixture.Create();
+
+        fixture.SeedServerSave(4243, "ppsspp:savedata", "ULES09999", "zip", "an archive");
+        fixture.Stub.UnsolicitedDownloads.Add((4243, "ppsspp:savedata"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Skipped);
+        Assert.Equal(0, outcome.Failed);
+        Assert.DoesNotContain(
+            outcome.Problems,
+            problem => problem.Contains("Run the game once", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task A_bundled_slot_this_device_has_never_held_is_reported_rather_than_written_as_a_file()
     {
         // The half of the entry gate that is not simply deletable. A class C restore needs a
