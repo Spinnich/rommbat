@@ -466,6 +466,15 @@ public sealed partial class SaveStateTemplate
     /// same declaration: <c>_state00</c> reads as slot 0, below <c>bigpemu</c>'s floor, and was
     /// accepted in silence because <see cref="SaveStateEmulator.Bounds"/> had no caller (#65).
     /// <para>
+    /// <b>A width miss is two different facts and the report has to pick the right one.</b> The
+    /// free-width expression is <c>\d+</c>, so it matches names narrower than the token and
+    /// over-padded ones as well as genuinely wide ones, and the digits on disk are not the slot:
+    /// <c>_state007</c> is slot 7, which <c>{{slot2d}}</c> writes as <c>_state07</c>. Telling
+    /// that user the template "cannot express slot 007" is false and sends them to file an
+    /// upstream bug that does not exist, so a slot the token can hold names the mirror instead
+    /// and only a slot past the token's width is called unrepresentable.
+    /// </para>
+    /// <para>
     /// <b>Reported, never refused.</b> The file on disk is evidence and the declaration is only
     /// a claim, so an out-of-bounds slot is still recorded and still uploaded. What changes is
     /// that it is no longer invisible.
@@ -505,14 +514,45 @@ public sealed partial class SaveStateTemplate
             return null;
         }
 
+        // The free-width expression matches names narrower and wider than the token, plus any
+        // over-padded one, so the digits on disk are not evidence that the slot is out of reach:
+        // _state007 is slot 7, which {{slot2d}} renders perfectly well as _state07. Only a slot
+        // the token cannot hold at all is worth an upstream report, and the two want different
+        // sentences. A run of digits too long for an int is that second case by definition.
+        var digits = wide.Groups["slot"].Value;
+        var mirrored = int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var value)
+            ? Format(value, Emulator.Slot)
+            : null;
+
+        if (mirrored is not null && mirrored.Length == Width(Emulator.Slot))
+        {
+            var expected = fileName.Remove(wide.Groups["slot"].Index, digits.Length)
+                .Insert(wide.Groups["slot"].Index, mirrored);
+
+            return new SaveStateNearMiss(
+                fileName,
+                NearMissKind.SlotWidth,
+                $"slot {value} is written here as '{digits}', and the name RetroBat mirrors "
+                    + $"{Emulator.Name}'s states under, '{Emulator.File}', renders it as "
+                    + $"'{mirrored}'. Not synced. Renaming this to '{expected}' would pick it up.");
+        }
+
         return new SaveStateNearMiss(
             fileName,
             NearMissKind.SlotWidth,
             $"{Emulator.Name} writes slots {first?.ToString(CultureInfo.InvariantCulture) ?? "?"} to "
                 + $"{last?.ToString(CultureInfo.InvariantCulture) ?? "?"} and the name RetroBat mirrors "
-                + $"them under, '{Emulator.File}', cannot express slot {wide.Groups["slot"].Value}. "
+                + $"them under, '{Emulator.File}', cannot express slot {digits}. "
                 + "Not synced. This is worth reporting upstream.");
     }
+
+    /// <summary>How many digits a fixed-width slot token renders, or zero where it is not fixed.</summary>
+    private static int Width(SlotToken token) => token switch
+    {
+        SlotToken.TwoDigit => 2,
+        SlotToken.OneDigit => 1,
+        _ => 0,
+    };
 
     /// <summary>The screenshot beside a state, when the emulator declares a distinct one.</summary>
     /// <remarks>

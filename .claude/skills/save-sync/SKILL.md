@@ -39,7 +39,7 @@ for the width of its slot, and a slot outside the declared range. Only the slot 
 tree. A mirror name past slot 99 is what #34 now stands on, and reaching it needs ~94 saves of
 one game.
 
-**`bigpemu` is a fourth emulator whose native tree is not under `saves/`, and its battery save
+**`bigpemu` is a third emulator whose native tree is not under `saves/`, and its battery save
 never leaves it.** `game<ID>_eeprom.bigpeep` sits in `emulators/bigpemu/userdata/` with no
 counterpart anywhere under `saves/jaguar/` (measurement 167), so a client reading only the
 declared tree concludes the game has no battery save. That is the concrete reason `jaguar` stays

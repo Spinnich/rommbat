@@ -117,6 +117,34 @@ public class SaveStateSchemaTests
         Assert.NotNull(miss);
         Assert.Equal(NearMissKind.SlotWidth, miss.Kind);
         Assert.Contains("999", miss.Detail, StringComparison.Ordinal);
+        Assert.Contains("cannot express", miss.Detail, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Rayman (USA)_state007.bigpstate", 7, "Rayman (USA)_state07.bigpstate")]
+    [InlineData("Rayman (USA)_state7.bigpstate", 7, "Rayman (USA)_state07.bigpstate")]
+    [InlineData("Rayman (USA)_state0012.bigpstate", 12, "Rayman (USA)_state12.bigpstate")]
+    public void A_slot_the_token_can_hold_is_a_width_miss_and_not_an_upstream_bug(
+        string fileName,
+        int slot,
+        string expected)
+    {
+        // The free-width expression is \d+, so it matches narrow and over-padded names too, and
+        // reporting the raw digit run said "{{slot2d}} cannot express slot 007" about a slot it
+        // expresses as _state07. That sends the user to file an upstream bug that is not one and
+        // withholds the only fact that helps, which is the name the mirror would use. Native
+        // BigPEmu writes exactly this form, _state001 to _state009, in its own tree.
+        var bigpemu = Fixtures.LoadSaveStates().For("bigpemu")!;
+        var template = SaveStateTemplate.Create(bigpemu, "jaguar", core: null)!;
+
+        var miss = template.NearMiss(fileName);
+
+        Assert.NotNull(miss);
+        Assert.Equal(NearMissKind.SlotWidth, miss.Kind);
+        Assert.Contains($"slot {slot} ", miss.Detail, StringComparison.Ordinal);
+        Assert.Contains(expected, miss.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("cannot express", miss.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("reporting upstream", miss.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
