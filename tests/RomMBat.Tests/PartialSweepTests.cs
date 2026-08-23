@@ -162,6 +162,10 @@ public sealed class PartialSweepTests : IDisposable
     {
         // Rule 1. This walks the filesystem, which is exactly where an absolute path gets into
         // something that outlives the drive letter.
+        //
+        // It is also where the "nothing outside the tree" invariant comes from, now that the
+        // install.Contains filter that could never be false is gone: every candidate is a child
+        // of the one directory the enumeration starts in, and Relativize is what proves it.
         using var store = LocalStore.Open(_tree.Install());
 
         Write("save-42.part", "half a save");
@@ -169,6 +173,7 @@ public sealed class PartialSweepTests : IDisposable
         var candidate = Assert.Single(new PartialSweep(_tree.Install(), store).Plan().Candidates);
 
         Assert.Equal("emulators/rommbat/partial/save-42.part", candidate.Path.Value);
+        Assert.StartsWith(PartialSweep.Directory.Value + "/", candidate.Path.Value, StringComparison.Ordinal);
         Assert.DoesNotContain(":", candidate.Path.Value, StringComparison.Ordinal);
     }
 

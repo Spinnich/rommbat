@@ -156,6 +156,21 @@ public sealed class PartialSweep
     public static RelativePath Directory => RetroBatInstall.PartialDirectory;
 
     /// <summary>Works out what is dead, without touching anything.</summary>
+    /// <remarks>
+    /// <b>Nothing outside the tree can reach this list, and the enumeration is what provides
+    /// that</b> rather than a per-entry check. Every candidate comes from
+    /// <c>EnumerateFileSystemEntries</c> over <see cref="Directory"/> resolved against this
+    /// install, so an <c>install.Contains</c> filter here can never be false. There was one, it
+    /// was cited as the evidence for the invariant, and a guard that cannot fire is not
+    /// evidence: the next session reads the check and believes the question is settled. See #61.
+    /// <para>
+    /// A reparse point under <c>partial/</c> is the case a real check would have to answer, and
+    /// it would have to run against the resolved target rather than the enumerated name.
+    /// Untaken: <c>offline-and-portable</c> records that FAT carries no links at all, so this is
+    /// speculative on the measured install, and the honest state is one claim rather than one
+    /// claim plus a check that does not support it.
+    /// </para>
+    /// </remarks>
     public PartialSweepPlan Plan()
     {
         var root = _install.Resolve(Directory);
@@ -176,11 +191,6 @@ public sealed class PartialSweep
             }
 
             var isDirectory = System.IO.Directory.Exists(entry);
-
-            if (!_install.Contains(entry))
-            {
-                continue;
-            }
 
             candidates.Add(new PartialCandidate
             {
