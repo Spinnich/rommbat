@@ -55,6 +55,14 @@ public static class SaveUnitTransfer
     /// current members are copied aside before anything is replaced. A half-written directory
     /// save is a corrupt one.
     /// <para>
+    /// <b>A unit that already holds what arrived is left alone entirely.</b> No copy aside for a
+    /// save nobody replaced, no mtime churn under <c>saves/</c>, and no window where the unit is
+    /// half swapped for no reason. It cannot be settled before the transfer, because the wire
+    /// hash for an unchanged class C unit is the digest the server returned to this device on
+    /// its own last upload and a peer's upload carries one this device has never seen: negotiate
+    /// answers <c>download</c> and the bytes have to come. Only the write is avoidable.
+    /// </para>
+    /// <para>
     /// <b>The swap itself is not atomic, and calling it atomic would be worse than the gap.</b>
     /// The members are removed and then moved in one at a time, so a failure partway leaves some
     /// new members and some old ones in the container, which an emulator may read as corrupt.
@@ -109,9 +117,34 @@ public static class SaveUnitTransfer
 
             var restored = SaveArchive.HashOfExtracted(staging, entries);
 
-            // Read once and used twice, since a scan of the system is what finds a unit and the
-            // copy aside and the removal below must agree on the same member list.
+            // Read once and used three times, since a scan of the system is what finds a unit
+            // and the comparison, the copy aside and the removal below must agree on the same
+            // member list.
             var existing = Find(units, local);
+
+            // <b>A restore that would rewrite the tree with what it already holds does not
+            // rewrite it.</b> Class C cannot settle this before the transfer: the wire hash for
+            // an unchanged unit is the digest the server returned to THIS device on its own last
+            // upload, and a peer's upload carries a digest this device has never seen, so
+            // negotiate answers `download` and no local comparison can rule it out. The bytes
+            // have to come. The write does not.
+            //
+            // Compared against the fold of what is on disk now rather than against the row,
+            // because the row is only as current as the last scan and this is a question about
+            // the tree. It costs one pass over a unit that was about to be copied aside and
+            // rewritten member by member, so it is cheaper than what it skips.
+            //
+            // The caller still acks and still records the slot: the server does need telling,
+            // and the slot's digest does need to become current, or the next negotiate answers
+            // `upload` for a unit that is already in step.
+            if (existing is { Files.Count: > 0 }
+                && string.Equals(
+                    SaveArchive.HashOf(install, existing),
+                    restored,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new SaveUnitRestoreResult(restored, entries, CopiedAside: null);
+            }
 
             // Everything above this line is off to one side. Only now is the live tree touched.
             var aside = CopyAside(install, existing, local, asideDirectory, now);

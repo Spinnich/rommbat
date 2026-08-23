@@ -617,6 +617,68 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_peer_offering_back_identical_contents_transfers_and_does_not_rewrite_the_tree()
+    {
+        // What #43 left over. The download skip is defined as "recognises this device's own
+        // upload", so a peer holding identical bytes is not something it can answer, and no
+        // local comparison can rule the download out either: the wire hash for an unchanged
+        // class C unit is the digest the server returned to THIS device, and a peer's upload
+        // carries one this device has never seen. So negotiate says download and the bytes come.
+        //
+        // The write is the avoidable half. The fold of what arrived is computed before anything
+        // live is touched, so a unit that already holds it is left exactly as it was: no copy
+        // under replaced/, no mtime churn, and no window where the container is half swapped.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        await fixture.SyncAsync();
+
+        // A peer uploads the same contents. A different row, a digest this device has not seen,
+        // and origin naming somebody else, so IsOwnUpload is false and the skip cannot fire.
+        fixture.Stub.Saves.Remove(100);
+        fixture.Stub.Saves[101] = new StubRomMServer.StubSave
+        {
+            Id = 101,
+            RomId = 8,
+            Slot = "mame:nvram",
+            Emulator = "mame",
+            Bytes = Archive(("25pacman/eeprom", "one"), ("25pacman/flash", "two")),
+            FileNameNoTags = "25pacman",
+            FileExtension = "zip",
+            OriginDeviceId = "some-other-device",
+            UpdatedAt = fixture.Stub.ServerDate ?? DateTimeOffset.UnixEpoch,
+        };
+
+        var eeprom = fixture.Resolve("saves/mame/nvram/25pacman/eeprom");
+        var flash = fixture.Resolve("saves/mame/nvram/25pacman/flash");
+        var before = (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash));
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        var outcome = await fixture.SyncAsync();
+
+        // The transfer is unavoidable without a protocol change, so it still counts as one.
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Empty(outcome.Problems);
+
+        // The tree is untouched: same bytes, same mtimes, and nothing taken aside.
+        Assert.Equal("one", File.ReadAllText(eeprom));
+        Assert.Equal("two", File.ReadAllText(flash));
+        Assert.Equal(before, (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash)));
+
+        var aside = fixture.Resolve(SaveSync.AsideDirectory.Value);
+        Assert.True(
+            !Directory.Exists(aside) || Directory.GetFileSystemEntries(aside).Length == 0,
+            "a copy aside was taken for a save nobody replaced");
+
+        // The server was still told, and the slot's digest still became current, or the next
+        // negotiate answers upload for a unit that is already in step.
+        Assert.Contains(101, fixture.Stub.Acknowledged);
+        Assert.Equal(101, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
+    }
+
+    [Fact]
     public async Task A_restored_directory_save_negotiates_as_in_step_rather_than_offering_itself_back()
     {
         // The other half of a restore leaving the device in step, and the half a rescan cannot
