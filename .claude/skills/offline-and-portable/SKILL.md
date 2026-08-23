@@ -77,7 +77,11 @@ the source of truth; the network is optional, probed with a short-timeout
   `TreeLock` and returns having done nothing when it cannot get it, and both routes into a
   restore (`flush`, and `saves resolve`) hold the same lock. Producers that run outside it
   (`sync`, `bios`) rely on `FileShare.None` while writing, where losing the race costs a
-  transfer that starts again rather than data.
+  transfer that starts again rather than data. **Reproduced on a real install, not reasoned
+  about**: against a staging directory holding three real PPSSPP `SAVEDATA` members, the
+  pre-lock build reported "1 abandoned transfer removed" and took all three while a flush held
+  the lock; the same scenario on the fixed build left them alone and reclaimed them on the next
+  pass.
 
 ## Portable
 
