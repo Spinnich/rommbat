@@ -2,6 +2,7 @@ using RomM.Client.Catalog;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -113,9 +114,9 @@ public sealed class PartialSweepTests : IDisposable
     [Fact]
     public void A_transfer_in_flight_survives_because_the_filesystem_refuses_the_delete()
     {
-        // The claim that makes this safe without the tree lock, which only flush takes. Every
-        // producer holds its partial with FileShare.None, so a sweep racing a live transfer
-        // cannot take the file out from under it.
+        // The second line, for the producers that run outside the tree lock. sync and bios hold
+        // their partial with FileShare.None while writing, so a sweep racing one cannot take the
+        // file out from under it. Losing that race costs a transfer, not data.
         using var store = LocalStore.Open(_tree.Install());
 
         Write("save-42.part", "being written right now");
@@ -147,6 +148,39 @@ public sealed class PartialSweepTests : IDisposable
 
         Assert.Equal("emulators/rommbat/partial/save-42.part", candidate.Path.Value);
         Assert.DoesNotContain(":", candidate.Path.Value, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Nothing_is_removed_while_another_agent_holds_the_tree_lock()
+    {
+        // A class C restore extracts into partial/unit-<guid>/ and holds no handle on it:
+        // SaveArchive closes each entry's writer inside its own loop. A recursive delete landing
+        // in that window succeeds, and the restore then fails partway through its moves with the
+        // container half swapped. A sentinel file inside the directory does not close it, since
+        // a recursive delete takes the siblings before it reaches the sentinel. The lock does.
+        using var store = LocalStore.Open(_tree.Install());
+
+        WriteDirectory("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0", "SAVEDATA/GAME.DAT", "being restored");
+
+        var sweep = new PartialSweep(_tree.Install(), store);
+        var plan = sweep.Plan();
+
+        Assert.Single(plan.Candidates);
+
+        using (TreeLock.TryAcquire(_tree.Install()))
+        {
+            var outcome = sweep.Apply(plan);
+
+            Assert.True(outcome.Skipped);
+            Assert.Equal(0, outcome.Removed);
+        }
+
+        Assert.True(
+            Directory.Exists(Resolve("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0")),
+            "a restore's staging directory was removed under it");
+
+        // And it goes on the next pass, once the lock is free.
+        Assert.Equal(1, sweep.Apply(plan).Removed);
     }
 
     private static SyncSetMember Member(int romId) => new()

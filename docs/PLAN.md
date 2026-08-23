@@ -1212,7 +1212,19 @@ the rollout order below can be derived rather than hand-maintained.
   still claims the game, keyed on **membership rather than age** because a transfer waiting to
   resume is indistinguishable from an orphan on disk. M5 and M6 added four more producers here
   (`bios-`, `save-`, `resolve-`, `unit-`), none of which resumes, so anything of theirs left
-  behind is dead. A live transfer is protected by `FileShare.None` rather than by bookkeeping.
+  behind is dead. **Each is matched on the whole name its producer writes, never on a prefix**,
+  or `partial/save-notes.txt` becomes a candidate.
+- **The sweep runs under the tree lock, because one of those candidates is live state.**
+  `partial/unit-<guid>/` is where a class C restore extracts a unit before swapping it into a
+  shared container, and no handle protects it: the archive's writers close inside the extract
+  loop. A recursive delete landing in that window succeeds and leaves the container half
+  swapped, which is the state the `Remove`-before-`Move` ordering exists to prevent, reached
+  from outside the restore. A sentinel file inside the staging directory does not close it,
+  because a recursive delete takes the siblings before it reaches the sentinel. So the sweep
+  takes `TreeLock` and does nothing without it, and `saves resolve` takes it too, since it runs
+  the same restore a flush does. Producers outside that lock (`sync`, `bios`) hold their partial
+  with `FileShare.None` while writing, and a sweep that loses that race costs a transfer that
+  starts again rather than data.
 - **A `.part` that is already complete is verified and renamed, never resumed.** The body is
   flushed before the verify and the rename, so the power-cut window this whole design exists
   for leaves a complete, correct partial file and a live row. Asking to resume from the end of

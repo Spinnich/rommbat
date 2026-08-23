@@ -61,10 +61,23 @@ the source of truth; the network is optional, probed with a short-timeout
   transfer resumes, so only it is kept, and it is kept on **set membership rather than age**,
   because an interrupted transfer waiting to resume looks exactly like an orphan on disk. The
   other four (`bios-`, `save-`, `resolve-`, `unit-`) open with `FileMode.Create` or delete in a
-  `finally`, so anything of theirs left behind is from a pass that died. **A live transfer is
-  protected by the filesystem, not by bookkeeping**: every producer holds its partial with
-  `FileShare.None`, so the delete throws and the sweep skips it, which is what makes this safe
-  without the tree lock that only `flush` takes. A name none of the five writes is left alone.
+  `finally`, so anything of theirs left behind is from a pass that died. A name none of the five
+  writes is left alone, and that means **matching the whole name each producer writes**
+  (`bios-<32 hex>.part`, `save-<int>.part`, `resolve-<int>.part`, `unit-<32 hex>` with an
+  optional `.zip`), because a prefix match makes `partial/save-notes.txt` a candidate.
+
+- **`partial/unit-<guid>/` is live state, not litter, so the sweep holds the tree lock.** It is
+  where a class C restore extracts a unit before swapping members into a shared container, and
+  nothing holds a handle on it: `SaveArchive.Extract` closes each entry's writer inside its own
+  loop. Delete it in that window and the restore fails partway through its moves with the
+  container half swapped, which is exactly what the `Remove`-before-`Move` ordering exists to
+  prevent. **A `FileShare.None` sentinel inside the directory does not fix this**, measured
+  rather than assumed: `Directory.Delete(recursive: true)` removes the siblings and only then
+  fails on the sentinel, so the staged members are gone either way. `PartialSweep.Apply` takes
+  `TreeLock` and returns having done nothing when it cannot get it, and both routes into a
+  restore (`flush`, and `saves resolve`) hold the same lock. Producers that run outside it
+  (`sync`, `bios`) rely on `FileShare.None` while writing, where losing the race costs a
+  transfer that starts again rather than data.
 
 ## Portable
 

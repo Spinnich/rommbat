@@ -218,7 +218,8 @@ its gamelist entry out with it, and leaves artwork a user scraped themselves alo
 
 `evict` also reports transfers that died part-way, under `emulators/rommbat/partial/`, and
 reclaims them on `--apply`. Those bytes are the only ones the disk budget cannot see, because a
-file is only counted once it has arrived whole. A download still in progress is never touched.
+file is only counted once it has arrived whole. It does not run at all while a sync is writing
+saves back, and it skips anything a live transfer still holds open.
 
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
 several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server

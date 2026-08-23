@@ -1,6 +1,7 @@
 using System.Globalization;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Content;
 
@@ -53,10 +54,15 @@ public sealed record PartialSweepOutcome
 
     public IReadOnlyList<string> Problems { get; init; } = [];
 
-    public string Summary => Removed == 0
-        ? "nothing was reclaimed from partial/"
-        : $"{Removed} abandoned {(Removed == 1 ? "transfer" : "transfers")} removed, "
-            + $"{ByteSize.Format(BytesFreed)} freed";
+    /// <summary>True when another agent held the tree lock, so the pass did not run at all.</summary>
+    public bool Skipped { get; init; }
+
+    public string Summary => Skipped
+        ? "partial/ was left alone: another agent is writing there. The next pass sweeps it."
+        : Removed == 0
+            ? "nothing was reclaimed from partial/"
+            : $"{Removed} abandoned {(Removed == 1 ? "transfer" : "transfers")} removed, "
+                + $"{ByteSize.Format(BytesFreed)} freed";
 }
 
 /// <summary>
@@ -89,10 +95,26 @@ public sealed record PartialSweepOutcome
 /// from <see cref="SaveUnitTransfer"/>.</item>
 /// </list>
 /// <para>
-/// <b>A transfer running right now is protected by the filesystem, not by bookkeeping.</b>
-/// Every producer holds its partial with <c>FileShare.None</c>, so deleting one under an
-/// in-flight pass throws and the sweep skips that file and reports it. That is what makes this
-/// safe without the tree lock, which only <c>flush</c> takes.
+/// <b>One of those candidates is live state rather than litter, so the sweep takes the tree
+/// lock.</b> <c>unit-&lt;guid&gt;/</c> exists for the window in which a class C restore has
+/// extracted a unit and not yet moved it into the container, and nothing holds a handle on it:
+/// <see cref="SaveArchive"/> closes each entry's writer inside its own loop. A recursive delete
+/// landing in that window succeeds, and the restore then fails partway through its moves with
+/// the container half swapped, which is the state the <c>Remove</c>-before-<c>Move</c> ordering
+/// in <see cref="SaveUnitTransfer"/> exists to prevent. A sentinel file inside the staging
+/// directory does not close it, because a recursive delete removes the siblings before it
+/// reaches the sentinel. So <see cref="Apply"/> holds <see cref="TreeLock"/> for the whole pass
+/// and does nothing at all when it cannot get it, and the two routes into a restore
+/// (<c>flush</c>, and <c>saves resolve</c>) both hold the same lock.
+/// </para>
+/// <para>
+/// <b>The producers that run outside that lock are protected by the filesystem instead, and
+/// losing that race costs a transfer rather than data.</b> <c>sync</c> and <c>bios</c> hold
+/// their partial with <c>FileShare.None</c> while writing, so a delete throws and the sweep
+/// reports the file and moves on. Between that stream closing and the rename into place the
+/// file is unlocked, and a sweep there fails one download that the next pass starts again. A
+/// ROM partial is not exposed to even that, because the sweep keeps every one an enabled set
+/// still claims and a transfer implies a claim.
 /// </para>
 /// <para>
 /// <b>Anything else in the directory is left alone.</b> A name this class does not recognise
@@ -166,9 +188,24 @@ public sealed class PartialSweep
     }
 
     /// <summary>Removes what a plan chose, and reports what would not go.</summary>
+    /// <remarks>
+    /// Takes <see cref="TreeLock"/> for the whole pass and does nothing without it, because
+    /// <c>unit-&lt;guid&gt;/</c> is a restore's live staging directory and no handle protects it.
+    /// The plan is re-checked against the disk under the lock: it was built without one, so a
+    /// restore that ran in between has already cleaned up after itself.
+    /// </remarks>
     public PartialSweepOutcome Apply(PartialSweepPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
+
+        using var held = TreeLock.TryAcquire(_install);
+
+        if (held is null)
+        {
+            // Ordinary, not an error, the same way a second flush is. Reclaiming disk is never
+            // urgent enough to race a save being put back.
+            return new PartialSweepOutcome { Skipped = true };
+        }
 
         var removed = 0;
         var freed = 0L;
@@ -182,6 +219,11 @@ public sealed class PartialSweep
             {
                 if (candidate.IsDirectory)
                 {
+                    if (!System.IO.Directory.Exists(absolute))
+                    {
+                        continue;
+                    }
+
                     System.IO.Directory.Delete(absolute, recursive: true);
                 }
                 else
@@ -194,9 +236,9 @@ public sealed class PartialSweep
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // Almost always a transfer in flight, since every producer holds its partial
-                // with FileShare.None. Reported rather than retried: the next pass sees it
-                // again, and by then it has either finished or died.
+                // A transfer running outside the tree lock, holding its partial with
+                // FileShare.None. Reported rather than retried: the next pass sees it again,
+                // and by then it has either finished or died.
                 problems.Add($"{candidate.Name}: left in place ({ex.Message}).");
             }
         }

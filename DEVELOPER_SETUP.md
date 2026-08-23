@@ -272,7 +272,9 @@ deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleti
 hand is safe, and the next sync starts that ROM again. `evict` also reports what under that
 directory is dead, and reclaims it on `--apply`, which is the only thing that ever does:
 those bytes carry no database row, so the disk budget cannot count them and eviction proper
-cannot reach them.
+cannot reach them. The reclaim needs the tree lock, because one of the things under there is a
+save being put back rather than litter, so `evict --apply` during a flush evicts and says the
+sweep will happen next time.
 
 ### Metadata, media and gamelists
 
@@ -342,7 +344,9 @@ winning.
 
 **A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
 `--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
-the dated copy under `emulators/rommbat/replaced/` once the slot is back in step.
+the dated copy under `emulators/rommbat/replaced/` once the slot is back in step. It writes the
+same save files a flush does, so it takes the same lock: run it while a flush is in flight and
+it refuses with exit 3 rather than doing half of one.
 
 **A directory save goes up as one archive, and `saves` names the unit rather than the path.**
 Every PSP save on an install shares the container `saves/psp/SAVEDATA`, so the report prints
