@@ -31,6 +31,24 @@ public sealed class BiosCommandTests
     }
 
     [Fact]
+    public async Task An_install_that_has_synced_nothing_says_so_rather_than_reporting_a_clean_library()
+    {
+        // The default path takes FoldersNeedingBios(), which reads the local store, and an
+        // install that has synced nothing returns an empty list. Plan([]) then produced "no
+        // BIOS is required for these systems" over the empty set: the same sentence a mistyped
+        // positional used to produce, and false in the same way, because nothing was consulted.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "--offline");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.False(run.Wrote("no BIOS is required"), run.Out);
+        Assert.True(run.Wrote("Nothing has been synced yet"), run.Out);
+        Assert.True(run.Wrote("--all"), run.Out);
+    }
+
+    [Fact]
     public async Task A_real_system_that_needs_no_firmware_says_so_by_name()
     {
         // The other half, and the reason the manifest cannot answer this alone: only 99 of

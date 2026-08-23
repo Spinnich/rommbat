@@ -55,6 +55,20 @@ internal static class BiosCommand
         else
         {
             folders = planner.FoldersNeedingBios();
+
+            // An install that has synced nothing yet has no folders to report on, and falling
+            // through to Plan([]) answers "no BIOS is required for these systems" over the empty
+            // set. That is the same false clean bill of health a mistyped positional used to
+            // produce, in the path Validate cannot cover: this is not a question about user
+            // input, so the answer belongs where the folder list is chosen.
+            if (folders.Count == 0)
+            {
+                Console.WriteLine(
+                    "Nothing has been synced yet, so there is no library to report BIOS for.");
+                Console.WriteLine(
+                    "Run 'sync' first, or 'bios --all' for what RetroBat requires across every system.");
+                return ExitCode.Ok;
+            }
         }
 
         RomMConnection? connection = null;
