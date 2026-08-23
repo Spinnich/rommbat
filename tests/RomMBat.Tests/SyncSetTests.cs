@@ -183,8 +183,16 @@ public class SyncSetTests : IDisposable
         using var forwardConnection = Connect(forward);
         using var reverseConnection = Connect(reverse);
 
-        var first = await Resolve(set, forwardConnection, pageSize: 1, cancellationToken: TestContext.Current.CancellationToken);
-        var second = await Resolve(set, reverseConnection, pageSize: 1, cancellationToken: TestContext.Current.CancellationToken);
+        var first = await Resolve(
+            set,
+            forwardConnection,
+            pageSize: 1,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var second = await Resolve(
+            set,
+            reverseConnection,
+            pageSize: 1,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(["Actraiser", "Mario"], first.Members.Select(member => member.DisplayName));
         Assert.Equal(first.Members.Select(m => m.RomId), second.Members.Select(m => m.RomId));
@@ -340,7 +348,11 @@ public class SyncSetTests : IDisposable
         var set = Add(new SyncSetDefinition { Name = "steady", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
         await ResolveSegment(set, connection, Now, cancellationToken: TestContext.Current.CancellationToken);
-        await ResolveSegment(set, connection, Now.AddMinutes(1), cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(
+            set,
+            connection,
+            Now.AddMinutes(1),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // The no-op re-sync check, one milestone early: a second resolve over a library that
         // did not move must not depart anyone or double-count what it skipped.
@@ -368,7 +380,11 @@ public class SyncSetTests : IDisposable
         // fact about the last resolution, so it has to go with it rather than be reported
         // forever against a game that is no longer in the scope.
         stub.Library.RemoveAt(2);
-        await ResolveSegment(set, connection, Now.AddMinutes(1), cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(
+            set,
+            connection,
+            Now.AddMinutes(1),
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(_store.SyncSets.Exclusions(set.Id));
     }
@@ -384,12 +400,22 @@ public class SyncSetTests : IDisposable
         // The server drops out after the first page, which is the case resume_offset exists
         // for. The segment already read is an accumulator, not the membership.
         stub.FailRomsAfterPages = 1;
-        var first = await ResolveSegment(set, connection, Now, pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
+        var first = await ResolveSegment(
+            set,
+            connection,
+            Now,
+            pageSize: 4,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Interrupted, first.Outcome);
         Assert.Equal(4, _store.Cursors.Read($"roms:set:{set.Id}")!.ResumeOffset);
 
-        var second = await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
+        var second = await ResolveSegment(
+            set,
+            connection,
+            Now.AddMinutes(1),
+            pageSize: 4,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(ResolutionOutcome.Resolved, second.Outcome);
         Assert.Equal(10, _store.SyncSets.Members(set.Id).Count);
@@ -414,8 +440,18 @@ public class SyncSetTests : IDisposable
         });
 
         stub.FailRomsAfterPages = 1;
-        await ResolveSegment(set, connection, Now, pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
-        await ResolveSegment(set, connection, Now.AddMinutes(1), pageSize: 4, cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(
+            set,
+            connection,
+            Now,
+            pageSize: 4,
+            cancellationToken: TestContext.Current.CancellationToken);
+        await ResolveSegment(
+            set,
+            connection,
+            Now.AddMinutes(1),
+            pageSize: 4,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         // Six, not six per segment, and the six the ordering actually asks for.
         var members = _store.SyncSets.Members(set.Id);

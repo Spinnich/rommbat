@@ -140,7 +140,9 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var rom = await SmallSingleFileAsync(extension: "zip", cancellationToken: TestContext.Current.CancellationToken);
+        var rom = await SmallSingleFileAsync(
+            extension: "zip",
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No small zipped ROM on this instance.");
 
         await using var buffer = new MemoryStream();

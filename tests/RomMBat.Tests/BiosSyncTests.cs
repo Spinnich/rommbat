@@ -446,7 +446,11 @@ public sealed class BiosSyncTests : IDisposable
 
         using (var store = LocalStore.Open(_tree.Install()))
         {
-            var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+            var outcome = await SyncAsync(
+                stub,
+                store,
+                manifest,
+                cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(1, outcome.Downloaded);
         }
 

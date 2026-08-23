@@ -69,7 +69,8 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var manifest = BiosManifest.Bundled;
-        var candidates = BiosPlanner.IndexByMd5(await PlatformsAsync(cancellationToken: TestContext.Current.CancellationToken));
+        var candidates = BiosPlanner.IndexByMd5(await PlatformsAsync(
+            cancellationToken: TestContext.Current.CancellationToken));
 
         // The smallest file this library holds that RetroBat actually requires, so a live run
         // against someone's real instance moves as few bytes as it can.

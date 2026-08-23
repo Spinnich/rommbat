@@ -67,7 +67,11 @@ public sealed class MediaSyncTests : IDisposable
         using var stub = Library(2_000);
         using var store = LocalStore.Open(_tree.Install());
 
-        var resolution = await ResolveAsync(stub, store, maxGames: 25, cancellationToken: TestContext.Current.CancellationToken);
+        var resolution = await ResolveAsync(
+            stub,
+            store,
+            maxGames: 25,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2_000, resolution.Scanned);
         Assert.Equal(25, resolution.Members.Count);

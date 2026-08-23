@@ -119,7 +119,12 @@ public sealed class LivePairingTests : IAsyncDisposable
                 session.VerificationUri.ToString(),
                 StringComparison.Ordinal);
 
-            var completion = await ApproveWhilePollingAsync(pairing, connection, session, RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
+            var completion = await ApproveWhilePollingAsync(
+                pairing,
+                connection,
+                session,
+                RomMScopes.Requested,
+                cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.True(completion.IsPaired);
             Assert.NotNull(completion.RomMDeviceId);
@@ -183,7 +188,12 @@ public sealed class LivePairingTests : IAsyncDisposable
             TestContext.Current.CancellationToken);
         Assert.Equal(DeviceIdentity.Read(install), session.ClientDeviceIdentifier);
 
-        var second = await ApproveWhilePollingAsync(movedPairing, connection, session, RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
+        var second = await ApproveWhilePollingAsync(
+            movedPairing,
+            connection,
+            session,
+            RomMScopes.Requested,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(second.IsPaired);
         Assert.Equal(first.RomMDeviceId, second.RomMDeviceId);
@@ -217,7 +227,12 @@ public sealed class LivePairingTests : IAsyncDisposable
             TestContext.Current.CancellationToken);
 
         string[] narrowed = [RomMScopes.MeRead, RomMScopes.RomsRead, RomMScopes.PlatformsRead];
-        var completion = await ApproveWhilePollingAsync(pairing, connection, session, narrowed, cancellationToken: TestContext.Current.CancellationToken);
+        var completion = await ApproveWhilePollingAsync(
+            pairing,
+            connection,
+            session,
+            narrowed,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(completion.IsPaired);
         Assert.Equal(narrowed.Order(StringComparer.Ordinal), completion.Scopes.All);

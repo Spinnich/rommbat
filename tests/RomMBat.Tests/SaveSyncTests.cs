@@ -742,7 +742,11 @@ public class SaveSyncTests
                 "*",
                 SearchOption.AllDirectories).Length);
 
-        var outcome = await fixture.ResolveAsync(8, "mame:nvram", ConflictResolution.KeepServer, cancellationToken: TestContext.Current.CancellationToken);
+        var outcome = await fixture.ResolveAsync(
+            8,
+            "mame:nvram",
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Resolved, outcome.Message);
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
