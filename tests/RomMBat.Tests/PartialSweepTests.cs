@@ -162,6 +162,10 @@ public sealed class PartialSweepTests : IDisposable
     {
         // Rule 1. This walks the filesystem, which is exactly where an absolute path gets into
         // something that outlives the drive letter.
+        //
+        // It is also where the "nothing outside the tree" invariant comes from, now that the
+        // install.Contains filter that could never be false is gone: every candidate is a child
+        // of the one directory the enumeration starts in, and Relativize is what proves it.
         using var store = LocalStore.Open(_tree.Install());
 
         Write("save-42.part", "half a save");
@@ -169,6 +173,7 @@ public sealed class PartialSweepTests : IDisposable
         var candidate = Assert.Single(new PartialSweep(_tree.Install(), store).Plan().Candidates);
 
         Assert.Equal("emulators/rommbat/partial/save-42.part", candidate.Path.Value);
+        Assert.StartsWith(PartialSweep.Directory.Value + "/", candidate.Path.Value, StringComparison.Ordinal);
         Assert.DoesNotContain(":", candidate.Path.Value, StringComparison.Ordinal);
     }
 
@@ -203,6 +208,36 @@ public sealed class PartialSweepTests : IDisposable
 
         // And it goes on the next pass, once the lock is free.
         Assert.Equal(1, sweep.Apply(plan).Removed);
+    }
+
+    [Fact]
+    public void Every_producer_writes_where_the_sweep_looks()
+    {
+        // The producers and the sweep each built emulators/rommbat/partial themselves, four
+        // independent times. Plan() answers an empty plan for a directory that is not there, so
+        // a producer moving would not have thrown and would not have warned: evict would print
+        // "no abandoned transfers under partial/" over a directory full of them. Asserted
+        // against the paths the planners actually return, not against the constant, so the
+        // divergence this pins is the one that could happen.
+        var sweptRoot = PartialSweep.Directory.Value + "/";
+
+        Assert.Equal(PartialSweep.Directory, SaveSync.PartialDirectory);
+        Assert.StartsWith(sweptRoot, ContentPlanner.PartFor(7).Value, StringComparison.Ordinal);
+        Assert.StartsWith(
+            sweptRoot,
+            BiosPlanner.PartFor("0123456789abcdef0123456789abcdef").Value,
+            StringComparison.Ordinal);
+
+        // And the names the sweep recognises are still the names the producers write, so a
+        // rename is caught as well as a move.
+        using var store = LocalStore.Open(_tree.Install());
+
+        Write(ContentPlanner.PartFor(7).Name, "half a rom no set claims");
+        Write(BiosPlanner.PartFor("0123456789abcdef0123456789abcdef").Name, "half a bios");
+
+        var plan = new PartialSweep(_tree.Install(), store).Plan();
+
+        Assert.Equal(2, plan.Candidates.Count);
     }
 
     private static SyncSetMember Member(int romId) => new()

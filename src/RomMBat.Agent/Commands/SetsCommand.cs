@@ -141,8 +141,11 @@ internal static class SetsCommand
         var folder = command.Value("folder");
         if (folder is not null && !EsSystemsFile.Load(context.Install).HasFolder(folder))
         {
+            // Usage, not Refused: a name this install has never heard of is a wrong command
+            // line, which is what a wrapping script needs to be able to tell apart from an
+            // environment problem. The unknown --value a few lines above already answers Usage.
             Console.Error.WriteLine($"'{folder}' is not a system in this install's es_systems.cfg.");
-            return ExitCode.Refused;
+            return ExitCode.Usage;
         }
 
         var definition = new SyncSetDefinition

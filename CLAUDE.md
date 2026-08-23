@@ -130,6 +130,11 @@ separate sentences.
 **Keep comments short** and focused on _why_, not _what_. Don't narrate the code, and
 don't explain why a change was made; describe how the code behaves now.
 
+**Hyphenated `dry-run` names `sync`'s flag and nothing else.** `bios` and `evict` preview
+by default and write on `--apply`, so "the dry-run" used as a generic word for a preview
+reads as a flag those commands do not have. Say "preview". "A dry run", two words, is
+ordinary English and is fine.
+
 **Never commit secrets.** Tokens live in the local store, never in the repo, never in a
 config file committed to git.
 

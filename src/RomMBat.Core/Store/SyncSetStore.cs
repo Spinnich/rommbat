@@ -121,6 +121,24 @@ public sealed record SyncSetMember
 
     public string? Sha1Hash { get; init; }
 
+    /// <summary>
+    /// Whether RomM serves this ROM as several files rather than one.
+    /// </summary>
+    /// <remarks>
+    /// <b>Carried so <c>ContentSync</c> reads it rather than assuming it.</b> It hardcoded
+    /// false, which is true of everything that reaches a plan today, because
+    /// <c>SetResolver</c> excludes a multi-file ROM before the extension check. That left the
+    /// client's own multi-file guard unreachable from the shipped path: a ranged request is
+    /// refused for one of these and the nginx 403 is worded, and both were exercised only by
+    /// tests, so re-admitting multi-file ROMs would have leaned on a guard nobody had run.
+    /// <para>
+    /// Written for every member and not only for the excluded ones. A flag that is only ever
+    /// set on rows that never reach <c>ContentSync</c> is the same assumption with a column
+    /// around it.
+    /// </para>
+    /// </remarks>
+    public bool IsMultiFile { get; init; }
+
     public required string DisplayName { get; init; }
 
     public required string SortKey { get; init; }
@@ -156,7 +174,7 @@ public sealed class SyncSetStore
     private const string MemberColumns = """
         SELECT rom_id, state, folder, platform_slug, fs_name, fs_extension, size_bytes,
                display_name, sort_key, rom_updated_at, position, resolved_at,
-               md5_hash, sha1_hash
+               md5_hash, sha1_hash, has_multiple_files
         FROM sync_set_member
         """;
 
@@ -290,12 +308,12 @@ public sealed class SyncSetStore
             INSERT INTO sync_set_member (
               sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
               size_bytes, md5_hash, sha1_hash, display_name, sort_key, rom_updated_at,
-              position, resolved_at
+              position, resolved_at, has_multiple_files
             )
             VALUES (
               $setId, $romId, $state, $folder, $slug, $fsName, $extension,
               $size, $md5, $sha1, $displayName, $sortKey, $romUpdatedAt,
-              $position, $resolvedAt
+              $position, $resolvedAt, $multiFile
             )
             ON CONFLICT (sync_set_id, rom_id) DO UPDATE SET
               state          = excluded.state,
@@ -310,7 +328,8 @@ public sealed class SyncSetStore
               sort_key       = excluded.sort_key,
               rom_updated_at = excluded.rom_updated_at,
               position       = excluded.position,
-              resolved_at    = excluded.resolved_at;
+              resolved_at    = excluded.resolved_at,
+              has_multiple_files = excluded.has_multiple_files;
             """))
         {
             upsert.Transaction = transaction;
@@ -333,7 +352,8 @@ public sealed class SyncSetStore
                     .With("$sortKey", member.SortKey)
                     .With("$romUpdatedAt", SqliteValues.ToTextOrNull(member.RomUpdatedAt))
                     .With("$position", SqliteValues.OrNull(member.Position))
-                    .With("$resolvedAt", stamp);
+                    .With("$resolvedAt", stamp)
+                    .With("$multiFile", member.IsMultiFile ? 1 : 0);
 
                 upsert.ExecuteNonQuery();
             }
@@ -547,6 +567,7 @@ public sealed class SyncSetStore
                 ResolvedAt = reader.GetTimestampOrNull(11) ?? default,
                 Md5Hash = reader.GetStringOrNull(12),
                 Sha1Hash = reader.GetStringOrNull(13),
+                IsMultiFile = reader.GetInt64(14) != 0,
             });
         }
 
