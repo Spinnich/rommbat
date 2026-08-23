@@ -27,7 +27,12 @@ public sealed record SaveSlotRecord(
     string? ServerContentHash,
     DateTimeOffset? ServerUpdatedAt,
     string? OriginDeviceId,
-    RelativePath? OnDiskPath);
+    RelativePath? OnDiskPath)
+{
+    /// <summary>True when the device named is the one that uploaded the save in this slot.</summary>
+    public bool IsFrom(string deviceId) =>
+        OriginDeviceId is { } origin && string.Equals(origin, deviceId, StringComparison.Ordinal);
+}
 
 /// <summary>
 /// The server-side identity of a slot.
@@ -185,10 +190,13 @@ public sealed class SaveSlotStore
     /// <remarks>
     /// <c>origin_device_id</c> names the uploader, which is the cheapest way to recognise your
     /// own save coming back down and decide whether a download is worth acting on.
+    /// <para>
+    /// This reads the row. A caller that already holds one asks it directly with
+    /// <see cref="SaveSlotRecord.IsFrom"/> instead.
+    /// </para>
     /// </remarks>
     public bool IsOwnUpload(long romId, string slot, string deviceId) =>
-        Read(romId, slot)?.OriginDeviceId is { } origin
-        && string.Equals(origin, deviceId, StringComparison.Ordinal);
+        Read(romId, slot)?.IsFrom(deviceId) == true;
 
     /// <summary>
     /// Builds the record, including where a downloaded save would go on disk.

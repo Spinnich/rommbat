@@ -235,8 +235,11 @@ writes, deletes or flips an ES option is a question, not a step.
 - **Hash the logical contents, never the archive bytes.** Sorted relative paths plus each
   file's own hash, folded into one digest. Deterministic across implementations, or dedup
   and conflict detection both break.
-- **Restores are atomic.** Extract beside the target, verify, swap, keep the previous copy
-  until the next successful sync. A half-written directory save is a corrupt one.
+- **Restores must be atomic**, because a half-written directory save is a corrupt one.
+  Extract beside the target, verify, swap, keep the previous copy until the next successful
+  sync. That is met for a single file, one verified `.part` and one `File.Move`. It is **not**
+  met for a class C unit and cannot be by swapping: the container is shared, so only the unit's
+  own members may move and they move one at a time. Open as #38.
 - **Never edit an emulator INI.** `es_settings.cfg`, and for a per-game override the key must
   include the ROM's extension, built from RomM's `fs_name`. A bare stem is ignored silently.
 - **Anything that mutates the user's RetroBat configuration is opt-in, explained and
