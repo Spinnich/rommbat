@@ -98,15 +98,10 @@ Git will not use a checked-in hook until it is told where to look, and `core.hoo
 local config, so every clone has to do this. Today it installs one `pre-push` hook that
 refuses direct pushes to `main` and tells you to branch instead.
 
-**It is a habit, not a security control**, and it is bypassable on purpose:
-
-```bash
-ALLOW_MAIN_PUSH=1 git push
-```
-
-The reason it exists locally at all is that GitHub does not offer branch protection or
-rulesets on private repositories on the Free plan, so there is nothing enforcing this
-server-side. Replace it with a ruleset if the repository goes public.
+**It is convenience, not enforcement, and it has no bypass.** `main` is governed by a GitHub
+ruleset: pull requests only, and the required status checks have to pass. The hook only says
+so in under a second, where pushing anyway costs the upload and comes back as `GH013` with a
+link to the rules. A local escape hatch could not get past the server, so there is not one.
 
 ---
 
