@@ -299,7 +299,7 @@ public sealed class ContentSync
                     {
                         RomId = member.RomId,
                         FsName = member.FsName,
-                        IsMultiFile = false,
+                        IsMultiFile = member.IsMultiFile,
                         ResumeFrom = resumeFrom,
                         Validator = record.Validator,
                     },
