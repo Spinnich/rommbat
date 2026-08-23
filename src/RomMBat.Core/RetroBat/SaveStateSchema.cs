@@ -53,15 +53,15 @@ public enum SlotToken
 /// parser reads a slot off a filename on disk rather than expanding a range, so a missing bound
 /// costs nothing.
 /// <para>
-/// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not resolved by
-/// that, and saying it was is what #34 is about.</b> The compiled <c>{{slot2d}}</c> expression
-/// is <c>(?&lt;slot&gt;\d{2})</c>, so reading the slot off disk covers 00 to 99 and misses the
-/// declared range at both ends. A three-digit name matches nowhere and is not synced;
-/// <c>_state00</c> matches, is read as slot 0 below the declared floor, and is synced. Both were
-/// silent, and <see cref="SaveStateTemplate.NearMiss"/> is what ended that: they are reported
-/// and neither is refused, because the file on disk is evidence and the declaration is only a
-/// claim. Whether BigPEmu writes a three-digit name is still unmeasured, since it is reachable
-/// only through its own gamepad overlay and no Jaguar launch has been driven.
+/// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not the
+/// contradiction #34 read it as</b>, which measurement 166 settled by driving six real states.
+/// The bounds describe BigPEmu's own three-digit naming under
+/// <c>emulators/bigpemu/userdata/</c>; the template describes RetroBat's two-digit mirror under
+/// <c>saves/jaguar/bigpemu/</c>, which is the path this client reads and the one that came back
+/// correct. The bounds still bound the edges: a mirror name past slot 99, and a slot below the
+/// declared floor, both reach <see cref="SaveStateTemplate.NearMiss"/> rather than passing in
+/// silence, and neither is refused, because the file on disk is evidence and the declaration is
+/// only a claim.
 /// </para>
 /// </param>
 public sealed record SaveStateEmulator(
@@ -136,12 +136,18 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// empty string at slot zero.
 /// </para>
 /// <para>
-/// <b>It does not answer <c>bigpemu</c>'s.</b> Its declared range is <c>001</c> to <c>999</c>
-/// and its template is two-digit, so reading the slot off disk answers 00 to 99 and misses that
-/// declaration at both ends: a three-digit name matches no expression and is not synced, and
-/// <c>_state00</c> is read as slot 0 below the declared floor and is. Neither is worked around,
-/// because whether the emulator writes either name is unmeasured, and both are now reported by
-/// <see cref="SaveStateTemplate.NearMiss"/> rather than passed over in silence. See #34 and #65.
+/// <b><c>bigpemu</c> reads as a contradiction and is not one</b>, which measurement 166 settled
+/// by driving it. Its <c>001</c>/<c>999</c> bounds describe the slots <b>BigPEmu itself</b>
+/// writes, three-digit and keyed by an internal game id under
+/// <c>emulators/bigpemu/userdata/</c>; the two-digit <c>&lt;file&gt;</c> template describes the
+/// <b>mirror</b> RetroBat makes under <c>saves/jaguar/bigpemu/</c>. Reading the declared path is
+/// therefore right, and six real states came back as slots 1 to 6 with nothing reported.
+/// <para>
+/// What the bounds still buy is the edges. A mirror name past slot 99 cannot be expressed by
+/// <c>{{slot2d}}</c> and a slot below the declared floor is outside what the emulator claims to
+/// write, so both go to <see cref="SaveStateTemplate.NearMiss"/> rather than being passed over.
+/// Neither has been observed on hardware: reaching slot 100 needs about 94 more saves of one
+/// game. See #34 and #65.
 /// </para>
 /// </remarks>
 public sealed class SaveStateSchema
@@ -502,10 +508,10 @@ public sealed partial class SaveStateTemplate
         return new SaveStateNearMiss(
             fileName,
             NearMissKind.SlotWidth,
-            $"{Emulator.Name} names slots {first?.ToString(CultureInfo.InvariantCulture) ?? "?"} to "
-                + $"{last?.ToString(CultureInfo.InvariantCulture) ?? "?"} and its own filename rule "
-                + $"'{Emulator.File}' cannot write slot {wide.Groups["slot"].Value}. Not synced, and "
-                + "RetroBat's own es_savestates.cfg is what disagrees with itself here.");
+            $"{Emulator.Name} writes slots {first?.ToString(CultureInfo.InvariantCulture) ?? "?"} to "
+                + $"{last?.ToString(CultureInfo.InvariantCulture) ?? "?"} and the name RetroBat mirrors "
+                + $"them under, '{Emulator.File}', cannot express slot {wide.Groups["slot"].Value}. "
+                + "Not synced. This is worth reporting upstream.");
     }
 
     /// <summary>The screenshot beside a state, when the emulator declares a distinct one.</summary>
