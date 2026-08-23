@@ -1,4 +1,3 @@
-using RomMBat.Agent.Commands;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -19,11 +18,16 @@ public sealed record AgentRun(int ExitCode, string Out, string Error)
 /// Runs a subcommand the way <c>Program</c> does, and captures what it said.
 /// </summary>
 /// <remarks>
+/// <b>Through <see cref="Program.DispatchAsync"/>, not the command class.</b> The layer that
+/// turns an exception into an exit code lives there, so a test that called
+/// <c>BiosCommand.RunAsync</c> directly would run straight past it.
+/// <para>
 /// <b>Console is redirected rather than a writer being threaded through the commands.</b> The
 /// reports go to <see cref="Console"/> directly today, and rebuilding that seam is a change to
 /// shipped code made for the benefit of a test; redirecting is the smaller thing and it
 /// exercises exactly the code a user runs. It is also why this collection is not parallel: two
 /// tests swapping <c>Console.Out</c> at once would read each other's output.
+/// </para>
 /// <para>
 /// Every run passes <c>--root</c>, so nothing here can find, open or write a real install.
 /// </para>
@@ -44,11 +48,7 @@ internal static class AgentRunner
             Console.SetOut(output);
             Console.SetError(error);
 
-            var exitCode = command.Subcommand switch
-            {
-                "bios" => await BiosCommand.RunAsync(command, TestContext.Current.CancellationToken),
-                _ => throw new ArgumentException($"No runner for '{command.Subcommand}'.", nameof(args)),
-            };
+            var exitCode = await Program.DispatchAsync(command, TestContext.Current.CancellationToken);
 
             return new AgentRun(exitCode, output.ToString(), error.ToString());
         }

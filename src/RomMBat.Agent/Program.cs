@@ -1,5 +1,6 @@
 using RomM.Client;
 using RomMBat.Agent.Commands;
+using RomMBat.Core.RetroBat;
 
 namespace RomMBat.Agent;
 
@@ -59,24 +60,37 @@ internal static class Program
             cancellation.Cancel();
         };
 
+        return await DispatchAsync(command, cancellation.Token).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs one parsed subcommand, and turns the exceptions that reach this far into exit codes.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="Main"/> so the test project drives the same dispatch and the
+    /// same handlers a user gets. A test that calls a command class directly runs past the
+    /// layer where an exception becomes an exit code, which is the layer this catches.
+    /// </remarks>
+    internal static async Task<int> DispatchAsync(CommandLine command, CancellationToken cancellationToken)
+    {
         try
         {
             return command.Subcommand switch
             {
-                "pair" => await PairCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "status" => await StatusCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "sets" => await SetsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "platforms" => await PlatformsCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "browse" => await BrowseCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "sync" => await SyncCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "budget" => await BudgetCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "evict" => await EvictCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "bios" => await BiosCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "gamelist" => await GamelistCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "hooks" => await HooksCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "saves" => await SavesCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
-                "flush" => await FlushCommand.RunAsync(command, cancellation.Token).ConfigureAwait(false),
+                "pair" => await PairCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "status" => await StatusCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "sets" => await SetsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "platforms" => await PlatformsCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "browse" => await BrowseCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "sync" => await SyncCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "budget" => await BudgetCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "evict" => await EvictCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "bios" => await BiosCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "gamelist" => await GamelistCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "hooks" => await HooksCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }
@@ -90,6 +104,13 @@ internal static class Program
         {
             Console.Error.WriteLine(ex.Message);
             return ExitCode.Offline;
+        }
+        catch (EsSystemsException ex)
+        {
+            // A missing or unreadable es_systems.cfg is a failed precondition, and the
+            // exception's own message was written for the user who hit it.
+            Console.Error.WriteLine(ex.Message);
+            return ExitCode.Refused;
         }
     }
 
