@@ -205,6 +205,36 @@ public sealed class PartialSweepTests : IDisposable
         Assert.Equal(1, sweep.Apply(plan).Removed);
     }
 
+    [Fact]
+    public void Every_producer_writes_where_the_sweep_looks()
+    {
+        // The producers and the sweep each built emulators/rommbat/partial themselves, four
+        // independent times. Plan() answers an empty plan for a directory that is not there, so
+        // a producer moving would not have thrown and would not have warned: evict would print
+        // "no abandoned transfers under partial/" over a directory full of them. Asserted
+        // against the paths the planners actually return, not against the constant, so the
+        // divergence this pins is the one that could happen.
+        var sweptRoot = PartialSweep.Directory.Value + "/";
+
+        Assert.Equal(PartialSweep.Directory, SaveSync.PartialDirectory);
+        Assert.StartsWith(sweptRoot, ContentPlanner.PartFor(7).Value, StringComparison.Ordinal);
+        Assert.StartsWith(
+            sweptRoot,
+            BiosPlanner.PartFor("0123456789abcdef0123456789abcdef").Value,
+            StringComparison.Ordinal);
+
+        // And the names the sweep recognises are still the names the producers write, so a
+        // rename is caught as well as a move.
+        using var store = LocalStore.Open(_tree.Install());
+
+        Write(ContentPlanner.PartFor(7).Name, "half a rom no set claims");
+        Write(BiosPlanner.PartFor("0123456789abcdef0123456789abcdef").Name, "half a bios");
+
+        var plan = new PartialSweep(_tree.Install(), store).Plan();
+
+        Assert.Equal(2, plan.Candidates.Count);
+    }
+
     private static SyncSetMember Member(int romId) => new()
     {
         RomId = romId,

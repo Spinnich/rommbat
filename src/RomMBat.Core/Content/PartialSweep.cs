@@ -147,7 +147,13 @@ public sealed class PartialSweep
     }
 
     /// <summary>Where the partials live, relative to the RetroBat root.</summary>
-    public static RelativePath Directory { get; } = RetroBatInstall.AppDirectory.Combine("partial");
+    /// <remarks>
+    /// <see cref="RetroBatInstall.PartialDirectory"/>, which every producer resolves too. This
+    /// class used to build the path itself, and <see cref="Plan"/> answers an empty plan for a
+    /// directory that is not there, so a producer moving would have made the sweep report a
+    /// clean install over a directory full of dead transfers rather than fail.
+    /// </remarks>
+    public static RelativePath Directory => RetroBatInstall.PartialDirectory;
 
     /// <summary>Works out what is dead, without touching anything.</summary>
     public PartialSweepPlan Plan()

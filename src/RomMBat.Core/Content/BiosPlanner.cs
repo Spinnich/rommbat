@@ -180,7 +180,7 @@ public sealed class BiosPlanner
     public static RelativePath PartFor(string md5)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(md5);
-        return RetroBatInstall.AppDirectory.Combine($"partial/bios-{md5.Trim().ToLowerInvariant()}.part");
+        return RetroBatInstall.PartialDirectory.Combine($"bios-{md5.Trim().ToLowerInvariant()}.part");
     }
 
     /// <summary>
