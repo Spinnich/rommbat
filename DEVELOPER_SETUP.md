@@ -40,6 +40,19 @@ dotnet build
 dotnet test
 ```
 
+**Two things about `dotnet test` will waste an hour each if nobody says them.** `global.json`
+opts this repo into Microsoft.Testing.Platform, so `dotnet test` is MTP's command and not
+VSTest's, and it takes a different set of options. Run `dotnet test --help` for the real list.
+
+- **An option MTP does not recognise is forwarded to the test module, which refuses it and
+  reports `Zero tests ran` with exit code 5, naming neither the option nor the problem.**
+  `--nologo` is the one that catches people, because every other `dotnet` verb takes it. A run
+  that reports zero tests has almost certainly been handed a bad option rather than lost its
+  tests.
+- **A `--filter` that matches nothing in one of the two test projects makes the whole run exit
+  non-zero**, because a module running zero tests is an error. Scope the run with `--project` as
+  well, or the filtered run fails on the project you were not aiming at.
+
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
 
@@ -187,7 +200,7 @@ Then source it for the run. `dotnet test` reads the process environment and noth
 
 ```bash
 set -a; . ./.env; set +a; dotnet test
-set -a; . ./.env; set +a; dotnet test --filter "FullyQualifiedName~LivePairingTests"
+set -a; . ./.env; set +a; dotnet test --project tests/RomMBat.Tests --filter "FullyQualifiedName~LivePairingTests"
 ```
 
 ```powershell
@@ -269,7 +282,12 @@ works offline, so it is the cheap way to see what a set would cost before it cos
 
 `evict` is a dry run unless you pass `--apply`, and it is the only command in the agent that
 deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by
-hand is safe, and the next sync starts that ROM again.
+hand is safe, and the next sync starts that ROM again. `evict` also reports what under that
+directory is dead, and reclaims it on `--apply`, which is the only thing that ever does:
+those bytes carry no database row, so the disk budget cannot count them and eviction proper
+cannot reach them. The reclaim needs the tree lock, because one of the things under there is a
+save being put back rather than litter, so `evict --apply` during a flush evicts and says the
+sweep will happen next time.
 
 ### Metadata, media and gamelists
 
@@ -339,7 +357,9 @@ winning.
 
 **A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
 `--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
-the dated copy under `emulators/rommbat/replaced/` once the slot is back in step.
+the dated copy under `emulators/rommbat/replaced/` once the slot is back in step. It writes the
+same save files a flush does, so it takes the same lock: run it while a flush is in flight and
+it refuses with exit 3 rather than doing half of one.
 
 **A directory save goes up as one archive, and `saves` names the unit rather than the path.**
 Every PSP save on an install shares the container `saves/psp/SAVEDATA`, so the report prints

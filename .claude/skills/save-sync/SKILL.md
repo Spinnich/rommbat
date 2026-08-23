@@ -24,13 +24,18 @@ is a local pairing key, and "does this state still need sending" is answerable o
 hash the device wrote down when it last sent one.
 
 **Reverse the templates; do not expand a slot range.** Compiling `<file>` into an anchored
-expression and matching what is on disk reads the slot off the filename, and three of the four
-famous traps in that file stop being questions: `libretro` declares no bounds, `bigpemu`
-declares `001`/`999` against a two-digit `{{slot2d}}`, and whether `{{slot}}` renders empty at
-slot zero becomes "accept zero digits". The same reversal on `<directory>` recovers the system
-and the core from the tree, which is the only sound reading when neither level of the save tree
-is positional. `desmume` still needs handling: nothing makes its `<image>` differ from its
-`<file>`.
+expression and matching what is on disk reads the slot off the filename, which answers
+`libretro`'s trap, the one entry declaring no bounds, and settles a question that is not one of
+the four: whether `{{slot}}` renders empty at slot zero becomes "accept zero digits".
+**`bigpemu` is not answered**: it declares `001`/`999` against a two-digit `{{slot2d}}`, which
+compiles to `\d{2}`, so reversal reads 00 to 99 and misses the declaration at both ends. A
+three-digit name is recognised as nothing and dropped without a report (#34), and `_state00` is
+read as slot 0 below the declared floor with nothing refusing or reporting it, because `Bounds`
+has no caller outside the tests (#65). Both ends unmeasured, since its states are reachable only
+through its own gamepad overlay. The same reversal on `<directory>` recovers the system and the
+core from the tree, which answers `bizhawk`'s core scoping and is the only sound reading when
+neither level of the save tree is positional. `desmume` still needs handling: nothing makes its
+`<image>` differ from its `<file>`.
 
 **The uploaded name is not the name on disk, and getting this wrong loses a state silently.**
 Measured: the upsert keys on `(rom_id, file_name)` and the **emulator is not part of the key**,
@@ -289,6 +294,18 @@ hash, folded into one digest. The archive is transport only.
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced. Both
   outcomes prune the copy aside.
+- **`saves resolve` takes `TreeLock`, and refuses rather than treating a held lock as done.** It
+  runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or one racing
+  `evict`'s sweep of `partial/`, leaves a shared container half swapped. Unlike a flush, where
+  failing to acquire means another agent is already doing the work, a person asked for this one
+  and silently returning `Ok` would read as having resolved it: it exits `Refused` and says why.
+- **`partial/unit-<guid>/` is live state for the length of a class C restore, and nothing holds
+  a handle on it.** `SaveArchive.Extract` closes each entry's writer inside its own loop, so the
+  staging directory sits unprotected across the hash, the copy aside, the `Remove` and the whole
+  move loop. Anything that deletes under `partial/` must hold `TreeLock`. **A `FileShare.None`
+  sentinel inside the directory is not a substitute**, measured rather than assumed:
+  `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
+  sentinel, so the staged members are gone regardless.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
   two ROMs, one never named by the client, and acking one dropped the next answer to 12. An

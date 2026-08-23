@@ -216,6 +216,11 @@ ROMs and 320 MB of artwork. It counts against the same budget, and manuals are o
 download, and never one whose saves have not reached the server. It takes a game's artwork and
 its gamelist entry out with it, and leaves artwork a user scraped themselves alone.
 
+`evict` also reports transfers that died part-way, under `emulators/rommbat/partial/`, and
+reclaims them on `--apply`. Those bytes are the only ones the disk budget cannot see, because a
+file is only counted once it has arrived whole. It does not run at all while a sync is writing
+saves back, and it skips anything a live transfer still holds open.
+
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
 several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server
 serves it as an archive that cannot be resumed and whose hashes describe neither the archive
@@ -324,7 +329,9 @@ src/RomM.Client/openapi
 src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
 src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
 src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)
-tests/RomMBat.Tests   xUnit
+tests/RomMBat.Tests   xUnit, over Core and Client
+tests/RomMBat.Agent.Tests
+                      xUnit, over the Agent's subcommands and their gates
 
 docs/PLAN.md          The design of record. Read this before anything else
 docs/retrobat-findings.md

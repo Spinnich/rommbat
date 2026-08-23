@@ -159,7 +159,11 @@ hook is never told the system, emulator or core, so
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
-hook execution is the normal case.
+hook execution is the normal case. Anything else that writes the same save files takes it
+too: `saves resolve`, which runs the same class C restore a flush does, and `evict`'s sweep of
+`partial/`, which would otherwise delete a restore's staging directory out from under it. A
+flush that cannot get the lock is done, because another process is doing the work; the other
+two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for the next pass.
 
 ### `src/RomMBat.UI`
 
@@ -180,8 +184,30 @@ No primary flow may require a mouse.
 
 ### `tests/RomMBat.Tests`
 
-xUnit, one project for now, covering Core and Client. Split into `<Project>.Tests` when
-that stops being comfortable; nothing depends on the current shape.
+xUnit, covering Core and Client.
+
+### `tests/RomMBat.Agent.Tests`
+
+xUnit, covering the Agent's subcommands. Its own project rather than a reference added to
+the one above, because the Agent is an `Exe` carrying an `app.manifest` and pulling that
+into the existing test host would put a Windows manifest behind every unit test in the
+repo. `TempRetroBatTree` is linked from `RomMBat.Tests` rather than copied, so both suites
+agree on what a RetroBat tree looks like.
+
+**The commands are where milestones meet**, each wiring a planner to a sync to a store to
+an exit code, and that is the layer a defect survives a full green suite in. One did:
+`BiosCommand` and `SyncCommand` both returned before constructing `BiosSync` when nothing
+needed downloading, which made `BiosAction.Adopt` unreachable from either entry point, and
+a user who had copied their BIOS in by hand would have been told "N already on disk to
+adopt" forever with no row ever written. The planner was covered, the sync was covered, and
+the gate between them was neither.
+
+The suite drives `Program.DispatchAsync` rather than a command class, because the handlers
+that turn an exception into an exit code live there and a test that calls the command
+directly runs straight past them. That seam caught the second one: the `bios` argument gate
+reads `es_systems.cfg`, a root is accepted on `retrobat.ini` alone, and a RetroBat that has
+been unzipped and never launched has no file to read, so the command threw where it used to
+report. It is now a refusal carrying the exception's own message.
 
 Fixtures come from a real install and are checked in under `tests/**/fixtures/`, byte
 exact and excluded from linting. Save-shape and mapping logic without a fixture is not

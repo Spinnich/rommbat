@@ -1205,6 +1205,26 @@ the rollout order below can be derived rather than hand-maintained.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished
   file is renamed into place only after it verifies.
+- **That directory needs sweeping, and neither of this milestone's two bounds can do it.**
+  The budget counts through `local_file`, which has no row until commit, and the free-space
+  floor reads the volume live, so an abandoned transfer is bytes gone from free space
+  attributed to nothing. `evict` runs the sweep. It keeps a ROM partial while an enabled set
+  still claims the game, keyed on **membership rather than age** because a transfer waiting to
+  resume is indistinguishable from an orphan on disk. M5 and M6 added four more producers here
+  (`bios-`, `save-`, `resolve-`, `unit-`), none of which resumes, so anything of theirs left
+  behind is dead. **Each is matched on the whole name its producer writes, never on a prefix**,
+  or `partial/save-notes.txt` becomes a candidate.
+- **The sweep runs under the tree lock, because one of those candidates is live state.**
+  `partial/unit-<guid>/` is where a class C restore extracts a unit before swapping it into a
+  shared container, and no handle protects it: the archive's writers close inside the extract
+  loop. A recursive delete landing in that window succeeds and leaves the container half
+  swapped, which is the state the `Remove`-before-`Move` ordering exists to prevent, reached
+  from outside the restore. A sentinel file inside the staging directory does not close it,
+  because a recursive delete takes the siblings before it reaches the sentinel. So the sweep
+  takes `TreeLock` and does nothing without it, and `saves resolve` takes it too, since it runs
+  the same restore a flush does. Producers outside that lock (`sync`, `bios`) hold their partial
+  with `FileShare.None` while writing, and a sweep that loses that race costs a transfer that
+  starts again rather than data.
 - **A `.part` that is already complete is verified and renamed, never resumed.** The body is
   flushed before the verify and the rename, so the power-cut window this whole design exists
   for leaves a complete, correct partial file and a live row. Asking to resume from the end of
@@ -1951,19 +1971,27 @@ systems.
 A commented-out `<core name="..." enabled="false"/>` mechanism ships disabled; the parser
 must tolerate `<core>` children appearing, since a user can enable them.
 
-**M6 stage 2a found that three of those four traps are only traps for a parser that expands a
-slot range**, and built the parser the other way round. Compiling `<file>` into an anchored
+**M6 stage 2a found that `libretro`'s trap is only a trap for a parser that expands a slot
+range**, and built the parser the other way round. Compiling `<file>` into an anchored
 expression and matching it against what is on disk reads the slot **off the filename**, so
-`libretro` declaring no bounds needs no invented default, `bigpemu`'s three-digit bounds against
-a two-digit `{{slot2d}}` need no reconciling, and whether `{{slot}}` renders empty at slot zero
-stops being a question the client has to answer in advance. Declared bounds become validation
-only. `desmume` still needs handling, because no reading of the file makes its `<image>` differ
-from its `<file>`.
+`libretro` declaring no bounds needs no invented default. It settles one more question, which is
+not in the table above: whether `{{slot}}` renders empty at slot zero stops being something the
+client has to answer in advance. Declared bounds become validation only. `desmume` still needs
+handling, because no reading of the file makes its `<image>` differ from its `<file>`.
+
+**`bigpemu`'s is not a trap the reversal answers, and stage 2a recorded that it was.** The
+compiled `{{slot2d}}` is `(?<slot>\d{2})`, so reading the slot off disk answers **00 to 99** and
+misses the declared `001`/`999` at both ends. A three-digit name matches no expression, so it is
+not recognised as a state and is dropped with no report. `<rom>_state00.bigpstate` matches and is
+read as slot 0, below the declared floor, and nothing refuses or reports it because
+`SaveStateEmulator.Bounds` has no caller outside the tests. Whether BigPEmu writes either name is
+unmeasured, because its save state is reachable only through its own gamepad overlay and no
+Jaguar launch has been driven. Open as #34 for the upper end and #65 for the lower.
 
 The same reversal applies to `<directory>`: matching the template against directories that
-exist recovers the system and the core from the tree, which is the only reading that does not
-invent an emulator out of a directory name given that neither level of the save tree is
-positional.
+exist recovers the system and the core from the tree, which answers `bizhawk`'s core scoping and
+is the only reading that does not invent an emulator out of a directory name given that neither
+level of the save tree is positional.
 
 **The slot placeholder's width is load-bearing, not cosmetic.** `{{slot0}}` compiles to exactly
 one digit, `{{slot2d}}` to exactly two. DeSmuME declares `{{romfilename}}.ds{{slot0}}` and writes
