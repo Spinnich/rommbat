@@ -330,11 +330,19 @@ hash, folded into one digest. The archive is transport only.
   Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
   default compounds it.
 - Restores stage everything off to one side: extract to a temp directory beside the target, keep
-  the previous copy until the next successful sync. **A class C swap is not atomic**, and do not
-  write that it is. Members are removed and moved in one at a time, so a failure partway leaves a
-  mixed unit; nothing is lost, because `replaced/` holds the previous members and the staged copy
-  was hashed first, but recovery is manual. A whole-container swap is the wrong fix: the container
-  is shared, and `saves/psp/SAVEDATA` holds every PSP game on the install. Open as #38.
+  the previous copy until the next successful sync. **A class C swap is not one filesystem
+  operation, and do not write that it is.** Members are removed and moved in one at a time,
+  because a whole-container swap is the wrong fix: the container is shared, and
+  `saves/psp/SAVEDATA` holds every PSP game on the install. It is **all-or-nothing anyway**: a
+  failure partway is rolled back, the members the pass placed deleted and the ones it removed
+  copied back from `replaced/`, so the unit ends up wholly new or wholly as it was. The one case
+  that still leaves a mixed unit is a rollback that cannot finish, and the message says so by
+  name and names the `replaced/` copy.
+- **A class C restore whose contents already match the tree does not write the tree.** The fold
+  of what arrived is computed before anything live is touched, so it is free. The transfer is
+  not avoidable and the write is: a peer holding identical bytes carries a digest this device has
+  never seen, so negotiate answers `download` and no local comparison can rule it out. The ack
+  and the slot record still run, or the next negotiate answers `upload` for a unit in step.
 - **A bundled restore replaces the unit, it does not merge into it.** Delete the members the
   archive does not name before moving the new ones in; they are under `replaced/` by then. The
   members the archive omits are the slots another device deleted, and leaving them makes the

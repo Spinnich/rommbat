@@ -1820,8 +1820,8 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `AlreadyHeld` compares hashes that by construction differ.
   A 409 that survives the overwrite means the slot moved again between the report the user read
   and the choice they made, so it is reported rather than forced. `--keep-server` runs the same
-  verified restore an ordinary download does, atomic for a single file and staged-but-not-atomic
-  for a unit (#38), and acks only after the bytes are written and checked. Both then prune the
+  verified restore an ordinary download does, one move for a single file and a per-member swap
+  that rolls back on failure for a unit, and acks only after the bytes are written and checked. Both then prune the
   copy under `replaced/`, which is the first time anything in this codebase has been the "next
   successful sync" the retention rule was always written against.
 
@@ -2406,15 +2406,20 @@ measurements 148 and 149.
 Extract to a temporary directory beside the target, verify, then swap, and keep the
 previous copy aside until the next successful sync.
 
-**Stated as the requirement, and it is not met for class C today.** Everything that can be
-done off to one side is: the archive is extracted, CRC-checked per entry and hashed, and the
-previous members are copied under `replaced/`, all before the live tree is touched. The swap
-that follows is per member, so a failure partway leaves a mixed unit and recovery is manual.
-The obvious fix is not available: a temp-dir-and-swap needs a directory of the unit's own, and
+**Met for class C as all-or-nothing rather than as one filesystem operation.** Everything that
+can be done off to one side is: the archive is extracted, CRC-checked per entry and hashed, and
+the previous members are copied under `replaced/`, all before the live tree is touched. The swap
+that follows is per member, because a temp-dir-and-swap needs a directory of the unit's own and
 a class C container is **shared**, with `saves/psp/SAVEDATA` holding every PSP game on the
 install and a GameCube region folder holding every GameCube game. Only the unit's own members
-may move. Open as #38, with the code deferred and this paragraph the honest statement of where
-it stands.
+may move.
+
+A failure partway through that swap used to leave a mixed unit, which an emulator may read as
+corrupt, with recovery manual. It is now undone: the members the pass placed are deleted and the
+ones it removed are copied back from `replaced/`, so the unit is wholly new or wholly as it was
+and the next flush tries again. The one case that still leaves a mixed unit is a rollback that
+cannot finish, and it says so by name and names the `replaced/` copy rather than reporting a
+generic write failure.
 
 - Play sessions: `{rom_id, save_slot, start_time, end_time, duration_ms}`, at most 100 per
   call, `end_time` strictly after `start_time`, microseconds truncated server-side for
@@ -2602,7 +2607,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | Coarse FAT/exFAT mtime granularity causes false or missed conflicts                                                             | Compare on `content_hash` first, use mtime only as an ordering tiebreak                                                                                                                                                                                                |
 | Long portable paths exceed MAX_PATH                                                                                             | Long-path-aware APIs and `\\?\` prefixes where needed                                                                                                                                                                                                                  |
 | Emulator save paths differ per system and RetroBat version                                                                      | Data-driven `save_directories.json`, user-overridable, with a clear "unmapped system" state                                                                                                                                                                            |
-| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, stage and verify off to one side, copy the previous members aside, then move the unit's own members in. The container is shared, so it is not a whole-container swap and the move is not atomic (#38)         |
+| Directory-shaped saves (PSP, PS3, Cemu, Citra, Wii, MAME) do not fit RomM's one-file `Save`                                     | Bundle as a single archive per `grout/sync/zip_save.go`, stage and verify off to one side, copy the previous members aside, then move the unit's own members in. The container is shared, so it is a per-member swap rather than a whole-container one, rolled back from `replaced/` if it fails partway |
 | Shared memory cards cannot be attributed to a `rom_id`                                                                          | Convert to per-game cards via the RetroBat option (`pcsx2_slot1_memory`, `dolphin_slotA`) written to `es_settings.cfg`; PS1 and GameCube are already per-game by default, and PS1 must be left alone rather than converted                                             |
 | Converting a per-game memory card splits a multi-disc set and loses the save at the disc change                                 | Decide the conversion per game, not per system, using the `<system>["<rom>"]` form; never convert a set with several disc files, and leave DuckStation at stock `PerGameTitle`, which binds a set through its own database                                             |
 | RetroArch writes an absolute image path into the save tree (`<playlist>.ldci`), which does not survive a drive-letter change    | Exclude it from the sync set, or rewrite `image_path` on restore; never round-trip it verbatim. Its `image_index` is worth keeping, so exclusion is a real cost, not a free win                                                                                        |

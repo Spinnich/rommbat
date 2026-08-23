@@ -621,8 +621,9 @@ public sealed class SaveSync
     /// </para>
     /// <para>
     /// A class C unit goes to <see cref="RestoreUnitAsync"/> instead, which stages and verifies
-    /// everything up front but <b>swaps the members in one at a time</b>, so that path is not
-    /// atomic. See #38.
+    /// everything up front and then <b>swaps the members in one at a time</b>, because the
+    /// container is shared. That is not one filesystem operation, and a failure partway is
+    /// undone rather than left: the unit ends up wholly new or wholly as it was.
     /// </para>
     /// </remarks>
     private async Task<(long Bytes, string? Problem)> DownloadAsync(
@@ -719,11 +720,12 @@ public sealed class SaveSync
     /// </summary>
     /// <remarks>
     /// <b>A half-written directory save is a corrupt one</b>, so nothing touches the live tree
-    /// until the whole unit is on disk and readable. <b>The swap that follows is not atomic</b>,
-    /// since the container is shared and only the unit's own members may move; #38 has the
-    /// consequence and why a whole-container swap is the wrong fix. The archive is fetched to a <c>.part</c>,
-    /// extracted into a staging directory beside it, the existing members are copied aside under
-    /// <c>replaced/</c>, and only then are the new ones moved in.
+    /// until the whole unit is on disk and readable. The swap that follows is per member, since
+    /// the container is shared and only the unit's own members may move, and a failure partway
+    /// through it is rolled back from the copy under <c>replaced/</c> rather than left as a
+    /// mixed unit. The archive is fetched to a <c>.part</c>, extracted into a staging directory
+    /// beside it, the existing members are copied aside, and only then are the new ones moved
+    /// in.
     /// <para>
     /// <b>What can and cannot be verified, stated because the difference matters.</b> A class A
     /// download is checked against <c>server_content_hash</c>, which is the MD5 of the bytes.

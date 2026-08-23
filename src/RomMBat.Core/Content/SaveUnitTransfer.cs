@@ -63,13 +63,19 @@ public static class SaveUnitTransfer
     /// answers <c>download</c> and the bytes have to come. Only the write is avoidable.
     /// </para>
     /// <para>
-    /// <b>The swap itself is not atomic, and calling it atomic would be worse than the gap.</b>
-    /// The members are removed and then moved in one at a time, so a failure partway leaves some
-    /// new members and some old ones in the container, which an emulator may read as corrupt.
-    /// Nothing is lost: the pre-restore members are under <c>replaced/</c> and the staged copy
-    /// was extracted and hashed before any of this ran, so recovery exists and is manual.
-    /// A whole-container swap is not the fix, because the container is shared: <c>saves/psp/SAVEDATA</c>
-    /// holds every PSP game on the install. Tracked in #38.
+    /// <b>The swap is still not one filesystem operation, and it is all-or-nothing anyway.</b>
+    /// The members are removed and moved in one at a time, because the container is shared:
+    /// <c>saves/psp/SAVEDATA</c> holds every PSP game on the install and the GameCube region
+    /// folder holds every GameCube game, so swapping the container would swap other games' saves
+    /// with it. A failure partway through used to leave some new members and some old ones,
+    /// which an emulator may read as corrupt. It is now undone: the members this pass placed are
+    /// deleted and the ones it removed are copied back from <c>replaced/</c>, so the unit is
+    /// either wholly new or wholly as it was.
+    /// </para>
+    /// <para>
+    /// A rollback that cannot finish is the one case that still leaves a mixed unit, and it says
+    /// so by name and names the <c>replaced/</c> copy. Nothing is lost there either: the staged
+    /// copy was extracted and hashed before any of this ran.
     /// </para>
     /// <para>
     /// <b>This replaces the unit rather than merging into it.</b> A member the archive does not
@@ -149,17 +155,29 @@ public static class SaveUnitTransfer
             // Everything above this line is off to one side. Only now is the live tree touched.
             var aside = CopyAside(install, existing, local, asideDirectory, now);
 
-            // Before the moves, so a member that cannot be deleted fails the restore with the
-            // unit still whole rather than half swapped.
-            Remove(install, existing, entries, container);
+            // Everything from here to the end of the loop is the destructive half, and a
+            // failure anywhere in it is undone rather than left where it stopped. Remove is
+            // still first, so a member that cannot be deleted fails with the unit whole and
+            // nothing to undo.
+            var placed = new List<string>();
 
-            foreach (var entry in entries)
+            try
             {
-                var native = entry.Replace('/', Path.DirectorySeparatorChar);
-                var destination = Path.Combine(container, native);
+                Remove(install, existing, entries, container);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Move(Path.Combine(staging, native), destination, overwrite: true);
+                foreach (var entry in entries)
+                {
+                    var native = entry.Replace('/', Path.DirectorySeparatorChar);
+                    var destination = Path.Combine(container, native);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Move(Path.Combine(staging, native), destination, overwrite: true);
+                    placed.Add(destination);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw RollBack(install, existing, aside, placed, container, ex);
             }
 
             return new SaveUnitRestoreResult(restored, entries, aside);
@@ -240,6 +258,74 @@ public static class SaveUnitTransfer
                 $"the existing save at {local.Path}/{local.UnitKey} could not be copied aside, so "
                     + $"it was not replaced: {ex.Message}",
                 ex);
+        }
+    }
+
+    /// <summary>
+    /// Puts the container back the way it was, and describes what is left if that fails too.
+    /// </summary>
+    /// <remarks>
+    /// <b>The unit's own members, never the container.</b> The container is shared:
+    /// <c>saves/psp/SAVEDATA</c> holds every PSP game on the install and the GameCube region
+    /// folder holds every GameCube game, so a whole-container swap would take other games' saves
+    /// with it. What this undoes is exactly what the move loop touched, plus the members
+    /// <see cref="Remove"/> deleted, which are the ones under <c>replaced/</c>.
+    /// <para>
+    /// A rollback that cannot finish is the one state a person has to be told about by name, so
+    /// the message says where the copy aside is rather than only that something failed. It never
+    /// throws on its own account: the original failure is what the caller needs to see, and
+    /// swallowing it to report a secondary one would hide the cause.
+    /// </para>
+    /// </remarks>
+    private static IOException RollBack(
+        RetroBatInstall install,
+        SaveUnit? existing,
+        RelativePath? aside,
+        IReadOnlyList<string> placed,
+        string container,
+        Exception cause)
+    {
+        var emptied = new List<string>();
+
+        try
+        {
+            foreach (var destination in placed)
+            {
+                File.Delete(destination);
+                emptied.Add(Path.GetDirectoryName(destination)!);
+            }
+
+            if (existing is not null && aside is { } copy)
+            {
+                var asidePath = install.Resolve(copy);
+
+                foreach (var file in existing.Files)
+                {
+                    var source = Path.Combine(
+                        asidePath,
+                        file.ArchivePath.Replace('/', Path.DirectorySeparatorChar));
+                    var destination = install.Resolve(file.Path);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Copy(source, destination, overwrite: true);
+                }
+            }
+
+            PruneEmpty(container, emptied);
+
+            return new IOException(
+                $"the save could not be put back: {cause.Message}. Nothing changed on disk, so "
+                    + "the next flush tries again.",
+                cause);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new IOException(
+                $"the save could not be put back: {cause.Message}. Undoing that failed too "
+                    + $"({ex.Message}), so this save is part new and part old on disk"
+                    + (aside is { } left ? $". The members it had are under {left}" : string.Empty)
+                    + ".",
+                cause);
         }
     }
 
