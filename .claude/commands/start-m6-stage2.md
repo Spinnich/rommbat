@@ -256,8 +256,10 @@ migrating saves out of a shared container are all questions, not steps.
   and per-game cards break that by design.
 - **Hash the logical contents, never the archive bytes.** Sorted relative paths plus each
   file's own hash, folded into one digest, deterministic across implementations and across runs.
-- **Restores are atomic.** Extract beside the target, verify, swap, keep the previous copy until
-  the next successful sync. A half-written directory save is a corrupt one.
+- **Restores must be atomic**, because a half-written directory save is a corrupt one. Extract
+  beside the target, verify, swap, keep the previous copy until the next successful sync. Met for
+  a single file. **Not met for a class C unit and not reachable by swapping**, since the container
+  is shared and only the unit's own members may move. Open as #38.
 - **Never persist an absolute path**, including anything parsed out of a launch log or a
   memory card path.
 - **Slots stay non-null and stable**, and a state's slot is `{emulator}:{core}:{slot}`.

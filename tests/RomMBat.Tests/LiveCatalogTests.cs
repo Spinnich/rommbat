@@ -108,6 +108,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var install = Fixtures.LoadEsSystems();
         var resolver = new PlatformResolver(install);
         var now = DateTimeOffset.UtcNow;
+        var keys = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var platform in response.Value)
         {
@@ -119,6 +120,7 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                 platform.RomCount));
 
             session.Store.PlatformMap.Record(resolution, now);
+            keys.Add(resolution.FsSlug);
 
             // An applied folder must exist. A suggestion must not be applied. Both are the
             // invariants that keep games out of folders EmulationStation never scans.
@@ -134,13 +136,15 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             }
         }
 
-        // Resolved rows only. This class shares one store, and a sibling test writes a user
-        // override into the same table, so the unfiltered count passes or fails on test order.
-        // The resolver here is built with no overrides, so nothing it produces can be a user
-        // row and this stays "every platform the server returned made exactly one row, and
-        // nothing else resolved".
+        // The rows this loop keyed, and only those. The class shares one store and a sibling
+        // test writes a user override into the same table, so the unfiltered count passes or
+        // fails on test order. Filtering on identity holds whichever slug that sibling picks:
+        // an override for a slug outside this set is not counted, and one for a slug inside it
+        // is the same row Record just wrote, since Record keeps a user row marked 'user'
+        // rather than adding a second. So this stays "every platform the server returned made
+        // exactly one row".
         var rows = session.Store.PlatformMap.List()
-            .Where(row => row.ResolvedBy != MappingSource.User)
+            .Where(row => keys.Contains(row.FsSlug))
             .ToList();
 
         Assert.Equal(response.Value.Count, rows.Count);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using RomMBat.Core.Mapping;
+using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -228,6 +229,29 @@ public class PlatformMappingTests
         Assert.Equal("gb", official.Folder);
         Assert.Equal("gb2players", unofficial.Folder);
         Assert.Equal(MappingSource.User, unofficial.ResolvedBy);
+    }
+
+    [Fact]
+    public void Recording_a_resolution_over_an_override_leaves_one_row_and_it_stays_the_choice()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = new DateTimeOffset(2026, 8, 19, 12, 0, 0, TimeSpan.Zero);
+
+        store.PlatformMap.SetOverride("arcade", "fbneo", now);
+
+        // The resolver knows nothing of the override, which is the case a re-resolve after a
+        // RetroBat upgrade hits: it is built from the install alone and its answer is a guess.
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems());
+        store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(1, "arcade", "arcade", "Arcade")), now);
+
+        // One row, not two. A choice and a guess for the same platform share a key, so the
+        // guess cannot be counted separately from the choice it did not overwrite.
+        var row = Assert.Single(store.PlatformMap.List());
+
+        Assert.Equal("arcade", row.FsSlug);
+        Assert.Equal(MappingSource.User, row.ResolvedBy);
+        Assert.Equal("fbneo", row.Folder);
     }
 
     [Theory]
