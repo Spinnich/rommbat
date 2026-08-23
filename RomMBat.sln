@@ -31,7 +31,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomMBat.Tests", "tests\RomM
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomMBat.Hook", "src\RomMBat.Hook\RomMBat.Hook.csproj", "{7BF98F34-9584-4C04-AC64-4FD863D5FC41}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RomMBat.Agent.Tests", "tests\RomMBat.Agent.Tests\RomMBat.Agent.Tests.csproj", "{1C341E1E-BE5E-4C5A-902F-C69F24E176BA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RomMBat.Agent.Tests", "tests\RomMBat.Agent.Tests\RomMBat.Agent.Tests.csproj", "{1C341E1E-BE5E-4C5A-902F-C69F24E176BA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
