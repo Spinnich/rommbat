@@ -374,7 +374,7 @@ public sealed class EvictionPlanner
 
         // Departed and orphaned first, then members from the bottom of their set's own order.
         // The ROM id breaks every tie, so the same install always answers the same way and a
-        // dry-run matches the run that follows it.
+        // preview matches the run that follows it.
         return candidates
             .OrderBy(candidate => candidate.Reason switch
             {

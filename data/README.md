@@ -9,6 +9,7 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 | `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | RomM's `config.batocera-retrobat.yml`, corrected against `systems_names.lst` | M2         |
 | `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | M0 probe 2, generated from a real install                                    | M6         |
 | `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                    | M6         |
+| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                    | M5         |
 
 ## `platforms.json` is generated, and is only layer 3 of five
 
@@ -31,6 +32,25 @@ shortest name, then alphabetical.
 123-platform library carried 72 distinct slugs, because every system has an `-unofficial`
 twin sharing one. The local platform map is keyed by `fs_slug`, which RomM does constrain
 unique.
+
+## `bios.json` is generated too, and settles what RetroBat requires
+
+Regenerate with `python tools/build-bios-manifest.py`, or check it is current with
+`--check`. Embedded into `RomMBat.Core` the same way `platforms.json` is, and **edited
+through the generator, not by hand**. `reference/refresh.sh` and the `reference-verify` CI
+job both run the `--check`, so a hand edit fails there rather than shipping.
+
+It is bundled rather than read from the install because there is nothing to read: a real
+8.2.0 install carries the manifest only as a .NET string resource inside
+`emulationstation/batocera-systems.exe`, byte-identical to the vendored
+`reference/batocera-systems.json`. That is the one place `es_systems.cfg`'s "the live
+install always wins" rule cannot apply.
+
+The transform is deliberately thin, since the vendored file is the authority: an empty md5
+becomes null, which reads as "RetroBat names no hash for this" rather than as a missing
+file; the destination path is kept exactly as RetroBat writes it; and two system keys are
+aliased to the RetroBat folder of the same system. The join against RomM's firmware is on
+**md5 only**, per rule 3.
 
 ## The two save tables depart from Grout in two ways, deliberately
 
