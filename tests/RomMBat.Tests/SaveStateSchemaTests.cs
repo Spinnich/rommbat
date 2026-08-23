@@ -94,6 +94,11 @@ public class SaveStateSchemaTests
         // Three digits cannot be produced by {{slot2d}}, so a name shaped like the declared
         // upper bound is not a state this rule recognises.
         Assert.Null(template.Match("Rayman (USA)_state999.bigpstate"));
+
+        // The other end. Two digits reach 00, which the declaration excludes, and the slot is
+        // read off the name regardless: Bounds has no caller, so nothing refuses or reports it.
+        Assert.Equal(0, template.Match("Rayman (USA)_state00.bigpstate")?.Slot);
+        Assert.Equal(99, template.Match("Rayman (USA)_state99.bigpstate")?.Slot);
     }
 
     [Theory]

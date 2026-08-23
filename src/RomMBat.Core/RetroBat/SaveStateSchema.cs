@@ -51,8 +51,19 @@ public enum SlotToken
 /// <param name="FirstSlot">
 /// Declared bounds, absent on <c>libretro</c>. They are validation only here, never the source
 /// of the slot: this parser reads a slot off a filename on disk rather than expanding a range,
-/// so a missing bound costs nothing and <c>bigpemu</c>'s <c>001</c>/<c>999</c> against a
-/// two-digit template is simply unrepresentable rather than a defect to work around.
+/// so a missing bound costs nothing.
+/// <para>
+/// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not resolved by
+/// that, and saying it was is what #34 is about.</b> The compiled <c>{{slot2d}}</c> expression
+/// is <c>(?&lt;slot&gt;\d{2})</c>, so reading the slot off disk covers 00 to 99 and misses the
+/// declared range at both ends. A three-digit name matches nowhere, so it is not recognised as a
+/// state at all and <see cref="Content.StateScanner"/> drops it silently, along with the
+/// sidecars and screenshots the same rule is there to ignore. <c>_state00</c> matches and is
+/// read as slot 0, below the declared floor, and nothing refuses or reports it because
+/// <see cref="Bounds"/> has no caller outside the tests (#65). Whether BigPEmu writes either
+/// name is unmeasured: it is reachable only through its own gamepad overlay and no Jaguar launch
+/// has been driven.
+/// </para>
 /// </param>
 public sealed record SaveStateEmulator(
     string Name,
@@ -119,11 +130,18 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// <para>
 /// <b>Discovery reverses the template rather than expanding a slot range.</b> Compiling
 /// <see cref="SaveStateEmulator.File"/> into an anchored expression and matching it against what
-/// is on disk reads the slot off the filename, which dissolves three of the four traps this file
-/// is known for: <c>libretro</c> declaring no bounds needs no invented default, <c>bigpemu</c>'s
-/// three-digit bounds against a two-digit template need no reconciling, and whether
-/// <c>{{slot}}</c> renders as an empty string at slot zero stops being a question the client has
-/// to answer in advance.
+/// is on disk reads the slot off the filename, which answers <c>libretro</c>'s trap, the one
+/// entry declaring no bounds at all: nothing has to invent a default. It also settles a question
+/// that is not one of the four this file is known for, whether <c>{{slot}}</c> renders as an
+/// empty string at slot zero.
+/// </para>
+/// <para>
+/// <b>It does not answer <c>bigpemu</c>'s.</b> Its declared range is <c>001</c> to <c>999</c>
+/// and its template is two-digit, so reading the slot off disk answers 00 to 99 and misses that
+/// declaration at both ends: a three-digit name matches no expression and is dropped without
+/// being reported, and <c>_state00</c> is read as slot 0 below the declared floor with nothing
+/// refusing it. Whether the emulator writes either name is unmeasured, so this is recorded
+/// rather than worked around. See #34 and #65.
 /// </para>
 /// </remarks>
 public sealed class SaveStateSchema

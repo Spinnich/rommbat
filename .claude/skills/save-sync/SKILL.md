@@ -24,13 +24,18 @@ is a local pairing key, and "does this state still need sending" is answerable o
 hash the device wrote down when it last sent one.
 
 **Reverse the templates; do not expand a slot range.** Compiling `<file>` into an anchored
-expression and matching what is on disk reads the slot off the filename, and three of the four
-famous traps in that file stop being questions: `libretro` declares no bounds, `bigpemu`
-declares `001`/`999` against a two-digit `{{slot2d}}`, and whether `{{slot}}` renders empty at
-slot zero becomes "accept zero digits". The same reversal on `<directory>` recovers the system
-and the core from the tree, which is the only sound reading when neither level of the save tree
-is positional. `desmume` still needs handling: nothing makes its `<image>` differ from its
-`<file>`.
+expression and matching what is on disk reads the slot off the filename, which answers
+`libretro`'s trap, the one entry declaring no bounds, and settles a question that is not one of
+the four: whether `{{slot}}` renders empty at slot zero becomes "accept zero digits".
+**`bigpemu` is not answered**: it declares `001`/`999` against a two-digit `{{slot2d}}`, which
+compiles to `\d{2}`, so reversal reads 00 to 99 and misses the declaration at both ends. A
+three-digit name is recognised as nothing and dropped without a report (#34), and `_state00` is
+read as slot 0 below the declared floor with nothing refusing or reporting it, because `Bounds`
+has no caller outside the tests (#65). Both ends unmeasured, since its states are reachable only
+through its own gamepad overlay. The same reversal on `<directory>` recovers the system and the
+core from the tree, which answers `bizhawk`'s core scoping and is the only sound reading when
+neither level of the save tree is positional. `desmume` still needs handling: nothing makes its
+`<image>` differ from its `<file>`.
 
 **The uploaded name is not the name on disk, and getting this wrong loses a state silently.**
 Measured: the upsert keys on `(rom_id, file_name)` and the **emulator is not part of the key**,
