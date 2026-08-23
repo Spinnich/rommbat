@@ -86,7 +86,7 @@ These are the ones a newcomer, human or otherwise, gets backwards. Each is cheap
 `reference/` vendors upstream files that the design depends on, so the numbers quoted in `docs/PLAN.md` can be re-derived offline and drift shows up in a diff.
 
 ```bash
-cd reference && ./refresh.sh    # re-pull upstream, then re-derive every quoted number
+cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check the generated data
 ```
 
 **Never hand-edit a vendored file, and never "fix" `verify.py` by updating an expected number.** A drift there means an upstream fact moved, which is a signal to revisit `docs/PLAN.md`.

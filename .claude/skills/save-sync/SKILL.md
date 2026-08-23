@@ -351,12 +351,12 @@ returning.
 ## Determinism is what makes replay safe
 
 Identical content uploaded twice into one slot reuses the same row, which is what makes a
-replayed flush idempotent. **That dedup is off under `overwrite=true`**, measured, so it covers
-the flush path and not `saves resolve --keep-local`: a repeated resolution makes a row. That only holds if the bytes are identical, so a bundled class-C
+replayed flush idempotent. That only holds if the bytes are identical, so a bundled class-C
 save must produce a **byte-identical archive** for unchanged contents. Freegosy writes a
 timestamp file into every bundle specifically to defeat this dedup, and pays for it with a
 new server row on every sync of an unchanged save. Hash the logical contents, and keep the
-archive deterministic.
+archive deterministic. **The dedup is off under `overwrite=true`**, measured, so it covers the
+flush path and not `saves resolve --keep-local`: a repeated resolution makes a row.
 
 Play sessions replay safely too, and say so: `POST /api/play-sessions` returns a per-index
 result array and marks a repeat `"status": "duplicate"`, so a partial flush is reconciled

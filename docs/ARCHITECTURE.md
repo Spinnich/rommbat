@@ -198,6 +198,13 @@ a user who had copied their BIOS in by hand would have been told "N already on d
 adopt" forever with no row ever written. The planner was covered, the sync was covered, and
 the gate between them was neither.
 
+The suite drives `Program.DispatchAsync` rather than a command class, because the handlers
+that turn an exception into an exit code live there and a test that calls the command
+directly runs straight past them. That seam caught the second one: the `bios` argument gate
+reads `es_systems.cfg`, a root is accepted on `retrobat.ini` alone, and a RetroBat that has
+been unzipped and never launched has no file to read, so the command threw where it used to
+report. It is now a refusal carrying the exception's own message.
+
 Fixtures come from a real install and are checked in under `tests/**/fixtures/`, byte
 exact and excluded from linting. Save-shape and mapping logic without a fixture is not
 finished.
@@ -518,7 +525,8 @@ because a slot returning to contents it once held is a different row carrying a 
 `--keep-local` is the only thing that sends `overwrite=true`, which gets past the 409 and
 **appends** rather than replacing: row identity is the server's own datetime-tagged filename at
 one-second resolution, so no decision a person takes lands on the row it is overwriting. The
-server's copy stays one row down and `autocleanup_limit=10` bounds the slot. Resolving either way
+server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
+row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. Resolving either way
 prunes the copy, which is what makes the plan's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 

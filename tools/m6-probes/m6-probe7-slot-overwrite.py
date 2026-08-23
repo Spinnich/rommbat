@@ -109,7 +109,7 @@ def slot_rows(slot: str = SLOT) -> list[dict]:
     return [row for row in rows if row.get("slot") == slot]
 
 
-def show(label: str, result: dict, slot: str = SLOT) -> None:
+def show(label: str, result: dict, slot: str = SLOT) -> dict:
     body = result["body"]
     log(f"  {label}")
     log(f"    status {result['status']}  row id {body.get('id')!r}")
@@ -119,6 +119,7 @@ def show(label: str, result: dict, slot: str = SLOT) -> None:
     rows = slot_rows(slot)
     log(f"    slot now holds {len(rows)} row(s): {sorted(r.get('id') for r in rows)}")
     log()
+    return result
 
 
 ids = devices()
@@ -147,8 +148,8 @@ log("=== device_id held fixed at A ===")
 log()
 show("0. seed the slot", upload(SAME, device_id=first_device, overwrite=False))
 show("1. identical content, no overwrite", upload(SAME, device_id=first_device, overwrite=False))
-show("2. identical content, overwrite=true", upload(SAME, device_id=first_device, overwrite=True))
-show("3. different content, no overwrite", upload(OTHER, device_id=first_device, overwrite=False))
+step2 = show("2. identical content, overwrite=true", upload(SAME, device_id=first_device, overwrite=True))
+step3 = show("3. different content, no overwrite", upload(OTHER, device_id=first_device, overwrite=False))
 show("4. different content, overwrite=true", upload(OTHER, device_id=first_device, overwrite=True))
 
 log("=== the same two postings from device B, which is the variable #39 could not hold ===")
@@ -164,8 +165,15 @@ log("=== what row identity actually is, which the run above stumbled on ===")
 log()
 log("    A slotted upload is renamed to carry a datetime tag at ONE-SECOND resolution, and the")
 log("    row is then looked up by that tagged name. So whether a posting updates a row or appends")
-log("    one depends on the wall clock. Step 3 above updated row 156 rather than appending purely")
-log("    because it landed in the same second as the posting that created it.")
+log("    one depends on the wall clock, which is why the sentence below reads the run rather than")
+log("    asserting an outcome.")
+_step2_id, _step3_id = step2["body"].get("id"), step3["body"].get("id")
+if _step3_id == _step2_id:
+    log(f"    Step 3 above updated row {_step3_id} rather than appending, because it landed in the")
+    log("    same second as the posting that created it.")
+else:
+    log(f"    Step 3 above appended row {_step3_id} beside row {_step2_id}, because it landed in a")
+    log("    later second than the posting before it.")
 log()
 log("    Forced here rather than left to timing, on a second slot with no conflict history and")
 log("    with overwrite=true throughout, so neither the 409 checks nor the hash dedup is in play")

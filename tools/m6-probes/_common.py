@@ -4,7 +4,11 @@ Same arrangement as M5: reuse the Freegosy probes' request and redaction helpers
 rule that a host and a token never reach a transcript lives in one place, and only redirect
 the output directory. Output goes to probe-output/m6/, which is gitignored.
 
-Every probe in this directory reads. None of them writes into a RetroBat install.
+Most probes in this directory only read. **`m6-probe6-directory-save-upload.py`,
+`m6-probe7-slot-overwrite.py`, `m6-probe8-leftover-row.py` and `peer-save.py` write to the RomM instance named
+by ROMMBAT_TEST_SERVER**, each into probe-only slots it deletes again before it exits; probe 8
+also leaves a sync-session row, which the API cannot delete. A new write probe adds itself here.
+**None of them writes into a RetroBat install.**
 """
 
 from __future__ import annotations

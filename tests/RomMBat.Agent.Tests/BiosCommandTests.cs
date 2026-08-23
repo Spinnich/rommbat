@@ -76,6 +76,7 @@ public sealed class BiosCommandTests
         Assert.False(run.Wrote("RetroBat requires no BIOS for psx"), run.Out);
         Assert.True(run.Wrote("psx"), run.Out);
     }
+
     [Fact]
     public async Task Covering_the_whole_install_validates_nothing_because_it_names_nothing()
     {
@@ -88,6 +89,21 @@ public sealed class BiosCommandTests
 
         Assert.Equal(0, run.ExitCode);
         Assert.Equal(string.Empty, run.Error);
+    }
+
+    [Fact]
+    public async Task An_install_that_has_never_started_is_refused_rather_than_crashing()
+    {
+        // The gate is the first thing on this path to read es_systems.cfg, and RootMarkers.All
+        // accepts a root on retrobat.ini alone, so a RetroBat that has been unzipped and never
+        // launched reaches it with no file to read. That threw out of Program as an unhandled
+        // exception, because the only handlers were for cancellation and an unreachable server.
+        using var tree = TempRetroBatTree.Create();
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "psx", "--offline");
+
+        Assert.Equal(3, run.ExitCode);
+        Assert.True(run.Complained("es_systems.cfg"), run.Error);
     }
 }
 
