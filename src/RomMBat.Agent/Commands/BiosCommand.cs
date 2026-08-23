@@ -56,17 +56,37 @@ internal static class BiosCommand
         {
             folders = planner.FoldersNeedingBios();
 
-            // An install that has synced nothing yet has no folders to report on, and falling
-            // through to Plan([]) answers "no BIOS is required for these systems" over the empty
-            // set. That is the same false clean bill of health a mistyped positional used to
-            // produce, in the path Validate cannot cover: this is not a question about user
-            // input, so the answer belongs where the folder list is chosen.
+            // Falling through to Plan([]) answers "no BIOS is required for these systems" over
+            // the empty set, which is the same false clean bill of health a mistyped positional
+            // used to produce, in the path Validate cannot cover. Two different installs land
+            // here, though, and one sentence cannot serve both: FoldersNeedingBios() filters by
+            // the manifest, so it is empty both for an install that has synced nothing and for
+            // one whose systems need no firmware. The second is the ordinary case, since only
+            // 99 of RetroBat's 240 systems appear in the manifest at all, so a snes, n64 and
+            // atari2600 library reaches it fully populated.
             if (folders.Count == 0)
             {
-                Console.WriteLine(
-                    "Nothing has been synced yet, so there is no library to report BIOS for.");
-                Console.WriteLine(
-                    "Run 'sync' first, or 'bios --all' for what RetroBat requires across every system.");
+                var synced = planner.SyncedFolders();
+
+                if (synced.Count == 0)
+                {
+                    Console.WriteLine(
+                        "Nothing has been synced yet, so there is no library to report BIOS for.");
+                    Console.WriteLine(
+                        "Run 'sync' first, or 'bios --all' for what RetroBat requires across "
+                            + "every system.");
+                }
+                else
+                {
+                    var systems = synced.Count == 1 ? "system" : "systems";
+                    Console.WriteLine(
+                        $"None of the {synced.Count} {systems} synced here has a BIOS requirement "
+                            + "RetroBat records, so there is nothing to fetch.");
+                    Console.WriteLine(
+                        "Run 'bios --all' for what RetroBat requires across every system, or name "
+                            + "a system to check it on its own.");
+                }
+
                 return ExitCode.Ok;
             }
         }
