@@ -51,6 +51,7 @@ public sealed class LocalStore : IDisposable
         SaveSlots = new SaveSlotStore(connection);
         SaveConflicts = new SaveConflictStore(connection);
         GameIdBindings = new GameIdBindingStore(connection);
+        SaveConversions = new SaveConversionStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -101,6 +102,9 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Learned Game ID to ROM bindings, and the keys nothing could bind.</summary>
     public GameIdBindingStore GameIdBindings { get; }
+
+    /// <summary>Games opted into a per-game save container, and what the setting was before.</summary>
+    public SaveConversionStore SaveConversions { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }
