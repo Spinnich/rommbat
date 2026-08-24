@@ -176,7 +176,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
         fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -207,7 +207,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game (USA)", "srm", "not ours");
         fixture.Stub.UnsolicitedDownloads.Add((4242, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Skipped);
         Assert.Equal(0, outcome.Failed);
@@ -234,7 +234,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(4243, "ppsspp:savedata", "ULES09999", "zip", "an archive");
         fixture.Stub.UnsolicitedDownloads.Add((4243, "ppsspp:savedata"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Skipped);
         Assert.Equal(0, outcome.Failed);
@@ -262,7 +262,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(391, "ppsspp:savedata", "ULES01513", "zip", "an archive");
         fixture.Stub.UnsolicitedDownloads.Add((391, "ppsspp:savedata"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.Failed);
@@ -757,7 +757,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // A peer uploads the same contents. A different row, a digest this device has not seen,
         // and origin naming somebody else, so IsOwnUpload is false and the skip cannot fire.
@@ -780,7 +780,7 @@ public class SaveSyncTests
         var before = (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash));
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // The transfer is unavoidable without a protocol change, so it still counts as one.
         Assert.Equal(1, outcome.Downloaded);

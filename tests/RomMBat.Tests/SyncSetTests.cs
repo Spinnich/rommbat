@@ -644,7 +644,10 @@ public class SyncSetTests : IDisposable
             ScopeValue = "1",
         });
 
-        var resolution = await Resolve(set, connection);
+        var resolution = await Resolve(
+            set,
+            connection,
+            cancellationToken: TestContext.Current.CancellationToken);
         _store.SyncSets.ReplaceMembers(
             set.Id, [.. resolution.Members, .. resolution.Excluded], resolution.Summary, Now);
 
