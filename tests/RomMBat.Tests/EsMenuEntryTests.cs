@@ -232,6 +232,39 @@ public sealed class EsMenuEntryTests : IDisposable
         Assert.True(File.Exists(At(EsMenuEntry.MenuPath)));
     }
 
+    [Fact]
+    public void The_entry_survives_the_drive_letter_changing_and_a_second_pass_is_still_a_no_op()
+    {
+        // Rule 1, on the two files this stage adds. The .menu holds a path rooted under
+        // emulators\ with no drive letter in it, and the gamelist holds ./rommbat.menu and
+        // ./media/rommbat-logo.png, both relative to the folder they sit in. Nothing here
+        // needs rewriting when the stick comes up as F: instead of E:.
+        UseStockGamelist();
+        new EsMenuEntry(_tree.Install()).Install();
+
+        using var moved = _tree.CopyToNewLocation();
+        var relocated = new EsMenuEntry(moved.Install());
+
+        Assert.True(relocated.IsInstalled());
+
+        var before = File.ReadAllBytes(moved.Install().Resolve(EsMenuEntry.GamelistPath));
+        var outcome = relocated.Install();
+
+        Assert.True(outcome.IsNoOp);
+        Assert.Equal(before, File.ReadAllBytes(moved.Install().Resolve(EsMenuEntry.GamelistPath)));
+
+        // And nothing anywhere in either file names the old root.
+        var menu = File.ReadAllText(moved.Install().Resolve(EsMenuEntry.MenuPath));
+        var gamelist = File.ReadAllText(moved.Install().Resolve(EsMenuEntry.GamelistPath));
+
+        foreach (var text in new[] { menu, gamelist })
+        {
+            Assert.DoesNotContain(_tree.Root, text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(moved.Root, text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(":\\", text, StringComparison.Ordinal);
+        }
+    }
+
     private string At(RomMBat.Core.Paths.RelativePath path) => _tree.Install().Resolve(path);
 
     private void UseStockGamelist() => File.Copy(Fixture, At(EsMenuEntry.GamelistPath), overwrite: true);
