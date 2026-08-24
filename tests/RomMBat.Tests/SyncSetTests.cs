@@ -39,8 +39,11 @@ public class SyncSetTests : IDisposable
     [Fact]
     public void The_schema_is_at_the_version_this_build_expects()
     {
-        Assert.Equal(11, LocalStore.ExpectedSchemaVersion);
-        Assert.Equal(11, _store.SchemaVersion);
+        // Bumped by hand with every migration, deliberately. Deriving it from the directory
+        // would make this test agree with any number the migrations happen to produce, and the
+        // thing worth catching is a migration added without anyone deciding to add one.
+        Assert.Equal(12, LocalStore.ExpectedSchemaVersion);
+        Assert.Equal(12, _store.SchemaVersion);
     }
 
     [Fact]
