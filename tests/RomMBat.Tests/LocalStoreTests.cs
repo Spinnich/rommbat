@@ -88,6 +88,8 @@ public class LocalStoreTests
         ("unsyncable", "system"),
         ("local_state", "system"),
         ("local_state", "emulator"),
+        ("save_conversion", "system"),
+        ("save_conversion", "fs_name"),
     ];
 
     [Fact]
@@ -810,6 +812,23 @@ public class LocalStoreTests
                 INSERT INTO local_state (relative_path, system, emulator, slot, scanned_at_utc)
                 VALUES ('saves/snes/libretro.snes9x/' || abs(random()) || '.state1', 'snes',
                         $name, 'libretro:snes9x:1', '2026-01-01T00:00:00Z');
+                """,
+            // fs_name here is the rom filename the per-game es_settings.cfg key is built
+            // from, and it is concatenated straight into `<system>["<fs_name>"].<key>`. A
+            // separator in either half would write a key naming somewhere else entirely.
+            ("save_conversion", "system") =>
+                """
+                INSERT INTO save_conversion (rom_id, system, fs_name, setting_key, applied_value,
+                                             prior_state, converted_at_utc)
+                VALUES (abs(random()), $name, 'Game.chd', 'pcsx2_slot1_memory', 'game',
+                        'absent', '2026-01-01T00:00:00Z');
+                """,
+            ("save_conversion", "fs_name") =>
+                """
+                INSERT INTO save_conversion (rom_id, system, fs_name, setting_key, applied_value,
+                                             prior_state, converted_at_utc)
+                VALUES (abs(random()), 'sys-' || abs(random()), $name, 'pcsx2_slot1_memory',
+                        'game', 'absent', '2026-01-01T00:00:00Z');
                 """,
             _ => throw new ArgumentOutOfRangeException(nameof(table)),
         };

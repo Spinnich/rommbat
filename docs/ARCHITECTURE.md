@@ -264,7 +264,7 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Eight have been
+so each milestone has somewhere honest to write from the moment it starts. Nine have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -290,6 +290,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `content_download` | One interrupted transfer per ROM: its `.part`, its target, the expected length and the validator to resume against                 |
 | `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                |
 | `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                         |
+| `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before** |
 
 ### No column ever holds an absolute path
 
