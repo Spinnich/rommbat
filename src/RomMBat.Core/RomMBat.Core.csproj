@@ -40,6 +40,16 @@
     <EmbeddedResource Include="..\..\data\retrobat\save_rules.json" Link="data\retrobat\save_rules.json" />
   </ItemGroup>
 
+  <!--
+    The ES menu entry's artwork, embedded for the same reason: the installer writes it into
+    system/es_menu/media/, and a single-file publish has to carry it without a second file
+    alongside to lose. 72 KB, paid once, in the project the hook deliberately does not
+    reference.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\data\media\rommbat-logo.png" Link="data\media\rommbat-logo.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="RomMBat.Tests" />
   </ItemGroup>

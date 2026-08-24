@@ -29,6 +29,7 @@ internal static class Program
         "bios",       // what RetroBat requires under bios/, and what is missing
         "gamelist",   // rewrite gamelist.xml from local state, no server needed
         "hooks",      // install or remove the ES event hooks
+        "menu",       // install or remove the ES menu entry
         "saves",      // what is on disk, what went up, what cannot
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
@@ -88,6 +89,7 @@ internal static class Program
                 "bios" => await BiosCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "gamelist" => await GamelistCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "hooks" => await HooksCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "menu" => await MenuCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
@@ -137,6 +139,7 @@ internal static class Program
         Console.Error.WriteLine("  bios        Report the BIOS RetroBat needs, and fetch it with --apply");
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
+        Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");

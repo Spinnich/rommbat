@@ -264,6 +264,24 @@ public sealed class GamelistDocument
     public bool Contains(string path) => Find(path) is not null;
 
     /// <summary>
+    /// The element names one entry already carries, or an empty list when it is not there.
+    /// </summary>
+    /// <remarks>
+    /// So a caller can assert a field only where none exists. <see cref="Apply"/> overwrites,
+    /// which is right for a gamelist RomMBat generates from the catalog and wrong for the ES
+    /// menu entry, whose name and artwork a user may have changed on purpose.
+    /// </remarks>
+    public IReadOnlyList<string> ElementNamesOf(string path) =>
+        Find(path) is { } game ? [.. game.Elements().Select(child => child.Name.LocalName)] : [];
+
+    /// <summary>One element's text on one entry, or null when either is absent.</summary>
+    /// <remarks>
+    /// For reporting what an entry looks like now rather than what RomMBat would have written,
+    /// which is the difference between telling a user their name was kept and correcting it.
+    /// </remarks>
+    public string? ValueOf(string path, string element) => Find(path)?.Element(element)?.Value;
+
+    /// <summary>
     /// Renders the document exactly as it would be written.
     /// </summary>
     /// <remarks>
