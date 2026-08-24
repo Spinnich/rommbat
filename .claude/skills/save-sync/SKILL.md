@@ -160,9 +160,49 @@ PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all.
 is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
 leave sets alone, and say why.
 
+**Driven end to end in M6 stage 2c, and the details are what make it work.** The card PCSX2
+writes is `<rom stem>.ps2`: **the extension is replaced, not appended**, so the name is exactly
+the `(folder, stem)` key class A attribution already uses and no new route is needed. Note the
+asymmetry with the setting that causes it, because it is the trap: the `es_settings.cfg` key
+must carry `.chd` or it is ignored silently, while the card it produces drops it. Both rules
+are right and they point opposite ways.
+
+It lands **three levels down**, `saves/ps2/pcsx2/memcards/`, where class A discovery only reads
+files loose directly under `saves/<system>/`, so the container is **declared in
+`save_shapes.json` and never discovered**. That declaration is also what the download side
+needs: a converted card arriving for a device that has never run the game must go into the
+container, and the class A rule would put it loose where PCSX2 never looks, quietly.
+
+**Record it as class D, not class A.** One file per game is its shape; what it _is_ is a class D
+system whose container was made per-game, and the row is the only place that stays true once
+the setting is out of sight. Class D rows are forgettable like class A, keyed on the path: a row
+left behind for a deleted card blocks eviction for that ROM forever.
+
+**Discovery must not consult the conversion record.** A card named after a ROM in the declared
+container is that ROM's save whether RomMBat set the option or the user did.
+
+**What converting really costs, measured on a real card.** The shared `Mcd001.ps2` held saves
+for **11 distinct games**, and after the conversion it was **untouched**: same mtime, same md5.
+So the redirect is total and the stranded save really is stranded. Console **slot 2 stays
+shared** (`slot1_memory` converts slot 1 only) and `Mcd002.ps2` moved its mtime without changing
+a byte, which is one more reason nothing may trust mtime.
+
 Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
 switching strands existing saves inside the old container unless migrated; and per-game
 cards break games that legitimately read a prequel's save.
+
+**"Auto" in the ES menu means the key is absent**, not that a value is set: `es_features.cfg`
+declares three choices for `pcsx2_slot1_memory` and no `auto`, and ES synthesises AUTO for any
+unset feature. Two things follow. Reverting has to restore **absence** rather than a plausible
+stock value, or the user lands somewhere they never were, which is why the conversion record
+stores absent and present-with-a-value as different states. And after a conversion the
+system-scoped menu still reads Auto while the per-game key silently outranks it, so **the ES
+menu shows no sign that a game has been converted**.
+
+**Never write `es_settings.cfg` while EmulationStation is running.** It loads the file at
+startup and serialises that model on every write, so a key that appears afterwards is
+discarded, merged and atomic or not. See `retrobat-layout`. Refuse, say why, and re-read after
+writing rather than trusting the rename.
 
 **Never use mtime to decide whether a save changed, in any class.** Launching a PS2 game
 rewrote both `Mcd001.ps2` and `Mcd002.ps2` with no in-game save at all, and a Dreamcast launch

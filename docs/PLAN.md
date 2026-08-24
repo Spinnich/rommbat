@@ -1538,20 +1538,20 @@ is split into review surfaces small enough to hold. The first cut is at the save
 boundary. **The second cut, taken during stage 2, is at what each piece needs from Game-ID
 attribution**, because that is the only hard dependency among the remaining pieces.
 
-|                                                                          | Stage 2a                              | Stage 2b            | Stage 2c |
-| ------------------------------------------------------------------------ | ------------------------------------- | ------------------- | -------- |
-| Hooks, journal, lock file, `emulatorLauncher.log`                        | stage 1                               |                     |          |
-| Play sessions, standalone ingest                                         | stage 1                               |                     |          |
-| Class A and B saves, attributed by filename                              | stage 1                               |                     |          |
-| Negotiate, upload, download, ack, complete, conflicts, atomic restore    | stage 1                               |                     |          |
-| The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |          |
-| Save states, all 13 emulators                                            | **yes**                               |                     |          |
-| Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |          |
-| `SaveGuard`, widened to save states                                      | **yes**                               | **yes**, to C       | to D     |
-| Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |          |
-| Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |          |
-| The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |          |
-| Class D conversion and the `es_settings.cfg` writer                      |                                       |                     | yes      |
+|                                                                          | Stage 2a                              | Stage 2b            | Stage 2c      |
+| ------------------------------------------------------------------------ | ------------------------------------- | ------------------- | ------------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                        | stage 1                               |                     |               |
+| Play sessions, standalone ingest                                         | stage 1                               |                     |               |
+| Class A and B saves, attributed by filename                              | stage 1                               |                     |               |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore    | stage 1                               |                     |               |
+| The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |               |
+| Save states, all 13 emulators                                            | **yes**                               |                     |               |
+| Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |               |
+| `SaveGuard`, widened to save states                                      | **yes**                               | **yes**, to C       | **yes**, to D |
+| Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |               |
+| Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |               |
+| The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |               |
+| Class D conversion and the `es_settings.cfg` writer                      |                                       |                     | **yes**       |
 
 **Why states go first and alone.** A save state needs no Game-ID attribution at all: every
 `<file>` template in `es_savestates.cfg` is keyed on `{{romfilename}}`, and all twelve emulators
@@ -1570,10 +1570,17 @@ suite this plan calls its highest value, with nothing to flush.
 played unplugged, one flush, and a newer save returning as a conflict are all provable on
 class A. "One game from each save shape" is stage 2 by construction.
 
+**Stage 2c adds the fourth and last shape, driven on hardware.** Armored Core 3 was opted into
+a per-game PCSX2 memory card, the game wrote a save into it, RomMBat discovered and attributed
+it by the ROM's stem, uploaded it, and the emulator loaded it back. The shared card it left
+behind held saves for **11 distinct games**, which is the class D attribution problem measured
+rather than argued. Eviction refused the ROM while that card was unsent and offered it after a
+flush. See [retrobat-findings.md](retrobat-findings.md), 182 to 188.
+
 **Stage 2b adds the third shape, driven on hardware.** A PPSSPP `SAVEDATA/` directory written by
 the game itself went up as one archive, came back down as a conflict, was resolved, and the game
-loaded what the restore wrote. The converted PS2 memory card is the last of the four, so **M6 is
-still not claimable until 2c lands.**
+loaded what the restore wrote. The converted PS2 memory card was the last of the four and **2c
+has landed it**, so the milestone's "done when" is answered at the end of this section.
 
 **The pass also moved one of this plan's own assumptions.** Stage 1 designed conflict handling
 around negotiate answering `conflict`. A real two-sided divergence does not take that route: it
@@ -1585,8 +1592,8 @@ exception, and it is recorded as one. See [retrobat-findings.md](retrobat-findin
 **Stage 2a adds two of the four shapes the "done when" names and the sentence it ends on.** A
 PCSX2 save state with its screenshot is provable here, and so is "a conflict **the user
 resolves**", which stage 1 could detect and had no way to settle. The PPSSPP `SAVEDATA/`
-directory is 2b and the converted PS2 memory card is 2c, so **M6 is not claimable as done until
-2c lands**.
+directory is 2b and the converted PS2 memory card is 2c. **2c has landed and M6 is claimable;**
+see the amended "done when" at the end of this section for what proved each shape.
 
 **What stage 1 does with the classes it does not ship is report them, not ignore them.**
 Everything class C, class D and every save state is recorded as unsyncable with a reason, so
@@ -1883,14 +1890,25 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   target is derived from the ROM's own folder and stem with the extension taken off the
   operation's tagged filename, which is the one part of that name safe to read. Fixed as #63.
 
-  **It still does not close for a bundled one, and that is 2c's.** `SaveSync.DownloadAsync`
-  selects the unit restore on the local row's shape class, so a download for a slot this device
-  holds nothing in has no container to expand and no unit key to place under. It is now
-  **refused with a reason** rather than falling into the single-file branch, which would write a
-  `.zip` under the ROM's stem and check it against `server_content_hash`, a digest this client
-  cannot reproduce for an archive. The slot is recognised as bundled from the shapes table
-  rather than from the filename. Closing it properly needs the container and the unit key
-  derived from the server's row, which is a download-side grammar no measurement yet covers.
+  **It still does not close for a bundled one.** `SaveSync.DownloadAsync` selects the unit
+  restore on the local row's shape class, so a download for a slot this device holds nothing in
+  has no container to expand and no unit key to place under. It is **refused with a reason**
+  rather than falling into the single-file branch, which would write a `.zip` under the ROM's
+  stem and check it against `server_content_hash`, a digest this client cannot reproduce for an
+  archive. The slot is recognised as bundled from the shapes table rather than from the
+  filename. Closing it properly needs the container and the unit key derived from the server's
+  row, which is a download-side grammar no measurement yet covers. **Still open after 2c**,
+  which was expected to take it and did not: the bundled download grammar was cut from that
+  stage's scope, and class C is the only shape it affects.
+
+  **Amended after M6 stage 2c: it does close for a converted class D container, and that case
+  had the opposite bug.** A converted card is one file whose name is the ROM's stem, and the
+  shape declares the container it belongs in, so a device that has never run the game can be
+  handed one. `ResolveTarget` was deriving `saves/<folder>/<stem><ext>` for it, which is right
+  for class A and puts a PCSX2 memory card exactly where PCSX2 never looks, **quietly**: the
+  bytes land, the ack is sent, and the flush reports success. It now asks the shape where the
+  container goes, recognising the slot rather than the extension, because only the shape knows
+  that a `.ps2` under `ps2` is a memory card.
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
@@ -2495,6 +2513,29 @@ it on one game from **each** save shape, not three class-A games: a RetroArch `.
 PPSSPP `SAVEDATA/` directory, a PCSX2 save state with its screenshot, and a PS2 battery
 save after opting that game into a per-game memory card. Anything still genuinely shared
 must report itself unsyncable with an explanation rather than appearing to work.
+
+**Answered after M6 stage 2c, which is the stage that makes it claimable.** Each shape is
+listed with what proved it, and **a shape proven by a test rather than by an emulator is named
+as such**, because the two are different claims.
+
+| Shape                          | Proved by                                                                                               | Stage |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- | ----- |
+| A, one file per game           | A RetroArch `.srm`, written offline and flushed on reconnect                                            | 1     |
+| B, several files per game      | Saturn's `.bcr` and `.bkr` in their own slots. **Tests only: no Saturn game has ever been launched**    | 1     |
+| C, a directory per game        | A PPSSPP `SAVEDATA/`, up as one archive, back as a conflict, resolved, and loaded by the game           | 2b    |
+| D, a container shared by games | A PCSX2 card converted per game, written by Armored Core 3, synced, and **loaded back by the emulator** | 2c    |
+
+The offline half is stage 1's and unchanged. The conflict a user resolves is 2a's, and its
+server side was synthetic. The PCSX2 save state with its screenshot is 2a's, and the screenshot
+uploaded but did not link to the state (finding 138).
+
+**What the milestone does not claim.** Nothing is certified: certification is per
+`(system, emulator, core)` across nine steps, and the rollout starts after M7. Class D was
+driven on `(ps2, pcsx2)` only. **A converted card has never been downloaded onto a second real
+device**, so the fresh-device half of class D rests on tests. Dreamcast and PS1 convert in
+principle and are deliberately refused, each with its measured reason: Dreamcast's per-game VMU
+is serial-keyed and needs the Game-ID routes, and DuckStation's stock mode already binds a disc
+set through its own database, so converting PS1 is the change that would break one.
 
 ### M7: gamepad UI
 

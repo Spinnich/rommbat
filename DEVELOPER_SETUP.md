@@ -362,6 +362,38 @@ Every PSP save on an install shares the container `saves/psp/SAVEDATA`, so the r
 the save-state sidecar, and `saves bind` is the way to correct one or to settle a binding two
 routes disagreed on. A binding is local: there is nowhere on the server to put one.
 
+**A shared container is split one game at a time, and `saves convert` is the only command that
+changes the user's RetroBat configuration.** It writes
+`<system>["<rom filename>"].<option>` into `es_settings.cfg`, which is the durable lever:
+`emulatorlauncher` regenerates every emulator INI from ES options at launch, so an INI edit is
+undone on the next boot.
+
+```powershell
+rommbat-agent.exe saves convert 191723            # preview: what it would set, and what it costs
+rommbat-agent.exe saves convert 191723 --apply    # write it
+rommbat-agent.exe saves convert 191723 --revert   # put the setting back to what it was
+```
+
+Four things about it are worth knowing before you drive it:
+
+- **It refuses while EmulationStation is running.** ES loads `es_settings.cfg` at startup and
+  serialises that model on every write, so a key written underneath it is discarded, merged and
+  atomic or not. Measured. It matches on the running process's **path**, so an ES belonging to a
+  different install on the same machine does not produce a refusal you cannot act on.
+- **It re-reads the file after writing** and refuses to record the conversion if the key is not
+  there, rather than trusting the rename.
+- **The prior state is two states.** "The key was absent" and "the key held the stock value" are
+  different files to restore, and `es_settings.cfg` cannot tell you which it was later: ES
+  prunes a setting equal to its own default, and it also adds keys on its own. So the record
+  stores which, and `--revert` restores absence by removing the key.
+- **Reverting does not compare bytes, and neither should you.** ES rewrites `LastSystem` to
+  record where the user was in the UI, so the file's hash moves for reasons that are nothing to
+  do with RomMBat. Compare the setting set.
+
+The card PCSX2 then writes is `saves/ps2/pcsx2/memcards/<rom stem>.ps2` -- the extension is
+replaced, not appended, which is the opposite of the `es_settings.cfg` key, where the extension
+is mandatory and omitting it fails silently.
+
 **Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
 opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against
 5.5 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes

@@ -15,11 +15,12 @@ is a wombat.
 >
 > **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
 > mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
-> BIOS all work. **Battery saves, save states, directory saves and playtime now cross**,
-> along with conflict resolution and the Game-ID attribution that directory saves need.
-> **Shared containers such as a PS2 memory card do not yet**, which is the rest of M6, and a
-> device that has never held a directory save cannot receive one yet. No platform has been
-> certified against a real emulator; see
+> BIOS all work. **All four save shapes now cross, plus save states and playtime**, along with
+> conflict resolution and the Game-ID attribution that directory saves need. A shared container
+> such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
+> game at a time; anything still genuinely shared is reported with the reason rather than
+> passed over. A device that has never held a **directory** save still cannot receive one.
+> No platform has been certified against a real emulator; see
 > [Platform certification](#platform-certification) for what that means and when it starts.
 > The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
@@ -173,6 +174,9 @@ rommbat-agent.exe saves                      # what is on disk, what went up, wh
 rommbat-agent.exe saves resolve 42 "ppsspp:savedata" --keep-local  # pick a side on a conflict
 rommbat-agent.exe saves bind psp ULUS10057 391                     # whose directory save is this
 rommbat-agent.exe saves bind psp ULUS10057 --forget                # work it out again from scratch
+rommbat-agent.exe saves convert 191723                             # what converting this game would do
+rommbat-agent.exe saves convert 191723 --apply                     # give it its own memory card
+rommbat-agent.exe saves convert 191723 --revert                    # put the setting back
 rommbat-agent.exe flush                      # send queued saves and play sessions
 rommbat-agent.exe flush --offline            # do the local half only
 rommbat-agent.exe hooks status               # are the EmulationStation hooks installed
@@ -183,11 +187,29 @@ rommbat-agent.exe hooks uninstall            # take them back out
 end, so neither is normally typed. Without them there is no playtime and no way to tell which
 game wrote a save.
 
-**This release syncs battery saves, save states, directory saves and play sessions.** A
-directory save such as PPSSPP's `SAVEDATA/` goes up as one archive and comes back down as one.
-Shared containers, where a single file holds every game on the system as a PS2 memory card
-does, are the last shape and land in the next release. `saves` lists everything it found that
-it is not syncing, and why, rather than leaving you to notice.
+**This release syncs battery saves, save states, directory saves, shared containers you opt
+in, and play sessions.** A directory save such as PPSSPP's `SAVEDATA/` goes up as one archive
+and comes back down as one. `saves` lists everything it found that it is not syncing, and why,
+rather than leaving you to notice.
+
+**A shared container has no game to belong to, so RomMBat offers to split it, one game at a
+time.** A stock PS2 memory card holds every game you have played on it: the one measured while
+building this held saves for **11 different games**, which is why none of them can be attributed
+or synced. `saves convert` writes a per-game override into `es_settings.cfg` so PCSX2 gives one
+game its own card, named after the ROM, which then syncs like any other save.
+
+It previews by default and writes on `--apply`, because it changes your RetroBat configuration:
+
+- **The game starts from an empty card.** What it saved before stays in the shared one, where
+  it will no longer look. RomMBat does not move it, and says so before you agree. `--revert`
+  puts the setting back exactly, including putting it back to _absent_ if that is what it was.
+- **Multi-disc games are refused.** PCSX2 cannot bind discs, so each disc would get its own
+  card and the save would vanish at the disc change that the shared card carries through.
+- **PS1 is deliberately left alone.** DuckStation's stock mode already binds a disc set through
+  its own database, and converting it is the change that would break one.
+- **It refuses while EmulationStation is running**, because ES rewrites `es_settings.cfg` from
+  the copy it loaded at startup and would discard the change without saying so.
+- Per-game cards also break games that deliberately read a prequel's save from the same card.
 
 **A directory save is attributed, not named.** It is keyed by a Game ID (`ULUS10057`, a PS3
 title id, a GameCube disc id) and RomM stores no serial, title id or product code anywhere, so
@@ -241,7 +263,7 @@ framework works end to end.
 | M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance        |
 | M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance |
 | M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                     |
-| M6        | Offline-first save, state and playtime sync                                                                         | **In progress**, in three stages. See below                                                                    |
+| M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                             |
 | M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                                    |
 | M8        | Packaging, docs, release                                                                                            | Not started                                                                                                    |
 
@@ -255,7 +277,28 @@ dependency among them.
 | 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                                     |
 | 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** States are pushed one way; `saves resolve` picks a side and prunes the copy kept aside                      |
 | 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | **Complete.** A PPSSPP `SAVEDATA/` directory went up, came back as a conflict, and the game loaded what the restore wrote |
-| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | Not started                                                                                                               |
+| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | **Complete.** A PS2 game opted into a per-game memory card, written by the game, synced, and loaded back                  |
+
+**M6's four save shapes, and what proved each.** The milestone asks for one game from each
+shape rather than three of the easy one, so the evidence is listed per shape rather than
+summarised. **A shape proven by a test and not by an emulator is named as such.**
+
+| Shape                          | Proved by                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| A, one file per game           | A RetroArch `.srm`, played offline and flushed on reconnect (stage 1)                                |
+| B, several files per game      | Saturn's `.bcr` and `.bkr` in their own slots (stage 1). **Tests only; no Saturn game was launched** |
+| C, a directory per game        | A PPSSPP `SAVEDATA/` directory, up as one archive, back as a conflict, resolved and loaded (2b)      |
+| D, a container shared by games | A PS2 card converted per game, written by Armored Core 3, synced, and **loaded back by PCSX2** (2c)  |
+
+Alongside those: a save state with its screenshot across four emulators (2a), a conflict a
+person resolves (2a), and play sessions reaching RomM from the ES hooks (stage 1).
+
+**What is not claimed.** Nothing is certified: certification is per `(system, emulator, core)`
+and needs all nine steps of the checklist, and the wave rollout starts after M7. Class D was
+driven on `(ps2, pcsx2)` only; Dreamcast and PS1 are reported with their measured reasons and
+deliberately not converted. And a converted card has never been **downloaded** onto a second
+real device, only onto a test one. See
+[docs/platforms/README.md](docs/platforms/README.md) for the per-stage records, gaps included.
 
 **Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
 conflict detection, so there is nothing to negotiate: a state goes up when its contents change
