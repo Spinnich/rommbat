@@ -19,6 +19,9 @@ public enum ConversionStatus
     /// <summary>Already in the requested state, so nothing was written.</summary>
     NoChange,
 
+    /// <summary>Recorded to be done when EmulationStation next closes. Nothing written yet.</summary>
+    Queued,
+
     /// <summary>Not done, and <c>Reason</c> says why.</summary>
     Refused,
 }
@@ -36,6 +39,29 @@ public sealed record ConversionResult(
     string? Warning = null)
 {
     public bool Ok => Status is not ConversionStatus.Refused;
+}
+
+/// <summary>What a request to <see cref="SaveConverter"/> is asking for.</summary>
+/// <remarks>
+/// An enum rather than the two booleans this took before. Queueing adds two more cases, and
+/// three booleans across five call sites is a shape a reviewer already flagged at four.
+/// </remarks>
+public enum ConversionMode
+{
+    /// <summary>Say what would happen and write nothing.</summary>
+    Preview,
+
+    /// <summary>Write the setting now, which needs EmulationStation to be closed.</summary>
+    Apply,
+
+    /// <summary>Put the setting back now, which also needs it closed.</summary>
+    Revert,
+
+    /// <summary>Record the conversion to be applied when EmulationStation next closes.</summary>
+    QueueApply,
+
+    /// <summary>Record the revert to be applied when EmulationStation next closes.</summary>
+    QueueRevert,
 }
 
 /// <summary>
@@ -82,16 +108,30 @@ public sealed class SaveConverter
     }
 
     /// <summary>Describes what converting this ROM would do, writing nothing.</summary>
-    public ConversionResult Preview(int romId) => Run(romId, apply: false, revert: false);
+    public ConversionResult Preview(int romId) => Run(romId, ConversionMode.Preview);
 
     /// <summary>Converts, after every refusal has been checked.</summary>
-    public ConversionResult Convert(int romId) => Run(romId, apply: true, revert: false);
+    public ConversionResult Convert(int romId) => Run(romId, ConversionMode.Apply);
 
     /// <summary>Puts the setting back to whatever the record says was there before.</summary>
-    public ConversionResult Revert(int romId) => Run(romId, apply: true, revert: true);
+    public ConversionResult Revert(int romId) => Run(romId, ConversionMode.Revert);
 
-    private ConversionResult Run(int romId, bool apply, bool revert)
+    /// <summary>
+    /// Records the change to be made when EmulationStation next closes.
+    /// </summary>
+    /// <remarks>
+    /// Every refusal that does not depend on ES still runs, so a shape that cannot convert or a
+    /// disc of a set is turned down now rather than silently at quit, when nobody is watching.
+    /// </remarks>
+    public ConversionResult Queue(int romId, bool revert = false) =>
+        Run(romId, revert ? ConversionMode.QueueRevert : ConversionMode.QueueApply);
+
+    private ConversionResult Run(int romId, ConversionMode mode)
     {
+        var revert = mode is ConversionMode.Revert or ConversionMode.QueueRevert;
+        var queueing = mode is ConversionMode.QueueApply or ConversionMode.QueueRevert;
+        var apply = mode is ConversionMode.Apply or ConversionMode.Revert;
+
         if (Locate(romId) is not { } rom)
         {
             return Refuse($"no ROM with id {romId} is on this device, so there is nothing to convert.");
@@ -147,7 +187,7 @@ public sealed class SaveConverter
 
         if (revert)
         {
-            return Revert(rom, conversion, key, path, file, current, recorded);
+            return Revert(rom, conversion, key, path, file, current, recorded, queueing);
         }
 
         if (recorded is not null && current == conversion.SetTo)
@@ -167,15 +207,29 @@ public sealed class SaveConverter
                     + "yourself if you want RomMBat to manage this game's memory card.");
         }
 
-        if (EmulationStationProcess.Check(_install) is { IsRunning: true } running)
+        // Not checked when queueing, because ES being up is the whole reason to queue. It is
+        // checked again by the pass that drains the queue, which is the one that writes.
+        if (!queueing && EmulationStationProcess.Check(_install) is { IsRunning: true } running)
         {
             return Refuse(
                 $"{running.Detail} It rewrites es_settings.cfg from the copy it loaded at startup, so a "
                     + "change made now would be discarded without saying so. Quit EmulationStation and "
-                    + "run this again.");
+                    + "run this again, or queue it with --at-quit.");
         }
 
         var warning = Warn(rom, conversion);
+
+        if (queueing)
+        {
+            return QueueRequest(
+                rom,
+                conversion.Option,
+                DesiredSettingState.Set,
+                conversion.SetTo,
+                $"a per-game memory card for '{rom.FsName}'",
+                $"queued: {key} = {conversion.SetTo} at the next EmulationStation quit",
+                warning);
+        }
 
         if (!apply)
         {
@@ -223,7 +277,8 @@ public sealed class SaveConverter
         string path,
         EsSettingsFile file,
         string? current,
-        SaveConversion? recorded)
+        SaveConversion? recorded,
+        bool queueing)
     {
         if (recorded is null)
         {
@@ -241,9 +296,27 @@ public sealed class SaveConverter
                     + "you want.");
         }
 
+        if (queueing)
+        {
+            var goingBackTo = recorded.PriorState == PriorSettingState.Present
+                ? $"{key} = {recorded.PriorValue}"
+                : $"{key} removed, which is what was there before";
+
+            return QueueRequest(
+                rom,
+                conversion.Option,
+                recorded.PriorState == PriorSettingState.Present
+                    ? DesiredSettingState.Set
+                    : DesiredSettingState.Remove,
+                recorded.PriorValue,
+                $"back to the shared memory card for '{rom.FsName}'",
+                $"queued: {goingBackTo}, at the next EmulationStation quit",
+                RevertWarning(rom));
+        }
+
         if (EmulationStationProcess.Check(_install) is { IsRunning: true } running)
         {
-            return Refuse($"{running.Detail} Quit EmulationStation and run this again.");
+            return Refuse($"{running.Detail} Quit EmulationStation and run this again, or queue it with --at-quit.");
         }
 
         if (recorded.PriorState == PriorSettingState.Present)
@@ -273,12 +346,13 @@ public sealed class SaveConverter
             ? $"restored {key} = {recorded.PriorValue}"
             : $"removed {key}, which was not in the file before";
 
-        return new ConversionResult(
-            ConversionStatus.Reverted,
-            restored,
-            $"'{rom.FsName}' goes back to the shared memory card. Anything it saved while converted "
-                + "stays in its own card, which RomMBat keeps syncing but the game will no longer read.");
+        return new ConversionResult(ConversionStatus.Reverted, restored, RevertWarning(rom));
     }
+
+    /// <summary>What un-converting leaves behind, which is the same whenever it happens.</summary>
+    private static string RevertWarning(LocatedRom rom) =>
+        $"'{rom.FsName}' goes back to the shared memory card. Anything it saved while converted "
+            + "stays in its own card, which RomMBat keeps syncing but the game will no longer read.";
 
     /// <summary>
     /// What the user is told before the switch, because migration is out of scope.
@@ -331,6 +405,82 @@ public sealed class SaveConverter
         return reader.Read()
             ? new LocatedRom(romId, reader.GetString(0), reader.GetString(1))
             : null;
+    }
+
+    /// <summary>Records one change to make when EmulationStation next closes.</summary>
+    private ConversionResult QueueRequest(
+        LocatedRom rom,
+        string option,
+        DesiredSettingState state,
+        string? value,
+        string reason,
+        string detail,
+        string? warning)
+    {
+        _store.PendingConfig.Queue(new PendingConfigRequest
+        {
+            RomId = rom.RomId,
+            System = rom.Folder,
+            FsName = rom.FsName,
+            SettingKey = option,
+            DesiredState = state,
+            DesiredValue = state == DesiredSettingState.Set ? value : null,
+            Reason = reason,
+            QueuedAtUtc = _time.GetUtcNow(),
+        });
+
+        return new ConversionResult(ConversionStatus.Queued, detail, warning);
+    }
+
+    /// <summary>
+    /// Carries out one queued change, and is the only caller that runs with nobody watching.
+    /// </summary>
+    /// <remarks>
+    /// It re-enters the ordinary path rather than writing the setting itself, so every refusal
+    /// a person would have been given still applies: the ES check most of all, which by now
+    /// should pass and is the one thing standing between this and a discarded write.
+    /// <para>
+    /// <b>The world can have moved between queueing and applying</b>, and each way it can is
+    /// refused with what actually changed rather than with a generic failure. The ROM can have
+    /// been evicted, its file renamed, or the shape definition updated by a new build so the
+    /// value RomMBat would write is no longer the one the user agreed to.
+    /// </para>
+    /// </remarks>
+    public ConversionResult ApplyQueued(PendingConfig queued)
+    {
+        ArgumentNullException.ThrowIfNull(queued);
+
+        if (Locate(queued.RomId) is not { } rom)
+        {
+            return Refuse(
+                $"'{queued.FsName}' is no longer on this device, so there is nothing to configure. "
+                    + "It was probably evicted after this change was queued.");
+        }
+
+        if (!string.Equals(rom.Folder, queued.System, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(rom.FsName, queued.FsName, StringComparison.OrdinalIgnoreCase))
+        {
+            // The key emulatorlauncher matches on is built from the filename, so a rom that
+            // moved or was renamed would have the setting written against a name that no
+            // longer exists, silently.
+            return Refuse(
+                $"rom {queued.RomId} is now {rom.Folder}/'{rom.FsName}' and this change was queued for "
+                    + $"{queued.System}/'{queued.FsName}'. Queue it again if that is still what you want.");
+        }
+
+        if (_shapes.For(rom.Folder)?.Conversion is { } conversion
+            && queued.DesiredState == DesiredSettingState.Set
+            && conversion.SetTo != queued.DesiredValue)
+        {
+            return Refuse(
+                $"this change was queued to set {queued.SettingKey} = {queued.DesiredValue} and RomMBat "
+                    + $"now writes {conversion.SetTo ?? "nothing"} for {rom.Folder}. The shape definition "
+                    + "changed after it was queued, so it is not applied.");
+        }
+
+        return queued.DesiredState == DesiredSettingState.Set
+            ? Convert(queued.RomId)
+            : Revert(queued.RomId);
     }
 
     private static ConversionResult Refuse(string reason) => new(ConversionStatus.Refused, reason);

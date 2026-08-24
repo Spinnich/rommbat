@@ -154,6 +154,7 @@ internal static class Program
         Console.Error.WriteLine("  --offline         status, sync, bios: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. Without it, neither writes");
+        Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");

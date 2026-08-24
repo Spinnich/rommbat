@@ -173,6 +173,28 @@ public sealed class PendingConfigStore
         return reader.Read() ? Read(reader) : null;
     }
 
+    /// <summary>Outstanding changes for one ROM, oldest first.</summary>
+    /// <remarks>
+    /// So <c>saves convert --revert</c> can cancel what a user queued without having to work
+    /// out which setting key it was queued against.
+    /// </remarks>
+    public IReadOnlyList<PendingConfig> ListOutstandingForRom(int romId)
+    {
+        using var command = _connection.Command(
+            $"{SelectColumns} WHERE rom_id = $romId AND applied_at_utc IS NULL ORDER BY queued_at_utc, id;")
+            .With("$romId", romId);
+
+        using var reader = command.ExecuteReader();
+
+        var results = new List<PendingConfig>();
+        while (reader.Read())
+        {
+            results.Add(Read(reader));
+        }
+
+        return results;
+    }
+
     /// <summary>
     /// What happened to changes that have already been applied, newest first.
     /// </summary>

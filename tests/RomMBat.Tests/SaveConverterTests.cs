@@ -428,6 +428,135 @@ public class SaveConverterTests
         Assert.Equal(0, fixture.Store.Outbox.PendingCount());
     }
 
+    // ------------------------------------------------------ queued for the next ES quit
+
+    [Fact]
+    public void Queueing_writes_nothing_and_records_what_to_write_later()
+    {
+        // The form the M7 UI uses, and the only one available to it: the UI is launched from
+        // the ES menu, so it runs under a live ES and can never write es_settings.cfg itself.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+
+        var result = fixture.Converter().Queue(42);
+
+        Assert.Equal(ConversionStatus.Queued, result.Status);
+        Assert.False(fixture.Settings().Has("ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory"));
+        Assert.Empty(fixture.Store.SaveConversions.List());
+
+        var queued = Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+        Assert.Equal(42, queued.RomId);
+        Assert.Equal("ps2", queued.System);
+        Assert.Equal("Armored Core 3 (USA).chd", queued.FsName);
+        Assert.Equal(Ps2Key, queued.SettingKey);
+        Assert.Equal(DesiredSettingState.Set, queued.DesiredState);
+        Assert.Equal("game", queued.DesiredValue);
+
+        // The warning is carried at queue time, because that is when the user is there to read
+        // it. At apply time nothing is running.
+        Assert.Contains("empty memory card", result.Warning!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Queueing_still_runs_every_refusal_that_does_not_depend_on_EmulationStation()
+    {
+        // A shape that cannot convert, or a disc of a set, is turned down now rather than at
+        // quit, when there is no interface to report it to.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).sfc");
+        fixture.AddRom(43, "ps2", "Final Fantasy X (USA) (Disc 1).chd");
+
+        var noLever = fixture.Converter().Queue(42);
+        Assert.Equal(ConversionStatus.Refused, noLever.Status);
+
+        var disc = fixture.Converter().Queue(43);
+        Assert.Equal(ConversionStatus.Refused, disc.Status);
+        Assert.Contains("multi-disc", disc.Detail, StringComparison.Ordinal);
+
+        Assert.Empty(fixture.Store.PendingConfig.ListOutstanding());
+    }
+
+    [Fact]
+    public void Applying_a_queued_change_goes_through_the_same_path_a_person_would()
+    {
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        fixture.Converter().Queue(42);
+
+        var queued = Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+        var result = fixture.Converter().ApplyQueued(queued);
+
+        Assert.Equal(ConversionStatus.Converted, result.Status);
+        Assert.Equal("game", fixture.Settings().Value("ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory"));
+
+        // And save_conversion is written by the ordinary path, so it still has one writer and
+        // the prior state is recorded at the moment the file was actually read.
+        var recorded = Assert.Single(fixture.Store.SaveConversions.List());
+        Assert.Equal(PriorSettingState.Absent, recorded.PriorState);
+    }
+
+    [Fact]
+    public void A_queued_revert_puts_the_setting_back_when_it_is_applied()
+    {
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        fixture.Converter().Convert(42);
+
+        var result = fixture.Converter().Queue(42, revert: true);
+        Assert.Equal(ConversionStatus.Queued, result.Status);
+
+        // Still converted: queueing writes nothing.
+        Assert.Equal("game", fixture.Settings().Value("ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory"));
+
+        var queued = Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+        Assert.Equal(DesiredSettingState.Remove, queued.DesiredState);
+
+        var applied = fixture.Converter().ApplyQueued(queued);
+
+        Assert.Equal(ConversionStatus.Reverted, applied.Status);
+        Assert.False(fixture.Settings().Has("ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory"));
+        Assert.Empty(fixture.Store.SaveConversions.List());
+    }
+
+    [Fact]
+    public void A_queued_change_for_a_rom_that_has_since_been_evicted_is_refused_with_the_reason()
+    {
+        // A real sequence: queue it, free some space, quit. The apply happens with nobody
+        // watching, so it has to say what went wrong rather than fail quietly.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        fixture.Converter().Queue(42);
+
+        var queued = Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+        fixture.Store.Files.Remove(RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"));
+
+        var result = fixture.Converter().ApplyQueued(queued);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.Contains("no longer on this device", result.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_queued_change_is_not_applied_to_a_rom_that_has_been_renamed_underneath_it()
+    {
+        // emulatorlauncher matches the per-game key on the filename, so writing the queued key
+        // against a name that no longer exists would be ignored silently and the emulator would
+        // carry on using the shared card.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        fixture.Converter().Queue(42);
+
+        var queued = Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+
+        fixture.Store.Files.Remove(RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"));
+        fixture.AddRom(42, "ps2", "Armored Core 3 (Europe).chd");
+
+        var result = fixture.Converter().ApplyQueued(queued);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.Contains("Queue it again", result.Detail, StringComparison.Ordinal);
+    }
+
     private sealed class ConvertTree : IDisposable
     {
         private readonly TempRetroBatTree _tree;
