@@ -155,11 +155,19 @@ shares one card while regions stay separate. `PerGameFileTitle` keys on three se
 filenames and splits it. Also watch `dolphin_sync_saves`, which has RetroBat copying saves
 between the dolphin and libretro-dolphin folders on its own.
 
-**ES rewrites `es_settings.cfg` on exit, but only when a setting changed that session.** A
-start-and-quit, and even a session that launched a game, leave it untouched. When ES does
-rewrite it, it **keeps keys it does not recognise** (a nonsense per-game key survived
-intact), so the override is durable. Still merge rather than clobber, write while ES is idle,
-and write atomically, for the ordinary reason that two writers share the file.
+**Never write this file while EmulationStation is running. The write is discarded.** ES loads
+`es_settings.cfg` at startup and serialises that model on every write, so a key present at load
+survives (ones ES cannot understand included) and **a key that appears afterwards does not**.
+Driven with ES up: two custom keys merged in atomically and confirmed on disk were gone after
+ES's next write. `Language` proves it is not a merge, because ES added that key itself at
+startup and dropped it again on the same write. M0's nonsense key survived only because it was
+written **before** ES started.
+
+Merging and atomicity do not save you here; both were done and the write still vanished. **ES
+writes at startup and the moment a setting changes**, not only on exit, so the safe window is
+strictly "while ES is not running", and a session start-and-quit leaving the file untouched is
+not something to rely on. Detect ES, refuse with a reason, and **re-read after writing** to
+confirm the key is there rather than trusting the rename.
 
 **ES prunes any setting equal to its own default** on that rewrite, so an entry written at
 the stock value disappears. Never read a missing entry as the user having reverted something.

@@ -2294,11 +2294,23 @@ Five things to keep honest about this:
 
 - **It mutates the user's RetroBat configuration**, so it is opt-in, explained, and
   reversible. Never flip it silently.
-- **ES owns `es_settings.cfg` and rewrites it on exit**, the same hazard as `gamelist.xml`
-  in M4. Merge rather than clobber, write while ES is idle, and write atomically. M0
-  narrowed this: ES only writes the file when a setting **changed** that session, and when
-  it does, it preserves keys it does not recognise, so the override itself is durable. The
-  hazard is ordinary two-writer contention, not ES eating the key.
+- **ES owns `es_settings.cfg`, and a key written while it is running does not survive.**
+  **Amended after M6 stage 2c, which refutes what this bullet used to say.** M0 measured that
+  ES preserves keys it does not recognise and concluded the override was durable and the hazard
+  was ordinary two-writer contention. Every write M0 made happened **before** ES started. Driven
+  the other way on a real install, with ES up, two custom keys were merged in atomically,
+  confirmed on disk, and **discarded by ES's next write**. `Language` is the proof it is not a
+  merge: ES added that key itself at startup and dropped it again on the same write, so what it
+  serialises is a model loaded at boot rather than the file as it stands.
+
+  **ES loads the file at startup and serialises that model on every write.** A key present at
+  load survives, ones ES cannot understand included; a key that appears afterwards is discarded.
+  M0's nonsense key survived because it predated the load. So "write while ES is idle" is not
+  prudence, it is the only thing that works, and merging and atomicity do not help, because that
+  write was both. **ES also writes at startup and the moment a setting changes**, not only on
+  exit, so the safe window is strictly "while ES is not running". The writer therefore refuses
+  to run while ES is up, says why, and re-reads the file afterwards to confirm the key is
+  really there. See [retrobat-findings.md](retrobat-findings.md), 178 and 179.
 - **ES prunes any setting whose value equals its own default.** An entry written at the
   stock value disappears on the next rewrite (`Language=en_US` vanished, `fr_FR` survived).
   Custom keys have no default to match and are kept. Never read a missing entry as evidence
@@ -2639,7 +2651,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | An emulator-created empty memory card is the same size as a real one and uploads as if it were progress                         | Change detection cannot use size or existence; hash content, and treat a card whose byte histogram is that of a freshly formatted one as absent. How many cards appear is a property of the game, not the emulator: one title produced both slots, another only slot 1                                   |
 | One PS1 game yields a card per disc set and a save state per disc, so a `rom_id` maps to saves many-to-many                     | Model the card and the state as separately keyed; never assume one save per game or one save per file, and never infer a set's membership from a card name alone                                                                                                                                         |
 | Writing emulator INIs directly gets clobbered every launch                                                                      | `emulatorlauncher` regenerates them from options at launch; write `es_settings.cfg` instead, using its `<system>["<rom>"]` per-game form                                                                                                                                                                 |
-| `es_settings.cfg` is rewritten by ES on exit, like `gamelist.xml`                                                               | Merge rather than clobber, write while ES is idle, write atomically                                                                                                                                                                                                                                      |
+| A key written into `es_settings.cfg` while ES is running is silently discarded                                                  | ES serialises a model loaded at startup, so merging and atomicity do not help. Refuse to write while ES is running, say why, and re-read the file afterwards to confirm the key is there                                                                                                                 |
 | Switching a user to per-game cards strands their existing saves                                                                 | Opt-in and reversible, with either a migration path out of the old container or an explicit warning before the switch; note that per-game cards also break legitimate cross-game save reads                                                                                                              |
 | Directory saves are keyed by Game ID and RomM stores no serial or title ID                                                      | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers                                                                                                                                                                       |
 | Hashing zip bytes makes RomMBat and Grout disagree on identical saves                                                           | Define `content_hash` over sorted relative paths plus per-file hashes; the archive is transport only                                                                                                                                                                                                     |

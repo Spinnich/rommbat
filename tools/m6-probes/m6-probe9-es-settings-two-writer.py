@@ -49,6 +49,14 @@ phase = sys.argv[2]
 settings = root / "emulationstation" / ".emulationstation" / "es_settings.cfg"
 backup = settings.with_suffix(".cfg.rommbat-p1-backup")
 
+# Taken by the write phase, after ES has started and before RomMBat writes.
+#
+# **ES writes this file at startup**, which the probe was not built expecting: on two
+# independent installs it added `Language` the moment EmulationStation launched, merging
+# rather than clobbering. So the backup is the pre-session file and cannot be the baseline
+# for "what did ES do to our write" without that startup edit reading as ES's doing.
+baseline = settings.with_suffix(".cfg.rommbat-p1-baseline")
+
 def a_real_rom(install: pathlib.Path) -> tuple[str, str]:
     """A (system, filename) pair that exists on this install.
 
@@ -122,11 +130,14 @@ if phase == "backup":
 
 elif phase == "restore":
     shutil.copy2(backup, settings)
+    baseline.unlink(missing_ok=True)
     lines.append(f"  restored from {backup}")
     lines.append(f"  md5     {digest(settings)}")
 
 elif phase == "write":
+    shutil.copy2(settings, baseline)
     before = entries(settings)
+    lines.append(f"  baseline     {baseline.name}, taken after ES started")
     lines.append(f"  md5 before   {digest(settings)}")
     lines.append(f"  entries      {len(before)}")
     lines.append(f"  mtime before {settings.stat().st_mtime_ns}")
@@ -150,13 +161,17 @@ else:
     lines.append("")
 
     for key in (GLOBAL_KEY, PER_GAME_KEY):
-        value = found.get(key)
-        verdict = "SURVIVED" if value == NONCE else ("GONE" if value is None else f"CHANGED to {value!r}")
-        lines.append(f"  {verdict:<10} {key}")
+        # entries() yields (group, value), so the value is the second half. Comparing the
+        # tuple against the nonce reports GONE for a key that is sitting right there.
+        entry = found.get(key)
+        value = entry[1] if entry else None
+        verdict = "SURVIVED" if value == NONCE else ("GONE" if entry is None else f"CHANGED to {value!r}")
+        lines.append(f"  {verdict:<10} {key}   (group {entry[0] if entry else '-'})")
 
-    original = entries(backup)
+    reference = baseline if baseline.exists() else backup
+    original = entries(reference)
     lines.append("")
-    lines.append(f"  against the backup: {len(original)} entries before, {len(found)} now")
+    lines.append(f"  against {reference.name}: {len(original)} entries before, {len(found)} now")
     lines.append(f"    dropped by ES: {sorted(set(original) - set(found) - {GLOBAL_KEY, PER_GAME_KEY})}")
     lines.append(f"    added by ES:   {sorted(set(found) - set(original) - {GLOBAL_KEY, PER_GAME_KEY})}")
 

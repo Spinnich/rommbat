@@ -103,7 +103,7 @@ the one with all the interesting invariants.
 | Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                             |
 | Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                              |
 | RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                       |
-| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic                                                                                                       |
+| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it        |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                      |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                             |
 
@@ -439,7 +439,7 @@ clobber.**
 | File                         | Who else writes it                                      | Rule                                                                            |
 | ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `roms/<system>/gamelist.xml` | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform |
-| `es_settings.cfg`            | ES rewrites on exit                                     | Merge. Opt-in and reversible. Write while ES is idle                            |
+| `es_settings.cfg`            | ES discards anything written while it runs              | Refuse while ES is up, then re-read to confirm. Merge. Opt-in and reversible     |
 | `scripts/<event>/*.bat`      | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                           |
 | Emulator INIs                | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                        |
 
