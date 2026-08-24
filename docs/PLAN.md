@@ -792,12 +792,15 @@ The six results that moved the design most:
 - `RomMBat.UI` - full-screen gamepad-navigable app. **Avalonia**, settled in M7 stage 7a so
   7b does not reopen it, and the deciding argument is not the cross-platform one.
 
-  **WPF cannot be trimmed at all**, and M6 measured what that costs: `PublishTrimmed`
-  without `PublishReadyToRun` discards the framework's precompiled native code, and the
-  numbers that came out of chasing it are the reason the hook is R2R today. A UI that
-  cannot participate in either lever is a UI whose start time cannot be worked on. WPF also
-  needs the Windows Desktop runtime inside a self-contained publish, on top of the 76 MB
-  the agent already costs on a portable drive.
+  **The argument is size on a portable drive, not start time.** WPF cannot be trimmed at
+  all, so a WPF build has a floor it cannot get under, and it needs the Windows Desktop
+  runtime inside a self-contained publish on top of the 76 MB the agent already costs.
+  Avalonia can be trimmed, which is the only lever that moves that floor.
+
+  **An earlier revision of this paragraph overstated it** by saying WPF was outside both of
+  the levers M6 measured. It is outside one: `PublishReadyToRun` works with WPF, and only
+  `PublishTrimmed` does not. The start-time argument that applied to the hook does not
+  transfer here, and the size argument is the one doing the work.
 
   Avalonia renders through Skia, so what the handheld shows does not depend on the machine's
   Windows Desktop stack, and it supports trimming and AOT if either is ever needed. The

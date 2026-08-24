@@ -201,11 +201,12 @@ deliberate: proving the registration works is worth more than waiting for someth
 behind it.
 
 **The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
-deciding argument is not the cross-platform one. WPF cannot be trimmed at all and needs the
-Windows Desktop runtime inside a self-contained publish, which puts it outside both levers
-M6 measured to matter for start time; Avalonia renders through Skia, so what a handheld
-shows does not depend on that machine's Windows Desktop stack. The project is still a
-framework-free placeholder and no UI package is referenced anywhere in the tree yet.
+deciding argument is size on a portable drive rather than either start time or
+cross-platform reach. WPF cannot be trimmed at all, so it has a floor nothing moves, and it
+needs the Windows Desktop runtime inside a self-contained publish on top of the agent's
+76 MB. Avalonia trims, and renders through Skia, so what a handheld shows does not depend on
+that machine's Windows Desktop stack. The project is still a framework-free placeholder and
+no UI package is referenced anywhere in the tree yet.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
