@@ -182,6 +182,23 @@ public sealed class SaveShapes
     /// <summary>Every shared container declared, whether or not this install holds it.</summary>
     public int SharedContainerCount => _sharedContainers.Sum(entry => entry.Value.Count);
 
+    /// <summary>
+    /// Every shared container declared for a system, as a path under <c>saves/&lt;system&gt;/</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Seven of the ten declarations name a path with a separator in it</b>
+    /// (<c>pcsx2/memcards/Mcd001.ps2</c>, the four Dreamcast VMUs, Kronos's backup RAM), and
+    /// <see cref="SharedContainerReason"/>'s only caller asked it with a bare loose filename, so
+    /// those seven could never match. The three that could are exactly the three that sit loose
+    /// under the system folder. Enumerating them is what lets a container in a subdirectory be
+    /// reported as the shared container it is rather than swept into a count of files nothing
+    /// carries.
+    /// </remarks>
+    public IEnumerable<KeyValuePair<string, string>> SharedContainersFor(string system) =>
+        _sharedContainers.TryGetValue(system, out var containers)
+            ? containers
+            : [];
+
     private static SaveShapes LoadEmbedded()
     {
         var assembly = typeof(SaveShapes).Assembly;

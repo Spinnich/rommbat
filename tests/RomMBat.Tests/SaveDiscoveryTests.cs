@@ -155,6 +155,86 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_shared_container_below_the_loose_level_is_named_rather_than_swept_into_a_count()
+    {
+        // Seven of the ten declared containers name a path with a separator in it, and until
+        // this test the only caller asked with a bare loose filename, so none of the seven could
+        // match. The PS2 memory cards were counted as part of an unread pcsx2/ subdirectory
+        // rather than named as the shared cards they are.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "every game's memory card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "and the second slot's");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Found);
+        Assert.Empty(fixture.Store.Saves.List());
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(2, reported.FileCount);
+        Assert.Contains("memory card", reported.Detail, StringComparison.Ordinal);
+
+        // And counted once. A file named as a shared container must not also be counted as an
+        // unread subdirectory, or one file is unsyncable twice under two explanations.
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+    }
+
+    [Fact]
+    public void A_state_beside_a_shared_container_still_leaves_the_container_named_on_its_own()
+    {
+        // The two exclusions have to compose: pcsx2/ holds both the shared cards and the save
+        // states, and the states are carried by another pass. So the subdirectory row must
+        // report the states' siblings and nothing else, and the cards keep their own row.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "every game's memory card");
+        fixture.AddSave("ps2", "pcsx2/something-nobody-declared.bin", "an unrecognised file");
+
+        fixture.Scan();
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(1, shared.FileCount);
+
+        var rest = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, rest.FileCount);
+    }
+
+    [Fact]
+    public void The_xbox_disk_image_is_reported_by_name_and_never_opened()
+    {
+        // 39 MB of the 43 MB stage 1's whole loose-file workload reads, and it is a container
+        // shared by every game. Held open with FileShare.None so that anything reading it fails
+        // the test rather than merely being slow: the scan must work from names and existence.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("xbox", "eeprom.bin", "console eeprom");
+        fixture.AddSave("xbox", "xbox_hdd.qcow2", "a whole disk image");
+
+        var image = fixture.Resolve(RelativePath.Create("saves/xbox/xbox_hdd.qcow2"));
+        using (var exclusive = new FileStream(image, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var outcome = fixture.Scan();
+
+            Assert.Equal(0, outcome.Found);
+            Assert.Equal(0, outcome.BytesHashed);
+        }
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "xbox" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(2, reported.FileCount);
+    }
+
+    [Fact]
     public void A_directory_no_shape_covers_is_reported_rather_than_read()
     {
         // Nine top-level directories on a real install are not declared systems. An unknown

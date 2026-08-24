@@ -221,8 +221,12 @@ public sealed class SaveScanner
             // the report counted them as unsyncable in the same pass that uploaded them.
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
 
+            // Shared containers below the loose level, also before the subdirectory report, so
+            // a declared container is named as one rather than counted as an unread file.
+            var shared = AddSharedContainers(report, system, systemDirectory);
+
             // Every remaining subdirectory of a system folder is class D or a save state.
-            AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried);
+            AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried, shared);
         }
 
         var forgotten = ForgetMissing(seen, seenUnits);
@@ -399,6 +403,83 @@ public sealed class SaveScanner
     }
 
     /// <summary>
+    /// Reports the declared shared containers this install actually holds.
+    /// </summary>
+    /// <remarks>
+    /// <b>Seven of the ten declared containers were unreachable before this.</b>
+    /// <c>SharedContainerReason</c>'s only caller asked it with a bare loose filename, and seven
+    /// declarations name a path with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the four
+    /// Dreamcast VMUs, Kronos's backup RAM). A test asserted the lookup table answered for
+    /// <c>ps2/pcsx2/memcards/Mcd001.ps2</c> and passed, because it called the table rather than
+    /// the scanner: the shared PS2 memory cards were being counted as part of an unread
+    /// subdirectory instead of named as the shared cards they are.
+    /// <para>
+    /// <b>Nothing here opens a file.</b> <c>xbox</c>'s <c>xbox_hdd.qcow2</c> is 39 MB of the
+    /// 43 MB the whole loose-file workload reads, and it is a declared container, so the one
+    /// method that goes looking for containers by name is exactly where that must stay true.
+    /// Existence and a name, never a handle.
+    /// </para>
+    /// <para>
+    /// The emulator is left empty rather than read off the first path segment. The path is
+    /// declared, but the declaration does not say whose it is, and the second level of the save
+    /// tree is not an emulator: <c>mame/artwork</c>, <c>n64/sram</c> and <c>psp/SYSTEM</c> name
+    /// none. Inventing one from a path is the positional read this scanner exists to avoid.
+    /// </para>
+    /// </remarks>
+    /// <returns>The absolute paths reported, so the subdirectory sweep does not count them twice.</returns>
+    private HashSet<string> AddSharedContainers(UnsyncableReport report, string system, string systemDirectory)
+    {
+        var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (relative, reason) in _shapes.SharedContainersFor(system))
+        {
+            // Declared with forward slashes, and only ever below the loose level here: a
+            // container sitting loose is already named by the file loop above.
+            if (!relative.Contains('/', StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var path = Path.Combine(systemDirectory, relative.Replace('/', Path.DirectorySeparatorChar));
+
+            if (File.Exists(path))
+            {
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1);
+                reported.Add(path);
+                continue;
+            }
+
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            // A container declared as a directory has not appeared yet, and treating one as
+            // absent would report its contents as an unread subdirectory instead. Names only.
+            var members = SafeEnumerateFiles(path);
+            if (members.Count > 0)
+            {
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count);
+                reported.UnionWith(members);
+            }
+        }
+
+        return reported;
+    }
+
+    private static List<string> SafeEnumerateFiles(string directory)
+    {
+        try
+        {
+            return [.. Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
     /// Reports the emulator subdirectories whose contents this build does not carry.
     /// </summary>
     /// <remarks>
@@ -417,10 +498,11 @@ public sealed class SaveScanner
         SaveShape shape,
         string systemDirectory,
         string savesRoot,
-        HashSet<RelativePath> carried)
+        HashSet<RelativePath> carried,
+        HashSet<string> shared)
     {
         var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried));
+        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried, shared));
 
         if (files == 0)
         {
@@ -428,11 +510,12 @@ public sealed class SaveScanner
         }
 
         // Named only where something in them is genuinely not carried, so a system whose only
-        // subdirectory is a state directory is not listed at all.
+        // subdirectory is a state directory, or holds nothing but a container already named as
+        // shared, is not listed at all.
         var names = string.Join(
             ", ",
             subdirectories
-                .Where(directory => CountFiles(directory, savesRoot, carried) > 0)
+                .Where(directory => CountFiles(directory, savesRoot, carried, shared) > 0)
                 .Select(Path.GetFileName)
                 .Order(StringComparer.Ordinal));
 
@@ -486,14 +569,24 @@ public sealed class SaveScanner
     /// Counts files that no other pass is carrying.
     /// </summary>
     /// <remarks>
-    /// <b>Two exclusions, and both exist because of the same bug shipped once already.</b> Stage
-    /// 2a's report counted a save state as unsyncable in the very pass that uploaded it, which
-    /// is worse than saying nothing: a user checking why their states were not going up was told
-    /// they were not, while they were. Class C would reintroduce it exactly, so its members are
-    /// excluded here too, and the state exclusion asks the schema rather than matching directory
-    /// names so the two passes cannot disagree about what a state directory is.
+    /// <b>Three exclusions, and the first two exist because of the same bug shipped once
+    /// already.</b> Stage 2a's report counted a save state as unsyncable in the very pass that
+    /// uploaded it, which is worse than saying nothing: a user checking why their states were
+    /// not going up was told they were not, while they were. Class C would reintroduce it
+    /// exactly, so its members are excluded too, and the state exclusion asks the schema rather
+    /// than matching directory names so the two passes cannot disagree about what a state
+    /// directory is.
+    /// <para>
+    /// The third is not that bug. A declared shared container below the loose level is already
+    /// reported by name with its own reason, so counting it again here would say the same file
+    /// is unsyncable twice under two different explanations.
+    /// </para>
     /// </remarks>
-    private int CountFiles(string directory, string savesRoot, HashSet<RelativePath> carried)
+    private int CountFiles(
+        string directory,
+        string savesRoot,
+        HashSet<RelativePath> carried,
+        HashSet<string>? shared = null)
     {
         try
         {
@@ -501,6 +594,7 @@ public sealed class SaveScanner
                 .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
                 .Count(file =>
                     !IsStateDirectory(Path.GetDirectoryName(file), savesRoot)
+                    && shared?.Contains(file) != true
                     && !(_install.Contains(file) && carried.Contains(_install.Relativize(file))));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
