@@ -119,9 +119,9 @@ public class SaveSyncTests
         // "nowhere to write it" and the save can never come back.
         using var fixture = SyncFixture.Create();
 
-        // A second game with a save that stays put, because a device holding nothing at all
-        // never negotiates: RunAsync has nothing to send and returns before asking. That is a
-        // separate gap, and a library with more than one game is the ordinary case anyway.
+        // A second game with a save that stays put, so the request is not the empty one the
+        // fresh-device test below drives. A library with more than one game is the ordinary
+        // case anyway.
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "still here");
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
         fixture.Scan();
@@ -150,6 +150,129 @@ public class SaveSyncTests
         Assert.Equal(
             "from the other device",
             File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_device_with_no_local_saves_negotiates_anyway_and_pulls_what_the_server_holds()
+    {
+        // RunAsync returned before negotiating when the device held no attributed saves, so the
+        // one device with the strongest reason to pull was the one case that never asked. A
+        // freshly paired install with ROMs and no saves printed "saves: nothing to sync" and
+        // made no negotiate call; every save already on the server stayed there, and the install
+        // only started pulling once it happened to write a save of its own.
+        //
+        // Measured, and the reason the empty request is worth sending: negotiate returns a
+        // download for every save the device has no current sync record for, including slots the
+        // client did not submit. An empty saves array came back with 13 downloads across two
+        // ROMs, one never named by the client.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "not kept");
+
+        // The ROM is synced and nothing under saves/ is, which is a fresh install exactly.
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        // Where libretro looks for it: the ROM's own folder and the ROM's own stem. The stem is
+        // never file_name_no_tags, which strips general tags and would have written
+        // "Tetris.srm" for a ROM whose name carries a region.
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_save_for_a_game_this_device_has_not_synced_is_skipped_rather_than_failed()
+    {
+        // Negotiate is unscoped: it answers with a download for every save the device has no
+        // sync record for, so a device holding a subset is offered the whole library. Those
+        // have no local ROM, so no folder and no stem, and they used to come back as
+        // "nowhere to write it" on stderr, one line each, counted as failures. A user with 500
+        // saves in RomM and one 10-game set synced got ~490 lines and ExitCode.Partial on every
+        // flush. The message was false as well: the server had named a file, and the device had
+        // not "no save in that slot", it had no game.
+        using var fixture = SyncFixture.Create();
+
+        fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game (USA)", "srm", "not ours");
+        fixture.Stub.UnsolicitedDownloads.Add((4242, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Skipped);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Empty(outcome.Problems);
+        Assert.Contains("skipped", outcome.Summary, StringComparison.Ordinal);
+
+        // Nothing was acked, because nothing landed: the server must keep offering it for the
+        // day the game does get synced.
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_bundled_save_for_a_game_this_device_lacks_is_skipped_rather_than_refused()
+    {
+        // A class C slot for an absent game takes the skip, not the unplaceable-unit refusal.
+        // Those two are not in competition today, because IsUnplaceableUnit needs the ROM's
+        // folder to find the shape and so answers false for a ROM that is not here; driven on a
+        // real install, the psp operation fell through it to "nowhere to write it" rather than
+        // to "run the game once". Pinned so the shape lookup gaining another route cannot start
+        // telling someone to run a game this device does not have.
+        using var fixture = SyncFixture.Create();
+
+        fixture.SeedServerSave(4243, "ppsspp:savedata", "ULES09999", "zip", "an archive");
+        fixture.Stub.UnsolicitedDownloads.Add((4243, "ppsspp:savedata"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(1, outcome.Skipped);
+        Assert.Equal(0, outcome.Failed);
+        Assert.DoesNotContain(
+            outcome.Problems,
+            problem => problem.Contains("Run the game once", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_bundled_slot_this_device_has_never_held_is_reported_rather_than_written_as_a_file()
+    {
+        // The half of the entry gate that is not simply deletable. A class C restore needs a
+        // container and a unit key, and both come from the local unit the device holds; with
+        // none, saves/psp/SAVEDATA may not exist at all until PPSSPP has run once. Taking the
+        // single-file route instead would put a .zip where an emulator expects a save.
+        //
+        // Answered from the shapes table rather than from the filename, because a .zip extension
+        // is not evidence of anything: the slot is what a declared unit path names.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(391, "psp", "3rd Birthday, The (Europe)", ".cso", ".srm", "not kept");
+
+        File.Delete(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(391, "ppsspp:savedata", "ULES01513", "zip", "an archive");
+        fixture.Stub.UnsolicitedDownloads.Add((391, "ppsspp:savedata"));
+
+        var outcome = await fixture.SyncAsync();
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(
+            outcome.Problems,
+            problem => problem.Contains("directory save", StringComparison.Ordinal));
+
+        // Nothing was written, least of all an archive under a save's name.
+        Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).zip")));
+        Assert.False(File.Exists(fixture.Resolve("saves/psp/3rd Birthday, The (Europe).srm")));
     }
 
     [Fact]
@@ -268,9 +391,10 @@ public class SaveSyncTests
     {
         // save_conflict.local_path is NOT NULL and CHECKs for a non-blank value, so recording a
         // conflict with no local save behind it raised SQLITE_CONSTRAINT_CHECK out of the flush,
-        // taking the states pass down with it. Measurement 132 says negotiate never volunteers a
-        // slot like this, which is why it is a guard and a reported problem rather than a
-        // download path.
+        // taking the states pass down with it. The constraint is what keeps this safe, not
+        // negotiate's silence: measurement 151 withdrew 132 and showed negotiate does volunteer
+        // slots the client never submitted, so the case is reachable and stays a guard and a
+        // reported problem.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what this device did");
         fixture.Scan();
@@ -614,6 +738,68 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+    }
+
+    [Fact]
+    public async Task A_peer_offering_back_identical_contents_transfers_and_does_not_rewrite_the_tree()
+    {
+        // What #43 left over. The download skip is defined as "recognises this device's own
+        // upload", so a peer holding identical bytes is not something it can answer, and no
+        // local comparison can rule the download out either: the wire hash for an unchanged
+        // class C unit is the digest the server returned to THIS device, and a peer's upload
+        // carries one this device has never seen. So negotiate says download and the bytes come.
+        //
+        // The write is the avoidable half. The fold of what arrived is computed before anything
+        // live is touched, so a unit that already holds it is left exactly as it was: no copy
+        // under replaced/, no mtime churn, and no window where the container is half swapped.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
+        await fixture.SyncAsync();
+
+        // A peer uploads the same contents. A different row, a digest this device has not seen,
+        // and origin naming somebody else, so IsOwnUpload is false and the skip cannot fire.
+        fixture.Stub.Saves.Remove(100);
+        fixture.Stub.Saves[101] = new StubRomMServer.StubSave
+        {
+            Id = 101,
+            RomId = 8,
+            Slot = "mame:nvram",
+            Emulator = "mame",
+            Bytes = Archive(("25pacman/eeprom", "one"), ("25pacman/flash", "two")),
+            FileNameNoTags = "25pacman",
+            FileExtension = "zip",
+            OriginDeviceId = "some-other-device",
+            UpdatedAt = fixture.Stub.ServerDate ?? DateTimeOffset.UnixEpoch,
+        };
+
+        var eeprom = fixture.Resolve("saves/mame/nvram/25pacman/eeprom");
+        var flash = fixture.Resolve("saves/mame/nvram/25pacman/flash");
+        var before = (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash));
+
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
+        var outcome = await fixture.SyncAsync();
+
+        // The transfer is unavoidable without a protocol change, so it still counts as one.
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Empty(outcome.Problems);
+
+        // The tree is untouched: same bytes, same mtimes, and nothing taken aside.
+        Assert.Equal("one", File.ReadAllText(eeprom));
+        Assert.Equal("two", File.ReadAllText(flash));
+        Assert.Equal(before, (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash)));
+
+        var aside = fixture.Resolve(SaveSync.AsideDirectory.Value);
+        Assert.True(
+            !Directory.Exists(aside) || Directory.GetFileSystemEntries(aside).Length == 0,
+            "a copy aside was taken for a save nobody replaced");
+
+        // The server was still told, and the slot's digest still became current, or the next
+        // negotiate answers upload for a unit that is already in step.
+        Assert.Contains(101, fixture.Stub.Acknowledged);
+        Assert.Equal(101, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
     }
 
     [Fact]

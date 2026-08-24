@@ -44,6 +44,25 @@ public sealed class RetroBatInstall
     /// </remarks>
     public static RelativePath AppDirectory { get; } = RelativePath.Create("emulators/rommbat");
 
+    /// <summary>
+    /// Where a transfer in flight is kept, for every kind of transfer.
+    /// </summary>
+    /// <remarks>
+    /// <b>One definition, because four places have to agree on it and only one of them would
+    /// notice a divergence.</b> Three producers write here (<c>ContentPlanner</c>'s
+    /// <c>{romId}.part</c>, <c>BiosPlanner</c>'s <c>bios-{md5}.part</c>, and the save paths'
+    /// <c>save-</c>, <c>resolve-</c> and <c>unit-</c> names) and <c>PartialSweep</c> is what
+    /// bounds the bytes they leave behind. The sweep returns an empty plan for a directory that
+    /// does not exist, so a producer moving on its own would not fail: <c>evict</c> would print
+    /// "no abandoned transfers" over a directory full of them, which is the invisibility #10 was
+    /// opened about.
+    /// <para>
+    /// Under the app's own directory and never beside a target, so an interrupted write cannot
+    /// leave a half-file where an emulator or EmulationStation would find it.
+    /// </para>
+    /// </remarks>
+    public static RelativePath PartialDirectory { get; } = AppDirectory.Combine("partial");
+
     /// <summary>The single-line version file. There is no <c>build.ini</c>; M0 probe 4 confirmed it.</summary>
     public static RelativePath VersionFile { get; } = RelativePath.Create("system/version.info");
 

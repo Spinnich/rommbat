@@ -20,6 +20,18 @@ public sealed record SaveSyncOutcome
 
     public int Failed { get; init; }
 
+    /// <summary>
+    /// Downloads passed over because the ROM they belong to is not on this device.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, and the ordinary majority on any device that syncs a subset.</b>
+    /// Negotiate is unscoped and answers with a download for every save the device has no sync
+    /// record for, so a library of 500 saves against a synced set of 10 offers ~490 slots whose
+    /// ROM is not here. There is no folder to name a save after and nothing has gone wrong, so
+    /// this is one count rather than one stderr line each, and it must not reach the exit code.
+    /// </remarks>
+    public int Skipped { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
@@ -27,7 +39,8 @@ public sealed record SaveSyncOutcome
     /// <summary>Conflicts, with what the user has to choose between.</summary>
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
-    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0;
+    public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
+        && Skipped == 0;
 
     public string Summary
     {
@@ -58,6 +71,14 @@ public sealed record SaveSyncOutcome
             if (Failed > 0)
             {
                 parts.Add($"{Failed} failed");
+            }
+
+            if (Skipped > 0)
+            {
+                // Carried by the summary rather than by Problems, because Problems is printed
+                // even on a quiet hook-driven flush and this is the case that does not need
+                // saying every time.
+                parts.Add($"{Skipped} skipped, for games not synced here");
             }
 
             return "saves: " + string.Join(", ", parts);
@@ -115,6 +136,7 @@ public sealed class SaveSync
     private readonly string _deviceId;
     private readonly TimeProvider _time;
     private readonly SaveUnitScanner _units;
+    private readonly SaveShapes _shapes = SaveShapes.Bundled;
 
     public SaveSync(
         RetroBatInstall install,
@@ -138,28 +160,42 @@ public sealed class SaveSync
 
     /// <summary>Where a download lands before it is verified.</summary>
     /// <remarks>
-    /// Under <c>emulators/rommbat/partial/</c> and never beside the target, for the same reason
-    /// M3 put ROM downloads there: a power loss must not leave a half-written file in a folder
-    /// an emulator will read.
+    /// <see cref="RetroBatInstall.PartialDirectory"/>, named here because the save paths read
+    /// it often. Not a second definition: the sweep that bounds these bytes reads the same
+    /// property, and a fifth construction of the string is what #60 was opened about.
     /// </remarks>
-    public static RelativePath PartialDirectory { get; } =
-        RetroBatInstall.AppDirectory.Combine("partial");
+    public static RelativePath PartialDirectory => RetroBatInstall.PartialDirectory;
 
     /// <summary>Where the copy taken before an overwrite lives.</summary>
     public static RelativePath AsideDirectory { get; } =
         RetroBatInstall.AppDirectory.Combine("replaced");
 
-    /// <summary>Negotiates and applies, in one pass.</summary>
+    /// <summary>
+    /// Negotiates and applies, in one pass.
+    /// </summary>
+    /// <remarks>
+    /// <b>An empty local set still negotiates, because that is the inventory pass.</b> Measured:
+    /// negotiate returns a download for every save the device has no current sync record for,
+    /// including slots the client did not submit, and an empty <c>saves</c> array came back with
+    /// 13 downloads across two ROMs. A device that has never synced is <b>absent</b> from
+    /// <c>device_syncs</c> rather than <c>is_current: false</c>, so it is the device with the
+    /// strongest reason to pull, and returning early here made it the one that never asked.
+    /// Driven against a real instance: a second device paired with the same ROM and no
+    /// <c>SAVEDATA</c> flushed to "nothing to sync", and seeding one local unit was enough to
+    /// make the same flush answer one down and restore it. See #63.
+    /// <para>
+    /// <b>Most of what comes back is for games this device does not hold, and that is not a
+    /// failure.</b> Negotiate is unscoped, so a device carrying a 10-game sync set out of a
+    /// 500-save library is offered every one of them. Those have no ROM to name a save after,
+    /// and counting them as failures would exit <c>Partial</c> on every flush a partial-library
+    /// device ever runs. They are one count in the summary instead.
+    /// </para>
+    /// </remarks>
     public async Task<SaveSyncOutcome> RunAsync(CancellationToken cancellationToken = default)
     {
         var saves = _store.Saves.List()
             .Where(save => save.RomId is not null && save.ContentHash is not null)
             .ToList();
-
-        if (saves.Count == 0)
-        {
-            return new SaveSyncOutcome();
-        }
 
         // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
         // negotiate between them: the server would be told about the slot twice and answer
@@ -168,6 +204,7 @@ public sealed class SaveSync
         var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
         var problems = new List<string>();
         var failed = 0;
+        var skipped = 0;
 
         foreach (var save in saves)
         {
@@ -281,7 +318,55 @@ public sealed class SaveSync
                         break;
                     }
 
-                    var download = await DownloadAsync(operation, saveId, local, result.SessionId, cancellationToken)
+                    var (target, targetProblem) = ResolveTarget(operation, local);
+
+                    // Negotiate is unscoped, so a device holding a subset is offered every save
+                    // in the library and most of them land here: counted, not reported per
+                    // operation, and never counted as failed, or a partial-library device exits
+                    // Partial on every flush.
+                    //
+                    // Ahead of the bundled check by choice, not necessity. IsUnplaceableUnit
+                    // needs the ROM's folder to find the shape, so it already answers false for
+                    // a ROM that is not here and either order gives the same answer today.
+                    // Deciding it here keeps that true if the shape lookup ever stops needing
+                    // the ROM, which is what would turn an absent game into "run the game once".
+                    if (targetProblem == TargetProblem.RomNotHere)
+                    {
+                        skipped++;
+                        break;
+                    }
+
+                    // A bundled slot this device has never held has no container to expand and
+                    // no key to place under, so the archive has nowhere to go. Reported rather
+                    // than written to the class A path, which would leave a .zip where an
+                    // emulator expects a save.
+                    if (local is null && IsUnplaceableUnit(operation))
+                    {
+                        failed++;
+                        problems.Add(
+                            $"rom {operation.RomId} slot {operation.Slot}: this is a directory "
+                                + "save and this device holds none for that game yet, so there is "
+                                + "no folder to put it in. Run the game once, then flush again.");
+                        break;
+                    }
+
+                    if (target is not { } destination)
+                    {
+                        failed++;
+                        problems.Add(
+                            $"rom {operation.RomId} slot {operation.Slot}: nowhere to write it. "
+                                + "The server named no file and this device holds no save in "
+                                + "that slot.");
+                        break;
+                    }
+
+                    var download = await DownloadAsync(
+                            operation,
+                            saveId,
+                            local,
+                            destination,
+                            result.SessionId,
+                            cancellationToken)
                         .ConfigureAwait(false);
 
                     if (download.Problem is { } downloadProblem)
@@ -343,6 +428,7 @@ public sealed class SaveSync
             Conflicts = conflicts.Count,
             NoOps = noOps,
             Failed = failed,
+            Skipped = skipped,
             BytesTransferred = bytes,
             Problems = problems,
             Unresolved = conflicts,
@@ -621,25 +707,19 @@ public sealed class SaveSync
     /// </para>
     /// <para>
     /// A class C unit goes to <see cref="RestoreUnitAsync"/> instead, which stages and verifies
-    /// everything up front but <b>swaps the members in one at a time</b>, so that path is not
-    /// atomic. See #38.
+    /// everything up front and then <b>swaps the members in one at a time</b>, because the
+    /// container is shared. That is not one filesystem operation, and a failure partway is
+    /// undone rather than left: the unit ends up wholly new or wholly as it was.
     /// </para>
     /// </remarks>
     private async Task<(long Bytes, string? Problem)> DownloadAsync(
         SyncOperation operation,
         int saveId,
         LocalSave? local,
+        RelativePath destination,
         int sessionId,
         CancellationToken cancellationToken)
     {
-        var target = ResolveTarget(operation, local);
-
-        if (target is not { } destination)
-        {
-            return (0, $"rom {operation.RomId} slot {operation.Slot}: nowhere to write it. "
-                + "The server named no file and this device holds no save in that slot.");
-        }
-
         var partialDirectory = _install.Resolve(PartialDirectory);
         var part = Path.Combine(partialDirectory, $"save-{saveId}.part");
 
@@ -719,11 +799,12 @@ public sealed class SaveSync
     /// </summary>
     /// <remarks>
     /// <b>A half-written directory save is a corrupt one</b>, so nothing touches the live tree
-    /// until the whole unit is on disk and readable. <b>The swap that follows is not atomic</b>,
-    /// since the container is shared and only the unit's own members may move; #38 has the
-    /// consequence and why a whole-container swap is the wrong fix. The archive is fetched to a <c>.part</c>,
-    /// extracted into a staging directory beside it, the existing members are copied aside under
-    /// <c>replaced/</c>, and only then are the new ones moved in.
+    /// until the whole unit is on disk and readable. The swap that follows is per member, since
+    /// the container is shared and only the unit's own members may move, and a failure partway
+    /// through it is rolled back from the copy under <c>replaced/</c> rather than left as a
+    /// mixed unit. The archive is fetched to a <c>.part</c>, extracted into a staging directory
+    /// beside it, the existing members are copied aside, and only then are the new ones moved
+    /// in.
     /// <para>
     /// <b>What can and cannot be verified, stated because the difference matters.</b> A class A
     /// download is checked against <c>server_content_hash</c>, which is the MD5 of the bytes.
@@ -831,21 +912,105 @@ public sealed class SaveSync
     /// supplies the name and the ROM's own folder supplies the directory, which is the restore
     /// of a save this device once had and no longer does.
     /// <para>
-    /// A slot this device has never negotiated at all has no recorded identity, and the
-    /// negotiate operation carries only the tagged name. Stripping that tag client-side is what
-    /// the plan rules out, so such a slot still reports that it has nowhere to go, and closing
-    /// that needs the live negotiate this branch did not drive.
+    /// <b>A slot this device has never negotiated has no recorded identity, and that is the
+    /// ordinary case on a fresh install</b>, which is the half of #63 the entry gate was hiding.
+    /// The stem still comes from the ROM, because it is the only sound source: the server strips
+    /// general tags rather than only its own, so <c>file_name_no_tags</c> reads
+    /// <c>Phantasy Star</c> for a ROM called <c>Phantasy Star (Brazil)</c> and produces a file
+    /// libretro cannot see. Only the extension comes off the operation's tagged name, where it
+    /// sits after the tag and never inside it.
+    /// </para>
+    /// <para>
+    /// <b>Failing to resolve has two causes and they are not the same event</b>, which is why
+    /// the reason comes back rather than a bare null. A ROM this device does not hold offers no
+    /// folder and no stem, and that is the ordinary state of every save outside the sync set;
+    /// a ROM that is here but unnameable is a real fault.
     /// </para>
     /// </remarks>
-    private RelativePath? ResolveTarget(SyncOperation operation, LocalSave? local)
+    private (RelativePath? Path, TargetProblem Problem) ResolveTarget(
+        SyncOperation operation,
+        LocalSave? local)
     {
         if (local is not null)
         {
-            return local.Path;
+            return (local.Path, TargetProblem.None);
         }
 
         var known = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty);
-        return known?.OnDiskPath;
+
+        if (known?.OnDiskPath is { } recorded)
+        {
+            return (recorded, TargetProblem.None);
+        }
+
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+
+        if (roms.Count == 0)
+        {
+            return (null, TargetProblem.RomNotHere);
+        }
+
+        var rom = roms[0];
+
+        if (rom.Folder is not { } folder || operation.FileName is not { } named)
+        {
+            return (null, TargetProblem.Unnameable);
+        }
+
+        var extension = Path.GetExtension(named);
+        var stem = Path.GetFileNameWithoutExtension(rom.FileName);
+
+        return RelativePath.TryCreate($"saves/{folder}/{stem}{extension}", out var derived)
+            ? (derived, TargetProblem.None)
+            : (null, TargetProblem.Unnameable);
+    }
+
+    /// <summary>Why a download has nowhere to go, when it has nowhere to go.</summary>
+    private enum TargetProblem
+    {
+        /// <summary>It has somewhere to go.</summary>
+        None,
+
+        /// <summary>
+        /// The ROM is not on this device, so there is no folder to put a save beside. Ordinary
+        /// on any device that syncs a subset, and not a failure of the flush that met it.
+        /// </summary>
+        RomNotHere,
+
+        /// <summary>
+        /// The ROM is here and no name could still be built for the save, which is a fault.
+        /// </summary>
+        Unnameable,
+    }
+
+    /// <summary>
+    /// True when a slot this device has never held is a bundled one, which cannot be placed yet.
+    /// </summary>
+    /// <remarks>
+    /// A class C restore needs a container and a unit key, and both come from the local unit the
+    /// device already holds. With no local unit there is nothing to expand the declared
+    /// container against: <c>saves/psp/SAVEDATA</c> may not exist at all until PPSSPP has run
+    /// once. Writing the archive to the class A path instead would put a <c>.zip</c> where an
+    /// emulator expects a save, so this is reported and the transfer is not attempted.
+    /// <para>
+    /// Answered from the shapes table rather than from the filename, because a <c>.zip</c>
+    /// extension is not evidence of anything: the slot is what a declared unit path names.
+    /// </para>
+    /// </remarks>
+    private bool IsUnplaceableUnit(SyncOperation operation)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+        var rom = roms.Count > 0 ? roms[0] : null;
+
+        if (rom?.Folder is not { } folder || _shapes.For(folder) is not { } shape)
+        {
+            return false;
+        }
+
+        var slot = operation.Slot ?? string.Empty;
+
+        return shape.UnitPaths.Any(declared =>
+            string.Equals($"{declared.Emulator}:{declared.Slot}", slot, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>

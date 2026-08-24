@@ -55,13 +55,27 @@ public static class SaveUnitTransfer
     /// current members are copied aside before anything is replaced. A half-written directory
     /// save is a corrupt one.
     /// <para>
-    /// <b>The swap itself is not atomic, and calling it atomic would be worse than the gap.</b>
-    /// The members are removed and then moved in one at a time, so a failure partway leaves some
-    /// new members and some old ones in the container, which an emulator may read as corrupt.
-    /// Nothing is lost: the pre-restore members are under <c>replaced/</c> and the staged copy
-    /// was extracted and hashed before any of this ran, so recovery exists and is manual.
-    /// A whole-container swap is not the fix, because the container is shared: <c>saves/psp/SAVEDATA</c>
-    /// holds every PSP game on the install. Tracked in #38.
+    /// <b>A unit that already holds what arrived is left alone entirely.</b> No copy aside for a
+    /// save nobody replaced, no mtime churn under <c>saves/</c>, and no window where the unit is
+    /// half swapped for no reason. It cannot be settled before the transfer, because the wire
+    /// hash for an unchanged class C unit is the digest the server returned to this device on
+    /// its own last upload and a peer's upload carries one this device has never seen: negotiate
+    /// answers <c>download</c> and the bytes have to come. Only the write is avoidable.
+    /// </para>
+    /// <para>
+    /// <b>The swap is still not one filesystem operation, and it is all-or-nothing anyway.</b>
+    /// The members are removed and moved in one at a time, because the container is shared:
+    /// <c>saves/psp/SAVEDATA</c> holds every PSP game on the install and the GameCube region
+    /// folder holds every GameCube game, so swapping the container would swap other games' saves
+    /// with it. A failure partway through used to leave some new members and some old ones,
+    /// which an emulator may read as corrupt. It is now undone: the members this pass placed are
+    /// deleted and the ones it removed are copied back from <c>replaced/</c>, so the unit is
+    /// either wholly new or wholly as it was.
+    /// </para>
+    /// <para>
+    /// A rollback that cannot finish is the one case that still leaves a mixed unit, and it says
+    /// so by name and names the <c>replaced/</c> copy. Nothing is lost there either: the staged
+    /// copy was extracted and hashed before any of this ran.
     /// </para>
     /// <para>
     /// <b>This replaces the unit rather than merging into it.</b> A member the archive does not
@@ -109,24 +123,63 @@ public static class SaveUnitTransfer
 
             var restored = SaveArchive.HashOfExtracted(staging, entries);
 
-            // Read once and used twice, since a scan of the system is what finds a unit and the
-            // copy aside and the removal below must agree on the same member list.
+            // Read once and used three times, since a scan of the system is what finds a unit
+            // and the comparison, the copy aside and the removal below must agree on the same
+            // member list.
             var existing = Find(units, local);
+
+            // <b>A restore that would rewrite the tree with what it already holds does not
+            // rewrite it.</b> Class C cannot settle this before the transfer: the wire hash for
+            // an unchanged unit is the digest the server returned to THIS device on its own last
+            // upload, and a peer's upload carries a digest this device has never seen, so
+            // negotiate answers `download` and no local comparison can rule it out. The bytes
+            // have to come. The write does not.
+            //
+            // Compared against the fold of what is on disk now rather than against the row,
+            // because the row is only as current as the last scan and this is a question about
+            // the tree. It costs one pass over a unit that was about to be copied aside and
+            // rewritten member by member, so it is cheaper than what it skips.
+            //
+            // The caller still acks and still records the slot: the server does need telling,
+            // and the slot's digest does need to become current, or the next negotiate answers
+            // `upload` for a unit that is already in step.
+            if (existing is { Files.Count: > 0 }
+                && string.Equals(
+                    SaveArchive.HashOf(install, existing),
+                    restored,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new SaveUnitRestoreResult(restored, entries, CopiedAside: null);
+            }
 
             // Everything above this line is off to one side. Only now is the live tree touched.
             var aside = CopyAside(install, existing, local, asideDirectory, now);
 
-            // Before the moves, so a member that cannot be deleted fails the restore with the
-            // unit still whole rather than half swapped.
-            Remove(install, existing, entries, container);
+            // Everything from here to the end of the loop is the destructive half, and a
+            // failure anywhere in it is undone rather than left where it stopped: RollBack
+            // deletes what this pass placed and copies every member of the old unit back from
+            // replaced/. Remove is still first, which is what keeps that rollback simple: a
+            // member that cannot be deleted fails before any new one has moved in, so the
+            // rollback has only removals to reverse and never a half-populated container.
+            var placed = new List<string>();
 
-            foreach (var entry in entries)
+            try
             {
-                var native = entry.Replace('/', Path.DirectorySeparatorChar);
-                var destination = Path.Combine(container, native);
+                Remove(install, existing, entries, container);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Move(Path.Combine(staging, native), destination, overwrite: true);
+                foreach (var entry in entries)
+                {
+                    var native = entry.Replace('/', Path.DirectorySeparatorChar);
+                    var destination = Path.Combine(container, native);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Move(Path.Combine(staging, native), destination, overwrite: true);
+                    placed.Add(destination);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                throw RollBack(install, existing, aside, placed, container, ex);
             }
 
             return new SaveUnitRestoreResult(restored, entries, aside);
@@ -207,6 +260,74 @@ public static class SaveUnitTransfer
                 $"the existing save at {local.Path}/{local.UnitKey} could not be copied aside, so "
                     + $"it was not replaced: {ex.Message}",
                 ex);
+        }
+    }
+
+    /// <summary>
+    /// Puts the container back the way it was, and describes what is left if that fails too.
+    /// </summary>
+    /// <remarks>
+    /// <b>The unit's own members, never the container.</b> The container is shared:
+    /// <c>saves/psp/SAVEDATA</c> holds every PSP game on the install and the GameCube region
+    /// folder holds every GameCube game, so a whole-container swap would take other games' saves
+    /// with it. What this undoes is exactly what the move loop touched, plus the members
+    /// <see cref="Remove"/> deleted, which are the ones under <c>replaced/</c>.
+    /// <para>
+    /// A rollback that cannot finish is the one state a person has to be told about by name, so
+    /// the message says where the copy aside is rather than only that something failed. It never
+    /// throws on its own account: the original failure is what the caller needs to see, and
+    /// swallowing it to report a secondary one would hide the cause.
+    /// </para>
+    /// </remarks>
+    private static IOException RollBack(
+        RetroBatInstall install,
+        SaveUnit? existing,
+        RelativePath? aside,
+        IReadOnlyList<string> placed,
+        string container,
+        Exception cause)
+    {
+        var emptied = new List<string>();
+
+        try
+        {
+            foreach (var destination in placed)
+            {
+                File.Delete(destination);
+                emptied.Add(Path.GetDirectoryName(destination)!);
+            }
+
+            if (existing is not null && aside is { } copy)
+            {
+                var asidePath = install.Resolve(copy);
+
+                foreach (var file in existing.Files)
+                {
+                    var source = Path.Combine(
+                        asidePath,
+                        file.ArchivePath.Replace('/', Path.DirectorySeparatorChar));
+                    var destination = install.Resolve(file.Path);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Copy(source, destination, overwrite: true);
+                }
+            }
+
+            PruneEmpty(container, emptied);
+
+            return new IOException(
+                $"the save could not be put back: {cause.Message}. Nothing changed on disk, so "
+                    + "the next flush tries again.",
+                cause);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new IOException(
+                $"the save could not be put back: {cause.Message}. Undoing that failed too "
+                    + $"({ex.Message}), so this save is part new and part old on disk"
+                    + (aside is { } left ? $". The members it had are under {left}" : string.Empty)
+                    + ".",
+                cause);
         }
     }
 

@@ -13,7 +13,7 @@ namespace RomMBat.Core.Paths;
 /// cannot reach the database through a typed API.
 /// <para>
 /// Forward slashes are stored because they round-trip through SQLite, JSON and XML without
-/// escaping, and Windows accepts them everywhere. <see cref="RetroBatInstall.Resolve"/> is
+/// escaping, and Windows accepts them everywhere. <see cref="RetroBatInstall.Resolve(RelativePath)"/> is
 /// the one place they become a real path.
 /// </para>
 /// </remarks>
