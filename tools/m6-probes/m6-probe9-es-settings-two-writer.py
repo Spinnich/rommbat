@@ -49,11 +49,24 @@ phase = sys.argv[2]
 settings = root / "emulationstation" / ".emulationstation" / "es_settings.cfg"
 backup = settings.with_suffix(".cfg.rommbat-p1-backup")
 
-# A rom that exists on the install, so the key is the shape a real conversion would write.
-# Nothing launches it here.
-PROBE_ROM = "Ape Escape 2 (USA).chd"
+def a_real_rom(install: pathlib.Path) -> tuple[str, str]:
+    """A (system, filename) pair that exists on this install.
+
+    The key under test is a nonsense one nothing reads, so the rom is not load-bearing. It is
+    taken off the install anyway, because a per-game key naming a rom that is not there is a
+    weaker version of the same measurement and a reviewer would rightly ask.
+    """
+    roms = install / "roms"
+    for system in sorted(p for p in roms.iterdir() if p.is_dir()):
+        for entry in sorted(system.iterdir()):
+            if entry.is_file() and entry.suffix.lower() not in {".xml", ".txt"}:
+                return system.name, entry.name
+    raise SystemExit(f"no rom found under {roms}, so there is nothing to scope a per-game key to")
+
+
+PROBE_SYSTEM, PROBE_ROM = a_real_rom(root)
 GLOBAL_KEY = "rommbat_probe_p1_global"
-PER_GAME_KEY = f'ps2["{PROBE_ROM}"].rommbat_probe_p1_pergame'
+PER_GAME_KEY = f'{PROBE_SYSTEM}["{PROBE_ROM}"].rommbat_probe_p1_pergame'
 NONCE = "p1-" + hashlib.md5(PROBE_ROM.encode()).hexdigest()[:8]
 
 
