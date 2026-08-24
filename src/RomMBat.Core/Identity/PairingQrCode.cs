@@ -3,7 +3,6 @@ using QRCoder;
 namespace RomMBat.Core.Identity;
 
 /// <summary>A QR code as a grid of dark and light modules.</summary>
-/// <param name="Size">Width and height in modules, quiet zone included.</param>
 public sealed class QrMatrix
 {
     private readonly bool[,] _modules;
@@ -14,6 +13,7 @@ public sealed class QrMatrix
         Size = size;
     }
 
+    /// <summary>Width and height in modules, quiet zone included.</summary>
     public int Size { get; }
 
     /// <summary>True when the module at this position is dark.</summary>
