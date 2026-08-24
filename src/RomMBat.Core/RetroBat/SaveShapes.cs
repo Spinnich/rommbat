@@ -28,7 +28,7 @@ public enum SaveShapeClass
 /// <param name="SetTo">The value to write. Null where the declaration says not to convert.</param>
 /// <param name="KeysBy">
 /// What the converted container is named after, and <b>the discriminator that decides whether
-/// this release can offer the conversion at all</b>. <c>rom basename</c> means the result drops
+/// this release can offer the conversion at all</b>. <c>rom stem</c> means the result drops
 /// into ordinary filename attribution; <c>disc serial</c> and <c>game code</c> mean it comes out
 /// identifier-keyed and needs the Game-ID routes, which is a different piece of work.
 /// </param>
@@ -56,14 +56,6 @@ public sealed record PerGameConversion(
     string? Emulator = null,
     string? Slot = null)
 {
-    /// <summary>
-    /// True when converting produces a container named after the ROM file.
-    /// </summary>
-    /// <remarks>
-    /// The only shape this release converts, because it is the only one whose result is
-    /// attributable by the filename index that already exists. Anything identifier-keyed is
-    /// reported with its reason rather than half-supported.
-    /// </remarks>
     /// <summary>True when the converted container's location and naming are both known.</summary>
     /// <remarks>
     /// Both halves, for the reason <see cref="SaveShape.HasUnitPaths"/> needs both: a
@@ -77,6 +69,12 @@ public sealed record PerGameConversion(
         && !string.IsNullOrWhiteSpace(Emulator)
         && !string.IsNullOrWhiteSpace(Slot);
 
+    /// <summary>True when converting produces a container named after the ROM file.</summary>
+    /// <remarks>
+    /// The only shape this release converts, because it is the only one whose result is
+    /// attributable by the filename index that already exists. Anything identifier-keyed is
+    /// reported with its reason rather than half-supported.
+    /// </remarks>
     public bool YieldsRomNamedContainer =>
         Apply
         && SetTo is not null
