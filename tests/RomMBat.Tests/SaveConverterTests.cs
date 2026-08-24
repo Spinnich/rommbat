@@ -89,9 +89,23 @@ public class SaveConverterTests
 
         Assert.Equal(ConversionStatus.Refused, result.Status);
         Assert.Contains("disc change", result.Detail, StringComparison.Ordinal);
-        Assert.Contains("1 other disc", result.Detail, StringComparison.Ordinal);
+        Assert.Contains("1 other disc of it", result.Detail, StringComparison.Ordinal);
         Assert.Empty(fixture.Store.SaveConversions.List());
         Assert.Empty(fixture.Settings().Settings);
+    }
+
+    [Fact]
+    public void The_sibling_count_reads_as_English_when_there_is_more_than_one()
+    {
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(46, "ps2", "Shadow Hearts - Covenant (USA) (Disc 1).chd");
+        fixture.AddRom(47, "ps2", "Shadow Hearts - Covenant (USA) (Disc 2).chd");
+        fixture.AddRom(48, "ps2", "Shadow Hearts - Covenant (USA) (Disc 3).chd");
+
+        var result = fixture.Converter().Convert(46);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.Contains("2 other discs of it", result.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

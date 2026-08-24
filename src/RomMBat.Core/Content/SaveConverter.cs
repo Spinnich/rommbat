@@ -25,7 +25,10 @@ public enum ConversionStatus
 
 /// <summary>The answer to one conversion request.</summary>
 /// <param name="Warning">
-/// Shown before a conversion is applied, never after. Null when there is nothing to warn about.
+/// What the change leaves behind in the shared container, carried on every status the caller
+/// prints: ahead of the preview on <c>Ready</c>, and again on <c>Converted</c> and
+/// <c>Reverted</c>, where it describes what the write just did. Null when there is nothing to
+/// warn about.
 /// </param>
 public sealed record ConversionResult(
     ConversionStatus Status,
@@ -126,7 +129,8 @@ public sealed class SaveConverter
         {
             var siblings = DiscSet.SiblingsOf(rom.FsName, NamesBeside(rom));
             var alsoHere = siblings.Count > 0
-                ? $" Disc {marker.Number} of a set; this device also holds {siblings.Count} other disc of it."
+                ? $" Disc {marker.Number} of a set; this device also holds {siblings.Count} "
+                    + $"other disc{(siblings.Count == 1 ? string.Empty : "s")} of it."
                 : $" Disc {marker.Number} of a set, whose other discs are not on this device.";
 
             return Refuse(
