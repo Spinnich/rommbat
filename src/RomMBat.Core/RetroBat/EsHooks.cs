@@ -73,8 +73,10 @@ public sealed record EsHookOutcome(IReadOnlyList<EsHookStep> Steps)
 /// so it is a comparison of references rather than of the current build.
 /// <para>
 /// <b>Size is not what the hook costs a launch, and assuming it was is a measured mistake.</b>
-/// The 75.9 MB agent reaches <c>Main</c> in 34 ms and this 12.8 MB hook takes 41 ms, because
-/// what dominates a trimmed app's start is JIT rather than bytes read. See finding 195.
+/// The 75.9 MB agent reaches <c>Main</c> in 34 ms while the 11.0 MB pre-R2R hook took 59.8 ms
+/// just to start, because what dominates a trimmed app's start is JIT rather than bytes read.
+/// That is why <c>PublishReadyToRun</c> is on: it costs 1.8 MB a copy and took one whole
+/// invocation from 111 ms to 49 ms. See finding 195.
 /// </para>
 /// </para>
 /// </remarks>
