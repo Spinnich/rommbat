@@ -48,6 +48,20 @@ things the M6 probe found (findings 112 to 118):
 | 9, 12    | A recorded exit and a failed launch, neither of which is a launch line                  |
 | 10, 11   | An unstamped .NET stack-trace continuation                                              |
 
+`es_settings.cfg` is a live capture, checked in here, and it is the one fixture that had to
+be **altered** before it could be: **a real `es_settings.cfg` holds plaintext credentials.**
+The captured install carried the ScreenScraper password, the RetroAchievements password and
+token, and the IGDB client id and secret, all in clear, plus the user's name under three keys.
+`tools/m6-probes/m6-redact-es-settings.py` replaces those eight values with obvious
+placeholders and asserts that none of them survives anywhere else in the file. **Every other
+byte is the capture**, which is what the round-trip test needs: 260 settings across the three
+element groups, tab indentation, LF endings, a bare `<?xml version="1.0"?>` with no encoding,
+an `&amp;` in `ScreenSaverGameInfo`, and ES's own alphabetical-within-group ordering. Re-run
+the script rather than editing the file.
+
+That credentials live in this file is worth carrying beyond the fixture: nothing RomMBat logs,
+reports or writes to a probe transcript may echo a value read out of it.
+
 `es_systems.template.cfg` is the **shipped 8.2.0 template**, not a live capture, and it is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,
@@ -60,7 +74,6 @@ Expected contents, arriving with the milestones that need them:
 | ------------------- | ----------------------------------------------------------- | ------------------------------------------- |
 | `es_systems.cfg`    | A live RetroBat tree                                        | Folder and `<extension>` resolution         |
 | `es_savestates.cfg` | A live RetroBat tree                                        | Save-state directory and filename templates |
-| `es_settings.cfg`   | A live RetroBat tree, after ES has written it               | Merge-not-clobber round-trip                |
 | `gamelist.xml`      | A system with user edits (favourite, playcount, lastplayed) | Asserting user fields survive a sync        |
 | `openapi.json`      | A pinned RomM version                                       | DTO generation drift                        |
 
