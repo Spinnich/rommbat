@@ -7,7 +7,7 @@ namespace RomMBat.Core.Paths;
 /// Its own file because <b>the ES hook compiles this source directly</b> rather than
 /// referencing <c>RomMBat.Core</c>. Four copies of the hook are installed, one per event
 /// folder, so it must not drag the store and the API client in with it; measured, the
-/// difference is 11.0 MB per copy against 75.5 MB. Linking one file is what keeps the hook and
+/// difference is 12.8 MB per copy against 75.9 MB. Linking one file is what keeps the hook and
 /// the agent from disagreeing about where the install is, which they would eventually do if
 /// each had its own marker walk.
 /// <para>

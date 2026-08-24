@@ -17,8 +17,9 @@
     <!--
       Deliberately references nothing, not even RomMBat.Core. Four copies of this file are
       installed, one per event folder, so every megabyte is paid four times on a portable
-      drive. Measured: 12.8 MB like this, 15.1 MB the moment Microsoft.Data.Sqlite is
-      referenced, and 75.9 MB if the agent itself were installed as the hook.
+      drive. Measured: 12.8 MB like this, and 75.9 MB if the agent itself were installed as
+      the hook. The 15.1 MB measured for the same job through Microsoft.Data.Sqlite predates
+      PublishReadyToRun below, so it compares references rather than this build.
     -->
     <PublishTrimmed>true</PublishTrimmed>
     <PublishSingleFile>true</PublishSingleFile>
