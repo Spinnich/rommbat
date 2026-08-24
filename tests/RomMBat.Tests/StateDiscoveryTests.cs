@@ -513,6 +513,65 @@ public class StateDiscoveryTests
     }
 
     /// <summary>A temp install with a state tree, a ROM index and a scanner.</summary>
+    [Fact]
+    public void A_bigpemu_state_the_template_cannot_express_is_reported_rather_than_dropped()
+    {
+        // #34. Three digits cannot come out of {{slot2d}}, so the name matched nothing and was
+        // passed over by the same rule that ignores the sidecar and the screenshots. That rule
+        // is right for those and wrong for a state the emulator really wrote: the user was told
+        // nothing at all, which is the half of #34 that bites regardless of what BigPEmu does.
+        using var tree = StateTree.Create();
+        tree.AddRom(11, "jaguar", "Rayman (USA).j64");
+        tree.AddState("jaguar/bigpemu", "Rayman (USA)_state07.bigpstate", "in range");
+        tree.AddState("jaguar/bigpemu", "Rayman (USA)_state999.bigpstate", "out of reach");
+        tree.AddState("jaguar/bigpemu", "Rayman (USA).txt", "a sidecar, not a state");
+
+        var outcome = tree.Scan();
+
+        // The three-digit name is still not synced. It is no longer silent.
+        Assert.Equal(1, outcome.Found);
+
+        var miss = Assert.Single(outcome.NearMisses);
+
+        Assert.Equal("Rayman (USA)_state999.bigpstate", miss.FileName);
+        Assert.Equal(NearMissKind.SlotWidth, miss.Kind);
+        Assert.Contains("worth a look", outcome.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_bigpemu_slot_below_its_declared_floor_is_synced_and_said_out_loud()
+    {
+        // #65. Bounds had no caller anywhere in src/, so slot 0 was accepted, recorded and
+        // uploaded without a word even though bigpemu declares firstslot="001". The file on
+        // disk is evidence and the declaration is only a claim, so it still syncs.
+        using var tree = StateTree.Create();
+        tree.AddRom(11, "jaguar", "Rayman (USA).j64");
+        tree.AddState("jaguar/bigpemu", "Rayman (USA)_state00.bigpstate", "below the floor");
+
+        var outcome = tree.Scan();
+
+        Assert.Equal(1, outcome.Found);
+        Assert.Equal(1, outcome.Attributed);
+
+        var miss = Assert.Single(outcome.NearMisses);
+
+        Assert.Equal(NearMissKind.SlotOutsideDeclaredBounds, miss.Kind);
+        Assert.Equal("bigpemu::0", Assert.Single(tree.Store.States.List()).Slot);
+    }
+
+    [Fact]
+    public void An_ordinary_state_directory_reports_nothing()
+    {
+        // The other side, so a change that started reporting sidecars and screenshots fails
+        // here rather than in someone's terminal.
+        using var tree = StateTree.Create();
+        tree.AddRom(42, "psx", "Metal Gear Solid (USA) (Disc 1).chd");
+        tree.AddState("psx/duckstation", "Metal Gear Solid (USA) (Disc 1)_01.sav", "state bytes");
+        tree.AddState("psx/duckstation", "Metal Gear Solid (USA) (Disc 1).txt", "SLUS-00594");
+
+        Assert.Empty(tree.Scan().NearMisses);
+    }
+
     private sealed class StateTree : IDisposable
     {
         private readonly TempRetroBatTree _tree;

@@ -28,11 +28,24 @@ expression and matching what is on disk reads the slot off the filename, which a
 `libretro`'s trap, the one entry declaring no bounds, and settles a question that is not one of
 the four: whether `{{slot}}` renders empty at slot zero becomes "accept zero digits".
 **`bigpemu` is not answered**: it declares `001`/`999` against a two-digit `{{slot2d}}`, which
-compiles to `\d{2}`, so reversal reads 00 to 99 and misses the declaration at both ends. A
-three-digit name is recognised as nothing and dropped without a report (#34), and `_state00` is
-read as slot 0 below the declared floor with nothing refusing or reporting it, because `Bounds`
-has no caller outside the tests (#65). Both ends unmeasured, since its states are reachable only
-through its own gamepad overlay. The same reversal on `<directory>` recovers the system and the
+compiles to `\d{2}`. **That reads as a contradiction and is not one** (measurement 166, driven):
+the bounds describe what **BigPEmu** writes in its own tree, three-digit and keyed by an internal
+game id under `emulators/bigpemu/userdata/`, and the template describes **RetroBat's mirror**
+under `saves/jaguar/bigpemu/`, two-digit and rom-named. Reading the declared path is right and
+six real states came back as slots 1 to 6 with nothing reported. The edges are still reported and
+never refused (#65): a `StateScanner` near-miss covers a name matching a `<file>` template except
+for the width of its slot, and a slot outside the declared range. Only the slot widens, so the
+`.txt` sidecar and the screenshots stay silent, confirmed against a real install's whole state
+tree. A mirror name past slot 99 is what #34 now stands on, and reaching it needs ~94 saves of
+one game.
+
+**`bigpemu` is a third emulator whose native tree is not under `saves/`, and its battery save
+never leaves it.** `game<ID>_eeprom.bigpeep` sits in `emulators/bigpemu/userdata/` with no
+counterpart anywhere under `saves/jaguar/` (measurement 167), so a client reading only the
+declared tree concludes the game has no battery save. That is the concrete reason `jaguar` stays
+in `save_shapes.json`'s `_unclassified` list. Its `.txt` sidecar holds the same internal game id
+its native filenames use (168), so it is the mapping between the two naming schemes, the same job
+PPSSPP's `ULES01513_1.00` does. The same reversal on `<directory>` recovers the system and the
 core from the tree, which answers `bizhawk`'s core scoping and is the only sound reading when
 neither level of the save tree is positional. `desmume` still needs handling: nothing makes its
 `<image>` differ from its `<file>`.

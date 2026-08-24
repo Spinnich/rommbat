@@ -23,9 +23,22 @@ public sealed record StateScanOutcome
 
     public long BytesHashed { get; init; }
 
-    public string Summary => Found == 0
+    /// <summary>
+    /// Names in a state directory that are neither a state this build can sync nor a sidecar.
+    /// </summary>
+    /// <remarks>
+    /// <b>The alternative is silence, and silence is the defect.</b> A name matching an
+    /// emulator's template except for the width of its slot is a state that emulator really
+    /// wrote, and it used to be dropped by the same rule that passes over the <c>.txt</c>
+    /// sidecar and the screenshots. A slot outside the declared bounds is synced and was never
+    /// mentioned. See #34 and #65.
+    /// </remarks>
+    public IReadOnlyList<SaveStateNearMiss> NearMisses { get; init; } = [];
+
+    public string Summary => Found == 0 && NearMisses.Count == 0
         ? "states: none found"
-        : $"states: {Attributed} of {Found} attributed";
+        : $"states: {Attributed} of {Found} attributed"
+            + (NearMisses.Count == 0 ? string.Empty : $", {NearMisses.Count} worth a look");
 }
 
 /// <summary>
@@ -118,6 +131,7 @@ public sealed class StateScanner
         var roms = RomIndex.Build(_store);
         var seen = new HashSet<RelativePath>();
         var slots = new HashSet<(long RomId, string Slot)>();
+        var nearMisses = new List<SaveStateNearMiss>();
         var found = 0;
         var attributed = 0;
         var screenshots = 0;
@@ -127,6 +141,11 @@ public sealed class StateScanner
         {
             foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
             {
+                if (template.NearMiss(Path.GetFileName(file)) is { } nearMiss)
+                {
+                    nearMisses.Add(nearMiss);
+                }
+
                 var state = Describe(template, file, roms, now);
 
                 if (state is null)
@@ -168,6 +187,9 @@ public sealed class StateScanner
             Forgotten = ForgetMissing(seen),
             Screenshots = screenshots,
             BytesHashed = bytes,
+
+            // Ordinal by name, so two passes over one tree report in one order.
+            NearMisses = [.. nearMisses.OrderBy(miss => miss.FileName, StringComparer.Ordinal)],
         };
     }
 
@@ -219,6 +241,9 @@ public sealed class StateScanner
             // Not a state by this emulator's own filename rule. Left alone rather than reported
             // per file: a state directory holds the .txt sidecar and the screenshots too, and
             // naming each of those as unsyncable would drown the report it belongs in.
+            //
+            // A name that misses only on the width of its slot is not one of those, and the
+            // caller has already put it on the near-miss list before reaching here.
             return null;
         }
 

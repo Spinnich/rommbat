@@ -1977,17 +1977,32 @@ range**, and built the parser the other way round. Compiling `<file>` into an an
 expression and matching it against what is on disk reads the slot **off the filename**, so
 `libretro` declaring no bounds needs no invented default. It settles one more question, which is
 not in the table above: whether `{{slot}}` renders empty at slot zero stops being something the
-client has to answer in advance. Declared bounds become validation only. `desmume` still needs
+client has to answer in advance. Declared bounds become a report rather than a refusal, since
+the file on disk is evidence and the declaration is only a claim. `desmume` still needs
 handling, because no reading of the file makes its `<image>` differ from its `<file>`.
 
-**`bigpemu`'s is not a trap the reversal answers, and stage 2a recorded that it was.** The
-compiled `{{slot2d}}` is `(?<slot>\d{2})`, so reading the slot off disk answers **00 to 99** and
-misses the declared `001`/`999` at both ends. A three-digit name matches no expression, so it is
-not recognised as a state and is dropped with no report. `<rom>_state00.bigpstate` matches and is
-read as slot 0, below the declared floor, and nothing refuses or reports it because
-`SaveStateEmulator.Bounds` has no caller outside the tests. Whether BigPEmu writes either name is
-unmeasured, because its save state is reachable only through its own gamepad overlay and no
-Jaguar launch has been driven. Open as #34 for the upper end and #65 for the lower.
+**`bigpemu` reads as a contradiction and is not one, which measurement 166 settled by driving
+it.** Six real states through the gamepad overlay: BigPEmu writes **three-digit** names in its
+own tree, `emulators/bigpemu/userdata/game<ID>_state001.bigpstate`, keyed by an internal game id,
+and RetroBat mirrors each to `saves/jaguar/bigpemu/<rom filename>_state01.bigpstate`, **two-digit
+and rom-named**. So `firstslot`/`lastslot` describe the emulator's native range and `<file>`
+describes the mirror; the two are not in conflict, and stage 2a's reading of them as a defect was
+wrong in the other direction from the one it worried about. Reading the declared path is right,
+and all six came back as slots 1 to 6 with nothing reported.
+
+**The edges are still worth reporting, and are.** `StateScanner` carries a near-miss list: a name
+matching an emulator's `<file>` template except for the width of its slot, and a slot outside the
+declared `firstslot`/`lastslot`. Only the slot widens when looking for the first of those, so the
+`.txt` sidecar and the screenshots in the same directory stay silent, confirmed against a real
+install's whole state tree. Neither edge has been observed: a mirror name past slot 99 needs
+about 94 more saves of one game, which is what #34 now stands on.
+
+**Two things the same pass found, and neither is a save-state question.** BigPEmu's Jaguar
+battery save, `game<ID>_eeprom.bigpeep`, is **never mirrored into `saves/`** at all (measurement
+167), which is the same trap openMSX sets with its states and the concrete reason `jaguar` stays
+in `save_shapes.json`'s `_unclassified` list. And its `.txt` sidecar holds the internal game id
+its native filenames use (measurement 168), so the sidecar is the mapping between the two naming
+schemes, which is what the sidecar is for everywhere else too.
 
 The same reversal applies to `<directory>`: matching the template against directories that
 exist recovers the system and the core from the tree, which answers `bizhawk`'s core scoping and
