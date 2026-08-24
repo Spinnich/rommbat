@@ -42,6 +42,13 @@ namespace RomMBat.Agent.Commands;
 /// options the opt-in rule was written for. <c>hooks uninstall</c> takes them back out.
 /// </para>
 /// <para>
+/// <b>The ES menu entry goes in on the first run too, and that is a wider claim than the
+/// hooks make.</b> A hook is invisible; a menu entry adds an item to the user's own front end.
+/// It is installed anyway because it is the only route to RomMBat that does not need a
+/// terminal, and a user who never opens one is exactly who it is for. What that costs is owed
+/// back in candour: every path is named, and <c>menu uninstall</c> takes all of it out again.
+/// </para>
+/// <para>
 /// <c>--dry-run</c> and <c>--offline</c> both work with the server unreachable: the plan is
 /// made from the membership already in the store, so a handheld away from the network can still
 /// answer "what would this sync do". The BIOS report is answerable that way too, from the
@@ -70,6 +77,7 @@ internal static class SyncCommand
         if (!dryRun)
         {
             InstallHooks(context);
+            InstallMenuEntry(context);
 
             // First, before a byte is fetched. What the hooks spooled is turned into play
             // sessions and local_save is brought up to date, which is what everything below
@@ -255,6 +263,52 @@ internal static class SyncCommand
             .Distinct(StringComparer.Ordinal))
         {
             Console.Error.WriteLine($"The hook could not be installed: {problem}");
+        }
+    }
+
+    /// <summary>
+    /// Puts RomMBat in the EmulationStation menu on the first sync, and says what it added.
+    /// </summary>
+    /// <remarks>
+    /// Silent once it is there, which is every run after the first. A failure is reported and
+    /// never fatal, for the same reason the hooks' is: the commonest cause is EmulationStation
+    /// holding a file, and the next sync installs it.
+    /// <para>
+    /// No <c>/reloadgames</c> from here. The gamelist pass later in this same sync issues one
+    /// after it writes, and ES picks a new <c>.menu</c> up from that reload like any other rom,
+    /// measured at 209 ms to visible. A second call would cost a round trip to say the same
+    /// thing.
+    /// </para>
+    /// </remarks>
+    private static void InstallMenuEntry(AgentContext context)
+    {
+        var entry = new EsMenuEntry(context.Install);
+
+        if (entry.IsInstalled())
+        {
+            return;
+        }
+
+        var outcome = entry.Install();
+
+        if (outcome.Installed + outcome.Updated > 0)
+        {
+            Console.WriteLine(
+                "Added RomMBat to the EmulationStation menu, so it can be opened from the couch. "
+                    + "Remove it with 'rommbat-agent menu uninstall'.");
+
+            foreach (var step in outcome.Steps.Where(step => step.Action
+                is EsMenuAction.Installed or EsMenuAction.Updated))
+            {
+                Console.WriteLine($"  {step.Path}");
+            }
+
+            Console.WriteLine();
+        }
+
+        foreach (var problem in outcome.Problems)
+        {
+            Console.Error.WriteLine($"The menu entry could not be installed: {problem}");
         }
     }
 
