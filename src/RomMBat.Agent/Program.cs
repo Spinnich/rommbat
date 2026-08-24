@@ -14,6 +14,12 @@ namespace RomMBat.Agent;
 /// <c>game-start</c> and <c>game-end</c> run inside the game launch path. They append
 /// to the local journal and exit; they never open a socket and never wait on a lock.
 /// </para>
+/// <para>
+/// <c>background</c> is the one subcommand a person is not expected to type. The
+/// <c>start</c> and <c>quit</c> hooks spawn it, which is how anything gets flushed on a
+/// machine where nobody opens a terminal. Neither of those two events is in the game
+/// launch path, which is why they may and <c>game-start</c> and <c>game-end</c> may not.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -33,6 +39,7 @@ internal static class Program
         "saves",      // what is on disk, what went up, what cannot
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
+        "background", // the pass an ES start or quit hook spawns
         "flush",      // drain the outbox if the server is reachable
         "status",     // report local state
     ];
@@ -92,6 +99,7 @@ internal static class Program
                 "menu" => await MenuCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "background" => await BackgroundCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
@@ -145,6 +153,7 @@ internal static class Program
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
+        Console.Error.WriteLine("  background  start | quit: the pass an EmulationStation hook spawns. Not for typing");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");
         Console.Error.WriteLine("  --root <path>     The RetroBat root, when discovery cannot find it");

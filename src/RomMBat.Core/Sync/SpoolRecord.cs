@@ -41,6 +41,45 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
     public static IReadOnlyList<string> Events { get; } = ["start", "game-start", "game-end", "quit"];
 
     /// <summary>
+    /// The two events whose hook may start a background pass, and the boundary of CLAUDE.md
+    /// rule 4.
+    /// </summary>
+    /// <remarks>
+    /// <b>The rule is narrowed here, not bent.</b> It reads "The ES hooks never touch the
+    /// network" and gives its reason in the next sentence: <i>they run inside the game-launch
+    /// path</i>. <c>game-start</c> and <c>game-end</c> do, and they still spool and exit
+    /// touching nothing. <c>start</c> fires when EmulationStation starts and <c>quit</c> when
+    /// it exits, and neither is in that path.
+    /// <para>
+    /// <b>This lives on the record type on purpose.</b> The hook compiles this file rather than
+    /// referencing Core, so the hook and the agent cannot disagree about which events spawn,
+    /// and the boundary is a value a test can assert rather than a comment in one binary.
+    /// </para>
+    /// <para>
+    /// The cost objection that kept the hooks inert for six milestones was measured and went
+    /// the other way: ES spawns hooks fire-and-forget and starts emulatorlauncher without
+    /// waiting, a median of 24 ms before the hook even reaches its own first line. What
+    /// remains is rule 4, which is about the network. See <c>docs/retrobat-findings.md</c>,
+    /// 195 and 197.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<string> BackgroundEvents { get; } = ["start", "quit"];
+
+    /// <summary>
+    /// Where the agent sits, relative to the RetroBat root.
+    /// </summary>
+    /// <remarks>
+    /// Forward slashes like every other relative path in this codebase, combined against the
+    /// discovered root at the point of use. Rule 1: the hook never persists an absolute path
+    /// and never assumes a drive letter, because it is the one component that is handed one.
+    /// </remarks>
+    public const string AgentRelativePath = "emulators/rommbat/rommbat-agent.exe";
+
+    /// <summary>Whether this event's hook may start a background pass.</summary>
+    public static bool SpawnsBackgroundPass(string? hookEvent) =>
+        hookEvent is not null && BackgroundEvents.Contains(hookEvent, StringComparer.Ordinal);
+
+    /// <summary>
     /// Reads the event out of the folder the hook sits in.
     /// </summary>
     /// <remarks>
