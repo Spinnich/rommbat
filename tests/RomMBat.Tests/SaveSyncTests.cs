@@ -192,6 +192,67 @@ public class SaveSyncTests
         Assert.Equal([100], fixture.Stub.Acknowledged);
     }
 
+
+    [Fact]
+    public async Task A_converted_memory_card_comes_down_into_its_container_and_not_loose()
+    {
+        // The class D download case, which nothing exercised until this test and which was
+        // wrong. A converted PCSX2 card lives three levels down, in the container the shape
+        // declares; the derived target for a slot this device has never held builds
+        // saves/<folder>/<stem><ext>, which is right for class A and puts a memory card exactly
+        // where PCSX2 will never look for it.
+        //
+        // Not a loud failure either: the bytes land, the ack is sent, the flush reports success,
+        // and the game starts from an empty card anyway.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
+
+        // A fresh device: the ROM is here and no card is.
+        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "the other device's card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        // Where PCSX2 actually reads it, measured on hardware.
+        Assert.Equal(
+            "the other device's card",
+            File.ReadAllText(fixture.Resolve("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2")));
+
+        // And emphatically not loose under the system folder, which is where class A lives and
+        // where the old target would have put it.
+        Assert.False(File.Exists(fixture.Resolve("saves/ps2/Armored Core 3 (USA).ps2")));
+    }
+
+    [Fact]
+    public async Task A_converted_card_is_not_refused_the_way_a_bundled_unit_is()
+    {
+        // The two class D and class C answers differ for opposite reasons and the code has to
+        // keep them apart. A class C unit cannot be placed on a device holding none, because the
+        // container and the key both come from a local unit that is not there. A converted class
+        // D container can: it is one file named after the ROM's stem and the shape declares
+        // where it goes, so a device that has never run the game can still be handed it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
+        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("directory save", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task A_save_for_a_game_this_device_has_not_synced_is_skipped_rather_than_failed()
     {

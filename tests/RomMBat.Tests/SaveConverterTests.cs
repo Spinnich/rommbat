@@ -310,6 +310,110 @@ public class SaveConverterTests
         Assert.Null(verdict.Detail);
     }
 
+
+    [Fact]
+    public void Moving_the_whole_install_leaves_the_conversion_and_its_card_exactly_as_they_were()
+    {
+        // The relocation check with an es_settings.cfg override present, which is the one the
+        // brief names. RetroBat is portable and the drive letter changes, so a rescan after a
+        // move has to be a clean no-op. The override is the new thing at risk: it names a ROM
+        // filename, never a path, so nothing in it can go stale on a move.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "one game's card");
+
+        Assert.Equal(ConversionStatus.Converted, fixture.Converter().Convert(191723).Status);
+
+        var before = new SaveScanner(fixture.Install, fixture.Store).Scan();
+        var savesBefore = fixture.Store.Saves.List()
+            .Select(save => (save.Path.Value, save.ShapeClass, save.ContentHash, save.RomId))
+            .ToList();
+        var settingsBefore = fixture.Settings().Settings.ToList();
+        var conversionBefore = Assert.Single(fixture.Store.SaveConversions.List());
+
+        Assert.Equal(1, before.Found);
+
+        using var moved = fixture.CopyToNewLocation();
+
+        var outcome = new SaveScanner(moved.Install, moved.Store).Scan();
+
+        // Nothing forgotten and nothing re-added, which is what a stored absolute path breaks.
+        Assert.Equal(0, outcome.Forgotten);
+        Assert.Equal(1, outcome.Found);
+        Assert.Equal(1, outcome.Attributed);
+
+        Assert.Equal(
+            savesBefore,
+            moved.Store.Saves.List()
+                .Select(save => (save.Path.Value, save.ShapeClass, save.ContentHash, save.RomId)));
+
+        // The override travelled as written, because its key is a rom filename and not a path.
+        Assert.Equal(settingsBefore, moved.Settings().Settings.ToList());
+        Assert.Equal(
+            "game",
+            moved.Settings().Value("ps2[\"Armored Core 3 (USA).chd\"].pcsx2_slot1_memory"));
+
+        var conversionAfter = Assert.Single(moved.Store.SaveConversions.List());
+        Assert.Equal(conversionBefore, conversionAfter);
+
+        // And nothing anywhere mentions a drive letter.
+        Assert.All(moved.Store.Saves.List(), save => Assert.False(Path.IsPathRooted(save.Path.Value)));
+    }
+
+    [Fact]
+    public void Every_path_a_conversion_constructs_stays_relative_and_inside_the_tree()
+    {
+        // The two portability rules applied to what this stage constructs: the container path
+        // the shape declares, and the es_settings.cfg location the writer resolves.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "a card");
+        fixture.Converter().Convert(191723);
+        new SaveScanner(fixture.Install, fixture.Store).Scan();
+
+        var limits = FilesystemLimits.For("FAT32", availableFreeBytes: 64L * 1024 * 1024 * 1024);
+
+        Assert.False(Path.IsPathRooted(EsSettingsFile.Location.Value));
+        Assert.DoesNotContain("..", EsSettingsFile.Location.Value, StringComparison.Ordinal);
+        Assert.True(fixture.Install.Contains(fixture.Install.Resolve(EsSettingsFile.Location)));
+
+        foreach (var save in fixture.Store.Saves.List())
+        {
+            Assert.False(Path.IsPathRooted(save.Path.Value));
+            Assert.StartsWith("saves/", save.Path.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain("..", save.Path.Value, StringComparison.Ordinal);
+            Assert.True(fixture.Install.Contains(fixture.Install.Resolve(save.Path)));
+            Assert.True(limits.CanHold(save.SizeBytes));
+        }
+
+        // The stored conversion names a rom filename, never a path, so a move cannot stale it.
+        var conversion = Assert.Single(fixture.Store.SaveConversions.List());
+        Assert.DoesNotContain('/', conversion.FsName);
+        Assert.DoesNotContain('\\', conversion.FsName);
+        Assert.DoesNotContain('/', conversion.System);
+    }
+
+    [Fact]
+    public void Converting_and_reverting_need_no_server_at_all()
+    {
+        // Offline is a working state, and a conversion is a local operation by design: it
+        // changes where an emulator will write, which is nobody's business but this device's.
+        // The fixture holds no connection and none of this reaches for one.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+
+        Assert.Equal(ConversionStatus.Ready, fixture.Converter().Preview(191723).Status);
+        Assert.Equal(ConversionStatus.Converted, fixture.Converter().Convert(191723).Status);
+        Assert.Equal(ConversionStatus.NoChange, fixture.Converter().Convert(191723).Status);
+        Assert.Equal(ConversionStatus.Reverted, fixture.Converter().Revert(191723).Status);
+
+        // Idempotent under replay in both directions: a repeated revert refuses rather than
+        // half-restoring something, and neither direction queues anything for a server.
+        Assert.Equal(ConversionStatus.Refused, fixture.Converter().Revert(191723).Status);
+        Assert.Empty(fixture.Store.SaveConversions.List());
+        Assert.Equal(0, fixture.Store.Outbox.PendingCount());
+    }
+
     private sealed class ConvertTree : IDisposable
     {
         private readonly TempRetroBatTree _tree;
@@ -330,6 +434,15 @@ public class SaveConverterTests
             var tree = TempRetroBatTree.Create();
             var install = tree.Install();
             return new ConvertTree(tree, install, LocalStore.Open(install));
+        }
+
+        /// <summary>The same tree at a different root, which is the drive-letter change.</summary>
+        public ConvertTree CopyToNewLocation()
+        {
+            Store.Dispose();
+            var moved = _tree.CopyToNewLocation();
+            var install = moved.Install();
+            return new ConvertTree(moved, install, LocalStore.OpenAt(install.DatabasePath));
         }
 
         public SaveConverter Converter() => new(Install, Store);
