@@ -25,9 +25,10 @@ namespace RomMBat.Core.Content;
 /// <b>A half-written directory save is a corrupt one, so everything that can be done off to one
 /// side is.</b> The unit is extracted beside its container, verified against the hash of what
 /// came out, and only then swapped in, with the previous copy kept until the next successful
-/// sync. <b>The swap is not itself atomic</b>: members go in one at a time, because the container
-/// is shared with every other game on the system and cannot be swapped whole. See
-/// <see cref="SaveUnitTransfer.Restore"/> and #38.
+/// sync. <b>The swap is not one filesystem operation</b>: members go in one at a time, because
+/// the container is shared with every other game on the system and cannot be swapped whole. It
+/// is all-or-nothing anyway, since a failure partway is rolled back from the copy aside. See
+/// <see cref="SaveUnitTransfer.Restore"/>.
 /// </para>
 /// </remarks>
 public static class SaveArchive

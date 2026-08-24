@@ -43,13 +43,22 @@ internal static class SavesCommand
         {
             // Both passes get the schema, so a state is never listed as unsyncable by one while
             // the other is uploading it.
+            //
+            // The state scan runs first and is printed second. The sidecar attribution route
+            // reads local_state and SaveScanner is what runs it, so scanning saves first left
+            // the route reading an empty table on a first invocation, and a class C unit stayed
+            // unattributed until a second one (#64). The order of the two summaries is what a
+            // reader expects and is independent of the order the passes run in.
             var schema = StateScanner.LoadSchema(context.Install);
+
+            var states = schema is null
+                ? null
+                : new StateScanner(context.Install, context.Store, schema).Scan();
 
             Console.WriteLine(new SaveScanner(context.Install, context.Store, states: schema).Scan().Summary);
 
-            if (schema is not null)
+            if (states is not null)
             {
-                var states = new StateScanner(context.Install, context.Store, schema).Scan();
                 Console.WriteLine(states.Summary);
                 ReportNearMisses(states);
             }

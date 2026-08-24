@@ -68,10 +68,23 @@ internal static class AgentRunner
     /// everything. The upstream template is linked from <c>reference/</c> for the same reason
     /// the Core suite links it: it carries the parser traps a synthesized file does not.
     /// </remarks>
-    public static void WriteEsSystems(TempRetroBatTree tree)
+    public static void WriteEsSystems(TempRetroBatTree tree) =>
+        CopyFixture(tree, "es_systems.template.cfg", "es_systems.cfg");
+
+    /// <summary>
+    /// Puts RetroBat's shipped <c>es_savestates.cfg</c> into a throwaway tree.
+    /// </summary>
+    /// <remarks>
+    /// Without it <c>StateScanner.LoadSchema</c> answers null and no state is ever recorded, so
+    /// a command whose behaviour turns on the state scan cannot be driven at all.
+    /// </remarks>
+    public static void WriteEsSaveStates(TempRetroBatTree tree) =>
+        CopyFixture(tree, "es_savestates.template.cfg", "es_savestates.cfg");
+
+    private static void CopyFixture(TempRetroBatTree tree, string fixture, string name)
     {
-        var source = Path.Combine(AppContext.BaseDirectory, "fixtures", "es_systems.template.cfg");
-        var destination = Path.Combine(tree.Root, "emulationstation", ".emulationstation", "es_systems.cfg");
+        var source = Path.Combine(AppContext.BaseDirectory, "fixtures", fixture);
+        var destination = Path.Combine(tree.Root, "emulationstation", ".emulationstation", name);
 
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         File.Copy(source, destination, overwrite: true);

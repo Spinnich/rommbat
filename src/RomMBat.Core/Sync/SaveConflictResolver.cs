@@ -70,8 +70,7 @@ public sealed class SaveConflictResolver
     /// Everything that differs from the single-file path is here rather than branched through
     /// it, because the two verify differently and mixing them is what produced a resolution that
     /// could never succeed. The restore itself is the same helper the ordinary sync path uses,
-    /// so the staging and the copy-aside cannot drift between the two callers, and neither can
-    /// the gap #38 records.
+    /// so the staging, the copy-aside and the rollback cannot drift between the two callers.
     /// </remarks>
     private async Task<ConflictResolutionOutcome> FinishUnitAsync(
         SaveConflictRecord conflict,
@@ -340,7 +339,8 @@ public sealed class SaveConflictResolver
                 // 0391c0a9 and the conflict recorded 174b2e82", and nothing was written.
                 //
                 // The shared restore verifies what can be verified, by CRC per entry, and swaps
-                // the unit in with the previous members copied aside. Not atomically: see #38.
+                // the unit in with the previous members copied aside. Per member rather than
+                // whole, since the container is shared, and rolled back if it fails partway.
                 return await FinishUnitAsync(conflict, unitRow, saveId, part, cancellationToken)
                     .ConfigureAwait(false);
             }

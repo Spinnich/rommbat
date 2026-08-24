@@ -103,7 +103,17 @@ internal static class FlushCommand
         //
         // The state schema goes into both passes: the save scan needs it so it does not report
         // a state as unsyncable in the same run that uploads it.
+        //
+        // The state scan runs first. The sidecar attribution route reads local_state and
+        // SaveScanner is what runs it, so scanning saves first left the route reading an empty
+        // table on the first flush after an install is set up, and the class C saves it would
+        // have attributed went up on the second flush instead (#64).
         var schema = StateScanner.LoadSchema(context.Install);
+
+        var scannedStates = schema is null
+            ? null
+            : new StateScanner(context.Install, context.Store, schema).Scan();
+
         var scanned = new SaveScanner(context.Install, context.Store, states: schema).Scan();
 
         if (!quiet)
@@ -112,15 +122,13 @@ internal static class FlushCommand
         }
 
         // 3b. And the states, which are found the same way and sent a different way.
-        if (schema is not null)
+        if (scannedStates is not null)
         {
-            var states = new StateScanner(context.Install, context.Store, schema).Scan();
-
             if (!quiet)
             {
-                Console.WriteLine(states.Summary);
+                Console.WriteLine(scannedStates.Summary);
 
-                foreach (var miss in states.NearMisses)
+                foreach (var miss in scannedStates.NearMisses)
                 {
                     // One line here rather than the two `saves` prints: a flush is not the
                     // report, and the point is that the file stops being invisible.
