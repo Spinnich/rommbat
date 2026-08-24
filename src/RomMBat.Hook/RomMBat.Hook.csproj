@@ -17,13 +17,26 @@
     <!--
       Deliberately references nothing, not even RomMBat.Core. Four copies of this file are
       installed, one per event folder, so every megabyte is paid four times on a portable
-      drive. Measured: 11.0 MB like this, 15.1 MB the moment Microsoft.Data.Sqlite is
-      referenced, and 75.5 MB if the agent itself were installed as the hook.
+      drive. Measured: 12.8 MB like this, 15.1 MB the moment Microsoft.Data.Sqlite is
+      referenced, and 75.9 MB if the agent itself were installed as the hook.
     -->
     <PublishTrimmed>true</PublishTrimmed>
     <PublishSingleFile>true</PublishSingleFile>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Required because the app is trimmed. Trimming rewrites the framework assemblies and
+      discards the precompiled native code they ship with, so a trimmed app with no R2R of
+      its own JITs everything from IL on every start. Measured on a USB stick, one hook
+      invocation: 111 ms trimmed without this, 49 ms with it, and 74 ms untrimmed. The 62 ms
+      is JIT and not disk, which is why it shows up on the spool write too: the same
+      File.Move costs 51.5 ms in the trimmed build and 7.0 ms here.
+
+      It costs 1.8 MB per copy, 7.2 MB across the four installs, against 1.7 MB saved by
+      EnableCompressionInSingleFile, which is kept because it is nearly free at 4 ms.
+    -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <!--

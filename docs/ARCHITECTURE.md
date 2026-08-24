@@ -132,9 +132,13 @@ one subcommand that needs the network and a decision from a person, and the only
 one by hand.
 
 **Nothing invokes `flush` except `sync` and a person typing it.** The hooks write a spool file
-and exit without starting a process, and the UI that would drive one is M7. Having a hook spawn
-an agent puts an 11 MB process start inside the game-launch path, and that cost has to be
-measured on a real install before it is added; the measurement is still outstanding.
+and exit without starting a process, and the UI that would drive one is M7. The reason recorded
+here used to be that a spawn would put an 11 MB process start inside the game-launch path, and
+**the measurement has since refuted that** (findings 195 and 197). ES spawns hooks
+fire-and-forget and starts emulatorlauncher without waiting; the 75.9 MB agent reaches `Main` in
+34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun` throws the
+framework's precompiled code away. Cost is not the obstacle. CLAUDE.md rule 4 is, because a
+spawned `flush` reaches the network from inside the launch window, and that is M7's call.
 
 `game-start` and `game-end` run inside the game launch path. They must not open a socket and
 must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not

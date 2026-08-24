@@ -45,9 +45,12 @@ the source of truth; the network is optional, probed with a short-timeout
   The intent was that `start`, `game-end` and `quit` each wake an agent and the UI drive one
   while it runs; neither shipped. The hook writes a spool file and exits without starting a
   process, and the UI is M7. That is tolerable because draining is idempotent and a spool file
-  waits indefinitely, and it is deliberately not fixed by having the hook spawn something: that
-  puts an 11 MB process start inside the game-launch path, and the cost has to be measured on a
-  real install first. **That measurement is still outstanding.**
+  waits indefinitely. It was also said to be deliberately not fixed by having the hook spawn
+  something, on the grounds of an 11 MB process start inside the game-launch path. **That
+  measurement has now been taken and it went the other way** (findings 195 and 197): ES does not
+  wait for a hook, and the 75.9 MB agent starts faster than the 11 MB hook because trimming
+  without `PublishReadyToRun` discards the framework's precompiled code. Cost is not the reason
+  to refuse a spawn. **Rule 4 is**, and it is about the network rather than about milliseconds.
 
 - Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
   under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave
