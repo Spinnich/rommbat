@@ -38,18 +38,25 @@ public sealed record EsSetting(string Name, EsSettingGroup Group, string Value);
 /// <c>global.&lt;key&gt;</c>, then <c>&lt;system&gt;.&lt;key&gt;</c>, then
 /// <c>&lt;system&gt;["&lt;rom filename&gt;"].&lt;key&gt;</c>, each beating the one before it.
 /// <para>
-/// <b>ES owns this file and RomMBat is the second writer, so merge and never clobber.</b> M0
-/// measured what that has to survive, and the results are gentler than the gamelist's:
+/// <b>ES owns this file and RomMBat is the second writer, so merge and never clobber.</b> That
+/// is necessary and not sufficient, and what the second writer has to survive is harsher than
+/// the gamelist's:
 /// </para>
 /// <list type="bullet">
-/// <item>ES rewrites the file <b>only when a setting changed that session</b>. A start-and-quit,
-/// and even a session that launched a game, left it untouched to the second.</item>
-/// <item>When it does rewrite, it <b>keeps keys it cannot understand</b>, a deliberate nonsense
-/// key included. So the hazard is ordinary two-writer contention, not ES eating the override.</item>
+/// <item><b>Never write while EmulationStation is running, because the write is discarded.</b>
+/// ES loads this file at startup and serialises that model on every write, so a key present at
+/// load survives, ones ES cannot understand included, and a key that appears afterwards does
+/// not. Merging and atomicity do not help: both were done and the write still vanished. M0's
+/// nonsense key survived because it predated the load. Findings 178 and 179.</item>
+/// <item>ES writes <b>twice a session</b>, during launch as well as on exit, so the safe window
+/// is strictly while ES is not running. <see cref="EmulationStationProcess"/> is what decides
+/// that, and a caller re-reads afterwards rather than trusting the rename.</item>
 /// <item>It <b>prunes any setting whose value equals its own default</b>, measured on
 /// <c>Language</c>. A custom key has no default to match, but this is why
 /// <see cref="Value"/> returning null must never be read as the user having reverted
 /// something. Absence and revert are different states and this file cannot tell them apart.</item>
+/// <item>It also <b>adds keys on its own</b>: <c>Language</c> appeared unprompted on two
+/// installs, so presence is not evidence of authorship either. Finding 170.</item>
 /// </list>
 /// <para>
 /// Rendered tab-indented with LF endings, no BOM, and a bare <c>&lt;?xml version="1.0"?&gt;</c>,
