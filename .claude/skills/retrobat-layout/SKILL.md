@@ -152,8 +152,20 @@ Leave `duckstation_memcardtype` alone. The stock `PerGameTitle` keys the card by
 internal database title, which sounds worse than a filename key until a multi-disc set is
 driven: the title is `gamedb.yaml`'s `saveName` with the disc marker stripped, so the whole set
 shares one card while regions stay separate. `PerGameFileTitle` keys on three separate
-filenames and splits it. Also watch `dolphin_sync_saves`, which has RetroBat copying saves
-between the dolphin and libretro-dolphin folders on its own.
+filenames and splits it.
+
+**`dolphin_sync_saves` does not do what its description says, and four documents repeated the
+description.** It is GameCube only, it runs once per launch inside `emulatorlauncher` before
+Dolphin starts, and it reconciles `saves/gamecube/dolphin-emu/User/GC/<REGION>/` against a
+**`Card A/` subdirectory of that same folder**, newest wins, loser renamed `.old`, every failure
+swallowed. A `.gci` in `Card A` with nothing beside it is copied **back out**, so a save removed
+from the region root reappears one session stale. `DolphinSaveSync` detects and reports it and
+never acts on it. Finding 189.
+
+**GameCube's save class is set by `dolphin_slotA`, which the menu calls SAVE FORMAT.** `8` is
+the GCI folder RomMBat treats as class C; `1` is one shared raw `SRAM.<REGION>.raw`, class D.
+Slot B is never rewritten by RetroBat, so it stays at Dolphin's stock relative default in
+top-level `saves/dolphin/`, outside every declared container. Finding 193.
 
 **Never write this file while EmulationStation is running. The write is discarded.** ES loads
 `es_settings.cfg` at startup and serialises that model on every write, so a key present at load

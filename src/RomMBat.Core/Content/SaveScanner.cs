@@ -122,6 +122,8 @@ public sealed class SaveScanner
         // naming the last file and counting one, which understates the gap it exists to show.
         var report = new UnsyncableReport();
 
+        ReportDolphinSaveSync(report);
+
         // (folder, ROM basename) to (rom_id, path), which is the whole of class A and B
         // attribution: the save is named after the ROM file, inside its system's folder.
         // Built once rather than queried per save.
@@ -602,6 +604,54 @@ public sealed class SaveScanner
         }
 
         return reported;
+    }
+
+    /// <summary>
+    /// Names RetroBat's own GameCube save reconciliation, when it is running or has run.
+    /// </summary>
+    /// <remarks>
+    /// Outside the per-system loop because it is true of the install rather than of a directory
+    /// walk, and because the option is worth reporting before <c>saves/gamecube/</c> exists at
+    /// all: a user who turns it on and then syncs a GameCube game should be told before the
+    /// first launch makes the copies, not after.
+    /// <para>
+    /// A missing or unreadable es_settings.cfg is treated as the option being off, and the tree
+    /// is still walked. That is the fail-closed direction here: the warning is about files that
+    /// exist, and they exist whether or not the setting can be read.
+    /// </para>
+    /// </remarks>
+    private void ReportDolphinSaveSync(UnsyncableReport report)
+    {
+        EsSettingsFile? settings = null;
+
+        try
+        {
+            var path = _install.Resolve(EsSettingsFile.Location);
+
+            if (File.Exists(path))
+            {
+                settings = EsSettingsFile.Load(path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // Reported as off. Nothing here acts on the answer, so a missed warning is the
+            // whole cost of being wrong.
+        }
+
+        var state = DolphinSaveSync.Inspect(_install, settings);
+
+        if (!state.WorthReporting)
+        {
+            return;
+        }
+
+        report.Add(
+            DolphinSaveSync.System,
+            "dolphin-emu",
+            UnsyncableReason.ManagedElsewhere,
+            DolphinSaveSync.Describe(state),
+            state.CopiedFiles);
     }
 
     private static List<string> SafeEnumerateFiles(string directory)

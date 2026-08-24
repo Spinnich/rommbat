@@ -16,6 +16,12 @@ public enum UnsyncableReason
 
     /// <summary>The shape is supported and the save could not be tied to a ROM.</summary>
     Unattributed,
+
+    /// <summary>
+    /// Understood, attributable, and already being kept in step by something that is not
+    /// RomMBat. Reported so the user knows a second copy exists, never acted on.
+    /// </summary>
+    ManagedElsewhere,
 }
 
 /// <summary>One thing that cannot be synced, and why.</summary>
@@ -120,6 +126,7 @@ public sealed class UnsyncableStore
         UnsyncableReason.UnknownShape => "unknown_shape",
         UnsyncableReason.SharedContainer => "shared_container",
         UnsyncableReason.Unattributed => "unattributed",
+        UnsyncableReason.ManagedElsewhere => "managed_elsewhere",
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 
@@ -129,6 +136,7 @@ public sealed class UnsyncableStore
         "unknown_shape" => UnsyncableReason.UnknownShape,
         "shared_container" => UnsyncableReason.SharedContainer,
         "unattributed" => UnsyncableReason.Unattributed,
+        "managed_elsewhere" => UnsyncableReason.ManagedElsewhere,
         _ => throw new InvalidOperationException($"Unknown unsyncable reason '{value}' in the database."),
     };
 }

@@ -1711,10 +1711,17 @@ mitigation and not an answer.
   drive one while it runs. Neither shipped: the hook writes a spool file and exits without
   starting a process, and the UI is M7. So `sync` and a typed `flush` are the whole of the
   trigger set, and an install that is never synced spools events and sends nothing. That is
-  tolerable because draining is idempotent and a spool file waits indefinitely, and it is
-  deliberately not fixed by having the hook spawn something: the hook runs inside the
-  game-launch path, where the cost of starting an 11 MB process has to be measured before it
-  is added, not assumed. Stage 2 owns that measurement.
+  tolerable because draining is idempotent and a spool file waits indefinitely. It was also
+  deliberately not fixed by having the hook spawn something, on the grounds that the hook runs
+  inside the game-launch path and an 11 MB process start there had to be measured first.
+  **That measurement is now taken and the reasoning was wrong** (findings 195 and 197). ES does
+  not wait for a hook: across 23 real launches the hook's own timestamp lands a median of 24 ms
+  _after_ emulatorlauncher's, which then spends 0.5 s to 2.8 s before the emulator starts. And
+  size was never the cost: the 75.9 MB agent reaches `Main` in 34 ms while the 11 MB hook takes
+  60 ms, because trimming without `PublishReadyToRun` discards the framework's precompiled code.
+  So **process-start cost is not a reason to refuse a spawn**. What still stands is CLAUDE.md
+  rule 4, which is about the network and not about cost, and a spawned `flush` would put a
+  network call in the launch window. That is M7's decision, not a measurement.
 
   **Still not measured after M6 stage 2a, and the reason is permission rather than oversight.**
   Taking it means replacing the hook binary on the real install and launching a game, which is a
@@ -2254,9 +2261,18 @@ convert single-disc titles and leave multi-disc sets shared, reporting why. See
 [freegosy-findings.md](freegosy-findings.md), F18.
 
 **Watch out for `dolphin_sync_saves`**, also in `es_features.cfg`: "RetroBat will sync
-dolphin and libretro-dolphin saves folders." That is RetroBat moving save files between two
-locations behind our back. Detect it and account for it before treating either location as
-authoritative.
+dolphin and libretro-dolphin saves folders." **The description is wrong and so was this
+paragraph** until finding 189 read `Dolphin.Generator.cs` and drove it. It is **GameCube only**,
+it runs **once per launch inside emulatorlauncher, before Dolphin starts**, and the two
+locations are `saves/gamecube/dolphin-emu/User/GC/<REGION>/` and a **`Card A/` subdirectory of
+it**. Nothing moves while RomMBat is running.
+
+`DolphinSaveSync` detects it and reports it, and never acts on it. The hazard is not the mtime
+comparison, which a restored save always wins because it carries the current time: it is the
+one-sided branch. **A `.gci` in `Card A` with nothing beside it is copied back out**, so a save
+RomMBat removed reappears holding whatever that copy held, reported by RetroBat as one INFO
+line. `Card A` is invisible to class C discovery, which is correct and is also why RomMBat
+cannot see it coming, so the user is told instead.
 
 So PS1 and GameCube are **already per-game in a stock RetroBat**, and the class-D list is
 much shorter than it first appears. PS2 needs one option flipped. The earlier framing of

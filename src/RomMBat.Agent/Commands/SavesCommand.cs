@@ -638,6 +638,7 @@ internal static class SavesCommand
         UnsyncableReason.UnknownShape => "shape not recognised",
         UnsyncableReason.SharedContainer => "shared by several games",
         UnsyncableReason.Unattributed => "no matching ROM",
+        UnsyncableReason.ManagedElsewhere => "RetroBat is also copying these",
         _ => "unknown",
     };
 }

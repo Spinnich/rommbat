@@ -126,11 +126,48 @@ a different version. RetroBat's own wiki warns that states break across emulator
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
 defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
 that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
-after the ROM basename, which makes attribution trivial on a single-disc title.
+after the ROM stem, which makes attribution trivial on a single-disc title.
+
+**GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
+labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
+shared raw `SRAM.<REGION>.raw` that is class D. So GameCube is class C only at the default, and
+a user who picked the tidier-sounding option has a shared card RomMBat's class C scan finds
+nothing in. **Slot B is already there**: RetroBat only ever writes `SlotB` when
+`dolphin_microphone` is on, so it stays at Dolphin's stock relative default and a 16 MB
+`saves/dolphin/User/GC/SRAM.<REGION>.raw` accumulates outside every declared container. Finding
+193, and the same shape of trap as PCSX2's four menu entries.
 
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
+
+## Somebody else may be writing to the same directory
+
+**`dolphin_sync_saves` is the one measured case, and the repository described it wrongly for
+four documents.** It is not a background schedule and it is not two emulator folders. It is
+GameCube only, it runs once per launch inside `emulatorlauncher` before Dolphin starts, and it
+reconciles `saves/gamecube/dolphin-emu/User/GC/<REGION>/` against a **`Card A/` subdirectory of
+that same folder**. Newest wins by mtime, the loser is renamed `.old`, and every failure is
+swallowed by a bare `catch`.
+
+**The hazard is the one-sided branch, not the mtime comparison.** A save RomMBat restores is
+written with the current time, so it always wins; that direction is safe. But a `.gci` sitting in
+`Card A` with nothing beside it is copied **back out**, so a save RomMBat removed reappears
+holding whatever `Card A` captured at some earlier launch. Driven on hardware: deleting the
+region-root file and launching restored the _previous_ session's bytes, and the only trace was
+`[INFO] GameCube saves have been synced.` Findings 190 and 191.
+
+`Card A` is invisible to class C discovery, and that is correct rather than a bug:
+`SaveUnitScanner` enumerates one level, so it can neither double-count the copies nor be fooled
+by a `.gci.old`. It is also why RomMBat cannot see the resurrection coming, which is why
+`DolphinSaveSync` exists.
+
+**Detect and report, never act.** `DolphinSaveSync.Inspect` reads the key at es_settings.cfg's
+own precedence and walks the three region folders, and the result becomes an
+`UnsyncableReason.ManagedElsewhere` row. Two writers reconciling one directory by different
+rules is how saves get lost, so RomMBat does not read `Card A`, does not upload it and does not
+delete it. **Report when the option is off too**: turning it off deletes nothing, so the copies
+outlive the setting and regain their effect the moment it comes back on.
 
 **Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
 driven under stock `PerGameTitle` produced **one card for the set**:
