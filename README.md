@@ -48,11 +48,12 @@ and through the companion-app protocol RomM already ships.
 
 1. **Offline-first.** RomMBat runs on handheld Windows gaming PCs that are away from the
    RomM instance for days. Local SQLite is the source of truth; the network is optional.
-   The EmulationStation hooks sit in the game launch path, so they append to a durable
-   local journal and exit, never opening a socket. Measured: they do not block the launch,
+   The `game-start` and `game-end` hooks sit in the game launch path, so they append to a
+   durable local journal, exit, and start nothing. Measured: they do not block the launch,
    the emulator starts about 30 ms later regardless, but they do run **concurrently**, so
-   the journal has to survive interleaved writers. A short-lived agent flushes the outbox
-   when the server is reachable.
+   the journal has to survive interleaved writers. The `start` and `quit` hooks are outside
+   that path and each starts a short-lived agent pass, which is what flushes the outbox when
+   the server is reachable and is why an install nobody administers from a terminal works.
 2. **Libraries reach 100,000+ games**, so the catalog is never mirrored. Online browsing
    is a thin paged client over the API; offline browsing shows the local subset. ROM
    content is strictly opt-in and bounded by a disk budget with eviction.
@@ -142,7 +143,7 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 
 ### Pairing from the console
 
-Until the gamepad UI lands in M7, pairing runs from the agent, QR included:
+Until the gamepad UI lands in M7 stage 7b, pairing runs from the agent, QR included:
 
 ```powershell
 emulators\rommbat\rommbat-agent.exe pair --server https://your-romm-instance
@@ -176,16 +177,30 @@ rommbat-agent.exe saves bind psp ULUS10057 391                     # whose direc
 rommbat-agent.exe saves bind psp ULUS10057 --forget                # work it out again from scratch
 rommbat-agent.exe saves convert 191723                             # what converting this game would do
 rommbat-agent.exe saves convert 191723 --apply                     # give it its own memory card
-rommbat-agent.exe saves convert 191723 --revert                    # put the setting back
+rommbat-agent.exe saves convert 191723 --at-quit                   # make the change when ES next closes
+rommbat-agent.exe saves convert 191723 --revert                    # put the setting back, or call off a queued change
 rommbat-agent.exe flush                      # send queued saves and play sessions
 rommbat-agent.exe flush --offline            # do the local half only
 rommbat-agent.exe hooks status               # are the EmulationStation hooks installed
 rommbat-agent.exe hooks uninstall            # take them back out
+rommbat-agent.exe menu status                # is RomMBat in the EmulationStation menu
+rommbat-agent.exe menu uninstall             # take the entry back out
 ```
 
-`sync` installs the hooks on its first run, naming every file it adds, and flushes at the
-end, so neither is normally typed. Without them there is no playtime and no way to tell which
-game wrote a save.
+`sync` installs the hooks **and the EmulationStation menu entry** on its first run, naming
+every file it adds, and flushes at the end, so none of it is normally typed. Without the
+hooks there is no playtime and no way to tell which game wrote a save.
+
+**Nothing above has to be typed at all on an ordinary install.** The `start` and `quit` hooks
+each start a background pass, so saves and play sessions go up when EmulationStation opens and
+when it closes. `game-start` and `game-end` start nothing: those two run inside the game-launch
+path, write one line to a local journal, and exit.
+
+**`saves convert` needs EmulationStation closed, or `--at-quit`.** EmulationStation loads its
+settings at startup and writes that copy back over anything changed underneath it, so a change
+made while it is running is discarded without saying so. `--at-quit` records the change and it
+is made the next time you close EmulationStation, which is also the only way RomMBat's own
+screen can change it, since that screen is opened from the EmulationStation menu.
 
 **This release syncs battery saves, save states, directory saves, shared containers you opt
 in, and play sessions.** A directory save such as PPSSPP's `SAVEDATA/` goes up as one archive
@@ -255,17 +270,17 @@ drive with plenty free.
 RomMBat is built in milestones, and platforms are certified one at a time after the
 framework works end to end.
 
-| Milestone | Scope                                                                                                               | State                                                                                                          |
-| --------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                                    |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                        |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet        |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance        |
-| M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance |
-| M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                     |
-| M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                             |
-| M7        | Gamepad UI (framework choice deferred to this milestone)                                                            | Not started                                                                                                    |
-| M8        | Packaging, docs, release                                                                                            | Not started                                                                                                    |
+| Milestone | Scope                                                                                                               | State                                                                                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                                                            |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                                                |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet                                |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance                                |
+| M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance                         |
+| M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                                             |
+| M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                                                     |
+| M7        | Closing the EmulationStation loop, then the gamepad UI                                                              | **Stage 7a complete.** Hooks start the sync passes, RomMBat is in the ES menu, config changes can wait for a quit. The UI itself is 7b |
+| M8        | Packaging, docs, release                                                                                            | Not started                                                                                                                            |
 
 M6 is the one milestone where a missed detail loses a save rather than a download, so it
 ships in stages small enough to review. The first cut is at the save-class boundary; the
@@ -331,7 +346,7 @@ two cores has independent state sets. So "snes is certified" is not a claim; "`s
 `libretro`/`snes9x` is certified" is, and it says nothing about `snes` under `bizhawk`. Expect
 the table below to be two to four passes per row rather than one.
 
-**Certification starts after M7.** Every pass needs a person at the machine launching real
+**Certification starts after M7 stage 7b.** Every pass needs a person at the machine launching real
 games, and doing that through a terminal rather than the gamepad UI makes a long job longer.
 The waves then finish against an M8 package, which is what a user would actually install.
 
@@ -371,7 +386,7 @@ src/RomM.Client/openapi
                       it is. Generated output is committed under Generated/
 src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
 src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
-src/RomMBat.UI        Gamepad-navigable front end (framework chosen in M7)
+src/RomMBat.UI        Gamepad-navigable front end (Avalonia, settled in M7 stage 7a; still a stub)
 tests/RomMBat.Tests   xUnit, over Core and Client
 tests/RomMBat.Agent.Tests
                       xUnit, over the Agent's subcommands and their gates

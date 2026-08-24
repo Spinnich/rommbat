@@ -786,10 +786,28 @@ The six results that moved the design most:
 - `RomMBat.Core` - local state and everything that knows about RetroBat's disk layout.
   Owns the SQLite schema, the outbox, sync-set resolution, and the gamelist merger.
 - `RomMBat.Agent` - console exe. Subcommands: `pair`, `sync`, `game-start`, `game-end`,
-  `flush`, `status`. The `game-*` subcommands are journal-only and must never open a
-  socket.
-- `RomMBat.UI` - full-screen gamepad-navigable app. Avalonia (cross-platform,
-  gamepad-friendly) or WPF (Windows-only, matches RetroBat tooling). Pick in M7.
+  `flush`, `background`, `status`, and more. The `game-*` subcommands are journal-only and
+  must never open a socket; `background <event>` is the pass the `start` and `quit` hooks
+  spawn, and it is the only subcommand a person is not expected to type.
+- `RomMBat.UI` - full-screen gamepad-navigable app. **Avalonia**, settled in M7 stage 7a so
+  7b does not reopen it, and the deciding argument is not the cross-platform one.
+
+  **WPF cannot be trimmed at all**, and M6 measured what that costs: `PublishTrimmed`
+  without `PublishReadyToRun` discards the framework's precompiled native code, and the
+  numbers that came out of chasing it are the reason the hook is R2R today. A UI that
+  cannot participate in either lever is a UI whose start time cannot be worked on. WPF also
+  needs the Windows Desktop runtime inside a self-contained publish, on top of the 76 MB
+  the agent already costs on a portable drive.
+
+  Avalonia renders through Skia, so what the handheld shows does not depend on the machine's
+  Windows Desktop stack, and it supports trimming and AOT if either is ever needed. The
+  cross-platform argument is real but is **not** why: RomMBat ships win-x64 and nothing in
+  this plan targets anything else.
+
+  This binds the framework and nothing else. Presentation owns no logic, which is what made
+  deferring cheap and what keeps the decision cheap to revisit: set resolution, mapping,
+  conflict handling and the outbox all live in Core.
+
 - `*.Tests` - xUnit.
 
 Everything the app owns lives inside the RetroBat tree: binaries, SQLite database, logs,
@@ -1706,28 +1724,27 @@ mitigation and not an answer.
   never opens the UI still gets their saves up, and a flush that has already happened costs
   one query.
 
-  **Amended after M6 stage 1: the hooks do not invoke it, and in stage 1 nothing else does
-  either.** The intent was that `start`, `game-end` and `quit` each wake an agent, and the UI
-  drive one while it runs. Neither shipped: the hook writes a spool file and exits without
-  starting a process, and the UI is M7. So `sync` and a typed `flush` are the whole of the
-  trigger set, and an install that is never synced spools events and sends nothing. That is
-  tolerable because draining is idempotent and a spool file waits indefinitely. It was also
-  deliberately not fixed by having the hook spawn something, on the grounds that the hook runs
-  inside the game-launch path and an 11 MB process start there had to be measured first.
-  **That measurement is now taken and the reasoning was wrong** (findings 195 and 197). ES does
-  not wait for a hook: across 23 real launches the hook's own timestamp lands a median of 24 ms
-  _after_ emulatorlauncher's, which then spends 0.5 s to 2.8 s before the emulator starts. And
-  size was never the cost: the 75.9 MB agent reaches `Main` in 34 ms while the 11 MB hook takes
-  60 ms, because trimming without `PublishReadyToRun` discards the framework's precompiled code.
-  So **process-start cost is not a reason to refuse a spawn**. What still stands is CLAUDE.md
-  rule 4, which is about the network and not about cost, and a spawned `flush` would put a
-  network call in the launch window. That is M7's decision, not a measurement.
+  **Amended twice, and closed in M7 stage 7a.** The intent from the start was that `start`,
+  `game-end` and `quit` each wake an agent and the UI drive one while it runs. Through M6
+  none of that shipped: the hook wrote a spool file and exited without starting a process, so
+  `sync` and a typed `flush` were the whole trigger set and an install nobody synced spooled
+  events and sent nothing. It was tolerable only because draining is idempotent and a spool
+  file waits indefinitely.
 
-  **Still not measured after M6 stage 2a, and the reason is permission rather than oversight.**
-  Taking it means replacing the hook binary on the real install and launching a game, which is a
-  write into the user's RetroBat tree; that was not authorised for this branch. So the trigger
-  set is unchanged, `sync` and a typed `flush` are still the whole of it, and this measurement
-  moves to whichever stage next has permission to write into a real install.
+  **The reason recorded for not fixing it was wrong, and the measurement that settled it also
+  removed the objection** (findings 195 and 197). ES does not wait for a hook: across 23 real
+  launches the hook's own timestamp lands a median of 24 ms _after_ emulatorlauncher's, which
+  then spends 0.5 s to 2.8 s before the emulator starts. And size was never the cost: the
+  75.9 MB agent reaches `Main` in 34 ms while the 11 MB hook takes 60 ms, because trimming
+  without `PublishReadyToRun` discards the framework's precompiled code.
+
+  **So 7a has the `start` and `quit` hooks spawn `background <event>`, and leaves `game-start`
+  and `game-end` spawning nothing.** That is CLAUDE.md rule 4 narrowed to what its own second
+  sentence says rather than bent: the rule forbids a hook touching the network _because_ hooks
+  run in the game-launch path, and only two of the four do. `game-end` was on the original
+  wish list and stays off it for exactly that reason; the `quit` that follows it picks its
+  work up. Driven on hardware: two sessions, `start` and `quit` each spawned a pass that
+  reached the server and finished with exit 0, with no terminal used.
 
 - **Hook installation happens on the first `sync`, announced, and `hooks uninstall` reverses
   it.** The opt-in rule that governs class D exists because flipping a memory card mode
@@ -2553,17 +2570,53 @@ principle and are deliberately refused, each with its measured reason: Dreamcast
 is serial-keyed and needs the Game-ID routes, and DuckStation's stock mode already binds a disc
 set through its own database, so converting PS1 is the change that would break one.
 
-### M7: gamepad UI
+### M7: closing the loop, then the gamepad UI
+
+**Three stages, and the first ships no interface at all.** That is the point of cutting it
+out: everything in 7a is provable from EmulationStation with the agent alone, and none of it
+has to wait on the framework choice above.
+
+#### 7a: close the loop (done)
+
+The question that opened M7's planning was whether EmulationStation is what a user lives in
+after a sync, or whether that was only ever an aspiration. It is what has been built, and
+until this stage the loop did not close: the hooks wrote a spool file and exited, and nothing
+drained it except `sync` or a person typing `flush`.
+
+- **The `start` and `quit` hooks spawn `background <event>`**, a detached agent pass, which
+  is what makes an install that nobody administers from a terminal work at all.
+  `game-start` and `game-end` spawn nothing, which is core principle 1's rule narrowed to
+  the path it was always about rather than to all four events.
+- **The ES menu entry**, which had been prose since M0 and is two files: a
+  `system/es_menu/*.menu` naming `\rommbat\RomMBat.exe`, and a `<game>` element merged into
+  `system/es_menu/gamelist.xml`. `sync` installs it beside the hooks and `menu uninstall`
+  removes it. Measured live: a `.menu` written under a running ES appears after
+  `/reloadgames` in 209 ms and its gamelist entry 262 ms later, so no restart is needed.
+- **Queued configuration changes**, migration `012`. The UI is launched from the ES menu, so
+  it always runs under a live ES and can therefore never write `es_settings.cfg`.
+  `saves convert --at-quit` records the intent, `background quit` applies it once the ES
+  process is confirmed gone, and the result survives being applied so the UI can say what
+  happened while it was not running.
+
+#### 7b: the gamepad UI
 
 - Full-screen, controller-navigable: pair, manage sync sets, show sync progress,
   conflicts and the disk budget, browse and install individual games.
 - **Two browse modes.** Online browse pages the server and supports search. Offline browse
   shows the local subset and says plainly that it is offline. Reachability checks use the
   short timeout from M0 experiment 6 so the UI never hangs on an unreachable LAN.
-- Register via `system/es_menu/*.menu` (pattern confirmed in M0) so it is reachable from
-  the couch. Follow Grout's screens as a model: login, platform list, platform mapping,
-  games list, multi-select, sync summary, settings.
+- Follow Grout's screens as a model: login, platform list, platform mapping, games list,
+  multi-select, sync summary, settings. The menu entry that opens it already exists and
+  points at the stub; 7b replaces what is behind it.
+- **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
+  exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.
+
+#### 7c: the wave rollout gate
+
+M7 is what makes the platform rollout bearable, because every certification pass needs a
+person launching games and the gamepad UI is what they do it with. Nothing in the rollout
+starts before 7b lands.
 
 ### M8: packaging, docs, release
 

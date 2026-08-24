@@ -304,6 +304,8 @@ handheld that has been off the network for a week.
 ```powershell
 dotnet run --project src/RomMBat.Agent -- hooks status --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- hooks install --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- menu status --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- menu install --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- saves --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
@@ -317,9 +319,11 @@ dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 391
 dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 --forget
 ```
 
-`sync` installs the hooks on its first run and flushes before anything else it does, so none
-of this is normally typed. `hooks uninstall` removes exactly RomMBat's own file from each
-event folder and nothing else in them.
+`sync` installs the hooks **and the ES menu entry** on its first run and flushes before
+anything else it does, so none of this is normally typed. `hooks uninstall` removes exactly
+RomMBat's own file from each event folder and nothing else in them, and `menu uninstall`
+removes its `.menu`, its artwork and its one `<game>` element, leaving the 93 entries
+RetroBat put in that gamelist alone.
 
 **The hook is its own executable and has to be published before it can be installed.** It is
 not the agent: four copies are installed, one per event folder, so it is built small and
@@ -330,13 +334,26 @@ dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -o publis
 ```
 
 Copy the result to `<root>\emulators\rommbat\rommbat-hook.exe`, which is where
-`hooks install` looks for it. One test skips until this has been run, because it drives 32
-real hook processes at once to prove the journal survives interleaved appends.
+`hooks install` looks for it.
 
-**The hooks do not trigger `flush` in this build.** They write a spool file and exit without
-starting a process, so what a hook records is sent by the next `sync`, or by typing `flush`.
-Nothing is lost in between: draining is idempotent and a spool file waits indefinitely. Hooks
-invoking the agent themselves needs measuring inside the game-launch path and is not stage 1.
+**The `start` and `quit` hooks trigger a pass; `game-start` and `game-end` do not.** Those
+two run inside the game-launch path, so they write a spool file and exit having started
+nothing, and the `start` or `quit` that brackets them picks the record up by spawning
+`rommbat-agent background <event>`. So the agent has to be published and installed at
+`<root>\emulators\rommbat\rommbat-agent.exe` for any of it to happen; a tree with hooks
+and no agent simply spools, and the next `sync` drains it.
+
+The pass writes what it did to `<root>\emulators\rommbat\logs\background.log`, which is
+the only place to look, since it runs with no console window.
+
+```powershell
+dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -o publish/agent
+```
+
+**Two tests skip until both executables have been published**, because they drive the real
+binaries: the interleaved-hook one, and the rule-4 boundary that proves `game-start` and
+`game-end` start nothing. CI publishes both before it tests, so a local `dotnet test` on its
+own is the only place they are reported skipped.
 
 `flush` is the only command that needs the lock. Draining the spool, correlating play sessions
 and rescanning saves all work with the server unreachable, so `--offline` is a real mode rather
