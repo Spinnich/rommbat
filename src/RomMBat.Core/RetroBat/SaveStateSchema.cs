@@ -142,6 +142,7 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// <c>emulators/bigpemu/userdata/</c>; the two-digit <c>&lt;file&gt;</c> template describes the
 /// <b>mirror</b> RetroBat makes under <c>saves/jaguar/bigpemu/</c>. Reading the declared path is
 /// therefore right, and six real states came back as slots 1 to 6 with nothing reported.
+/// </para>
 /// <para>
 /// What the bounds still buy is the edges. A mirror name past slot 99 cannot be expressed by
 /// <c>{{slot2d}}</c> and a slot below the declared floor is outside what the emulator claims to
