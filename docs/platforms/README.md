@@ -70,7 +70,39 @@ are different claims, and only the second is evidence.
 | -------- | --------------------------------------------------------------------- | ------------------ |
 | 2a       | A save state, across more than one emulator for one game              | **Yes**, see below |
 | 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **Yes**, see below |
-| 2c       | A PS2 battery save after opting that game into a per-game memory card | No                 |
+| 2c       | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
+
+**2c, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
+system, steps 4, 6 and 9 only. Results are findings 182 to 188 in
+`docs/retrobat-findings.md`.
+
+| Step                                       | Result                                                                              |
+| ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| The shared card, before anything            | `Mcd001.ps2` holding **11 distinct games**, Armored Core 3 among them as `BASLUS-20435` |
+| Converted                                   | `ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory = game`, prior state `absent`   |
+| Refused while EmulationStation was running  | **yes**, exit 2, nothing written to the file                                        |
+| PCSX2 wrote                                 | `saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2`, **one game's saves**, 4 entries |
+| The shared card afterwards                  | **untouched**, mtime and md5 both unchanged                                         |
+| Discovered and attributed                   | class D, slot `pcsx2:battery`, by the stem through the existing `RomIndex`          |
+| Uploaded                                    | save 179, server hash equal to the local one                                        |
+| **The game loaded the restored save**       | **yes**                                                                             |
+| Eviction with an unsent card                | **refused**, and reported "still short" rather than claiming success                |
+| Eviction after a flush                      | offered, so the guard does not block spuriously                                     |
+| Reverted                                    | key removed, 57 settings before and after, nothing else disturbed                   |
+| Re-sync and re-flush                        | clean no-op, 0 downloaded, 0 written, gamelists unchanged                           |
+
+**Three things this pass did not prove, and they are not small.**
+
+- **The download side of class D is untested anywhere.** The card went up and came back only as
+  far as "the server holds it". Nothing has ever written a class D save onto a device from the
+  server, and the bundled-slot refusal in `SaveSync.DownloadAsync` branches on class C, so what
+  a class D download does is unexercised rather than decided.
+- **Only `(ps2, pcsx2)` was driven.** `dreamcast` and `psx` are refused by declaration with
+  their measured reasons and neither refusal was exercised against a real emulator, and
+  `folder`, PCSX2's third choice, is declared and unmeasured.
+- **The ROM was adopted, then re-downloaded, and neither is the ordinary case for a converted
+  game.** The first attempt failed verification against a stale server hash (finding 180),
+  which is fixed on the instance now but shaped how this pass ran.
 
 **2b, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
 system, steps 4 and 9 only. Results are findings 154 to 159 in `docs/retrobat-findings.md`.
