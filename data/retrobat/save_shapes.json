@@ -140,7 +140,12 @@
       "per_game_conversion": {
         "option": "pcsx2_slot1_memory",
         "set_to": "game",
-        "keys_by": "rom basename"
+        "keys_by": "rom stem",
+        "container": "pcsx2/memcards",
+        "extension": ".ps2",
+        "emulator": "pcsx2",
+        "slot": "battery",
+        "note": "driven end to end on a real install: the card is '<rom stem>.ps2', so the extension is replaced and not appended, and it lands three levels deep under saves/ps2/pcsx2/memcards/ rather than loose. The stem is exactly the (folder, stem) key class A attribution already uses, so it needs no new route. The shared Mcd001.ps2 stops being written entirely, and console slot 2 stays shared. The third declared choice, 'folder', is NOT measured: whether it is per-game or a different container format for a still-shared card is unknown."
       }
     },
     "ps3": {

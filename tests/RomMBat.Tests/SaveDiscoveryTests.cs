@@ -155,6 +155,226 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_shared_container_below_the_loose_level_is_named_rather_than_swept_into_a_count()
+    {
+        // Seven of the ten declared containers name a path with a separator in it, and until
+        // this test the only caller asked with a bare loose filename, so none of the seven could
+        // match. The PS2 memory cards were counted as part of an unread pcsx2/ subdirectory
+        // rather than named as the shared cards they are.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "every game's memory card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "and the second slot's");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Found);
+        Assert.Empty(fixture.Store.Saves.List());
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(2, reported.FileCount);
+        Assert.Contains("memory card", reported.Detail, StringComparison.Ordinal);
+
+        // And counted once. A file named as a shared container must not also be counted as an
+        // unread subdirectory, or one file is unsyncable twice under two explanations.
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+    }
+
+    [Fact]
+    public void A_state_beside_a_shared_container_still_leaves_the_container_named_on_its_own()
+    {
+        // The two exclusions have to compose: pcsx2/ holds both the shared cards and the save
+        // states, and the states are carried by another pass. So the subdirectory row must
+        // report the states' siblings and nothing else, and the cards keep their own row.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "every game's memory card");
+        fixture.AddSave("ps2", "pcsx2/something-nobody-declared.bin", "an unrecognised file");
+
+        fixture.Scan();
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(1, shared.FileCount);
+
+        var rest = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, rest.FileCount);
+    }
+
+    [Fact]
+    public void The_xbox_disk_image_is_reported_by_name_and_never_opened()
+    {
+        // 39 MB of the 43 MB stage 1's whole loose-file workload reads, and it is a container
+        // shared by every game. Held open with FileShare.None so that anything reading it fails
+        // the test rather than merely being slow: the scan must work from names and existence.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("xbox", "eeprom.bin", "console eeprom");
+        fixture.AddSave("xbox", "xbox_hdd.qcow2", "a whole disk image");
+
+        var image = fixture.Resolve(RelativePath.Create("saves/xbox/xbox_hdd.qcow2"));
+        using (var exclusive = new FileStream(image, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var outcome = fixture.Scan();
+
+            Assert.Equal(0, outcome.Found);
+            Assert.Equal(0, outcome.BytesHashed);
+        }
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "xbox" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(2, reported.FileCount);
+    }
+
+
+    [Fact]
+    public void A_converted_per_game_container_is_found_and_tied_to_its_rom()
+    {
+        // Driven on hardware before this was written: pcsx2_slot1_memory=game produced
+        // saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2 holding one game's saves, beside a
+        // shared Mcd001.ps2 holding eleven. Three levels deep, where class A discovery only
+        // reads files loose directly under saves/<system>/.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "one game's card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "eleven games' saves");
+
+        var outcome = fixture.Scan();
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2", save.Path.Value);
+        Assert.Equal(191723, save.RomId);
+        Assert.Equal("pcsx2", save.Emulator);
+        Assert.Equal("pcsx2:battery", save.Slot);
+
+        // Class D, not class A. The file is one-per-game in shape, but what it is is a class D
+        // system whose container was made per-game, and this row is the only place that stays
+        // true once the setting is out of sight.
+        Assert.Equal(SaveShapeClass.D, save.ShapeClass);
+        Assert.Equal(1, outcome.Attributed);
+
+        // And the shared card beside it is still reported as shared rather than swept up.
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(1, shared.FileCount);
+    }
+
+    [Fact]
+    public void The_converted_card_is_named_from_the_rom_stem_not_from_its_full_filename()
+    {
+        // The asymmetry that makes this work, and the one a reader will doubt. The
+        // es_settings.cfg key must carry the extension or it is ignored silently (M0 cases E
+        // and F); the card PCSX2 writes replaces it. So a card named after the full filename is
+        // NOT what the emulator produces, and must not resolve.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).chd.ps2", "the wrong shape");
+
+        fixture.Scan();
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Null(save.RomId);
+    }
+
+    [Fact]
+    public void A_converted_card_naming_no_rom_is_reported_rather_than_guessed()
+    {
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Some Other Game (USA).ps2", "nobody's card");
+
+        fixture.Scan();
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Null(save.RomId);
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.Unattributed);
+        Assert.Contains("Some Other Game (USA).ps2", reported.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Eviction_refuses_a_rom_whose_converted_card_has_never_been_uploaded()
+    {
+        // The data-loss seam, and the one the brief names. A converted card holds real progress
+        // that exists nowhere else until it goes up.
+        //
+        // Not reachable from the CLI on the install this was driven on, and that is worth
+        // knowing rather than hiding: the ROM there was adopted rather than downloaded, and an
+        // adopted file is the user's, so it never counts against the budget and eviction never
+        // considers it. The guard itself is what is asserted here.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "progress that is nowhere else");
+        fixture.Scan();
+
+        var verdict = new SaveGuard(fixture.Store).Check(191723, RelativePath.Create("roms/ps2/Armored Core 3 (USA).chd"));
+
+        Assert.False(verdict.CanRemove);
+        Assert.Contains("has not reached the server", verdict.Reason!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_deleted_converted_card_stops_blocking_eviction()
+    {
+        // Class D was "never forget" until this stage, because no class D row had ever existed.
+        // Now they do, and a row left behind for a card the user deleted would block eviction
+        // for that ROM forever. Third time this scanner has had to learn that a stale row is
+        // worse than no row.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "a card");
+        fixture.Scan();
+        Assert.Single(fixture.Store.Saves.List());
+
+        File.Delete(fixture.Resolve(RelativePath.Create("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2")));
+        var outcome = fixture.Scan();
+
+        Assert.Equal(1, outcome.Forgotten);
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.True(new SaveGuard(fixture.Store).Check(191723).CanRemove);
+    }
+
+    [Fact]
+    public void The_shared_cards_are_never_uploaded_even_beside_a_converted_one()
+    {
+        // Both stock cards keep their names and both must stay out of local_save, or a card
+        // holding eleven games' saves goes up attributed to whichever ROM happened to match.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Armored Core 3 (USA).ps2", "one game");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd001.ps2", "eleven games");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
+
+        fixture.Scan();
+
+        var recorded = fixture.Store.Saves.List();
+        Assert.Single(recorded);
+        Assert.DoesNotContain(recorded, save => save.Path.Value.Contains("Mcd", StringComparison.Ordinal));
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(2, shared.FileCount);
+    }
+
+    [Fact]
     public void A_directory_no_shape_covers_is_reported_rather_than_read()
     {
         // Nine top-level directories on a real install are not declared systems. An unknown

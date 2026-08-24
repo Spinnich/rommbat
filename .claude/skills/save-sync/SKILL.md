@@ -126,11 +126,48 @@ a different version. RetroBat's own wiki warns that states break across emulator
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
 defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
 that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
-after the ROM basename, which makes attribution trivial on a single-disc title.
+after the ROM stem, which makes attribution trivial on a single-disc title.
+
+**GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
+labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
+shared raw `SRAM.<REGION>.raw` that is class D. So GameCube is class C only at the default, and
+a user who picked the tidier-sounding option has a shared card RomMBat's class C scan finds
+nothing in. **Slot B is already there**: RetroBat only ever writes `SlotB` when
+`dolphin_microphone` is on, so it stays at Dolphin's stock relative default and a 16 MB
+`saves/dolphin/User/GC/SRAM.<REGION>.raw` accumulates outside every declared container. Finding
+193, and the same shape of trap as PCSX2's four menu entries.
 
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
+
+## Somebody else may be writing to the same directory
+
+**`dolphin_sync_saves` is the one measured case, and the repository described it wrongly for
+four documents.** It is not a background schedule and it is not two emulator folders. It is
+GameCube only, it runs once per launch inside `emulatorlauncher` before Dolphin starts, and it
+reconciles `saves/gamecube/dolphin-emu/User/GC/<REGION>/` against a **`Card A/` subdirectory of
+that same folder**. Newest wins by mtime, the loser is renamed `.old`, and every failure is
+swallowed by a bare `catch`.
+
+**The hazard is the one-sided branch, not the mtime comparison.** A save RomMBat restores is
+written with the current time, so it always wins; that direction is safe. But a `.gci` sitting in
+`Card A` with nothing beside it is copied **back out**, so a save RomMBat removed reappears
+holding whatever `Card A` captured at some earlier launch. Driven on hardware: deleting the
+region-root file and launching restored the _previous_ session's bytes, and the only trace was
+`[INFO] GameCube saves have been synced.` Findings 190 and 191.
+
+`Card A` is invisible to class C discovery, and that is correct rather than a bug:
+`SaveUnitScanner` enumerates one level, so it can neither double-count the copies nor be fooled
+by a `.gci.old`. It is also why RomMBat cannot see the resurrection coming, which is why
+`DolphinSaveSync` exists.
+
+**Detect and report, never act.** `DolphinSaveSync.Inspect` reads the key at es_settings.cfg's
+own precedence and walks the three region folders, and the result becomes an
+`UnsyncableReason.ManagedElsewhere` row. Two writers reconciling one directory by different
+rules is how saves get lost, so RomMBat does not read `Card A`, does not upload it and does not
+delete it. **Report when the option is off too**: turning it off deletes nothing, so the copies
+outlive the setting and regain their effect the moment it comes back on.
 
 **Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
 driven under stock `PerGameTitle` produced **one card for the set**:
@@ -160,9 +197,49 @@ PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all.
 is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
 leave sets alone, and say why.
 
+**Driven end to end in M6 stage 2c, and the details are what make it work.** The card PCSX2
+writes is `<rom stem>.ps2`: **the extension is replaced, not appended**, so the name is exactly
+the `(folder, stem)` key class A attribution already uses and no new route is needed. Note the
+asymmetry with the setting that causes it, because it is the trap: the `es_settings.cfg` key
+must carry `.chd` or it is ignored silently, while the card it produces drops it. Both rules
+are right and they point opposite ways.
+
+It lands **three levels down**, `saves/ps2/pcsx2/memcards/`, where class A discovery only reads
+files loose directly under `saves/<system>/`, so the container is **declared in
+`save_shapes.json` and never discovered**. That declaration is also what the download side
+needs: a converted card arriving for a device that has never run the game must go into the
+container, and the class A rule would put it loose where PCSX2 never looks, quietly.
+
+**Record it as class D, not class A.** One file per game is its shape; what it _is_ is a class D
+system whose container was made per-game, and the row is the only place that stays true once
+the setting is out of sight. Class D rows are forgettable like class A, keyed on the path: a row
+left behind for a deleted card blocks eviction for that ROM forever.
+
+**Discovery must not consult the conversion record.** A card named after a ROM in the declared
+container is that ROM's save whether RomMBat set the option or the user did.
+
+**What converting really costs, measured on a real card.** The shared `Mcd001.ps2` held saves
+for **11 distinct games**, and after the conversion it was **untouched**: same mtime, same md5.
+So the redirect is total and the stranded save really is stranded. Console **slot 2 stays
+shared** (`slot1_memory` converts slot 1 only) and `Mcd002.ps2` moved its mtime without changing
+a byte, which is one more reason nothing may trust mtime.
+
 Caveats, all user-visible: it mutates their config so it is opt-in and reversible;
 switching strands existing saves inside the old container unless migrated; and per-game
 cards break games that legitimately read a prequel's save.
+
+**"Auto" in the ES menu means the key is absent**, not that a value is set: `es_features.cfg`
+declares three choices for `pcsx2_slot1_memory` and no `auto`, and ES synthesises AUTO for any
+unset feature. Two things follow. Reverting has to restore **absence** rather than a plausible
+stock value, or the user lands somewhere they never were, which is why the conversion record
+stores absent and present-with-a-value as different states. And after a conversion the
+system-scoped menu still reads Auto while the per-game key silently outranks it, so **the ES
+menu shows no sign that a game has been converted**.
+
+**Never write `es_settings.cfg` while EmulationStation is running.** It loads the file at
+startup and serialises that model on every write, so a key that appears afterwards is
+discarded, merged and atomic or not. See `retrobat-layout`. Refuse, say why, and re-read after
+writing rather than trusting the rename.
 
 **Never use mtime to decide whether a save changed, in any class.** Launching a PS2 game
 rewrote both `Mcd001.ps2` and `Mcd002.ps2` with no in-game save at all, and a Dreamcast launch

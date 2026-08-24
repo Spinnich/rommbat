@@ -23,6 +23,64 @@ public enum SaveShapeClass
     D,
 }
 
+/// <summary>How a system's shared container can be made per-game, where it can.</summary>
+/// <param name="Option">The <c>es_settings.cfg</c> key, e.g. <c>pcsx2_slot1_memory</c>.</param>
+/// <param name="SetTo">The value to write. Null where the declaration says not to convert.</param>
+/// <param name="KeysBy">
+/// What the converted container is named after, and <b>the discriminator that decides whether
+/// this release can offer the conversion at all</b>. <c>rom stem</c> means the result drops
+/// into ordinary filename attribution; <c>disc serial</c> and <c>game code</c> mean it comes out
+/// identifier-keyed and needs the Game-ID routes, which is a different piece of work.
+/// </param>
+/// <param name="Apply">
+/// False where the measured answer is to leave the stock setting alone. <c>psx</c> is the
+/// worked case: stock <c>PerGameTitle</c> binds a multi-disc set through DuckStation's own
+/// database, and the conversion that looks like an improvement is the regression.
+/// </param>
+/// <param name="Container">
+/// Where the converted container lands, relative to <c>saves/&lt;system&gt;/</c>. Null where the
+/// layout has not been measured, which is what keeps an unmeasured tree reported rather than
+/// walked under a guessed rule.
+/// </param>
+/// <param name="Extension">The converted container's extension, which replaces the ROM's.</param>
+/// <param name="Emulator">Who writes it, for the slot and the report.</param>
+/// <param name="Slot">The slot suffix, so the pair is <c>{Emulator}:{Slot}</c>.</param>
+public sealed record PerGameConversion(
+    string Option,
+    string? SetTo,
+    string KeysBy,
+    bool Apply,
+    string Note,
+    string? Container = null,
+    string? Extension = null,
+    string? Emulator = null,
+    string? Slot = null)
+{
+    /// <summary>True when the converted container's location and naming are both known.</summary>
+    /// <remarks>
+    /// Both halves, for the reason <see cref="SaveShape.HasUnitPaths"/> needs both: a
+    /// conversion whose result has never been seen on disk must be discovered by measurement
+    /// rather than by guessing at a plausible directory.
+    /// </remarks>
+    public bool IsDiscoverable =>
+        YieldsRomNamedContainer
+        && !string.IsNullOrWhiteSpace(Container)
+        && !string.IsNullOrWhiteSpace(Extension)
+        && !string.IsNullOrWhiteSpace(Emulator)
+        && !string.IsNullOrWhiteSpace(Slot);
+
+    /// <summary>True when converting produces a container named after the ROM file.</summary>
+    /// <remarks>
+    /// The only shape this release converts, because it is the only one whose result is
+    /// attributable by the filename index that already exists. Anything identifier-keyed is
+    /// reported with its reason rather than half-supported.
+    /// </remarks>
+    public bool YieldsRomNamedContainer =>
+        Apply
+        && SetTo is not null
+        && string.Equals(KeysBy, "rom stem", StringComparison.OrdinalIgnoreCase);
+}
+
 /// <summary>What is known about one system's saves.</summary>
 /// <param name="Classes">
 /// Usually one. <c>megacd</c> is declared <c>BD</c>, per-game <c>.brm</c> and <c>.srm</c>
@@ -47,12 +105,18 @@ public enum SaveShapeClass
 /// empty for a class C system whose layout has not been measured, which is what makes an
 /// unmeasured tree report as unknown rather than get walked under a guessed rule.
 /// </param>
+/// <param name="Conversion">
+/// How this system's shared container can be made per-game, or null where no lever exists.
+/// Present for the four systems that declare one, which is not the same as four this release
+/// converts: see <see cref="PerGameConversion.YieldsRomNamedContainer"/>.
+/// </param>
 public sealed record SaveShape(
     string System,
     IReadOnlyList<SaveShapeClass> Classes,
     string Evidence,
     bool DependsOnEmulator,
-    IReadOnlyList<SaveUnitPath> UnitPaths)
+    IReadOnlyList<SaveUnitPath> UnitPaths,
+    PerGameConversion? Conversion)
 {
     /// <summary>True when any declared class is a battery shape this build carries.</summary>
     public bool HasSyncableClass => Classes.Any(value => value is SaveShapeClass.A or SaveShapeClass.B);
@@ -182,6 +246,23 @@ public sealed class SaveShapes
     /// <summary>Every shared container declared, whether or not this install holds it.</summary>
     public int SharedContainerCount => _sharedContainers.Sum(entry => entry.Value.Count);
 
+    /// <summary>
+    /// Every shared container declared for a system, as a path under <c>saves/&lt;system&gt;/</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Seven of the ten declarations name a path with a separator in it</b>
+    /// (<c>pcsx2/memcards/Mcd001.ps2</c>, the four Dreamcast VMUs, Kronos's backup RAM), and
+    /// <see cref="SharedContainerReason"/>'s only caller asked it with a bare loose filename, so
+    /// those seven could never match. The three that could are exactly the three that sit loose
+    /// under the system folder. Enumerating them is what lets a container in a subdirectory be
+    /// reported as the shared container it is rather than swept into a count of files nothing
+    /// carries.
+    /// </remarks>
+    public IEnumerable<KeyValuePair<string, string>> SharedContainersFor(string system) =>
+        _sharedContainers.TryGetValue(system, out var containers)
+            ? containers
+            : [];
+
     private static SaveShapes LoadEmbedded()
     {
         var assembly = typeof(SaveShapes).Assembly;
@@ -198,7 +279,8 @@ public sealed class SaveShapes
                 ParseClasses(entry.Value.Class),
                 entry.Value.Evidence ?? string.Empty,
                 entry.Value.ShapeDependsOnEmulator,
-                ParseUnitPaths(entry.Value.UnitPaths)),
+                ParseUnitPaths(entry.Value.UnitPaths),
+                ParseConversion(entry.Value.Conversion)),
             StringComparer.OrdinalIgnoreCase);
 
         return new SaveShapes(
@@ -262,6 +344,31 @@ public sealed class SaveShapes
                 parsed.entry.Evidence ?? string.Empty)),
     ];
 
+    /// <summary>
+    /// Reads a declared conversion, dropping one with no option to write.
+    /// </summary>
+    /// <remarks>
+    /// An entry with no <c>option</c> names no key, so there is nothing to set and nothing to
+    /// put back. Dropped rather than defaulted, for the same reason a container with an
+    /// unrecognised key kind is: every default available here is a guess about someone's
+    /// configuration.
+    /// </remarks>
+    private static PerGameConversion? ParseConversion(ConversionEntry? entry) =>
+        entry is null || string.IsNullOrWhiteSpace(entry.Option)
+            ? null
+            : new PerGameConversion(
+                entry.Option,
+                string.IsNullOrWhiteSpace(entry.SetTo) ? null : entry.SetTo,
+                entry.KeysBy ?? string.Empty,
+                entry.Apply ?? true,
+                entry.Note ?? string.Empty,
+                Blank(entry.Container?.Replace('\\', '/').Trim('/')),
+                Blank(entry.Extension),
+                Blank(entry.Emulator),
+                Blank(entry.Slot));
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
     private static string Read(System.Reflection.Assembly assembly, string name)
     {
         using var stream = assembly.GetManifestResourceStream(name)
@@ -292,6 +399,40 @@ public sealed class SaveShapes
 
         [JsonPropertyName("unit_paths")]
         public List<UnitPathEntry> UnitPaths { get; init; } = [];
+
+        [JsonPropertyName("per_game_conversion")]
+        public ConversionEntry? Conversion { get; init; }
+    }
+
+    private sealed record ConversionEntry
+    {
+        [JsonPropertyName("option")]
+        public string? Option { get; init; }
+
+        [JsonPropertyName("set_to")]
+        public string? SetTo { get; init; }
+
+        [JsonPropertyName("keys_by")]
+        public string? KeysBy { get; init; }
+
+        /// <summary>Absent means apply, because only the refusals are declared explicitly.</summary>
+        [JsonPropertyName("apply")]
+        public bool? Apply { get; init; }
+
+        [JsonPropertyName("note")]
+        public string? Note { get; init; }
+
+        [JsonPropertyName("container")]
+        public string? Container { get; init; }
+
+        [JsonPropertyName("extension")]
+        public string? Extension { get; init; }
+
+        [JsonPropertyName("emulator")]
+        public string? Emulator { get; init; }
+
+        [JsonPropertyName("slot")]
+        public string? Slot { get; init; }
     }
 
     private sealed record UnitPathEntry

@@ -122,6 +122,8 @@ public sealed class SaveScanner
         // naming the last file and counting one, which understates the gap it exists to show.
         var report = new UnsyncableReport();
 
+        ReportDolphinSaveSync(report);
+
         // (folder, ROM basename) to (rom_id, path), which is the whole of class A and B
         // attribution: the save is named after the ROM file, inside its system's folder.
         // Built once rather than queried per save.
@@ -221,8 +223,18 @@ public sealed class SaveScanner
             // the report counted them as unsyncable in the same pass that uploaded them.
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
 
+            // A converted class D container, before both reports, for the reason the class C
+            // pass runs first: a file this pass carries must not also be counted as one nothing
+            // carries. Stage 2a shipped exactly that bug for save states.
+            var converted = ScanConverted(system, shape, romsByStem, report, seen, now, ref found, ref attributed, ref bytes);
+
+            // Shared containers below the loose level, also before the subdirectory report, so
+            // a declared container is named as one rather than counted as an unread file.
+            var shared = AddSharedContainers(report, system, systemDirectory);
+            shared.UnionWith(converted);
+
             // Every remaining subdirectory of a system folder is class D or a save state.
-            AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried);
+            AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried, shared);
         }
 
         var forgotten = ForgetMissing(seen, seenUnits);
@@ -398,6 +410,262 @@ public sealed class SaveScanner
         return carried;
     }
 
+
+    /// <summary>
+    /// Records the per-game containers a class D conversion produced.
+    /// </summary>
+    /// <remarks>
+    /// <b>Driven end to end before this was written.</b> Setting
+    /// <c>ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game</c> and launching the game
+    /// produced <c>saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2</c> holding exactly one
+    /// game's saves, where the shared <c>Mcd001.ps2</c> beside it holds eleven.
+    /// <para>
+    /// <b>The card is named from the ROM's stem, and the extension is replaced rather than
+    /// appended.</b> So the name is exactly the <c>(folder, stem)</c> key class A attribution
+    /// already uses and no new route is needed, which is why PS2 converts into something
+    /// syncable while Dreamcast does not. Note the asymmetry with the setting that caused it:
+    /// the <c>es_settings.cfg</c> key must carry <c>.chd</c> or it is ignored silently, while
+    /// the card it produces drops it.
+    /// </para>
+    /// <para>
+    /// <b>Recorded as class D, not class A.</b> The file is one-per-game in shape, but what it
+    /// is is a class D system whose container was made per-game, and the row is the only place
+    /// that stays true. Discovery does not consult the conversion record: a card named after a
+    /// ROM in the declared container is that ROM's save whether RomMBat set the option or the
+    /// user did, and keying on our own record would miss the second case.
+    /// </para>
+    /// <para>
+    /// The container is <b>declared and never discovered</b>, and a shared container inside it
+    /// is skipped by name, so <c>Mcd001.ps2</c> and <c>Mcd002.ps2</c> stay reported as shared
+    /// rather than being mistaken for ROMs whose stems happen not to resolve.
+    /// </para>
+    /// </remarks>
+    /// <returns>The absolute paths carried, so neither report counts them again.</returns>
+    private HashSet<string> ScanConverted(
+        string system,
+        SaveShape shape,
+        RomIndex romsByStem,
+        UnsyncableReport report,
+        HashSet<RelativePath> seen,
+        DateTimeOffset now,
+        ref int found,
+        ref int attributed,
+        ref long bytes)
+    {
+        var carried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (shape.Conversion is not { IsDiscoverable: true } conversion)
+        {
+            return carried;
+        }
+
+        var container = Path.Combine(
+            _install.Resolve(SavesDirectory.Combine(system)),
+            conversion.Container!.Replace('/', Path.DirectorySeparatorChar));
+
+        if (!Directory.Exists(container))
+        {
+            return carried;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(container).Order(StringComparer.Ordinal))
+        {
+            var name = Path.GetFileName(file);
+
+            // A shared container sitting in the same directory is the ordinary case, not the
+            // odd one: the stock cards stay beside every card a conversion creates.
+            if (_shapes.SharedContainerReason(system, $"{conversion.Container}/{name}") is not null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(Path.GetExtension(name), conversion.Extension, StringComparison.OrdinalIgnoreCase)
+                || !_install.Contains(file))
+            {
+                continue;
+            }
+
+            var rom = romsByStem.Find(system, Path.GetFileNameWithoutExtension(name));
+            var info = new FileInfo(file);
+
+            string? hash = null;
+            try
+            {
+                hash = LogicalContentHash.OfFile(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Held open by a running emulator. No hash reads as unsent, which blocks
+                // eviction, which is the fail-closed direction.
+            }
+
+            var path = _install.Relativize(file);
+
+            _store.Saves.Record(
+                new LocalSave
+                {
+                    Path = path,
+                    System = system,
+                    Emulator = conversion.Emulator!,
+                    ShapeClass = SaveShapeClass.D,
+                    Slot = $"{conversion.Emulator}:{conversion.Slot}",
+                    RomId = rom?.RomId,
+                    RomPath = rom?.Path,
+                    ContentHash = hash,
+                    SizeBytes = info.Length,
+                    FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+                },
+                now);
+
+            seen.Add(path);
+            carried.Add(file);
+            found++;
+            bytes += info.Length;
+
+            if (rom is not null)
+            {
+                attributed++;
+            }
+            else
+            {
+                report.Add(
+                    system,
+                    conversion.Emulator!,
+                    UnsyncableReason.Unattributed,
+                    $"'{name}' is a per-game container naming no ROM this device holds, so there is "
+                        + "no game to upload it against",
+                    1);
+            }
+        }
+
+        return carried;
+    }
+
+    /// <summary>
+    /// Reports the declared shared containers this install actually holds.
+    /// </summary>
+    /// <remarks>
+    /// <b>Seven of the ten declared containers were unreachable before this.</b>
+    /// <c>SharedContainerReason</c>'s only caller asked it with a bare loose filename, and seven
+    /// declarations name a path with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the four
+    /// Dreamcast VMUs, Kronos's backup RAM). A test asserted the lookup table answered for
+    /// <c>ps2/pcsx2/memcards/Mcd001.ps2</c> and passed, because it called the table rather than
+    /// the scanner: the shared PS2 memory cards were being counted as part of an unread
+    /// subdirectory instead of named as the shared cards they are.
+    /// <para>
+    /// <b>Nothing here opens a file.</b> <c>xbox</c>'s <c>xbox_hdd.qcow2</c> is 39 MB of the
+    /// 43 MB the whole loose-file workload reads, and it is a declared container, so the one
+    /// method that goes looking for containers by name is exactly where that must stay true.
+    /// Existence and a name, never a handle.
+    /// </para>
+    /// <para>
+    /// The emulator is left empty rather than read off the first path segment. The path is
+    /// declared, but the declaration does not say whose it is, and the second level of the save
+    /// tree is not an emulator: <c>mame/artwork</c>, <c>n64/sram</c> and <c>psp/SYSTEM</c> name
+    /// none. Inventing one from a path is the positional read this scanner exists to avoid.
+    /// </para>
+    /// </remarks>
+    /// <returns>The absolute paths reported, so the subdirectory sweep does not count them twice.</returns>
+    private HashSet<string> AddSharedContainers(UnsyncableReport report, string system, string systemDirectory)
+    {
+        var reported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (relative, reason) in _shapes.SharedContainersFor(system))
+        {
+            // Declared with forward slashes, and only ever below the loose level here: a
+            // container sitting loose is already named by the file loop above.
+            if (!relative.Contains('/', StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var path = Path.Combine(systemDirectory, relative.Replace('/', Path.DirectorySeparatorChar));
+
+            if (File.Exists(path))
+            {
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1);
+                reported.Add(path);
+                continue;
+            }
+
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            // A container declared as a directory has not appeared yet, and treating one as
+            // absent would report its contents as an unread subdirectory instead. Names only.
+            var members = SafeEnumerateFiles(path);
+            if (members.Count > 0)
+            {
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count);
+                reported.UnionWith(members);
+            }
+        }
+
+        return reported;
+    }
+
+    /// <summary>
+    /// Names RetroBat's own GameCube save reconciliation, when it is running or has run.
+    /// </summary>
+    /// <remarks>
+    /// Outside the per-system loop because it is true of the install rather than of a directory
+    /// walk, and because the option is worth reporting before <c>saves/gamecube/</c> exists at
+    /// all: a user who turns it on and then syncs a GameCube game should be told before the
+    /// first launch makes the copies, not after.
+    /// <para>
+    /// A missing or unreadable es_settings.cfg is treated as the option being off, and the tree
+    /// is still walked. That is the fail-closed direction here: the warning is about files that
+    /// exist, and they exist whether or not the setting can be read.
+    /// </para>
+    /// </remarks>
+    private void ReportDolphinSaveSync(UnsyncableReport report)
+    {
+        EsSettingsFile? settings = null;
+
+        try
+        {
+            var path = _install.Resolve(EsSettingsFile.Location);
+
+            if (File.Exists(path))
+            {
+                settings = EsSettingsFile.Load(path);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            // Reported as off. Nothing here acts on the answer, so a missed warning is the
+            // whole cost of being wrong.
+        }
+
+        var state = DolphinSaveSync.Inspect(_install, settings);
+
+        if (!state.WorthReporting)
+        {
+            return;
+        }
+
+        report.Add(
+            DolphinSaveSync.System,
+            "dolphin-emu",
+            UnsyncableReason.ManagedElsewhere,
+            DolphinSaveSync.Describe(state),
+            state.CopiedFiles);
+    }
+
+    private static List<string> SafeEnumerateFiles(string directory)
+    {
+        try
+        {
+            return [.. Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories)];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
+        }
+    }
+
     /// <summary>
     /// Reports the emulator subdirectories whose contents this build does not carry.
     /// </summary>
@@ -417,10 +685,11 @@ public sealed class SaveScanner
         SaveShape shape,
         string systemDirectory,
         string savesRoot,
-        HashSet<RelativePath> carried)
+        HashSet<RelativePath> carried,
+        HashSet<string> shared)
     {
         var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried));
+        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried, shared));
 
         if (files == 0)
         {
@@ -428,11 +697,12 @@ public sealed class SaveScanner
         }
 
         // Named only where something in them is genuinely not carried, so a system whose only
-        // subdirectory is a state directory is not listed at all.
+        // subdirectory is a state directory, or holds nothing but a container already named as
+        // shared, is not listed at all.
         var names = string.Join(
             ", ",
             subdirectories
-                .Where(directory => CountFiles(directory, savesRoot, carried) > 0)
+                .Where(directory => CountFiles(directory, savesRoot, carried, shared) > 0)
                 .Select(Path.GetFileName)
                 .Order(StringComparer.Ordinal));
 
@@ -472,8 +742,13 @@ public sealed class SaveScanner
                 SaveShapeClass.A or SaveShapeClass.B => !seen.Contains(save.Path),
                 SaveShapeClass.C => !seenUnits.Contains((save.Path, save.UnitKey)),
 
-                // Class D is not discovered by this build at all, so a row for one could only
-                // have come from somewhere that knows more than this pass does.
+                // Class D is one file at one path, like class A, because the only class D rows
+                // that exist are the per-game containers a conversion produced. It has to be
+                // forgettable: leaving the row behind when the card is deleted would block
+                // eviction for that ROM forever, which is the third time this scanner has had to
+                // learn that a stale row is worse than no row.
+                SaveShapeClass.D => !seen.Contains(save.Path),
+
                 _ => false,
             })
             .Select(save => (save.Path, save.UnitKey))
@@ -486,14 +761,24 @@ public sealed class SaveScanner
     /// Counts files that no other pass is carrying.
     /// </summary>
     /// <remarks>
-    /// <b>Two exclusions, and both exist because of the same bug shipped once already.</b> Stage
-    /// 2a's report counted a save state as unsyncable in the very pass that uploaded it, which
-    /// is worse than saying nothing: a user checking why their states were not going up was told
-    /// they were not, while they were. Class C would reintroduce it exactly, so its members are
-    /// excluded here too, and the state exclusion asks the schema rather than matching directory
-    /// names so the two passes cannot disagree about what a state directory is.
+    /// <b>Three exclusions, and the first two exist because of the same bug shipped once
+    /// already.</b> Stage 2a's report counted a save state as unsyncable in the very pass that
+    /// uploaded it, which is worse than saying nothing: a user checking why their states were
+    /// not going up was told they were not, while they were. Class C would reintroduce it
+    /// exactly, so its members are excluded too, and the state exclusion asks the schema rather
+    /// than matching directory names so the two passes cannot disagree about what a state
+    /// directory is.
+    /// <para>
+    /// The third is not that bug. A declared shared container below the loose level is already
+    /// reported by name with its own reason, so counting it again here would say the same file
+    /// is unsyncable twice under two different explanations.
+    /// </para>
     /// </remarks>
-    private int CountFiles(string directory, string savesRoot, HashSet<RelativePath> carried)
+    private int CountFiles(
+        string directory,
+        string savesRoot,
+        HashSet<RelativePath> carried,
+        HashSet<string>? shared = null)
     {
         try
         {
@@ -501,6 +786,7 @@ public sealed class SaveScanner
                 .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
                 .Count(file =>
                     !IsStateDirectory(Path.GetDirectoryName(file), savesRoot)
+                    && shared?.Contains(file) != true
                     && !(_install.Contains(file) && carried.Contains(_install.Relativize(file))));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

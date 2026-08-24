@@ -66,10 +66,18 @@ public sealed record EsHookOutcome(IReadOnlyList<EsHookStep> Steps)
 /// </para>
 /// <para>
 /// <b>Four copies of one file.</b> The hook learns which event it serves from the name of the
-/// folder it is in, so there is one build and four installs. It is 11.0 MB, which is why it
+/// folder it is in, so there is one build and four installs. It is 12.8 MB, which is why it
 /// references nothing: the same job done through <c>Microsoft.Data.Sqlite</c> measured 15.1 MB
 /// and needed a second file per folder, and installing the agent itself would have been
-/// 75.5 MB four times over.
+/// 75.9 MB four times over. The 15.1 MB was measured before <c>PublishReadyToRun</c> was added,
+/// so it is a comparison of references rather than of the current build.
+/// <para>
+/// <b>Size is not what the hook costs a launch, and assuming it was is a measured mistake.</b>
+/// The 75.9 MB agent reaches <c>Main</c> in 34 ms while the 11.0 MB pre-R2R hook took 59.8 ms
+/// just to start, because what dominates a trimmed app's start is JIT rather than bytes read.
+/// That is why <c>PublishReadyToRun</c> is on: it costs 1.8 MB a copy and took one whole
+/// invocation from 111 ms to 49 ms. See finding 195.
+/// </para>
 /// </para>
 /// </remarks>
 public sealed class EsHooks
@@ -123,7 +131,7 @@ public sealed class EsHooks
     /// </summary>
     /// <param name="sourceExecutable">
     /// The hook to copy. Defaults to the shipped one beside the agent, and is overridable so a
-    /// test can install a stand-in rather than an 11 MB publish artefact.
+    /// test can install a stand-in rather than a 12.8 MB publish artefact.
     /// </param>
     public EsHookOutcome Install(string? sourceExecutable = null)
     {
@@ -223,7 +231,7 @@ public sealed class EsHooks
                 return false;
             }
 
-            // Size then content. The files are 11 MB and this runs once per sync, so the read
+            // Size then content. The files are 12.8 MB and this runs once per sync, so the read
             // is worth it: a hook left over from a previous build is exactly the case where
             // sizes match and behaviour does not.
             using var first = a.OpenRead();

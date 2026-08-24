@@ -82,7 +82,7 @@ public class HookAndJournalTests
     public void The_event_comes_from_the_folder_the_hook_was_installed_into(string folder, string? expected)
     {
         // One built file serves all four events, which is what keeps the installed cost to
-        // four copies of one 11 MB exe rather than four different builds.
+        // four copies of one 12.8 MB exe rather than four different builds.
         Assert.Equal(expected, SpoolRecord.EventFromDirectory(Path.Combine("x", "scripts", folder)));
     }
 
@@ -366,7 +366,7 @@ public class HookAndJournalTests
     }
 
     /// <summary>
-    /// A stand-in for the 11 MB hook, so the install tests do not need a publish.
+    /// A stand-in for the 12.8 MB hook, so the install tests do not need a publish.
     /// </summary>
     /// <remarks>
     /// Padded to a fixed length so two different "builds" have equal sizes, which is what

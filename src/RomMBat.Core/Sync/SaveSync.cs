@@ -960,9 +960,47 @@ public sealed class SaveSync
         var extension = Path.GetExtension(named);
         var stem = Path.GetFileNameWithoutExtension(rom.FileName);
 
-        return RelativePath.TryCreate($"saves/{folder}/{stem}{extension}", out var derived)
+        // A converted class D container does not live loose under the system folder. PCSX2
+        // writes its per-game card three levels down, in the container the shape declares, and
+        // a card written anywhere else is a file the emulator never looks at. The derived path
+        // below is right for class A and would put a memory card where a .srm belongs.
+        var directory = ConvertedContainerFor(folder, operation.Slot) is { } container
+            ? $"saves/{folder}/{container}"
+            : $"saves/{folder}";
+
+        return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)
             ? (derived, TargetProblem.None)
             : (null, TargetProblem.Unnameable);
+    }
+
+    /// <summary>
+    /// The declared container for a converted class D slot, or null when the slot is not one.
+    /// </summary>
+    /// <remarks>
+    /// The mirror of <see cref="IsUnplaceableUnit"/>, and it reaches the opposite conclusion for
+    /// the opposite reason. A class C unit cannot be placed on a device holding none, because
+    /// the container and the key both come from a local unit that is not there. A converted
+    /// class D container can: it is one file whose name is the ROM's stem, and the shape
+    /// declares where it goes, so a device that has never run the game can still be handed it.
+    /// <para>
+    /// Recognised from the slot, which is <c>{emulator}:{slot}</c> as the shape declares it, and
+    /// never from the extension. Only the shape knows that a <c>.ps2</c> under <c>ps2</c> is a
+    /// memory card rather than something an emulator happens to have left there.
+    /// </para>
+    /// </remarks>
+    private string? ConvertedContainerFor(string folder, string? slot)
+    {
+        if (_shapes.For(folder)?.Conversion is not { IsDiscoverable: true } conversion)
+        {
+            return null;
+        }
+
+        return string.Equals(
+            $"{conversion.Emulator}:{conversion.Slot}",
+            slot ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase)
+            ? conversion.Container
+            : null;
     }
 
     /// <summary>Why a download has nowhere to go, when it has nowhere to go.</summary>

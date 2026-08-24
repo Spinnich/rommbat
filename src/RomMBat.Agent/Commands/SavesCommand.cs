@@ -39,6 +39,11 @@ internal static class SavesCommand
             return Bind(context, command);
         }
 
+        if (command.Positional is ["convert", ..])
+        {
+            return Convert(context, command);
+        }
+
         if (!command.Has("no-scan"))
         {
             // Both passes get the schema, so a state is never listed as unsyncable by one while
@@ -396,6 +401,76 @@ internal static class SavesCommand
         return ExitCode.Ok;
     }
 
+
+    /// <summary>
+    /// <c>saves convert &lt;rom id&gt; [--apply|--revert]</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Previews by default and writes on <c>--apply</c></b>, which is the convention
+    /// <c>bios</c> and <c>evict</c> already set, and it matters more here than for either of
+    /// them: this is the only command that changes the user's RetroBat configuration, and what
+    /// it changes decides where an emulator writes next time.
+    /// <para>
+    /// The verb is a shell over <see cref="SaveConverter"/> and holds no rule of its own, so M7
+    /// drives the same seam without a redesign.
+    /// </para>
+    /// </remarks>
+    private static int Convert(AgentContext context, CommandLine command)
+    {
+        var revert = command.Has("revert");
+        var apply = command.Has("apply") || revert;
+
+        if (command.Positional.Count < 2)
+        {
+            Console.Error.WriteLine("Usage: rommbat-agent saves convert <rom id> [--apply]");
+            Console.Error.WriteLine("       rommbat-agent saves convert <rom id> --revert");
+            Console.Error.WriteLine();
+            Console.Error.WriteLine(
+                "Opts one game into a per-game memory card, so its saves can be told apart from");
+            Console.Error.WriteLine(
+                "every other game sharing the console's card. Previews unless --apply is given.");
+            return ExitCode.Usage;
+        }
+
+        if (!int.TryParse(
+                command.Positional[1],
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var romId))
+        {
+            Console.Error.WriteLine($"'{command.Positional[1]}' is not a rom id.");
+            return ExitCode.Usage;
+        }
+
+        var converter = new SaveConverter(context.Install, context.Store);
+
+        var result = revert
+            ? converter.Revert(romId)
+            : apply ? converter.Convert(romId) : converter.Preview(romId);
+
+        if (result.Status == ConversionStatus.Refused)
+        {
+            Console.Error.WriteLine(result.Detail);
+            return ExitCode.Usage;
+        }
+
+        if (result.Warning is { } warning)
+        {
+            Console.WriteLine(warning);
+            Console.WriteLine();
+        }
+
+        Console.WriteLine(result.Detail);
+
+        if (result.Status == ConversionStatus.Ready)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Nothing was written. Re-run with --apply to make the change.");
+        }
+
+        return ExitCode.Ok;
+    }
+
     /// <summary>
     /// <c>saves resolve &lt;rom&gt; &lt;slot&gt; --keep-local|--keep-server</c>.
     /// </summary>
@@ -563,6 +638,7 @@ internal static class SavesCommand
         UnsyncableReason.UnknownShape => "shape not recognised",
         UnsyncableReason.SharedContainer => "shared by several games",
         UnsyncableReason.Unattributed => "no matching ROM",
+        UnsyncableReason.ManagedElsewhere => "RetroBat is also copying these",
         _ => "unknown",
     };
 }

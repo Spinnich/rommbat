@@ -103,7 +103,7 @@ the one with all the interesting invariants.
 | Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                             |
 | Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                              |
 | RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                       |
-| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic                                                                                                       |
+| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it         |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                      |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                             |
 
@@ -132,9 +132,13 @@ one subcommand that needs the network and a decision from a person, and the only
 one by hand.
 
 **Nothing invokes `flush` except `sync` and a person typing it.** The hooks write a spool file
-and exit without starting a process, and the UI that would drive one is M7. Having a hook spawn
-an agent puts an 11 MB process start inside the game-launch path, and that cost has to be
-measured on a real install before it is added; the measurement is still outstanding.
+and exit without starting a process, and the UI that would drive one is M7. The reason recorded
+here used to be that a spawn would put an 11 MB process start inside the game-launch path, and
+**the measurement has since refuted that** (findings 195 and 197). ES spawns hooks
+fire-and-forget and starts emulatorlauncher without waiting; the 75.9 MB agent reaches `Main` in
+34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun` throws the
+framework's precompiled code away. Cost is not the obstacle. CLAUDE.md rule 4 is, because a
+spawned `flush` reaches the network from inside the launch window, and that is M7's call.
 
 `game-start` and `game-end` run inside the game launch path. They must not open a socket and
 must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
@@ -264,7 +268,7 @@ users add custom ones.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Eight have been
+so each milestone has somewhere honest to write from the moment it starts. Ten have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -290,6 +294,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `content_download` | One interrupted transfer per ROM: its `.part`, its target, the expected length and the validator to resume against                 |
 | `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                |
 | `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                         |
+| `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before**                     |
 
 ### No column ever holds an absolute path
 
@@ -439,7 +444,7 @@ clobber.**
 | File                         | Who else writes it                                      | Rule                                                                            |
 | ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `roms/<system>/gamelist.xml` | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform |
-| `es_settings.cfg`            | ES rewrites on exit                                     | Merge. Opt-in and reversible. Write while ES is idle                            |
+| `es_settings.cfg`            | ES discards anything written while it runs              | Refuse while ES is up, then re-read to confirm. Merge. Opt-in and reversible    |
 | `scripts/<event>/*.bat`      | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                           |
 | Emulator INIs                | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                        |
 

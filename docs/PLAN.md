@@ -1538,20 +1538,20 @@ is split into review surfaces small enough to hold. The first cut is at the save
 boundary. **The second cut, taken during stage 2, is at what each piece needs from Game-ID
 attribution**, because that is the only hard dependency among the remaining pieces.
 
-|                                                                          | Stage 2a                              | Stage 2b            | Stage 2c |
-| ------------------------------------------------------------------------ | ------------------------------------- | ------------------- | -------- |
-| Hooks, journal, lock file, `emulatorLauncher.log`                        | stage 1                               |                     |          |
-| Play sessions, standalone ingest                                         | stage 1                               |                     |          |
-| Class A and B saves, attributed by filename                              | stage 1                               |                     |          |
-| Negotiate, upload, download, ack, complete, conflicts, atomic restore    | stage 1                               |                     |          |
-| The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |          |
-| Save states, all 13 emulators                                            | **yes**                               |                     |          |
-| Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |          |
-| `SaveGuard`, widened to save states                                      | **yes**                               | **yes**, to C       | to D     |
-| Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |          |
-| Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |          |
-| The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |          |
-| Class D conversion and the `es_settings.cfg` writer                      |                                       |                     | yes      |
+|                                                                          | Stage 2a                              | Stage 2b            | Stage 2c      |
+| ------------------------------------------------------------------------ | ------------------------------------- | ------------------- | ------------- |
+| Hooks, journal, lock file, `emulatorLauncher.log`                        | stage 1                               |                     |               |
+| Play sessions, standalone ingest                                         | stage 1                               |                     |               |
+| Class A and B saves, attributed by filename                              | stage 1                               |                     |               |
+| Negotiate, upload, download, ack, complete, conflicts, atomic restore    | stage 1                               |                     |               |
+| The logical-content hash                                                 | stage 1, defined for the general case | inherited unchanged |               |
+| Save states, all 13 emulators                                            | **yes**                               |                     |               |
+| Conflict resolution, `saves resolve`, pruning `replaced/`                | **yes**                               |                     |               |
+| `SaveGuard`, widened to save states                                      | **yes**                               | **yes**, to C       | **yes**, to D |
+| Game-ID attribution: journal, ROM header, and a third route              |                                       | **yes**             |               |
+| Class C bundling, the save-unit grammar, the deterministic archive       |                                       | **yes**             |               |
+| The class B batch report (`outbox.batch_key` stays unwritten, see below) |                                       | **yes**             |               |
+| Class D conversion and the `es_settings.cfg` writer                      |                                       |                     | **yes**       |
 
 **Why states go first and alone.** A save state needs no Game-ID attribution at all: every
 `<file>` template in `es_savestates.cfg` is keyed on `{{romfilename}}`, and all twelve emulators
@@ -1570,10 +1570,17 @@ suite this plan calls its highest value, with nothing to flush.
 played unplugged, one flush, and a newer save returning as a conflict are all provable on
 class A. "One game from each save shape" is stage 2 by construction.
 
+**Stage 2c adds the fourth and last shape, driven on hardware.** Armored Core 3 was opted into
+a per-game PCSX2 memory card, the game wrote a save into it, RomMBat discovered and attributed
+it by the ROM's stem, uploaded it, and the emulator loaded it back. The shared card it left
+behind held saves for **11 distinct games**, which is the class D attribution problem measured
+rather than argued. Eviction refused the ROM while that card was unsent and offered it after a
+flush. See [retrobat-findings.md](retrobat-findings.md), 182 to 188.
+
 **Stage 2b adds the third shape, driven on hardware.** A PPSSPP `SAVEDATA/` directory written by
 the game itself went up as one archive, came back down as a conflict, was resolved, and the game
-loaded what the restore wrote. The converted PS2 memory card is the last of the four, so **M6 is
-still not claimable until 2c lands.**
+loaded what the restore wrote. The converted PS2 memory card was the last of the four and **2c
+has landed it**, so the milestone's "done when" is answered at the end of this section.
 
 **The pass also moved one of this plan's own assumptions.** Stage 1 designed conflict handling
 around negotiate answering `conflict`. A real two-sided divergence does not take that route: it
@@ -1585,8 +1592,8 @@ exception, and it is recorded as one. See [retrobat-findings.md](retrobat-findin
 **Stage 2a adds two of the four shapes the "done when" names and the sentence it ends on.** A
 PCSX2 save state with its screenshot is provable here, and so is "a conflict **the user
 resolves**", which stage 1 could detect and had no way to settle. The PPSSPP `SAVEDATA/`
-directory is 2b and the converted PS2 memory card is 2c, so **M6 is not claimable as done until
-2c lands**.
+directory is 2b and the converted PS2 memory card is 2c. **2c has landed and M6 is claimable;**
+see the amended "done when" at the end of this section for what proved each shape.
 
 **What stage 1 does with the classes it does not ship is report them, not ignore them.**
 Everything class C, class D and every save state is recorded as unsyncable with a reason, so
@@ -1704,10 +1711,17 @@ mitigation and not an answer.
   drive one while it runs. Neither shipped: the hook writes a spool file and exits without
   starting a process, and the UI is M7. So `sync` and a typed `flush` are the whole of the
   trigger set, and an install that is never synced spools events and sends nothing. That is
-  tolerable because draining is idempotent and a spool file waits indefinitely, and it is
-  deliberately not fixed by having the hook spawn something: the hook runs inside the
-  game-launch path, where the cost of starting an 11 MB process has to be measured before it
-  is added, not assumed. Stage 2 owns that measurement.
+  tolerable because draining is idempotent and a spool file waits indefinitely. It was also
+  deliberately not fixed by having the hook spawn something, on the grounds that the hook runs
+  inside the game-launch path and an 11 MB process start there had to be measured first.
+  **That measurement is now taken and the reasoning was wrong** (findings 195 and 197). ES does
+  not wait for a hook: across 23 real launches the hook's own timestamp lands a median of 24 ms
+  _after_ emulatorlauncher's, which then spends 0.5 s to 2.8 s before the emulator starts. And
+  size was never the cost: the 75.9 MB agent reaches `Main` in 34 ms while the 11 MB hook takes
+  60 ms, because trimming without `PublishReadyToRun` discards the framework's precompiled code.
+  So **process-start cost is not a reason to refuse a spawn**. What still stands is CLAUDE.md
+  rule 4, which is about the network and not about cost, and a spawned `flush` would put a
+  network call in the launch window. That is M7's decision, not a measurement.
 
   **Still not measured after M6 stage 2a, and the reason is permission rather than oversight.**
   Taking it means replacing the hook binary on the real install and launching a game, which is a
@@ -1883,14 +1897,25 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   target is derived from the ROM's own folder and stem with the extension taken off the
   operation's tagged filename, which is the one part of that name safe to read. Fixed as #63.
 
-  **It still does not close for a bundled one, and that is 2c's.** `SaveSync.DownloadAsync`
-  selects the unit restore on the local row's shape class, so a download for a slot this device
-  holds nothing in has no container to expand and no unit key to place under. It is now
-  **refused with a reason** rather than falling into the single-file branch, which would write a
-  `.zip` under the ROM's stem and check it against `server_content_hash`, a digest this client
-  cannot reproduce for an archive. The slot is recognised as bundled from the shapes table
-  rather than from the filename. Closing it properly needs the container and the unit key
-  derived from the server's row, which is a download-side grammar no measurement yet covers.
+  **It still does not close for a bundled one.** `SaveSync.DownloadAsync` selects the unit
+  restore on the local row's shape class, so a download for a slot this device holds nothing in
+  has no container to expand and no unit key to place under. It is **refused with a reason**
+  rather than falling into the single-file branch, which would write a `.zip` under the ROM's
+  stem and check it against `server_content_hash`, a digest this client cannot reproduce for an
+  archive. The slot is recognised as bundled from the shapes table rather than from the
+  filename. Closing it properly needs the container and the unit key derived from the server's
+  row, which is a download-side grammar no measurement yet covers. **Still open after 2c**,
+  which was expected to take it and did not: the bundled download grammar was cut from that
+  stage's scope, and class C is the only shape it affects.
+
+  **Amended after M6 stage 2c: it does close for a converted class D container, and that case
+  had the opposite bug.** A converted card is one file whose name is the ROM's stem, and the
+  shape declares the container it belongs in, so a device that has never run the game can be
+  handed one. `ResolveTarget` was deriving `saves/<folder>/<stem><ext>` for it, which is right
+  for class A and puts a PCSX2 memory card exactly where PCSX2 never looks, **quietly**: the
+  bytes land, the ack is sent, and the flush reports success. It now asks the shape where the
+  container goes, recognising the slot rather than the extension, because only the shape knows
+  that a `.ps2` under `ps2` is a memory card.
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
@@ -2236,9 +2261,18 @@ convert single-disc titles and leave multi-disc sets shared, reporting why. See
 [freegosy-findings.md](freegosy-findings.md), F18.
 
 **Watch out for `dolphin_sync_saves`**, also in `es_features.cfg`: "RetroBat will sync
-dolphin and libretro-dolphin saves folders." That is RetroBat moving save files between two
-locations behind our back. Detect it and account for it before treating either location as
-authoritative.
+dolphin and libretro-dolphin saves folders." **The description is wrong and so was this
+paragraph** until finding 189 read `Dolphin.Generator.cs` and drove it. It is **GameCube only**,
+it runs **once per launch inside emulatorlauncher, before Dolphin starts**, and the two
+locations are `saves/gamecube/dolphin-emu/User/GC/<REGION>/` and a **`Card A/` subdirectory of
+it**. Nothing moves while RomMBat is running.
+
+`DolphinSaveSync` detects it and reports it, and never acts on it. The hazard is not the mtime
+comparison, which a restored save always wins because it carries the current time: it is the
+one-sided branch. **A `.gci` in `Card A` with nothing beside it is copied back out**, so a save
+RomMBat removed reappears holding whatever that copy held, reported by RetroBat as one INFO
+line. `Card A` is invisible to class C discovery, which is correct and is also why RomMBat
+cannot see it coming, so the user is told instead.
 
 So PS1 and GameCube are **already per-game in a stock RetroBat**, and the class-D list is
 much shorter than it first appears. PS2 needs one option flipped. The earlier framing of
@@ -2294,11 +2328,24 @@ Five things to keep honest about this:
 
 - **It mutates the user's RetroBat configuration**, so it is opt-in, explained, and
   reversible. Never flip it silently.
-- **ES owns `es_settings.cfg` and rewrites it on exit**, the same hazard as `gamelist.xml`
-  in M4. Merge rather than clobber, write while ES is idle, and write atomically. M0
-  narrowed this: ES only writes the file when a setting **changed** that session, and when
-  it does, it preserves keys it does not recognise, so the override itself is durable. The
-  hazard is ordinary two-writer contention, not ES eating the key.
+- **ES owns `es_settings.cfg`, and a key written while it is running does not survive.**
+  **Amended after M6 stage 2c, which refutes what this bullet used to say.** M0 measured that
+  ES preserves keys it does not recognise and concluded the override was durable and the hazard
+  was ordinary two-writer contention. Every write M0 made happened **before** ES started. Driven
+  the other way on a real install, with ES up, two custom keys were merged in atomically,
+  confirmed on disk, and **discarded by ES's next write**. `Language` is the proof it is not a
+  merge: ES added that key itself at startup and dropped it again on the same write, so what it
+  serialises is a model loaded at boot rather than the file as it stands.
+
+  **ES loads the file at startup and serialises that model on every write.** A key present at
+  load survives, ones ES cannot understand included; a key that appears afterwards is discarded.
+  M0's nonsense key survived because it predated the load. So "write while ES is idle" is not
+  prudence, it is the only thing that works, and merging and atomicity do not help, because that
+  write was both. **ES writes twice a session, at launch as well as on exit**, timed
+  against the hook spool, so the safe window is strictly "while ES is not running". The writer therefore refuses
+  to run while ES is up, says why, and re-reads the file afterwards to confirm the key is
+  really there. See [retrobat-findings.md](retrobat-findings.md), 178 and 179.
+
 - **ES prunes any setting whose value equals its own default.** An entry written at the
   stock value disappears on the next rewrite (`Language=en_US` vanished, `fr_FR` survived).
   Custom keys have no default to match and are kept. Never read a missing entry as evidence
@@ -2483,6 +2530,29 @@ PPSSPP `SAVEDATA/` directory, a PCSX2 save state with its screenshot, and a PS2 
 save after opting that game into a per-game memory card. Anything still genuinely shared
 must report itself unsyncable with an explanation rather than appearing to work.
 
+**Answered after M6 stage 2c, which is the stage that makes it claimable.** Each shape is
+listed with what proved it, and **a shape proven by a test rather than by an emulator is named
+as such**, because the two are different claims.
+
+| Shape                          | Proved by                                                                                               | Stage |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- | ----- |
+| A, one file per game           | A RetroArch `.srm`, written offline and flushed on reconnect                                            | 1     |
+| B, several files per game      | Saturn's `.bcr` and `.bkr` in their own slots. **Tests only: no Saturn game has ever been launched**    | 1     |
+| C, a directory per game        | A PPSSPP `SAVEDATA/`, up as one archive, back as a conflict, resolved, and loaded by the game           | 2b    |
+| D, a container shared by games | A PCSX2 card converted per game, written by Armored Core 3, synced, and **loaded back by the emulator** | 2c    |
+
+The offline half is stage 1's and unchanged. The conflict a user resolves is 2a's, and its
+server side was synthetic. The PCSX2 save state with its screenshot is 2a's, and the screenshot
+uploaded but did not link to the state (finding 138).
+
+**What the milestone does not claim.** Nothing is certified: certification is per
+`(system, emulator, core)` across nine steps, and the rollout starts after M7. Class D was
+driven on `(ps2, pcsx2)` only. **A converted card has never been downloaded onto a second real
+device**, so the fresh-device half of class D rests on tests. Dreamcast and PS1 convert in
+principle and are deliberately refused, each with its measured reason: Dreamcast's per-game VMU
+is serial-keyed and needs the Game-ID routes, and DuckStation's stock mode already binds a disc
+set through its own database, so converting PS1 is the change that would break one.
+
 ### M7: gamepad UI
 
 - Full-screen, controller-navigable: pair, manage sync sets, show sync progress,
@@ -2639,7 +2709,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | An emulator-created empty memory card is the same size as a real one and uploads as if it were progress                         | Change detection cannot use size or existence; hash content, and treat a card whose byte histogram is that of a freshly formatted one as absent. How many cards appear is a property of the game, not the emulator: one title produced both slots, another only slot 1                                   |
 | One PS1 game yields a card per disc set and a save state per disc, so a `rom_id` maps to saves many-to-many                     | Model the card and the state as separately keyed; never assume one save per game or one save per file, and never infer a set's membership from a card name alone                                                                                                                                         |
 | Writing emulator INIs directly gets clobbered every launch                                                                      | `emulatorlauncher` regenerates them from options at launch; write `es_settings.cfg` instead, using its `<system>["<rom>"]` per-game form                                                                                                                                                                 |
-| `es_settings.cfg` is rewritten by ES on exit, like `gamelist.xml`                                                               | Merge rather than clobber, write while ES is idle, write atomically                                                                                                                                                                                                                                      |
+| A key written into `es_settings.cfg` while ES is running is silently discarded                                                  | ES serialises a model loaded at startup, so merging and atomicity do not help. Refuse to write while ES is running, say why, and re-read the file afterwards to confirm the key is there                                                                                                                 |
 | Switching a user to per-game cards strands their existing saves                                                                 | Opt-in and reversible, with either a migration path out of the old container or an explicit warning before the switch; note that per-game cards also break legitimate cross-game save reads                                                                                                              |
 | Directory saves are keyed by Game ID and RomM stores no serial or title ID                                                      | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers                                                                                                                                                                       |
 | Hashing zip bytes makes RomMBat and Grout disagree on identical saves                                                           | Define `content_hash` over sorted relative paths plus per-file hashes; the archive is transport only                                                                                                                                                                                                     |
