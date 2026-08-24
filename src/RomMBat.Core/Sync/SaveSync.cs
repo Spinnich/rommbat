@@ -160,12 +160,11 @@ public sealed class SaveSync
 
     /// <summary>Where a download lands before it is verified.</summary>
     /// <remarks>
-    /// Under <c>emulators/rommbat/partial/</c> and never beside the target, for the same reason
-    /// M3 put ROM downloads there: a power loss must not leave a half-written file in a folder
-    /// an emulator will read.
+    /// <see cref="RetroBatInstall.PartialDirectory"/>, named here because the save paths read
+    /// it often. Not a second definition: the sweep that bounds these bytes reads the same
+    /// property, and a fifth construction of the string is what #60 was opened about.
     /// </remarks>
-    public static RelativePath PartialDirectory { get; } =
-        RetroBatInstall.AppDirectory.Combine("partial");
+    public static RelativePath PartialDirectory => RetroBatInstall.PartialDirectory;
 
     /// <summary>Where the copy taken before an overwrite lives.</summary>
     public static RelativePath AsideDirectory { get; } =

@@ -447,6 +447,7 @@ public sealed class SetResolver
             FsName = row.FsName,
             FsExtension = row.FsExtension,
             SizeBytes = row.SizeBytes,
+            IsMultiFile = row.HasMultipleFiles,
 
             // Carried so a later sync can decide a file on disk is already the right one with
             // the server switched off. Both describe the uncompressed content.

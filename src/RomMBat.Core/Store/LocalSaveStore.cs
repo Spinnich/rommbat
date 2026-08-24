@@ -5,11 +5,6 @@ using RomMBat.Core.RetroBat;
 namespace RomMBat.Core.Store;
 
 /// <summary>A save unit found on disk.</summary>
-/// <param name="UploadedContentHash">
-/// Null means this save has never reached the server, which is the question
-/// <c>SaveGuard</c> exists to ask. It holds the hash that went up rather than a flag, so a
-/// save changed since its upload is distinguishable from one that was never sent.
-/// </param>
 public sealed record LocalSave
 {
     public required RelativePath Path { get; init; }
@@ -43,6 +38,14 @@ public sealed record LocalSave
 
     public DateTimeOffset? FileMtimeUtc { get; init; }
 
+    /// <summary>
+    /// What went up last, or null when nothing has.
+    /// </summary>
+    /// <remarks>
+    /// Null means this save has never reached the server, which is the question
+    /// <c>SaveGuard</c> exists to ask. It holds the hash that went up rather than a flag, so a
+    /// save changed since its upload is distinguishable from one that was never sent.
+    /// </remarks>
     public string? UploadedContentHash { get; init; }
 
     public DateTimeOffset? UploadedAtUtc { get; init; }

@@ -60,6 +60,7 @@ internal static class SavesCommand
             if (states is not null)
             {
                 Console.WriteLine(states.Summary);
+                ReportNearMisses(states);
             }
 
             Console.WriteLine();
@@ -73,6 +74,31 @@ internal static class SavesCommand
         ReportQueue(context);
 
         return ExitCode.Ok;
+    }
+
+    /// <summary>
+    /// Names what a state directory holds that is neither syncable nor a sidecar.
+    /// </summary>
+    /// <remarks>
+    /// Two lines at most per file, and only for files that nearly are states. Dropping these
+    /// silently is the failure #34 and #65 describe: a state an emulator really wrote leaves no
+    /// trace anywhere a user could find it.
+    /// </remarks>
+    private static void ReportNearMisses(StateScanOutcome states)
+    {
+        if (states.NearMisses.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Save states worth a look");
+
+        foreach (var miss in states.NearMisses)
+        {
+            Console.WriteLine($"  {miss.FileName}");
+            Console.WriteLine($"    {miss.Detail}");
+        }
     }
 
     private static void ReportSaves(AgentContext context)

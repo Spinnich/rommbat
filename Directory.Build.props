@@ -7,7 +7,26 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
-    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      On, so Roslyn validates the doc comments at all: CS1570 to CS1591 are only
+      emitted while a documentation file is being produced, and CI builds Release
+      with -warnaserror. This repo puts unusual load on doc comments, since the
+      measured rules live in them and <see cref=""/> is how one is linked to the type
+      it constrains, so a broken cref or a <param> naming a parameter that has been
+      renamed away is a dead link nothing else catches.
+
+      CS1591 (no comment on a public member) and CS1573 (some params documented and
+      not others) are off, and both are deliberate house style rather than a backlog.
+      Comments here are short and explain why, so a member whose name is the whole
+      story carries none, and a constructor documents only the argument that has a
+      rule attached to it.
+    -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+
+    <!-- The .xml is there to make Roslyn check the comments, not to ship beside the exe. -->
+    <PublishDocumentationFile>false</PublishDocumentationFile>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 

@@ -155,7 +155,7 @@ internal static class EvictCommand
     }
 
     /// <summary>
-    /// The dry-run exit, which still has the sweep to do.
+    /// The preview exit, which still has the sweep to do.
     /// </summary>
     /// <remarks>
     /// Taken when nothing is over budget, which is the ordinary case and the one where dead

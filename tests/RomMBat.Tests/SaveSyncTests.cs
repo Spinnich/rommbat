@@ -391,9 +391,10 @@ public class SaveSyncTests
     {
         // save_conflict.local_path is NOT NULL and CHECKs for a non-blank value, so recording a
         // conflict with no local save behind it raised SQLITE_CONSTRAINT_CHECK out of the flush,
-        // taking the states pass down with it. Measurement 132 says negotiate never volunteers a
-        // slot like this, which is why it is a guard and a reported problem rather than a
-        // download path.
+        // taking the states pass down with it. The constraint is what keeps this safe, not
+        // negotiate's silence: measurement 151 withdrew 132 and showed negotiate does volunteer
+        // slots the client never submitted, so the case is reachable and stays a guard and a
+        // reported problem.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what this device did");
         fixture.Scan();

@@ -6,18 +6,25 @@ Byte-exact captures from a real RetroBat install, plus recorded RomM API respons
 directory, because a fixture that has been tidied no longer proves what it was captured
 to prove.
 
-**Some fixtures are links, not copies.** `RomMBat.Tests.csproj` links three files in from
-`reference/` and `data/` under `fixtures/` names, so the mapping regression runs against the
-same bytes the reference data and the generator do. Copying them would let the copy drift
-from the file the numbers were derived from. **Only ever link a tracked file:**
-`probe-output/` is gitignored scratch, and linking from it builds on the machine that
-produced it and nowhere else.
+**Some fixtures are links, not copies.** Both test projects link files in from `reference/`
+and `data/` under `fixtures/` names, so a test runs against the same bytes the reference data
+and the generators do. Copying them would let the copy drift from the file the numbers were
+derived from. **Only ever link a tracked file, in any test project:** `probe-output/` is
+gitignored scratch, and linking from it builds on the machine that produced it and nowhere
+else.
 
-| Linked in                 | From                       | Used by                                          |
-| ------------------------- | -------------------------- | ------------------------------------------------ |
-| `es_systems.template.cfg` | `reference/es_systems.cfg` | Folder, `<extension>` and non-ROM-system parsing |
-| `systems_names.lst`       | `reference/`               | Asserting every bundled folder is a real system  |
-| `platforms.json`          | `data/retrobat/`           | The mapping regression                           |
+| Linked in                    | From                             | Used by                                          |
+| ---------------------------- | -------------------------------- | ------------------------------------------------ |
+| `es_systems.template.cfg`    | `reference/es_systems.cfg`       | Folder, `<extension>` and non-ROM-system parsing |
+| `systems_names.lst`          | `reference/systems_names.lst`    | Asserting every bundled folder is a real system  |
+| `platforms.json`             | `data/retrobat/platforms.json`   | The mapping regression                           |
+| `bios.json`                  | `data/retrobat/bios.json`        | The BIOS manifest and planner                    |
+| `batocera-systems.json`      | `reference/batocera-systems.json`| The manifest against the file it is derived from |
+| `es_savestates.template.cfg` | `reference/es_savestates.cfg`    | Save-state directory and filename templates      |
+
+`RomMBat.Agent.Tests.csproj` links `reference/es_systems.cfg` as
+`fixtures/es_systems.template.cfg` as well, for the same reason: a command gate that reads
+the install's `es_systems.cfg` needs a real one to read.
 
 `es_systems.live.json` is a real capture, checked in here: 244 systems from a live 8.2.0
 install, recorded by M0 probe 4. It carries system names, paths and extensions only, no
