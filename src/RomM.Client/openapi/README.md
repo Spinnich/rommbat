@@ -35,6 +35,21 @@ Requires `dotnet tool restore` once per clone (NSwag is a local tool, pinned in
 is a compatibility decision: it changes which server version the DTOs describe, so the
 README compatibility table moves with it.
 
+## Why the generated file disables four doc-comment warnings
+
+`Directory.Build.props` sets `GenerateDocumentationFile`, so Roslyn checks doc comments
+across the solution, and `build.yml` builds Release with `-warnaserror`. That rule exists for
+the hand-written code, where the measured rules live in the comments and a `<see cref="..."/>`
+is how one is linked to the type it constrains. The generated file has no crefs at all: its
+221 doc comments are the schema's `description` strings, which `normalize.py` carries through
+verbatim.
+
+Verbatim is the problem. NSwag's header disables CS1573 and CS1591 but not CS1570 or CS1572,
+so a RomM release whose description text contains a raw `<` or `&` would fail the build in a
+file nobody authored, at pin-move time. `generate.sh` appends the two missing pragmas after
+running NSwag, so a regeneration keeps them. If a regenerated file still will not compile on a
+doc-comment warning, add the warning there rather than turning the check off for the project.
+
 ## Why the schema is normalised first
 
 `normalize.py` writes a derived copy that the generator consumes; the pinned file is never

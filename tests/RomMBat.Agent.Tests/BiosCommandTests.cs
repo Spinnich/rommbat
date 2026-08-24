@@ -1,4 +1,6 @@
 using RomMBat.Agent.Tests.Support;
+using RomMBat.Core.Paths;
+using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -28,6 +30,63 @@ public sealed class BiosCommandTests
         Assert.NotEqual(0, run.ExitCode);
         Assert.True(run.Complained("snse"), run.Error);
         Assert.False(run.Wrote("no BIOS is required"), run.Out);
+    }
+
+    [Fact]
+    public async Task An_install_that_has_synced_nothing_says_so_rather_than_reporting_a_clean_library()
+    {
+        // The default path takes FoldersNeedingBios(), which reads the local store, and an
+        // install that has synced nothing returns an empty list. Plan([]) then produced "no
+        // BIOS is required for these systems" over the empty set: the same sentence a mistyped
+        // positional used to produce, and false in the same way, because nothing was consulted.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "--offline");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.False(run.Wrote("no BIOS is required"), run.Out);
+        Assert.True(run.Wrote("Nothing has been synced yet"), run.Out);
+        Assert.True(run.Wrote("--all"), run.Out);
+    }
+
+    [Fact]
+    public async Task A_library_of_systems_that_need_no_firmware_is_not_reported_as_unsynced()
+    {
+        // FoldersNeedingBios() filters by the manifest, so it is empty for a populated library
+        // whose systems have no firmware entry, and that is the ordinary case: only 99 of
+        // RetroBat's 240 systems appear in batocera-systems.json, and snes, n64 and atari2600
+        // are not among them. One sentence for both states told this install to run 'sync'
+        // over 3 systems it had already synced.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            foreach (var (folder, name) in new[]
+                     {
+                         ("snes", "Contra III (USA).sfc"),
+                         ("n64", "Mario Kart 64 (USA).z64"),
+                         ("atari2600", "Pitfall! (USA).a26"),
+                     })
+            {
+                store.Files.Record(new LocalFile
+                {
+                    Path = RelativePath.Create($"roms/{folder}/{name}"),
+                    Folder = folder,
+                    FileName = name,
+                    Kind = LocalFileKind.Rom,
+                    SizeBytes = 1024,
+                });
+            }
+        }
+
+        var run = await AgentRunner.RunAsync(tree, "bios", "--offline");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.False(run.Wrote("Nothing has been synced yet"), run.Out);
+        Assert.True(run.Wrote("None of the 3 systems synced here"), run.Out);
+        Assert.True(run.Wrote("--all"), run.Out);
     }
 
     [Fact]

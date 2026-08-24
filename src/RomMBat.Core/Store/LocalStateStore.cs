@@ -4,22 +4,6 @@ using RomMBat.Core.Paths;
 namespace RomMBat.Core.Store;
 
 /// <summary>A save state found on disk.</summary>
-/// <param name="Slot">
-/// <c>{emulator}:{core}:{slot}</c>, with <c>auto</c> for an autosave and an empty middle where
-/// the emulator is not core-scoped. <b>Local only.</b> <c>POST /api/states</c> has no slot
-/// field, so this never goes on the wire; it is what pairs a rescan with the row it already has.
-/// </param>
-/// <param name="NativeName">
-/// The content of the <c>.txt</c> sidecar RetroBat writes beside a state, which is the
-/// emulator's own name for the game. Its presence signals nothing, since some hold only the ROM
-/// filename, but where it holds a serial (<c>SLUS-00404</c>, <c>UCES00995_1.00</c>,
-/// <c>GW7E69</c>) it is the Game ID that class C and D attribution otherwise reads out of a ROM.
-/// </param>
-/// <param name="UploadedFileName">
-/// The name this device sent, which is not the name on disk. It carries the emulator and core,
-/// because the server keys a state on <c>(rom_id, file_name)</c> alone and two cores writing one
-/// filename would otherwise collapse into a single row.
-/// </param>
 public sealed record LocalState
 {
     public required RelativePath Path { get; init; }
@@ -39,10 +23,23 @@ public sealed record LocalState
 
     public RelativePath? RomPath { get; init; }
 
+    /// <summary>What pairs a rescan with the row it already has.</summary>
+    /// <remarks>
+    /// <c>{emulator}:{core}:{slot}</c>, with <c>auto</c> for an autosave and an empty middle
+    /// where the emulator is not core-scoped. <b>Local only.</b> <c>POST /api/states</c> has no
+    /// slot field, so this never goes on the wire.
+    /// </remarks>
     public required string Slot { get; init; }
 
     public RelativePath? ScreenshotPath { get; init; }
 
+    /// <summary>The emulator's own name for the game, from the sidecar beside the state.</summary>
+    /// <remarks>
+    /// The content of the <c>.txt</c> sidecar RetroBat writes beside a state. Its presence
+    /// signals nothing, since some hold only the ROM filename, but where it holds a serial
+    /// (<c>SLUS-00404</c>, <c>UCES00995_1.00</c>, <c>GW7E69</c>) it is the Game ID that class C
+    /// and D attribution otherwise reads out of a ROM.
+    /// </remarks>
     public string? NativeName { get; init; }
 
     public string? ContentHash { get; init; }
@@ -53,6 +50,12 @@ public sealed record LocalState
 
     public int? StateId { get; init; }
 
+    /// <summary>The name this device sent, which is not the name on disk.</summary>
+    /// <remarks>
+    /// It carries the emulator and core, because the server keys a state on
+    /// <c>(rom_id, file_name)</c> alone and two cores writing one filename would otherwise
+    /// collapse into a single row.
+    /// </remarks>
     public string? UploadedFileName { get; init; }
 
     public string? UploadedContentHash { get; init; }

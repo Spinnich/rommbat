@@ -74,8 +74,10 @@ internal sealed partial class StubRomMServer
     /// Slots negotiate offers a <c>conflict</c> for that the client did not submit.
     /// </summary>
     /// <remarks>
-    /// Measurement 132 says a real instance never does this, because negotiate reconciles only
-    /// the set the client names. Modelled anyway, because the client's answer to it was a
+    /// No live instance has been seen answering <c>conflict</c> for an unsubmitted slot, but
+    /// nothing rules it out either: measurement 151 withdrew 132 and showed negotiate does
+    /// volunteer slots the client never named, so the unsubmitted half of this is real and only
+    /// the action is unobserved. Modelled because the client's answer to it was a
     /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
     /// and takes the whole flush down rather than the one operation.
     /// </remarks>

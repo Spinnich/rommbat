@@ -1175,7 +1175,7 @@ the rollout order below can be derived rather than hand-maintained.
   RomMBat downloaded, and a free-space floor covers the drive as a whole. Counting a user's
   own library against the budget would leave the app permanently over its cap, unable to fetch
   and unable to evict its way out, because it must never delete a file it did not download.
-- Eviction is a first-class operation and a dry-run by default: it shows what would be
+- Eviction is a first-class operation and a dry run by default: it shows what would be
   removed before anything is, and refuses to evict anything with unflushed local saves.
   **From M4 it takes a ROM's media and its gamelist entry with it**, and still never touches
   a file RomMBat did not download, which is what keeps a user's own scraped art safe.
@@ -1183,7 +1183,7 @@ the rollout order below can be derived rather than hand-maintained.
   rather than ignoring them.** "Keep favourites" needs a fact RomM does not carry on a ROM
   (favourites are collection membership) and "keep the last N played" needs the play sessions
   M6 owns. What M3 can order by is real: departures first, then games no set claims, then the
-  lowest-ranked members of a set, with the ROM id breaking every tie so a dry-run and the run
+  lowest-ranked members of a set, with the ROM id breaking every tie so a dry run and the run
   that follows it agree.
 - **What M6 has to connect to the save guard.** Eviction asks `SaveGuard` before removing
   anything, and today it answers from the two seams migration 001 already declared: an unsent
@@ -1518,8 +1518,9 @@ a single 100-game set, so evicting firmware would free nothing measurable while 
 platform unable to boot.
 
 **What triggers a pass.** Both: `sync` fetches a platform's BIOS before its ROMs, and a
-`bios` command in the shape of `budget` and `evict` carries `--dry-run` and `--offline` for
-the report on its own. The whole-library report is one request, which is what makes the
+`bios` command in the shape of `budget` and `evict` reports on its own, writing nothing
+without `--apply` and answering with `--offline` too. `--dry-run` is `sync`'s flag and
+belongs to no other command: previewing is the default here and writing is the opt-in. The whole-library report is one request, which is what makes the
 standalone command cheap.
 
 **Done when:** syncing a BIOS-dependent platform lands the right files at the right paths
@@ -2604,7 +2605,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | A restored save is written under the server's tagged filename and the emulator never finds it                                   | Write `file_name_no_tags` + `file_extension`; keep `file_name` only as the server-side identity                                                                                                                                                                        |
 | A save slot grows one row per session until the user's RomM is unusable                                                         | `autocleanup=true` with an explicit `autocleanup_limit`; the defaults are off and 10, and `keep_both` conflicts compound it                                                                                                                                            |
 | A misspelt `/api/roms` filter silently resolves the whole library instead of one platform                                       | Unknown parameters are ignored with a 200, so assert at resolve time that a scoped walk's `total` is below the library total                                                                                                                                           |
-| Eviction deletes a game whose save has not synced yet                                                                           | Eviction is blocked on unflushed outbox entries for that ROM, with a dry-run preview                                                                                                                                                                                   |
+| Eviction deletes a game whose save has not synced yet                                                                           | Eviction is blocked on unflushed outbox entries for that ROM, with a dry run preview                                                                                                                                                                                   |
 | ES hook slows or hangs game launch                                                                                              | Hooks are journal-only with a hard time budget from M0; all network work happens in the background agent                                                                                                                                                               |
 | Drive letter changes and every stored path breaks                                                                               | Persist only paths relative to the RetroBat root; resolve to absolute at point of use; M0 experiment 7 proves it                                                                                                                                                       |
 | Portable install moved to a new PC registers as a second device, or collides with another client                                | Anchor identity on `client_device_identifier` via the pairing flow, which never records MAC/IP/hostname. Never call `POST /api/devices` with fingerprint fields, whose dedup matches on MAC alone                                                                      |

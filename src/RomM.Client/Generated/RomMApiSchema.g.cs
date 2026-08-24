@@ -13,6 +13,8 @@
 #pragma warning disable 649 // Disable "CS0649 Field is never assigned to, and will always have its default value null"
 #pragma warning disable 1573 // Disable "CS1573 Parameter '...' has no matching param tag in the XML comment for ...
 #pragma warning disable 1591 // Disable "CS1591 Missing XML comment for publicly visible type or member ..."
+#pragma warning disable 1570 // Disable "CS1570 XML comment has badly formed XML" (schema description text is carried verbatim)
+#pragma warning disable 1572 // Disable "CS1572 XML comment has a param tag, but there is no parameter by that name"
 #pragma warning disable 8073 // Disable "CS8073 The result of the expression is always 'false' since a value of type 'T' is never equal to 'null' of type 'T?'"
 #pragma warning disable 3016 // Disable "CS3016 Arrays as attribute arguments is not CLS-compliant"
 #pragma warning disable 8600 // Disable "CS8600 Converting null literal or possible null value to non-nullable type"

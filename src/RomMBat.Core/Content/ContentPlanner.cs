@@ -179,7 +179,7 @@ public sealed class ContentPlanner
     /// id rather than the file name, which keeps it short and free of anything Windows refuses.
     /// </remarks>
     public static RelativePath PartFor(int romId) =>
-        RetroBatInstall.AppDirectory.Combine($"partial/{romId.ToString(CultureInfo.InvariantCulture)}.part");
+        RetroBatInstall.PartialDirectory.Combine($"{romId.ToString(CultureInfo.InvariantCulture)}.part");
 
     /// <summary>Works out what syncing this set would do.</summary>
     public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members)

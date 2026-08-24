@@ -39,8 +39,8 @@ public class SyncSetTests : IDisposable
     [Fact]
     public void The_schema_is_at_the_version_this_build_expects()
     {
-        Assert.Equal(8, LocalStore.ExpectedSchemaVersion);
-        Assert.Equal(8, _store.SchemaVersion);
+        Assert.Equal(9, LocalStore.ExpectedSchemaVersion);
+        Assert.Equal(9, _store.SchemaVersion);
     }
 
     [Fact]
@@ -581,6 +581,46 @@ public class SyncSetTests : IDisposable
 
         Assert.True(_store.SyncSets.Remove("snes"));
         Assert.Empty(_store.SyncSets.List());
+    }
+
+    [Fact]
+    public async Task Whether_romm_serves_a_rom_as_several_files_survives_the_round_trip()
+    {
+        // ContentSync hardcoded IsMultiFile = false, because the membership did not carry it.
+        // True of everything that reaches a plan today, and it left the client's multi-file
+        // guard unreachable from the shipped path: a resolver change that re-admitted these
+        // would have leaned on a refusal nobody had run against a real one.
+        //
+        // Written for every member and not only the excluded ones, so the value ContentSync
+        // reads is the server's answer rather than the exclusion restated.
+        using var stub = SnesLibrary(2);
+        stub.Library.Add(new StubRom(3, 1, "snes", "snes", "Disc Game", "Disc Game", string.Empty, 2048)
+        {
+            HasMultipleFiles = true,
+        });
+
+        using var connection = Connect(stub);
+
+        var set = Add(new SyncSetDefinition
+        {
+            Name = "snes",
+            Scope = CatalogScopeKind.Platform,
+            ScopeValue = "1",
+        });
+
+        var resolution = await Resolve(set, connection);
+        _store.SyncSets.ReplaceMembers(
+            set.Id, [.. resolution.Members, .. resolution.Excluded], resolution.Summary, Now);
+
+        var members = _store.SyncSets.Members(set.Id, state: null);
+
+        Assert.All(
+            members.Where(member => member.RomId != 3),
+            member => Assert.False(member.IsMultiFile, $"rom {member.RomId} came back multi-file"));
+
+        var multiFile = Assert.Single(members, member => member.RomId == 3);
+        Assert.True(multiFile.IsMultiFile);
+        Assert.Equal(MemberState.ExcludedMultiFile, multiFile.State);
     }
 
     private SyncSetDefinition Add(SyncSetDefinition definition) => _store.SyncSets.Add(definition, Now);
