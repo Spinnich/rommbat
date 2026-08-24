@@ -31,7 +31,7 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var platforms = await PlatformsAsync();
+        var platforms = await PlatformsAsync(cancellationToken: TestContext.Current.CancellationToken);
         var records = platforms.SelectMany(platform => platform.Firmware).ToList();
 
         Assert.SkipWhen(records.Count == 0, "This instance holds no firmware.");
@@ -48,7 +48,7 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var platforms = await PlatformsAsync();
+        var platforms = await PlatformsAsync(cancellationToken: TestContext.Current.CancellationToken);
         var widest = platforms.MaxBy(platform => platform.Firmware.Count);
 
         Assert.SkipWhen(widest is null || widest.Firmware.Count == 0, "This instance holds no firmware.");
@@ -69,7 +69,8 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var manifest = BiosManifest.Bundled;
-        var candidates = BiosPlanner.IndexByMd5(await PlatformsAsync());
+        var candidates = BiosPlanner.IndexByMd5(await PlatformsAsync(
+            cancellationToken: TestContext.Current.CancellationToken));
 
         // The smallest file this library holds that RetroBat actually requires, so a live run
         // against someone's real instance moves as few bytes as it can.
@@ -109,7 +110,7 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
-        var platforms = await PlatformsAsync();
+        var platforms = await PlatformsAsync(cancellationToken: TestContext.Current.CancellationToken);
         var lost = platforms.SelectMany(platform => platform.Firmware).FirstOrDefault(record => record.MissingFromFs);
 
         Assert.SkipWhen(lost is null, "This instance has no firmware row whose file is gone.");
@@ -127,9 +128,10 @@ public class LiveFirmwareTests(LiveCatalogFixture fixture) : IClassFixture<LiveC
         Assert.Contains(lost!.FileName, response.Message, StringComparison.Ordinal);
     }
 
-    private async Task<IReadOnlyList<PlatformRow>> PlatformsAsync()
+    private async Task<IReadOnlyList<PlatformRow>> PlatformsAsync(CancellationToken cancellationToken = default)
     {
-        var response = await fixture.Session.Connection.ListPlatformsAsync();
+        var response = await fixture.Session.Connection
+            .ListPlatformsAsync(cancellationToken: cancellationToken);
 
         Assert.True(response.IsSuccess, response.Message);
         return response.Value!;

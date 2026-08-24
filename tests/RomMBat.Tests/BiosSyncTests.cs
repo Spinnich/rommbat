@@ -58,7 +58,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = MeasuredLibrary(stub);
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(6, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -90,7 +90,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = MeasuredLibrary(stub);
 
         using var store = LocalStore.Open(_tree.Install());
-        await SyncAsync(stub, store, manifest);
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         var recorded = store.Files.Find(RelativePath.Create("bios/psxonpsp660.bin"));
 
@@ -120,7 +120,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = Manifest(("gb", Md5(bytes), "bios/sgb_boot.bin"));
 
         using var store = LocalStore.Open(_tree.Install());
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         var step = Assert.Single(plan.Steps);
         Assert.Equal(BiosAction.MissingFromLibrary, step.Action);
@@ -152,7 +152,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = Manifest([.. destinations.Select(path => ("colecovision", Md5(bytes), path))]);
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(3, outcome.Written);
@@ -187,7 +187,7 @@ public sealed class BiosSyncTests : IDisposable
             ("supergrafx", Md5(bytes), "bios/syscard3.pce"));
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Failed);
         Assert.Empty(outcome.Problems);
@@ -199,7 +199,7 @@ public sealed class BiosSyncTests : IDisposable
         Assert.Single(store.Files.List(kind: LocalFileKind.Firmware));
 
         // And the second pass says "present" once rather than once per system that wants it.
-        var second = await SyncAsync(stub, store, manifest);
+        var second = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(second.IsNoOp);
         Assert.Equal(1, second.AlreadyPresent);
     }
@@ -220,7 +220,7 @@ public sealed class BiosSyncTests : IDisposable
             ("mastersystem", null, "bios/mame/hash/sms1.xml"));
 
         using var store = LocalStore.Open(_tree.Install());
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, plan.Count(BiosAction.Unverifiable));
         Assert.Equal(0, plan.Count(BiosAction.MissingFromLibrary));
@@ -245,7 +245,7 @@ public sealed class BiosSyncTests : IDisposable
         Write("bios/saturn_bios.bin", bytes);
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Adopted);
         Assert.Equal(0, outcome.Downloaded);
@@ -257,7 +257,7 @@ public sealed class BiosSyncTests : IDisposable
         Assert.Equal(FileOrigin.Adopted, recorded.Origin);
 
         // And a second pass costs nothing at all.
-        var second = await SyncAsync(stub, store, manifest);
+        var second = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(second.IsNoOp);
         Assert.Equal(1, second.AlreadyPresent);
     }
@@ -280,7 +280,7 @@ public sealed class BiosSyncTests : IDisposable
         var target = Write("bios/dc_flash.bin", theirs);
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(theirs, File.ReadAllBytes(target));
@@ -312,7 +312,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = Manifest(("pcfx", Md5(wanted), "bios/pcfx.rom"));
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Failed);
         Assert.Equal(0, outcome.Written);
@@ -389,7 +389,7 @@ public sealed class BiosSyncTests : IDisposable
         };
 
         using var store = LocalStore.Open(_tree.Install());
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(1, outcome.Downloaded);
 
         var install = _tree.Install();
@@ -418,7 +418,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = Manifest(("saturn", Md5(bytes), "bios/saturn_bios.bin"));
 
         using var store = LocalStore.Open(_tree.Install());
-        await SyncAsync(stub, store, manifest);
+        await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         // Counted, so status and budget tell the truth about what RomMBat put on the disk.
         Assert.Equal(bytes.Length, new ContentPlanner(_tree.Install(), store).ManagedBytes());
@@ -446,7 +446,11 @@ public sealed class BiosSyncTests : IDisposable
 
         using (var store = LocalStore.Open(_tree.Install()))
         {
-            var outcome = await SyncAsync(stub, store, manifest);
+            var outcome = await SyncAsync(
+                stub,
+                store,
+                manifest,
+                cancellationToken: TestContext.Current.CancellationToken);
             Assert.Equal(1, outcome.Downloaded);
         }
 
@@ -479,7 +483,7 @@ public sealed class BiosSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         store.Settings.Set(SettingStore.ContentMaxBytes, 1L, DateTimeOffset.UtcNow);
 
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
         var step = Assert.Single(plan.Steps);
 
         Assert.Equal(BiosAction.Blocked, step.Action);
@@ -507,7 +511,7 @@ public sealed class BiosSyncTests : IDisposable
         using var store = LocalStore.Open(_tree.Install());
         store.Settings.Set(SettingStore.ContentMaxBytes, 1L, DateTimeOffset.UtcNow);
 
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, plan.Count(BiosAction.Blocked));
         Assert.Equal(0, plan.Count(BiosAction.Download));
@@ -551,12 +555,12 @@ public sealed class BiosSyncTests : IDisposable
         // Room for two copies of it, and three are wanted.
         store.Settings.Set(SettingStore.ContentMaxBytes, (bytes.Length * 2L) + 1, DateTimeOffset.UtcNow);
 
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, plan.Count(BiosAction.Download));
         Assert.Equal(1, plan.Count(BiosAction.Blocked));
 
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         // What the plan reserved is what the run put on the disk.
         Assert.Equal(2, outcome.Written);
@@ -581,12 +585,12 @@ public sealed class BiosSyncTests : IDisposable
         Write("bios/bios_CD_U.bin", bytes);
 
         using var store = LocalStore.Open(_tree.Install());
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, plan.DownloadCount);
         Assert.False(plan.IsNoOp);
 
-        var outcome = await SyncAsync(stub, store, manifest);
+        var outcome = await SyncAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Adopted);
 
@@ -639,7 +643,7 @@ public sealed class BiosSyncTests : IDisposable
         var manifest = Manifest(("dreamcast", Md5(wanted), "bios/dc_flash.bin"));
 
         using var store = LocalStore.Open(_tree.Install());
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(BiosAction.Download, Assert.Single(plan.Steps).Action);
 
@@ -719,29 +723,38 @@ public sealed class BiosSyncTests : IDisposable
             })],
         }));
 
-    private async Task<BiosPlan> PlanAsync(StubRomMServer stub, LocalStore store, BiosManifest manifest)
+    private async Task<BiosPlan> PlanAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        BiosManifest manifest,
+        CancellationToken cancellationToken = default)
     {
         using var connection = Connect(stub);
-        var (candidates, problem) = await BiosCandidatesAsync(connection);
+        var (candidates, problem) = await BiosCandidatesAsync(connection, cancellationToken);
 
         Assert.Null(problem);
 
         return new BiosPlanner(_tree.Install(), store, manifest).Plan(manifest.Folders, candidates);
     }
 
-    private async Task<BiosSyncOutcome> SyncAsync(StubRomMServer stub, LocalStore store, BiosManifest manifest)
+    private async Task<BiosSyncOutcome> SyncAsync(
+        StubRomMServer stub,
+        LocalStore store,
+        BiosManifest manifest,
+        CancellationToken cancellationToken = default)
     {
-        var plan = await PlanAsync(stub, store, manifest);
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken);
 
         using var connection = Connect(stub);
-        return await new BiosSync(_tree.Install(), store, connection).ApplyAsync(plan);
+        return await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: cancellationToken);
     }
 
     /// <summary>Reads the candidate index the way the agent does, in one request.</summary>
     private static async Task<(IReadOnlyDictionary<string, RomM.Client.Catalog.FirmwareRow>? Index, string? Problem)>
-        BiosCandidatesAsync(RomMConnection connection)
+        BiosCandidatesAsync(RomMConnection connection, CancellationToken cancellationToken = default)
     {
-        var response = await connection.ListPlatformsAsync();
+        var response = await connection.ListPlatformsAsync(cancellationToken: cancellationToken);
         return response.IsSuccess
             ? (BiosPlanner.IndexByMd5(response.Value!), null)
             : (null, response.Message);

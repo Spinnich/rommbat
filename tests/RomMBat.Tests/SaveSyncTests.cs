@@ -33,7 +33,7 @@ public class SaveSyncTests
 
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Equal(0, outcome.Failed);
@@ -68,7 +68,7 @@ public class SaveSyncTests
         fixture.Scan();
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
 
-        var first = await fixture.SyncAsync();
+        var first = await fixture.SyncAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, first.Uploaded);
 
         var afterFirst = fixture.Stub.Saves.Count;
@@ -77,7 +77,7 @@ public class SaveSyncTests
         // again. Leaving it set asserts the stub's content dedup, not the client's behaviour.
         fixture.Stub.NegotiateActions.Remove((42, "libretro:battery"));
 
-        var second = await fixture.SyncAsync();
+        var second = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, second.Uploaded);
         Assert.Equal(0, second.Downloaded);
@@ -96,7 +96,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
 
@@ -129,7 +129,7 @@ public class SaveSyncTests
 
         // Uploading is what records the slot's server-side identity: the untagged stem and the
         // extension, which is what a restore has to write on disk.
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // Then the file goes, and the next scan forgets the row that named its path.
         File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
@@ -141,7 +141,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
         fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -176,7 +176,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
         fixture.Stub.UnsolicitedDownloads.Add((7, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal(0, outcome.Failed);
@@ -207,7 +207,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game (USA)", "srm", "not ours");
         fixture.Stub.UnsolicitedDownloads.Add((4242, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Skipped);
         Assert.Equal(0, outcome.Failed);
@@ -234,7 +234,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(4243, "ppsspp:savedata", "ULES09999", "zip", "an archive");
         fixture.Stub.UnsolicitedDownloads.Add((4243, "ppsspp:savedata"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Skipped);
         Assert.Equal(0, outcome.Failed);
@@ -262,7 +262,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(391, "ppsspp:savedata", "ULES01513", "zip", "an archive");
         fixture.Stub.UnsolicitedDownloads.Add((391, "ppsspp:savedata"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.Failed);
@@ -289,7 +289,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
         fixture.Stub.TruncateSaveDownloadAfter = 512;
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.Failed);
@@ -314,7 +314,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "server bytes", lieAboutHash: true);
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Failed);
         Assert.Empty(fixture.Stub.Acknowledged);
@@ -332,7 +332,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "what came down");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
 
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         var aside = Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value));
         Assert.Single(aside);
@@ -352,7 +352,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
 
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
         fixture.Scan();
 
         var save = Assert.Single(fixture.Store.Saves.List());
@@ -371,7 +371,7 @@ public class SaveSyncTests
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "what the other device did");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Conflicts);
         Assert.Equal(0, outcome.Uploaded);
@@ -403,7 +403,7 @@ public class SaveSyncTests
         fixture.Stub.UnsolicitedConflicts.Add((9, "libretro:battery"));
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Conflicts);
         Assert.Equal(1, outcome.Failed);
@@ -435,7 +435,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
         fixture.Stub.ConflictOnUpload.Add((42, "libretro:battery"));
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Uploaded);
         Assert.Equal(0, outcome.Failed);
@@ -479,7 +479,7 @@ public class SaveSyncTests
         Assert.Equal(3, correlated.Sessions);
         Assert.Equal(3, fixture.Store.Outbox.PendingCount());
 
-        var offlineOutcome = await fixture.SyncAsync();
+        var offlineOutcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, offlineOutcome.Failed);
         Assert.Equal(3, fixture.Store.Outbox.PendingCount());
         Assert.All(fixture.Store.Saves.List(), save => Assert.True(save.IsUnsent));
@@ -487,8 +487,8 @@ public class SaveSyncTests
         // Plugged back in: one flush, and all three saves and all three sessions land.
         fixture.Stub.IsReachable = true;
 
-        var playtime = await fixture.FlushPlaytimeAsync();
-        var saves = await fixture.SyncAsync();
+        var playtime = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+        var saves = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, playtime.Sent);
         Assert.Equal(0, playtime.Failed);
@@ -519,7 +519,7 @@ public class SaveSyncTests
         // One of the two refused, which is what a dropped link mid-flush looks like.
         fixture.Stub.RefuseUploadForSlot = "libretro:battery:bkr";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Equal(1, outcome.Failed);
@@ -547,7 +547,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(9, "libretro:battery:bcr")] = "upload";
         fixture.Stub.NegotiateActions[(9, "libretro:battery:bkr")] = "upload";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, outcome.Uploaded);
         Assert.DoesNotContain(outcome.Problems, problem => problem.Contains("are one save", StringComparison.Ordinal));
@@ -569,7 +569,7 @@ public class SaveSyncTests
         Assert.Equal(1, offlineScan.Units);
         Assert.Equal(1, offlineScan.UnitsAttributed);
 
-        var offline = await fixture.SyncAsync();
+        var offline = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, offline.Uploaded);
         Assert.All(fixture.Store.Saves.List(), save => Assert.True(save.IsUnsent));
@@ -577,7 +577,7 @@ public class SaveSyncTests
         fixture.Stub.IsReachable = true;
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
 
-        var online = await fixture.SyncAsync();
+        var online = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, online.Uploaded);
         Assert.All(fixture.Store.Saves.List(), save => Assert.False(save.IsUnsent));
@@ -609,7 +609,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         var afterFirst = fixture.Stub.Saves.Count;
 
@@ -617,7 +617,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions.Clear();
 
         fixture.Scan();
-        var replay = await fixture.SyncAsync();
+        var replay = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, replay.Uploaded);
         Assert.Equal(afterFirst, fixture.Stub.Saves.Count);
@@ -634,13 +634,13 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
         fixture.Stub.NegotiateActions.Clear();
 
         // Unchanged: the fold matches what was uploaded, so the wire carries the server's own
         // digest and negotiate answers no_op.
         fixture.Scan();
-        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(0, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         // Changed: a new member appears, so the fold moves and the unit is sent whole again.
         File.WriteAllText(
@@ -651,7 +651,7 @@ public class SaveSyncTests
         Assert.True(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
     }
 
     [Fact]
@@ -667,7 +667,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         // Another device replaced the archive. Without that this never downloads at all: a save
         // whose origin_device_id is this device is recognised as its own and skipped.
@@ -678,7 +678,7 @@ public class SaveSyncTests
         fixture.Scan();
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        Assert.Equal(1, (await fixture.SyncAsync()).Downloaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Downloaded);
 
         Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
@@ -690,7 +690,7 @@ public class SaveSyncTests
         Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
 
         fixture.Stub.NegotiateActions.Clear();
-        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(0, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
     }
 
     [Fact]
@@ -706,11 +706,11 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         // The server offers back the row this device just uploaded, untouched on both sides.
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.NoOps);
@@ -728,13 +728,13 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom"), "edited here since");
         fixture.Scan();
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, outcome.Downloaded);
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
@@ -757,7 +757,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // A peer uploads the same contents. A different row, a digest this device has not seen,
         // and origin naming somebody else, so IsOwnUpload is false and the skip cannot fire.
@@ -780,7 +780,7 @@ public class SaveSyncTests
         var before = (File.GetLastWriteTimeUtc(eeprom), File.GetLastWriteTimeUtc(flash));
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // The transfer is unavoidable without a protocol change, so it still counts as one.
         Assert.Equal(1, outcome.Downloaded);
@@ -817,7 +817,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(100, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
 
@@ -838,7 +838,7 @@ public class SaveSyncTests
         };
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
-        Assert.Equal(1, (await fixture.SyncAsync()).Downloaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Downloaded);
 
         Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
 
@@ -854,7 +854,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions.Clear();
         fixture.Scan();
 
-        var replay = await fixture.SyncAsync();
+        var replay = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, replay.Uploaded);
         Assert.Equal(
@@ -890,7 +890,7 @@ public class SaveSyncTests
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
-        Assert.Equal(1, (await fixture.SyncAsync()).Uploaded);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
         // Another device drops a member and uploads, so the row in the slot is one this device
         // has never held.
@@ -915,7 +915,7 @@ public class SaveSyncTests
         // A real divergence: negotiate answers upload from the hashes it was handed, and the
         // server refuses because this device's sync record is stale.
         fixture.Stub.ConflictOnUpload.Add((8, "mame:nvram"));
-        Assert.Equal(1, (await fixture.SyncAsync()).Conflicts);
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
 
         var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
 
@@ -928,7 +928,11 @@ public class SaveSyncTests
                 "*",
                 SearchOption.AllDirectories).Length);
 
-        var outcome = await fixture.ResolveAsync(8, "mame:nvram", ConflictResolution.KeepServer);
+        var outcome = await fixture.ResolveAsync(
+            8,
+            "mame:nvram",
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(outcome.Resolved, outcome.Message);
         Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
@@ -963,8 +967,8 @@ public class SaveSyncTests
         Assert.Equal(1, fixture.Scan().Found);
         Assert.Equal(2, fixture.ScanStates().Found);
 
-        var offlineSaves = await fixture.SyncAsync();
-        var offlineStates = await fixture.PushStatesAsync();
+        var offlineSaves = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        var offlineStates = await fixture.PushStatesAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, offlineSaves.Uploaded);
         Assert.Equal(0, offlineStates.Uploaded);
@@ -977,8 +981,8 @@ public class SaveSyncTests
         fixture.Stub.IsReachable = true;
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
 
-        var saves = await fixture.SyncAsync();
-        var states = await fixture.PushStatesAsync();
+        var saves = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        var states = await fixture.PushStatesAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(1, saves.Uploaded);
         Assert.Equal(2, states.Uploaded);
@@ -995,8 +999,8 @@ public class SaveSyncTests
         fixture.Scan();
         fixture.ScanStates();
 
-        Assert.Equal(0, (await fixture.SyncAsync()).Uploaded);
-        Assert.Equal(0, (await fixture.PushStatesAsync()).Uploaded);
+        Assert.Equal(0, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+        Assert.Equal(0, (await fixture.PushStatesAsync(TestContext.Current.CancellationToken)).Uploaded);
         Assert.Equal(serverStates, fixture.Stub.States.Count);
     }
 
@@ -1008,7 +1012,7 @@ public class SaveSyncTests
         fixture.PlaySession(10, "Game");
         fixture.Correlate();
 
-        var first = await fixture.FlushPlaytimeAsync();
+        var first = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, first.Sent);
         Assert.Equal(0, first.Duplicates);
 
@@ -1016,7 +1020,7 @@ public class SaveSyncTests
         fixture.PlaySession(10, "Game");
         fixture.Correlate();
 
-        var second = await fixture.FlushPlaytimeAsync();
+        var second = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, second.Sent);
         Assert.Equal(1, second.Duplicates);
@@ -1034,7 +1038,7 @@ public class SaveSyncTests
 
         fixture.Stub.IsReachable = false;
 
-        var outcome = await fixture.FlushPlaytimeAsync();
+        var outcome = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Sent);
         Assert.Equal(1, outcome.Failed);
@@ -1043,7 +1047,7 @@ public class SaveSyncTests
         Assert.Equal(1, fixture.Store.Outbox.PendingCount());
 
         fixture.Stub.IsReachable = true;
-        Assert.Equal(1, (await fixture.FlushPlaytimeAsync()).Sent);
+        Assert.Equal(1, (await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken)).Sent);
     }
 
     [Fact]
@@ -1056,13 +1060,13 @@ public class SaveSyncTests
         fixture.Scan();
 
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         // Now the server offers it back, which is what a second device's negotiate looks like
         // from here after this device uploaded.
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
 
-        var outcome = await fixture.SyncAsync();
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.NoOps);
@@ -1080,7 +1084,7 @@ public class SaveSyncTests
         File.SetLastWriteTimeUtc(fixture.Resolve("saves/snes/ActRaiser (USA).srm"), mtime.UtcDateTime);
 
         fixture.Scan();
-        await fixture.SyncAsync();
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
         var save = Assert.Single(fixture.Store.Saves.List());
         Assert.Equal(mtime, save.FileMtimeUtc);
@@ -1248,17 +1252,22 @@ public class SaveSyncTests
 
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
 
-        public Task<SaveSyncOutcome> SyncAsync() =>
-            new SaveSync(Install, Store, _connection, DeviceId).RunAsync();
+        public Task<SaveSyncOutcome> SyncAsync(CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId).RunAsync(cancellationToken);
 
-        public Task<ConflictResolutionOutcome> ResolveAsync(long romId, string slot, ConflictResolution resolution) =>
-            new SaveConflictResolver(Install, Store, _connection, DeviceId).ResolveAsync(romId, slot, resolution);
+        public Task<ConflictResolutionOutcome> ResolveAsync(
+            long romId,
+            string slot,
+            ConflictResolution resolution,
+            CancellationToken cancellationToken = default) =>
+            new SaveConflictResolver(Install, Store, _connection, DeviceId)
+                .ResolveAsync(romId, slot, resolution, cancellationToken);
 
-        public Task<StateSyncOutcome> PushStatesAsync() =>
-            new StateSync(Install, Store, _connection).RunAsync();
+        public Task<StateSyncOutcome> PushStatesAsync(CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).RunAsync(cancellationToken);
 
-        public Task<OutboxFlushOutcome> FlushPlaytimeAsync() =>
-            new OutboxFlush(Store, _connection, DeviceId).FlushPlaySessionsAsync();
+        public Task<OutboxFlushOutcome> FlushPlaytimeAsync(CancellationToken cancellationToken = default) =>
+            new OutboxFlush(Store, _connection, DeviceId).FlushPlaySessionsAsync(cancellationToken);
 
         public void Dispose()
         {
