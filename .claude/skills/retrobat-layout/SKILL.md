@@ -164,9 +164,9 @@ startup and dropped it again on the same write. M0's nonsense key survived only 
 written **before** ES started.
 
 Merging and atomicity do not save you here; both were done and the write still vanished. **ES
-writes at startup and the moment a setting changes**, not only on exit, so the safe window is
-strictly "while ES is not running", and a session start-and-quit leaving the file untouched is
-not something to rely on. Detect ES, refuse with a reason, and **re-read after writing** to
+writes twice a session**, at launch as well as on exit, timed against ES's own hook events: the
+launch write landed 7.7 s before the `start` hook and the other 2.4 s before `quit`. So the safe
+window is strictly "while ES is not running". Detect ES, refuse with a reason, and **re-read after writing** to
 confirm the key is there rather than trusting the rename.
 
 **ES prunes any setting equal to its own default** on that rewrite, so an entry written at

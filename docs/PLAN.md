@@ -2307,8 +2307,8 @@ Five things to keep honest about this:
   load survives, ones ES cannot understand included; a key that appears afterwards is discarded.
   M0's nonsense key survived because it predated the load. So "write while ES is idle" is not
   prudence, it is the only thing that works, and merging and atomicity do not help, because that
-  write was both. **ES also writes at startup and the moment a setting changes**, not only on
-  exit, so the safe window is strictly "while ES is not running". The writer therefore refuses
+  write was both. **ES writes twice a session, at launch as well as on exit**, timed
+  against the hook spool, so the safe window is strictly "while ES is not running". The writer therefore refuses
   to run while ES is up, says why, and re-reads the file afterwards to confirm the key is
   really there. See [retrobat-findings.md](retrobat-findings.md), 178 and 179.
 - **ES prunes any setting whose value equals its own default.** An entry written at the
