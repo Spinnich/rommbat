@@ -26,8 +26,6 @@
 -- record of anything, rewritten wholesale on every scan, so the copy is for tidiness rather
 -- than for safety: losing a row here costs one scan.
 
-PRAGMA foreign_keys = OFF;
-
 CREATE TABLE unsyncable_new (
   id              INTEGER PRIMARY KEY,
   system          TEXT    NOT NULL CHECK (
@@ -64,5 +62,3 @@ SELECT id, system, emulator, reason_kind, detail, file_count, observed_at_utc FR
 DROP TABLE unsyncable;
 
 ALTER TABLE unsyncable_new RENAME TO unsyncable;
-
-PRAGMA foreign_keys = ON;
