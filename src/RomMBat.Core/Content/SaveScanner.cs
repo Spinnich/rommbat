@@ -221,9 +221,15 @@ public sealed class SaveScanner
             // the report counted them as unsyncable in the same pass that uploaded them.
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
 
+            // A converted class D container, before both reports, for the reason the class C
+            // pass runs first: a file this pass carries must not also be counted as one nothing
+            // carries. Stage 2a shipped exactly that bug for save states.
+            var converted = ScanConverted(system, shape, romsByStem, report, seen, now, ref found, ref attributed, ref bytes);
+
             // Shared containers below the loose level, also before the subdirectory report, so
             // a declared container is named as one rather than counted as an unread file.
             var shared = AddSharedContainers(report, system, systemDirectory);
+            shared.UnionWith(converted);
 
             // Every remaining subdirectory of a system folder is class D or a save state.
             AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried, shared);
@@ -402,6 +408,137 @@ public sealed class SaveScanner
         return carried;
     }
 
+
+    /// <summary>
+    /// Records the per-game containers a class D conversion produced.
+    /// </summary>
+    /// <remarks>
+    /// <b>Driven end to end before this was written.</b> Setting
+    /// <c>ps2["Armored Core 3 (USA).chd"].pcsx2_slot1_memory=game</c> and launching the game
+    /// produced <c>saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2</c> holding exactly one
+    /// game's saves, where the shared <c>Mcd001.ps2</c> beside it holds eleven.
+    /// <para>
+    /// <b>The card is named from the ROM's stem, and the extension is replaced rather than
+    /// appended.</b> So the name is exactly the <c>(folder, stem)</c> key class A attribution
+    /// already uses and no new route is needed, which is why PS2 converts into something
+    /// syncable while Dreamcast does not. Note the asymmetry with the setting that caused it:
+    /// the <c>es_settings.cfg</c> key must carry <c>.chd</c> or it is ignored silently, while
+    /// the card it produces drops it.
+    /// </para>
+    /// <para>
+    /// <b>Recorded as class D, not class A.</b> The file is one-per-game in shape, but what it
+    /// is is a class D system whose container was made per-game, and the row is the only place
+    /// that stays true. Discovery does not consult the conversion record: a card named after a
+    /// ROM in the declared container is that ROM's save whether RomMBat set the option or the
+    /// user did, and keying on our own record would miss the second case.
+    /// </para>
+    /// <para>
+    /// The container is <b>declared and never discovered</b>, and a shared container inside it
+    /// is skipped by name, so <c>Mcd001.ps2</c> and <c>Mcd002.ps2</c> stay reported as shared
+    /// rather than being mistaken for ROMs whose stems happen not to resolve.
+    /// </para>
+    /// </remarks>
+    /// <returns>The absolute paths carried, so neither report counts them again.</returns>
+    private HashSet<string> ScanConverted(
+        string system,
+        SaveShape shape,
+        RomIndex romsByStem,
+        UnsyncableReport report,
+        HashSet<RelativePath> seen,
+        DateTimeOffset now,
+        ref int found,
+        ref int attributed,
+        ref long bytes)
+    {
+        var carried = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (shape.Conversion is not { IsDiscoverable: true } conversion)
+        {
+            return carried;
+        }
+
+        var container = Path.Combine(
+            _install.Resolve(SavesDirectory.Combine(system)),
+            conversion.Container!.Replace('/', Path.DirectorySeparatorChar));
+
+        if (!Directory.Exists(container))
+        {
+            return carried;
+        }
+
+        foreach (var file in Directory.EnumerateFiles(container).Order(StringComparer.Ordinal))
+        {
+            var name = Path.GetFileName(file);
+
+            // A shared container sitting in the same directory is the ordinary case, not the
+            // odd one: the stock cards stay beside every card a conversion creates.
+            if (_shapes.SharedContainerReason(system, $"{conversion.Container}/{name}") is not null)
+            {
+                continue;
+            }
+
+            if (!string.Equals(Path.GetExtension(name), conversion.Extension, StringComparison.OrdinalIgnoreCase)
+                || !_install.Contains(file))
+            {
+                continue;
+            }
+
+            var rom = romsByStem.Find(system, Path.GetFileNameWithoutExtension(name));
+            var info = new FileInfo(file);
+
+            string? hash = null;
+            try
+            {
+                hash = LogicalContentHash.OfFile(file);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Held open by a running emulator. No hash reads as unsent, which blocks
+                // eviction, which is the fail-closed direction.
+            }
+
+            var path = _install.Relativize(file);
+
+            _store.Saves.Record(
+                new LocalSave
+                {
+                    Path = path,
+                    System = system,
+                    Emulator = conversion.Emulator!,
+                    ShapeClass = SaveShapeClass.D,
+                    Slot = $"{conversion.Emulator}:{conversion.Slot}",
+                    RomId = rom?.RomId,
+                    RomPath = rom?.Path,
+                    ContentHash = hash,
+                    SizeBytes = info.Length,
+                    FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+                },
+                now);
+
+            seen.Add(path);
+            carried.Add(file);
+            found++;
+            bytes += info.Length;
+
+            if (rom is not null)
+            {
+                attributed++;
+            }
+            else
+            {
+                report.Add(
+                    system,
+                    conversion.Emulator!,
+                    UnsyncableReason.Unattributed,
+                    $"'{name}' is a per-game container naming no ROM this device holds, so there is "
+                        + "no game to upload it against",
+                    1);
+            }
+        }
+
+        return carried;
+    }
+
     /// <summary>
     /// Reports the declared shared containers this install actually holds.
     /// </summary>
@@ -555,8 +692,13 @@ public sealed class SaveScanner
                 SaveShapeClass.A or SaveShapeClass.B => !seen.Contains(save.Path),
                 SaveShapeClass.C => !seenUnits.Contains((save.Path, save.UnitKey)),
 
-                // Class D is not discovered by this build at all, so a row for one could only
-                // have come from somewhere that knows more than this pass does.
+                // Class D is one file at one path, like class A, because the only class D rows
+                // that exist are the per-game containers a conversion produced. It has to be
+                // forgettable: leaving the row behind when the card is deleted would block
+                // eviction for that ROM forever, which is the third time this scanner has had to
+                // learn that a stale row is worse than no row.
+                SaveShapeClass.D => !seen.Contains(save.Path),
+
                 _ => false,
             })
             .Select(save => (save.Path, save.UnitKey))

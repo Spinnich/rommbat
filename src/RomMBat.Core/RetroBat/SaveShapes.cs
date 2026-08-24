@@ -37,7 +37,24 @@ public enum SaveShapeClass
 /// worked case: stock <c>PerGameTitle</c> binds a multi-disc set through DuckStation's own
 /// database, and the conversion that looks like an improvement is the regression.
 /// </param>
-public sealed record PerGameConversion(string Option, string? SetTo, string KeysBy, bool Apply, string Note)
+/// <param name="Container">
+/// Where the converted container lands, relative to <c>saves/&lt;system&gt;/</c>. Null where the
+/// layout has not been measured, which is what keeps an unmeasured tree reported rather than
+/// walked under a guessed rule.
+/// </param>
+/// <param name="Extension">The converted container's extension, which replaces the ROM's.</param>
+/// <param name="Emulator">Who writes it, for the slot and the report.</param>
+/// <param name="Slot">The slot suffix, so the pair is <c>{Emulator}:{Slot}</c>.</param>
+public sealed record PerGameConversion(
+    string Option,
+    string? SetTo,
+    string KeysBy,
+    bool Apply,
+    string Note,
+    string? Container = null,
+    string? Extension = null,
+    string? Emulator = null,
+    string? Slot = null)
 {
     /// <summary>
     /// True when converting produces a container named after the ROM file.
@@ -47,10 +64,23 @@ public sealed record PerGameConversion(string Option, string? SetTo, string Keys
     /// attributable by the filename index that already exists. Anything identifier-keyed is
     /// reported with its reason rather than half-supported.
     /// </remarks>
+    /// <summary>True when the converted container's location and naming are both known.</summary>
+    /// <remarks>
+    /// Both halves, for the reason <see cref="SaveShape.HasUnitPaths"/> needs both: a
+    /// conversion whose result has never been seen on disk must be discovered by measurement
+    /// rather than by guessing at a plausible directory.
+    /// </remarks>
+    public bool IsDiscoverable =>
+        YieldsRomNamedContainer
+        && !string.IsNullOrWhiteSpace(Container)
+        && !string.IsNullOrWhiteSpace(Extension)
+        && !string.IsNullOrWhiteSpace(Emulator)
+        && !string.IsNullOrWhiteSpace(Slot);
+
     public bool YieldsRomNamedContainer =>
         Apply
         && SetTo is not null
-        && string.Equals(KeysBy, "rom basename", StringComparison.OrdinalIgnoreCase);
+        && string.Equals(KeysBy, "rom stem", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>What is known about one system's saves.</summary>
@@ -333,7 +363,13 @@ public sealed class SaveShapes
                 string.IsNullOrWhiteSpace(entry.SetTo) ? null : entry.SetTo,
                 entry.KeysBy ?? string.Empty,
                 entry.Apply ?? true,
-                entry.Note ?? string.Empty);
+                entry.Note ?? string.Empty,
+                Blank(entry.Container?.Replace('\\', '/').Trim('/')),
+                Blank(entry.Extension),
+                Blank(entry.Emulator),
+                Blank(entry.Slot));
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static string Read(System.Reflection.Assembly assembly, string name)
     {
@@ -387,6 +423,18 @@ public sealed class SaveShapes
 
         [JsonPropertyName("note")]
         public string? Note { get; init; }
+
+        [JsonPropertyName("container")]
+        public string? Container { get; init; }
+
+        [JsonPropertyName("extension")]
+        public string? Extension { get; init; }
+
+        [JsonPropertyName("emulator")]
+        public string? Emulator { get; init; }
+
+        [JsonPropertyName("slot")]
+        public string? Slot { get; init; }
     }
 
     private sealed record UnitPathEntry

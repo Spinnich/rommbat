@@ -2311,6 +2311,7 @@ Five things to keep honest about this:
   against the hook spool, so the safe window is strictly "while ES is not running". The writer therefore refuses
   to run while ES is up, says why, and re-reads the file afterwards to confirm the key is
   really there. See [retrobat-findings.md](retrobat-findings.md), 178 and 179.
+
 - **ES prunes any setting whose value equals its own default.** An entry written at the
   stock value disappears on the next rewrite (`Language=en_US` vanished, `fr_FR` survived).
   Custom keys have no default to match and are kept. Never read a missing entry as evidence
