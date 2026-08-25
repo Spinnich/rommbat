@@ -250,8 +250,8 @@ is gitignored.
 
 ### Pairing by hand, without a UI
 
-The gamepad UI is chosen in M7, so the pairing surface today is the console agent, ASCII QR
-included:
+The gamepad UI arrives in M7 stage 7b, so the pairing surface today is the console agent,
+ASCII QR included:
 
 ```powershell
 dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
@@ -543,6 +543,8 @@ there.
   system/es_menu/
     rommbat.menu          line 1 the exe path, relative to emulators/
     gamelist.xml          must also carry a <game> entry or the app shows as a filename
+    media/
+      rommbat-logo.png    the artwork that entry points at, written by menu install
   system/version.info     the version string, e.g. 8.2.0-stable-win64
 ```
 

@@ -296,6 +296,11 @@ Every one of these is a **seed, not an authority**. The live install always wins
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
 users add custom ones.
 
+**`data/media/`** is the other shipped folder and is not a table. `rommbat-logo.png` is the
+ES menu entry's artwork, embedded into `RomMBat.Core` and written to
+`system/es_menu/media/` by `menu install`. Embedded rather than shipped beside the agent for
+the same reason as the tables: a single-file publish carries it with no second file to lose.
+
 ---
 
 ## 4. The local store
@@ -476,12 +481,13 @@ by EmulationStation on exit. Every writer therefore follows the same discipline:
 merge only the fields RomMBat owns, write atomically via temp file plus rename, and never
 clobber.**
 
-| File                         | Who else writes it                                      | Rule                                                                            |
-| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `roms/<system>/gamelist.xml` | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform |
-| `es_settings.cfg`            | ES discards anything written while it runs              | Refuse while ES is up, then re-read to confirm. Merge. Opt-in and reversible    |
-| `scripts/<event>/*.bat`      | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                           |
-| Emulator INIs                | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                        |
+| File                          | Who else writes it                                      | Rule                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `roms/<system>/gamelist.xml`  | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform                                           |
+| `es_settings.cfg`             | ES discards anything written while it runs              | Refuse while ES is up, or queue with `--at-quit` and apply from `background quit`. Merge. Opt-in and reversible           |
+| `system/es_menu/gamelist.xml` | RetroBat ships it; ES reads it and never writes it back | Merge one `<game>`. Keep the BOM, the CRLF and the commented-out entries: RomMBat is the only writer that could damage it |
+| `scripts/<event>/*.bat`       | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                                                                     |
+| Emulator INIs                 | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                                                                  |
 
 Gamelists key by **resolved folder** because the platform mapping is many-to-many: `snes`
 and `sfam` can both resolve to `snes`, and several arcade platforms into `mame`. One

@@ -9,8 +9,9 @@ namespace RomMBat.Agent.Commands;
 /// <c>pair</c>: device pairing, driven entirely by a QR or the 8-character code.
 /// </summary>
 /// <remarks>
-/// The UI framework is chosen in M7, so this console is the M1 pairing surface. No UI
-/// framework package exists anywhere in the tree yet, deliberately.
+/// The gamepad UI arrives in M7 stage 7b, so this console is the pairing surface until then.
+/// The framework is settled (Avalonia, stage 7a) and no UI package exists anywhere in the
+/// tree yet, deliberately.
 /// </remarks>
 internal static class PairCommand
 {

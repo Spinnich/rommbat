@@ -12,11 +12,11 @@
   </PropertyGroup>
 
   <!--
-    The UI framework is chosen in M7. Avalonia (cross-platform, gamepad-friendly) and
-    WPF (Windows-only, matches RetroBat's own tooling) are both live, so no UI package
-    is referenced and OutputType stays Exe rather than WinExe until then. Presentation
-    owns no logic, which is what makes deferring cheap: set resolution, mapping,
-    conflict handling and the outbox all live in RomMBat.Core.
+    The framework is Avalonia, settled in M7 stage 7a on size: WPF cannot be trimmed and
+    needs the Windows Desktop runtime inside a self-contained publish. The package arrives
+    with the app in stage 7b, so nothing is referenced yet and OutputType stays Exe rather
+    than WinExe until it is. Presentation owns no logic: set resolution, mapping, conflict
+    handling and the outbox all live in RomMBat.Core.
   -->
 
   <ItemGroup>

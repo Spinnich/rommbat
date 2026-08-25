@@ -399,6 +399,7 @@ docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
+data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
                       number is reproducible
 .claude/skills/       Task-scoped guides for agents working in this repository
