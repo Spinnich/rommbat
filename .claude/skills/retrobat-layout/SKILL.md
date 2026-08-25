@@ -86,6 +86,19 @@ Parse it. Never hardcode state paths. `<image>` maps onto RomM's optional `scree
 Note the `libretro` entry is core-scoped (`{{system}}/libretro.{{core}}`), so the same game
 has independent state sets per core.
 
+**Do not go looking for `sort_savestates_enable` in `retroarch.cfg` to explain the core
+folder.** Other RetroArch front ends derive that segment from the sort flag, whose default
+when the key is absent is **on** for savestates and **off** for savefiles, an asymmetry that
+silently misplaces a state. RetroBat never leaves it to the default: `emulatorlauncher` writes
+all four sort keys as `"false"` on every launch and bakes the core into the path instead
+(`savestate_directory = "<root>\saves\mastersystem\libretro.genesis_plus_gx"`). Verified on a
+real 8.2 install against states from four cores on disk. Two consequences: the hazard does not
+exist here, and the folder is named **`libretro.<core>`**, RetroBat's own convention, not the
+libretro `corename` that front ends reading `retroarch.cfg` produce. `es_savestates.cfg` is the
+source, and it is the stronger one because `retroarch.cfg` is regenerated per launch and
+describes only the last game run. See
+[argosy-findings.md](../../../docs/argosy-findings.md), A7.
+
 **Trust `<file>`, verify `<directory>`.** Across the seven installed emulators M0 drove, every
 `<file>` template was correct and one `<directory>` was not: **`flycast` writes
 `dreamcast/reicast/states`, not the declared `dreamcast/flycast/sstates`**, which exists and

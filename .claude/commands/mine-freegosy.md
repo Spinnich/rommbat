@@ -36,10 +36,14 @@ Show me the triage table, the experiments, and the diffs.
 
 ## Why this source needs a higher bar than the last three
 
-Grout, Argosy and the Playnite plugin were mined into the plan already, and their rows sit
-in `docs/PLAN.md` under "Reference implementations to mine". All three live under `rommapp`,
-track the server closely, and were treated as trustworthy about the API. Freegosy is not in
-that category, on five counts that each translate to a specific way a claim can be wrong:
+Grout and the Playnite plugin were mined into the plan already, and their rows sit in
+`docs/PLAN.md` under "Reference implementations to mine". Both live under `rommapp`, track
+the server closely, and were treated as trustworthy about the API. Freegosy is not in that
+category, on five counts that each translate to a specific way a claim can be wrong:
+
+> **Corrected 2026-08-25.** This paragraph named Argosy alongside those two and said all
+> three had been mined with rows in `docs/PLAN.md`. **Argosy had never been read and had no
+> row.** It has been mined since: `docs/argosy-findings.md`.
 
 1. **It targets RomM 4.9.** Our declared baseline is RomM 5.1.0 and the live instance in
    `DEVELOPER_SETUP.md` is 5.1.1-beta.1. Every API claim you find is a claim about a server
