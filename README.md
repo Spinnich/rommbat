@@ -68,8 +68,8 @@ and through the companion-app protocol RomM already ships.
 
 |          | Minimum     | Notes                                                            |
 | -------- | ----------- | ---------------------------------------------------------------- |
-| RetroBat | 8.2         | Checked from `system/version.info` at startup                    |
-| RomM     | 5.1.0       | Checked from `GET /api/heartbeat` at startup                     |
+| RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
+| RomM     | 5.2.0       | Checked from `GET /api/heartbeat` at startup                     |
 | Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
 | .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
 
@@ -322,15 +322,34 @@ reason rather than passed over in silence.
 
 ### Known upstream issues
 
-M0 found three RetroBat bugs rather than facts to design around. All are open, all are
-worked around, and each is re-checked every release, because a fix upstream changes what
-RomMBat should do rather than just closing a ticket.
+M0 filed three RetroBat bugs rather than facts to design around. Two are now resolved and
+one is still open. Each is re-checked every release, because a fix upstream changes what
+RomMBat should do rather than just closing a ticket, and no workaround is removed until the
+fix is in a release RomMBat's compatibility gate accepts.
 
-| Issue                                                                                      | What it costs                                                                       |
-| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [retrobat#249](https://github.com/RetroBat-Official/retrobat/issues/249)                   | ES event scripts do not run once an argument is quoted, so **hooks must be `.exe`** |
-| [emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336) | Flycast writes save states to a different directory than the one declared           |
-| [emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337) | BizHawk crashes unless the launcher is passed `-core`                               |
+| Issue                                                                                                     | State                       | What it costs                                                                       |
+| --------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
+| [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196) | Open                        | ES event scripts do not run once an argument is quoted, so **hooks must be `.exe`** |
+| [emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336)                | **Fixed in RetroBat 8.2.1** | Flycast wrote save states to a different directory than the one declared            |
+| [emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)                | Closed, will not be fixed   | BizHawk crashes unless the launcher is passed `-core`                               |
+
+**#2196 moved repository, not status.** It was filed as `RetroBat-Official/retrobat#249` and
+closed there on 2026-08-21 as an EmulationStation issue; RetroBat's own ES fork has issues
+disabled, so it now lives upstream at `batocera-linux/batocera-emulationstation`. The
+mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **This is
+the one that still constrains the design**: the hooks stay `.exe`.
+
+**#1336 is fixed and RomMBat has not yet taken advantage of it.** 8.2.1 pointed Flycast's
+save-state watcher at the directory Flycast actually writes, so states are mirrored into the
+declared `saves/<system>/flycast/sstates`. RomMBat still reports Dreamcast states as
+unsyncable, which under-reports rather than syncing the wrong tree, and the workaround comes
+out once a hands-on pass on 8.2.1 sees the mirror. Run
+`tools/m0-probes/probe2-flycast-mirror.ps1`.
+
+**#1337 will not be fixed, and that costs RomMBat nothing.** Upstream's position is that
+there is no reason to run `emulatorLauncher` directly. RomMBat is a direct invoker, so the
+constraint stands unchanged and is not a workaround for a bug: **pass `-core`**, which is
+correct either way.
 
 ### Platform certification
 
@@ -367,14 +386,21 @@ the automated suite already drives the whole protocol, offline included, against
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested         | RetroBat tested    | Notes                                                               |
-| ---------- | ------------------- | ------------------ | ------------------------------------------------------------------- |
-| unreleased | 5.1.0, 5.1.1-beta.1 | 8.2.0-stable-win64 | API DTOs are generated from a pinned RomM **5.1.0** `/openapi.json` |
+| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
+| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
+| unreleased | 5.2.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.2.0** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility
 decision and moves a row in this table with it; see
 [`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md).
+
+**Both minimums track the newest upstream stable rather than the oldest version that works.**
+Every measured rule in this repository is a measurement of one build, so a supported range
+means owning that measurement across the range, on a `(system, emulator, core)` matrix that is
+already several passes per row. RomMBat adopts a new RomM or RetroBat stable within one release
+and raises the floor with it. Earlier rows in this table stay accurate about what was tested;
+they are not a support commitment.
 
 ## Repository layout
 
@@ -440,16 +466,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Related projects
 
-| Project                                                       | What it is                                            |
-| ------------------------------------------------------------- | ----------------------------------------------------- |
-| [RomM](https://github.com/rommapp/romm)                       | The self-hosted ROM manager RomMBat syncs against     |
-| [RetroBat](https://github.com/RetroBat-Official/retrobat)     | The Windows retro-gaming distro RomMBat installs into |
-| [Grout](https://github.com/rommapp/grout)                     | RomM client for Linux handheld custom firmware        |
-| [Playnite plugin](https://github.com/rommapp/playnite-plugin) | RomM client for Playnite on desktop                   |
+| Project                                                   | What it is                                            |
+| --------------------------------------------------------- | ----------------------------------------------------- |
+| [RomM](https://github.com/rommapp/romm)                   | The self-hosted ROM manager RomMBat syncs against     |
+| [RetroBat](https://github.com/RetroBat-Official/retrobat) | The Windows retro-gaming distro RomMBat installs into |
 
 ## Licence
 
-[GPL-3.0](LICENSE), matching the Playnite plugin and Argosy.
+[GPL-3.0](LICENSE), matching the RomM Playnite plugin and Argosy.
 
 RomMBat is not affiliated with either project's maintainers. It ships no ROMs, no BIOS
 files and no copyrighted content; it moves files between a server you run and a device

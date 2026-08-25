@@ -15,13 +15,18 @@ public static class RomMServerVersion
     /// Minimum supported RomM version. The pinned OpenAPI schema comes from this version,
     /// so the generated DTOs describe the oldest server the client claims to work with.
     /// </summary>
-    public static ProductVersion Minimum { get; } = ProductVersion.Parse("5.1.0");
+    /// <remarks>
+    /// Tracks the newest RomM stable rather than the oldest one that happens to work, so
+    /// moving it and moving the pin are the same decision. See
+    /// <c>src/RomM.Client/openapi/README.md</c>.
+    /// </remarks>
+    public static ProductVersion Minimum { get; } = ProductVersion.Parse("5.2.0");
 
     /// <summary>
     /// Newest RomM this release has been exercised against. Keep in step with the README
     /// compatibility table.
     /// </summary>
-    public static ProductVersion LastTested { get; } = ProductVersion.Parse("5.1.1");
+    public static ProductVersion LastTested { get; } = ProductVersion.Parse("5.2.0");
 
     /// <summary>Checks a reported <c>SYSTEM.VERSION</c> against the supported range.</summary>
     public static CompatibilityCheck Check(string? reported) =>

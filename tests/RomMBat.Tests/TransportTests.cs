@@ -120,12 +120,12 @@ public class TransportTests
     public async Task The_probe_reports_the_version_and_the_server_clock()
     {
         var serverNow = new DateTimeOffset(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
-        using var stub = new StubRomMServer { ServerVersion = "5.1.1-beta.1", ServerDate = serverNow };
+        using var stub = new StubRomMServer { ServerVersion = "5.2.0-beta.1", ServerDate = serverNow };
         using var connection = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
 
         var probe = await connection.ProbeAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal("5.1.1-beta.1", probe.ReportedVersion);
+        Assert.Equal("5.2.0-beta.1", probe.ReportedVersion);
         Assert.Equal(CompatibilityVerdict.Supported, probe.Compatibility.Verdict);
         Assert.Equal(serverNow, probe.ServerDate);
     }

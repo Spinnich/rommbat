@@ -65,6 +65,10 @@ public sealed record StateScanOutcome
 /// guessed in either case: the states are reported as unsyncable with the reason, because reading
 /// the wrong tree is worse than reading none.
 /// </para>
+/// <para>
+/// <b>The <c>flycast</c> half is fixed upstream in RetroBat 8.2.1 and the entry is still here.</b>
+/// See <see cref="WrongDeclaredDirectories"/>.
+/// </para>
 /// </remarks>
 public sealed class StateScanner
 {
@@ -100,12 +104,21 @@ public sealed class StateScanner
     /// the trap: a client that trusts the declaration concludes the game has no states rather
     /// than concluding it is looking in the wrong place. Filed upstream as
     /// RetroBat-Official/emulatorlauncher#1336.
+    /// <para>
+    /// <b><c>flycast</c> is fixed in RetroBat 8.2.1 and has not been removed yet.</b> The fix
+    /// points RetroBat's save-state watcher at the directory Flycast really writes, so a state
+    /// should now be mirrored into the declared path. Keeping the entry under-reports Dreamcast
+    /// states rather than reading the wrong tree, which is the safe direction, and a changelog
+    /// line is not a measurement: it comes out when a hands-on pass on 8.2.1 sees the mirror.
+    /// Run <c>tools/m0-probes/probe2-flycast-mirror.ps1</c>. <c>openmsx</c> is unfixed.
+    /// </para>
     /// </remarks>
     public static IReadOnlyDictionary<string, string> WrongDeclaredDirectories { get; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["flycast"] = "flycast writes saves/dreamcast/reicast/states/, not the declared "
-                + "saves/<system>/flycast/sstates. The declared directory exists and stays empty.",
+                + "saves/<system>/flycast/sstates. RetroBat 8.2.1 fixed this upstream and the "
+                + "declared directory is expected to be mirrored into, pending a hands-on check.",
             ["openmsx"] = "openMSX writes bios/openmsx/savestates/, which is a different tree "
                 + "from the declared saves/<system>/openmsx entirely.",
         };

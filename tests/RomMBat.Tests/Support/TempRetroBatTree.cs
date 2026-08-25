@@ -18,7 +18,7 @@ internal sealed class TempRetroBatTree : IDisposable
     /// <summary>Where the agent's executable would sit, four levels down as in a real tree.</summary>
     public string AppDirectory => Path.Combine(Root, "emulators", "rommbat");
 
-    public static TempRetroBatTree Create(string version = "8.2.0-stable-win64")
+    public static TempRetroBatTree Create(string version = "8.2.1-stable-win64")
     {
         var root = Path.Combine(Path.GetTempPath(), "rommbat-tests", Guid.NewGuid().ToString("N"));
 

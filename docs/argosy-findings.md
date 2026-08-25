@@ -139,7 +139,7 @@ re-walks the same dead ends.
 | A22 | `updated_after` for incremental pulls                                        | Their own doc lists four blockers and says it needs design rather than a parameter. We have no server-anchored clock either                               |
 | A23 | `sibling_roms` is a view whose grouping is exactly reproducible client-side  | We exclude multi-file ROMs and consume no sibling data                                                                                                    |
 | A24 | `with_files=true` causes a per-file `track_meta` N+1 and 502s                | `CatalogQuery` already sends `with_files=false`. Already avoided                                                                                          |
-| A25 | Their floor warns rather than refuses below `MIN_SUPPORTED_VERSION`          | We refuse below 5.1.0 by decision. Nothing moves                                                                                                          |
+| A25 | Their floor warns rather than refuses below `MIN_SUPPORTED_VERSION`          | We refuse below our declared minimum by decision. Nothing moves                                                                                           |
 | A26 | `RomMCapabilities` version gates                                             | Every gate sits at 4.9.0 or 5.0.0, below our floor. All would evaluate true                                                                               |
 | A27 | Promoting a full-length `.tmp` instead of requesting a `Range` a server 416s | Real, tiny, and with no doc or plan consequence                                                                                                           |
 | A28 | `file_name_no_tags` and the server's filename rewrite                        | Settled already, and settled further than Argosy: measurement 152 and finding F6                                                                          |
@@ -299,8 +299,8 @@ missing, which is the honest answer under the current rule, but the file is plai
 
 **Rule 3 is not overturned.** Joining on filename across the whole manifest remains wrong for the
 reason `reference/verify.py` asserts: RetroBat requires 156 distinct md5s, RomM knows 353, and
-only 63 overlap, so filenames disagree at scale. (156, not the 157 `reference/README.md` still
-carries; `docs/PLAN.md` records why that table was wrong.) What the probe shows is that md5 is the wrong
+only 63 overlap, so filenames disagree at scale. (156, not the 157 an earlier table carried;
+`docs/PLAN.md` records why that count was wrong.) What the probe shows is that md5 is the wrong
 key for two bounded subsets, and each wants its own rule rather than a relaxation of the general
 one.
 
@@ -674,7 +674,7 @@ read-only library so a response shape can be compared across versions. Its READM
 about why: `RomMCapabilities` gated features by version and nothing recorded how the response
 _shape_ changed, and their issue #173 is what fell through that gap.
 
-We have a narrower version window, since we refuse below 5.1.0, and a real gap of the same kind:
+We have a narrower version window, since we refuse below our declared minimum, and a real gap of the same kind:
 **every API claim in this repository comes from one live instance**, and this session measured
 that instance at **5.2.0**, above our declared baseline and above the 5.1.1-beta.1 the Freegosy
 ledger measured against. So our claims are increasingly claims about a server newer than the one

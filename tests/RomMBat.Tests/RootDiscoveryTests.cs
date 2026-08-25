@@ -98,7 +98,7 @@ public class RootDiscoveryTests
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
 
-        Assert.Equal("8.2.0-stable-win64", install.ReadVersionString());
+        Assert.Equal("8.2.1-stable-win64", install.ReadVersionString());
         Assert.False(File.Exists(Path.Combine(tree.Root, "build.ini")));
         Assert.Equal("system/version.info", RomMBat.Core.Paths.RetroBatInstall.VersionFile.Value);
     }

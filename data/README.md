@@ -41,7 +41,7 @@ through the generator, not by hand**. `reference/refresh.sh` and the `reference-
 job both run the `--check`, so a hand edit fails there rather than shipping.
 
 It is bundled rather than read from the install because there is nothing to read: a real
-8.2.0 install carries the manifest only as a .NET string resource inside
+8.2.1 install carries the manifest only as a .NET string resource inside
 `emulationstation/batocera-systems.exe`, byte-identical to the vendored
 `reference/batocera-systems.json`. That is the one place `es_systems.cfg`'s "the live
 install always wins" rule cannot apply.

@@ -72,7 +72,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | Sync protocol, the save or state model, attribution, hashing | `docs/ARCHITECTURE.md` §9 and the `save-sync` skill                                                  |
 | A rule that only exists because something was measured       | The skill for that area, plus `docs/retrobat-findings.md`, and `docs/PLAN.md` if it amends a reading |
 | A milestone or stage changing state                          | The stage tables in `README.md` and `docs/PLAN.md`, which are separate and both go stale             |
-| A minimum RomM or RetroBat version                           | `README.md` requirements and compatibility tables, and the startup check                             |
+| A minimum RomM or RetroBat version                           | The whole version-move checklist below                                                               |
 | A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/ARCHITECTURE.md` §2 and §3                                      |
 
 Three rules that keep this from becoming its own scope creep:
@@ -82,6 +82,30 @@ Three rules that keep this from becoming its own scope creep:
   do not sync yet" in a release that syncs them is wrong in the same way a wrong return value is.
 - **Say what you checked.** The PR body names the docs that moved and the ones you read and
   found already correct. "Docs unchanged" with no statement is indistinguishable from not looking.
+
+## When the change moves the supported RomM or RetroBat version
+
+RomMBat tracks the newest stable of both rather than supporting a range, so this happens on
+a schedule rather than by accident. A version move is not a find-and-replace: some numbers in
+this repo are the **current** supported version and must move, and some are the version a
+measurement was taken on and must not.
+
+1. `reference/refresh.sh`, then resolve every drift it reports rather than editing the
+   expected number. A drift is a signal to revisit `docs/PLAN.md`.
+2. Read the upstream changelog end to end, not just the entry you came for. Anything touching
+   a rule in `docs/retrobat-findings.md` is the reason this step exists.
+3. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
+   `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
+   table and the compatibility row. A test asserts the first three agree.
+4. Re-check every open issue in `docs/retrobat-findings.md`. A fix upstream changes what
+   RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
+   behaviour.** A changelog line is upstream's belief, not a measurement.
+5. Leave provenance alone. `docs/retrobat-findings.md`'s header, `data/retrobat/*.json`'s
+   `_retrobat_version`, and a live capture under `tests/.../fixtures/` all record the version
+   something was **measured on**. Rewriting those to the new number silently reattributes a
+   measurement to a build nobody ran it against.
+6. A RomM move also moves the pinned OpenAPI schema, which is the minimum version on purpose.
+   See `src/RomM.Client/openapi/README.md`.
 
 ## Before claiming done
 

@@ -25,9 +25,10 @@ public static class RetroBatRoot
     public static IReadOnlyList<string> Markers => RootMarkers.All;
 
     /// <summary>
-    /// Minimum supported RetroBat version. Below this, RomMBat refuses to run.
+    /// Minimum supported RetroBat version. Below this, RomMBat refuses to run. Kept in step
+    /// with <see cref="Diagnostics.RetroBatVersion.Minimum"/>, which a test asserts.
     /// </summary>
-    public static Version MinimumVersion { get; } = new(8, 2);
+    public static Version MinimumVersion { get; } = new(8, 2, 1);
 
     /// <summary>
     /// Locates the root, or returns null when there is nothing to find.

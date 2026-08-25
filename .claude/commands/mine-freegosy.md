@@ -45,7 +45,7 @@ category, on five counts that each translate to a specific way a claim can be wr
 > three had been mined with rows in `docs/PLAN.md`. **Argosy had never been read and had no
 > row.** It has been mined since: `docs/argosy-findings.md`.
 
-1. **It targets RomM 4.9.** Our declared baseline is RomM 5.1.0 and the live instance in
+1. **It targets RomM 4.9.** Our declared baseline is RomM 5.2.0 and the live instance in
    `DEVELOPER_SETUP.md` is 5.1.1-beta.1. Every API claim you find is a claim about a server
    two minor versions behind ours. Route shapes, parameter names and required scopes are all
    fair game to have moved.

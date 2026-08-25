@@ -6,7 +6,7 @@ namespace RomMBat.Tests.Support;
 internal static class Fixtures
 {
     /// <summary>
-    /// RetroBat 8.2.0's shipped <c>es_systems.cfg</c>.
+    /// RetroBat 8.2.1's shipped <c>es_systems.cfg</c>.
     /// </summary>
     /// <remarks>
     /// The upstream template, linked from <c>reference/</c> rather than copied, and used here
@@ -23,8 +23,8 @@ internal static class Fixtures
     public static string LiveEsSystems => Path("es_systems.live.json");
 
     /// <summary>
-    /// RetroBat 8.2.0's shipped <c>es_savestates.cfg</c>, which M0 measured byte-identical to
-    /// the live copy.
+    /// RetroBat 8.2.1's shipped <c>es_savestates.cfg</c>, byte-identical to 8.2.0's and, M0
+    /// measured, to the live copy.
     /// </summary>
     /// <remarks>
     /// Linked from <c>reference/</c> rather than copied, because every trap the state parser
@@ -41,6 +41,16 @@ internal static class Fixtures
         using var stream = File.OpenRead(EsSaveStatesTemplate);
         return SaveStateSchema.Parse(stream);
     }
+
+    /// <summary>
+    /// The pinned RomM OpenAPI schema, linked from <c>src/RomM.Client/openapi/</c>.
+    /// </summary>
+    /// <remarks>
+    /// Linked under a fixed name rather than its versioned one, so a pin move renames the file
+    /// in one place and the test reads the new version out of it instead of being updated to
+    /// match.
+    /// </remarks>
+    public static string PinnedOpenApi => Path("romm-pinned-openapi.json");
 
     /// <summary>RetroBat's own list of system folder names.</summary>
     public static string SystemsNames => Path("systems_names.lst");

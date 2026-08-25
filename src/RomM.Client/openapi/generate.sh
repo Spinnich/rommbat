@@ -8,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-PINNED="romm-5.1.0.json"
+PINNED="romm-5.2.0.json"
 # Kept beside nswag.json rather than in the system temp directory: NSwag resolves
 # the path itself, and a Git Bash /tmp path is not one a Windows process can open.
 NORMALIZED="openapi-normalized.tmp.json"
@@ -28,8 +28,28 @@ dotnet nswag run nswag.json "/variables:SchemaPath=$NORMALIZED"
 # hand, so a regeneration does not drop them.
 GENERATED="../Generated/RomMApiSchema.g.cs"
 
-if ! grep -q "disable 1570" "$GENERATED"; then
-  sed -i '/^#pragma warning disable 1591 /a#pragma warning disable 1570 // Disable "CS1570 XML comment has badly formed XML" (schema description text is carried verbatim)#pragma warning disable 1572 // Disable "CS1572 XML comment has a param tag, but there is no parameter by that name"' "$GENERATED"
-fi
+python3 - "$GENERATED" <<'PATCH'
+import io, sys
+
+pragmas = [
+    '#pragma warning disable 1570 // Disable "CS1570 XML comment has badly formed XML" (schema description text is carried verbatim)',
+    '#pragma warning disable 1572 // Disable "CS1572 XML comment has a param tag, but there is no parameter by that name"',
+]
+path = sys.argv[1]
+raw = open(path, "rb").read()
+bom = b"\xef\xbb\xbf" if raw.startswith(b"\xef\xbb\xbf") else b""
+lines = raw[len(bom):].decode("utf-8").split("\n")
+anchor = next(i for i, l in enumerate(lines) if l.startswith("#pragma warning disable 1591 "))
+for offset, pragma in enumerate(pragmas):
+    if not any(l.startswith(pragma[:38]) for l in lines):
+        lines.insert(anchor + 1 + offset, pragma)
+open(path, "wb").write(bom + "\n".join(lines).encode("utf-8"))
+PATCH
+
+# Each pragma must be on its own line or the second is swallowed by the first's comment.
+for n in 1570 1572; do
+  grep -qE "^#pragma warning disable $n " "$GENERATED" ||
+    { echo "generate.sh failed to add '#pragma warning disable $n' to $GENERATED" >&2; exit 1; }
+done
 
 echo "Generated $GENERATED from $PINNED"

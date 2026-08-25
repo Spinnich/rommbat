@@ -13,7 +13,7 @@ namespace RomMBat.Tests;
 /// The bundled BIOS manifest, and the rules its shape forces on everything that reads it.
 /// </summary>
 /// <remarks>
-/// The manifest is bundled rather than read from the install because a real RetroBat 8.2 has
+/// The manifest is bundled rather than read from the install because a real RetroBat 8.2.1 has
 /// no <c>batocera-systems.json</c> anywhere: it is a string resource inside
 /// <c>emulationstation/batocera-systems.exe</c>. These tests hold the generated copy to the
 /// vendored original, so a regeneration that quietly dropped a system fails here.
@@ -35,12 +35,12 @@ public sealed class BiosManifestTests
                     Path: file.GetProperty("file").GetString()!)))
             .ToList();
 
-        Assert.Equal(353, upstream.Count);
+        Assert.Equal(355, upstream.Count);
 
         // The seven entries under emulators/ are refused by the reader, so the bundled set is
         // the rest. All seven are hashless, which is why refusing them costs nothing.
         var expected = upstream.Where(entry => BiosManifest.IsInsideBios(entry.Path)).ToList();
-        Assert.Equal(346, expected.Count);
+        Assert.Equal(348, expected.Count);
         Assert.All(upstream.Except(expected), entry => Assert.Empty(entry.Md5));
 
         Assert.Equal(
@@ -56,14 +56,15 @@ public sealed class BiosManifestTests
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        Assert.Equal(99, manifest.Folders.Count);
-        Assert.Equal(346, manifest.Requirements.Count);
+        Assert.Equal(100, manifest.Folders.Count);
+        Assert.Equal(348, manifest.Requirements.Count);
         Assert.Equal(7, manifest.RejectedPaths.Count);
 
-        // 156, not 157. The set is built without the blank md5, which 179 of the 353 entries
-        // carry; counting it inflated every number derived from this set by one.
+        // 156, not 157. The set is built without the blank md5, which 181 of the 355 entries
+        // carry; counting it inflated every number derived from this set by one. RetroBat 8.2.1
+        // added namco2x6's two entries and both are hashless, so the distinct-md5 count held.
         Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
-        Assert.Equal(172, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
+        Assert.Equal(174, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
     }
 
     [Fact]

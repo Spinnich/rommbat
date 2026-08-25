@@ -144,11 +144,13 @@ You will need it for:
 ### Pin the schema
 
 Already pinned, and it does not come from either of the instances above.
-`src/RomM.Client/openapi/romm-5.1.0.json` is a byte-exact `/openapi.json` (served at the
-root, not under `/api`) from a server reporting **5.1.0**, the minimum RomMBat supports, so
-the generated DTOs describe the oldest server the client claims to work with. It was pulled
-from the project's public demo, which means anyone can reproduce it without an account and
-without a hostname that would have to be scrubbed from a diff.
+`src/RomM.Client/openapi/romm-5.2.0.json` is a byte-exact `/openapi.json` (served at the
+root, not under `/api`) from a server reporting **5.2.0**, the minimum RomMBat supports, so
+the generated DTOs describe the oldest server the client claims to work with. Since the floor
+tracks the newest stable, that is also the newest release. The preferred source is the
+project's public demo, which anyone can reproduce from without an account and without a
+hostname to scrub; the 5.2.0 pin came from a self-hosted instance because the demo had not
+caught up, and the recorded sha256 is how that is checked rather than trusted.
 
 ```bash
 cd src/RomM.Client/openapi && ./generate.sh    # only when deliberately moving the pin
@@ -428,7 +430,8 @@ ordinary rather than a fault. `--no-reload` skips the call.
 RetroBat is portable by design, which makes it trivially disposable. That is also the
 cleanest way to test the portable-move requirement and the first-run install path.
 
-1. Download RetroBat 8.2 or newer from <https://www.retrobat.org/download/>.
+1. Download RetroBat 8.2.1 or newer from <https://www.retrobat.org/download/>. It is the
+   declared minimum, and RomMBat refuses to run below it.
 2. Extract it somewhere with room, for example `D:\retrobat-pristine\`.
 3. Run it once so EmulationStation generates its config files. You need
    `.emulationstation/es_settings.cfg` and `es_savestates.cfg` to exist.
@@ -444,12 +447,20 @@ startup and refuses below the minimum:
 
 ```powershell
 Get-Content D:\retrobat-test\system\version.info
-# 8.2.0-stable-win64
+# 8.2.1-stable-win64
 ```
 
 There is no `build.ini` in RetroBat 8.2; M0 confirmed it does not exist anywhere in the
 tree. Note the channel and architecture suffix, which has to be split off before the
 version is compared.
+
+**RomMBat tracks the newest RetroBat and RomM stable rather than supporting a wide range**,
+so expect the floor to move. When it does, the work is: re-run `reference/refresh.sh` and
+resolve the drift, read the upstream changelog for anything touching a rule in
+`docs/retrobat-findings.md`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
+`RetroBatRoot.MinimumVersion` and the README compatibility row together, and re-check the
+open upstream issues. The reasoning is in `docs/PLAN.md`, "Version compatibility is declared,
+checked, and visible".
 
 ### Content
 
@@ -545,7 +556,7 @@ there.
     gamelist.xml          must also carry a <game> entry or the app shows as a filename
     media/
       rommbat-logo.png    the artwork that entry points at, written by menu install
-  system/version.info     the version string, e.g. 8.2.0-stable-win64
+  system/version.info     the version string, e.g. 8.2.1-stable-win64
 ```
 
 When you are done with a test run, delete the copied tree. That is the whole uninstall.

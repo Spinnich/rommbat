@@ -108,7 +108,8 @@ STATE_DIRECTORY_CORRECTIONS = {
         "declared": "{{system}}/flycast/sstates",
         "actual": "{{system}}/reicast/states",
         "why": "RetroBat's own FlycastGenerator writes Dreamcast.SavestatePath to the legacy reicast path; "
-               "the declared directory exists and stays empty. Note the VMU path does use flycast/.",
+               "the declared directory exists and stays empty on 8.2.0. Note the VMU path does use flycast/.",
+        "upstream": "Fixed upstream in RetroBat 8.2.1 (emulatorlauncher#1336, commit 5fafcb2b): FlycastSaveStatesMonitor now watches saves/<system>/reicast/states instead of the emulator's own data directory, so a state is mirrored into the declared path. Flycast still writes the native path first, so the actual location below stays true. The correction is kept until a hands-on pass on 8.2.1 sees the mirror; run tools/m0-probes/probe2-flycast-mirror.ps1.",
     },
     "openmsx": {
         "declared": "{{system}}/openmsx",

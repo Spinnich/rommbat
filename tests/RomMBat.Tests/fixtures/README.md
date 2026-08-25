@@ -28,7 +28,10 @@ the install's `es_systems.cfg` needs a real one to read.
 
 `es_systems.live.json` is a real capture, checked in here: 244 systems from a live 8.2.0
 install, recorded by M0 probe 4. It carries system names, paths and extensions only, no
-library contents.
+library contents. **It is deliberately not re-captured when the supported version moves.**
+What it is for is the shape of a live file against the shipped template, and 8.2.1's
+`<extension>` additions (`.decomp`, `.zar`) change data the shipped code reads live and never
+compares to this. Re-capture it when a parser trap moves, not when a version does.
 
 `emulatorLauncher.log` is twelve lines cut verbatim out of a real install's five months and
 424 launches, with only the Windows user profile path replaced. It is assembled by trap
@@ -62,7 +65,8 @@ the script rather than editing the file.
 That credentials live in this file is worth carrying beyond the fixture: nothing RomMBat logs,
 reports or writes to a probe transcript may echo a value read out of it.
 
-`es_systems.template.cfg` is the **shipped 8.2.0 template**, not a live capture, and it is
+`es_systems.template.cfg` is the **shipped template**, not a live capture, and it tracks the
+supported RetroBat version because it is linked from `reference/` rather than copied. It is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
 differs from their folder, one `<name>` used twice, four entries pointing outside `roms/`,
 one with no path, and two systems inside XML comments. M0's live capture agrees with it on

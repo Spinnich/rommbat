@@ -185,7 +185,7 @@ which step is missing.
 
 ## Compatibility
 
-Does this move the minimum RomM (5.1.0) or RetroBat (8.2) version? If so, the README table
+Does this move the minimum RomM (5.2.0) or RetroBat (8.2.1) version? If so, the README table
 moves with it and the startup check must still refuse below and warn above.
 
 ## Documentation parity

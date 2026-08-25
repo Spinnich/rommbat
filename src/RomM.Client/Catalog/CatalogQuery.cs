@@ -147,7 +147,10 @@ public sealed record CatalogQuery
             new("with_filter_values", withFilterValues ? "true" : "false"),
 
             // Kept on: it is an integer, it costs nothing, and it is the only way a resumable
-            // walk knows how far it has left to go.
+            // walk knows how far it has left to go. Load-bearing since RomM 5.2.0, which made
+            // the response's `total` nullable: the server returns null when neither this nor
+            // with_rom_id_index is set, and RomPage.Total is a non-nullable int, so turning
+            // this off to save bytes throws on deserialisation rather than degrading.
             new("with_total", "true"),
 
             // Opt-in and left off. Per-file detail is M3's problem, and it multiplies the body.

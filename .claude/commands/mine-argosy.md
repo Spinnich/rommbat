@@ -141,7 +141,7 @@ several will be wrong. Treat the annotations as guesses and the paths as the onl
 - `app/src/main/kotlin/com/nendo/argosy/data/sync/strategy/`: `NegotiatorSaveSyncStrategy.kt`,
   `LegacySaveSyncStrategy.kt`, `SaveSyncStrategySelector.kt`, `ConflictAutoResolver.kt`,
   `ReconcilePlan.kt`. The names say they gate a negotiate-based path against an older one by
-  server version. We refuse below 5.1.0 outright, so their _selector_ is not a lead, but their
+  server version. We refuse below our minimum outright, so their _selector_ is not a lead, but their
   _reconcile plan_ is the closest thing in existence to our full-state reconciliation at
   `docs/PLAN.md` line 68 and the negotiate work at 1763.
 - `data/remote/romm/RomMCapabilities.kt`. Version-gated feature detection. We check versions at
@@ -237,7 +237,7 @@ library so a response shape can be compared across versions. Its README says pla
 exists: `RomMCapabilities` gated features by version, but nothing recorded how the response
 _shape_ changed, and issue #173 is what fell through that gap.
 
-We have the same gap and a narrower version window, since we refuse below 5.1.0. So the question
+We have the same gap and a narrower version window, since we refuse below our minimum. So the question
 is not whether to copy their testbed, it is whether our single live instance is enough to keep
 making API claims from. Put the question in the ledger with a recommendation. **Do not build it
 on this branch.**
