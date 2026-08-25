@@ -50,11 +50,13 @@ rather than rewritten away, and Argosy now has a row naming what was actually ta
 because the development RetroBat install closed the one route that looked unavailable at triage.
 
 **The one that costs real work** is A3: **84 of RetroBat's 353 BIOS requirements are `.zip`
-files and not one of them can ever match on md5**, because a zip's hash is over archive bytes
-that depend on compression and member order. This repository already knows that argument. It is
-written down for saves, under "Hashing zip bytes makes RomMBat and Grout disagree", and the conclusion there is to hash content
-rather than container bytes. Nobody applied it to BIOS, and M5's md5-only join inherits the
-defect for 24% of the manifest.
+files, and of the 20 that carry an md5 not one can ever match on it**, because a zip's hash is
+over archive bytes that depend on compression and member order. This repository already knows
+that argument. It is written down for saves, under "Hashing zip bytes makes RomMBat and Grout
+disagree", and the conclusion there is to hash content rather than container bytes. Nobody
+applied it to BIOS, and M5's md5-only join inherits the defect for those 20 requirements, 5.7%
+of the manifest. The other 64 zip requirements name no md5 and never reach the join:
+`BiosPlanner.Inspect` returns `Unverifiable` first, which is the honest verdict.
 
 **The one that costs measurable time** is A1: RomMBat sends `with_rom_id_index=false`, which
 Argosy built, measured as a regression and reverted. Measured here it is **3.4 to 3.7 times
@@ -89,6 +91,12 @@ primary path is careful to pass.
 
 Probe scripts are in `tools/argosy-probes/` and are checked in. Their output goes to
 `probe-output/argosy/`, which is gitignored.
+
+**One number here has no script: A3's `neogeo.zip` container hash.** It was a hand-run
+`GET /api/firmware/{id}/content/` followed by a local hash of the bytes, and the transcript
+below is the record of it. Everything else in A3 is re-runnable:
+`a3b-bios-requirement-join.py` derives the 63/111/179 split, the 84/20/64 zip breakdown and
+the filename matches from `data/retrobat/bios.json` against `/api/platforms`.
 
 ---
 
@@ -237,13 +245,17 @@ Joining every one of RetroBat's 353 requirements against every firmware md5 in t
 
 Three separate things are inside that, and only the first is a defect.
 
-**84 of the 353 requirements are `.zip` files, and zero of them match on md5.** Not a low match
-rate: none. `neogeocd` is the clean example. RetroBat requires `bios/neogeo.zip` at md5
+**84 of the 353 requirements are `.zip` files. Twenty of those carry an md5, and zero of the
+twenty match.** Not a low match rate: none. The other 64 name no hash at all, so they have
+nothing to match with and `BiosPlanner.Inspect` classifies them `Unverifiable` before the
+library join runs (`src/RomMBat.Core/Content/BiosPlanner.cs:355-363`). The 20 are the seam.
+`neogeocd` is the clean example. RetroBat requires `bios/neogeo.zip` at md5
 `dffb72f1...` and `bios/neocdz.zip` at `c733b4b7...`. The library holds files named exactly
 `neogeo.zip` and `neocdz.zip`, at md5 `c74b8945...` and `c38cb8e5...`.
 
 **That both sides hash the container is measured, not inferred.** Downloading the library's
-`neogeo.zip` and hashing what arrived:
+`neogeo.zip` and hashing what arrived. This one was run by hand rather than by a checked-in
+probe, so the transcript is the evidence:
 
 ```text
 GET /api/firmware/973/content/neogeo.zip -> 200, 1861788 bytes
@@ -270,9 +282,10 @@ which is which.
 the risk table records that Go's `archive/zip` and .NET's `ZipArchive` produce different bytes for the
 same members, and the conclusion drawn there is to define `content_hash` over sorted relative
 paths plus per-file hashes and treat the archive as transport only. The same reasoning governs a
-BIOS zip and was never carried across. M5 inherits the defect for 24% of the manifest, and it
-fails in the direction that wastes a user's time: it reports `MissingFromLibrary` for a file the
-library is holding under the right name.
+BIOS zip and was never carried across. M5 inherits the defect for the 20 zip requirements that
+carry an md5, 5.7% of the manifest, and it fails in the direction that wastes a user's time: it
+reports `MissingFromLibrary` for a file the library is holding under the right name. For the
+other 64 the report says `Unverifiable`, which is what `docs/PLAN.md` already argues for.
 
 **Nine systems have firmware in the library and no md5 overlap**: `atari7800`, `atomiswave`,
 `msx`, `msx2`, `n64dd`, `naomi`, `neogeocd`, `sgb`, `xbox`. Several are zip cases. `sgb` is not a
@@ -285,8 +298,9 @@ there is no firmware to have matched and the mapping is the only one available.
 missing, which is the honest answer under the current rule, but the file is plainly there.
 
 **Rule 3 is not overturned.** Joining on filename across the whole manifest remains wrong for the
-reason `reference/README.md` measures: RetroBat requires 157 distinct md5s, RomM knows 353, and
-only 63 overlap, so filenames disagree at scale. What the probe shows is that md5 is the wrong
+reason `reference/verify.py` asserts: RetroBat requires 156 distinct md5s, RomM knows 353, and
+only 63 overlap, so filenames disagree at scale. (156, not the 157 `reference/README.md` still
+carries; `docs/PLAN.md` records why that table was wrong.) What the probe shows is that md5 is the wrong
 key for two bounded subsets, and each wants its own rule rather than a relaxation of the general
 one.
 

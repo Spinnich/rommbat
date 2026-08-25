@@ -187,8 +187,10 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   hashed as a container.** Measured: the library's 34-member `neogeo.zip` carries an
   `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` can
   never be joined on md5** against a manifest that hashed a differently-built archive of the
-  same members, and 84 of RetroBat's 353 BIOS requirements are zips. Compare members, the
-  way `LogicalContentHash` does for saves. See
+  same members. 84 of RetroBat's 353 BIOS requirements are zips, and **20 of those carry an
+  md5**, which is the whole defect surface: the other 64 name no hash, so `BiosPlanner.Inspect`
+  answers `Unverifiable` before the join. Compare members, the way `LogicalContentHash` does
+  for saves. See
   [argosy-findings.md](../../../docs/argosy-findings.md), A3.
 
 - **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504

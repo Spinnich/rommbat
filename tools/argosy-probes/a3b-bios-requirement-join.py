@@ -31,6 +31,7 @@ def main() -> int:
 
     library_md5s: set[str] = set()
     library_slugs: set[str] = set()
+    library_names: set[str] = set()
     for platform in platforms:
         slug = platform.get("slug") or platform.get("fs_slug") or ""
         if platform.get("firmware"):
@@ -39,6 +40,9 @@ def main() -> int:
             md5 = (fw.get("md5_hash") or "").lower()
             if md5:
                 library_md5s.add(md5)
+            name = (fw.get("file_name") or "").lower()
+            if name:
+                library_names.add(name)
 
     manifest = json.loads((REPO / "data" / "retrobat" / "bios.json").read_text(encoding="utf-8"))
     platform_map = json.loads(
@@ -98,6 +102,47 @@ def main() -> int:
         lines.append(f"| {system} | {len(by_system[system])} | {'yes' if carried else 'no'} |")
     lines.append("")
     lines.append(f"systems where the library carries firmware and the named md5 still misses: {contested}")
+    lines.append("")
+
+    zip_rows = [
+        (system, row)
+        for system, entry in sorted(manifest["systems"].items())
+        for row in entry["files"]
+        if row["path"].lower().endswith(".zip")
+    ]
+    with_md5 = [(s, r) for s, r in zip_rows if (r.get("md5") or "").strip()]
+    in_library = [(s, r) for s, r in with_md5 if r["md5"].lower() in library_md5s]
+
+    lines.append("## Zip requirements, and how many of them the join can even see")
+    lines.append("")
+    lines.append("A requirement with no md5 never reaches the library join: BiosPlanner.Inspect")
+    lines.append("returns Unverifiable and returns first. So the zip defect surface is the subset")
+    lines.append("carrying an md5, not all 84.")
+    lines.append("")
+    lines.append(f"zip requirements: {len(zip_rows)} of {total}")
+    lines.append(f"  carrying an md5, so the join runs:     {len(with_md5)}")
+    lines.append(f"    distinct md5s among those:          {len({r['md5'].lower() for _s, r in with_md5})}")
+    lines.append(f"    of those, matched in the library:   {len(in_library)}")
+    lines.append(f"  no md5, reported Unverifiable:        {len(zip_rows) - len(with_md5)}")
+    lines.append("")
+    for system, row in sorted(with_md5, key=lambda pair: (pair[0], pair[1]["path"])):
+        seen = "matched" if row["md5"].lower() in library_md5s else "no md5 match"
+        lines.append(f"  {system}: {row['path']} {row['md5'][:8]} {seen}")
+    lines.append("")
+
+    named = [
+        (system, row)
+        for system, entry in sorted(manifest["systems"].items())
+        for row in entry["files"]
+        if not (row.get("md5") or "").strip()
+        and row["path"].rsplit("/", 1)[-1].lower() in library_names
+    ]
+    lines.append("## No-md5 requirements whose exact filename the library holds")
+    lines.append("")
+    lines.append(f"of the {unverifiable} requirements RetroBat names no md5 for, {len(named)} have")
+    lines.append("a file of exactly that name in the library:")
+    for system, row in sorted(named, key=lambda pair: (pair[0], pair[1]["path"])):
+        lines.append(f"  {system}: {row['path']}")
     lines.append("")
 
     _common.record("a3b-bios-requirement-join", lines)

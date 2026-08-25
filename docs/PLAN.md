@@ -1457,9 +1457,12 @@ user has the correct file. The two also key differently: RomM by `platform_slug:
 RetroBat by destination path. **md5 is the only reliable join.** Filenames will not match
 and must not be relied on.
 
-**But md5 cannot join a `.zip`, and 84 of the 353 requirements are zips.** Measured
-2026-08-25 against a library holding 708 firmware records: of the 84 zip requirements,
-**zero match on md5**, and it is not a low rate, it is none. `neogeocd` is the clean case.
+**But md5 cannot join a `.zip`, and 84 of the 353 requirements are zips.** Only **20 of
+those 84 carry an md5** (18 distinct), and they are the only ones that reach the library
+join at all: the other 64 name no hash, so `BiosPlanner.Inspect` returns `Unverifiable` and
+returns before the join. Measured 2026-08-25 against a library holding 708 firmware records:
+of the 20 zip requirements RetroBat names an md5 for, **zero match**, and it is not a low
+rate, it is none. `neogeocd` is the clean case.
 RetroBat requires `bios/neogeo.zip` at `dffb72f1...` and `bios/neocdz.zip` at `c733b4b7...`;
 the library holds files named exactly `neogeo.zip` and `neocdz.zip` at `c74b8945...` and
 `c38cb8e5...`. The archives are the same BIOS and hash differently, because **a zip's md5 is
@@ -1469,11 +1472,13 @@ over container bytes** that depend on compression level, member order and stored
 design at "Hashing zip bytes makes RomMBat and Grout disagree" resolves exactly this by
 defining `content_hash` over sorted relative paths plus per-file hashes and treating the
 archive as transport only. The same reasoning governs a BIOS zip and was never carried
-across, so M5 currently reports `MissingFromLibrary` for 24% of the manifest whenever the
-user holds the right file under the right name.
+across, so M5 currently reports `MissingFromLibrary` for a file the library is holding under
+the right name. **The ceiling is 20 requirements, 5.7% of the manifest**, not the whole 84:
+the 64 zip requirements with no md5 already report `Unverifiable`, which is the honest
+verdict this section argues for five paragraphs down.
 
-**The seam:** a zip requirement wants the member-wise comparison `LogicalContentHash`
-already computes for save archives, not a hash of the container. Separately, 20 of the 179
+**The seam:** a zip requirement that carries an md5 wants the member-wise comparison
+`LogicalContentHash` already computes for save archives, not a hash of the container. Separately, 20 of the 179
 requirements RetroBat names no md5 for have an **exact filename match** in the library;
 `Unverifiable` remains the honest verdict under an md5-only rule, but an exact-name match is
 worth offering as a suggestion the user confirms. Neither changes the general join, and rule
