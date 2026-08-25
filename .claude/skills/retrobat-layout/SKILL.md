@@ -103,19 +103,19 @@ describes only the last game run. See
 [argosy-findings.md](../../../docs/argosy-findings.md), A7.
 
 **Trust `<file>`, verify `<directory>`.** Across the twelve emulators M0 drove, every `<file>`
-template was correct and two `<directory>` declarations were not. **`openmsx` writes
+template was correct and one `<directory>` declaration still is not: **`openmsx` writes
 `bios/openmsx/savestates/`**, outside the saves tree entirely, against a declared
-`saves/msx1/openmsx`, and it is unfixed. **`flycast` wrote `dreamcast/reicast/states` against
-a declared `dreamcast/flycast/sstates`** on 8.2.0; RetroBat 8.2.1 fixed that
-(`emulatorlauncher#1336`) by pointing the save-state watcher at the directory Flycast really
-writes, so the declared path should now be mirrored into. Flycast still writes
-`reicast/states` first, and `emu.cfg`'s `Dreamcast.SavestatePath` still names it.
+`saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
+and cross-check against the emulator's generated config where it matters.
 
-So never read an empty declared directory as "this game has no states", and cross-check
-against the emulator's generated config where it matters. **`StateScanner` still lists
-`flycast` in `WrongDeclaredDirectories`** and reports Dreamcast states as unsyncable: the
-entry stays until a hands-on pass on 8.2.1 sees the mirror
-(`tools/m0-probes/probe2-flycast-mirror.ps1`). A changelog line is not a measurement.
+**`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
+declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that
+(`emulatorlauncher#1336`) by pointing the save-state watcher at the directory Flycast really
+writes. Confirmed by hand, three runs: the state lands in both, same bytes, same millisecond,
+live. Flycast still writes `reicast/states` first and `emu.cfg`'s `Dreamcast.SavestatePath`
+still names it, so **the declaration became usable without the template moving**. Re-run
+`tools/m0-probes/probe2-flycast-mirror.ps1` if that ever looks doubtful; a changelog line is
+not a measurement, which is why this one was driven.
 
 **The declared directory is otherwise the one to use even when the emulator writes elsewhere.**
 An emulator may write under its own naming, with RetroBat mirroring into the declared path

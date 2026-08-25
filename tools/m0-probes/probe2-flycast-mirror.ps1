@@ -36,8 +36,10 @@
     no state      the save key never took. Not a result. Check the key against
                   .emulationstation/es_padtokey.cfg and run it again.
 
-  Read-only against the install apart from the state the run creates, which
-  probe2-savestates.ps1 removes again unless -KeepArtifacts is passed.
+  Read-only against the install apart from the state the run creates, which is removed again
+  unless -KeepArtifacts is passed. The wrapped probe is always run with -KeepArtifacts,
+  because it deletes what it created before returning and there would be nothing left here
+  to look at; the cleanup below is this script's own.
 
   Needs a Dreamcast rom in roms/dreamcast with no existing save data, and a person at the
   machine: the save key is sent to the running emulator.
@@ -74,10 +76,11 @@ foreach ($d in @($declared, $native)) {
 
 & (Join-Path $PSScriptRoot 'probe2-savestates.ps1') `
     -Root $Root -Emulator flycast -System dreamcast -Rom $Rom `
-    -SaveKey $SaveKey -BootSeconds $BootSeconds -KeepArtifacts:$KeepArtifacts
+    -SaveKey $SaveKey -BootSeconds $BootSeconds -KeepArtifacts
 
 # The wrapped probe reports against the declared directory already. This is the 8.2.1
 # question stated on its own, so the outcome does not have to be read out of the diff.
+# StartsWith, not -like: rom names routinely contain [ ], which -like reads as a wildcard.
 $stem = [System.IO.Path]::GetFileNameWithoutExtension($Rom)
 $mirrored = @(Get-ChildItem $declared -File -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.Name.StartsWith($stem, [StringComparison]::OrdinalIgnoreCase) })
@@ -100,4 +103,11 @@ elseif ($wrote.Count -gt 0) {
 }
 else {
     Write-Host 'NO STATE. The save key never took, so this run decides nothing. Check the key and repeat.'
+}
+
+# Tracked by exact path, so an install's real saves are never touched.
+if (-not $KeepArtifacts) {
+    $created = @($mirrored) + @($wrote)
+    foreach ($f in $created) { Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue }
+    if ($created.Count) { Write-Host "" ; Write-Host "removed $($created.Count) file(s) created by this probe" }
 }

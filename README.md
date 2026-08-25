@@ -324,8 +324,9 @@ reason rather than passed over in silence.
 
 M0 filed three RetroBat bugs rather than facts to design around. Two are now resolved and
 one is still open. Each is re-checked every release, because a fix upstream changes what
-RomMBat should do rather than just closing a ticket, and no workaround is removed until the
-fix is in a release RomMBat's compatibility gate accepts.
+RomMBat should do rather than just closing a ticket. A workaround comes out only once the fix
+is in a release the compatibility gate accepts **and** a hands-on pass has seen the fixed
+behaviour: a changelog line is what upstream believes, not what lands on disk.
 
 | Issue                                                                                                     | State                       | What it costs                                                                       |
 | --------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
@@ -339,12 +340,12 @@ disabled, so it now lives upstream at `batocera-linux/batocera-emulationstation`
 mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **This is
 the one that still constrains the design**: the hooks stay `.exe`.
 
-**#1336 is fixed and RomMBat has not yet taken advantage of it.** 8.2.1 pointed Flycast's
-save-state watcher at the directory Flycast actually writes, so states are mirrored into the
-declared `saves/<system>/flycast/sstates`. RomMBat still reports Dreamcast states as
-unsyncable, which under-reports rather than syncing the wrong tree, and the workaround comes
-out once a hands-on pass on 8.2.1 sees the mirror. Run
-`tools/m0-probes/probe2-flycast-mirror.ps1`.
+**#1336 is fixed, and the workaround is out.** 8.2.1 pointed Flycast's save-state watcher at
+the directory Flycast actually writes, so a state is mirrored into the declared
+`saves/<system>/flycast/sstates`. Confirmed by hand rather than taken from the changelog:
+three runs of a real Dreamcast game on a real 8.2.1 install put the state in both places, same
+bytes, same millisecond, while the emulator was still running. Dreamcast states now sync from
+the declared directory like any other emulator's. `openmsx` is still wrong and still reported.
 
 **#1337 will not be fixed, and that costs RomMBat nothing.** Upstream's position is that
 there is no reason to run `emulatorLauncher` directly. RomMBat is a direct invoker, so the

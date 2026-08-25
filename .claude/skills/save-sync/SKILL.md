@@ -94,14 +94,15 @@ Four traps, all confirmed across the eleven emulators M0 drove:
 - **`<image>` is absent more often than present**: missing outright for most emulators driven,
   and correct, zero-byte and missing across three runs of the same PPSSPP game. `screenshotFile`
   is best-effort everywhere; absent and empty are both normal and say nothing about the state.
-- **The declared `<directory>` was wrong for two of the twelve emulators launched.**
+- **The declared `<directory>` is wrong for one of the twelve emulators launched.**
   **`openmsx` writes to `bios/openmsx/savestates/`, a different top-level tree** from the
-  declared `saves/msx1/openmsx`, and that is unfixed. `flycast` wrote `dreamcast/reicast/states`
-  against a declared `dreamcast/flycast/sstates` on 8.2.0, which **RetroBat 8.2.1 fixed**
-  (`emulatorlauncher#1336`); the workaround stays in `StateScanner.WrongDeclaredDirectories`
-  until a hands-on pass sees the mirror, so Dreamcast states are still reported unsyncable
-  rather than synced. An empty declared directory is never evidence that a game has no states;
-  cross-check against the emulator's generated config.
+  declared `saves/msx1/openmsx`, and that is unfixed. `flycast` was the second until
+  **RetroBat 8.2.1 fixed it** (`emulatorlauncher#1336`): it still writes
+  `dreamcast/reicast/states` first, but the state is now mirrored into the declared
+  `dreamcast/flycast/sstates` in the same millisecond, confirmed by hand over three runs, so
+  Dreamcast states sync from the declaration like any other emulator's. An empty declared
+  directory is never evidence that a game has no states; cross-check against the emulator's
+  generated config.
 - **Anchor the slot placeholder as a single digit when expanding a template.** DeSmuME declares
   `{{romfilename}}.ds{{slot0}}` and writes its battery save as `{{romfilename}}.dsv`, so a
   `<rom>.ds*` glob picks up the battery save as slot "v".

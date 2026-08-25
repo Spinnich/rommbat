@@ -119,16 +119,40 @@ the generator's path composition is unchanged, and 8.2.1's `es_savestates.cfg` i
 to 8.2.0's, so the declaration was not moved either. What changed is that the declared directory
 is now expected to be populated rather than to stay empty.
 
-**RomMBat has not yet acted on this.** `StateScanner.WrongDeclaredDirectories` still lists
-`flycast`, so Dreamcast states are reported unsyncable with the reason. On 8.2.1 that
-under-reports rather than reading the wrong tree, which is the safe direction to be wrong in,
-and it comes out once a hands-on pass sees the mirror. The pass is
-`tools/m0-probes/probe2-flycast-mirror.ps1`, and it needs a Dreamcast ROM and somebody to press
-the save-state key.
+**Confirmed by hand on 8.2.1, and the workaround is out.**
+`tools/m0-probes/probe2-flycast-mirror.ps1` was run three times against `K:\RetroBat` with
+`Sega Tetris (Japan) (Rev A).chd`, Flycast 2.7, on 2026-08-25:
+
+|                                    |                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| Written natively                   | `saves/dreamcast/reicast/states/Sega Tetris (Japan) (Rev A)_1.state`  |
+| Mirrored to the declared directory | `saves/dreamcast/flycast/sstates/Sega Tetris (Japan) (Rev A)_1.state` |
+| Size, both                         | identical, 1,541,183 / 1,541,250 / 1,541,372 B across the runs        |
+| Timing                             | **the same millisecond**, while the emulator was still running        |
+| Declared `<image>`                 | **absent**, all three runs                                            |
+| `.txt` sidecar                     | present, holding the rom filename                                     |
+
+`Dreamcast.SavestatePath` in the generated `emulators/flycast/emu.cfg` still reads
+`saves\dreamcast\reicast\states`, so the emulator's own path is unchanged and the fix is
+purely the mirror. Two details corroborate the mechanism rather than just the outcome:
+`flycast/sstates` **did not exist** before the first launch and was created by the launcher's
+`PrepareEmulatorRepository()`, and the mirror timing matches what probe 2 measured for the
+other non-`libretro` emulators, about 120 ms, live rather than at exit.
+
+So `flycast` is out of `StateScanner.WrongDeclaredDirectories` and into the verified list in
+`data/retrobat/save_directories.json`. **Dreamcast states now sync.** This is a save-shape
+check, not a certification: `(dreamcast, flycast)` still owes the other eight steps.
 
 **The general rule survives the fix.** "Do not treat `es_savestates.cfg`'s `<directory>` as
 authoritative on its own" was never only about Flycast: `openmsx` still writes
-`bios/openmsx/savestates/`, a different top-level tree, and that is unfixed.
+`bios/openmsx/savestates/`, a different top-level tree, and that is unfixed. One of twelve is
+still one.
+
+**A by-product worth recording.** Getting a Dreamcast game onto the install meant pulling
+`dc_boot.bin` and `dc_flash.bin` out of RomM's firmware endpoint, and both arrived with md5s
+matching `data/retrobat/bios.json` exactly (`e10c53c2…`, `0a93f7940…`). That is the M5
+md5-only join working end to end on real data, on a system whose third manifest entry
+(`bios/dc/dc.zip`) carries no hash at all.
 
 ### #1337: will not be fixed, and it costs RomMBat nothing
 

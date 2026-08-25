@@ -247,15 +247,14 @@ public class StateDiscoveryTests
     }
 
     [Fact]
-    public void The_declared_directory_of_flycast_and_openmsx_finds_nothing_and_nothing_is_guessed()
+    public void The_declared_directory_of_openmsx_finds_nothing_and_nothing_is_guessed()
     {
         using var tree = StateTree.Create();
-        tree.AddRom(1, "dreamcast", "Bangai-O (USA).chd");
+        tree.AddRom(1, "msx1", "Aleste (Japan).rom");
 
         // What a real install has: the declared directory present and empty, and the state
-        // where the emulator actually writes it.
-        Directory.CreateDirectory(tree.Install.Resolve(RelativePath.Create("saves/dreamcast/flycast/sstates")));
-        tree.AddState("dreamcast/reicast/states", "Bangai-O (USA)_1.state", "the real state");
+        // outside the saves tree entirely, where no expansion of the template can reach it.
+        Directory.CreateDirectory(tree.Install.Resolve(RelativePath.Create("saves/msx1/openmsx")));
 
         var outcome = tree.Scan();
 
@@ -263,8 +262,25 @@ public class StateDiscoveryTests
         // an empty declared directory means "you are looking in the wrong place".
         Assert.Equal(0, outcome.Found);
 
-        Assert.Contains("flycast", StateScanner.WrongDeclaredDirectories.Keys, StringComparer.Ordinal);
         Assert.Contains("openmsx", StateScanner.WrongDeclaredDirectories.Keys, StringComparer.Ordinal);
+    }
+
+    [Fact]
+    public void Flycast_states_are_read_from_the_declared_directory_since_RetroBat_8_2_1()
+    {
+        using var tree = StateTree.Create();
+        tree.AddRom(1, "dreamcast", "Bangai-O (USA).chd");
+
+        // What 8.2.1 leaves on disk, measured: the state in both places, same bytes, written
+        // natively and mirrored into the declared path in the same millisecond. Only the
+        // declared one is read, so the state is counted once rather than twice.
+        tree.AddState("dreamcast/reicast/states", "Bangai-O (USA)_1.state", "the state");
+        tree.AddState("dreamcast/flycast/sstates", "Bangai-O (USA)_1.state", "the state");
+
+        var outcome = tree.Scan();
+
+        Assert.Equal(1, outcome.Found);
+        Assert.DoesNotContain("flycast", StateScanner.WrongDeclaredDirectories.Keys, StringComparer.Ordinal);
     }
 
     [Fact]

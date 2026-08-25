@@ -34,16 +34,14 @@ public enum SlotToken
 /// One <c>&lt;emulator&gt;</c> from <c>es_savestates.cfg</c>.
 /// </summary>
 /// <param name="Directory">
-/// The declared template. <b>Declared is not written.</b> Two of the twelve emulators driven on a
-/// real install wrote somewhere else entirely. <c>openmsx</c> writes
+/// The declared template. <b>Declared is not written.</b> One of the twelve emulators driven on
+/// a real install writes somewhere else entirely: <c>openmsx</c> writes
 /// <c>bios/openmsx/savestates/</c>, a different top-level tree from the declared
-/// <c>saves/msx1/openmsx</c>, and is unfixed. <c>flycast</c> wrote
-/// <c>saves/dreamcast/reicast/states/</c> against a declared <c>{{system}}/flycast/sstates</c>
-/// on RetroBat 8.2.0, which 8.2.1 fixed (<c>emulatorlauncher#1336</c>) by pointing its
-/// save-state watcher at the directory Flycast really writes, so the declared path should now be
-/// mirrored into; the emulator still writes <c>reicast/states</c> first. Either way, an empty
-/// declared directory means "you may be looking in the wrong place" and never "this game has no
-/// states".
+/// <c>saves/msx1/openmsx</c>, and it is unfixed. <c>flycast</c> was the second until RetroBat
+/// 8.2.1 fixed <c>emulatorlauncher#1336</c>; it still writes <c>reicast/states</c> first, but
+/// the state is now mirrored into the declared path in the same millisecond, confirmed by hand.
+/// So an empty declared directory means "you may be looking in the wrong place" and never "this
+/// game has no states".
 /// </param>
 /// <param name="Image">
 /// The screenshot template, which maps onto RomM's optional <c>screenshotFile</c>.
