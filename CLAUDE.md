@@ -47,8 +47,12 @@ to unwind later.
 3. **RetroBat is the authority on file extensions and required BIOS**, not RomM. Read
    `<extension>` from the live `es_systems.cfg`; join firmware against
    `batocera-systems.json` on **md5 only**.
-4. **The ES hooks never touch the network.** They run inside the game-launch path. They
-   append to a local journal and exit; a background pass flushes later.
+4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
+   the game-launch path: they append to a local journal, exit, and start nothing. **`start`
+   and `quit` are outside that path** and each spawns a detached `background <event>` pass,
+   which is what drains the journal on a machine where nobody opens a terminal. The set is
+   `SpoolRecord.BackgroundEvents` and a test asserts it, because the hook itself cannot say
+   which of the four it is serving until it reads the folder it was installed into.
 
 Two more that only bite once there is code:
 

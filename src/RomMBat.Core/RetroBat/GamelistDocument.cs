@@ -66,22 +66,35 @@ public sealed record GamelistMergeResult
 /// </remarks>
 public sealed class GamelistDocument
 {
-    /// <summary>The declaration ES itself writes. No encoding attribute, and no BOM.</summary>
+    /// <summary>The declaration ES itself writes. No encoding attribute.</summary>
     private const string Declaration = "<?xml version=\"1.0\"?>";
 
     private static readonly UTF8Encoding Utf8NoBom = new(encoderShouldEmitUTF8Identifier: false);
 
+    private static readonly byte[] Bom = [0xEF, 0xBB, 0xBF];
+
     private readonly XDocument _document;
     private readonly XElement _root;
+    private readonly string _newLine;
+    private readonly bool _hasBom;
 
-    private GamelistDocument(XDocument document)
+    private GamelistDocument(XDocument document, string newLine, bool hasBom)
     {
         _document = document;
         _root = document.Root!;
+        _newLine = newLine;
+        _hasBom = hasBom;
     }
 
-    /// <summary>An empty gamelist, for a folder that has never had one.</summary>
-    public static GamelistDocument Empty() => new(new XDocument(new XElement("gameList")));
+    /// <summary>
+    /// An empty gamelist, for a folder that has never had one.
+    /// </summary>
+    /// <remarks>
+    /// No BOM and LF, which is what every <c>roms/&lt;system&gt;/gamelist.xml</c> on two real
+    /// installs carries, 42 of 42, ES-written ones included.
+    /// </remarks>
+    public static GamelistDocument Empty() =>
+        new(new XDocument(new XElement("gameList")), "\n", hasBom: false);
 
     /// <summary>
     /// Reads a gamelist from disk, or returns an empty one when the file is not there.
@@ -102,6 +115,12 @@ public sealed class GamelistDocument
 
         try
         {
+            // Read the bytes first, because the convention has to come off the file as it sits
+            // rather than off the parsed tree, which carries neither fact.
+            var bytes = File.ReadAllBytes(path);
+            var hasBom = bytes.AsSpan().StartsWith(Bom);
+            var newLine = UsesCrLf(bytes) ? "\r\n" : "\n";
+
             // DTD processing off and no resolver: this file comes from the user's disk, but a
             // gamelist has no legitimate use for an external entity and the parse runs with
             // whatever rights the agent has.
@@ -117,7 +136,7 @@ public sealed class GamelistDocument
                 XmlResolver = null,
                 IgnoreWhitespace = true,
             };
-            using var stream = File.OpenRead(path);
+            using var stream = new MemoryStream(bytes, writable: false);
             using var reader = XmlReader.Create(stream, settings);
 
             var document = XDocument.Load(reader, LoadOptions.None);
@@ -127,7 +146,7 @@ public sealed class GamelistDocument
                 throw new GamelistParseException(path, "its root element is not <gameList>.");
             }
 
-            return new GamelistDocument(document);
+            return new GamelistDocument(document, newLine, hasBom);
         }
         catch (XmlException ex)
         {
@@ -245,11 +264,34 @@ public sealed class GamelistDocument
     public bool Contains(string path) => Find(path) is not null;
 
     /// <summary>
+    /// The element names one entry already carries, or an empty list when it is not there.
+    /// </summary>
+    /// <remarks>
+    /// So a caller can assert a field only where none exists. <see cref="Apply"/> overwrites,
+    /// which is right for a gamelist RomMBat generates from the catalog and wrong for the ES
+    /// menu entry, whose name and artwork a user may have changed on purpose.
+    /// </remarks>
+    public IReadOnlyList<string> ElementNamesOf(string path) =>
+        Find(path) is { } game ? [.. game.Elements().Select(child => child.Name.LocalName)] : [];
+
+    /// <summary>One element's text on one entry, or null when either is absent.</summary>
+    /// <remarks>
+    /// For reporting what an entry looks like now rather than what RomMBat would have written,
+    /// which is the difference between telling a user their name was kept and correcting it.
+    /// </remarks>
+    public string? ValueOf(string path, string element) => Find(path)?.Element(element)?.Value;
+
+    /// <summary>
     /// Renders the document exactly as it would be written.
     /// </summary>
     /// <remarks>
-    /// Tab-indented with LF endings and no BOM, matching what EmulationStation writes, so a
-    /// file that passes through both processes changes as little as possible.
+    /// Tab-indented, in <b>the BOM and line-ending convention of the file that was loaded</b>,
+    /// and no BOM with LF for a file that did not exist, which is what EmulationStation writes.
+    /// That is not decoration. Every <c>roms/&lt;system&gt;/gamelist.xml</c> measured across two
+    /// installs is no BOM and LF, 42 of 42, and the stock <c>system/es_menu/gamelist.xml</c> is
+    /// the one gamelist RetroBat ships with a BOM and CRLF. Writing the default over it would
+    /// rewrite all 96 of its entries in order to add one, which is the opposite of merging into
+    /// a file somebody else owns. See <c>docs/retrobat-findings.md</c>, 204.
     /// </remarks>
     public string Render()
     {
@@ -257,21 +299,41 @@ public sealed class GamelistDocument
         {
             Indent = true,
             IndentChars = "\t",
-            NewLineChars = "\n",
+            NewLineChars = _newLine,
             OmitXmlDeclaration = true,
             Encoding = Utf8NoBom,
         };
 
         var builder = new StringBuilder();
-        builder.Append(Declaration).Append('\n');
+        builder.Append(Declaration).Append(_newLine);
 
         using (var writer = XmlWriter.Create(builder, settings))
         {
             _document.Save(writer);
         }
 
-        builder.Append('\n');
+        builder.Append(_newLine);
         return builder.ToString();
+    }
+
+    /// <summary>The exact bytes <see cref="WriteIfChanged"/> would put on disk.</summary>
+    /// <remarks>
+    /// Separate from <see cref="Render"/> because a BOM is a property of the file rather than
+    /// of the text, and a caller comparing rendered text should not have to know that.
+    /// </remarks>
+    public byte[] RenderBytes()
+    {
+        var text = Utf8NoBom.GetBytes(Render());
+
+        if (!_hasBom)
+        {
+            return text;
+        }
+
+        var withBom = new byte[Bom.Length + text.Length];
+        Bom.CopyTo(withBom, 0);
+        text.CopyTo(withBom, Bom.Length);
+        return withBom;
     }
 
     /// <summary>
@@ -288,7 +350,7 @@ public sealed class GamelistDocument
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var rendered = Utf8NoBom.GetBytes(Render());
+        var rendered = RenderBytes();
 
         if (File.Exists(path))
         {
@@ -309,6 +371,20 @@ public sealed class GamelistDocument
         File.WriteAllBytes(temporary, rendered);
         File.Move(temporary, path, overwrite: true);
         return true;
+    }
+
+    /// <summary>
+    /// Whether the file uses CRLF, decided on its first line break rather than on all of them.
+    /// </summary>
+    /// <remarks>
+    /// A gamelist mixing both has been through two writers already, and re-rendering it settles
+    /// on whichever came first. There is no third answer to give: the writer emits one
+    /// convention for the whole document.
+    /// </remarks>
+    private static bool UsesCrLf(ReadOnlySpan<byte> bytes)
+    {
+        var at = bytes.IndexOf((byte)'\n');
+        return at > 0 && bytes[at - 1] == (byte)'\r';
     }
 
     private XElement? Find(string path)

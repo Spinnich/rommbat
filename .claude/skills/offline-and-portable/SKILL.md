@@ -13,8 +13,11 @@ The target is a handheld Windows gaming PC away from the server for days. Local 
 the source of truth; the network is optional, probed with a short-timeout
 `GET /api/heartbeat` (budget from `docs/retrobat-findings.md`).
 
-- **Hooks are journal-only.** `game-start` and `game-end` run inside the game-launch path:
-  append and exit in milliseconds, never open a socket.
+- **`game-start` and `game-end` are journal-only.** Those two run inside the game-launch
+  path: append and exit in milliseconds, never open a socket, never start a process.
+  **`start` and `quit` are outside it** and each spawns a detached `background <event>`
+  agent pass. The set is `SpoolRecord.BackgroundEvents`, which the hook compiles rather than
+  references, and a test asserts it.
 - **Everything produced offline goes to an outbox** with its real local mtime and content
   hash, never its sync time. A week offline is just a bigger negotiate payload; the protocol
   is full-state reconciliation and handles it natively when timestamps are honest.
@@ -41,16 +44,31 @@ the source of truth; the network is optional, probed with a short-timeout
 - **No daemon exists.** A portable install cannot register a service or scheduled task, so
   the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
 
-  **What actually invokes it today is `sync` and a person typing `flush`, and nothing else.**
-  The intent was that `start`, `game-end` and `quit` each wake an agent and the UI drive one
-  while it runs; neither shipped. The hook writes a spool file and exits without starting a
-  process, and the UI is M7. That is tolerable because draining is idempotent and a spool file
-  waits indefinitely. It was also said to be deliberately not fixed by having the hook spawn
-  something, on the grounds of an 11 MB process start inside the game-launch path. **That
-  measurement has now been taken and it went the other way** (findings 195 and 197): ES does not
-  wait for a hook, and the 75.9 MB agent starts faster than the 11 MB hook because trimming
-  without `PublishReadyToRun` discards the framework's precompiled code. Cost is not the reason
-  to refuse a spawn. **Rule 4 is**, and it is about the network rather than about milliseconds.
+  **What invokes it: the `start` and `quit` hooks, `sync`, and a person typing `flush`.**
+  The hook spawn landed in M7 stage 7a and is what makes an install nobody administers from a
+  terminal work; before it, `sync` and a typed `flush` were the whole trigger set and an
+  install that was never synced spooled events forever. The reason recorded for the delay was
+  an 11 MB process start inside the game-launch path, and **that measurement went the other
+  way** (findings 195 and 197): ES does not wait for a hook, and the 75.9 MB agent starts
+  faster than the 11 MB hook because trimming without `PublishReadyToRun` discards the
+  framework's precompiled code. Cost was never the reason to refuse a spawn. **Rule 4 was**,
+  and 7a narrowed it to the two events that are not in the launch path rather than bending it.
+
+  **`background quit` waits for the ES process to be gone before it writes any config**, and
+  gives up rather than hanging. Measured: ES exits 48 to 68 ms after the quit hook stamps
+  itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
+  config stays queued and the flush runs anyway, because the flush touches no file ES owns.
+
+  **The same holds when a change throws rather than refusing**, which a full or read-only
+  volume makes it do: the row is finished as `Failed` with the exception message, and the pass
+  carries on. A throw left unrecorded is worse than it looks, because the row stays outstanding
+  and every later quit re-enters it before reaching the flush, so one row that cannot be
+  written stops that machine flushing at all. **Nothing on the config side may be able to end
+  the pass before the flush.**
+
+  **The pass logs to `emulators/rommbat/logs/background.log`.** It is started with
+  `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
+  not go up" is the first question anyone asks about it.
 
 - Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
   under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave

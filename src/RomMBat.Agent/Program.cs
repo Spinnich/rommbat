@@ -14,6 +14,12 @@ namespace RomMBat.Agent;
 /// <c>game-start</c> and <c>game-end</c> run inside the game launch path. They append
 /// to the local journal and exit; they never open a socket and never wait on a lock.
 /// </para>
+/// <para>
+/// <c>background</c> is the one subcommand a person is not expected to type. The
+/// <c>start</c> and <c>quit</c> hooks spawn it, which is how anything gets flushed on a
+/// machine where nobody opens a terminal. Neither of those two events is in the game
+/// launch path, which is why they may and <c>game-start</c> and <c>game-end</c> may not.
+/// </para>
 /// </remarks>
 internal static class Program
 {
@@ -29,9 +35,11 @@ internal static class Program
         "bios",       // what RetroBat requires under bios/, and what is missing
         "gamelist",   // rewrite gamelist.xml from local state, no server needed
         "hooks",      // install or remove the ES event hooks
+        "menu",       // install or remove the ES menu entry
         "saves",      // what is on disk, what went up, what cannot
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
+        "background", // the pass an ES start or quit hook spawns
         "flush",      // drain the outbox if the server is reachable
         "status",     // report local state
     ];
@@ -88,8 +96,10 @@ internal static class Program
                 "bios" => await BiosCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "gamelist" => await GamelistCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "hooks" => await HooksCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "menu" => await MenuCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "background" => await BackgroundCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
@@ -137,11 +147,13 @@ internal static class Program
         Console.Error.WriteLine("  bios        Report the BIOS RetroBat needs, and fetch it with --apply");
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
+        Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
+        Console.Error.WriteLine("  background  start | quit: the pass an EmulationStation hook spawns. Not for typing");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");
         Console.Error.WriteLine("  --root <path>     The RetroBat root, when discovery cannot find it");
@@ -151,6 +163,7 @@ internal static class Program
         Console.Error.WriteLine("  --offline         status, sync, bios: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. Without it, neither writes");
+        Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");

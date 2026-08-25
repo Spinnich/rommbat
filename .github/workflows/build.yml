@@ -34,6 +34,16 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore -warnaserror
 
+      # Two tests drive the real executables in real processes and skip themselves when
+      # neither has been published: the interleaved-hook one, and the rule-4 boundary that
+      # proves game-start and game-end start no background pass. Both were skipping here,
+      # which made the most important assertion in the suite one CI never ran. Published to
+      # the default location, which is where the tests look.
+      - name: Publish the hook and the agent, so the process-level tests run
+        run: |
+          dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+          dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+
       # xunit.v3 runs on Microsoft.Testing.Platform, which global.json selects. Its
       # options are not VSTest's: --output Detailed replaces the console logger.
       - name: Test

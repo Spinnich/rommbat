@@ -189,6 +189,64 @@ emulator up, `/quit` and `/emukill` both return 200 and do nothing. Poll for the
 exit rather than trusting the response. Changing a user's emulator config is opt-in and
 reversible.
 
+## The ES menu entry is two files, and one of them is somebody else's
+
+`es_menu` is not a bespoke mechanism. `es_systems.cfg` declares it like any other system,
+named `retrobat`, with `<extension>.menu</extension>`, so **a `.menu` is a ROM of that system
+and the thing that parses it is `emulatorLauncher`, not EmulationStation.** Registration
+therefore takes two files:
+
+- `system/es_menu/<app>.menu`, plain text, no trailing newline. Line 1 is the executable and
+  later lines are arguments. **The path resolves under `emulators\` and `..\` escapes are
+  refused outright** (`[Generator] Failed. path is null`, exit 204), which is why RomMBat
+  installs at `emulators/rommbat/` and why its line is `\rommbat\RomMBat.exe`.
+- a `<game>` element in `system/es_menu/gamelist.xml` whose `<path>` names the `.menu`
+  (`./rommbat.menu`). **Without it the entry shows under its bare filename with no artwork**,
+  driven rather than assumed. Artwork convention: `<image>` and `<marquee>` both pointing at
+  `./media/<name>-logo.png`, which is what all 92 shipped entries do.
+
+**Both halves are picked up live.** With ES running, writing the `.menu` took the `retrobat`
+system from 92 games to 93 in **209 ms** after `GET /reloadgames`, and adding the `<game>`
+element gave it its name and artwork **262 ms** after a second reload. No restart.
+
+**This gamelist is not encoded like the others and ES does not rewrite it.** The stock file is
+**UTF-8 with a BOM and CRLF**, where all 42 `roms/<system>/gamelist.xml` measured across two
+installs are neither; a writer that emits its own convention rewrites all 96 entries to add
+one. And ES left it byte- and mtime-identical across three sessions, including one where it
+had the change in its model, so **RomMBat is the only writer that can damage it**. Three of its
+`<game>` elements are commented out (`citra_canary`, `yuzu-early-access`, `zsnes-dos`), which
+is how RetroBat withdraws an entry whose markup it still ships, so a merge that drops comments
+resurrects them. Its own indentation is inconsistent, two entries out of 93, so byte identity
+against the stock file is not achievable and is not the assertion to write.
+
+**Do not re-assert a field the user changed.** The name and the artwork are what they see on
+their own front end. Fill in what is absent, report what differs, correct nothing. Same rule as
+a per-game setting somebody else wrote.
+
+## The window in which `es_settings.cfg` can be written
+
+**Only while EmulationStation is not running, and "not running" means the process is gone.**
+Timed across three sessions from `GET /quit`:
+
+| Event                               | When                     |
+| ----------------------------------- | ------------------------ |
+| ES writes `es_settings.cfg` on exit | 175.6 / 324.8 / 324.1 ms |
+| the `quit` hook fires               | 807.3 / 524.8 / 551.6 ms |
+| the process is gone                 | 875.5 / 573.1 / 604.0 ms |
+
+So the exit write comes **first**, with 200 to 630 ms to spare, and nothing writes the file
+again afterwards. The hook still fires while ES is alive, for another 48 to 68 ms, and that
+window is inside the load-and-serialise window a key is discarded in. **Poll for the process,
+not for the hook.** It is cheap: 10 ms, one poll, on a real session.
+
+**`start` is inside the discard window, not outside it.** ES's launch write lands 1.6 to 4.9 s
+**before** the `start` hook fires, so by the time a start-hook pass runs, ES has already loaded
+its model and already written the file once. Never write config there.
+
+**So a UI launched from the ES menu can never write this file at all**, because it runs under a
+live ES by construction. It queues the change instead (`pending_config`, migration `012`) and
+`background quit` applies it once the process is confirmed gone.
+
 ## Event hooks
 
 `.emulationstation/scripts/<event>/`. Nine folders ship: `start`, `game-start`, `game-end`,
@@ -242,6 +300,13 @@ directory; it differs by hook form.
   and for failed launches. RomMBat's own exit produces one. Discard orphans.
 - **Every script in an event folder runs**, alphabetically, so install beside
   `updatestores.bat` rather than replacing it.
+- **`start` and `quit` may start a process; `game-start` and `game-end` may not.** That is
+  CLAUDE.md rule 4's boundary and it is the reason the rule exists rather than an exception to
+  it: the rule forbids network work _because_ hooks run in the game-launch path, and only
+  those two do. RomMBat's `start` and `quit` hooks spawn
+  `emulators/rommbat/rommbat-agent.exe background <event>` detached, `UseShellExecute=false`,
+  `CreateNoWindow=true`, no wait. **`CreateNoWindow` is load-bearing**: the agent is a console
+  app and ES is full screen, so without it a console flashes over the front end at every boot.
 
 ## gamelist.xml
 
@@ -310,7 +375,16 @@ using it requires no change to the user's configuration.
 | `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`           |
 | `/quit`                   | GET    | Close ES cleanly, before writing `es_settings.cfg` |
 | `/emukill`                | GET    | Kill the running emulator                          |
-| `/launch`                 | POST   | Launch a game; rom path as the raw body            |
+| `/launch`                 | POST   | **Does nothing.** 200 and no launch; see below     |
 
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
+
+**A 200 from this API is never evidence the action happened**, and that now covers every route
+that does something. `/quit` and `/emukill` are ignored while a game is running; `/reloadgames`
+is too, and answers in 1-2 ms before doing the work either way; and **`POST /launch` does not
+launch anything at all**. Driven twice with the exact path `/systems/<system>/games` reports
+and an explicit `text/plain` body: 200, empty response, `emulatorLauncher.log` did not grow by
+a byte, no emulator process. M0 recorded `/launch` as working from the API's own help page,
+which was documentation rather than a drive. **A hands-on pass covering `game-start` and
+`game-end` needs a person at the controller; it cannot be scripted through this API.**

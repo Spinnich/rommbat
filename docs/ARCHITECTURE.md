@@ -119,10 +119,12 @@ task.
 | `sync`       | yes           | Flush first, then resolve sets, BIOS, content, media, gamelists, and scan saves       |
 | `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`              |
 | `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                |
+| `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu         |
 | `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision |
 | `game-start` | **never**     | Append a start record and exit                                                        |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit             |
 | `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server      |
+| `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types         |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts |
 
 All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
@@ -131,17 +133,37 @@ one subcommand that needs the network and a decision from a person, and the only
 `--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
 one by hand.
 
-**Nothing invokes `flush` except `sync` and a person typing it.** The hooks write a spool file
-and exit without starting a process, and the UI that would drive one is M7. The reason recorded
-here used to be that a spawn would put an 11 MB process start inside the game-launch path, and
-**the measurement has since refuted that** (findings 195 and 197). ES spawns hooks
-fire-and-forget and starts emulatorlauncher without waiting; the 75.9 MB agent reaches `Main` in
-34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun` throws the
-framework's precompiled code away. Cost is not the obstacle. CLAUDE.md rule 4 is, because a
-spawned `flush` reaches the network from inside the launch window, and that is M7's call.
+**The `start` and `quit` hooks invoke a pass; `sync` and a person typing `flush` still do
+too.** Through M6 nothing did but those last two, so an install that was never synced spooled
+events forever, and the reason recorded here was that a spawn would put an 11 MB process start
+inside the game-launch path. **The measurement refuted that** (findings 195 and 197): ES spawns
+hooks fire-and-forget and starts emulatorlauncher without waiting, and the 75.9 MB agent reaches
+`Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun`
+throws the framework's precompiled code away.
 
-`game-start` and `game-end` run inside the game launch path. They must not open a socket and
-must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
+What that left standing was CLAUDE.md rule 4, and M7 stage 7a narrowed it to what its own second
+sentence says. The rule forbids a hook touching the network **because** hooks run in the
+game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
+starts and `quit` when it exits, so each of those two spawns
+`emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
+and `CreateNoWindow=true`, and does not wait. The set lives on `SpoolRecord.BackgroundEvents`,
+which the hook compiles rather than references, so the hook and the agent cannot disagree about
+it and a test asserts the boundary instead of a comment claiming it.
+
+`background quit` waits for the ES process to exit before applying queued configuration, and
+gives up rather than hanging. Measured: ES is gone 48 to 68 ms after the quit hook stamps
+itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
+configuration stays queued and the flush runs anyway, because the flush touches no file ES owns.
+
+`background start` flushes and nothing else. Config is impossible there for a measured reason:
+ES's launch write to `es_settings.cfg` lands 1.6 to 4.9 s **before** the `start` hook fires, so
+`start` is inside the discard window rather than outside it.
+
+The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs with no window,
+so nothing it prints reaches a person otherwise.
+
+`game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
+socket and must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
 delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **do run
 concurrently**, with each other and across events.
 
@@ -174,10 +196,22 @@ two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for
 Full-screen, gamepad-navigable, published as `RomMBat.exe`, registered with
 EmulationStation through `system/es_menu/*.menu`.
 
-**The UI framework is deliberately undecided and is chosen in M7.** Avalonia
-(cross-platform, gamepad-friendly) and WPF (Windows-only, matches RetroBat's own tooling)
-are both live. Until then the project is a framework-free placeholder, and no UI framework
-package is referenced anywhere in the tree.
+**The entry that launches it exists as of M7 stage 7a and points at the stub**, which is
+deliberate: proving the registration works is worth more than waiting for something to put
+behind it.
+
+**The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
+deciding argument is size on a portable drive rather than either start time or
+cross-platform reach. WPF cannot be trimmed at all, so it has a floor nothing moves, and it
+needs the Windows Desktop runtime inside a self-contained publish on top of the agent's
+76 MB. Avalonia trims, and renders through Skia, so what a handheld shows does not depend on
+that machine's Windows Desktop stack. The project is still a framework-free placeholder and
+no UI package is referenced anywhere in the tree yet.
+
+**The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
+under a live EmulationStation every time, and ES discards a key written underneath it.
+Anything it wants to change there goes into `pending_config` and is applied by
+`background quit`.
 
 That decision is cheap to defer precisely because presentation owns no logic. Set
 resolution, mapping, conflict handling and the outbox all live in Core, and the UI
@@ -262,13 +296,18 @@ Every one of these is a **seed, not an authority**. The live install always wins
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
 users add custom ones.
 
+**`data/media/`** is the other shipped folder and is not a table. `rommbat-logo.png` is the
+ES menu entry's artwork, embedded into `RomMBat.Core` and written to
+`system/es_menu/media/` by `menu install`. Embedded rather than shipped beside the agent for
+the same reason as the tables: a single-file publish carries it with no second file to lose.
+
 ---
 
 ## 4. The local store
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Ten have been
+so each milestone has somewhere honest to write from the moment it starts. Eleven have been
 added since, by migrations whose headers state what shape could not carry the work. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
@@ -295,6 +334,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                |
 | `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                         |
 | `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before**                     |
+| `pending_config`   | Configuration changes waiting for EmulationStation to close, and how each one turned out once applied                              |
 
 ### No column ever holds an absolute path
 
@@ -441,12 +481,13 @@ by EmulationStation on exit. Every writer therefore follows the same discipline:
 merge only the fields RomMBat owns, write atomically via temp file plus rename, and never
 clobber.**
 
-| File                         | Who else writes it                                      | Rule                                                                            |
-| ---------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `roms/<system>/gamelist.xml` | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform |
-| `es_settings.cfg`            | ES discards anything written while it runs              | Refuse while ES is up, then re-read to confirm. Merge. Opt-in and reversible    |
-| `scripts/<event>/*.bat`      | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                           |
-| Emulator INIs                | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                        |
+| File                          | Who else writes it                                      | Rule                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `roms/<system>/gamelist.xml`  | ES writes back favourite, playcount, lastplayed, hidden | Merge. Only locally present ROMs. Keyed by **resolved folder**, not by platform                                           |
+| `es_settings.cfg`             | ES discards anything written while it runs              | Refuse while ES is up, or queue with `--at-quit` and apply from `background quit`. Merge. Opt-in and reversible           |
+| `system/es_menu/gamelist.xml` | RetroBat ships it; ES reads it and never writes it back | Merge one `<game>`. Keep the BOM, the CRLF and the commented-out entries: RomMBat is the only writer that could damage it |
+| `scripts/<event>/*.bat`       | RetroBat ships its own                                  | Append idempotently, never replace. Uninstall cleanly                                                                     |
+| Emulator INIs                 | `emulatorlauncher` regenerates them every launch        | **Never write these.** Write the RetroBat option instead                                                                  |
 
 Gamelists key by **resolved folder** because the platform mapping is many-to-many: `snes`
 and `sfam` can both resolve to `snes`, and several arcade platforms into `mame`. One

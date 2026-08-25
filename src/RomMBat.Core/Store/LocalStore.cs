@@ -52,6 +52,7 @@ public sealed class LocalStore : IDisposable
         SaveConflicts = new SaveConflictStore(connection);
         GameIdBindings = new GameIdBindingStore(connection);
         SaveConversions = new SaveConversionStore(connection);
+        PendingConfig = new PendingConfigStore(connection);
         SyncSets = new SyncSetStore(connection);
         PlatformMap = new PlatformMapStore(connection);
         Cursors = new SyncCursorStore(connection);
@@ -105,6 +106,9 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>Games opted into a per-game save container, and what the setting was before.</summary>
     public SaveConversionStore SaveConversions { get; }
+
+    /// <summary>Configuration changes waiting for EmulationStation to be gone, and how they went.</summary>
+    public PendingConfigStore PendingConfig { get; }
 
     /// <summary>Sync set definitions and what each one last resolved to.</summary>
     public SyncSetStore SyncSets { get; }

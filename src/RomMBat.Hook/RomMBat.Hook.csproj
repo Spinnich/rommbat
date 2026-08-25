@@ -10,8 +10,10 @@
     -->
     <AssemblyName>rommbat-hook</AssemblyName>
     <Description>
-      The EmulationStation event hook. Writes one spool file and exits. It opens no socket,
-      touches no database and takes no lock, because it runs inside the game-launch path.
+      The EmulationStation event hook. Writes one spool file and exits, and for the start and
+      quit events also starts a detached agent pass. It opens no socket itself, touches no
+      database and takes no lock, because two of the four events it serves run inside the
+      game-launch path and those two start nothing.
     </Description>
 
     <!--

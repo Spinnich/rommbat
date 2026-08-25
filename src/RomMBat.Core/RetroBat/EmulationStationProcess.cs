@@ -3,6 +3,12 @@ using RomMBat.Core.Paths;
 
 namespace RomMBat.Core.RetroBat;
 
+/// <summary>How a wait for EmulationStation to exit turned out.</summary>
+/// <param name="Gone">False means the budget ran out with ES still up, or still unreadable.</param>
+/// <param name="Waited">How long it actually took, which the caller reports.</param>
+/// <param name="Detail">Why it is still considered running. Null when it is gone.</param>
+public sealed record EsExitWait(bool Gone, TimeSpan Waited, string? Detail);
+
 /// <summary>Whether EmulationStation is running, and how confidently that was decided.</summary>
 /// <param name="IsRunning">True means do not write <c>es_settings.cfg</c>.</param>
 /// <param name="Detail">What to tell the user. Null only when nothing is running.</param>
@@ -46,6 +52,22 @@ public static class EmulationStationProcess
 {
     /// <summary>The process name ES runs under, without the extension.</summary>
     public const string ProcessName = "emulationstation";
+
+    /// <summary>
+    /// How long <see cref="WaitForExit(RetroBatInstall, TimeSpan?, TimeSpan?)"/> waits before giving up.
+    /// </summary>
+    /// <remarks>
+    /// Measured rather than picked: across three sessions the ES process was gone
+    /// <b>48.3, 68.2 and 52.4 ms</b> after the <c>quit</c> hook stamped itself. So this is
+    /// roughly 400 times the observed cost, which is deliberate. The budget is not sized for
+    /// the ordinary case, which is over before the second poll; it is sized for a shutdown
+    /// that has stalled on something, where the right answer is still to wait a while before
+    /// concluding ES is not going to exit. See <c>docs/retrobat-findings.md</c>, 201.
+    /// </remarks>
+    public static TimeSpan DefaultExitBudget => TimeSpan.FromSeconds(30);
+
+    /// <summary>How often to look. Well under the measured teardown, so the usual wait is one poll.</summary>
+    public static TimeSpan DefaultPollInterval => TimeSpan.FromMilliseconds(100);
 
     /// <summary>Whether an EmulationStation belonging to this install is running.</summary>
     public static EsRunningVerdict Check(RetroBatInstall install)
@@ -97,6 +119,63 @@ public static class EmulationStationProcess
             : EsRunningVerdict.Running(
                 $"{unreadable} EmulationStation process is running and its location could not be "
                     + "read, so it may be this install's.");
+    }
+
+    /// <summary>
+    /// Waits for EmulationStation to actually be gone, and gives up rather than hanging.
+    /// </summary>
+    /// <remarks>
+    /// <b>The quit hook fires while ES is still alive.</b> Timed across three sessions: ES
+    /// writes <c>es_settings.cfg</c> 175 to 325 ms after the quit was asked for, fires the hook
+    /// 200 to 630 ms after that write, and exits 48 to 68 ms later. So a hook-spawned pass that
+    /// wrote the file immediately would be writing inside the window finding 178 measured, where
+    /// ES discards what it finds. Polling the process is what closes that window, and it is
+    /// cheap.
+    /// <para>
+    /// <b>Fails closed, like <see cref="Check"/>.</b> A process whose path cannot be read counts
+    /// as running, so this waits it out and reports a timeout rather than treating unreadable as
+    /// gone. The cost of guessing wrong is a config change written under a live ES and silently
+    /// lost.
+    /// </para>
+    /// </remarks>
+    /// <returns>Whether ES is gone, and how long that took.</returns>
+    public static EsExitWait WaitForExit(
+        RetroBatInstall install,
+        TimeSpan? budget = null,
+        TimeSpan? pollInterval = null)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+
+        return WaitForExit(
+            () => Check(install),
+            budget ?? DefaultExitBudget,
+            pollInterval ?? DefaultPollInterval);
+    }
+
+    /// <summary>The same wait over any verdict source, so a test does not need a real ES.</summary>
+    internal static EsExitWait WaitForExit(Func<EsRunningVerdict> probe, TimeSpan budget, TimeSpan pollInterval)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        EsRunningVerdict verdict;
+
+        while (true)
+        {
+            verdict = probe();
+
+            if (!verdict.IsRunning)
+            {
+                return new EsExitWait(true, clock.Elapsed, null);
+            }
+
+            if (clock.Elapsed >= budget)
+            {
+                return new EsExitWait(false, clock.Elapsed, verdict.Detail);
+            }
+
+            // Never overshoot the budget waiting for the next look.
+            var remaining = budget - clock.Elapsed;
+            Thread.Sleep(remaining < pollInterval ? remaining : pollInterval);
+        }
     }
 
     private static string? PathOf(Process process)
