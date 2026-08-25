@@ -62,8 +62,15 @@ hashes add nothing our manifest lacks.
 
 ## Why this source needed a higher bar than the last three
 
-Grout, Argosy and the Playnite plugin sit under `rommapp`, track the server closely, and
-were mined as trustworthy about the API. Freegosy is none of those things:
+Grout, Argosy and the Playnite plugin sit under `rommapp` and track the server closely.
+Freegosy is none of those things:
+
+> **Corrected 2026-08-25.** This sentence originally said those three "were mined as
+> trustworthy about the API". **Argosy had not been mined and had no row in
+> `docs/PLAN.md`**, so that half of the claim was false when it was written. It has since
+> been read: see [argosy-findings.md](argosy-findings.md). Being in `rommapp` was the
+> reason to trust a lead enough to chase it, never the thing that settled one, and the
+> Argosy pass found two things Argosy itself has wrong at 5.2.0.
 
 1. It targets **RomM 4.9**. Our baseline is 5.1.0 and the instance measured here is
    5.1.1-beta.1, so every API claim it makes is a claim about a server two minor versions
