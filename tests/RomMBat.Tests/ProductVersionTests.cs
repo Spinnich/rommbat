@@ -1,6 +1,8 @@
+using System.Text.Json;
 using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Diagnostics;
+using RomMBat.Tests.Support;
 using Xunit;
 
 namespace RomMBat.Tests;
@@ -78,10 +80,10 @@ public class ProductVersionTests
     }
 
     [Fact]
-    public void The_dev_instance_version_is_supported()
+    public void A_prerelease_suffix_on_a_supported_version_is_not_a_downgrade()
     {
-        // The instance M0 measured against. Its prerelease suffix used to be the trap.
-        var check = RomMServerVersion.Check("5.1.1-beta.1");
+        // The shape M0's instance reported. The suffix, not the number, used to be the trap.
+        var check = RomMServerVersion.Check("5.2.0-beta.1");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
         Assert.False(check.MustRefuse);
@@ -90,19 +92,34 @@ public class ProductVersionTests
     [Fact]
     public void The_pinned_schema_version_is_the_minimum_supported_one()
     {
-        Assert.Equal(ProductVersion.Parse("5.1.0"), RomMServerVersion.Minimum);
-        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.1.0").Verdict);
+        // Read out of the pin rather than restated, so moving the pin without moving the
+        // floor fails here instead of shipping DTOs that describe a server we refuse.
+        using var schema = JsonDocument.Parse(File.ReadAllText(Fixtures.PinnedOpenApi));
+        var pinned = schema.RootElement.GetProperty("info").GetProperty("version").GetString();
+
+        Assert.Equal(ProductVersion.Parse(pinned!), RomMServerVersion.Minimum);
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check(pinned).Verdict);
     }
 
     [Fact]
     public void A_server_below_the_minimum_is_refused_and_the_message_names_both_versions()
     {
-        var check = RomMServerVersion.Check("5.0.9");
+        var check = RomMServerVersion.Check("5.1.9");
 
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
         Assert.True(check.MustRefuse);
-        Assert.Contains("5.0.9", check.Message, StringComparison.Ordinal);
-        Assert.Contains("5.1.0", check.Message, StringComparison.Ordinal);
+        Assert.Contains("5.1.9", check.Message, StringComparison.Ordinal);
+        Assert.Contains("5.2.0", check.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_previous_RomM_stable_is_refused_rather_than_warned_about()
+    {
+        // The floor tracks the newest stable, so the release before it is out of support.
+        var check = RomMServerVersion.Check("5.1.0");
+
+        Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
+        Assert.True(check.MustRefuse);
     }
 
     [Fact]
@@ -126,25 +143,36 @@ public class ProductVersionTests
     [Fact]
     public void The_stock_RetroBat_version_string_is_supported()
     {
-        var check = RetroBatVersion.Check("8.2.0-stable-win64");
+        var check = RetroBatVersion.Check("8.2.1-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
     }
 
     [Fact]
-    public void RetroBat_below_eight_two_is_refused()
+    public void RetroBat_below_the_floor_is_refused()
     {
         var check = RetroBatVersion.Check("8.1.0-stable-win64");
 
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
-        Assert.Contains("8.2", check.Message, StringComparison.Ordinal);
+        Assert.Contains("8.2.1", check.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_previous_stable_is_refused_rather_than_warned_about()
+    {
+        // The floor tracks the newest stable, so a patch release below it is out of support
+        // and not merely untested. 8.2.0's Flycast state watcher read the wrong directory.
+        var check = RetroBatVersion.Check("8.2.0-stable-win64");
+
+        Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
+        Assert.True(check.MustRefuse);
     }
 
     [Fact]
     public void The_declared_minimums_match_the_README_compatibility_table()
     {
-        Assert.Equal(ProductVersion.Parse("5.1.0"), RomMServerVersion.Minimum);
-        Assert.Equal(ProductVersion.Parse("8.2"), RetroBatVersion.Minimum);
-        Assert.Equal(new Version(8, 2), RetroBatRoot.MinimumVersion);
+        Assert.Equal(ProductVersion.Parse("5.2.0"), RomMServerVersion.Minimum);
+        Assert.Equal(ProductVersion.Parse("8.2.1"), RetroBatVersion.Minimum);
+        Assert.Equal(new Version(8, 2, 1), RetroBatRoot.MinimumVersion);
     }
 }

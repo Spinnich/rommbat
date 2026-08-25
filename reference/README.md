@@ -48,10 +48,10 @@ pair is. **This was a parser fault here, not drift upstream.**
 
 |                                    |     |
 | ---------------------------------- | --- |
-| Distinct md5s RetroBat requires    | 157 |
+| Distinct md5s RetroBat requires    | 156 |
 | Distinct md5s RomM knows           | 353 |
 | Overlap                            | 63  |
-| RetroBat-required, unknown to RomM | 94  |
+| RetroBat-required, unknown to RomM | 93  |
 
 The operative consequence: **join firmware on md5 only.** Filenames differ between the two
 projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
@@ -81,5 +81,19 @@ ScreenScraper's marquee is an arcade cabinet marquee.
 
 ## Snapshot
 
-Captured 2026-08-08 against RetroBat 8.2.0 (`system/version.info: 8.2.0-stable-win64`) and
+Captured 2026-08-25 against RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`) and
 `rommapp/romm` master.
+
+**What 8.2.1 moved.** `es_systems.cfg` gained `.decomp` on eleven systems (`mame`, `model2`,
+`model3`, `snes`, `n64`, `gamecube`, `wii`, `psx`, `ps2`, `ps3`, `xbox`) and `.zar` on `ps4`,
+and promoted `pcsx2x6` ahead of `play` for `namco2x6`. `batocera-systems.json` gained a
+`namco2x6` entry of two files, which is where all four firmware counts below moved from;
+both entries carry an empty md5, so nothing new became joinable. `systems_names.lst` and
+`es_savestates.cfg` are unchanged.
+
+**What `rommapp/romm` master moved.** `romm-gamelist_exporter.py` gave `miximage_v2` its own
+asset directory (`miximages_v2`, previously shared with `miximage`) and its own gamelist
+element name, and started falling back to the gamelist provider's path as well as
+ScreenScraper's. Inert here: nothing hand-written references `miximage`, and `verify.py`'s
+gamelist checks are unaffected. Recorded because a vendored file moving is the signal, not
+the consequence.

@@ -60,7 +60,7 @@ configuration. Each `<system>` carries `<name>`, `<fullname>`, `<manufacturer>`,
 `<hardware>`, `<release>`, `<path>`, `<extension>` and `<command>`.
 
 **The folder is `<path>`, not `<name>`.** They are different vocabularies and five systems
-in the shipped 8.2.0 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
+in the shipped 8.2.1 file disagree: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`,
 `casloopy` to `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for
 `ghostship` and `starship`, so `<name>` is not even unique. Four entries own no folder under
 `roms/` (`library`, `screenshots`, `kodi`, and `retrobat` at `system/es_menu`) and `mess`
@@ -70,7 +70,10 @@ case-insensitively, and parse it as XML: `arcade` and `kodi` sit inside comments
 regex over `<system>` would wrongly pick up.
 
 `<extension>` is a **sync filter**. Syncing a file the emulator cannot launch produces the
-worst failure this app has: a game that appears in ES, looks right, and dies on launch.
+worst failure this app has: a game that appears in ES, looks right, and dies on launch. It
+also moves between patch releases: 8.2.1 added `.decomp` to eleven systems and `.zar` to
+`ps4`, which is the concrete reason the list is read live rather than bundled. Never cache a
+per-system extension set across runs.
 
 `<manufacturer>`, `<hardware>` and `<release>` let the platform rollout order be derived
 rather than hand-maintained.
@@ -92,20 +95,27 @@ when the key is absent is **on** for savestates and **off** for savefiles, an as
 silently misplaces a state. RetroBat never leaves it to the default: `emulatorlauncher` writes
 all four sort keys as `"false"` on every launch and bakes the core into the path instead
 (`savestate_directory = "<root>\saves\mastersystem\libretro.genesis_plus_gx"`). Verified on a
-real 8.2 install against states from four cores on disk. Two consequences: the hazard does not
+real 8.2.1 install against states from four cores on disk. Two consequences: the hazard does not
 exist here, and the folder is named **`libretro.<core>`**, RetroBat's own convention, not the
 libretro `corename` that front ends reading `retroarch.cfg` produce. `es_savestates.cfg` is the
 source, and it is the stronger one because `retroarch.cfg` is regenerated per launch and
 describes only the last game run. See
 [argosy-findings.md](../../../docs/argosy-findings.md), A7.
 
-**Trust `<file>`, verify `<directory>`.** Across the seven installed emulators M0 drove, every
-`<file>` template was correct and one `<directory>` was not: **`flycast` writes
-`dreamcast/reicast/states`, not the declared `dreamcast/flycast/sstates`**, which exists and
-stays empty. RetroBat's own launcher config (`emulators/flycast/emu.cfg`,
-`Dreamcast.SavestatePath`) disagrees with its own `es_savestates.cfg`. So never read an empty
-declared directory as "this game has no states", and cross-check against the emulator's
-generated config where it matters.
+**Trust `<file>`, verify `<directory>`.** Across the twelve emulators M0 drove, every `<file>`
+template was correct and one `<directory>` declaration still is not: **`openmsx` writes
+`bios/openmsx/savestates/`**, outside the saves tree entirely, against a declared
+`saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
+and cross-check against the emulator's generated config where it matters.
+
+**`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
+declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that
+(`emulatorlauncher#1336`) by pointing the save-state watcher at the directory Flycast really
+writes. Confirmed by hand, three runs: the state lands in both, same bytes, same millisecond,
+live. Flycast still writes `reicast/states` first and `emu.cfg`'s `Dreamcast.SavestatePath`
+still names it, so **the declaration became usable without the template moving**. Re-run
+`tools/m0-probes/probe2-flycast-mirror.ps1` if that ever looks doubtful; a changelog line is
+not a measurement, which is why this one was driven.
 
 **The declared directory is otherwise the one to use even when the emulator writes elsewhere.**
 An emulator may write under its own naming, with RetroBat mirroring into the declared path

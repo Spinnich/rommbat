@@ -147,7 +147,7 @@ something that changed the code. Assume M5 has its own. Probe against the live i
 
 Worth an actual probe, because each one changes code:
 
-- **Where the manifest lives in a real RetroBat 8.2 install**, and whether it is
+- **Where the manifest lives in a real RetroBat 8.2.1 install**, and whether it is
   byte-identical to the vendored copy, the way `es_savestates.cfg` turned out to be. The plan
   asserts it is "present in the tree" and nothing has checked. If it is absent, or stale
   against the installed `emulatorlauncher`, that settles the bundled-versus-live question.

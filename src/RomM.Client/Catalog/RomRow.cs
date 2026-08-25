@@ -257,6 +257,13 @@ public sealed record RomPage
     /// The only one of the four default-on flags kept on. M0 probe 5 measured it at zero
     /// bytes (it is an integer, while the other three cost a flat 841 KB per request), and it
     /// is what lets an interrupted walk report progress and know when it is finished.
+    /// <para>
+    /// <b>Non-nullable on purpose, and it depends on the query.</b> RomM 5.2.0 made the wire
+    /// field nullable: it is null only when a caller asks for neither <c>with_total</c> nor
+    /// <c>with_rom_id_index</c>. <see cref="RomM.Client.Catalog.CatalogQuery"/> always sends
+    /// <c>with_total=true</c>, and a test asserts it, so a null here would be a bug in the
+    /// query rather than a state to model.
+    /// </para>
     /// </remarks>
     [JsonPropertyName("total")]
     public int Total { get; init; }

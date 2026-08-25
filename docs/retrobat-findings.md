@@ -7,6 +7,7 @@ any of it against a different build.
 |                    |                                                                   |
 | ------------------ | ----------------------------------------------------------------- |
 | RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`             |
+| Re-checked against | `8.2.1-stable-win64` on 2026-08-25, see below                     |
 | RomM               | `5.1.1-beta.1`, read from `GET /api/heartbeat` → `SYSTEM.VERSION` |
 | Library under test | 83,131 roms at M0, 83,435 by M4, host redacted                    |
 | Host OS            | Windows 11 Pro 10.0.26200                                         |
@@ -37,9 +38,15 @@ driven to a real save state**. `bizhawk` joined the list once it was launched wi
 gamepad-driven overlay menu.
 
 **The single most important result is that `es_savestates.cfg`'s `<directory>` cannot be
-trusted: two of the twelve are wrong.** `flycast` writes to `reicast/states` rather than the
-declared `flycast/sstates`, and **`openmsx` writes to `bios/openmsx/savestates/`, a different
-top-level tree from the declared `saves/msx1/openmsx`**. Filenames, by contrast, were correct
+trusted: on 8.2.1, one of the twelve is wrong.** **`openmsx` writes to
+`bios/openmsx/savestates/`, a different top-level tree from the declared
+`saves/msx1/openmsx`**, and that is unfixed. `flycast` was the second when this was measured
+on 8.2.0, writing `reicast/states` against a declared `flycast/sstates`; RetroBat 8.2.1 fixed
+it (`emulatorlauncher#1336`,
+[below](#1336-fixed-in-821-driven-and-the-workaround-is-out)), so Dreamcast states now sync
+from the declaration. One wrong out of twelve is all the rule needs, and it still holds: an
+empty declared directory means you are looking in the wrong place, never that the game has no
+states. Filenames, by contrast, were correct
 everywhere they could be checked, with one collision worth knowing about: DeSmuME's
 `{{romfilename}}.ds{{slot0}}` also matches its own `.dsv` battery save if the slot is
 expanded as a wildcard.
@@ -60,42 +67,117 @@ seconds in the future.
 ## Upstream issues filed
 
 Three measurements here are RetroBat bugs rather than facts to design around. All were
-reported on 2026-08-09 and all were open at the time of writing.
+reported on 2026-08-09. **Two are now resolved and one is still open**; the table carries the
+state as of 2026-08-25, checked against RetroBat 8.2.1.
 
-| Issue                                                                      | Repo                                 | What it covers                                                             |
-| -------------------------------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------- |
-| [#249](https://github.com/RetroBat-Official/retrobat/issues/249)           | `RetroBat-Official/retrobat`         | `game-start` never runs when the gamelist `<name>` has a space             |
-| [#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336) | `RetroBat-Official/emulatorlauncher` | Flycast writes states to `reicast/states`, not the declared path           |
-| [#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337) | `RetroBat-Official/emulatorlauncher` | BizHawk crashes on an unguarded `inputPortNb[core]` when `-core` is absent |
-
-`RetroBat-Official/emulationstation` is a fork of `batocera-linux/batocera-emulationstation`
-with **issues disabled**, which is why the ES-behaviour report went to `retrobat`.
-
-**#1337 is the low-severity one, deliberately reported as such.** EmulationStation always
-passes a core, and all 36 BizHawk cores this install's `es_systems.cfg` declares are among
-the 42 keys in `inputPortNb`, so only direct invocation or a future unlisted core can reach
-it. It matters to RomMBat because RomMBat is a direct invoker: **pass `-core`**.
+| Issue                                                                            | Repo                                       | State                       | What it covers                                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------- | -------------------------------------------------------------------------- |
+| [#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196) | `batocera-linux/batocera-emulationstation` | Open                        | `game-start` never runs when the gamelist `<name>` has a space             |
+| [#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336)       | `RetroBat-Official/emulatorlauncher`       | **Fixed in RetroBat 8.2.1** | Flycast writes states to `reicast/states`, not the declared path           |
+| [#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)       | `RetroBat-Official/emulatorlauncher`       | Closed, will not be fixed   | BizHawk crashes on an unguarded `inputPortNb[core]` when `-core` is absent |
 
 A fourth candidate was investigated and **not** filed, because it is not RetroBat's bug:
 openMSX never received Alt+F2 in one run because NVIDIA's Photo mode overlay claimed the
 combination first.
 
-**#249 was filed before its mechanism was known.** It described a `.bat` hook not running
-when the display name contains a space. Probe 7b showed ES fires the event correctly and the
-fault is in the handoff to an interpreter, that it also breaks `.ps1` hooks on any
-parenthesis, and that both failures reproduce outside EmulationStation. The issue was
-[updated with the mechanism](https://github.com/RetroBat-Official/retrobat/issues/249#issuecomment-5232474774)
-on 2026-08-09, including two verified fixes (`cmd /s /c "<whole command>"` for `.bat`,
-`-File` for `.ps1`) and a suggested retitle, since the original title describes the `.bat`
-symptom only.
+### #2196: the ES hook bug, moved repository
 
-**Re-check all three before each release.** A fix upstream does not just close a ticket, it
-changes what RomMBat should do: #249 landing would let a `.bat` hook work and reopen the
-simpler journal design the plan originally wanted, #1336 landing would move Dreamcast states
-to a different directory, which is a breaking change for anything that hardcoded the
-workaround, and #1337 landing would only relax a constraint, since passing `-core` stays
-correct either way. No workaround should be removed until the fix is in a release RomMBat's
-compatibility gate accepts.
+It was filed as `RetroBat-Official/retrobat#249` because
+`RetroBat-Official/emulationstation` is a fork of `batocera-linux/batocera-emulationstation`
+with **issues disabled**, so there was nowhere else for an ES-behaviour report to go.
+
+**It was filed before its mechanism was known.** It described a `.bat` hook not running when
+the display name contains a space. Probe 7b showed ES fires the event correctly and the fault
+is in the handoff to an interpreter, that it also breaks `.ps1` hooks on any parenthesis, and
+that both failures reproduce outside EmulationStation. The issue was
+[updated with the mechanism](https://github.com/RetroBat-Official/retrobat/issues/249#issuecomment-5232474774)
+on 2026-08-09, including two verified fixes (`cmd /s /c "<whole command>"` for `.bat`, `-File`
+for `.ps1`) and a suggested retitle, since the original title describes the `.bat` symptom
+only.
+
+RetroBat closed #249 on 2026-08-21 as an upstream EmulationStation issue, and it was refiled
+the same day at
+[batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196),
+where it is open. The mechanism, the retitle and the two verified fixes carried across
+unchanged. **Nothing about the design moves**: the hooks stay `.exe`, and a fix landing would
+reopen the simpler `.bat` journal design the plan originally wanted.
+
+### #1336: fixed in 8.2.1, driven, and the workaround is out
+
+RetroBat 8.2.1 (2026-08-23) lists `FLYCAST: fix savestates` in its changelog. The fix is
+[commit `5fafcb2b`](https://github.com/RetroBat-Official/emulatorlauncher/commit/5fafcb2b), one
+line in `Flycast.Generator.cs`:
+
+```csharp
+- string emulatorPath = Path.Combine(path, "data");
++ string emulatorPath = Path.Combine(AppConfig.GetFullPath("saves"), system, "reicast", "states");
+```
+
+So the mechanism was not the one this finding assumed. A `FlycastSaveStatesMonitor` was already
+there in 8.2.0, doing for Flycast what the mirroring described above does for the other
+non-`libretro` emulators. It was watching the emulator's own `data` directory, which Flycast
+never writes states to, so the mirror never fired and the declared directory stayed empty.
+Pointing the watcher at `saves/<system>/reicast/states` should make a state appear under the
+declared `saves/<system>/flycast/sstates` as well.
+
+**Flycast still writes `reicast/states` first**, and `Dreamcast.SavestatePath` still names it:
+the generator's path composition is unchanged, and 8.2.1's `es_savestates.cfg` is byte-identical
+to 8.2.0's, so the declaration was not moved either. What changed is that the declared directory
+is now expected to be populated rather than to stay empty.
+
+**Confirmed by hand on 8.2.1, and the workaround is out.**
+`tools/m0-probes/probe2-flycast-mirror.ps1` was run three times against `K:\RetroBat` with
+`Sega Tetris (Japan) (Rev A).chd`, Flycast 2.7, on 2026-08-25:
+
+|                                    |                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------- |
+| Written natively                   | `saves/dreamcast/reicast/states/Sega Tetris (Japan) (Rev A)_1.state`  |
+| Mirrored to the declared directory | `saves/dreamcast/flycast/sstates/Sega Tetris (Japan) (Rev A)_1.state` |
+| Size, both                         | identical, 1,541,183 / 1,541,250 / 1,541,372 B across the runs        |
+| Timing                             | **the same millisecond**, while the emulator was still running        |
+| Declared `<image>`                 | **absent**, all three runs                                            |
+| `.txt` sidecar                     | present, holding the rom filename                                     |
+
+`Dreamcast.SavestatePath` in the generated `emulators/flycast/emu.cfg` still reads
+`saves\dreamcast\reicast\states`, so the emulator's own path is unchanged and the fix is
+purely the mirror. Two details corroborate the mechanism rather than just the outcome:
+`flycast/sstates` **did not exist** before the first launch and was created by the launcher's
+`PrepareEmulatorRepository()`, and the mirror timing matches what probe 2 measured for the
+other non-`libretro` emulators, about 120 ms, live rather than at exit.
+
+So `flycast` is out of `StateScanner.WrongDeclaredDirectories` and into the verified list in
+`data/retrobat/save_directories.json`. **Dreamcast states now sync.** This is a save-shape
+check, not a certification: `(dreamcast, flycast)` still owes the other eight steps.
+
+**The general rule survives the fix.** "Do not treat `es_savestates.cfg`'s `<directory>` as
+authoritative on its own" was never only about Flycast: `openmsx` still writes
+`bios/openmsx/savestates/`, a different top-level tree, and that is unfixed. One of twelve is
+still one.
+
+**A by-product worth recording.** Getting a Dreamcast game onto the install meant pulling
+`dc_boot.bin` and `dc_flash.bin` out of RomM's firmware endpoint, and both arrived with md5s
+matching `data/retrobat/bios.json` exactly (`e10c53c2…`, `0a93f7940…`). That is the M5
+md5-only join working end to end on real data, on a system whose third manifest entry
+(`bios/dc/dc.zip`) carries no hash at all.
+
+### #1337: will not be fixed, and it costs RomMBat nothing
+
+It was the low-severity one, deliberately reported as such. EmulationStation always passes a
+core, and all 36 BizHawk cores this install's `es_systems.cfg` declares are among the 42 keys in
+`inputPortNb`, so only direct invocation or a future unlisted core can reach it.
+
+Upstream closed it on 2026-08-11, saying they will not fix it because there is no reason to run
+`emulatorLauncher` directly. RomMBat **is** a direct invoker, so the constraint stands, and it is
+now a permanent property of the launcher rather than a workaround waiting on a fix: **pass
+`-core`**, which was always correct anyway.
+
+### The standing rule
+
+**Re-check every open issue here before each release**, because a fix upstream does not just
+close a ticket, it changes what RomMBat should do. No workaround comes out until the fix is in a
+release RomMBat's compatibility gate accepts and a hands-on pass has seen the fixed behaviour: a
+changelog line is evidence that upstream believes it is fixed, not evidence of what lands on
+disk.
 
 ---
 
@@ -286,8 +368,10 @@ the record on `game-start` and corroborate with it, and take the facts from the 
 parser must read both rotated files and tolerate a rotation happening between reads.
 
 **Filed upstream:** [RetroBat-Official/retrobat#249](https://github.com/RetroBat-Official/retrobat/issues/249)
-(2026-08-09, open). Filed there rather than on `RetroBat-Official/emulationstation`, which has
-issues disabled.
+(2026-08-09). Filed there rather than on `RetroBat-Official/emulationstation`, which has issues
+disabled. Closed on 2026-08-21 as an upstream issue and refiled at
+[batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196),
+where it is **open**.
 
 A first reading of this attributed the inconsistency to hook concurrency, since the sessions
 also differed in whether ES was restarted between launches. The crossover ruled that out:
@@ -949,7 +1033,12 @@ against the emulator's generated config, and never read an empty declared direct
 "this game has no states".
 
 **Filed upstream:** [RetroBat-Official/emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336)
-(2026-08-09, open).
+(2026-08-09). **Fixed in RetroBat 8.2.1**: the save-state watcher was watching the wrong source
+directory, and pointing it at `reicast/states` makes a state mirror into the declared
+`flycast/sstates`. Everything measured above is what 8.2.0 did; see the issue's section under
+[Upstream issues filed](#1336-fixed-in-821-driven-and-the-workaround-is-out) for what
+8.2.1 changes and what RomMBat still does. `openmsx` below is unfixed, so the rule this finding
+states is unchanged.
 
 ### The remaining emulators, downloaded on demand and driven
 
@@ -1732,9 +1821,10 @@ probe 7's open item. **All four events fired**, and the exe hook recorded every 
 **No `.bat` log and no `.ps1` log exists for that host at all**, while ES's own debug log
 shows it resolved and reported `executing:` for all four scripts, both `.bat` files
 included. Three of those four events (`start`, `game-end`, `quit`) pass **no arguments**, and
-those same zero-argument cases run fine from a `.bat` on the first host. So this is not
-issue #249: **that machine cannot launch a `.bat` or a `.ps1` at all, and can launch an
-`.exe`.**
+those same zero-argument cases run fine from a `.bat` on the first host. So this is not the
+argument-quoting bug (#249, now
+[batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196)):
+**that machine cannot launch a `.bat` or a `.ps1` at all, and can launch an `.exe`.**
 
 That explains probe 7's original total silence exactly. Every hook installed at the time was
 a `.bat`, so nothing ran, and nothing was logged to say so.

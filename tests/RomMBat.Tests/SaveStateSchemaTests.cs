@@ -256,13 +256,16 @@ public class SaveStateSchemaTests
     }
 
     [Fact]
-    public void The_two_wrong_declared_directories_are_declared_where_the_emulator_does_not_write()
+    public void The_wrong_declared_directory_is_declared_where_the_emulator_does_not_write()
     {
         var schema = Fixtures.LoadSaveStates();
 
-        // Measured on a real install: flycast writes saves/dreamcast/reicast/states/ and
-        // openmsx writes bios/openmsx/savestates/. Both declared directories exist and are
-        // empty, so trusting the declaration finds nothing and reads that as "no states".
+        // Measured on a real install: openmsx writes bios/openmsx/savestates/, so trusting the
+        // declaration finds an empty directory and reads that as "no states".
+        // flycast declares the same directory it did on 8.2.0, unchanged in 8.2.1. What moved
+        // is that RetroBat now mirrors into it, so the declaration became usable without the
+        // template moving. Kept as an assertion because a future change to either half is
+        // exactly what would break state discovery for Dreamcast.
         var flycast = SaveStateTemplate.Create(schema.For("flycast")!, "dreamcast", core: null)!;
         Assert.Equal("saves/dreamcast/flycast/sstates", flycast.Directory.Value);
         Assert.NotEqual("saves/dreamcast/reicast/states", flycast.Directory.Value);

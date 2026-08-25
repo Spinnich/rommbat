@@ -95,13 +95,13 @@ def main():
     # recognise it on disk. Counting it as a requirement inflated every number below by one
     # and made "unknown to RomM" claim a hash that does not exist.
     rb_md5 = {md5 for _system, md5, _file in entries if md5}
-    check("RetroBat systems in the BIOS manifest", len(bios), 99)
-    check("BIOS entries total", len(entries), 353)
-    check("  ...of those carrying no md5 at all", sum(1 for _s, md5, _f in entries if not md5), 179)
+    check("RetroBat systems in the BIOS manifest", len(bios), 100)
+    check("BIOS entries total", len(entries), 355)
+    check("  ...of those carrying no md5 at all", sum(1 for _s, md5, _f in entries if not md5), 181)
     check(
         "  ...systems with no joinable entry at all",
         sum(1 for v in bios.values() if v.get("biosFiles") and not any(b["md5"].strip() for b in v["biosFiles"])),
-        28,
+        29,
     )
     check("Distinct md5s RetroBat requires", len(rb_md5), 156)
 

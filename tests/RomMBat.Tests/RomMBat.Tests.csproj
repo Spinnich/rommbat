@@ -50,6 +50,13 @@
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\reference\es_savestates.cfg" Link="fixtures\es_savestates.template.cfg"
           CopyToOutputDirectory="PreserveNewest" />
+    <!--
+      Globbed, because the pin's filename carries the version it came from and moving the pin
+      renames it. The fixed Link means two pins present at once collide at build time, which is
+      the right failure: there is exactly one pinned schema.
+    -->
+    <None Include="..\..\src\RomM.Client\openapi\romm-*.json" Link="fixtures\romm-pinned-openapi.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

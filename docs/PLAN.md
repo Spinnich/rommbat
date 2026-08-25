@@ -337,7 +337,7 @@ ledger, including the eighteen leads dropped at triage and the design notes addr
 [argosy-findings.md](argosy-findings.md). **Treat that document as closed.**
 
 **Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
-mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.1.0 baseline, it
+mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.2.0 baseline, it
 is v0.5.x with one maintainer, and it targets desktop emulators, EmuDeck and RetroDECK, so
 **none of its paths is valid for RetroBat and none was taken**. What it was good for was
 pointing at save-protocol parameters this plan had never mentioned. Every claim was then
@@ -414,14 +414,31 @@ there and does not need to: point the client at an existing instance over the LA
 
 ### Version compatibility is declared, checked, and visible
 
-Every RomMBat release states the minimum RomM and RetroBat versions it supports. Start at
-**RetroBat 8.2** and **RomM 5.1.0**.
+Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
+**RetroBat 8.2.1** and **RomM 5.2.0**.
+
+**The floor tracks the newest stable, it does not sit at the oldest version that happens to
+work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
+moves the minimum with it. Two reasons, both specific to this project. Every rule in
+`docs/retrobat-findings.md` is a measurement of one build's behaviour, and supporting a range
+means owning that measurement on every version in the range, on a `(system, emulator, core)`
+matrix that is already two to four passes per row. And RetroBat's own updater moves users
+forward, so a wide floor buys compatibility with installs that mostly do not exist while
+doubling what has to be certified. RetroBat 8.2.1 is the floor because 8.2.0's Flycast
+save-state watcher read the wrong directory, and a release that supported both would have to
+carry the workaround and the fix at once.
+
+What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, re-read
+the upstream changelog for anything that touches a measured rule, move the floor and the
+tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
+RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
+purpose.
 
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
   RetroBat version from **`system/version.info`** in the tree.
 - **There is no `build.ini`.** M0 confirmed it does not exist anywhere in a RetroBat 8.2
   tree. `system/version.info` is a single line carrying a channel and architecture suffix,
-  `8.2.0-stable-win64`, so it is not a bare semantic version and must be split on `-`
+  `8.2.1-stable-win64`, so it is not a bare semantic version and must be split on `-`
   before comparison.
 - **Both version strings can carry prerelease suffixes.** The instance M0 measured against
   reported `5.1.1-beta.1`. A comparison that assumes three numeric components will throw on
@@ -518,9 +535,11 @@ The six results that moved the design most:
    `ARGC=3` with every argument intact. **So hooks ship as an exe.** Even so, prefer
    `emulatorLauncher.log` for the launch facts, since the hook is never told the system,
    emulator or core, and a `.ps1` that does run receives the display name split across
-   arguments. Filed upstream as
-   [RetroBat-Official/retrobat#249](https://github.com/RetroBat-Official/retrobat/issues/249),
-   which still describes only the `.bat` symptom and understates the scope.
+   arguments. Filed upstream as `RetroBat-Official/retrobat#249`, closed there on 2026-08-21
+   as an EmulationStation issue and refiled at
+   [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196),
+   where it is open. Its title still describes only the `.bat` symptom and understates the
+   scope.
 
 2. **Save file locations and shapes.** Map, per system, where RetroBat's emulators
    actually write saves, and classify each into the four shapes in M6 (one file, several
@@ -581,13 +600,18 @@ The six results that moved the design most:
      `saves/nes/bizhawk/sstates/NesHawk/<rom filename>.QuickSave0.State` with a `.txt` giving
      the mapping. Deleting the native copy and relaunching rebuilt it from the ES-facing one.
      A `.State.rap` sibling stays native-only and does not round-trip.
-   - **Two `<directory>` declarations are wrong.** RetroBat's own launcher writes
-     `Dreamcast.SavestatePath = saves/dreamcast/reicast/states` while the file declares
-     `{{system}}/flycast/sstates`, which exists and stays empty; and **`openmsx` writes to
-     `bios/openmsx/savestates/`**, a different top-level tree from the declared
-     `saves/msx1/openmsx`, which also stayed empty. So `<directory>` must be cross-checked
-     against the emulator's generated config, and an empty declared directory must never be
-     read as "this game has no states".
+   - **One `<directory>` declaration is wrong on 8.2.1, and it was two on 8.2.0.**
+     **`openmsx` writes to `bios/openmsx/savestates/`**, a different top-level tree from the
+     declared `saves/msx1/openmsx`, which stayed empty, and that is unfixed. `flycast` was
+     the second: RetroBat's own launcher writes `Dreamcast.SavestatePath =
+saves/dreamcast/reicast/states` while the file declares `{{system}}/flycast/sstates`,
+     and on 8.2.0 that declared directory existed and stayed empty. **8.2.1 fixed it**
+     (`emulatorlauncher#1336`) by pointing RetroBat's save-state watcher at the directory
+     Flycast really writes, so the state is now mirrored into the declared path in the same
+     millisecond, driven three times on a real install. The emulator's own path and the
+     declaration both stayed put; only the mirror moved. One wrong is all the rule needs:
+     `<directory>` must be cross-checked against the emulator's generated config, and an
+     empty declared directory must never be read as "this game has no states".
    - **The `.txt` sidecar is written unconditionally, not only where naming differs.**
      `jgenesis` and `desmume` both wrote one containing the rom filename itself, so its
      presence proves nothing; its content is the mapping and travels with the state.
@@ -1110,12 +1134,18 @@ and dies on launch. So the accepted-extension list is a **sync filter**, not a d
 detail, and RetroBat is the only authority on it.
 
 **The folder is `<path>`, not `<name>`.** They are different vocabularies and the shipped
-8.2.0 file disagrees on five systems: `gw` writes to `gameandwatch`, `powerbomberman` to
+8.2.1 file disagrees on five systems: `gw` writes to `gameandwatch`, `powerbomberman` to
 `pb`, `casloopy` to `loopy`, `Windows` to `windows`, and `starship` appears **twice**, once
 for `ghostship` and once for `starship`. Keying on `<name>` loses a system outright and
 mismatches four more. Four further entries own no folder under `roms/` at all (`library`,
 `screenshots`, `kodi` and the `retrobat` menu system) and one, `mess`, declares no path;
 none of them is a sync target. Match folders case-insensitively, because the file does not.
+
+**8.2.1 is why this is read live.** It added `.decomp` to eleven systems (`mame`, `model2`,
+`model3`, `snes`, `n64`, `gamecube`, `wii`, `psx`, `ps2`, `ps3`, `xbox`) for decompilation
+projects and `.zar` to `ps4`. A bundled list would have silently refused to sync those files
+on an install that can launch them, which is the same failure as syncing one that cannot,
+pointed the other way.
 
 `es_systems.cfg` carries the extension list per system, and it is read from the live install
 rather than bundled, because it reflects that machine's actual emulator configuration:
@@ -1431,11 +1461,13 @@ RetroBat actually requires rather than by whatever the RomM library happens to h
 
 **RetroBat ships the requirements manifest, and it is not a file.**
 `batocera-systems/Resources/batocera-systems.json` (in `emulatorlauncher`) is machine-readable
-and complete: 99 systems, 353 BIOS entries, each `{"md5": ..., "file": "bios/<name>"}` giving
-both the hash and the exact destination path. **A real RetroBat 8.2 install contains no such
+and complete: 100 systems, 355 BIOS entries, each `{"md5": ..., "file": "bios/<name>"}` giving
+both the hash and the exact destination path. **A real RetroBat 8.2.1 install contains no such
 file.** The data ships as a .NET string resource named `batocera_systems` inside
 `emulationstation/batocera-systems.exe`, and it is the vendored copy byte for byte apart from
-a trailing newline. So the `es_systems.cfg` precedent, "read the live copy, the vendored one is
+a trailing newline. Re-checked on 8.2.1: the embedded resource is still identical to the
+refreshed `reference/batocera-systems.json`, sha256 `e26811ef…`, so the bundling decision
+survives the version move rather than needing a re-derivation. So the `es_systems.cfg` precedent, "read the live copy, the vendored one is
 a template", has nothing to read: **the manifest is bundled in `data/retrobat/bios.json`**,
 generated from `reference/` by `tools/build-bios-manifest.py` and embedded like
 `platforms.json`. The wiki's per-system BIOS pages are prose over the same data and are useful
@@ -2688,7 +2720,8 @@ drained it except `sync` or a person typing `flush`.
   happened while it was not running.
 
 **Not in 7a, and worth a decision rather than a silent omission: `POST /api/activity/heartbeat`.**
-It is declared at our 5.1.0 baseline, it works at 5.2.0, and RomMBat had never mentioned it.
+It is declared at the 5.1.0 baseline this was written against, it works at 5.2.0, which is
+now the baseline, and RomMBat had never mentioned it.
 Posting `{rom_id, device_id}` registers the device as playing that game right now and
 `GET /api/activity` lists it, so RomMBat is currently invisible in a presence feed the web UI
 and every other client can see. `device_type` already reads `RomMBat`, carried from the device
@@ -2889,7 +2922,7 @@ release year reproduces roughly this list and stays correct as RetroBat adds sys
 | RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                                                   |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                                                        |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                                                                 |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2, RomM 5.1.0), check both at startup, refuse below and warn above                                                                                                                                                                                                  |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.2.0), track the newest stable, check both at startup, refuse below and warn above                                                                                                                                                                       |
 | Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                                                       |
 
 ---
@@ -3066,7 +3099,7 @@ Paste this into Claude Code from an empty directory:
 > a dedicated non-admin account with its own scoped token and device, and keep a disposable
 > RomM (Docker or a VM) for conflict, overwrite, expiry and revocation tests. RetroBat is
 > portable, so clone a pristine copy per test run. Declare minimum supported versions,
-> starting at RetroBat 8.2 and RomM 5.1.0, check both at startup, and refuse below minimum.
+> currently RetroBat 8.2.1 and RomM 5.2.0, check both at startup, and refuse below minimum.
 >
 > Two authority rules that are easy to get backwards. **File extensions come from
 > RetroBat, never from RomM**: read `<extension>` per system out of the live

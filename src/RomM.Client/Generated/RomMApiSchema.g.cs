@@ -1657,7 +1657,7 @@ namespace RomM.Client.Generated
         public System.Collections.Generic.ICollection<SimpleRomSchema> Items { get; set; } = new System.Collections.Generic.List<SimpleRomSchema>();
 
         [System.Text.Json.Serialization.JsonPropertyName("total")]
-        public int Total { get; set; } = default!;
+        public int? Total { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("limit")]
         public int Limit { get; set; } = default!;
@@ -3006,6 +3006,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("token")]
         public string Token { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public string? Url { get; set; } = default!;
+
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -3248,6 +3251,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("SS_API_ENABLED")]
         public bool SS_API_ENABLED { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("SS_DEV_CREDENTIALS_SET")]
+        public bool SS_DEV_CREDENTIALS_SET { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("MOBY_API_ENABLED")]
         public bool MOBY_API_ENABLED { get; set; } = default!;
@@ -4694,8 +4700,14 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("md5_hash")]
         public string? Md5_hash { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("box2d_back_path")]
+        public string? Box2d_back_path { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("box3d_path")]
         public string? Box3d_path { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("fanart_path")]
+        public string? Fanart_path { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("miximage_path")]
         public string? Miximage_path { get; set; } = default!;
@@ -4708,6 +4720,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("marquee_path")]
         public string? Marquee_path { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("title_screen_path")]
+        public string? Title_screen_path { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("video_path")]
         public string? Video_path { get; set; } = default!;
@@ -4795,6 +4810,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("redump_match")]
         public bool? Redump_match { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("mame_redump_match")]
+        public bool? Mame_redump_match { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("whdload_match")]
         public bool? Whdload_match { get; set; } = default!;
@@ -5113,6 +5131,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("bezel_path")]
         public string? Bezel_path { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("box2d_path")]
+        public string? Box2d_path { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("box2d_back_path")]
         public string? Box2d_back_path { get; set; } = default!;

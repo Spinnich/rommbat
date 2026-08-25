@@ -41,7 +41,7 @@ through the generator, not by hand**. `reference/refresh.sh` and the `reference-
 job both run the `--check`, so a hand edit fails there rather than shipping.
 
 It is bundled rather than read from the install because there is nothing to read: a real
-8.2.0 install carries the manifest only as a .NET string resource inside
+8.2.1 install carries the manifest only as a .NET string resource inside
 `emulationstation/batocera-systems.exe`, byte-identical to the vendored
 `reference/batocera-systems.json`. That is the one place `es_systems.cfg`'s "the live
 install always wins" rule cannot apply.
@@ -70,12 +70,15 @@ not yet been seen written. Regenerate with
 `python tools/m0-probes/probe2-emit-data.py <retrobat-root>`.
 
 **`_state_directory_templates` is copied from `es_savestates.cfg` and is not trustworthy on
-its own.** Three sibling keys qualify it: `_state_directory_verified` lists the nine
+its own.** Four sibling keys qualify it: `_state_directory_verified` lists the eleven
 emulators whose declared directory was confirmed by driving a real save state,
-`_state_directory_corrections` carries the one that is wrong (`flycast` writes
-`reicast/states`, not the declared `flycast/sstates`), and `_state_file_template_note`
-records that a `{{slot}}` placeholder must expand to a single digit rather than a wildcard,
-because DeSmuME's `.ds{{slot0}}` otherwise matches its own `.dsv` battery save.
+`_state_directory_corrections` carries the one that is wrong (`openmsx` writes
+`bios/openmsx/savestates/`, outside the saves tree entirely, not the declared
+`saves/msx1/openmsx`), `_state_directory_verified_note` records that `flycast` was a
+correction until RetroBat 8.2.1 fixed `emulatorlauncher#1336` and its declared directory is
+now the one to read, and `_state_file_template_note` records that a `{{slot}}` placeholder
+must expand to a single digit rather than a wildcard, because DeSmuME's `.ds{{slot0}}`
+otherwise matches its own `.dsv` battery save.
 
 **Save shape is a property of `(system, emulator)`, not of system alone.** `psx` is the
 worked example: libretro writes a class-A `.srm`, DuckStation writes memory cards. Any

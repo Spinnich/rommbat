@@ -90,11 +90,18 @@ CONVERSIONS = {
 }
 
 # es_savestates.cfg's <directory> is not authoritative. These are the emulators whose
-# declared directory was checked by driving a real save state, and the one it got wrong.
+# declared directory was checked by driving a real save state, and openmsx is the one it
+# still gets wrong.
 STATE_DIRECTORY_VERIFIED = [
     "libretro", "ppsspp", "duckstation", "pcsx2", "dolphin", "gopher64",
-    "desmume", "mupen64", "jgenesis", "bizhawk",
+    "desmume", "mupen64", "jgenesis", "bizhawk", "flycast",
 ]
+# flycast is verified on 8.2.1 and everything else on 8.2.0. Worth carrying in the file
+# rather than only here: a reader checking one entry against an install has to know which
+# build the entry describes.
+STATE_DIRECTORY_VERIFIED_NOTE = (
+    'flycast was a correction until RetroBat 8.2.1 fixed emulatorlauncher#1336. It writes saves/<system>/reicast/states natively and RetroBat now mirrors into the declared flycast/sstates in the same millisecond, confirmed by hand on 8.2.1 over three runs (tools/m0-probes/probe2-flycast-mirror.ps1). Read the declared path. Everything else in this file is measured on 8.2.0.'
+)
 # Emulators that write somewhere else entirely and rely on RetroBat mirroring into the
 # declared path. Read and write the declared path; the native one is not addressable.
 NATIVE_STATE_LOCATIONS = {
@@ -104,12 +111,6 @@ NATIVE_STATE_LOCATIONS = {
     "openmsx": "bios/openmsx/savestates/<state name>.oms (plus a real .png screenshot)",
 }
 STATE_DIRECTORY_CORRECTIONS = {
-    "flycast": {
-        "declared": "{{system}}/flycast/sstates",
-        "actual": "{{system}}/reicast/states",
-        "why": "RetroBat's own FlycastGenerator writes Dreamcast.SavestatePath to the legacy reicast path; "
-               "the declared directory exists and stays empty. Note the VMU path does use flycast/.",
-    },
     "openmsx": {
         "declared": "{{system}}/openmsx",
         "actual": "../bios/openmsx/savestates",
@@ -166,6 +167,7 @@ def main() -> int:
         **header,
         "_state_directory_templates": state_dirs,
         "_state_directory_verified": STATE_DIRECTORY_VERIFIED,
+        "_state_directory_verified_note": STATE_DIRECTORY_VERIFIED_NOTE,
         "_state_directory_corrections": STATE_DIRECTORY_CORRECTIONS,
         "_native_state_locations": NATIVE_STATE_LOCATIONS,
         "_state_file_template_note": STATE_FILE_TEMPLATE_NOTE,

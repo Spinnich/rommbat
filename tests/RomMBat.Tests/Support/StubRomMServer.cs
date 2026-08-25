@@ -141,7 +141,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     public bool IsReachable { get; set; } = true;
 
     /// <summary>What <c>GET /api/heartbeat</c> reports as <c>SYSTEM.VERSION</c>.</summary>
-    public string ServerVersion { get; set; } = "5.1.0";
+    public string ServerVersion { get; set; } = "5.2.0";
 
     /// <summary>The <c>Date</c> header the server sends, which is the only clock reference.</summary>
     public DateTimeOffset? ServerDate { get; set; }

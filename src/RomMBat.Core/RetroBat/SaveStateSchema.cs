@@ -34,13 +34,14 @@ public enum SlotToken
 /// One <c>&lt;emulator&gt;</c> from <c>es_savestates.cfg</c>.
 /// </summary>
 /// <param name="Directory">
-/// The declared template. <b>Declared is not written.</b> Two of the twelve emulators driven on a
-/// real install write somewhere else entirely: <c>flycast</c> writes
-/// <c>saves/dreamcast/reicast/states/</c> against a declared
-/// <c>{{system}}/flycast/sstates</c>, and <c>openmsx</c> writes <c>bios/openmsx/savestates/</c>,
-/// a different top-level tree from the declared <c>saves/msx1/openmsx</c>. Both declared
-/// directories exist and are empty, so an empty declared directory means "you are looking in the
-/// wrong place" and never "this game has no states".
+/// The declared template. <b>Declared is not written.</b> One of the twelve emulators driven on
+/// a real install writes somewhere else entirely: <c>openmsx</c> writes
+/// <c>bios/openmsx/savestates/</c>, a different top-level tree from the declared
+/// <c>saves/msx1/openmsx</c>, and it is unfixed. <c>flycast</c> was the second until RetroBat
+/// 8.2.1 fixed <c>emulatorlauncher#1336</c>; it still writes <c>reicast/states</c> first, but
+/// the state is now mirrored into the declared path in the same millisecond, confirmed by hand.
+/// So an empty declared directory means "you may be looking in the wrong place" and never "this
+/// game has no states".
 /// </param>
 /// <param name="Image">
 /// The screenshot template, which maps onto RomM's optional <c>screenshotFile</c>.
@@ -125,7 +126,8 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// </summary>
 /// <remarks>
 /// <b>Parsed, never hardcoded</b>, and read from the live install so a user's edits count. The
-/// shipped 8.2 file declares 13 emulators, which is what bounds state sync: not the 243 systems
+/// shipped 8.2.1 file, byte-identical to 8.2.0's, declares 13 emulators, which is what bounds
+/// state sync: not the 243 systems
 /// <c>es_systems.cfg</c> declares.
 /// <para>
 /// <b>Discovery reverses the template rather than expanding a slot range.</b> Compiling

@@ -37,7 +37,7 @@ bundled table's lookup key. Key the map by slug and 51 of those 123 platforms di
 nobody can point the extra sets anywhere else.
 
 **`es_systems.cfg` `<name>` is not the folder. `<path>` is.** Five systems disagree in the
-shipped 8.2.0 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `casloopy` to
+shipped 8.2.1 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `casloopy` to
 `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for `ghostship` and
 `starship`. Four more entries own no folder under `roms/` (`library`, `screenshots`, `kodi`,
 and `retrobat` at `system/es_menu`) and `mess` declares no path at all; none is a sync

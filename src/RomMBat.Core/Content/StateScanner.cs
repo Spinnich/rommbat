@@ -58,12 +58,18 @@ public sealed record StateScanOutcome
 /// battery save does. That is why states ship a stage ahead of directory saves.
 /// </para>
 /// <para>
-/// <b>Two declared directories are wrong and this scanner cannot see past that.</b>
-/// <c>flycast</c> writes <c>saves/dreamcast/reicast/states/</c> and <c>openmsx</c> writes
-/// <c>bios/openmsx/savestates/</c>, a different top-level tree. Both declared directories exist
-/// and are empty on a real install, so a scan of the declaration finds nothing there. Nothing is
-/// guessed in either case: the states are reported as unsyncable with the reason, because reading
-/// the wrong tree is worse than reading none.
+/// <b>One declared directory is wrong and this scanner cannot see past that.</b>
+/// <c>openmsx</c> writes <c>bios/openmsx/savestates/</c>, a different top-level tree from the
+/// declared <c>saves/msx1/openmsx</c>, so no expansion of the declaration can reach it and a
+/// scan of it finds an empty directory. Nothing is guessed: the states are reported as
+/// unsyncable with the reason, because reading the wrong tree is worse than reading none.
+/// </para>
+/// <para>
+/// <b><c>flycast</c> used to be the other one and no longer is.</b> On RetroBat 8.2.0 it wrote
+/// <c>saves/dreamcast/reicast/states/</c> and the declared <c>flycast/sstates</c> stayed empty;
+/// 8.2.1 fixed that (<c>emulatorlauncher#1336</c>) and a hands-on pass confirmed the state is
+/// mirrored into the declared path in the same millisecond it is written natively. 8.2.1 is the
+/// minimum supported version, so the declaration is now the one to read.
 /// </para>
 /// </remarks>
 public sealed class StateScanner
@@ -96,16 +102,25 @@ public sealed class StateScanner
     /// Emulators whose declared directory is not where they write.
     /// </summary>
     /// <remarks>
-    /// Measured on a real install, and both declared directories exist and are empty, which is
-    /// the trap: a client that trusts the declaration concludes the game has no states rather
-    /// than concluding it is looking in the wrong place. Filed upstream as
-    /// RetroBat-Official/emulatorlauncher#1336.
+    /// Measured on a real install. The declared directory exists and is empty, which is the
+    /// trap: a client that trusts the declaration concludes the game has no states rather than
+    /// concluding it is looking in the wrong place.
+    /// <para>
+    /// <b><c>flycast</c> was here until RetroBat 8.2.1 and is not any more.</b> It was filed as
+    /// RetroBat-Official/emulatorlauncher#1336 and fixed by pointing RetroBat's save-state
+    /// watcher at the directory Flycast really writes. Confirmed by hand on 8.2.1 rather than
+    /// taken from the changelog, three runs of `Sega Tetris (Japan) (Rev A)` under
+    /// <c>tools/m0-probes/probe2-flycast-mirror.ps1</c>: the state lands in both
+    /// <c>reicast/states</c> and the declared <c>flycast/sstates</c>, same bytes, same
+    /// millisecond, while the emulator is still running. What makes Dreamcast states sync is
+    /// 8.2.1 populating the declared directory, which <see cref="Scan"/> already walks; this
+    /// registry documents the trap rather than gating the scan, so the entry coming out
+    /// records that the declaration became usable.
+    /// </para>
     /// </remarks>
     public static IReadOnlyDictionary<string, string> WrongDeclaredDirectories { get; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["flycast"] = "flycast writes saves/dreamcast/reicast/states/, not the declared "
-                + "saves/<system>/flycast/sstates. The declared directory exists and stays empty.",
             ["openmsx"] = "openMSX writes bios/openmsx/savestates/, which is a different tree "
                 + "from the declared saves/<system>/openmsx entirely.",
         };
