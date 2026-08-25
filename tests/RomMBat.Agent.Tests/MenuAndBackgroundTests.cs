@@ -254,6 +254,61 @@ public sealed class MenuAndBackgroundTests
         Assert.True(report.Wrote("refused"));
     }
 
+    [Fact]
+    public async Task A_change_that_throws_is_finished_rather_than_left_to_poison_the_next_quit()
+    {
+        // The queue is never allowed to hold the saves hostage. A write that throws rather than
+        // refusing, and is left unrecorded, would be re-entered by every later quit before it
+        // reached the flush, so one bad row would stop this machine flushing at all.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+
+        using (var store = LocalStore.Open(install))
+        {
+            AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
+            QueueConversion(store);
+        }
+
+        // Readable, so the rest of the pass is unaffected, and unwritable, so the rename at the
+        // end of WriteIfChanged throws where a full or read-only volume would.
+        var settings = install.Resolve(EsSettingsFile.Location);
+        Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
+        File.WriteAllText(settings, "<config />");
+        File.SetAttributes(settings, FileAttributes.ReadOnly);
+
+        AgentRun run;
+
+        try
+        {
+            run = await AgentRunner.RunAsync(tree, "background", "quit");
+        }
+        finally
+        {
+            File.SetAttributes(settings, FileAttributes.Normal);
+        }
+
+        // 4 is NotPaired, from the flush. A pass the throw reached would not have one.
+        Assert.Equal(4, run.ExitCode);
+
+        using (var store = LocalStore.OpenAt(install.DatabasePath))
+        {
+            Assert.Empty(store.PendingConfig.ListOutstanding());
+
+            var finished = Assert.Single(store.PendingConfig.ListFinished());
+            Assert.Equal(PendingConfigResult.Failed, finished.Result);
+            Assert.False(string.IsNullOrWhiteSpace(finished.Detail));
+
+            // Nothing was recorded as converted, so a later revert has nothing to undo.
+            Assert.Empty(store.SaveConversions.List());
+        }
+
+        // And it said so in the one place a pass with no console window can.
+        var log = File.ReadAllText(Path.Combine(install.LogDirectoryPath, "background.log"));
+        Assert.Contains("ps2/Armored Core 3 (USA).chd: Failed", log, StringComparison.Ordinal);
+        Assert.Contains("finished, flush exit 4", log, StringComparison.Ordinal);
+    }
+
     private static void WriteSpoolRecord(RetroBatInstall install, string hookEvent)
     {
         Directory.CreateDirectory(install.Resolve(SpoolDrain.Directory));

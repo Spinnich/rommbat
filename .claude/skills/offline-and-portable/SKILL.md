@@ -59,6 +59,13 @@ the source of truth; the network is optional, probed with a short-timeout
   itself, and 10 ms after the pass starts looking on a real session. If it never exits, the
   config stays queued and the flush runs anyway, because the flush touches no file ES owns.
 
+  **The same holds when a change throws rather than refusing**, which a full or read-only
+  volume makes it do: the row is finished as `Failed` with the exception message, and the pass
+  carries on. A throw left unrecorded is worse than it looks, because the row stays outstanding
+  and every later quit re-enters it before reaching the flush, so one row that cannot be
+  written stops that machine flushing at all. **Nothing on the config side may be able to end
+  the pass before the flush.**
+
   **The pass logs to `emulators/rommbat/logs/background.log`.** It is started with
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.

@@ -1,6 +1,7 @@
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Agent.Commands;
 
@@ -33,14 +34,14 @@ namespace RomMBat.Agent.Commands;
 /// </remarks>
 internal static class BackgroundCommand
 {
-    /// <summary>The events a hook spawns a pass for. Not the four events the hook serves.</summary>
-    public static IReadOnlyList<string> Events { get; } = ["start", "quit"];
-
     public static async Task<int> RunAsync(CommandLine command, CancellationToken cancellationToken)
     {
         var hookEvent = command.Positional.Count > 0 ? command.Positional[0] : string.Empty;
 
-        if (!Events.Contains(hookEvent, StringComparer.Ordinal))
+        // The hook's own predicate, not a second copy of the set. A literal here would be a
+        // way for the two binaries to disagree about which events spawn, which is exactly what
+        // putting the list on SpoolRecord was for.
+        if (!SpoolRecord.SpawnsBackgroundPass(hookEvent))
         {
             Console.Error.WriteLine(
                 $"background: '{hookEvent}' is not an event this runs for. Use start or quit.");
@@ -63,7 +64,17 @@ internal static class BackgroundCommand
 
             if (hookEvent == "quit")
             {
-                ApplyQueuedConfig(context, log);
+                try
+                {
+                    ApplyQueuedConfig(context, log);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    // The guarantee below is unconditional, so this guard is too. Reading the
+                    // queue or recording a result can fail for the same reasons applying one
+                    // can, and none of them are a reason to drop the user's saves on the floor.
+                    log.Write($"queued changes could not be applied: {ex.Message}");
+                }
             }
 
             // The flush pass, quiet, in both cases. It never touches a file ES owns, so it is
@@ -93,6 +104,12 @@ internal static class BackgroundCommand
     /// stalled would lose the thing this whole stage exists to deliver. A config change written
     /// under a live ES, by contrast, is discarded without saying so, so that one waits for the
     /// next quit.
+    /// <para>
+    /// <b>A change that throws is finished as <c>Failed</c> rather than left outstanding.</b>
+    /// The same guarantee, one layer down: an unrecorded throw would be re-entered by every
+    /// later quit before it reached the flush, so one row that cannot be written would stop
+    /// this machine flushing at all.
+    /// </para>
     /// </remarks>
     private static void ApplyQueuedConfig(AgentContext context, BackgroundLog log)
     {
@@ -121,24 +138,52 @@ internal static class BackgroundCommand
 
         foreach (var change in queued)
         {
-            var result = converter.ApplyQueued(change);
-
-            var outcome = result.Status switch
+            try
             {
-                ConversionStatus.Converted or ConversionStatus.Reverted or ConversionStatus.NoChange =>
-                    PendingConfigResult.Applied,
-                ConversionStatus.Refused => PendingConfigResult.Refused,
-                _ => PendingConfigResult.Failed,
-            };
+                Apply(converter, context, change, log);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A full drive, an es_settings.cfg something else has open, or a file left
+                // half-written by either: all three throw out of the writer rather than
+                // refusing. Left unrecorded the row would still be outstanding at the next
+                // quit, which would throw in the same place before reaching the flush, so one
+                // poisoned row would stop this machine flushing forever. It is finished with
+                // the reason instead, and the pass carries on to the next change.
+                log.Write($"  {change.System}/{change.FsName}: Failed - {ex.Message}");
 
-            context.Store.PendingConfig.RecordResult(
-                change.Id,
-                outcome,
-                result.Detail,
-                DateTimeOffset.UtcNow);
-
-            log.Write($"  {change.System}/{change.FsName}: {outcome} - {result.Detail}");
+                context.Store.PendingConfig.RecordResult(
+                    change.Id,
+                    PendingConfigResult.Failed,
+                    ex.Message,
+                    DateTimeOffset.UtcNow);
+            }
         }
+    }
+
+    private static void Apply(
+        SaveConverter converter,
+        AgentContext context,
+        PendingConfig change,
+        BackgroundLog log)
+    {
+        var result = converter.ApplyQueued(change);
+
+        var outcome = result.Status switch
+        {
+            ConversionStatus.Converted or ConversionStatus.Reverted or ConversionStatus.NoChange =>
+                PendingConfigResult.Applied,
+            ConversionStatus.Refused => PendingConfigResult.Refused,
+            _ => PendingConfigResult.Failed,
+        };
+
+        context.Store.PendingConfig.RecordResult(
+            change.Id,
+            outcome,
+            result.Detail,
+            DateTimeOffset.UtcNow);
+
+        log.Write($"  {change.System}/{change.FsName}: {outcome} - {result.Detail}");
     }
 }
 
