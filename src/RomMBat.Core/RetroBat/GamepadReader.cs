@@ -53,6 +53,15 @@ public sealed class GamepadReader : IDisposable
     /// <summary>Past this, a stick or trigger counts as pushed. Half travel.</summary>
     private const short AxisThreshold = 16000;
 
+    /// <summary>The name EmulationStation writes, and the one it leaves to be inferred.</summary>
+    public static IReadOnlyList<(string Bound, string Opposite)> StickOpposites { get; } =
+    [
+        ("joystick1up", "joystick1down"),
+        ("joystick1left", "joystick1right"),
+        ("joystick2up", "joystick2down"),
+        ("joystick2left", "joystick2right"),
+    ];
+
     private readonly bool _sdlStarted;
     private readonly IntPtr _joystick;
     private readonly EsInputDevice? _config;
@@ -194,15 +203,49 @@ public sealed class GamepadReader : IDisposable
             // resting trigger reads -1 and matches nothing, where "non-zero means pressed"
             // would report both triggers held forever.
             var raw = SdlLibrary.SDL_JoystickGetAxis(_joystick, axis);
-            Add(held, EsInputKind.Axis, axis, raw switch
+            var sign = raw switch
             {
                 > AxisThreshold => 1,
                 < -AxisThreshold => -1,
                 _ => 0,
-            });
+            };
+
+            Add(held, EsInputKind.Axis, axis, sign);
+            AddOppositeStickDirection(held, axis, sign);
         }
 
         return held;
+    }
+
+    /// <summary>
+    /// The half of each stick axis EmulationStation does not write down.
+    /// </summary>
+    /// <remarks>
+    /// <b>`es_input.cfg` records one direction per axis, not two.</b> A stick is configured as
+    /// `joystick1up` on axis 1 at -1, and pushing the same axis to +1 is down, which the file
+    /// never names because ES infers it. Without this a stick can move a menu up and never
+    /// down, which reads as a broken pad rather than a missing rule.
+    /// <para>
+    /// The four synthesised names are not ES vocabulary and no `inputConfig` will ever contain
+    /// them, which is deliberate: they say plainly that they were derived rather than read.
+    /// </para>
+    /// </remarks>
+    private void AddOppositeStickDirection(HashSet<string> held, int axis, int sign)
+    {
+        if (sign == 0)
+        {
+            return;
+        }
+
+        foreach (var (bound, opposite) in StickOpposites)
+        {
+            if (_config!.Find(bound) is { Kind: EsInputKind.Axis } binding
+                && binding.Id == axis
+                && Math.Sign(binding.Value) == -sign)
+            {
+                held.Add(opposite);
+            }
+        }
     }
 
     private void Add(HashSet<string> held, EsInputKind kind, int id, int value)

@@ -16,6 +16,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\RomMBat.Core\RomMBat.Core.csproj" />
     <ProjectReference Include="..\..\src\RomM.Client\RomM.Client.csproj" />
+    <!--
+      The UI, so its view models can be driven by the gamepad map alone with no window, and so
+      the es_settings.cfg boundary can be asserted against the built assembly rather than by
+      reading the source. See EsSettingsBoundaryTests.
+    -->
+    <ProjectReference Include="..\..\src\RomMBat.UI\RomMBat.UI.csproj" />
   </ItemGroup>
 
   <!--

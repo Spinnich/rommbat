@@ -30,10 +30,21 @@
   </ItemGroup>
 
   <!--
-    The UI framework is chosen in M7 and no package for it exists anywhere in the tree
-    until then. NSwag is a local dotnet tool (.config/dotnet-tools.json), not a package
-    reference: generated output is committed, so nothing generates at build time.
+    Avalonia, settled in M7 stage 7a and arriving with the UI in 7b. Win32 and Skia are
+    referenced by name rather than through Avalonia.Desktop: RomMBat ships win-x64 only, and
+    Avalonia.Desktop pulls Tmds.DBus.Protocol in for the X11 backend, which raises NU1903 for
+    a known high-severity advisory and so fails the -warnaserror build for a backend nothing
+    here can use.
+
+    NSwag is a local dotnet tool (.config/dotnet-tools.json), not a package reference:
+    generated output is committed, so nothing generates at build time.
   -->
+  <ItemGroup Label="UI">
+    <PackageVersion Include="Avalonia" Version="11.3.7" />
+    <PackageVersion Include="Avalonia.Win32" Version="11.3.7" />
+    <PackageVersion Include="Avalonia.Skia" Version="11.3.7" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.7" />
+  </ItemGroup>
 
   <!--
     xunit is on the v3 line; the v2 packages are flagged Legacy. v3 skips at runtime on
