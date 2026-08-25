@@ -395,7 +395,8 @@ docs/PLAN.md          The design of record. Read this before anything else
 docs/retrobat-findings.md
                       What a real RetroBat install actually does, measured, plus the
                       contradiction table naming every place the plan was wrong
-docs/*-findings.md    One ledger per mined reference implementation, recording what
+docs/{freegosy,argosy}-findings.md
+                      One ledger per mined reference implementation, recording what
                       survived verification and what did not. Both are closed
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
@@ -404,8 +405,9 @@ data/retrobat/        Bundled mapping tables (platforms, save directories, save 
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
                       number is reproducible
-tools/*-probes/       The same, for the probes that verified a mined reference
-                      implementation's claims (freegosy, argosy)
+tools/{freegosy,argosy}-probes/
+                      The same, for the probes that verified a mined reference
+                      implementation's claims
 .claude/skills/       Task-scoped guides for agents working in this repository
 ```
 

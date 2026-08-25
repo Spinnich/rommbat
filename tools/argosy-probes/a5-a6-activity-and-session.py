@@ -6,9 +6,10 @@ A5 POST /api/activity/heartbeat is declared in the pinned 5.1.0 schema and RomMB
 
 A6 Argosy drops its local session rows on any 4xx from
    POST /api/sync/sessions/{id}/complete, on the reasoning that a session the server has
-   already finalized is a zombie if the client keeps retrying. RomMBat retries anything
-   that is not an unreachable-host exception. What a second complete actually answers
-   decides which is right.
+   already finalized is a zombie if the client keeps retrying. RomMBat never retries: it
+   awaits the call once and catches only RomMUnreachableException, so every other HTTP
+   failure to close a session is swallowed and the pass still reports success. What a
+   second complete actually answers decides which status that swallowing is hiding.
 
 THIS PROBE WRITES. It posts one activity heartbeat and deletes it, and it opens one sync
 session with an empty inventory and completes it twice. It uploads no save and touches no
@@ -77,7 +78,6 @@ def probe_a6(lines: list[str], device_id: str) -> None:
     lines.append("## A6: completing one sync session twice")
     lines.append("")
     payload = {"device_id": device_id, "saves": []}
-    status, parsed, elapsed = _common.get_json("/api/sync/negotiate")
     status, headers, body, elapsed = _common.request(
         "POST", "/api/sync/negotiate", json_body=payload
     )
