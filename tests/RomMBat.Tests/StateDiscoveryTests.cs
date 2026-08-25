@@ -256,6 +256,13 @@ public class StateDiscoveryTests
         // outside the saves tree entirely, where no expansion of the template can reach it.
         Directory.CreateDirectory(tree.Install.Resolve(RelativePath.Create("saves/msx1/openmsx")));
 
+        // AddState is saves/-rooted and cannot reach openMSX's real write location, which is
+        // the whole point of the finding.
+        var native = tree.Install.Resolve(
+            RelativePath.Create("bios/openmsx/savestates/Aleste (Japan).oms"));
+        Directory.CreateDirectory(Path.GetDirectoryName(native)!);
+        File.WriteAllText(native, "the real state");
+
         var outcome = tree.Scan();
 
         // Zero, and deliberately zero: reading the wrong tree is worse than reading none, and

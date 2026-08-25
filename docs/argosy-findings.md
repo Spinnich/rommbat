@@ -10,16 +10,16 @@ failed, which changes how likely a lead is to be worth chasing and changes nothi
 settles one. Every row carries the route that settled it, and the rows that no route settled are
 labelled open rather than quietly promoted.
 
-|                    |                                                                        |
-| ------------------ | ---------------------------------------------------------------------- |
-| Source read        | `rommapp/argosy-launcher` at `3971bee4`, tag `v2.8.0`, 2026-08-24      |
-| Source targets     | Android: libretro via a vendored `libretrodroid`, plus standalone apps |
-| Source licence     | GPL-3.0, same as ours                                                  |
-| RomM under test    | `5.2.0`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`            |
-| Library under test | 88,331 roms, 708 firmware records across 52 platforms                  |
-| Schema cross-check | `src/RomM.Client/openapi/romm-5.1.0.json`, the pinned minimum          |
-| RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`                  |
-| Date               | 2026-08-25                                                             |
+|                    |                                                                          |
+| ------------------ | ------------------------------------------------------------------------ |
+| Source read        | `rommapp/argosy-launcher` at `3971bee4`, tag `v2.8.0`, 2026-08-24        |
+| Source targets     | Android: libretro via a vendored `libretrodroid`, plus standalone apps   |
+| Source licence     | GPL-3.0, same as ours                                                    |
+| RomM under test    | `5.2.0`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`              |
+| Library under test | 88,331 roms, 708 firmware records across 52 platforms                    |
+| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.2.0.json` now |
+| RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`                    |
+| Date               | 2026-08-25                                                               |
 
 The instance host, the token and every device id are redacted throughout, per the repo rules.
 `libretrodroid` (about 1,700 files) was excluded from the clone. **`sigil` is a git submodule and
@@ -327,7 +327,7 @@ this session to run A3's join, and A3 is the finding.
 
 ## A5: `POST /api/activity/heartbeat` exists, works, and RomMBat has never mentioned it. **Confirmed**
 
-Declared in the pinned `romm-5.1.0.json` with `post` and `delete`, alongside `GET /api/activity`
+Declared in `romm-5.1.0.json`, the pin at the time, with `post` and `delete`, alongside `GET /api/activity`
 and `GET /api/activity/rom/{rom_id}`. It appears nowhere in `docs/PLAN.md`, nowhere in the
 `romm-api` skill, and nowhere in `RomM.Client`. M7a closed the loop between EmulationStation and
 RomM without it.
@@ -680,9 +680,13 @@ that instance at **5.2.0**, above our declared baseline and above the 5.1.1-beta
 ledger measured against. So our claims are increasingly claims about a server newer than the one
 we say we support, and nothing would tell us if 5.1.0 answered differently.
 
-The recommendation is a single pinned 5.1.0 container to re-ask baseline questions of, not their
-three-version matrix. That is enough to make "supported at 5.1.0" a measured statement instead of
-an assumption, and it is a fraction of the work. **Not built on this branch, per the brief.**
+> **Overtaken 2026-08-25.** The recommendation here was a single pinned 5.1.0 container to
+> re-ask baseline questions of, enough to make "supported at 5.1.0" a measured statement
+> instead of an assumption. Adopting 5.2.0 as the floor closed the gap from the other end:
+> the declared baseline is now the version this session measured against, and 5.1.0 is
+> refused rather than claimed, so the container is moot rather than pending. See #93. The
+> residue is smaller and points the other way, at claims elsewhere in this repository still
+> recorded against 5.1.1-beta.1 and 5.1.1-beta.2, which now sit **below** the floor.
 
 Their README also records two setup traps worth having if this is ever done: the CSRF cookie is
 `romm_csrftoken` and must be echoed as a header on user creation, and `email` is required on

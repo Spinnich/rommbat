@@ -112,9 +112,10 @@ public sealed class StateScanner
     /// taken from the changelog, three runs of `Sega Tetris (Japan) (Rev A)` under
     /// <c>tools/m0-probes/probe2-flycast-mirror.ps1</c>: the state lands in both
     /// <c>reicast/states</c> and the declared <c>flycast/sstates</c>, same bytes, same
-    /// millisecond, while the emulator is still running. Removing the entry is what makes
-    /// Dreamcast states sync, and it is safe only because 8.2.1 is the minimum supported
-    /// version.
+    /// millisecond, while the emulator is still running. What makes Dreamcast states sync is
+    /// 8.2.1 populating the declared directory, which <see cref="Scan"/> already walks; this
+    /// registry documents the trap rather than gating the scan, so the entry coming out
+    /// records that the declaration became usable.
     /// </para>
     /// </remarks>
     public static IReadOnlyDictionary<string, string> WrongDeclaredDirectories { get; } =

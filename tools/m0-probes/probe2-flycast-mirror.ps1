@@ -105,7 +105,9 @@ else {
     Write-Host 'NO STATE. The save key never took, so this run decides nothing. Check the key and repeat.'
 }
 
-# Tracked by exact path, so an install's real saves are never touched.
+# Matched by rom stem, not diffed against the before-counts, so a pre-existing state for the
+# same rom goes with it. The docstring's "no existing save data" precondition is what keeps
+# that safe; pass -KeepArtifacts on an install where it does not hold.
 if (-not $KeepArtifacts) {
     $created = @($mirrored) + @($wrote)
     foreach ($f in $created) { Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue }

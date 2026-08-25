@@ -9,14 +9,14 @@ records a measurement.
 Freegosy does it, says it, or tests it. Every row carries the route that settled it, and the
 rows that no route settled are labelled open rather than quietly promoted.
 
-|                    |                                                                    |
-| ------------------ | ------------------------------------------------------------------ |
-| Source read        | `abduznik/Freegosy` at `8a76f69`, v0.5.11, Dart/Flutter, MIT       |
-| Source targets     | RomM 4.9, standalone desktop emulators, EmuDeck, RetroDECK         |
-| RomM under test    | `5.1.1-beta.1`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION` |
-| Schema cross-check | `src/RomM.Client/openapi/romm-5.1.0.json`, the pinned minimum      |
-| RetroBat           | `8.2.0-stable-win64`                                               |
-| Date               | 2026-08-10 and 2026-08-11                                          |
+|                    |                                                                          |
+| ------------------ | ------------------------------------------------------------------------ |
+| Source read        | `abduznik/Freegosy` at `8a76f69`, v0.5.11, Dart/Flutter, MIT             |
+| Source targets     | RomM 4.9, standalone desktop emulators, EmuDeck, RetroDECK               |
+| RomM under test    | `5.1.1-beta.1`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`       |
+| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.2.0.json` now |
+| RetroBat           | `8.2.0-stable-win64`                                                     |
+| Date               | 2026-08-10 and 2026-08-11                                                |
 
 The instance host is redacted throughout, per the repo rules.
 
@@ -97,8 +97,8 @@ Each claim graduates by exactly one route, recorded next to it.
 | **dropped**   | Cut at triage because nothing in RomMBat would change if it were true. Never got a probe |
 
 The pinned schema is used to **screen** candidates, never to settle them. A parameter
-declared in `romm-5.1.0.json` is evidence that the parameter exists, not evidence of what
-the server does with it.
+declared in `romm-5.1.0.json`, the pin at the time, is evidence that the parameter exists, not
+evidence of what the server does with it.
 
 ---
 

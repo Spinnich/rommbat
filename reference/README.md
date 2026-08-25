@@ -90,3 +90,10 @@ and promoted `pcsx2x6` ahead of `play` for `namco2x6`. `batocera-systems.json` g
 `namco2x6` entry of two files, which is where all four firmware counts below moved from;
 both entries carry an empty md5, so nothing new became joinable. `systems_names.lst` and
 `es_savestates.cfg` are unchanged.
+
+**What `rommapp/romm` master moved.** `romm-gamelist_exporter.py` gave `miximage_v2` its own
+asset directory (`miximages_v2`, previously shared with `miximage`) and its own gamelist
+element name, and started falling back to the gamelist provider's path as well as
+ScreenScraper's. Inert here: nothing hand-written references `miximage`, and `verify.py`'s
+gamelist checks are unaffected. Recorded because a vendored file moving is the signal, not
+the consequence.
