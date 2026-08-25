@@ -65,6 +65,29 @@ the script rather than editing the file.
 That credentials live in this file is worth carrying beyond the fixture: nothing RomMBat logs,
 reports or writes to a probe transcript may echo a value read out of it.
 
+`es_input.cfg` is a live capture of what EmulationStation knows about five real controllers,
+checked in verbatim: no BOM, LF endings, tab indentation. It carries no credentials, unlike
+`es_settings.cfg`, and no library contents; what it reveals is which pads the capturing
+machine has been shown.
+
+**It is here to keep a controller-layout table out of this repository.** The file is already
+semantic: it does not say a pad is an Xbox pad, it says which physical button on that pad is
+`a`. Three properties of the capture are what the tests hang on, and all three are the reason
+a vendor-id lookup is the wrong shape:
+
+| In the capture                                                       | Why it matters                                                    |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 8BitDo Ultimate 2 maps `a`/`b`/`x`/`y` identically to the Xbox 360    | Vendor `0x2dc8` is the id Argosy's list calls a Nintendo layout    |
+| Switch Pro maps `a`=1/`b`=0, so the comparison above is not vacuous   | The layout difference a table would be trying to express           |
+| Switch Pro's d-pad is buttons 11-14; the other four report a hat      | A shape difference no vendor-id table can express at all           |
+
+Also load-bearing: `select` and `hotkey` are the **same button** on both the 8BitDo and the
+Xbox pad, which is why a lookup returns every name a press satisfies rather than the first.
+
+Re-capture it only if a parser trap moves. The GUIDs are SDL joystick GUIDs with the name-CRC
+field zeroed, which is how EmulationStation writes them and **not** how a running SDL reports
+them; that difference is asserted in `EsInputMapTests` against a real runtime GUID.
+
 `es_systems.template.cfg` is the **shipped template**, not a live capture, and it tracks the
 supported RetroBat version because it is linked from `reference/` rather than copied. It is
 enough because it carries every parser trap a live file does: five systems whose `<name>`
