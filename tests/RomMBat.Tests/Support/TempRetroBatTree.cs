@@ -62,9 +62,12 @@ internal sealed class TempRetroBatTree : IDisposable
                 Directory.Delete(Root, recursive: true);
             }
         }
-        catch (IOException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // A test leaving a file handle open must not turn into a failure in teardown.
+            // Windows reports a still-mapped native library as ERROR_ACCESS_DENIED, which
+            // surfaces from RemoveDirectoryRecursive as UnauthorizedAccessException and not
+            // as IOException, so catching only the latter misses the case this exists for.
         }
     }
 
