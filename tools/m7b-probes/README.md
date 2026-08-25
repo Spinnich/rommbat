@@ -1,0 +1,51 @@
+# M7b probes: controller input, ES focus, and z-order
+
+Sources only, as `tools/m0-probes/probe6-httpclient.cs` is. They are not in the solution and
+CI does not build them: an Avalonia probe would put a UI framework reference in the tree twice
+and the shipped one is `RomMBat.UI`. To run one, make a throwaway project outside the repo,
+drop the files in, and reference `src/RomMBat.Core` so the probe measures the **shipped**
+`EsInputMap` rather than a second copy of it.
+
+```xml
+<PackageReference Include="Avalonia" Version="11.3.7" />
+<PackageReference Include="Avalonia.Win32" Version="11.3.7" />
+<PackageReference Include="Avalonia.Skia" Version="11.3.7" />
+<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.7" />
+<ProjectReference Include="<repo>/src/RomMBat.Core/RomMBat.Core.csproj" />
+```
+
+**Reference `Avalonia.Win32` and `Avalonia.Skia`, never `Avalonia.Desktop`.** The latter drags
+in `Tmds.DBus.Protocol` for the X11 backend, which raises `NU1903` for a known high-severity
+advisory, and CI builds `-warnaserror`. RomMBat ships win-x64 and has no use for the X11 or
+macOS backends. Build the app with `.UseWin32().UseSkia()` rather than `.UsePlatformDetect()`.
+
+| File                        | What it is                                                                        |
+| --------------------------- | --------------------------------------------------------------------------------- |
+| `probe1-sdl.cs`             | P/Invoke onto RetroBat's own `emulationstation/SDL2.dll`, joystick subsystem only |
+| `probe1-input-and-focus.cs` | A full-screen Avalonia window that logs input, focus, foreground and ES liveness  |
+| `probe1-selected-hook.cs`   | Stamps ES's `game-selected` / `system-selected`, which is what made 219 provable  |
+
+## The two that mattered
+
+**219, whether ES keeps reading the pad behind us**, could not be observed at all until the
+selection hook existed: ES fires `game-selected` and `system-selected` on every navigation move
+and **ships no folder for either**, so creating
+`.emulationstation/scripts/game-selected/` is what turns the question from a judgement into a
+record. Remove the folders afterwards; they are not part of a RetroBat install.
+
+**218, whether a layout has to be detected**, is answered by `es_input.cfg` and not by the
+probe. The probe's job was only to confirm the file's ids resolve against live hardware
+through the shipped parser, which they do, for all 21 names on the 8BitDo.
+
+## Two things learned the hard way, so the next session does not repeat them
+
+- **Do not put the exit gesture on a button the sweep asks you to press.** The first two runs
+  ended after 6 seconds because `start` both exited the probe and was one of the inputs under
+  test. `--no-pad-exit` exists for that reason; the ES-menu run needs the pad exit because
+  there is no keyboard in there.
+- **The first observation of any input is its resting value, not a press.** Otherwise every run
+  opens with a burst of phantom events, and on this pad two of them would be the triggers,
+  which rest at `-32768` rather than zero (finding 223).
+
+Output goes to `probe-output/`, or to `emulators/rommbat/logs/` when the probe is installed
+into a real tree as `RomMBat.exe`. Both are gitignored.

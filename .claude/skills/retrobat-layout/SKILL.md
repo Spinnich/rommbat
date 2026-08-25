@@ -246,6 +246,62 @@ against the stock file is not achievable and is not the assertion to write.
 their own front end. Fill in what is absent, report what differs, correct nothing. Same rule as
 a per-game setting somebody else wrote.
 
+## Controller input: read `es_input.cfg`, never detect a layout
+
+**EmulationStation has already answered the question a layout lookup only guesses at.**
+`.emulationstation/es_input.cfg` is semantic: it does not record that a pad is an Xbox pad, it
+records **which physical input is `a` on that pad**. Read it live, for the same reason
+`es_systems.cfg` is read live, and because a user who remapped their pad in ES has said what
+they want.
+
+Measured against five real controllers on 8.2.1, and each of these refutes a vendor-id table:
+
+- The **8BitDo Ultimate 2** maps `a`/`b`/`x`/`y` **byte-identically to the Xbox 360 pad**. Its
+  vendor id is `0x2dc8`, which Argosy's `ControllerDetector` lists as a **Nintendo** layout. The
+  table gets a real, common pad backwards.
+- The **Switch Pro** genuinely differs (`a`=1, `b`=0), so that is a live difference, not an
+  absent one.
+- The **Switch Pro reports its d-pad as buttons 11-14** while the other four report a **hat**.
+  That is a difference of shape, and no vendor-id table can express it.
+
+Three traps, all measured rather than reasoned about:
+
+- **One press can mean two things.** `select` and `hotkey` are the **same button** on both the
+  8BitDo and the Xbox pad. A lookup that returns the first match silently drops the hotkey, so
+  resolve to **every** name a reading satisfies.
+- **A hat is a bitmask**, `up`=1, `right`=2, `down`=4, `left`=8, so a diagonal sets two bits and
+  means both directions. Compare bits, never equality.
+- **An analog trigger rests at `-32768`, not zero**, on the same pad whose sticks rest at zero.
+  An axis binding names a **direction** (`value` is `-1` or `1`) and only a reading of that sign
+  is that input. Treating any non-zero axis as pressed reports both triggers permanently held.
+
+**The GUID has two spellings and a straight comparison never matches.** SDL 2.0.18+ fills bytes
+2-3 of a joystick GUID with a CRC-16 of the device name; ES writes them zeroed. The same 8BitDo
+is `0300b155c82d0000...` from the running library and `03000000c82d0000...` in the file.
+Normalise before comparing; `EsInputMap.NormalizeGuid` is the one place that does it.
+
+**The ids are SDL _joystick_ indices, so only the same library can read them.** `emulationstation.exe`
+imports **`SDL2.dll`** (2.32.8 on 8.2.1) and not `SDL3.dll`, though RetroBat ships both. RomMBat
+loads **`emulationstation/SDL2.dll`** rather than bundling its own build: that costs zero
+published bytes, and more importantly it makes an index mismatch impossible by construction,
+where a different SDL build enumerating some pad differently would mis-map **silently**.
+`SDL_Init(SDL_INIT_JOYSTICK)` alone works, with no video subsystem, no window and no SDL message
+pump. If the library is missing or the pad has no `inputConfig`, say so and name the fix
+(configure the controller in EmulationStation first) rather than inventing a default map: a pad
+ES cannot drive is one the user's own front end cannot drive either.
+
+**A UI launched from the ES menu has the controller to itself, and needs no workaround.**
+Measured with a stamping hook on `game-selected`: ES fired **zero** navigation events during the
+26.5 s a full-screen app was in front of it, while five D-pad presses landed in the app, and it
+resumed 0.64 s after the app exited with its selection unchanged. ES suspends a `.menu` app
+exactly as it suspends a game. `emulatorLauncher` does not compete either: an ES-menu launch
+carries **no `-p1*` controller arguments**, so `PadToKey` loads its config and attaches to
+nothing. Findings 218 to 220, 223.
+
+**`es_padtokey.cfg` is not a navigation mechanism.** 153 apps, and 156 of about 170 mappings are
+`hotkey start` to close or kill; exactly one maps directions to arrow keys. There is no default
+or global section, so an app that is not listed inherits nothing.
+
 ## The window in which `es_settings.cfg` can be written
 
 **Only while EmulationStation is not running, and "not running" means the process is gone.**
@@ -319,8 +375,13 @@ directory; it differs by hook form.
   and the PowerShell execution policy was the default **`Restricted`**. An `.exe` hook fires
   all four events there. This is the strongest reason the hook is an exe. Detect and report
   the state anyway; never assume silence means nothing was played.
-- **`game-end` gets none, and fires without a matching `game-start`** for ES-menu launches
-  and for failed launches. RomMBat's own exit produces one. Discard orphans.
+- **`game-end` gets none.** It fires without a matching `game-start` for launches that
+  **fail**, but a successful ES-menu launch fires **both**: driven live on 8.2.1, RomMBat's own
+  menu entry produced a `game-start` carrying `system/es_menu/rommbat.menu` and a `game-end`
+  carrying nothing. M0's "no preceding `game-start`" came from three launches driven by calling
+  `emulatorLauncher.exe` directly, two of which failed. **So never key the discard on a missing
+  `game-start`**: key it on the launcher log's `-system retrobat` with a rom under
+  `system\es_menu\`, and discard the paired `game-start` with it. Findings 221 and 222.
 - **Every script in an event folder runs**, alphabetically, so install beside
   `updatestores.bat` rather than replacing it.
 - **`start` and `quit` may start a process; `game-start` and `game-end` may not.** That is

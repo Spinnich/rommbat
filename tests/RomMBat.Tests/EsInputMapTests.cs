@@ -139,6 +139,23 @@ public class EsInputMapTests
     }
 
     [Fact]
+    public void A_trigger_at_rest_reads_fully_negative_and_still_means_nothing()
+    {
+        var pad = Map.ForGuid(EightBitDoGuid)!;
+        var l2 = pad.Find("l2")!;
+
+        // Measured, finding 223: on this pad the sticks rest at 0 but the analog triggers rest
+        // at -32768 and stay there after release. So "any non-zero axis reading is an input"
+        // reports both triggers permanently held. The binding names a direction, and only a
+        // reading of that sign is that input.
+        Assert.Equal(EsInputKind.Axis, l2.Kind);
+        Assert.Equal(1, l2.Value);
+
+        Assert.Empty(pad.Meanings(EsInputKind.Axis, l2.Id, -1));
+        Assert.Contains("l2", pad.Meanings(EsInputKind.Axis, l2.Id, 1));
+    }
+
+    [Fact]
     public void A_resting_input_means_nothing()
     {
         var pad = Map.ForGuid(EightBitDoGuid)!;
