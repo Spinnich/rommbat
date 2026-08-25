@@ -309,6 +309,30 @@ public sealed class MenuAndBackgroundTests
         Assert.Contains("finished, flush exit 4", log, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_change_that_worked_leaves_no_empty_section_behind_it()
+    {
+        // saves reports only the queued changes that did not work, so a history of nothing but
+        // successes has nothing to say and must not say it with a blank line.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+
+        using (var store = LocalStore.Open(install))
+        {
+            AddRom(install, store, 42, "ps2", "Armored Core 3 (USA).chd");
+            QueueConversion(store);
+        }
+
+        await AgentRunner.RunAsync(tree, "background", "quit");
+
+        var report = await AgentRunner.RunAsync(tree, "saves", "--no-scan");
+        var lines = report.Out.Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        Assert.DoesNotContain("will be made when EmulationStation next closes", lines, StringComparison.Ordinal);
+        Assert.DoesNotContain("\n\n\n", lines, StringComparison.Ordinal);
+    }
+
     private static void WriteSpoolRecord(RetroBatInstall install, string hookEvent)
     {
         Directory.CreateDirectory(install.Resolve(SpoolDrain.Directory));

@@ -305,7 +305,15 @@ internal static class SavesCommand
     private static void ReportPendingConfig(AgentContext context)
     {
         var outstanding = context.Store.PendingConfig.ListOutstanding();
-        var finished = context.Store.PendingConfig.ListFinished(limit: 5);
+
+        // Only the ones that did not work, and filtered here rather than in the loop below. A
+        // success is visible in the game's own saves, and listing every one of those would bury
+        // the two that need reading; filtering late would print the section's blank line for a
+        // page of nothing but successes and then print nothing under it.
+        var finished = context.Store.PendingConfig
+            .ListFinished(limit: 5)
+            .Where(done => done.Result is not PendingConfigResult.Applied)
+            .ToList();
 
         if (outstanding.Count == 0 && finished.Count == 0)
         {
@@ -331,10 +339,8 @@ internal static class SavesCommand
             }
         }
 
-        foreach (var done in finished.Where(done => done.Result is not PendingConfigResult.Applied))
+        foreach (var done in finished)
         {
-            // Only the ones that did not work. A success is visible in the game's own saves,
-            // and listing every one of those would bury the two that need reading.
             Console.WriteLine();
             Console.WriteLine($"  {done.System}/{done.FsName}: "
                 + $"{(done.Result == PendingConfigResult.Refused ? "refused" : "failed")} "
