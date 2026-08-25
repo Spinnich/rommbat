@@ -38,9 +38,15 @@ driven to a real save state**. `bizhawk` joined the list once it was launched wi
 gamepad-driven overlay menu.
 
 **The single most important result is that `es_savestates.cfg`'s `<directory>` cannot be
-trusted: two of the twelve are wrong.** `flycast` writes to `reicast/states` rather than the
-declared `flycast/sstates`, and **`openmsx` writes to `bios/openmsx/savestates/`, a different
-top-level tree from the declared `saves/msx1/openmsx`**. Filenames, by contrast, were correct
+trusted: on 8.2.1, one of the twelve is wrong.** **`openmsx` writes to
+`bios/openmsx/savestates/`, a different top-level tree from the declared
+`saves/msx1/openmsx`**, and that is unfixed. `flycast` was the second when this was measured
+on 8.2.0, writing `reicast/states` against a declared `flycast/sstates`; RetroBat 8.2.1 fixed
+it (`emulatorlauncher#1336`,
+[below](#1336-fixed-in-821-driven-and-the-workaround-is-out)), so Dreamcast states now sync
+from the declaration. One wrong out of twelve is all the rule needs, and it still holds: an
+empty declared directory means you are looking in the wrong place, never that the game has no
+states. Filenames, by contrast, were correct
 everywhere they could be checked, with one collision worth knowing about: DeSmuME's
 `{{romfilename}}.ds{{slot0}}` also matches its own `.dsv` battery save if the slot is
 expanded as a wildcard.
@@ -96,7 +102,7 @@ where it is open. The mechanism, the retitle and the two verified fixes carried 
 unchanged. **Nothing about the design moves**: the hooks stay `.exe`, and a fix landing would
 reopen the simpler `.bat` journal design the plan originally wanted.
 
-### #1336: fixed in 8.2.1, and the workaround has not come out yet
+### #1336: fixed in 8.2.1, driven, and the workaround is out
 
 RetroBat 8.2.1 (2026-08-23) lists `FLYCAST: fix savestates` in its changelog. The fix is
 [commit `5fafcb2b`](https://github.com/RetroBat-Official/emulatorlauncher/commit/5fafcb2b), one
@@ -1030,7 +1036,7 @@ against the emulator's generated config, and never read an empty declared direct
 (2026-08-09). **Fixed in RetroBat 8.2.1**: the save-state watcher was watching the wrong source
 directory, and pointing it at `reicast/states` makes a state mirror into the declared
 `flycast/sstates`. Everything measured above is what 8.2.0 did; see the issue's section under
-[Upstream issues filed](#1336-fixed-in-821-and-the-workaround-has-not-come-out-yet) for what
+[Upstream issues filed](#1336-fixed-in-821-driven-and-the-workaround-is-out) for what
 8.2.1 changes and what RomMBat still does. `openmsx` below is unfixed, so the rule this finding
 states is unchanged.
 

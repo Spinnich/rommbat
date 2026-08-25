@@ -66,7 +66,10 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 5. A save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, and **the declared `<directory>` is confirmed to be where the emulator really
    writes**. An empty declared directory means you are looking in the wrong place, never that
-   the game has no states: `flycast` and `openmsx` both declare one they do not use.
+   the game has no states: `openmsx` declares one it does not use, writing
+   `bios/openmsx/savestates/` instead. `flycast` was the second until RetroBat 8.2.1 fixed
+   `emulatorlauncher#1336`; on the supported floor its declared `flycast/sstates` is
+   populated and is the one to read, so confirm it rather than expecting it to be empty.
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
 8. A play session is recorded and reaches RomM.

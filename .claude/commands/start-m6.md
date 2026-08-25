@@ -132,11 +132,14 @@ separate PR.
 All of this is measured and checked in. Verify each before building on it, then decide what
 it means. Several of these are single lines of code that look obviously right and are wrong.
 
-- **Two `es_savestates.cfg` directories are lies.** `flycast` declares
+- **One `es_savestates.cfg` directory is a lie, and it was two before RetroBat 8.2.1.**
+  `openmsx` declares `saves/msx1/openmsx/` and writes `bios/openmsx/savestates/`, a
+  different tree entirely, and that is unfixed. `flycast` was the second: it declares
   `{{system}}/flycast/sstates` and the emulator writes `saves/dreamcast/reicast/states/`,
-  while its VMU path really is under `flycast/`. `openmsx` declares `saves/msx1/openmsx/`
-  and writes `bios/openmsx/savestates/`, a different tree entirely. Both declared
-  directories exist on disk and are empty, which is the trap: an empty declared directory
+  while its VMU path really is under `flycast/`. 8.2.1 fixed that
+  (`emulatorlauncher#1336`) by mirroring the state into the declared path, so on the
+  supported floor `flycast`'s declaration is the one to read. `openmsx`'s declared
+  directory exists on disk and is empty, which is the trap: an empty declared directory
   means "you are looking in the wrong place", never "this game has no states".
 - **Four traps inside the file itself.** `libretro`, the most important entry, declares no
   `firstslot` or `lastslot`. `desmume`'s `<image>` and `<file>` are the identical template,

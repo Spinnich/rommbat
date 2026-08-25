@@ -600,13 +600,18 @@ The six results that moved the design most:
      `saves/nes/bizhawk/sstates/NesHawk/<rom filename>.QuickSave0.State` with a `.txt` giving
      the mapping. Deleting the native copy and relaunching rebuilt it from the ES-facing one.
      A `.State.rap` sibling stays native-only and does not round-trip.
-   - **Two `<directory>` declarations are wrong.** RetroBat's own launcher writes
-     `Dreamcast.SavestatePath = saves/dreamcast/reicast/states` while the file declares
-     `{{system}}/flycast/sstates`, which exists and stays empty; and **`openmsx` writes to
-     `bios/openmsx/savestates/`**, a different top-level tree from the declared
-     `saves/msx1/openmsx`, which also stayed empty. So `<directory>` must be cross-checked
-     against the emulator's generated config, and an empty declared directory must never be
-     read as "this game has no states".
+   - **One `<directory>` declaration is wrong on 8.2.1, and it was two on 8.2.0.**
+     **`openmsx` writes to `bios/openmsx/savestates/`**, a different top-level tree from the
+     declared `saves/msx1/openmsx`, which stayed empty, and that is unfixed. `flycast` was
+     the second: RetroBat's own launcher writes `Dreamcast.SavestatePath =
+saves/dreamcast/reicast/states` while the file declares `{{system}}/flycast/sstates`,
+     and on 8.2.0 that declared directory existed and stayed empty. **8.2.1 fixed it**
+     (`emulatorlauncher#1336`) by pointing RetroBat's save-state watcher at the directory
+     Flycast really writes, so the state is now mirrored into the declared path in the same
+     millisecond, driven three times on a real install. The emulator's own path and the
+     declaration both stayed put; only the mirror moved. One wrong is all the rule needs:
+     `<directory>` must be cross-checked against the emulator's generated config, and an
+     empty declared directory must never be read as "this game has no states".
    - **The `.txt` sidecar is written unconditionally, not only where naming differs.**
      `jgenesis` and `desmume` both wrote one containing the rom filename itself, so its
      presence proves nothing; its content is the mapping and travels with the state.

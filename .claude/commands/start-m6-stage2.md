@@ -163,10 +163,11 @@ plainly which of certification's steps 4 and 5 this branch makes runnable and wh
 All of this is measured and checked in. Verify each before building on it, then decide what it
 means. Several are single lines of code that look obviously right and are wrong.
 
-- **Two declared state directories are lies.** `flycast` declares `{{system}}/flycast/sstates`
-  and the emulator writes `saves/dreamcast/reicast/states/`; `openmsx` declares
-  `saves/msx1/openmsx/` and writes `bios/openmsx/savestates/`. Both declared directories exist
-  and are empty, which is the trap.
+- **One declared state directory is a lie, and it was two before RetroBat 8.2.1.** `openmsx`
+  declares `saves/msx1/openmsx/` and writes `bios/openmsx/savestates/`; the declared directory
+  exists and is empty, which is the trap. `flycast` was the second, declaring
+  `{{system}}/flycast/sstates` while the emulator writes `saves/dreamcast/reicast/states/`,
+  until 8.2.1 fixed `emulatorlauncher#1336` and started mirroring into the declared path.
 - **Four traps inside `es_savestates.cfg` itself.** `libretro`, the most important entry,
   declares no `firstslot` or `lastslot`. `desmume`'s `<image>` and `<file>` are the identical
   template, so uploading `<image>` as `screenshotFile` uploads the state. `bigpemu` has
