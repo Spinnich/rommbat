@@ -102,8 +102,23 @@ things that "sync" usually conflates:
 
 Guardrails that follow from this:
 
-- Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false&with_rom_id_index=false`.
+- Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
   Each of those sidecars scans the whole library.
+
+  **`with_rom_id_index` is the exception and it follows the scope.** It was in that list
+  until 2026-08-25 on the reasoning that it is whole-library metadata resent per page. That
+  is true only of an unscoped request. Under `platform_ids` the index spans **that
+  platform**, and it is what lets the server serve the page by primary key instead of
+  `OFFSET n LIMIT m` on a sort with no covering index. Measured at 88,331 roms on 5.2.0,
+  turning it off costs **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a
+  page) to save 63 KiB, and about 1.15 times unscoped to save 604 KiB. Send it **off only
+  for an unscoped walk**; leave it on for `platform_ids`, `collection_id`,
+  `smart_collection_id` and `virtual_collection_id`. See
+  [argosy-findings.md](argosy-findings.md), A1.
+
+  `with_total` rides on the same decision: `resolve_total()` returns `len(rom_id_index)`,
+  so the count is free with the index on (1 ms) and costs 124 ms with it off. A2.
+
 - **Never read `rom_ids` off a collection response.** `BaseCollectionSchema.rom_ids` is a
   full `set[int]` and it is present on the _list_ endpoint too, so `GET /api/collections`
   on a large instance returns every membership of every collection in one payload.
@@ -306,7 +321,20 @@ as a possible distribution channel later, not as the mechanism.
 | `rommapp/grout` `cfw/*/data/save_directories.json`               | RomM slug → emulator save subdirectory list                |
 | `rommapp/grout` `cache/save_sync.go`, `cache/background_sync.go` | Sync state machine and conflict handling, already proven   |
 | RomM `backend/utils/gamelist_exporter.py`                        | Authoritative field list for the `<game>` elements to emit |
+| `rommapp/argosy-launcher`                                        | **Mined and closed.** See the caveat below                 |
 | `abduznik/Freegosy`                                              | **Mined and closed.** See the caveat below                 |
+
+**Argosy was named twice during planning and then never read, and until 2026-08-25 this table
+had no row for it** while [freegosy-findings.md](freegosy-findings.md) told its readers Argosy
+had been "mined as trustworthy about the API". That was false, and both places are corrected
+rather than quietly reworded. What the pass actually took is small and specific: it sent this
+plan to re-measure `with_rom_id_index`, which turned out to be a **3.4 to 3.7 times regression
+on a platform-scoped walk** that M2 and M4 are paying today, and to run the BIOS join that found
+**84 of RetroBat's 353 requirements are `.zip` files no md5 comparison can ever match**. Neither
+number is Argosy's; both are measured here. It targets Android, so **no path from it is valid for
+RetroBat and none was taken**, and its own headline cost figure inverts on this library. The full
+ledger, including the eighteen leads dropped at triage and the design notes addressed to M7b, is
+[argosy-findings.md](argosy-findings.md). **Treat that document as closed.**
 
 **Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
 mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.1.0 baseline, it
@@ -674,6 +702,14 @@ The six results that moved the design most:
    flags, not three, and they are a **flat ~841 KB resent on every page** rather than a
    per-page cost, dominated by `with_rom_id_index` (582 KB) and `with_filter_values`
    (280 KB). Server time is unaffected, so fetch them once and disable them thereafter.
+
+   **Amended 2026-08-25: "server time is unaffected" holds for an unscoped walk and is
+   wrong for a scoped one.** This probe measured bytes without separating the two scopes,
+   and `with_rom_id_index=false` shipped on both paths as a result. Re-measured at 88,331
+   roms on 5.2.0, a `platform_ids`-scoped page runs 2.3 s with the index on and 8.5 s with
+   it off, at every offset, while the index costs only 63 KiB there rather than 582 KiB.
+   Scoping also defeats sidecar memoisation on its own, which is why a scoped page is
+   2.3 s where an unscoped one is 0.3 s. See [argosy-findings.md](argosy-findings.md), A1.
    Default page size **250 with sidecars off**; a full walk of 83k roms then takes about
    14 minutes, so incremental sync via `updated_after` is the normal path. A **single**
    `GET /api/collections` entry returned **715 KB**, 99% of it two inlined arrays of
@@ -916,11 +952,18 @@ erroring; and every subsequent milestone can be developed with the server switch
 
 ### M2: catalog browsing and sync sets
 
-- Paged browse over `GET /api/roms?...&limit=250&offset=`, with `with_char_index`,
-  `with_rom_id_index` and `with_filter_values` off on every page. `with_total` stays on: M0
-  probe 5 measured it at zero bytes while the other three cost a flat 841 KB per request,
-  and it is what lets an interrupted walk know how far it has left to go. No full-library
-  mirror, ever.
+- Paged browse over `GET /api/roms?...&limit=250&offset=`, with `with_char_index` and
+  `with_filter_values` off on every page. `with_total` stays on: M0 probe 5 measured it at
+  zero bytes, and it is what lets an interrupted walk know how far it has left to go. No
+  full-library mirror, ever.
+
+  **`with_rom_id_index` is set from the scope, not held off as a constant.** Four of the
+  five scope kinds send a scoping parameter and only `Filter` pages unscoped, and the flag
+  costs 3.4 to 3.7 times the page latency when it is off on a scoped walk. Off for
+  `Filter`, on for the other four. `CatalogQuery` already knows its own scope, so this
+  belongs in `ToQueryString` beside the switch that emits the scope parameter.
+  See [argosy-findings.md](argosy-findings.md), A1 and A2.
+
 - Incremental by `updated_after`, recorded in `sync_cursor`. A full walk is a first-run or
   repair operation, takes about 14 minutes on 83k ROMs, and must resume from a recorded
   offset rather than restart.
@@ -1413,6 +1456,29 @@ So 60% of what RetroBat needs will never be flagged `is_verified` by RomM even w
 user has the correct file. The two also key differently: RomM by `platform_slug:file_name`,
 RetroBat by destination path. **md5 is the only reliable join.** Filenames will not match
 and must not be relied on.
+
+**But md5 cannot join a `.zip`, and 84 of the 353 requirements are zips.** Measured
+2026-08-25 against a library holding 708 firmware records: of the 84 zip requirements,
+**zero match on md5**, and it is not a low rate, it is none. `neogeocd` is the clean case.
+RetroBat requires `bios/neogeo.zip` at `dffb72f1...` and `bios/neocdz.zip` at `c733b4b7...`;
+the library holds files named exactly `neogeo.zip` and `neocdz.zip` at `c74b8945...` and
+`c38cb8e5...`. The archives are the same BIOS and hash differently, because **a zip's md5 is
+over container bytes** that depend on compression level, member order and stored timestamps.
+
+**This plan already knows that argument and applied it somewhere else.** The save-sync
+design at "Hashing zip bytes makes RomMBat and Grout disagree" resolves exactly this by
+defining `content_hash` over sorted relative paths plus per-file hashes and treating the
+archive as transport only. The same reasoning governs a BIOS zip and was never carried
+across, so M5 currently reports `MissingFromLibrary` for 24% of the manifest whenever the
+user holds the right file under the right name.
+
+**The seam:** a zip requirement wants the member-wise comparison `LogicalContentHash`
+already computes for save archives, not a hash of the container. Separately, 20 of the 179
+requirements RetroBat names no md5 for have an **exact filename match** in the library;
+`Unverifiable` remains the honest verdict under an md5-only rule, but an exact-name match is
+worth offering as a suggestion the user confirms. Neither changes the general join, and rule
+3 stands: across the whole manifest, filenames disagree at scale and md5 is still the key.
+See [argosy-findings.md](argosy-findings.md), A3.
 
 **156, not the 157 this table used to say.** `verify.py` built its set without filtering the
 empty string, and 179 of the 353 entries carry one. The same fault moved "unknown to RomM"
@@ -1939,6 +2005,21 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
 
 - Close with `POST /api/sync/sessions/{session_id}/complete` carrying
   `{operations_completed, operations_failed, play_sessions:[...]}`.
+
+  **Completing a session twice answers `400 {"detail":"Session is already COMPLETED"}`**,
+  measured at 5.2.0, not the 404, 410 or 409 other clients special-case. A repeat close is
+  therefore a non-event and safe to swallow deliberately, and every other failure is not.
+
+  **Defect in landed M6 code, recorded and not fixed here.** `SaveSync` awaits
+  `CompleteSyncSessionAsync` without reading the result and catches only
+  `RomMUnreachableException`, while `PostAuthenticatedAsync` returns a failure rather than
+  throwing. So **any HTTP failure to close a session is silently swallowed** and the pass
+  still reports success. A 400 is harmless; a 403 from a token missing `assets.write` is
+  not, and it is equally invisible. The fix is to read the response and add a problem to the
+  outcome for everything except the already-completed case. Related: `FailureAsync` maps
+  every unrecognised status, 400 included, to `RomMResponseStatus.ServerError`, so a client
+  error is reported as a server one. See [argosy-findings.md](argosy-findings.md), A6.
+
 - **States are not part of the negotiate protocol.** `POST /api/states` takes only
   `rom_id` and `emulator`, with no slot, device or conflict detection. Treat state sync as
   best-effort push, tracked locally, and say so in the UI.
@@ -2601,10 +2682,32 @@ drained it except `sync` or a person typing `flush`.
   process is confirmed gone, and the result survives being applied so the UI can say what
   happened while it was not running.
 
+**Not in 7a, and worth a decision rather than a silent omission: `POST /api/activity/heartbeat`.**
+It is declared at our 5.1.0 baseline, it works at 5.2.0, and RomMBat had never mentioned it.
+Posting `{rom_id, device_id}` registers the device as playing that game right now and
+`GET /api/activity` lists it, so RomMBat is currently invisible in a presence feed the web UI
+and every other client can see. `device_type` already reads `RomMBat`, carried from the device
+pairing created. **The `DELETE` takes `device_id` as a query parameter**, not in the body the
+`POST` takes; sent as a body it answers 422 naming the missing query field.
+
+The reason it is not simply a gap is that presence has to be reported _while a game is
+running_, and `game-start` is inside the launch path and may not touch the network. The only
+part of this design awake during play and allowed to use the network is the detached
+`background <event>` pass, so a repeating heartbeat is a milestone decision about what that
+pass does, not a correction to 7a. See [argosy-findings.md](argosy-findings.md), A5.
+
 #### 7b: the gamepad UI
 
 - Full-screen, controller-navigable: pair, manage sync sets, show sync progress,
   conflicts and the disk budget, browse and install individual games.
+- **Read the M7b note in [argosy-findings.md](argosy-findings.md) before designing input.**
+  Argosy is a shipped gamepad-first RomM launcher at v2.8.0 and its input conventions are
+  collected there as design leads: A confirms and never adjusts, focus never moves an
+  element, inline affordances are always visible, footer hints shed in a fixed order. Its
+  `ControllerDetector` resolves a Nintendo-versus-Xbox face-button layout from vendor id then
+  device-name patterns, and its handheld brand list covers the same hardware a Windows
+  handheld running RetroBat uses. **None of it is verified and none of it is a data file to
+  copy**; it is a starting point to check against real controllers.
 - **Two browse modes.** Online browse pages the server and supports search. Offline browse
   shows the local subset and says plainly that it is offline. Reachability checks use the
   short timeout from M0 experiment 6 so the UI never hangs on an unreachable LAN.

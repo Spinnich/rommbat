@@ -81,31 +81,41 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 ## Endpoints that matter
 
-| Need                     | Call                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------ |
-| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                       |
-| Platforms                | `GET /api/platforms?updated_after=`                                            |
-| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                             |
-| Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale    |
-| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                         |
-| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                         |
-| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}` |
-| Save negotiation         | `POST /api/sync/negotiate`                                                     |
-| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`  |
-| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                      |
-| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify  |
-| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                               |
-| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                |
-| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                 |
-| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                         |
-| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`      |
+| Need                     | Call                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                          |
+| Platforms                | `GET /api/platforms?updated_after=`                                               |
+| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                                |
+| Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale       |
+| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                            |
+| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                            |
+| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`    |
+| Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}` |
+| Save negotiation         | `POST /api/sync/negotiate`                                                        |
+| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`     |
+| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                         |
+| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify     |
+| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                  |
+| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                   |
+| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                    |
+| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                            |
+| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`         |
 
 ## Traps
 
-- **Always** pass `with_char_index=false&with_filter_values=false&with_rom_id_index=false`
-  to `/api/roms`; they cost a flat 841 KB per request. Keep `with_total=true`: it is an
-  integer, costs nothing, and bounds a resumable walk. Page size 250, `order_by=id&order_dir=asc`
-  so a ROM added mid-walk lands past the cursor instead of shifting every later page.
+- **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
+  a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
+  mid-walk lands past the cursor instead of shifting every later page.
+- **`with_rom_id_index` follows the scope; it is not always-off.** Under a scoping parameter
+  (`platform_ids`, `collection_id`, `smart_collection_id`, `virtual_collection_id`) the index
+  spans that scope, not the library, and it is what lets the server serve the page by primary
+  key. Measured at 88,331 roms on 5.2.0: **scoped, turning it off costs 3.4 to 3.7 times the
+  latency** (2.3 s to 8.5 s a page) to save 63 KiB. Unscoped it costs about 1.15 times to
+  save 604 KiB. **Off only when the request is unscoped.**
+- **`with_total` rides on that flag.** `resolve_total()` returns `len(rom_id_index)`, so the
+  count is free with the index on (1 ms) and costs 124 ms with it off. Keep it on; do not
+  pair it with an index opt-out on a scoped walk, which is the one combination that pays for
+  both. See [argosy-findings.md](../../../docs/argosy-findings.md), A1 and A2.
 - **`fs_size_bytes` is an `int32` in the generated DTOs.** The pinned schema declares a bare
   `integer`, so `SimpleRomSchema`, `PlatformSchema` and `RomFileSchema` all overflow.
   `GET /api/platforms` fails to deserialize on the **first** platform of a real library. Use
@@ -172,6 +182,15 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   just the CRC. A `.zip` reports the hashes of the file inside it, so hash inside a
   single-entry archive rather than over its bytes. Only 91% of ROMs carry an md5 and 96% a
   sha1, so verification must degrade to size and say so.
+
+  **That rule is about a single-entry ROM archive. A multi-member firmware archive is
+  hashed as a container.** Measured: the library's 34-member `neogeo.zip` carries an
+  `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` can
+  never be joined on md5** against a manifest that hashed a differently-built archive of the
+  same members, and 84 of RetroBat's 353 BIOS requirements are zips. Compare members, the
+  way `LogicalContentHash` does for saves. See
+  [argosy-findings.md](../../../docs/argosy-findings.md), A3.
+
 - **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504
   after 300 s on an 83k library; the platform and collection siblings answer in under 1.5 s.
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
@@ -279,3 +298,20 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   client has to name the missing scope itself. `platforms.read` alone still carries every
   firmware `md5_hash`, because the records are inlined on the platform list, so a BIOS **gap
   report** survives a narrowed grant and only the fetch is refused.
+
+## Presence: `POST /api/activity/heartbeat`
+
+Registers this device as playing one game right now. `{"rom_id": ..., "device_id": ...}`
+answers 200 with a full presence record: user, rom name, cover and title-screen paths,
+platform, `device_type` (already `RomMBat`, carried from pairing) and `started_at`.
+`GET /api/activity` lists every current entry and `GET /api/activity/rom/{id}` filters to one,
+both under 0.1 s.
+
+- **The `DELETE` takes `device_id` as a query parameter**, not in the body the `POST` takes.
+  Sent as a body it answers **422** naming the missing query field, which reads like a
+  malformed payload rather than a misplaced one. `DELETE /api/activity/heartbeat?device_id=`
+  answers 204.
+- Argosy's client says the server holds a heartbeat for 90 seconds and it must be repeated
+  while play continues. **That was not measured here** and is not a fact.
+- **`game-start` may not call this.** It is inside the launch path. Only the detached
+  `background <event>` pass may touch the network during play.

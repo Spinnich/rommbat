@@ -121,6 +121,26 @@ a different version. RetroBat's own wiki warns that states break across emulator
 | C     | Directory per game             | PPSSPP `SAVEDATA/<GAMEID>/`, RPCS3, Cemu, Citra, Wii NAND, MAME `nvram/` | Bundle to one archive                             |
 | D     | Container shared by many games | PCSX2 `Mcd001.ps2`, Dreamcast VMU, megacd `4Mbit_cart.brm`, xbox HDD     | Convert to per-game, see below                    |
 
+**The class says how many files move as a unit. It does not say how the key matches a name**,
+and those are two axes, not one. A `unit_paths` entry carries `key` (`title_id`, `hex_ascii`,
+`game code`, `rom stem`) saying what it keys on, and does not say whether the match is
+**exact or a prefix**. PSP is the case that shows why it matters: `ULUS10064` is a prefix, so
+`ULUS10064SYSDATA` belongs to the same unit, and the bundling only works because it was written
+knowing that. A platform added later is where the omission bites. Argosy splits the same problem
+into five explicit usages (`FOLDER_EXACT`, `FOLDER_PREFIX`, `FILE_EXACT`, `FILE_PREFIX`,
+`FOLDER_SPLIT`), which is a match-rule taxonomy and not a rival to these four classes. When
+adding a platform, state the match rule alongside the key. See
+[argosy-findings.md](../../../docs/argosy-findings.md), A8.
+
+**A save layout is chosen by `(system, emulator)`, never emulator alone.** RetroBat makes this
+mostly structural, because its tree is `saves/<system>/<emulator>/` and `save_shapes.json` is
+keyed by system folder, so `gamecube/dolphin-emu` and `wii/dolphin-emu` are already distinct.
+Argosy, whose registry keyed on emulator, shipped two bugs from exactly this: a Wii row showing
+GameCube's path, and a shared override key where a GameCube save path silently became the Wii
+one. Our `shapes` map holds one class per system with `shape_depends_on_emulator` as the escape
+hatch, which is the same relationship built the other way round; treat a multi-emulator system
+as needing the per-emulator answer rather than as an exception. A9.
+
 ## Class D is a configuration problem
 
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
