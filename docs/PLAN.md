@@ -871,6 +871,30 @@ saves/dreamcast/reicast/states` while the file declares `{{system}}/flycast/ssta
   deferring cheap and what keeps the decision cheap to revisit: set resolution, mapping,
   conflict handling and the outbox all live in Core.
 
+  **What it cost, now stage 7b-1 has paid it.** Referenced as `Avalonia`, `Avalonia.Win32`,
+  `Avalonia.Skia` and `Avalonia.Themes.Fluent`, never `Avalonia.Desktop`: that package pulls
+  `Tmds.DBus.Protocol` in for the X11 backend, which raises `NU1903` for a known
+  high-severity advisory and so fails the `-warnaserror` build, for a backend a win-x64 ship
+  cannot use.
+
+  | Single file, natives bundled | Size         | First frame |
+  | ---------------------------- | ------------ | ----------- |
+  | the console stub it replaced | 77.9 MB      | n/a         |
+  | **shipped: untrimmed**       | **101.1 MB** | **1041 ms** |
+  | untrimmed + ReadyToRun       | 132.0 MB     | 533 ms      |
+  | trimmed + ReadyToRun         | 61.1 MB      | 517 ms      |
+
+  **The size argument holds and is not yet collected.** Trimming really does take this below
+  the agent, and it is off because Core and `RomM.Client` raise 16 `IL2026` warnings across
+  twelve reflection-based `System.Text.Json` call sites, whose failure mode is a runtime
+  deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save.
+  Making those trim-safe is #98 and belongs in its own PR, not a UI branch.
+
+  **One correction to the reasoning above, from measuring it.** ReadyToRun is what buys the
+  start time and trimming is purely a size lever: trimmed and untrimmed are equally fast once
+  R2R is on. The 150 ms trimming appeared to cost in an early measurement was R2R being absent,
+  not trimming being present.
+
 - `*.Tests` - xUnit.
 
 Everything the app owns lives inside the RetroBat tree: binaries, SQLite database, logs,
@@ -2736,22 +2760,56 @@ pass does, not a correction to 7a. See [argosy-findings.md](argosy-findings.md),
 
 #### 7b: the gamepad UI
 
-- Full-screen, controller-navigable: pair, manage sync sets, show sync progress,
-  conflicts and the disk budget, browse and install individual games.
-- **Read the M7b note in [argosy-findings.md](argosy-findings.md) before designing input.**
-  Argosy is a shipped gamepad-first RomM launcher at v2.8.0 and its input conventions are
-  collected there as design leads: A confirms and never adjusts, focus never moves an
-  element, inline affordances are always visible, footer hints shed in a fixed order. Its
-  `ControllerDetector` resolves a Nintendo-versus-Xbox face-button layout from vendor id then
-  device-name patterns, and its handheld brand list covers the same hardware a Windows
-  handheld running RetroBat uses. **None of it is verified and none of it is a data file to
-  copy**; it is a starting point to check against real controllers.
-- **Two browse modes.** Online browse pages the server and supports search. Offline browse
-  shows the local subset and says plainly that it is offline. Reachability checks use the
-  short timeout from M0 experiment 6 so the UI never hangs on an unreachable LAN.
-- Follow Grout's screens as a model: login, platform list, platform mapping, games list,
-  multi-select, sync summary, settings. The menu entry that opens it already exists and
-  points at the stub; 7b replaces what is behind it.
+**Cut into three, for the reason M6 was cut into 2a, 2b and 2c.** Only the first has landed.
+
+##### 7b-1: the shell and the way in (done)
+
+The one stage bounded by something other than taste: everything that has to exist before any
+screen can, plus the two screens needing no new Core API at all.
+
+- **A real full-screen Avalonia app**, `WinExe` rather than `Exe` so no console flashes behind
+  it over a live EmulationStation. Published untrimmed at 101.1 MB, first frame 1041 ms; see
+  the `RomMBat.UI` paragraph under "Projects" for what trimming would buy and why it is not on.
+- **Input is read, never detected.** `es_input.cfg` records which physical input is `a` on that
+  pad rather than what kind of pad it is, so there is no controller layout to detect and no
+  vendor-id table anywhere in RomMBat. The leads mined from Argosy proposed exactly such a
+  table and the first real device refutes it: vendor `0x2dc8` is 8BitDo, which that list calls
+  a Nintendo layout, and the 8BitDo maps byte-identically to an Xbox pad. Findings 218 to 225.
+- **Pairing from the couch**, with the address typed on an on-screen keyboard, the QR on screen
+  and the code hyphenated to read aloud, and the requested scopes shown before approval rather
+  than after.
+- **Status**, read-only: what this device is, what it is paired to, what is in the outbox, what
+  is in conflict, and what configuration is queued. That last one is the first reader migration
+  `012` has ever had outside the agent.
+- **Offline is a working state**, measured through the interface rather than inherited: an
+  unreachable server settles in 2046, 2002 and 2004 ms and the screen stays navigable
+  throughout. Finding 224.
+
+**Two boundaries are asserted structurally against the built assembly**, so a helper in another
+namespace or a call through an interface is caught where a grep would not: the UI never
+references `EsSettingsFile`, and it never references `TreeLock`. The second is the less obvious
+one, and it is a data-loss guard rather than tidiness: a flush treats a failed acquire as
+success, so a UI taking the lock merely to report whether a pass was running would make a
+concurrent `background quit` flush skip its upload and call it success.
+
+**Not in 7b-1, and not implied by it: a live 401.** Nothing in this stage makes an
+authenticated call after pairing completes, so there is no path on which a token can be
+rejected mid-session. What is reachable, and is shown, is an expired token with a route back to
+pairing. The drop-to-pairing-on-rejection rule from M1 belongs with the first screen that syncs.
+
+##### 7b-2: sets and browse
+
+Sync sets, online paged browse with search, offline browse of the local subset, per-game
+install and evict, the disk budget, and sync progress. **This is very likely more than one PR**
+and looks like M2, M3 and `EvictionPlanner` given a face at once; sync progress is also the
+first thing in this design to put minutes-long cancellable work inside a process a user can
+close. 7b-1's shell is shaped for that: a screen owns its work and is disposed when left.
+
+##### 7b-3: conflicts and settings
+
+Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
+whatever the two stages before it turn up.
+
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.

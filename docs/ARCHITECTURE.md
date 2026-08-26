@@ -196,27 +196,57 @@ two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for
 Full-screen, gamepad-navigable, published as `RomMBat.exe`, registered with
 EmulationStation through `system/es_menu/*.menu`.
 
-**The entry that launches it exists as of M7 stage 7a and points at the stub**, which is
-deliberate: proving the registration works is worth more than waiting for something to put
-behind it.
+**The entry that launches it exists as of M7 stage 7a**, and as of stage 7b-1 it opens a real
+interface: pairing behind an on-screen keyboard, and status. Sets, browse, install and
+conflict resolution are 7b-2 and 7b-3.
 
 **The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
 deciding argument is size on a portable drive rather than either start time or
 cross-platform reach. WPF cannot be trimmed at all, so it has a floor nothing moves, and it
 needs the Windows Desktop runtime inside a self-contained publish on top of the agent's
 76 MB. Avalonia trims, and renders through Skia, so what a handheld shows does not depend on
-that machine's Windows Desktop stack. The project is still a framework-free placeholder and
-no UI package is referenced anywhere in the tree yet.
+that machine's Windows Desktop stack.
+
+**What that decision actually cost, now it has been paid.** Referenced as `Avalonia`,
+`Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.Themes.Fluent`, never `Avalonia.Desktop`,
+which drags in `Tmds.DBus.Protocol` for the X11 backend and raises `NU1903` for a known
+high-severity advisory that `-warnaserror` turns into a failed build, for a backend this
+win-x64 build cannot use. Published untrimmed at **101.1 MB**, first frame **1041 ms**,
+against the 77.9 MB console stub it replaces.
+
+**Trimming is not switched on, and that is measured rather than lazy.** It takes the same
+build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
+`System.Text.Json` call sites in Core and `RomM.Client`, whose failure mode is a runtime
+deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save, so
+that is not a risk to carry for a size win. Tracked as #98.
+
+**Input is read, never detected.** The controller map comes from the live `es_input.cfg`,
+which records which physical input is `a` on that pad rather than what kind of pad it is, and
+it is read through `emulationstation/SDL2.dll` because those ids are SDL joystick indices and
+only the same library can interpret them. There is no vendor-id table anywhere in RomMBat.
+See `EsInputMap` and `GamepadReader`, and findings 218 to 225.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
 Anything it wants to change there goes into `pending_config` and is applied by
 `background quit`.
 
-That decision is cheap to defer precisely because presentation owns no logic. Set
-resolution, mapping, conflict handling and the outbox all live in Core, and the UI
-project holds views and view models over them. If something in the UI project cannot be
-tested without a window, it is in the wrong project.
+**Both halves of that are asserted structurally, against the built assembly rather than the
+source**, so a helper in another namespace or a call through an interface is caught where a
+grep would miss it: `RomMBat.UI` never references `EsSettingsFile`, and it never references
+`TreeLock` either.
+
+**The lock one is not obvious and is worth reading twice.** A flush treats a failed acquire as
+success and exits having done nothing, so a UI that took the lock for an instant merely to
+report whether a pass was running would make a concurrent `background quit` flush skip the
+upload and call it success. Reading needs no lock: the store is WAL. See the
+`offline-and-portable` skill.
+
+Presentation owns no logic. Set resolution, mapping, conflict handling and the outbox all live
+in Core, and the UI project holds views and view models over them. Screens carry no Avalonia
+types at all, so every screen is walked in tests by the gamepad map alone with no window; only
+`ShellWindow` knows about both the framework and the pad. If something in the UI project cannot
+be tested without a window, it is in the wrong project.
 
 No primary flow may require a mouse.
 

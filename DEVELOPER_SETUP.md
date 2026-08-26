@@ -252,8 +252,8 @@ is gitignored.
 
 ### Pairing by hand, without a UI
 
-The gamepad UI arrives in M7 stage 7b, so the pairing surface today is the console agent,
-ASCII QR included:
+The gamepad UI pairs from the couch as of M7 stage 7b-1. The console agent does the same
+thing without a window, ASCII QR included, which is what a headless or scripted install uses:
 
 ```powershell
 dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
@@ -263,6 +263,41 @@ dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
 `--root` is only needed when the agent is not running from inside the tree. Add `--protect`
 to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
 reachability probe.
+
+### Running the gamepad UI at a desk
+
+It runs standalone, with no EmulationStation in front of it and no controller plugged in:
+
+```powershell
+dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
+```
+
+**A physical keyboard drives it**, which exists so the interface can be worked on at a desk and
+is deliberately not a supported user flow: arrows move, Enter is A, Escape is B, Backspace is
+X, F5 is Start. With a controller connected it is read through the same `es_input.cfg` a real
+install uses, so what you press at a desk is what a user presses on a sofa.
+
+**Running standalone changes nothing about `es_settings.cfg`.** The UI never writes that file,
+EmulationStation up or not, because the queue is the only path that exists and a test asserts
+the assembly cannot even name the writer. "ES is always up" is a fact about how it is launched,
+not a load-bearing assumption.
+
+**A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
+identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.
+To re-test pairing without collecting a device per attempt, **delete the store and keep
+`device.id`**:
+
+```powershell
+Remove-Item D:\retrobat-test\emulators\rommbat\rommbat.db*
+```
+
+Pairing anchors on `client_device_identifier` and never on MAC or hostname, so the next pairing
+updates the same RomM device rather than creating another. Deleting `device.id` as well is what
+mints a new one.
+
+**A store from a completed pairing holds a live token in the clear** unless it was made with
+`--protect`. Do not copy one out of a tree, and do not paste the contents of the `device` table
+anywhere: `token_cipher` holds the token itself when protection is `none`.
 
 ### Pulling content, without filling your disk
 
