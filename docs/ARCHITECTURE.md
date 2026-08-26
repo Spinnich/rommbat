@@ -220,6 +220,24 @@ build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve refle
 deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save, so
 that is not a risk to carry for a size win. Tracked as #98.
 
+**The publish is five files, and bundling them into one is refused on principle 4.**
+`PublishSingleFile` bundles managed code; Avalonia's native libraries sit beside the exe, as
+`e_sqlite3.dll` already does for the agent:
+
+```text
+RomMBat.exe            82.5 MB
+av_libglesv2.dll        5.4 MB
+libSkiaSharp.dll        9.4 MB
+libHarfBuzzSharp.dll    1.8 MB
+e_sqlite3.dll           2.0 MB
+```
+
+`IncludeNativeLibrariesForSelfExtract=true` does produce one file, and it was measured at
+61 MB trimmed. It is not used, because self-extraction unpacks the natives into the **host's**
+temp directory rather than the tree, which is the thing core principle 4 forbids and would
+happen afresh on every machine a portable drive is carried to. M8's installer therefore places
+five files, and losing one of them breaks the app.
+
 **Input is read, never detected.** The controller map comes from the live `es_input.cfg`,
 which records which physical input is `a` on that pad rather than what kind of pad it is, and
 it is read through `emulationstation/SDL2.dll` because those ids are SDL joystick indices and
