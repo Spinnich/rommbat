@@ -3,6 +3,11 @@ using RomMBat.UI.Shell;
 
 namespace RomMBat.UI.Screens;
 
+/// <summary>What the caller made of what was typed.</summary>
+/// <param name="Next">Where to go next, or null when the text was no good.</param>
+/// <param name="Problem">Why it was no good, shown above the grid so it can be corrected.</param>
+public sealed record TypedResult(IScreen? Next, string? Problem = null);
+
 /// <summary>
 /// Typing on a gamepad, which the plan names as the one genuinely hostile step.
 /// </summary>
@@ -35,10 +40,16 @@ public sealed class OnScreenKeyboard : IScreen
         "TUVWXYZ~?=",
     ];
 
-    private readonly Action<string> _accepted;
+    private readonly Func<string, TypedResult> _accepted;
     private readonly string _prompt;
 
-    public OnScreenKeyboard(string title, string prompt, string initial, Action<string> accepted)
+    /// <param name="accepted">
+    /// Given what was typed, either the next screen or the reason it cannot be used. Validation
+    /// lives with the caller, because what makes a string usable is the caller's business: for
+    /// a server address that is <see cref="Core.InstallSession.ResolveOrigin"/>, which already
+    /// owns the rule and its words.
+    /// </param>
+    public OnScreenKeyboard(string title, string prompt, string initial, Func<string, TypedResult> accepted)
     {
         ArgumentNullException.ThrowIfNull(accepted);
 
@@ -55,6 +66,9 @@ public sealed class OnScreenKeyboard : IScreen
 
     /// <summary>The line above the grid, explaining what is being asked for.</summary>
     public string Prompt => _prompt;
+
+    /// <summary>Why the last attempt to commit was refused, or null.</summary>
+    public string? Problem { get; private set; }
 
     public int CursorRow { get; private set; }
 
@@ -97,6 +111,7 @@ public sealed class OnScreenKeyboard : IScreen
 
             case NavAction.Accept:
                 Text += Selected;
+                Problem = null;
                 break;
 
             case NavAction.Alternate:
@@ -105,13 +120,25 @@ public sealed class OnScreenKeyboard : IScreen
 
             case NavAction.Start:
                 // Committing an empty string would ask the caller to make sense of nothing.
-                if (Text.Length > 0)
+                if (Text.Length == 0)
                 {
-                    _accepted(Text);
-                    return ScreenCommand.Pop;
+                    break;
                 }
 
-                break;
+                var result = _accepted(Text);
+                Problem = result.Problem;
+
+                // Three answers, and the third is the one worth naming: a caller that took the
+                // text and has nowhere to send the user is done with this screen, so it closes.
+                // Leaving it open would strand them on a keyboard they have finished with.
+                if (result.Next is { } next)
+                {
+                    // Replace rather than push: back from what follows means "not this", not
+                    // "let me retype it".
+                    return ScreenCommand.Replace(next);
+                }
+
+                return result.Problem is null ? ScreenCommand.Pop : ScreenCommand.Stay;
 
             case NavAction.Back:
                 return ScreenCommand.Pop;
@@ -131,6 +158,8 @@ public sealed class OnScreenKeyboard : IScreen
 
     private void Backspace()
     {
+        Problem = null;
+
         if (Text.Length > 0)
         {
             Text = Text[..^1];

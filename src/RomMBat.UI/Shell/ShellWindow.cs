@@ -41,6 +41,7 @@ internal sealed class ShellWindow : Window
     private readonly TextBlock _title = new();
     private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 28 };
     private bool _primed;
+    private ILiveScreen? _live;
 
     public ShellWindow(Navigator navigator, GamepadReader? gamepad, Action exit)
     {
@@ -137,6 +138,31 @@ internal sealed class ShellWindow : Window
         }
     }
 
+    /// <summary>Follows a screen that updates itself, and stops following the last one.</summary>
+    private void Rewire(IScreen screen)
+    {
+        if (ReferenceEquals(screen, _live))
+        {
+            return;
+        }
+
+        if (_live is not null)
+        {
+            _live.Invalidated -= OnScreenInvalidated;
+        }
+
+        _live = screen as ILiveScreen;
+
+        if (_live is not null)
+        {
+            _live.Invalidated += OnScreenInvalidated;
+        }
+    }
+
+    // Raised from whatever thread did the work, so hop to the UI thread before touching controls.
+    private void OnScreenInvalidated(object? sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(Render);
+
     /// <summary>
     /// Rebuilds the visible screen.
     /// </summary>
@@ -149,6 +175,7 @@ internal sealed class ShellWindow : Window
     private void Render()
     {
         var screen = _navigator.Current;
+        Rewire(screen);
 
         _title.Text = screen.Title;
         _body.Content = ScreenView.Build(screen);

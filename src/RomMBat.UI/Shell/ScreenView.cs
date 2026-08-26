@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using RomMBat.Core.Identity;
 using RomMBat.UI.Screens;
 
 namespace RomMBat.UI.Shell;
@@ -30,6 +31,7 @@ internal static class ScreenView
     {
         StatusViewModel status => Status(status),
         OnScreenKeyboard keyboard => Keyboard(keyboard),
+        PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
@@ -177,6 +179,128 @@ internal static class ScreenView
 
         stack.Children.Add(grid);
         return stack;
+    }
+
+    private static StackPanel Pairing(PairingViewModel pairing)
+    {
+        var stack = new StackPanel { Spacing = 18 };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = pairing.Detail,
+            Foreground = Ink,
+            FontSize = 20,
+            MaxWidth = 980,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        if (pairing.QrCode is { } qr)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 40 };
+            row.Children.Add(Qr(qr));
+
+            var side = new StackPanel { Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
+
+            side.Children.Add(Labelled("Address", pairing.VerificationUri?.ToString() ?? string.Empty, 18));
+            side.Children.Add(Labelled("Code", pairing.DisplayCode ?? string.Empty, 40));
+
+            if (pairing.Remaining is { } left)
+            {
+                side.Children.Add(Labelled(
+                    "Expires in",
+                    $"{(int)left.TotalMinutes}:{left.Seconds:00}",
+                    22));
+            }
+
+            side.Children.Add(Labelled("Asks for", string.Join(", ", PairingViewModel.RequestedScopes), 15));
+
+            row.Children.Add(side);
+            stack.Children.Add(row);
+        }
+
+        if (pairing.Completion is { IsPaired: true } done)
+        {
+            stack.Children.Add(Labelled("Device", done.RomMDeviceId ?? "unknown", 18));
+            stack.Children.Add(Labelled("Granted", string.Join(", ", done.Scopes.All), 15));
+
+            // A feature quietly missing is worse than a late 403, so the narrowing is on screen
+            // at the moment it happens rather than only later on the status screen.
+            foreach (var (requirement, missing) in done.Scopes.Degradations)
+            {
+                stack.Children.Add(Labelled(
+                    "Turned off",
+                    $"{requirement.Name} (missing {string.Join(", ", missing)})",
+                    15));
+            }
+        }
+
+        return stack;
+    }
+
+    private static StackPanel Labelled(string label, string value, double size)
+    {
+        var stack = new StackPanel { Spacing = 2 };
+        stack.Children.Add(new TextBlock { Text = label.ToUpperInvariant(), Foreground = Accent, FontSize = 13 });
+        stack.Children.Add(new TextBlock
+        {
+            Text = value,
+            Foreground = Ink,
+            FontSize = size,
+            MaxWidth = 620,
+            TextWrapping = TextWrapping.Wrap,
+        });
+
+        return stack;
+    }
+
+    /// <summary>
+    /// Draws the QR as one path of dark squares.
+    /// </summary>
+    /// <remarks>
+    /// White background and a real quiet zone, both of which a scanner needs. The matrix
+    /// already carries the quiet zone, so the border here is only the visible frame.
+    /// </remarks>
+    private static Border Qr(QrMatrix matrix)
+    {
+        const int Module = 6;
+
+        var geometry = new StreamGeometry();
+        using (var context = geometry.Open())
+        {
+            for (var row = 0; row < matrix.Size; row++)
+            {
+                for (var column = 0; column < matrix.Size; column++)
+                {
+                    if (!matrix.IsDark(row, column))
+                    {
+                        continue;
+                    }
+
+                    var x = column * Module;
+                    var y = row * Module;
+                    context.BeginFigure(new Point(x, y), isFilled: true);
+                    context.LineTo(new Point(x + Module, y));
+                    context.LineTo(new Point(x + Module, y + Module));
+                    context.LineTo(new Point(x, y + Module));
+                    context.EndFigure(isClosed: true);
+                }
+            }
+        }
+
+        return new Border
+        {
+            Background = Brushes.White,
+            Padding = new Thickness(10),
+            CornerRadius = new CornerRadius(6),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new Avalonia.Controls.Shapes.Path
+            {
+                Data = geometry,
+                Fill = Brushes.Black,
+                Width = matrix.Size * Module,
+                Height = matrix.Size * Module,
+            },
+        };
     }
 
     private static TextBlock Message(MessageScreen message) =>

@@ -61,7 +61,7 @@ public class NavigationTests
         var status = new StatusViewModel(session, NoPad)
         {
             StartPairing = () => new OnScreenKeyboard(
-                "Pair with RomM", "Where is your RomM server?", string.Empty, text => typed = text),
+                "Pair with RomM", "Where is your RomM server?", string.Empty, text => { typed = text; return new TypedResult(null); }),
         };
 
         var navigator = new Navigator(status);
@@ -85,7 +85,7 @@ public class NavigationTests
     {
         var committed = (string?)null;
         var keyboard = new OnScreenKeyboard(
-            "Pair with RomM", "Where is your RomM server?", string.Empty, text => committed = text);
+            "Pair with RomM", "Where is your RomM server?", string.Empty, text => { committed = text; return new TypedResult(null); });
 
         var navigator = new Navigator(keyboard);
         var clock = T0;
@@ -105,7 +105,7 @@ public class NavigationTests
     [Fact]
     public void Backspace_is_not_on_the_button_that_confirms()
     {
-        var keyboard = new OnScreenKeyboard("t", "p", "abc", _ => { });
+        var keyboard = new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
@@ -122,7 +122,7 @@ public class NavigationTests
     public void Committing_nothing_is_refused_rather_than_handing_the_caller_an_empty_string()
     {
         var committed = (string?)null;
-        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, text => committed = text);
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, text => { committed = text; return new TypedResult(null); });
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
@@ -135,7 +135,7 @@ public class NavigationTests
     [Fact]
     public void The_cursor_wraps_in_both_directions_on_every_row()
     {
-        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => { });
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
@@ -158,7 +158,7 @@ public class NavigationTests
         // keys or index out of range. Both are silent until someone tries that key.
         Assert.All(OnScreenKeyboard.Grid, row => Assert.Equal(OnScreenKeyboard.Grid[0].Length, row.Length));
 
-        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => { });
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
         var seen = new HashSet<string>(StringComparer.Ordinal);

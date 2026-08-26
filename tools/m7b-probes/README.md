@@ -19,11 +19,12 @@ in `Tmds.DBus.Protocol` for the X11 backend, which raises `NU1903` for a known h
 advisory, and CI builds `-warnaserror`. RomMBat ships win-x64 and has no use for the X11 or
 macOS backends. Build the app with `.UseWin32().UseSkia()` rather than `.UsePlatformDetect()`.
 
-| File                        | What it is                                                                        |
-| --------------------------- | --------------------------------------------------------------------------------- |
-| `probe1-sdl.cs`             | P/Invoke onto RetroBat's own `emulationstation/SDL2.dll`, joystick subsystem only |
-| `probe1-input-and-focus.cs` | A full-screen Avalonia window that logs input, focus, foreground and ES liveness  |
-| `probe1-selected-hook.cs`   | Stamps ES's `game-selected` / `system-selected`, which is what made 219 provable  |
+| File                           | What it is                                                                        |
+| ------------------------------ | --------------------------------------------------------------------------------- |
+| `probe1-sdl.cs`                | P/Invoke onto RetroBat's own `emulationstation/SDL2.dll`, joystick subsystem only |
+| `probe1-input-and-focus.cs`    | A full-screen Avalonia window that logs input, focus, foreground and ES liveness  |
+| `probe1-selected-hook.cs`      | Stamps ES's `game-selected` / `system-selected`, which is what made 219 provable  |
+| `probe4-unreachable-server.cs` | Times an unreachable server through the path the UI uses. Needs only Core         |
 
 ## The two that mattered
 
@@ -46,6 +47,12 @@ through the shipped parser, which they do, for all 21 names on the 8BitDo.
 - **The first observation of any input is its resting value, not a press.** Otherwise every run
   opens with a burst of phantom events, and on this pad two of them would be the triggers,
   which rest at `-32768` rather than zero (finding 223).
+
+`probe4` takes a RetroBat root and a target, and defaults to `192.0.2.1:8080`. That address is
+TEST-NET-1 from RFC 5737, reserved for documentation and guaranteed not to be a real host: a
+made-up **hostname** would fail at DNS instead, which is a different and far faster path that
+never exercises the connect timeout at all. Measured 2046 / 2002 / 2004 ms, against the 21 s an
+unset `ConnectTimeout` costs.
 
 Output goes to `probe-output/`, or to `emulators/rommbat/logs/` when the probe is installed
 into a real tree as `RomMBat.exe`. Both are gitignored.

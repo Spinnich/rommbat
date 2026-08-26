@@ -63,10 +63,37 @@ internal sealed class App : Application
                 "Pair with RomM",
                 "Type your RomM server address, then press Start.",
                 _session.Store.Settings.Get(UiSettings.LastServerOrigin) ?? "http://",
-                typed => _session.Store.Settings.Set(UiSettings.LastServerOrigin, typed, DateTimeOffset.UtcNow)),
+                Typed),
         };
 
         return new ShellWindow(new Navigator(status), _gamepad, () => desktop.Shutdown());
+    }
+
+    /// <summary>
+    /// Turns what was typed into the next screen, or into the reason it cannot be.
+    /// </summary>
+    /// <remarks>
+    /// <b>The rule and its words are Core's.</b> <see cref="InstallSession.ResolveOrigin"/>
+    /// already decides what counts as a server address and says why when it does not, and the
+    /// console has used the same answer since M1. Re-deciding it here would be the exact shape
+    /// of logic leaking into presentation.
+    /// <para>
+    /// Remembered before it is used, and whether or not pairing then succeeds, so a failed
+    /// attempt never makes anyone retype a URL on a d-pad.
+    /// </para>
+    /// </remarks>
+    private TypedResult Typed(string text)
+    {
+        var choice = _session!.ResolveOrigin(text);
+
+        if (choice.Origin is not { } origin)
+        {
+            return new TypedResult(null, choice.Problem);
+        }
+
+        _session.Store.Settings.Set(UiSettings.LastServerOrigin, text, DateTimeOffset.UtcNow);
+
+        return new TypedResult(new PairingViewModel(_session, origin));
     }
 
     private void Shutdown()

@@ -14,6 +14,16 @@ public enum ScreenCommandKind
     /// <summary>Close this screen and go back.</summary>
     Pop,
 
+    /// <summary>
+    /// Swap this screen for another one.
+    /// </summary>
+    /// <remarks>
+    /// A step in a sequence rather than a detour: the on-screen keyboard hands off to pairing
+    /// and has no business staying underneath it, because back from pairing means "I did not
+    /// want to pair" and not "let me retype the address".
+    /// </remarks>
+    Replace,
+
     /// <summary>Leave RomMBat entirely.</summary>
     Exit,
 }
@@ -28,6 +38,8 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
     public static ScreenCommand Exit => new(ScreenCommandKind.Exit);
 
     public static ScreenCommand Push(IScreen screen) => new(ScreenCommandKind.Push, screen);
+
+    public static ScreenCommand Replace(IScreen screen) => new(ScreenCommandKind.Replace, screen);
 }
 
 /// <summary>
@@ -65,4 +77,21 @@ public interface IScreen
 
     /// <summary>Responds to one action.</summary>
     ScreenCommand Handle(NavAction action);
+}
+
+/// <summary>
+/// A screen that changes without being pressed, and needs redrawing when it does.
+/// </summary>
+/// <remarks>
+/// <b>Only pairing needs this so far, and it needs it badly.</b> A countdown that does not tick
+/// and an approval that never appears are the same screen as a hung one, from the couch.
+/// <para>
+/// <b>Raised from whatever thread did the work</b>, so the shell marshals it. Screens have no
+/// business knowing which thread they are on.
+/// </para>
+/// </remarks>
+public interface ILiveScreen
+{
+    /// <summary>Something worth redrawing has changed.</summary>
+    event EventHandler? Invalidated;
 }
