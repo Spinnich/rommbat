@@ -46,19 +46,28 @@ public sealed class StatusViewModel : IScreen
 
     public string Title => "RomMBat";
 
-    /// <summary>True when the only useful thing here is to pair.</summary>
+    /// <summary>True when this install has never been paired.</summary>
     public bool NeedsPairing => _session.Store.Device.Read()?.IsPaired != true;
 
-    public IReadOnlyList<FooterHint> Hints => NeedsPairing
-        ?
-        [
-            new FooterHint("A", "Pair with RomM", 3),
-            new FooterHint("B", "Back to EmulationStation", 2),
-        ]
-        :
-        [
-            new FooterHint("B", "Back to EmulationStation", 2),
-        ];
+    /// <summary>
+    /// True when there is a token but it has run out.
+    /// </summary>
+    /// <remarks>
+    /// A scoped, expiring token is the recommended default on a portable drive, so reaching
+    /// this is ordinary rather than a fault, and the only thing to do about it is pair again.
+    /// </remarks>
+    public bool TokenExpired =>
+        _session.Store.Device.Read() is { IsPaired: true } device
+        && device.IsTokenExpired(DateTimeOffset.UtcNow);
+
+    public IReadOnlyList<FooterHint> Hints =>
+    [
+        // Pairing is reachable whether or not this install is paired. Re-pairing is how a user
+        // moves to a different server, and how they recover an expired or rejected token: M1
+        // makes it deliberately cheap, and a screen that hides it strands them.
+        new FooterHint("A", NeedsPairing ? "Pair with RomM" : "Pair again", 3),
+        new FooterHint("B", "Back to EmulationStation", 2),
+    ];
 
     /// <summary>
     /// Where the pairing flow starts, once there is one.
@@ -72,7 +81,7 @@ public sealed class StatusViewModel : IScreen
 
     public ScreenCommand Handle(NavAction action) => action switch
     {
-        NavAction.Accept when NeedsPairing && StartPairing is { } start => ScreenCommand.Push(start()),
+        NavAction.Accept when StartPairing is { } start => ScreenCommand.Push(start()),
 
         // Back on the root screen leaves RomMBat, which the navigator turns into an exit. The
         // user came from the EmulationStation menu and that is where they go.
@@ -121,6 +130,15 @@ public sealed class StatusViewModel : IScreen
             new("Device id", device.RomMDeviceId ?? "none"),
             new("Last contact", Describe(clock.LastContactUtc)),
         };
+
+        if (TokenExpired)
+        {
+            // Said here rather than discovered as a failure the next time something syncs.
+            rows.Add(new StatusRow(
+                "Token",
+                "expired",
+                "Press A to pair again. Your saves, states and settings are kept."));
+        }
 
         // Degradations are a granted-scope consequence, worked out by Core. Shown because a
         // feature silently missing is worse than a late 403.

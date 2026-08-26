@@ -63,7 +63,20 @@ internal sealed class ShellWindow : Window
         timer.Tick += (_, _) => Poll();
         timer.Start();
 
-        AddHandler(KeyDownEvent, OnKey, Avalonia.Interactivity.RoutingStrategies.Tunnel);
+        // Focusable and focused on open, because a key event is routed to the focused element
+        // and nothing else in this tree accepts focus: every control here is drawn rather than
+        // interacted with, so with no focus target the handler below never runs at all.
+        Focusable = true;
+        Opened += (_, _) => Focus();
+
+        // Tunnel only, and never Tunnel|Bubble: registering for both runs this handler twice
+        // for one press, which is one physical press producing two actions. It cost an Escape
+        // that popped a screen and then closed RomMBat in the same keystroke.
+        AddHandler(
+            KeyDownEvent,
+            OnKey,
+            Avalonia.Interactivity.RoutingStrategies.Tunnel,
+            handledEventsToo: true);
     }
 
     private Grid BuildChrome()
