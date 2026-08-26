@@ -29,6 +29,16 @@ public enum NavAction
     /// <summary>The screen's own primary action, whatever it says in the footer.</summary>
     Start,
 
+    /// <summary>
+    /// The screen's secondary action, named in the footer wherever it exists.
+    /// </summary>
+    /// <remarks>
+    /// Bound to <c>x</c>. Kept apart from <see cref="Accept"/> because a screen that needs a
+    /// destructive or corrective action, backspace being the obvious one, must not put it on
+    /// the button that also confirms.
+    /// </remarks>
+    Alternate,
+
     /// <summary>Previous page or previous section.</summary>
     PageUp,
 

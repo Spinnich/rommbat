@@ -48,6 +48,9 @@ public sealed class NavRepeat
         (NavAction.Accept, ["a"], false),
         (NavAction.Back, ["b"], false),
         (NavAction.Start, ["start"], false),
+        // Backspace lives here, so it repeats: holding it clears a mistyped URL rather than
+        // asking for one press per character.
+        (NavAction.Alternate, ["x"], true),
         (NavAction.PageUp, ["pageup"], true),
         (NavAction.PageDown, ["pagedown"], true),
     ];
@@ -56,6 +59,7 @@ public sealed class NavRepeat
     private readonly TimeSpan _interval;
     private readonly Dictionary<NavAction, DateTimeOffset> _downSince = [];
     private readonly Dictionary<NavAction, DateTimeOffset> _lastFired = [];
+    private readonly HashSet<NavAction> _suppressed = [];
 
     public NavRepeat(TimeSpan? delay = null, TimeSpan? interval = null)
     {
@@ -86,6 +90,14 @@ public sealed class NavRepeat
             {
                 _downSince.Remove(action);
                 _lastFired.Remove(action);
+
+                // Released at last, so it counts again from here.
+                _suppressed.Remove(action);
+                continue;
+            }
+
+            if (_suppressed.Contains(action))
+            {
                 continue;
             }
 
@@ -114,6 +126,33 @@ public sealed class NavRepeat
     }
 
     /// <summary>
+    /// Marks everything currently held as not this session's to act on, until it is released.
+    /// </summary>
+    /// <remarks>
+    /// <b>Called once, by the shell, on its first poll.</b> RomMBat is opened from the
+    /// EmulationStation menu by pressing A, and that first poll happens while the button is very
+    /// often still down. Without this the press that launched the app is consumed by the app's
+    /// own first screen, which was observed doing exactly that: a pad held at launch walked
+    /// straight back out of the root screen and closed RomMBat before it drew.
+    /// <para>
+    /// Explicit rather than implicit on the first <see cref="Advance"/>, because a general
+    /// class that silently treats its first call differently is a trap for the next caller.
+    /// </para>
+    /// </remarks>
+    public void SuppressHeld(IReadOnlySet<string> held)
+    {
+        ArgumentNullException.ThrowIfNull(held);
+
+        foreach (var (action, names, _) in Bindings)
+        {
+            if (names.Any(held.Contains))
+            {
+                _suppressed.Add(action);
+            }
+        }
+    }
+
+    /// <summary>
     /// Forgets what is held, so the next poll treats everything as a fresh press.
     /// </summary>
     /// <remarks>
@@ -125,5 +164,8 @@ public sealed class NavRepeat
     {
         _downSince.Clear();
         _lastFired.Clear();
+
+        // Not the suppressed set: a button held since launch is still not this screen's to act
+        // on just because the screen changed.
     }
 }

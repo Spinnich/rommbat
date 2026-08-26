@@ -2,6 +2,8 @@ using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
+using RomMBat.UI.Input;
+using RomMBat.UI.Shell;
 
 namespace RomMBat.UI.Screens;
 
@@ -27,7 +29,7 @@ public sealed record StatusSection(string Title, IReadOnlyList<StatusRow> Rows);
 /// server switched off.
 /// </para>
 /// </remarks>
-public sealed class StatusViewModel
+public sealed class StatusViewModel : IScreen
 {
     private readonly InstallSession _session;
 
@@ -42,7 +44,42 @@ public sealed class StatusViewModel
 
     public GamepadStatus Gamepad { get; }
 
-    public static string Title => "RomMBat";
+    public string Title => "RomMBat";
+
+    /// <summary>True when the only useful thing here is to pair.</summary>
+    public bool NeedsPairing => _session.Store.Device.Read()?.IsPaired != true;
+
+    public IReadOnlyList<FooterHint> Hints => NeedsPairing
+        ?
+        [
+            new FooterHint("A", "Pair with RomM", 3),
+            new FooterHint("B", "Back to EmulationStation", 2),
+        ]
+        :
+        [
+            new FooterHint("B", "Back to EmulationStation", 2),
+        ];
+
+    /// <summary>
+    /// Where the pairing flow starts, once there is one.
+    /// </summary>
+    /// <remarks>
+    /// Set by the shell rather than constructed here, because pairing needs a connection and a
+    /// cancellation token that this screen has no business owning. Null until 7b-1's pairing
+    /// screen is wired, and accept does nothing rather than opening a blank screen.
+    /// </remarks>
+    public Func<IScreen>? StartPairing { get; init; }
+
+    public ScreenCommand Handle(NavAction action) => action switch
+    {
+        NavAction.Accept when NeedsPairing && StartPairing is { } start => ScreenCommand.Push(start()),
+
+        // Back on the root screen leaves RomMBat, which the navigator turns into an exit. The
+        // user came from the EmulationStation menu and that is where they go.
+        NavAction.Back => ScreenCommand.Pop,
+
+        _ => ScreenCommand.Stay,
+    };
 
     /// <summary>Everything the screen shows, rebuilt on demand rather than cached.</summary>
     public IReadOnlyList<StatusSection> Sections() =>

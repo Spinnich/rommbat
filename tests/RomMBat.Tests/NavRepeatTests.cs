@@ -109,6 +109,55 @@ public class NavRepeatTests
     }
 
     [Fact]
+    public void A_button_already_held_when_the_app_starts_is_ignored_until_it_is_released()
+    {
+        var nav = new NavRepeat();
+
+        // RomMBat is opened from the EmulationStation menu by pressing A, and the shell's first
+        // poll happens while that button is very often still down. Observed for real: a pad held
+        // at launch walked straight back out of the root screen and closed the app before it
+        // drew anything.
+        nav.SuppressHeld(Held("a"));
+
+        Assert.Empty(nav.Advance(Held("a"), T0));
+        Assert.Empty(nav.Advance(Held("a"), T0.AddMilliseconds(500)));
+        Assert.Empty(nav.Advance(Held("a"), T0.AddSeconds(5)));
+
+        // Released, so the next press is the user's.
+        Assert.Empty(nav.Advance(Held(), T0.AddSeconds(6)));
+        Assert.Equal([NavAction.Accept], nav.Advance(Held("a"), T0.AddSeconds(7)));
+    }
+
+    [Fact]
+    public void A_direction_held_at_launch_does_not_scroll_the_first_screen()
+    {
+        var nav = new NavRepeat();
+        nav.SuppressHeld(Held("down"));
+
+        Assert.Empty(nav.Advance(Held("down"), T0));
+
+        // The dangerous half: without suppression this would start auto-repeating after the
+        // delay and run the cursor down a list nobody touched.
+        Assert.Empty(nav.Advance(Held("down"), T0.AddMilliseconds(500)));
+        Assert.Empty(nav.Advance(Held("down"), T0.AddMilliseconds(900)));
+    }
+
+    [Fact]
+    public void Changing_screen_does_not_un_suppress_a_button_held_since_launch()
+    {
+        var nav = new NavRepeat();
+        nav.SuppressHeld(Held("a"));
+
+        Assert.Empty(nav.Advance(Held("a"), T0));
+
+        // Forget makes a held button a fresh press for a new screen, which is right for a
+        // button the user pressed. It must not resurrect one they never pressed at all.
+        nav.Forget();
+
+        Assert.Empty(nav.Advance(Held("a"), T0.AddMilliseconds(100)));
+    }
+
+    [Fact]
     public void Two_directions_at_once_both_fire_which_is_what_a_diagonal_is()
     {
         var nav = new NavRepeat();
