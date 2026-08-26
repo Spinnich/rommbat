@@ -70,6 +70,18 @@ the source of truth; the network is optional, probed with a short-timeout
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.
 
+- **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
+  for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
+  (`FlushCommand.cs:68-72`). So anything that grabs the lock for an instant just to look at it
+  makes a `background quit` flush starting in that instant skip the upload entirely and call it
+  success, leaving the user's save in the outbox until the next quit with nothing saying why.
+  **Take the lock only around work you are actually going to do**, and hold it for the whole of
+  that work. To show whether a pass is running, find another way or do not show it.
+
+  **Reading needs no lock at all.** The store is SQLite in WAL mode, so a reader and a writer
+  coexist. The gamepad UI is read-only through stage 7b-1 and therefore never touches the lock,
+  which a structural test asserts against the built assembly.
+
 - Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
   under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave
   a half-written file in a folder EmulationStation scans and offers to launch. Only a
