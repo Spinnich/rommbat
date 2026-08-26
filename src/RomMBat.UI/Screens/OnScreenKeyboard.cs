@@ -16,32 +16,48 @@ public sealed record TypedResult(IScreen? Next, string? Problem = null);
 /// risks table calls it out by name, and the mitigation is this plus remembering the answer so
 /// it is typed once.
 /// <para>
-/// <b>The layout is fixed and reachable rather than clever.</b> Every key is on one grid, so
-/// there is no shift state to get lost in and no mode a user can end up in without knowing how
-/// they got there. The rows carry what a URL needs, which is why <c>.</c>, <c>:</c>, <c>/</c>
-/// and <c>-</c> are on the main grid rather than behind a symbols page.
+/// <b>QWERTY, not alphabetical.</b> An alphabetical grid looks tidier and is slower to use:
+/// people know where keys are on a keyboard and have to hunt on anything else. Every console
+/// keyboard is QWERTY and that is not an accident.
 /// </para>
 /// <para>
-/// <b>Movement wraps.</b> On a grid this small, a cursor that stops dead at the edge costs more
-/// presses than it saves, and wrapping is what every console keyboard does.
+/// <b>Case is a toggle, and the first version of this screen got that wrong deliberately.</b>
+/// The argument for putting both cases on one flat grid was that a mode is something a user can
+/// end up in without knowing how they got there. The price was seventy keys with the alphabet
+/// printed twice, which is far more travel and a hunt on every capital. The answer to a
+/// confusing mode is to show it plainly, which the grid does by redrawing under the cursor, not
+/// to pay that. Bound to L1 and R1, where a console keyboard puts it.
+/// </para>
+/// <para>
+/// <b>The layers are the same shape</b>, so toggling never moves the cursor, and the pairs
+/// follow a real keyboard wherever that does not cost a URL something: <c>:</c> and <c>/</c>
+/// stay unshifted, because <c>http://</c> would otherwise need the toggle twice in four
+/// characters.
+/// </para>
+/// <para>
+/// <b>Movement wraps.</b> On a grid this small a cursor that stops dead at the edge costs more
+/// presses than it saves.
 /// </para>
 /// </remarks>
 public sealed class OnScreenKeyboard : IScreen
 {
-    /// <summary>The grid, row by row. Every row is the same width so movement is predictable.</summary>
-    private static readonly string[] Rows =
+    private static readonly string[] Lower =
     [
         "1234567890",
-        "abcdefghij",
-        "klmnopqrst",
-        "uvwxyz.-_:",
-        "/ABCDEFGHI",
-        "JKLMNOPQRS",
-        "TUVWXYZ~?=",
+        "qwertyuiop",
+        "asdfghjkl:",
+        "zxcvbnm./-",
+    ];
+
+    private static readonly string[] Upper =
+    [
+        "!@#$%^&*()",
+        "QWERTYUIOP",
+        "ASDFGHJKL~",
+        "ZXCVBNM_?=",
     ];
 
     private readonly Func<string, TypedResult> _accepted;
-    private readonly string _prompt;
 
     /// <param name="accepted">
     /// Given what was typed, either the next screen or the reason it cannot be used. Validation
@@ -54,37 +70,45 @@ public sealed class OnScreenKeyboard : IScreen
         ArgumentNullException.ThrowIfNull(accepted);
 
         Title = title;
-        _prompt = prompt;
+        Prompt = prompt;
         Text = initial ?? string.Empty;
         _accepted = accepted;
     }
 
     public string Title { get; }
 
+    /// <summary>The line above the grid, explaining what is being asked for.</summary>
+    public string Prompt { get; }
+
     /// <summary>What has been typed so far.</summary>
     public string Text { get; private set; }
 
-    /// <summary>The line above the grid, explaining what is being asked for.</summary>
-    public string Prompt => _prompt;
-
     /// <summary>Why the last attempt to commit was refused, or null.</summary>
     public string? Problem { get; private set; }
+
+    /// <summary>True while the upper layer is showing.</summary>
+    public bool IsShifted { get; private set; }
 
     public int CursorRow { get; private set; }
 
     public int CursorColumn { get; private set; }
 
-    /// <summary>The character the cursor is on.</summary>
-    public string Selected => Rows[CursorRow][CursorColumn].ToString();
+    /// <summary>The layer currently on screen.</summary>
+    public IReadOnlyList<string> Keys => IsShifted ? Upper : Lower;
 
-    public static IReadOnlyList<string> Grid => Rows;
+    /// <summary>The character the cursor is on, in the current layer.</summary>
+    public string Selected => Keys[CursorRow][CursorColumn].ToString();
+
+    /// <summary>Both layers, for the test that asserts they are the same shape.</summary>
+    public static IReadOnlyList<IReadOnlyList<string>> Layers => [Lower, Upper];
 
     public IReadOnlyList<FooterHint> Hints =>
     [
-        new("A", "Type", 3),
-        new("X", "Backspace", 2),
-        new("Start", "Done", 3),
-        new("B", "Cancel", 1),
+        new FooterHint("A", "Type", 4),
+        new FooterHint("L1/R1", IsShifted ? "abc" : "ABC", 3),
+        new FooterHint("X", "Backspace", 2),
+        new FooterHint("Start", "Done", 4),
+        new FooterHint("B", "Cancel", 1),
     ];
 
     public ScreenCommand Handle(NavAction action)
@@ -92,21 +116,26 @@ public sealed class OnScreenKeyboard : IScreen
         switch (action)
         {
             case NavAction.Up:
-                CursorRow = (CursorRow - 1 + Rows.Length) % Rows.Length;
-                ClampColumn();
+                CursorRow = (CursorRow - 1 + Keys.Count) % Keys.Count;
                 break;
 
             case NavAction.Down:
-                CursorRow = (CursorRow + 1) % Rows.Length;
-                ClampColumn();
+                CursorRow = (CursorRow + 1) % Keys.Count;
                 break;
 
             case NavAction.Left:
-                CursorColumn = (CursorColumn - 1 + Rows[CursorRow].Length) % Rows[CursorRow].Length;
+                CursorColumn = (CursorColumn - 1 + Keys[CursorRow].Length) % Keys[CursorRow].Length;
                 break;
 
             case NavAction.Right:
-                CursorColumn = (CursorColumn + 1) % Rows[CursorRow].Length;
+                CursorColumn = (CursorColumn + 1) % Keys[CursorRow].Length;
+                break;
+
+            case NavAction.PageUp:
+            case NavAction.PageDown:
+                // The layers are the same shape, so the cursor stays exactly where it is and the
+                // key under it simply changes case.
+                IsShifted = !IsShifted;
                 break;
 
             case NavAction.Accept:
@@ -149,12 +178,6 @@ public sealed class OnScreenKeyboard : IScreen
 
         return ScreenCommand.Stay;
     }
-
-    /// Every row is the same width today, so this never fires. It is here because a row
-    /// edited to a different length would otherwise index out of range on a vertical move,
-    /// which is a crash in a full-screen app with no console behind it.
-    private void ClampColumn() =>
-        CursorColumn = Math.Min(CursorColumn, Rows[CursorRow].Length - 1);
 
     private void Backspace()
     {

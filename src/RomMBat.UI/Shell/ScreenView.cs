@@ -26,6 +26,7 @@ internal static class ScreenView
     private static readonly IBrush Muted = new SolidColorBrush(Color.FromRgb(0x9A, 0xA3, 0xB2));
     private static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(0x6E, 0xA8, 0xFE));
     private static readonly IBrush Panel = new SolidColorBrush(Color.FromRgb(0x1B, 0x1F, 0x29));
+    private static readonly IBrush Warn = new SolidColorBrush(Color.FromRgb(0xFF, 0xA5, 0x7A));
 
     public static Control Build(IScreen screen) => screen switch
     {
@@ -61,7 +62,14 @@ internal static class ScreenView
 
     private static StackPanel Status(StatusViewModel status)
     {
-        var stack = new StackPanel { Spacing = 22 };
+        // The block is centred; the rows inside it are not. A label-and-value list read across
+        // a room needs its labels to start on one line, and centring each row destroys that.
+        var stack = new StackPanel
+        {
+            Spacing = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
 
         foreach (var section in status.Sections())
         {
@@ -119,13 +127,14 @@ internal static class ScreenView
 
     private static StackPanel Keyboard(OnScreenKeyboard keyboard)
     {
-        var stack = new StackPanel { Spacing = 20 };
+        var stack = new StackPanel { Spacing = 18, HorizontalAlignment = HorizontalAlignment.Center };
 
         stack.Children.Add(new TextBlock
         {
             Text = keyboard.Prompt,
             Foreground = Muted,
             FontSize = 19,
+            HorizontalAlignment = HorizontalAlignment.Center,
         });
 
         // What has been typed, in a box, so it reads as the thing being edited.
@@ -133,23 +142,45 @@ internal static class ScreenView
         {
             Background = Panel,
             CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(18, 14, 18, 14),
+            Padding = new Thickness(20, 14, 20, 14),
+            MinWidth = 620,
+            HorizontalAlignment = HorizontalAlignment.Center,
             Child = new TextBlock
             {
                 Text = keyboard.Text.Length == 0 ? " " : keyboard.Text,
                 Foreground = Ink,
                 FontSize = 30,
                 FontFamily = new FontFamily("Consolas, monospace"),
+                HorizontalAlignment = HorizontalAlignment.Center,
             },
         });
 
-        var grid = new StackPanel { Spacing = 8 };
-
-        for (var r = 0; r < OnScreenKeyboard.Grid.Count; r++)
+        // The refusal from Core, where the eye already is rather than at the top of the screen.
+        if (keyboard.Problem is { } problem)
         {
-            var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+            stack.Children.Add(new TextBlock
+            {
+                Text = problem,
+                Foreground = Warn,
+                FontSize = 17,
+                MaxWidth = 700,
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
 
-            for (var c = 0; c < OnScreenKeyboard.Grid[r].Length; c++)
+        var grid = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+
+        for (var r = 0; r < keyboard.Keys.Count; r++)
+        {
+            var line = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+
+            for (var c = 0; c < keyboard.Keys[r].Length; c++)
             {
                 var selected = r == keyboard.CursorRow && c == keyboard.CursorColumn;
 
@@ -157,17 +188,17 @@ internal static class ScreenView
                 {
                     // Fill and ring only. The box is the same size selected or not, so the grid
                     // never shifts under the cursor.
-                    Width = 52,
-                    Height = 52,
+                    Width = 62,
+                    Height = 62,
                     Background = selected ? Accent : Panel,
                     BorderBrush = selected ? Ink : Panel,
                     BorderThickness = new Thickness(2),
                     CornerRadius = new CornerRadius(8),
                     Child = new TextBlock
                     {
-                        Text = OnScreenKeyboard.Grid[r][c].ToString(),
+                        Text = keyboard.Keys[r][c].ToString(),
                         Foreground = selected ? Brushes.Black : Ink,
-                        FontSize = 24,
+                        FontSize = 26,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
                     },
@@ -183,20 +214,27 @@ internal static class ScreenView
 
     private static StackPanel Pairing(PairingViewModel pairing)
     {
-        var stack = new StackPanel { Spacing = 18 };
+        var stack = new StackPanel { Spacing = 20, HorizontalAlignment = HorizontalAlignment.Center };
 
         stack.Children.Add(new TextBlock
         {
             Text = pairing.Detail,
             Foreground = Ink,
             FontSize = 20,
-            MaxWidth = 980,
+            MaxWidth = 900,
             TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
         });
 
         if (pairing.QrCode is { } qr)
         {
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 40 };
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Spacing = 44,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
             row.Children.Add(Qr(qr));
 
             var side = new StackPanel { Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
@@ -304,12 +342,15 @@ internal static class ScreenView
     }
 
     private static TextBlock Message(MessageScreen message) =>
-        new TextBlock
+        new()
         {
             Text = message.Message,
             Foreground = Ink,
             FontSize = 22,
             MaxWidth = 900,
             TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
         };
 }

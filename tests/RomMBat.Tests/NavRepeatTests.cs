@@ -75,11 +75,11 @@ public class NavRepeatTests
         // es_input.cfg records only one direction per axis. A stick that could move a menu up
         // and never down would read as a broken pad.
         Assert.Equal([NavAction.Up], nav.Advance(Held("joystick1up"), T0));
-        nav.Forget();
+        nav.CarryNothingOver();
         Assert.Equal([NavAction.Down], nav.Advance(Held("joystick1down"), T0));
-        nav.Forget();
+        nav.CarryNothingOver();
         Assert.Equal([NavAction.Left], nav.Advance(Held("joystick1left"), T0));
-        nav.Forget();
+        nav.CarryNothingOver();
         Assert.Equal([NavAction.Right], nav.Advance(Held("joystick1right"), T0));
     }
 
@@ -95,17 +95,23 @@ public class NavRepeatTests
     }
 
     [Fact]
-    public void Forgetting_makes_a_still_held_button_a_fresh_press_for_the_next_screen()
+    public void A_button_still_held_across_a_screen_change_does_not_act_twice()
     {
         var nav = new NavRepeat();
 
-        Assert.Equal([NavAction.Accept], nav.Advance(Held("a"), T0));
+        Assert.Equal([NavAction.Back], nav.Advance(Held("b"), T0));
 
-        // A screen just opened under a finger that never came off the button. Without this the
-        // new screen never sees the press that opened it and the user presses twice.
-        nav.Forget();
+        // The press has navigated. Holding it a moment longer must not act again on the screen
+        // that just appeared: found by using it, where backing out while still holding B popped
+        // and then immediately fired Back on the root, closing RomMBat.
+        nav.CarryNothingOver();
 
-        Assert.Equal([NavAction.Accept], nav.Advance(Held("a"), T0.AddMilliseconds(10)));
+        Assert.Empty(nav.Advance(Held("b"), T0.AddMilliseconds(10)));
+        Assert.Empty(nav.Advance(Held("b"), T0.AddMilliseconds(900)));
+
+        // Released, so the user's next press is theirs again.
+        Assert.Empty(nav.Advance(Held(), T0.AddSeconds(2)));
+        Assert.Equal([NavAction.Back], nav.Advance(Held("b"), T0.AddSeconds(3)));
     }
 
     [Fact]
@@ -150,9 +156,8 @@ public class NavRepeatTests
 
         Assert.Empty(nav.Advance(Held("a"), T0));
 
-        // Forget makes a held button a fresh press for a new screen, which is right for a
-        // button the user pressed. It must not resurrect one they never pressed at all.
-        nav.Forget();
+        // Carrying nothing over must not resurrect a button the user never pressed at all.
+        nav.CarryNothingOver();
 
         Assert.Empty(nav.Advance(Held("a"), T0.AddMilliseconds(100)));
     }

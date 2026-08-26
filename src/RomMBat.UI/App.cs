@@ -62,7 +62,9 @@ internal sealed class App : Application
             StartPairing = () => new OnScreenKeyboard(
                 "Pair with RomM",
                 "Type your RomM server address, then press Start.",
-                _session.Store.Settings.Get(UiSettings.LastServerOrigin) ?? "http://",
+                // https by default: a RomM behind anything but a LAN address wants it, and it
+                // is two characters to delete against eight to type on a d-pad.
+                _session.Store.Settings.Get(UiSettings.LastServerOrigin) ?? "https://",
                 Typed),
         };
 

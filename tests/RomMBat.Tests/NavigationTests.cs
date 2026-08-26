@@ -103,13 +103,49 @@ public class NavigationTests
     }
 
     [Fact]
+    public void A_refused_address_leaves_back_going_back_rather_than_out_of_RomMBat()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        var status = new StatusViewModel(session, NoPad)
+        {
+            StartPairing = () => new OnScreenKeyboard(
+                "Pair with RomM",
+                "Where is your RomM server?",
+                "nonsense",
+                text => new TypedResult(null, session.ResolveOrigin(text).Problem)),
+        };
+
+        var navigator = new Navigator(status);
+        var clock = T0;
+
+        Press(navigator, "a", ref clock);
+        Assert.Equal(2, navigator.Depth);
+
+        // Submit something Core refuses. The keyboard stays open with the reason.
+        Press(navigator, "start", ref clock);
+        Assert.Equal(2, navigator.Depth);
+        Assert.False(navigator.HasExited);
+
+        // One back returns to status, and must not leave RomMBat.
+        Press(navigator, "b", ref clock);
+
+        Assert.False(navigator.HasExited);
+        Assert.Equal(1, navigator.Depth);
+        Assert.IsType<StatusViewModel>(navigator.Current);
+    }
+
+    [Fact]
     public void Backspace_is_not_on_the_button_that_confirms()
     {
         var keyboard = new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
-        Press(navigator, "x", ref clock);
+        // The EmulationStation name, which is the button an Xbox-layout pad prints X on. The
+        // two are not the same and the footer follows the printed label, not the file's name.
+        Press(navigator, "y", ref clock);
         Assert.Equal("ab", keyboard.Text);
 
         // Accept types the selected character rather than deleting, so a mistyped URL cannot be
@@ -148,35 +184,74 @@ public class NavigationTests
         Assert.Equal("1", keyboard.Selected);
 
         Press(navigator, "up", ref clock);
-        Assert.Equal(OnScreenKeyboard.Grid.Count - 1, keyboard.CursorRow);
+        Assert.Equal(keyboard.Keys.Count - 1, keyboard.CursorRow);
     }
 
     [Fact]
-    public void Every_key_on_the_grid_is_reachable_and_every_row_is_the_same_width()
+    public void Shift_changes_the_key_under_the_cursor_without_moving_it()
     {
-        // The vertical move keeps the column, so a row of a different width would either strand
-        // keys or index out of range. Both are silent until someone tries that key.
-        Assert.All(OnScreenKeyboard.Grid, row => Assert.Equal(OnScreenKeyboard.Grid[0].Length, row.Length));
-
         var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
-        var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var _ in OnScreenKeyboard.Grid)
+        // Down one row and along to "q", the key that proves this is QWERTY and not alphabetical.
+        Press(navigator, "down", ref clock);
+        Assert.Equal("q", keyboard.Selected);
+
+        Press(navigator, "pageup", ref clock);
+
+        Assert.True(keyboard.IsShifted);
+        Assert.Equal("Q", keyboard.Selected);
+        Assert.Equal(1, keyboard.CursorRow);
+        Assert.Equal(0, keyboard.CursorColumn);
+
+        // Either shoulder toggles, because a user reaches for whichever is nearer.
+        Press(navigator, "pagedown", ref clock);
+        Assert.False(keyboard.IsShifted);
+        Assert.Equal("q", keyboard.Selected);
+    }
+
+    [Fact]
+    public void The_two_layers_are_the_same_shape_so_the_cursor_can_never_be_stranded()
+    {
+        var lower = OnScreenKeyboard.Layers[0];
+        var upper = OnScreenKeyboard.Layers[1];
+
+        // Toggling case must never move the cursor or index out of range, which is exactly what
+        // layers of different shapes would do on the row or column the shorter one lacks.
+        Assert.Equal(lower.Count, upper.Count);
+
+        for (var row = 0; row < lower.Count; row++)
         {
-            foreach (var __ in OnScreenKeyboard.Grid[0])
-            {
-                seen.Add(keyboard.Selected);
-                Press(navigator, "right", ref clock);
-            }
-
-            Press(navigator, "down", ref clock);
+            Assert.Equal(lower[row].Length, upper[row].Length);
         }
 
-        var everyCharacter = OnScreenKeyboard.Grid.SelectMany(row => row).Select(c => c.ToString()).ToHashSet(StringComparer.Ordinal);
+        Assert.All(lower, row => Assert.Equal(lower[0].Length, row.Length));
+    }
 
-        Assert.Equal(everyCharacter, seen);
+    [Fact]
+    public void Both_cases_and_the_characters_a_url_needs_are_all_reachable()
+    {
+        var everything = OnScreenKeyboard.Layers
+            .SelectMany(layer => layer.SelectMany(row => row))
+            .ToHashSet();
+
+        // Letters in both cases, digits, and the punctuation an address is made of.
+        Assert.All("abcdefghijklmnopqrstuvwxyz", c => Assert.Contains(c, everything));
+        Assert.All("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c => Assert.Contains(c, everything));
+        Assert.All("0123456789", c => Assert.Contains(c, everything));
+        Assert.All(":/.-_~?=@%", c => Assert.Contains(c, everything));
+    }
+
+    [Fact]
+    public void A_url_needs_no_case_toggle_for_its_punctuation()
+    {
+        var unshifted = OnScreenKeyboard.Layers[0].SelectMany(row => row).ToHashSet();
+
+        // http:// would otherwise need the toggle twice in four characters, which is why these
+        // two deviate from a real keyboard's shift pairs.
+        Assert.Contains(':', unshifted);
+        Assert.Contains('/', unshifted);
     }
 
     /// <summary>Types a string by walking the grid, which is what a person does.</summary>

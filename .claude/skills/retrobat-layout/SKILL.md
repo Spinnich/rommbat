@@ -266,6 +266,11 @@ Measured against five real controllers on 8.2.1, and each of these refutes a ven
 
 Three traps, all measured rather than reasoned about:
 
+- **`x` and `y` do not mean what the pad says they mean.** `a` and `b` match the labels on an
+  Xbox-layout pad, but `x` maps to the button printed **Y** and `y` to the button printed **X**.
+  So the file is the authority on _which physical input_ a name refers to, and **not** on what
+  to print in a button prompt: a footer hint that says "X" and runs on `es_input`'s `x` sends
+  the user to the wrong button, which is how this was found. Finding 225.
 - **One press can mean two things.** `select` and `hotkey` are the **same button** on both the
   8BitDo and the Xbox pad. A lookup that returns the first match silently drops the hotkey, so
   resolve to **every** name a reading satisfies.

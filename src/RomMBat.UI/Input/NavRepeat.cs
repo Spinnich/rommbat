@@ -48,9 +48,13 @@ public sealed class NavRepeat
         (NavAction.Accept, ["a"], false),
         (NavAction.Back, ["b"], false),
         (NavAction.Start, ["start"], false),
-        // Backspace lives here, so it repeats: holding it clears a mistyped URL rather than
-        // asking for one press per character.
-        (NavAction.Alternate, ["x"], true),
+        // Bound to EmulationStation's "y", which is the button an Xbox-layout pad prints X on.
+        // Measured, not assumed: on the 8BitDo the file maps x to SDL button 3 and y to button
+        // 2, so ES's names for the left and top face buttons are the other way round from the
+        // labels printed on the pad. Binding ES's "x" put backspace on the physical Y while the
+        // footer said X. Repeats, so holding it clears a mistyped URL rather than asking for one
+        // press per character.
+        (NavAction.Alternate, ["y"], true),
         (NavAction.PageUp, ["pageup"], true),
         (NavAction.PageDown, ["pagedown"], true),
     ];
@@ -153,19 +157,30 @@ public sealed class NavRepeat
     }
 
     /// <summary>
-    /// Forgets what is held, so the next poll treats everything as a fresh press.
+    /// Carries nothing across a change of screen: whatever is held now has to be released
+    /// before it acts again.
     /// </summary>
     /// <remarks>
-    /// Called when a screen changes. Without it, a button still held when a screen opens is
-    /// already down as far as this class is concerned, so the new screen never sees the press
-    /// that arrived on it and the user presses twice.
+    /// <b>One physical press is one action, always.</b> An earlier version did the opposite and
+    /// treated anything still held as a fresh press for the new screen, reasoning that a screen
+    /// opening under a finger should still see it. That is wrong, and wrong in a way found by
+    /// using it rather than by testing it: back out of a screen while still holding B and the
+    /// pop is followed immediately by a second Back on the screen underneath, which on the root
+    /// screen closes RomMBat. The same shape would have typed a character on the on-screen
+    /// keyboard from the very press that opened it.
+    /// <para>
+    /// Same rule as <see cref="SuppressHeld"/>, applied at a screen boundary rather than at
+    /// startup: an action belongs to the screen that was showing when the button went down.
+    /// </para>
     /// </remarks>
-    public void Forget()
+    public void CarryNothingOver()
     {
+        foreach (var action in _downSince.Keys)
+        {
+            _suppressed.Add(action);
+        }
+
         _downSince.Clear();
         _lastFired.Clear();
-
-        // Not the suppressed set: a button held since launch is still not this screen's to act
-        // on just because the screen changed.
     }
 }

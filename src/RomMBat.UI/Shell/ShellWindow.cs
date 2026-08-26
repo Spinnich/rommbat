@@ -70,9 +70,12 @@ internal sealed class ShellWindow : Window
     {
         _title.FontSize = 34;
         _title.Foreground = Brushes.White;
-        _title.Margin = new Thickness(48, 36, 48, 12);
+        _title.Margin = new Thickness(48, 36, 48, 16);
+        _title.HorizontalAlignment = HorizontalAlignment.Center;
 
         _body.Margin = new Thickness(48, 8, 48, 8);
+
+        _footer.HorizontalAlignment = HorizontalAlignment.Center;
 
         var footerBar = new Border
         {

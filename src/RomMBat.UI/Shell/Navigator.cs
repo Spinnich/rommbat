@@ -10,9 +10,10 @@ namespace RomMBat.UI.Shell;
 /// opened from the EmulationStation menu and closing it returns the user to the front end they
 /// came from, which is why exiting has to be reachable without ever finding a menu item for it.
 /// <para>
-/// <b>Every change of screen forgets what is held.</b> A button still down when a screen opens
-/// is already pressed as far as <see cref="NavRepeat"/> is concerned, so without this the new
-/// screen never sees the press that opened it and the user has to press everything twice.
+/// <b>A change of screen carries nothing over.</b> Whatever is held when a screen opens has to
+/// be released before it acts again, so one physical press is one action. Without it, backing
+/// out of a screen while still holding the button pops and then immediately fires again on the
+/// screen underneath, which on the root screen closes RomMBat.
 /// </para>
 /// </remarks>
 public sealed class Navigator
@@ -66,20 +67,20 @@ public sealed class Navigator
 
             case ScreenCommandKind.Push when command.Screen is { } screen:
                 _screens.Add(screen);
-                _repeat.Forget();
+                _repeat.CarryNothingOver();
                 break;
 
             case ScreenCommandKind.Replace when command.Screen is { } replacement:
                 (_screens[^1] as IDisposable)?.Dispose();
                 _screens[^1] = replacement;
-                _repeat.Forget();
+                _repeat.CarryNothingOver();
                 break;
 
             case ScreenCommandKind.Pop when _screens.Count > 1:
                 // A screen that started work owns stopping it. Pairing polls until told not to.
                 (_screens[^1] as IDisposable)?.Dispose();
                 _screens.RemoveAt(_screens.Count - 1);
-                _repeat.Forget();
+                _repeat.CarryNothingOver();
                 break;
 
             case ScreenCommandKind.Pop:
