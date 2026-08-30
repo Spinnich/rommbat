@@ -89,10 +89,17 @@ internal static class SdlLibrary
     public static string NameOf(IntPtr joystick) =>
         Marshal.PtrToStringUTF8(SDL_JoystickName(joystick)) ?? string.Empty;
 
+    public static string NameForIndex(int index) =>
+        Marshal.PtrToStringUTF8(SDL_JoystickNameForIndex(index)) ?? string.Empty;
+
     /// <summary>The joystick's GUID as the 32-character hex string SDL renders it in.</summary>
-    public static string GuidOf(IntPtr joystick)
+    public static string GuidOf(IntPtr joystick) => Hex(SDL_JoystickGetGUID(joystick));
+
+    /// <summary>The same, for a device that has not been opened.</summary>
+    public static string GuidForIndex(int index) => Hex(SDL_JoystickGetDeviceGUID(index));
+
+    private static string Hex(Guid16 guid)
     {
-        var guid = SDL_JoystickGetGUID(joystick);
         var text = new StringBuilder(32);
         for (var i = 0; i < 16; i++)
         {
@@ -148,7 +155,13 @@ internal static class SdlLibrary
     public static extern IntPtr SDL_JoystickName(IntPtr joystick);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr SDL_JoystickNameForIndex(int index);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     public static extern Guid16 SDL_JoystickGetGUID(IntPtr joystick);
+
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    public static extern Guid16 SDL_JoystickGetDeviceGUID(int index);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     public static extern int SDL_JoystickNumButtons(IntPtr joystick);
@@ -161,6 +174,15 @@ internal static class SdlLibrary
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     public static extern void SDL_JoystickUpdate();
+
+    /// <summary>SDL_TRUE while the device behind an open handle is still present.</summary>
+    /// <remarks>
+    /// A handle to a pad that has gone away does not fail: every button reads released and
+    /// every axis reads centred, so a lost controller is indistinguishable from a still one
+    /// without asking.
+    /// </remarks>
+    [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int SDL_JoystickGetAttached(IntPtr joystick);
 
     [DllImport("SDL2", CallingConvention = CallingConvention.Cdecl)]
     public static extern byte SDL_JoystickGetButton(IntPtr joystick, int button);

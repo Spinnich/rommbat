@@ -32,17 +32,30 @@ public sealed record StatusSection(string Title, IReadOnlyList<StatusRow> Rows);
 public sealed class StatusViewModel : IScreen
 {
     private readonly InstallSession _session;
+    private readonly Func<GamepadStatus> _gamepad;
 
-    public StatusViewModel(InstallSession session, GamepadStatus gamepad)
+    /// <param name="gamepad">
+    /// Asked again on every render rather than captured, because a controller can be switched
+    /// on after RomMBat has started and this row is where a user looks to find out whether it
+    /// was seen.
+    /// </param>
+    public StatusViewModel(InstallSession session, Func<GamepadStatus> gamepad)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(gamepad);
 
         _session = session;
-        Gamepad = gamepad;
+        _gamepad = gamepad;
     }
 
-    public GamepadStatus Gamepad { get; }
+    /// <summary>A fixed controller state, for a caller that has no live reader.</summary>
+    public StatusViewModel(InstallSession session, GamepadStatus gamepad)
+        : this(session, () => gamepad)
+    {
+        ArgumentNullException.ThrowIfNull(gamepad);
+    }
+
+    public GamepadStatus Gamepad => _gamepad();
 
     public string Title => "RomMBat";
 

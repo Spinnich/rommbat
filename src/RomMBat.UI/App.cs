@@ -57,7 +57,7 @@ internal sealed class App : Application
         var map = EsInputMap.Read(_session.Install);
         _gamepad = GamepadReader.Open(_session.Install, map);
 
-        var status = new StatusViewModel(_session, _gamepad.Status)
+        var status = new StatusViewModel(_session, () => _gamepad.Status)
         {
             StartPairing = () => new OnScreenKeyboard(
                 "Pair with RomM",

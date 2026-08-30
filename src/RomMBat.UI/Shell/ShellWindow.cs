@@ -41,6 +41,7 @@ internal sealed class ShellWindow : Window
     private readonly TextBlock _title = new();
     private readonly StackPanel _footer = new() { Orientation = Orientation.Horizontal, Spacing = 28 };
     private bool _primed;
+    private GamepadAvailability? _lastAvailability;
     private ILiveScreen? _live;
 
     public ShellWindow(Navigator navigator, GamepadReader? gamepad, Action exit)
@@ -117,6 +118,16 @@ internal sealed class ShellWindow : Window
     private void Poll()
     {
         var held = _gamepad?.Held() ?? (IReadOnlySet<string>)new HashSet<string>(StringComparer.Ordinal);
+
+        // A controller arriving or leaving changes what is on screen without anyone pressing
+        // anything, and it is the one change a user cannot prompt: with no pad there is no
+        // input to redraw on, so a screen that only redraws on input would sit there saying
+        // "no controller is connected" while they hold a working one.
+        if (_gamepad?.Status.Availability is { } availability && availability != _lastAvailability)
+        {
+            _lastAvailability = availability;
+            Render();
+        }
 
         if (!_primed)
         {

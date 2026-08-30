@@ -62,34 +62,43 @@ public sealed class GamepadReader : IDisposable
         ("joystick2left", "joystick2right"),
     ];
 
-    private readonly bool _sdlStarted;
-    private readonly IntPtr _joystick;
-    private readonly EsInputDevice? _config;
-    private readonly int _buttons;
-    private readonly int _axes;
-    private readonly int _hats;
+    /// <summary>
+    /// How often a reader with no controller looks for one.
+    /// </summary>
+    /// <remarks>
+    /// Enumeration is cheap but not free, and a second is far below what a person waiting for
+    /// their pad to wake up would notice. A reader that already has a controller does not scan
+    /// at all: it asks that one handle whether it is still attached, which is a single call.
+    /// </remarks>
+    public static TimeSpan ScanInterval => TimeSpan.FromSeconds(1);
 
+    private readonly bool _sdlStarted;
+    private readonly EsInputMap? _map;
+
+    private IntPtr _joystick;
+    private EsInputDevice? _config;
+    private int _buttons;
+    private int _axes;
+    private int _hats;
+    private DateTimeOffset _nextScan = DateTimeOffset.MinValue;
     private bool _closed;
 
-    private GamepadReader(
-        GamepadStatus status,
-        bool sdlStarted = false,
-        IntPtr joystick = default,
-        EsInputDevice? config = null,
-        int buttons = 0,
-        int axes = 0,
-        int hats = 0)
+    private GamepadReader(GamepadStatus status, EsInputMap? map = null, bool sdlStarted = false)
     {
         Status = status;
+        _map = map;
         _sdlStarted = sdlStarted;
-        _joystick = joystick;
-        _config = config;
-        _buttons = buttons;
-        _axes = axes;
-        _hats = hats;
     }
 
-    public GamepadStatus Status { get; }
+    /// <summary>
+    /// What the reader found, which changes as controllers come and go.
+    /// </summary>
+    /// <remarks>
+    /// Read it again rather than holding onto it: a caller that captured this once will still
+    /// be saying "no controller is connected" while the user drives the interface with the pad
+    /// they just switched on.
+    /// </remarks>
+    public GamepadStatus Status { get; private set; }
 
     /// <summary>Opens the first configured controller, or explains why it could not.</summary>
     /// <param name="map">
@@ -113,60 +122,71 @@ public sealed class GamepadReader : IDisposable
                 $"SDL could not start its joystick subsystem: {SdlLibrary.Error()}");
         }
 
-        var count = SdlLibrary.SDL_NumJoysticks();
-        if (count <= 0)
+        var reader = new GamepadReader(NoDevice, map, sdlStarted: true);
+        reader.Scan(DateTimeOffset.UtcNow);
+        return reader;
+    }
+
+    /// <summary>One controller SDL currently reports, before anything has been opened.</summary>
+    public sealed record GamepadCandidate(int Index, string DeviceName, string DeviceGuid);
+
+    /// <summary>Which of them the reader will use, and what to tell the user either way.</summary>
+    public sealed record GamepadChoice(GamepadCandidate? Device, GamepadStatus Status);
+
+    /// <summary>
+    /// Picks the controller to read from everything connected.
+    /// </summary>
+    /// <remarks>
+    /// <b>Separated from the SDL calls because this is the part with rules in it.</b> Which pad
+    /// wins, and what a user is told when none of them is configured, are decisions worth
+    /// asserting; enumerating a native library is not.
+    /// <para>
+    /// <b>First configured pad wins.</b> Player assignment is EmulationStation's business and
+    /// nothing in this UI is two-player. A pad EmulationStation has never been shown loses to a
+    /// configured one further down the list, because index order is arbitrary and a virtual pad
+    /// from a streaming host frequently sorts first.
+    /// </para>
+    /// </remarks>
+    public static GamepadChoice Choose(IReadOnlyList<GamepadCandidate> connected, EsInputMap map)
+    {
+        ArgumentNullException.ThrowIfNull(connected);
+        ArgumentNullException.ThrowIfNull(map);
+
+        if (connected.Count == 0)
         {
-            return Unavailable(
-                GamepadAvailability.NoDevice,
-                "No controller is connected.",
-                sdlStarted: true);
+            return new GamepadChoice(null, NoDevice);
         }
 
-        // First configured pad wins. Player assignment is EmulationStation's business and
-        // nothing in this UI is two-player.
-        string? attachedName = null;
-        string? attachedGuid = null;
-
-        for (var index = 0; index < count; index++)
+        foreach (var candidate in connected)
         {
-            var joystick = SdlLibrary.SDL_JoystickOpen(index);
-            if (joystick == IntPtr.Zero)
+            if (map.ForGuid(candidate.DeviceGuid) is not null)
             {
-                continue;
+                return new GamepadChoice(
+                    candidate,
+                    new GamepadStatus(
+                        GamepadAvailability.Ready,
+                        candidate.DeviceName,
+                        candidate.DeviceGuid,
+                        $"Reading {candidate.DeviceName}."));
             }
-
-            var guid = SdlLibrary.GuidOf(joystick);
-            var name = SdlLibrary.NameOf(joystick);
-            var config = map.ForGuid(guid);
-
-            if (config is null)
-            {
-                attachedName ??= name;
-                attachedGuid ??= guid;
-                SdlLibrary.SDL_JoystickClose(joystick);
-                continue;
-            }
-
-            return new GamepadReader(
-                new GamepadStatus(GamepadAvailability.Ready, name, guid, $"Reading {name}."),
-                sdlStarted: true,
-                joystick,
-                config,
-                SdlLibrary.SDL_JoystickNumButtons(joystick),
-                SdlLibrary.SDL_JoystickNumAxes(joystick),
-                SdlLibrary.SDL_JoystickNumHats(joystick));
         }
 
-        return new GamepadReader(
+        var first = connected[0];
+        var named = string.IsNullOrWhiteSpace(first.DeviceName) ? "That controller" : first.DeviceName;
+
+        return new GamepadChoice(
+            null,
             new GamepadStatus(
                 GamepadAvailability.NotConfigured,
-                attachedName,
-                attachedGuid,
-                $"{attachedName ?? "That controller"} is connected but EmulationStation has no "
-                    + "configuration for it. Configure it in EmulationStation first, and RomMBat "
-                    + "will use the same buttons."),
-            sdlStarted: true);
+                first.DeviceName,
+                first.DeviceGuid,
+                $"{named} is connected but EmulationStation has no configuration for it. "
+                    + "Configure it in EmulationStation first, and RomMBat will use the same "
+                    + "buttons."));
     }
+
+    private static GamepadStatus NoDevice =>
+        new(GamepadAvailability.NoDevice, null, null, "No controller is connected.");
 
     /// <summary>
     /// Every EmulationStation input name currently held.
@@ -179,12 +199,19 @@ public sealed class GamepadReader : IDisposable
     {
         var held = new HashSet<string>(StringComparer.Ordinal);
 
-        if (_closed || _config is null || _joystick == IntPtr.Zero)
+        if (_closed || !_sdlStarted)
         {
             return held;
         }
 
+        // Before the count is read, because this is what makes SDL notice a device arriving.
         SdlLibrary.SDL_JoystickUpdate();
+        Follow(DateTimeOffset.UtcNow);
+
+        if (_config is null || _joystick == IntPtr.Zero)
+        {
+            return held;
+        }
 
         for (var button = 0; button < _buttons; button++)
         {
@@ -256,6 +283,98 @@ public sealed class GamepadReader : IDisposable
         }
     }
 
+    /// <summary>
+    /// Keeps up with a controller that arrives, leaves, or comes back.
+    /// </summary>
+    /// <remarks>
+    /// <b>Without this the interface is deaf to any pad that was not already awake at launch.</b>
+    /// A wireless controller asleep in its cradle, a pad whose batteries went during a session,
+    /// and a virtual pad from a streaming host that attaches only once the client sends input
+    /// are all the same shape, and all three end with a person on a sofa holding a controller
+    /// that does nothing. The recovery cannot be "restart RomMBat", because reaching the thing
+    /// that restarts it needs the controller.
+    /// <para>
+    /// <b>A lost pad does not announce itself.</b> Reading a handle whose device has gone away
+    /// is not an error: every button comes back released and every axis centred, which is
+    /// exactly what a controller nobody is touching looks like. <c>SDL_JoystickGetAttached</c>
+    /// is the only way to tell those two apart, so the ordinary frame pays one call for it and
+    /// nothing else.
+    /// </para>
+    /// </remarks>
+    private void Follow(DateTimeOffset now)
+    {
+        if (_joystick != IntPtr.Zero)
+        {
+            if (SdlLibrary.SDL_JoystickGetAttached(_joystick) != 0)
+            {
+                return;
+            }
+
+            Release();
+            Status = NoDevice;
+        }
+
+        if (now < _nextScan)
+        {
+            return;
+        }
+
+        Scan(now);
+    }
+
+    private void Scan(DateTimeOffset now)
+    {
+        _nextScan = now + ScanInterval;
+
+        var count = SdlLibrary.SDL_NumJoysticks();
+        var connected = new List<GamepadCandidate>(Math.Max(count, 0));
+
+        for (var index = 0; index < count; index++)
+        {
+            connected.Add(new GamepadCandidate(
+                index,
+                SdlLibrary.NameForIndex(index),
+                SdlLibrary.GuidForIndex(index)));
+        }
+
+        var choice = Choose(connected, _map!);
+        Status = choice.Status;
+
+        if (choice.Device is null)
+        {
+            return;
+        }
+
+        var joystick = SdlLibrary.SDL_JoystickOpen(choice.Device.Index);
+        if (joystick == IntPtr.Zero)
+        {
+            // Enumerated and then would not open, which happens while a device is still
+            // settling. Do not claim to be reading it; the next scan tries again.
+            Status = NoDevice;
+            return;
+        }
+
+        _joystick = joystick;
+        _config = _map!.ForGuid(choice.Device.DeviceGuid);
+        _buttons = SdlLibrary.SDL_JoystickNumButtons(joystick);
+        _axes = SdlLibrary.SDL_JoystickNumAxes(joystick);
+        _hats = SdlLibrary.SDL_JoystickNumHats(joystick);
+    }
+
+    private void Release()
+    {
+        if (_joystick != IntPtr.Zero)
+        {
+            SdlLibrary.SDL_JoystickClose(_joystick);
+        }
+
+        _joystick = IntPtr.Zero;
+        _config = null;
+        _buttons = 0;
+        _axes = 0;
+        _hats = 0;
+    }
+
     /// <param name="sdlStarted">
     /// True once <c>SDL_Init</c> has succeeded, which is the only condition under which
     /// <see cref="Dispose"/> may call back into the library. Getting this wrong throws
@@ -266,7 +385,7 @@ public sealed class GamepadReader : IDisposable
         GamepadAvailability availability,
         string detail,
         bool sdlStarted = false) =>
-        new(new GamepadStatus(availability, null, null, detail), sdlStarted);
+        new(new GamepadStatus(availability, null, null, detail), sdlStarted: sdlStarted);
 
     public void Dispose()
     {
