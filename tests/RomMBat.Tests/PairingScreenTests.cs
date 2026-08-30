@@ -33,6 +33,9 @@ public class PairingScreenTests
     /// </remarks>
     private static Uri Unreachable => new("http://192.0.2.1:8080");
 
+    /// <summary>The address the stub answers on. The stub ignores the host; the client does not.</summary>
+    private static Uri Origin => new("https://romm.invalid");
+
     private static HashSet<string> Held(params string[] names) => new(names, StringComparer.Ordinal);
 
     [Fact]
@@ -105,6 +108,71 @@ public class PairingScreenTests
         Assert.Equal(PairingStage.Contacting, pairing.Stage);
 
         await WaitForAsync(pairing, stage => stage == PairingStage.Unreachable);
+    }
+
+    [Fact]
+    public async Task A_new_code_cancels_the_request_that_was_already_in_flight()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        // No queued answers, so the stub pends for ever: the first run parks in the poll loop,
+        // which is the state a user presses "New code" from.
+        using var stub = new StubRomMServer { UserCode = "K7M2PQRS" };
+        using var pairing = new PairingViewModel(
+            session,
+            Origin,
+            _ => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
+
+        Assert.True(
+            await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
+            "pairing never reached the approval wait");
+
+        Assert.Equal("K7M2-PQRS", pairing.DisplayCode);
+
+        // AwaitApprovalAsync returns only on approval, denial, a server error or the old code's
+        // own expiry. Uncancelled, whichever of those arrived would be written over the fresh
+        // code this press is about to put on screen, or would save a second pairing.
+        var superseded = pairing.CurrentRun;
+
+        stub.UserCode = "T4N8WXYZ";
+        pairing.Handle(NavAction.Alternate);
+
+        Assert.True(superseded.IsCancellationRequested);
+        Assert.NotEqual(superseded, pairing.CurrentRun);
+        Assert.False(pairing.CurrentRun.IsCancellationRequested);
+
+        Assert.True(
+            await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
+            "the second request never produced a code");
+
+        Assert.Equal("T4N8-WXYZ", pairing.DisplayCode);
+    }
+
+    [Fact]
+    public async Task Leaving_the_screen_cancels_the_run_rather_than_leaving_it_polling()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        using var stub = new StubRomMServer();
+        var pairing = new PairingViewModel(
+            session,
+            Origin,
+            _ => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub));
+
+        Assert.True(
+            await WaitForAsync(pairing, stage => stage == PairingStage.WaitingForApproval),
+            "pairing never reached the approval wait");
+
+        var run = pairing.CurrentRun;
+        pairing.Dispose();
+
+        Assert.True(run.IsCancellationRequested);
+
+        // Disposed twice, because the shell disposes a screen it pops and a test disposes it
+        // again. The source itself is deliberately never disposed, so neither call throws.
+        pairing.Dispose();
     }
 
     [Fact]

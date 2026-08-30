@@ -50,20 +50,33 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Uri _origin;
-    private readonly CancellationTokenSource _cancellation = new();
+    private readonly Func<Uri, RomMConnection> _connect;
 
+    private CancellationTokenSource _run = new();
     private PairingSession? _pairing;
     private PairingCompletion? _completion;
     private string _detail = "Contacting the server.";
     private bool _disposed;
 
     public PairingViewModel(InstallSession session, Uri origin)
+        : this(session, origin, origin => InstallSession.Connect(origin))
+    {
+    }
+
+    /// <param name="connect">
+    /// How the screen reaches the server. Tests stand a stub in place of one, the way
+    /// <see cref="RomMConnection"/>'s own handler constructor exists for. Taken here rather
+    /// than as an init property because the first run starts in this constructor.
+    /// </param>
+    internal PairingViewModel(InstallSession session, Uri origin, Func<Uri, RomMConnection> connect)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(origin);
+        ArgumentNullException.ThrowIfNull(connect);
 
         _session = session;
         _origin = origin;
+        _connect = connect;
 
         Start();
     }
@@ -134,8 +147,27 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         return ScreenCommand.Stay;
     }
 
+    /// <summary>
+    /// The token the run in flight was started with, so a test can assert what cancelled it.
+    /// </summary>
+    internal CancellationToken CurrentRun => _run.Token;
+
+    /// <summary>
+    /// Abandons the request in flight and asks for a new one.
+    /// </summary>
+    /// <remarks>
+    /// <b>The old run has to be cancelled, not just forgotten.</b> It is parked inside
+    /// <c>AwaitApprovalAsync</c>, which returns only on approval, denial, a server error or
+    /// the old code's own expiry. Left running it writes "the pairing code expired" over the
+    /// fresh code now on screen, or is approved and saves a second pairing concurrently with
+    /// this one, and every further press adds another poller against the same server.
+    /// </remarks>
     private void Restart()
     {
+        var superseded = _run;
+        _run = new CancellationTokenSource();
+        superseded.Cancel();
+
         _pairing = null;
         QrCode = null;
         Move(PairingStage.Contacting, "Contacting the server.");
@@ -150,13 +182,27 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
     /// <see cref="Invalidated"/>, and every failure below is turned into a stage rather than
     /// thrown, so there is nothing for a caller to await or catch.
     /// </remarks>
-    private void Start() => _ = RunAsync(_cancellation.Token);
+    private void Start() => _ = RunAsync(_run);
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunAsync(CancellationTokenSource run)
     {
+        var cancellationToken = run.Token;
+
+        // True once this run has been superseded or the screen closed. Nothing a run learns
+        // after that reaches the screen, whichever of the two happened.
+        bool Stale() => !ReferenceEquals(_run, run) || cancellationToken.IsCancellationRequested;
+
+        void Update(PairingStage stage, string detail)
+        {
+            if (!Stale())
+            {
+                Move(stage, detail);
+            }
+        }
+
         try
         {
-            using var connection = InstallSession.Connect(_origin);
+            using var connection = _connect(_origin);
 
             var contact = await ServerProbes
                 .TryContactAsync(connection, _session.Store, cancellationToken: cancellationToken)
@@ -164,7 +210,7 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
             if (contact is null)
             {
-                Move(
+                Update(
                     PairingStage.Unreachable,
                     $"{_origin} did not answer. Everything else RomMBat does works offline, "
                         + "and this can wait until the server is back.");
@@ -173,44 +219,55 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
             if (contact.MustRefuse)
             {
-                Move(PairingStage.Refused, contact.Probe.Compatibility.Message);
+                Update(PairingStage.Refused, contact.Probe.Compatibility.Message);
                 return;
             }
 
             var service = new PairingService(_session.Install, _session.Store);
             service.RememberServer(_origin);
 
-            _pairing = await service.BeginAsync(connection, cancellationToken: cancellationToken)
+            var pairing = await service.BeginAsync(connection, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            QrCode = PairingQrCode.Build(_pairing.VerificationUri);
+            if (Stale())
+            {
+                return;
+            }
 
-            Move(
+            _pairing = pairing;
+            QrCode = PairingQrCode.Build(pairing.VerificationUri);
+
+            Update(
                 PairingStage.WaitingForApproval,
                 "Scan the code with a phone, or open the address and type the code. "
                     + "RomM will ask which permissions to grant.");
 
             var completion = await service
-                .CompleteAsync(connection, _pairing, cancellationToken: cancellationToken)
+                .CompleteAsync(connection, pairing, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
+
+            if (Stale())
+            {
+                return;
+            }
 
             _completion = completion;
 
-            Move(
+            Update(
                 completion.IsPaired ? PairingStage.Paired : PairingStage.Refused,
                 completion.Message);
         }
         catch (OperationCanceledException)
         {
-            // The user left. Nothing to say and nobody to say it to.
+            // The user left, or pressed for a new code. Nothing to say and nobody to say it to.
         }
         catch (RomMUnreachableException ex)
         {
-            Move(PairingStage.Unreachable, ex.Message);
+            Update(PairingStage.Unreachable, ex.Message);
         }
         catch (RomMApiException ex)
         {
-            Move(PairingStage.Refused, ex.Message);
+            Update(PairingStage.Refused, ex.Message);
         }
     }
 
@@ -221,6 +278,15 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Cancels the run in flight. The source itself is deliberately not disposed.
+    /// </summary>
+    /// <remarks>
+    /// A run is still unwinding when this returns, and disposing a source whose token that run
+    /// may still register on throws <see cref="ObjectDisposedException"/> on the background
+    /// thread, where it becomes an unobserved task exception rather than anything anyone sees.
+    /// Cancelling releases the registrations; the source itself is a few bytes for the GC.
+    /// </remarks>
     public void Dispose()
     {
         if (_disposed)
@@ -229,7 +295,6 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _disposed = true;
-        _cancellation.Cancel();
-        _cancellation.Dispose();
+        _run.Cancel();
     }
 }
