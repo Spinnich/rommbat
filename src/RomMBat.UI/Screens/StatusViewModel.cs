@@ -226,6 +226,11 @@ public sealed class StatusViewModel : IScreen
         var pad = Gamepad;
 
         return new StatusSection("Controller", [
+            // Verbatim, brackets and all. The live 8BitDo really is named
+            // "(8BitDo Ultimate 2 Wireless Controller for PC)" in es_input.cfg, and stripping
+            // what looks like decoration means guessing which characters are part of a name on
+            // controllers nobody here has seen. The file is the authority everywhere else in
+            // this design and it is the authority here.
             new StatusRow("Device", pad.DeviceName ?? "None", null),
             new StatusRow("State", Describe(pad.Availability), pad.IsReady ? null : pad.Detail),
         ]);
@@ -248,6 +253,19 @@ public sealed class StatusViewModel : IScreen
     private static string Plural(int count, string noun) =>
         string.Create(CultureInfo.InvariantCulture, $"{count} {noun}{(count == 1 ? string.Empty : "s")}");
 
+    /// <summary>A stored instant as the clock on the wall in front of the user.</summary>
+    /// <remarks>
+    /// <b>Local, not UTC.</b> Everything is stored in UTC and compared in UTC, which is what
+    /// makes the outbox survive a timezone change, and none of that is the user's problem: a
+    /// person on a sofa reads "last contact" against their own clock, and <c>13:22:15Z</c> when
+    /// it is twenty past nine in the morning reads as broken. The conversion happens here, at
+    /// the last possible moment, and nothing else in this screen sees a local time.
+    /// <para>
+    /// Seconds are dropped. This answers "recently or not" and the precision was noise.
+    /// </para>
+    /// </remarks>
     private static string Describe(DateTimeOffset? moment) =>
-        moment is { } at ? at.ToUniversalTime().ToString("u", CultureInfo.InvariantCulture) : "never";
+        moment is { } at
+            ? at.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture)
+            : "never";
 }

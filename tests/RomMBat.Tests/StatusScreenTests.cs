@@ -1,3 +1,4 @@
+using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
 using RomM.Client;
@@ -203,5 +204,43 @@ public class StatusScreenTests
             sections.Select(section => section.Title));
 
         Assert.All(sections, section => Assert.NotEmpty(section.Rows));
+    }
+
+    [Fact]
+    public void Last_contact_is_shown_on_the_users_own_clock_rather_than_in_UTC()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        var contact = new DateTimeOffset(2026, 8, 30, 13, 22, 15, TimeSpan.Zero);
+
+        // The row only exists once paired, which is the only state it means anything in.
+        session.Store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(session.Install));
+        session.Store.Device.SavePairing(
+            new PairingResult(
+                new Uri("https://romm.invalid"),
+                "device-1",
+                "Handheld",
+                new GrantedScopes(RomMScopes.Requested),
+                TokenProtector.Protect("rmm_token", "phrase", contact.AddDays(90))),
+            contact);
+
+        session.Store.Clock.RecordContact(contact, contact, TimeSpan.Zero);
+
+        var model = new StatusViewModel(session, NoPad);
+        var row = model.Sections()
+            .SelectMany(section => section.Rows)
+            .Single(candidate => candidate.Label == "Last contact");
+
+        // Stored and compared in UTC, which is what makes the outbox survive a timezone change.
+        // Rendered on the wall clock in front of the user, because "13:22:15Z" at twenty past
+        // nine in the morning reads as a broken program rather than as a considered choice.
+        Assert.Equal(
+            contact.ToLocalTime().ToString("yyyy-MM-dd HH:mm", CultureInfo.CurrentCulture),
+            row.Value);
+
+        // Passes in every timezone, including CI's UTC, where local and UTC agree on the digits
+        // and disagree only on this.
+        Assert.DoesNotContain("Z", row.Value, StringComparison.Ordinal);
     }
 }
