@@ -140,10 +140,21 @@ public sealed record CatalogQuery
     {
         var parameters = new List<KeyValuePair<string, string>>
         {
-            // Off on every page. They are whole-library index and filter metadata, not
-            // per-page data, and the server resends them in full each time.
+            // Off on every page. Whole-library index and filter metadata, not per-page data,
+            // and the server resends them in full each time.
             new("with_char_index", "false"),
-            new("with_rom_id_index", "false"),
+
+            // Follows the scope rather than being a constant, because the premise above only
+            // holds unscoped. Under a scoping parameter the index spans the scope rather than
+            // the library, and it is what lets the server serve a page by primary key instead
+            // of OFFSET n LIMIT m over a sort with no covering index.
+            //
+            // Measured against a live 88,331-rom instance on 5.2.0 (argosy-findings A1):
+            // scoped, turning it off costs six seconds a page to save 63 KiB; unscoped it costs
+            // about 130 ms to save 600 KiB. Measured end to end here too: a 9,196-rom platform
+            // scope walked in 8m 15s with it off, which is what a person waits through on the
+            // first screen that resolves a set.
+            new("with_rom_id_index", Scope == CatalogScopeKind.Filter ? "false" : "true"),
             new("with_filter_values", withFilterValues ? "true" : "false"),
 
             // Kept on: it is an integer, it costs nothing, and it is the only way a resumable
