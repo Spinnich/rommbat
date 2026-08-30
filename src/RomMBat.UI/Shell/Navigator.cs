@@ -81,6 +81,11 @@ public sealed class Navigator
                 (_screens[^1] as IDisposable)?.Dispose();
                 _screens.RemoveAt(_screens.Count - 1);
                 _repeat.CarryNothingOver();
+
+                // Whatever is underneath may have been overtaken while it was covered, and this
+                // is the only moment that can happen without the screen being pressed. A set
+                // created in the editor above left the list showing the sets from before.
+                (_screens[^1] as IReturnAware)?.Returned();
                 break;
 
             case ScreenCommandKind.Pop:

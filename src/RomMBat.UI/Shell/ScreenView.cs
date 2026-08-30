@@ -374,13 +374,44 @@ internal static class ScreenView
             return stack;
         }
 
-        for (var index = 0; index < list.Rows.Count; index++)
+        // Windowed, because drawing every row does not scroll: the folder picker is about a
+        // hundred systems on a real install and everything past the height of the display was
+        // being drawn off it, with the cursor moving somewhere invisible.
+        var window = ListWindow.Compute(list.Cursor, list.Rows.Count);
+
+        if (window.Above > 0)
+        {
+            stack.Children.Add(More(window.Above, "above"));
+        }
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
         {
             stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
         }
 
+        if (window.Below > 0)
+        {
+            stack.Children.Add(More(window.Below, "below"));
+        }
+
         return stack;
     }
+
+    /// <summary>
+    /// How much of the list is off screen, said rather than implied.
+    /// </summary>
+    /// <remarks>
+    /// A window with nothing marking its edges reads as the whole list, which is worse than
+    /// the bug it replaces: the user stops looking rather than keeps scrolling.
+    /// </remarks>
+    private static TextBlock More(int count, string direction) =>
+        new()
+        {
+            Text = $"{count} more {direction}",
+            Foreground = Muted,
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
 
     private static Border ListItem(ListRow row, bool selected)
     {

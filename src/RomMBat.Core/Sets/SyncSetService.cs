@@ -138,7 +138,8 @@ public sealed record SetDraft
 
     public long? MaxBytes { get; init; }
 
-    public SetOrdering Ordering { get; init; } = SetOrdering.Name;
+    /// <summary>Defaults with <see cref="SyncSetStore.DefaultOrdering"/>, which is recent.</summary>
+    public SetOrdering Ordering { get; init; } = SyncSetStore.DefaultOrdering;
 
     /// <summary>A RetroBat system name, never a path. Validated against the live config.</summary>
     public string? FolderOverride { get; init; }

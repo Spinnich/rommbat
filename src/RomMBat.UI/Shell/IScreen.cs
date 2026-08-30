@@ -89,6 +89,25 @@ public interface IScreen
 }
 
 /// <summary>
+/// A screen that has to rebuild when it becomes current again.
+/// </summary>
+/// <remarks>
+/// <b>Because a screen above it can write.</b> Creating a set left the list underneath showing
+/// the sets from before, and it corrected itself only when the whole screen was rebuilt by
+/// leaving and coming back. The navigator raises this on whatever it lands on after a pop or a
+/// replace, which is the only moment a screen can have been overtaken without being pressed.
+/// <para>
+/// Distinct from <see cref="ILiveScreen"/>, which is about work the screen itself started.
+/// This is about work somebody else finished.
+/// </para>
+/// </remarks>
+public interface IReturnAware
+{
+    /// <summary>Something above this screen closed. Re-read anything that may have changed.</summary>
+    void Returned();
+}
+
+/// <summary>
 /// A screen that changes without being pressed, and needs redrawing when it does.
 /// </summary>
 /// <remarks>

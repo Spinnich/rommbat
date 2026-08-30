@@ -197,6 +197,123 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    // ---- what the hands-on pass found ----
+
+    [Fact]
+    public void Any_screen_that_answers_accept_also_offers_the_hint_for_it()
+    {
+        Seed("hinted");
+        SeedPlatform(4, "snes");
+
+        // The generalising form of a hands-on finding. The set detail screen answered Accept by
+        // opening the editor and never offered the hint, because the hint was derived from
+        // whether the cursor sat on a choosable row and every row there is a fact. The action
+        // worked and the footer never said so, which is the round-8 failure pointed the other
+        // way: a rule enforced in one place and broken in the place beside it.
+        //
+        // Each screen is a fresh instance, so pressing Accept here cannot disturb the next one.
+        foreach (var screen in AllScreens())
+        {
+            var offered = screen.Hints.Any(hint => hint.Action == NavAction.Accept);
+            var answered = screen.Handle(NavAction.Accept).Kind != ScreenCommandKind.Stay;
+
+            Assert.False(
+                answered && !offered,
+                $"{screen.GetType().Name} acts on Accept but its footer never says so");
+        }
+    }
+
+    [Fact]
+    public void The_set_detail_screen_offers_its_edit_hint()
+    {
+        var set = Seed("detail");
+
+        // The specific site, kept beside the sweep above. Every row on this screen is
+        // informational, so the cursor has nowhere to sit, which is exactly the shape that
+        // suppressed the hint.
+        var detail = SetsScreens.Detail(_session, set.Name, null);
+
+        Assert.Contains(detail.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Push, detail.Handle(NavAction.Accept).Kind);
+    }
+
+    [Fact]
+    public void A_set_created_above_the_list_is_on_it_when_the_editor_closes()
+    {
+        SeedPlatform(4, "snes");
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+
+        var list = Assert.IsType<ListScreen>(navigator.Current);
+        Assert.Empty(list.Rows);
+
+        // Created underneath the editor, which is the case that was broken: the list captured
+        // its rows once and went on showing the sets from before until it was rebuilt.
+        new SyncSetService(_session).Add(
+            new SetDraft { Name = "fresh", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+            Now);
+
+        navigator.Handle(NavAction.Start);
+        Assert.IsType<SetEditorViewModel>(navigator.Current);
+        navigator.Handle(NavAction.Back);
+
+        Assert.Same(list, navigator.Current);
+        Assert.Single(list.Rows);
+        Assert.Equal("fresh", list.Rows[0].Label);
+    }
+
+    [Fact]
+    public void The_folder_row_is_offered_only_when_the_platform_cannot_answer_for_itself()
+    {
+        SeedPlatform(4, "snes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+
+        // Two rows that looked alike were doing different jobs. Platform is the scope's own
+        // value; Folder is a RomM-to-RetroBat mapping override that belongs in platform_map and
+        // gets a screen of its own in 7b-3. Offering it on every set made a global setting look
+        // like a per-set one, and it is meaningless on a filter, which can span platforms.
+        Assert.DoesNotContain(editor.Rows, row => row.Label == "Folder");
+        Assert.False(editor.NeedsFolderChoice);
+    }
+
+    [Fact]
+    public void A_set_that_already_carries_a_folder_override_keeps_showing_it()
+    {
+        var folder = new SyncSetService(_session).FoldersKnownHere()[0];
+
+        var set = new SyncSetService(_session).Add(
+            new SetDraft
+            {
+                Name = "override",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "4",
+                FolderOverride = folder,
+            },
+            Now).Set!;
+
+        // One made from the console stays visible and changeable, or hiding the row would strand
+        // whoever set it.
+        var editor = SetEditorViewModel.ForExisting(_session, set);
+
+        Assert.True(editor.NeedsFolderChoice);
+        Assert.Contains(editor.Rows, row => row.Label == "Folder");
+    }
+
+    [Fact]
+    public void A_new_set_keeps_the_most_recent_games_rather_than_the_alphabetical_ones()
+    {
+        SeedPlatform(4, "snes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        var ordering = editor.Rows.Single(row => row.Label == "Keep first").Value;
+
+        // The ordering only does anything once a cap bites, and at that moment "by name" means
+        // a set of forty keeps everything beginning with A.
+        Assert.Equal(SyncSetStore.OrderingText(SetOrdering.RecentlyUpdated), ordering);
+    }
+
     // ---- offline is a working state ----
 
     [Fact]

@@ -36,11 +36,20 @@ public static class SetsScreens
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        var sets = new SyncSetService(session).List();
+        // Re-read rather than captured. A set created from the editor above this screen left it
+        // showing the sets from before, and it corrected itself only on leaving and returning.
+        var service = new SyncSetService(session);
+        IReadOnlyList<SetSummary> sets = service.List();
+
+        IReadOnlyList<ListRow> Rows()
+        {
+            sets = service.List();
+            return [.. sets.Select(ToRow)];
+        }
 
         return new ListScreen(
             "Sync sets",
-            [.. sets.Select(ToRow)],
+            Rows,
             index => ScreenCommand.Push(Detail(session, sets[index].Set.Name, connect)),
             acceptLabel: "Open",
             backLabel: "Back",
@@ -107,6 +116,13 @@ public static class SetsScreens
             new FooterHint(NavAction.Start, "Resolve now"),
             new FooterHint(NavAction.Alternate, "Delete set"))
         {
+            // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
+            // and the accept hint was suppressed while Verbs went on handling the press. The
+            // edit worked and the footer never said so.
+            // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
+            // and the accept hint was suppressed while Verbs went on handling the press. The
+            // edit worked and the footer never said so.
+            AlwaysOfferAccept = true,
             Note = "Resolving asks RomM what this set contains now, and needs the network.",
             Verbs = (action, _) => action switch
             {

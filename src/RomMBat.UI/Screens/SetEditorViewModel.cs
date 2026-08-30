@@ -66,12 +66,19 @@ public sealed class SetEditorViewModel : IScreen
         512L << 30,
     ];
 
+    /// <summary>
+    /// The orderings, with the default first so a new set starts on it.
+    /// </summary>
+    /// <remarks>
+    /// Recent leads because that is what a cap should keep. By name, a set of forty keeps
+    /// everything beginning with A.
+    /// </remarks>
     private static readonly SetOrdering[] Orderings =
     [
+        SetOrdering.RecentlyUpdated,
         SetOrdering.Name,
         SetOrdering.SizeAscending,
         SetOrdering.SizeDescending,
-        SetOrdering.RecentlyUpdated,
     ];
 
     private readonly InstallSession _session;
@@ -81,6 +88,7 @@ public sealed class SetEditorViewModel : IScreen
     private CatalogScopeKind _scope;
     private string? _platformValue;
     private string? _platformLabel;
+    private string? _platformFolder;
     private string? _searchTerm;
     private int _gameCap;
     private int _byteCap;
@@ -97,15 +105,17 @@ public sealed class SetEditorViewModel : IScreen
         _folder = existing?.FolderOverride;
         _gameCap = Nearest(GameCaps, existing?.MaxGames);
         _byteCap = Nearest(ByteCaps, existing?.MaxBytes);
-        _ordering = Math.Max(0, Array.IndexOf(Orderings, existing?.Ordering ?? SetOrdering.Name));
+        _ordering = Math.Max(0, Array.IndexOf(Orderings, existing?.Ordering ?? SyncSetStore.DefaultOrdering));
 
         if (existing?.Scope == CatalogScopeKind.Platform)
         {
-            _platformValue = existing.ScopeValue;
-            _platformLabel = new SyncSetService(session).PlatformsKnownHere()
+            var known = new SyncSetService(session).PlatformsKnownHere()
                 .FirstOrDefault(option =>
-                    option.PlatformId.ToString(CultureInfo.InvariantCulture) == existing.ScopeValue)
-                ?.Label;
+                    option.PlatformId.ToString(CultureInfo.InvariantCulture) == existing.ScopeValue);
+
+            _platformValue = existing.ScopeValue;
+            _platformLabel = known?.Label;
+            _platformFolder = known?.Folder;
         }
     }
 
@@ -124,6 +134,19 @@ public sealed class SetEditorViewModel : IScreen
 
     /// <summary>True when this is defining a set rather than changing one.</summary>
     public bool IsNew => _existing is null;
+
+    /// <summary>
+    /// True when this set has to be told which RetroBat folder it writes into.
+    /// </summary>
+    /// <remarks>
+    /// Which is rare, and is the only reason the row exists. A platform that already resolves
+    /// needs no answer; arcade is the case that does, because which of the ten arcade folders
+    /// is right depends on the romset the file came from. A set that already carries an
+    /// override keeps showing it, so one made from the console stays visible and changeable.
+    /// </remarks>
+    public bool NeedsFolderChoice =>
+        _folder is not null
+        || (_scope == CatalogScopeKind.Platform && _platformValue is not null && _platformFolder is null);
 
     public string Title => IsNew ? "New sync set" : $"Edit '{_existing!.Name}'";
 
@@ -176,11 +199,23 @@ public sealed class SetEditorViewModel : IScreen
                 "Which games a limit keeps when the set is bigger than it.",
                 true));
 
-            rows.Add(new EditorRow(
-                "Folder",
-                _folder ?? "chosen automatically",
-                "Only needed when RomMBat cannot tell which RetroBat system a platform means.",
-                false));
+            // Hidden unless it is actually needed, which is the fix for a hands-on finding.
+            // Two rows that look alike were doing different jobs: Platform is the scope's own
+            // value ("this set holds Atari 2600 games") and Folder is a RomM-to-RetroBat
+            // mapping override. The mapping belongs in platform_map, where platforms list
+            // already reads it and where docs/PLAN.md's M2 puts a screen of its own in 7b-3.
+            // It survives here only for the case that genuinely needs a per-set answer: an
+            // arcade platform resolving to none of the ten possible folders. Offering it on
+            // every set made a global setting look like a per-set one, and it is meaningless
+            // on a filter or a collection, which can span platforms.
+            if (NeedsFolderChoice)
+            {
+                rows.Add(new EditorRow(
+                    "Folder",
+                    _folder ?? "not chosen",
+                    "RomMBat cannot tell which RetroBat system this platform means, so pick one.",
+                    false));
+            }
 
             return rows;
         }
@@ -318,6 +353,7 @@ public sealed class SetEditorViewModel : IScreen
                 _scope = scopes[index].Kind;
                 _platformValue = null;
                 _platformLabel = null;
+                _platformFolder = null;
                 Cursor = 0;
                 return ScreenCommand.Pop;
             },
@@ -338,6 +374,7 @@ public sealed class SetEditorViewModel : IScreen
             {
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
                 _platformLabel = platforms[index].Label;
+                _platformFolder = platforms[index].Folder;
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this")

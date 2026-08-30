@@ -72,7 +72,18 @@ public sealed record SyncSetDefinition
 
     public long? MaxBytes { get; init; }
 
-    public SetOrdering Ordering { get; init; } = SetOrdering.Name;
+    /// <summary>
+    /// Which games a cap keeps when the scope is bigger than it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Recently updated by default, not by name.</b> The ordering only does anything once a
+    /// cap bites, and at that moment "by name" means a set of forty keeps everything beginning
+    /// with A, which is nobody's intention and reads as a bug the first time somebody sees it.
+    /// Newest-in-RomM is what a person means by "give me some of this platform". Changed on a
+    /// hands-on finding in stage 7b-2a; the ordering is still explicit on every set the console
+    /// creates with <c>--order</c>.
+    /// </remarks>
+    public SetOrdering Ordering { get; init; } = SyncSetStore.DefaultOrdering;
 
     public string EvictionPolicy { get; init; } = "keep_favourites";
 
@@ -550,12 +561,25 @@ public sealed class SyncSetStore
         _ => throw new ArgumentOutOfRangeException(nameof(ordering), ordering, "Unknown ordering."),
     };
 
+    /// <summary>
+    /// What a set is ordered by when nothing says otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <b>One place, because it used to be two.</b> The record's initializer said one thing and
+    /// <see cref="ParseOrdering"/> answered a different one for an absent value, so changing
+    /// "the default" changed nothing on the path that actually creates sets. Every caller reads
+    /// it from here now.
+    /// </remarks>
+    public static SetOrdering DefaultOrdering => SetOrdering.RecentlyUpdated;
+
+    /// <summary>Reads a stored or supplied ordering. An unrecognised value is the default.</summary>
     public static SetOrdering ParseOrdering(string? text) => text switch
     {
+        "name" => SetOrdering.Name,
         "size_asc" => SetOrdering.SizeAscending,
         "size_desc" => SetOrdering.SizeDescending,
         "recent" => SetOrdering.RecentlyUpdated,
-        _ => SetOrdering.Name,
+        _ => DefaultOrdering,
     };
 
     internal static string StateText(MemberState state) => state switch
