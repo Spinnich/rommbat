@@ -402,28 +402,38 @@ internal static class ScreenView
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-    /// <summary>Four dots in a diamond, with the one this action lives on filled.</summary>
+    /// <summary>
+    /// Four dots in a diamond, with the one this action lives on filled.
+    /// </summary>
+    /// <remarks>
+    /// <b>The three unfilled dots are the whole point and have to be visible.</b> They are what
+    /// turns one lit dot into a <i>position</i>; without them the glyph is a blue speck that
+    /// says nothing. Drawn as outlined rings rather than filled with <c>Panel</c>, which is
+    /// within a few values of the footer's own background and disappeared on a television.
+    /// </remarks>
     private static Canvas FaceGlyph(int filled)
     {
-        const double Size = 20;
-        const double Dot = 6;
+        const double Size = 26;
+        const double Dot = 8;
 
         var canvas = new Canvas { Width = Size, Height = Size };
 
         for (var i = 0; i < Diamond.Length; i++)
         {
             var (x, y) = Diamond[i];
+            var lit = i == filled;
+
             var dot = new Ellipse
             {
                 Width = Dot,
                 Height = Dot,
-                Fill = i == filled ? Accent : Panel,
-                Stroke = i == filled ? Accent : Muted,
-                StrokeThickness = 1,
+                Fill = lit ? Accent : Brushes.Transparent,
+                Stroke = lit ? Accent : Muted,
+                StrokeThickness = 1.5,
             };
 
-            Canvas.SetLeft(dot, (x * (Size - Dot)) + 0.5);
-            Canvas.SetTop(dot, (y * (Size - Dot)) + 0.5);
+            Canvas.SetLeft(dot, x * (Size - Dot));
+            Canvas.SetTop(dot, y * (Size - Dot));
             canvas.Children.Add(dot);
         }
 

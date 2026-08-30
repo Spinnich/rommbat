@@ -172,10 +172,20 @@ public class StatusScreenTests
             "Configure it in EmulationStation first."));
 
         var controller = model.Sections().Single(section => section.Title == "Controller");
-        var row = controller.Rows.Single();
 
-        Assert.Equal("Some Pad", row.Label);
-        Assert.Contains("EmulationStation", row.Detail, StringComparison.Ordinal);
+        // Short labels, like every other section. The device name goes in the value column,
+        // because the label column is fixed width so the values line up and a real pad name is
+        // 45 characters: putting it there truncated it to "(8BitDo Ultimate 2 Wireles".
+        var device = controller.Rows.Single(row => row.Label == "Device");
+        Assert.Equal("Some Pad", device.Value);
+
+        var state = controller.Rows.Single(row => row.Label == "State");
+
+        // English rather than the enum's own identifier, which reached the screen as
+        // "NotConfigured" because only the Ready case was ever looked at.
+        Assert.Equal("Not configured", state.Value);
+        Assert.DoesNotContain(" ", GamepadAvailability.NotConfigured.ToString(), StringComparison.Ordinal);
+        Assert.Contains("EmulationStation", state.Detail, StringComparison.Ordinal);
     }
 
     [Fact]

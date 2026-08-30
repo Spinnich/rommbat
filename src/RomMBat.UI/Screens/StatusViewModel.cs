@@ -218,13 +218,32 @@ public sealed class StatusViewModel : IScreen
         return new StatusSection("Waiting", rows);
     }
 
-    private StatusSection Controller() =>
-        new("Controller", [
-            new StatusRow(
-                Gamepad.DeviceName ?? "None",
-                Gamepad.Availability.ToString(),
-                Gamepad.IsReady ? null : Gamepad.Detail),
+    private StatusSection Controller()
+    {
+        // Two rows with short labels, like every other section. Putting the device name in the
+        // label slot looked fine on a fixture and truncated the real one: es_input.cfg's name
+        // for the 8BitDo is 45 characters and the label column is fixed so the values line up.
+        var pad = Gamepad;
+
+        return new StatusSection("Controller", [
+            new StatusRow("Device", pad.DeviceName ?? "None", null),
+            new StatusRow("State", Describe(pad.Availability), pad.IsReady ? null : pad.Detail),
         ]);
+    }
+
+    /// <summary>The availability as a person would say it.</summary>
+    /// <remarks>
+    /// The enum's own names reach the screen as <c>NoDevice</c> and <c>NotConfigured</c>, which
+    /// are identifiers rather than English. Only the <c>Ready</c> case ever got looked at.
+    /// </remarks>
+    private static string Describe(GamepadAvailability availability) => availability switch
+    {
+        GamepadAvailability.Ready => "Ready",
+        GamepadAvailability.NoDevice => "No controller connected",
+        GamepadAvailability.NotConfigured => "Not configured",
+        GamepadAvailability.NoLibrary => "Cannot read controllers",
+        _ => availability.ToString(),
+    };
 
     private static string Plural(int count, string noun) =>
         string.Create(CultureInfo.InvariantCulture, $"{count} {noun}{(count == 1 ? string.Empty : "s")}");

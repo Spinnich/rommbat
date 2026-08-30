@@ -89,6 +89,11 @@ internal sealed class ShellWindow : Window
 
         _body.Margin = new Thickness(48, 8, 48, 8);
 
+        // Centred rather than pinned to the top. Every screen in this stage is far shorter than
+        // a television, and left as-is the content sits in the upper third with a third of the
+        // display empty beneath it.
+        _body.VerticalAlignment = VerticalAlignment.Center;
+
         _footer.HorizontalAlignment = HorizontalAlignment.Center;
 
         var footerBar = new Border
