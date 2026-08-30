@@ -49,8 +49,9 @@ jobs:
       - name: Test
         run: dotnet test --configuration Release --no-build --output Detailed
 
-  # A self-contained single-file publish is the shipped artefact, so a compile that
-  # succeeds but cannot be published is not a green build.
+  # The self-contained publish is the shipped artefact, so a compile that succeeds but cannot
+  # be published is not a green build. One file for the agent and the hook; the UI is the exe
+  # plus its native libraries, because bundling those unpacks them outside the tree.
   publish-check:
     runs-on: windows-latest
 
