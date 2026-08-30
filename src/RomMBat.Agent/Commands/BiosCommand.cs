@@ -105,7 +105,7 @@ internal static class BiosCommand
                     return exitCode;
                 }
 
-                var (index, problem) = await ReadCandidatesAsync(connection, cancellationToken).ConfigureAwait(false);
+                var (index, problem) = await BiosCandidates.ReadAsync(connection, cancellationToken).ConfigureAwait(false);
                 if (problem is not null)
                 {
                     Console.Error.WriteLine(problem);
@@ -212,39 +212,6 @@ internal static class BiosCommand
         return needNothing.Count == folders.Distinct(StringComparer.OrdinalIgnoreCase).Count()
             ? ExitCode.Ok
             : null;
-    }
-
-    /// <summary>
-    /// Reads every firmware record RomM holds, in one request.
-    /// </summary>
-    /// <remarks>
-    /// <c>GET /api/platforms</c> rather than one <c>GET /api/firmware?platform_id=</c> per
-    /// platform: the inlined <c>firmware[]</c> is complete, carries an md5 on every record, and
-    /// costs 424 KB and 0.40 s for a 123-platform library against 79 requests.
-    /// <para>
-    /// A failure here is not fatal. The gap report is still worth printing from the manifest
-    /// and what is on disk, which is exactly what an offline run does.
-    /// </para>
-    /// </remarks>
-    internal static async Task<(IReadOnlyDictionary<string, FirmwareRow>? Index, string? Problem)> ReadCandidatesAsync(
-        RomMConnection connection,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var response = await connection.ListPlatformsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!response.IsSuccess)
-            {
-                return (null, $"RomM's platform list could not be read: {response.Message}");
-            }
-
-            return (BiosPlanner.IndexByMd5(response.Value!), null);
-        }
-        catch (RomMUnreachableException ex)
-        {
-            return (null, ex.Message);
-        }
     }
 
     /// <summary>Prints the plan, grouped so the states a user has to act on come last.</summary>
