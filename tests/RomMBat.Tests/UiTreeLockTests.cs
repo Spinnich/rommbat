@@ -2,6 +2,8 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
+using RomM.Client.Catalog;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Screens;
@@ -28,9 +30,18 @@ namespace RomMBat.Tests;
 /// and this stage has none.
 /// </para>
 /// <para>
-/// <b>When the UI does write, in a later stage</b>, it takes the lock for the duration of that
-/// write and says "another RomMBat pass is running" when it cannot, staying navigable. What it
-/// must never do is take the lock speculatively to answer a question.
+/// <b>When a write does happen it is a Core service that takes the lock, never the UI.</b> That
+/// is what keeps the structural assertion true rather than deleting it, and it puts the
+/// decision where the rest of the decisions are. <see cref="Content.PartialSweep.Apply"/>
+/// already works this way and already returns the sentence for it, so stage 7b-2 invented
+/// nothing here: it surfaced what was in the tree.
+/// </para>
+/// <para>
+/// <b>Defining a sync set takes no lock at all, and that is a decision rather than an
+/// oversight.</b> Every write on <see cref="SyncSetService"/> is a row in SQLite, which is in
+/// WAL mode, and the tree lock serialises writers of <i>files in the tree</i>. Taking it to add
+/// a set definition would be exactly the speculative acquire this class exists to warn about.
+/// A test below asserts a set can be defined while a background pass holds it.
 /// </para>
 /// </remarks>
 public class UiTreeLockTests
@@ -68,6 +79,85 @@ public class UiTreeLockTests
         // namespace, a lambda or a call through an interface would all still leave the type in
         // this table, where a grep over the source would miss them.
         Assert.DoesNotContain(nameof(TreeLock), referenced);
+    }
+
+    [Fact]
+    public void Core_still_defines_the_tree_lock_so_the_assertion_above_is_not_vacuous()
+    {
+        // #100. Without this, renaming or deleting TreeLock makes every assertion in this
+        // class pass for the wrong reason: the UI would not reference a type that no longer
+        // exists, and the boundary would be disarmed with nothing saying so. The es_settings
+        // boundary has carried this companion since 7b-1 and this one did not.
+        using var stream = File.OpenRead(typeof(TreeLock).Assembly.Location);
+        using var reader = new PEReader(stream);
+        var metadata = reader.GetMetadataReader();
+
+        var defined = metadata.TypeDefinitions
+            .Select(handle => metadata.GetString(metadata.GetTypeDefinition(handle).Name))
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains(nameof(TreeLock), defined);
+    }
+
+    [Fact]
+    public void A_set_can_be_defined_while_a_background_pass_holds_the_lock()
+    {
+        using var tree = TempRetroBatTree.Create();
+
+        // Stand in for a background quit that is mid-flush.
+        using var held = TreeLock.TryAcquire(tree.Install());
+        Assert.NotNull(held);
+
+        var opened = InstallSession.Open(tree.Root);
+        using var session = opened.Session;
+
+        // Succeeds, and that is the assertion. A sets write that waited on this lock would
+        // refuse a user's set definition because somebody else was draining the outbox, which
+        // is two unrelated things sharing a mutex.
+        var outcome = new SyncSetService(session!).Add(
+            new SetDraft
+            {
+                Name = "while-locked",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "1",
+            },
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(SetRefusal.None, outcome.Refusal);
+        Assert.Single(new SyncSetService(session!).List());
+    }
+
+    [Fact]
+    public async Task An_eviction_started_while_the_lock_is_held_leaves_partial_alone_and_says_so()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        var partial = Path.Combine(tree.AppDirectory, "partial");
+        Directory.CreateDirectory(partial);
+        File.WriteAllText(Path.Combine(partial, "9.part"), "half a rom no set has heard of");
+
+        var opened = InstallSession.Open(tree.Root);
+        using var session = opened.Session;
+
+        var service = new EvictionService(session!);
+        var report = service.Preview();
+
+        Assert.False(report.Abandoned.IsEmpty);
+
+        // Taken after the preview, which is the real shape: a person reads what would go, then
+        // presses apply, and a background pass can start in between.
+        using var held = TreeLock.TryAcquire(install);
+        Assert.NotNull(held);
+
+        var applied = await service.ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        // Reported as a value with the sentence already chosen, not as a throw and not as a
+        // silent no-op. The bytes are still there and the next pass reclaims them.
+        Assert.NotNull(applied.Swept);
+        Assert.True(applied.Swept!.Skipped);
+        Assert.Contains("another agent is writing there", applied.Swept.Summary, StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(partial, "9.part")));
     }
 
     [Fact]
