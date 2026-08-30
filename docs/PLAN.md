@@ -2856,13 +2856,14 @@ design to put minutes-long cancellable work inside a process a user can close, w
 shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
 and `EvictionService` landed in 7b-2a and are unfaced until here.
 
-**Media is written outside the disk budget, and 7b-2a made that matter more.** `ContentPlanner`
-bounds the ROM transfer; `MediaSync` runs afterwards and nothing bounds it. That was a smaller
-claim while a set could also cap itself, and 7b-2a removed per-set caps from the interface, so
-the install-wide budget is now the only bound a person sets. Measured on the live install at
-roughly 1.8 MB of artwork per game where a video is fetched, which is about 900 MB across a
-500-game set. Eviction already sees media through its `local_file` rows, so only the forward
-bound is missing. Issue #102, and it belongs on the screen that shows a budget being spent.
+**The plan is optimistic by one run's artwork.** Media is _already inside_ the budget's
+accounting: `MediaSync` writes `FileOrigin.Synced` rows and both `ContentPlanner.ManagedBytes`
+and `EvictionPlanner.BytesOverBudget` sum them. What `ContentPlanner.Plan` does not do is
+**reserve** for the artwork the same run will fetch, so one sync can overshoot the cap by
+roughly the media for the games in it and the next plan corrects. Measured at about 1.8 MB per
+game where a video is fetched, so around 72 MB on a 40-game sync against a budget in the tens
+of GB: self-correcting rather than cumulative. Issue #102, and it belongs on the screen that
+shows a budget being spent.
 
 **`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
 Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is
