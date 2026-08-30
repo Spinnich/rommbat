@@ -43,7 +43,7 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
 }
 
 /// <summary>
-/// One line of the footer, and how readily it is dropped when there is no room.
+/// One line of the footer.
 /// </summary>
 /// <param name="Action">
 /// What the hint promises, rather than what to call the button. A screen cannot name a button
@@ -51,13 +51,16 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
 /// is the one printed X, so a screen free to write "X" writes the wrong one, which is exactly
 /// what finding 225 was. The renderer owns the glyph and there is one place to be wrong.
 /// </param>
-/// <param name="Priority">Lower goes last. Hints shed in a fixed order rather than wrapping.</param>
 /// <remarks>
-/// The fixed order is Argosy's convention and worth keeping: a footer that reflows or truncates
-/// as the content changes makes the controls feel unreliable, where one that always drops the
-/// same hints in the same order stays readable.
+/// <b>Every hint a screen offers is drawn, in the order it is listed.</b> This record carried a
+/// <c>Priority</c> for shedding hints on a narrow screen, which nothing implemented and every
+/// screen set: a comment describing a behaviour the code does not have is worse than the missing
+/// behaviour, because the next reader trusts it. No screen offers more than five, so if a footer
+/// ever has too many for a panel, the shed goes in <c>ShellWindow</c> where the
+/// widths are known, and the order it drops them in is Argosy's convention and worth keeping:
+/// a footer that reflows as the content changes makes the controls feel unreliable.
 /// </remarks>
-public sealed record FooterHint(NavAction Action, string Label, int Priority = 0);
+public sealed record FooterHint(NavAction Action, string Label);
 
 /// <summary>
 /// A screen, as the shell sees it.

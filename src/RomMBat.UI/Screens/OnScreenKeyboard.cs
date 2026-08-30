@@ -104,11 +104,11 @@ public sealed class OnScreenKeyboard : IScreen
 
     public IReadOnlyList<FooterHint> Hints =>
     [
-        new FooterHint(NavAction.Accept, "Type", 4),
-        new FooterHint(NavAction.PageUp, "Delete", 3),
-        new FooterHint(NavAction.Alternate, IsShifted ? "abc" : "ABC", 2),
-        new FooterHint(NavAction.Start, "Done", 4),
-        new FooterHint(NavAction.Back, "Cancel", 1),
+        new FooterHint(NavAction.Accept, "Type"),
+        new FooterHint(NavAction.PageUp, "Delete"),
+        new FooterHint(NavAction.Alternate, IsShifted ? "abc" : "ABC"),
+        new FooterHint(NavAction.Start, "Done"),
+        new FooterHint(NavAction.Back, "Cancel"),
     ];
 
     public ScreenCommand Handle(NavAction action)

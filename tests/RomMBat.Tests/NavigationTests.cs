@@ -90,8 +90,8 @@ public class NavigationTests
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
-        // "h" is row 1 ("abcdefghij"), column 7. Reached by pressing down once and right seven
-        // times, which is the whole interaction model: move, then accept.
+        // The grid is QWERTY, not alphabetical: row 1 is "qwertyuiop". Type walks the cursor to
+        // each character and accepts it, which is the whole interaction model.
         Type(navigator, ref clock, "http://romm");
 
         Assert.Equal("http://romm", keyboard.Text);
