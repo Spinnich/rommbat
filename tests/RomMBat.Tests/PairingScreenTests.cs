@@ -99,8 +99,8 @@ public class PairingScreenTests
         using var pairing = new PairingViewModel(session, Unreachable);
         await WaitForAsync(pairing, stage => stage == PairingStage.Unreachable);
 
-        // X on an unreachable server tries again. The code that lapsed cannot be revived: the
-        // server's pending state has a hard TTL, so a retry is always a fresh request.
+        // The alternate action on an unreachable server tries again. The code that lapsed cannot
+        // be revived: the server's pending state has a hard TTL, so a retry is a fresh request.
         Assert.Equal(ScreenCommandKind.Stay, pairing.Handle(NavAction.Alternate).Kind);
         Assert.Equal(PairingStage.Contacting, pairing.Stage);
 

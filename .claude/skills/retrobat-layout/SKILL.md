@@ -320,6 +320,16 @@ encodes: `a` is the bottom button, `b` the right, `y` the left, `x` the top. In 
 `FooterHint` therefore carries a `NavAction` and never a string, so a screen **cannot** name a
 button and there is one place to be wrong. Finding 230.
 
+**Closing the hint channel is not the whole rule, because prose is a second channel.** The
+first build with position glyphs in its footer still had "Press A to pair" in a status row and
+in `README.md`, which on a Switch Pro names the button that is EmulationStation's `b`, which is
+back, which on the root screen closes RomMBat: the instruction did the opposite of what it
+said. The ban covers **every** user-facing string, not the footer only. Where a sentence has to
+point at an action, quote the footer's own **label** ("Pair with RomM"), which the renderer
+draws next to the glyph, so the words on the two lines match and neither names a letter.
+`StatusScreenTests.No_string_this_screen_shows_names_a_face_button` asserts it, because the
+type system cannot.
+
 **ES surfaces controller hotplug itself**, with `%s connected` and `%s disconnected` in that same
 string table. A front end living inside it that cannot notice a pad arriving is the odd one out.
 

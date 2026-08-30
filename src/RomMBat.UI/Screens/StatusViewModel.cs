@@ -136,8 +136,10 @@ public sealed class StatusViewModel : IScreen
 
         if (device is null || !device.IsPaired)
         {
+            // Worded as the footer's own label rather than a button, because the letter differs
+            // per pad layout and "Press A" reaches a Switch Pro user as back. Finding 230.
             return new StatusSection("RomM", [
-                new StatusRow("Paired", "no", "Press A to pair this device with your RomM server."),
+                new StatusRow("Paired", "no", "Pair with RomM to sync your games, saves and play time."),
             ]);
         }
 
@@ -155,7 +157,7 @@ public sealed class StatusViewModel : IScreen
             rows.Add(new StatusRow(
                 "Token",
                 "expired",
-                "Press A to pair again. Your saves, states and settings are kept."));
+                "Pair again to sign back in. Your saves, states and settings are kept."));
         }
 
         // Degradations are a granted-scope consequence, worked out by Core. Shown because a

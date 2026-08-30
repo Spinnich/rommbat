@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using RomMBat.Core;
 using RomMBat.Core.RetroBat;
 using RomM.Client;
@@ -33,7 +34,7 @@ public class StatusScreenTests
     }
 
     [Fact]
-    public void A_fresh_install_says_it_is_not_paired_and_names_the_button_that_fixes_it()
+    public void A_fresh_install_says_it_is_not_paired_and_points_at_the_footer_by_its_words()
     {
         using var tree = TempRetroBatTree.Create();
         var model = Open(tree, out var session);
@@ -44,8 +45,59 @@ public class StatusScreenTests
 
         Assert.Equal("no", paired.Value);
 
-        // No primary flow may require a mouse, so the way forward is named as a button.
-        Assert.Contains("Press A", paired.Detail, StringComparison.Ordinal);
+        // No primary flow may require a mouse, so the way forward has to be on screen. It is
+        // named by the footer's own label, which the renderer draws beside a position glyph,
+        // rather than by a letter. This assertion used to require "Press A" and so recorded
+        // the wrong rule as correct behaviour.
+        var hint = model.Hints.Single(h => h.Action == NavAction.Accept);
+
+        Assert.Contains(hint.Label, paired.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void No_string_this_screen_shows_names_a_face_button()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        // Both states that offer pairing, because each carries its own sentence.
+        AssertNamesNoButton(new StatusViewModel(session, NoPad));
+
+        Pair(session, expiresAt: DateTimeOffset.UtcNow.AddDays(-1));
+
+        AssertNamesNoButton(new StatusViewModel(session, NoPad));
+    }
+
+    /// <summary>
+    /// Fails on any user-visible string that tells someone to press a lettered button.
+    /// </summary>
+    /// <remarks>
+    /// <b>A letter is wrong on two layouts out of three.</b> The bottom face button is A on an
+    /// Xbox pad, Cross on a DualSense and B on a Switch Pro, and a stock <c>es_input.cfg</c>
+    /// routinely has all three configured, so "Press A" reaches a Switch Pro user as the button
+    /// that closes RomMBat. <see cref="FooterHint"/> closed that off for the footer by carrying
+    /// a <see cref="NavAction"/> and never a string; nothing was stopping a detail line doing it,
+    /// and one was. Finding 230.
+    /// </remarks>
+    private static void AssertNamesNoButton(StatusViewModel model)
+    {
+        var strings = model.Sections()
+            .SelectMany(section => section.Rows)
+            .SelectMany(row => new[] { row.Label, row.Value, row.Detail })
+            .Concat(model.Hints.Select(hint => hint.Label))
+            .Append(model.Title)
+            .OfType<string>();
+
+        // "press a", "pressing the b", "the X button". Deliberately narrow: a bare "A" is an
+        // article far more often than a button, and a test that cried wolf would be turned off.
+        var named = new Regex(
+            @"\b(?:press(?:ing|es)?\s+(?:and\s+hold\s+)?(?:the\s+)?[abxy]\b|[ABXY]\s+button\b)",
+            RegexOptions.IgnoreCase);
+
+        foreach (var text in strings)
+        {
+            Assert.False(named.IsMatch(text), $"names a button: \"{text}\"");
+        }
     }
 
     [Fact]
@@ -114,8 +166,8 @@ public class StatusScreenTests
         Pair(session, expiresAt: DateTimeOffset.UtcNow.AddDays(90));
         Assert.False(status.NeedsPairing);
 
-        // And the case that was missing: once paired, A used to do nothing at all, so there was
-        // no way to move to another server or to recover a token the server had stopped
+        // And the case that was missing: once paired, accept used to do nothing at all, so there
+        // was no way to move to another server or to recover a token the server had stopped
         // accepting. M1 makes re-pairing cheap on purpose; a screen that hides it strands you.
         Assert.Equal(ScreenCommandKind.Push, status.Handle(NavAction.Accept).Kind);
         Assert.Equal(2, opened);

@@ -143,9 +143,15 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 
 ### Pairing
 
-Open **RomMBat** from the EmulationStation menu and press **A**. The address is typed on an
-on-screen keyboard, the QR is on screen to scan with a phone, and the code is there to read
-aloud if you would rather type it. Nothing in that flow needs a keyboard or a mouse.
+Open **RomMBat** from the EmulationStation menu and choose **Pair with RomM** from the footer.
+The address is typed on an on-screen keyboard, the QR is on screen to scan with a phone, and
+the code is there to read aloud if you would rather type it. Nothing in that flow needs a
+keyboard or a mouse.
+
+The footer draws each action's button as a **position** rather than a letter, the way
+EmulationStation does, because the bottom face button is A on an Xbox pad, Cross on a
+DualSense and B on a Switch Pro. RomMBat uses whatever your `es_input.cfg` says, so the
+button that works here is the one that works in EmulationStation.
 
 It is also still a console command, which is what a headless or scripted install uses:
 
