@@ -79,6 +79,11 @@ public sealed class StatusViewModel : IScreen
         // moves to a different server, and how they recover an expired or rejected token: M1
         // makes it deliberately cheap, and a screen that hides it strands them.
         new FooterHint(NavAction.Accept, NeedsPairing ? "Pair with RomM" : "Pair again"),
+        // The way in to everything stage 7b-2 added. Offered whether or not this install is
+        // paired, because defining a set and setting a budget both work with the server off
+        // and a screen that hid them would be claiming otherwise.
+        new FooterHint(NavAction.Start, "Sync sets"),
+        new FooterHint(NavAction.Alternate, "Disk space"),
         // EmulationStation rather than RetroBat, and deliberately. RetroBat is the install, which
         // is why the first row above names it; EmulationStation is the front end this returns to,
         // and its own menu for the same action reads "QUIT EMULATIONSTATION". "RetroBat" appears
@@ -97,9 +102,19 @@ public sealed class StatusViewModel : IScreen
     /// </remarks>
     public Func<IScreen>? StartPairing { get; init; }
 
+    /// <summary>Where the sets flow starts. Null until the shell wires it.</summary>
+    public Func<IScreen>? OpenSets { get; init; }
+
+    /// <summary>Where the disk budget is set. Null until the shell wires it.</summary>
+    public Func<IScreen>? OpenBudget { get; init; }
+
     public ScreenCommand Handle(NavAction action) => action switch
     {
         NavAction.Accept when StartPairing is { } start => ScreenCommand.Push(start()),
+
+        NavAction.Start when OpenSets is { } sets => ScreenCommand.Push(sets()),
+
+        NavAction.Alternate when OpenBudget is { } budget => ScreenCommand.Push(budget()),
 
         // Back on the root screen leaves RomMBat, which the navigator turns into an exit. The
         // user came from the EmulationStation menu and that is where they go.

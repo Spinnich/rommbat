@@ -36,6 +36,10 @@ internal static class ScreenView
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
+        ListScreen list => List(list),
+        SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Problem),
+        BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, null),
+        ResolveViewModel resolve => Resolve(resolve),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -318,6 +322,263 @@ internal static class ScreenView
                     $"{requirement.Name} (missing {string.Join(", ", missing)})",
                     15));
             }
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// A list of rows with the cursor on one of them.
+    /// </summary>
+    /// <remarks>
+    /// <b>An unavailable row is dimmed and keeps its reason.</b> Hiding it would be tidier and
+    /// would teach the user nothing: the commonest case is a scope this pairing was not
+    /// granted, which is fixable by pairing again, and a row that is simply absent says none
+    /// of that.
+    /// </remarks>
+    private static StackPanel List(ListScreen list)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 980,
+        };
+
+        if (list.Note is { } note)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = note,
+                Foreground = Muted,
+                FontSize = 17,
+                MaxWidth = 900,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+        }
+
+        if (list.Rows.Count == 0)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = list.EmptyMessage ?? "Nothing here.",
+                Foreground = Muted,
+                FontSize = 20,
+                MaxWidth = 760,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+
+            return stack;
+        }
+
+        for (var index = 0; index < list.Rows.Count; index++)
+        {
+            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
+        }
+
+        return stack;
+    }
+
+    private static Border ListItem(ListRow row, bool selected)
+    {
+        var lines = new StackPanel { Spacing = 3 };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+
+        // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
+        // thing rather than as a row with a missing value.
+        var ink = row.Available ? Ink : Muted;
+
+        head.Children.Add(new TextBlock
+        {
+            Text = row.Label,
+            Foreground = selected ? Brushes.Black : ink,
+            FontSize = 21,
+            MinWidth = 300,
+        });
+
+        if (row.Value is { } value)
+        {
+            head.Children.Add(new TextBlock
+            {
+                Text = value,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 19,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        }
+
+        lines.Children.Add(head);
+
+        if (row.Detail is { } detail)
+        {
+            lines.Children.Add(new TextBlock
+            {
+                Text = detail,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 16,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return new Border
+        {
+            // Fill and ring only. A row is the same size selected or not, so a held d-pad never
+            // makes the list shift under the cursor.
+            Background = selected ? Accent : Panel,
+            BorderBrush = selected ? Ink : Panel,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(18, 12, 18, 12),
+            Child = lines,
+        };
+    }
+
+    /// <summary>
+    /// A form whose values are stepped rather than typed.
+    /// </summary>
+    /// <remarks>
+    /// A steppable row is drawn with a chevron either side of its value, which is the
+    /// affordance for "this moves with left and right" that needs neither words nor a button
+    /// name.
+    /// </remarks>
+    private static StackPanel Editor(IReadOnlyList<EditorRow> rows, int cursor, string? problem)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 980,
+        };
+
+        if (problem is { } text)
+        {
+            // Where the eye already is, rather than at the top of the screen.
+            stack.Children.Add(new TextBlock
+            {
+                Text = text,
+                Foreground = Warn,
+                FontSize = 18,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+        }
+
+        for (var index = 0; index < rows.Count; index++)
+        {
+            stack.Children.Add(EditorItem(rows[index], index == cursor));
+        }
+
+        return stack;
+    }
+
+    private static Border EditorItem(EditorRow row, bool selected)
+    {
+        var lines = new StackPanel { Spacing = 3 };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+
+        head.Children.Add(new TextBlock
+        {
+            Text = row.Label,
+            Foreground = selected ? Brushes.Black : Ink,
+            FontSize = 21,
+            MinWidth = 300,
+        });
+
+        head.Children.Add(new TextBlock
+        {
+            Text = row.Steps ? $"‹  {row.Value}  ›" : row.Value,
+            Foreground = selected ? Brushes.Black : Muted,
+            FontSize = 19,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        lines.Children.Add(head);
+
+        if (row.Detail is { } detail)
+        {
+            lines.Children.Add(new TextBlock
+            {
+                Text = detail,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 16,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return new Border
+        {
+            Background = selected ? Accent : Panel,
+            BorderBrush = selected ? Ink : Panel,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(18, 12, 18, 12),
+            Child = lines,
+        };
+    }
+
+    /// <summary>
+    /// A resolve while it runs.
+    /// </summary>
+    /// <remarks>
+    /// <b>The count is the point of the screen.</b> A platform resolve measured 8m 15s against
+    /// a live instance, and one that cannot show movement is, from a sofa, the same screen as
+    /// a hung one. The bar appears only once the server has said how big the scope is, because
+    /// before that it would sit at zero and look stuck.
+    /// </remarks>
+    private static StackPanel Resolve(ResolveViewModel resolve)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = resolve.Detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        if (resolve.Counted is { } counted)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = counted,
+                Foreground = Muted,
+                FontSize = 24,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (resolve.Progress?.Fraction is { } fraction)
+        {
+            stack.Children.Add(new Border
+            {
+                Background = Panel,
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
+                Width = 620,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new Border
+                {
+                    Background = Accent,
+                    CornerRadius = new CornerRadius(6),
+                    Width = Math.Max(6, 620 * fraction),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                },
+            });
         }
 
         return stack;

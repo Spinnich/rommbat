@@ -32,7 +32,7 @@ namespace RomMBat.Tests;
 /// <para>
 /// <b>When a write does happen it is a Core service that takes the lock, never the UI.</b> That
 /// is what keeps the structural assertion true rather than deleting it, and it puts the
-/// decision where the rest of the decisions are. <see cref="Content.PartialSweep.Apply"/>
+/// decision where the rest of the decisions are. <c>PartialSweep.Apply</c>
 /// already works this way and already returns the sentence for it, so stage 7b-2 invented
 /// nothing here: it surfaced what was in the tree.
 /// </para>
