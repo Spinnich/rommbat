@@ -57,7 +57,7 @@ public enum ResolveStage
 public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 {
     private readonly InstallSession _session;
-    private readonly SyncSetDefinition _set;
+    private readonly IReadOnlyList<SyncSetDefinition> _sets;
     private readonly CancellationTokenSource _run = new();
 
     private SetResolveProgress? _progress;
@@ -69,21 +69,33 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// </param>
     public ResolveViewModel(
         InstallSession session,
-        SyncSetDefinition set,
+        IReadOnlyList<SyncSetDefinition> sets,
         Func<Uri, RomMConnection>? connect = null)
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(sets);
 
         _session = session;
-        _set = set;
+        _sets = sets;
 
         Start(connect);
     }
 
+    /// <summary>Resolving a single set, which is what the detail screen asks for.</summary>
+    public ResolveViewModel(
+        InstallSession session,
+        SyncSetDefinition set,
+        Func<Uri, RomMConnection>? connect = null)
+        : this(session, [set], connect)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+    }
+
     public event EventHandler? Invalidated;
 
-    public string Title => $"Resolving '{_set.Name}'";
+    public string Title => _sets.Count == 1
+        ? $"Resolving '{_sets[0].Name}'"
+        : $"Resolving {_sets.Count} sync sets";
 
     public ResolveStage Stage { get; private set; } = ResolveStage.Working;
 
@@ -158,7 +170,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         {
             var reports = await new SetResolveService(_session, connection)
                 .ResolveAsync(
-                    [_set],
+                    _sets,
                     new Immediate<SetResolveProgress>(progress =>
                     {
                         _progress = progress;
@@ -167,7 +179,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
                     _run.Token)
                 .ConfigureAwait(false);
 
-            Settle(reports.Count > 0 ? reports[0] : null);
+            Settle(reports);
         }
         catch (SetResolveCancelledException cancelled)
         {
@@ -198,12 +210,28 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         }
     }
 
-    private void Settle(ResolveReport? report)
+    /// <summary>
+    /// Says how it ended, which for several sets is the worst outcome among them.
+    /// </summary>
+    /// <remarks>
+    /// Reporting only the last one would let a refusal on the first set disappear behind four
+    /// that worked, and the one a person needs to act on is the one that did not.
+    /// </remarks>
+    private void Settle(IReadOnlyList<ResolveReport> reports)
     {
+        var report = reports.FirstOrDefault(r => r.State is ResolveState.Refused or ResolveState.NeedsFolderChoice)
+            ?? reports.FirstOrDefault(r => r.State == ResolveState.Interrupted)
+            ?? (reports.Count > 0 ? reports[^1] : null);
+
         if (report is null)
         {
             Stage = ResolveStage.Stopped;
             Detail = "Nothing was resolved.";
+        }
+        else if (reports.Count > 1 && report.State == ResolveState.Resolved)
+        {
+            Stage = ResolveStage.Done;
+            Detail = $"{reports.Count} sync sets resolved.";
         }
         else
         {

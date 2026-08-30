@@ -92,6 +92,17 @@ public sealed class SetEditorViewModel : IScreen
     private string? _searchTerm;
     private string? _collectionValue;
     private string? _collectionLabel;
+
+    /// <summary>
+    /// True once a person has typed a name themselves.
+    /// </summary>
+    /// <remarks>
+    /// A platform and a collection both already have a name in RomM, so making somebody spell
+    /// one out on a d-pad to mirror it is work for nothing. The name follows what was chosen
+    /// until it is edited, and then it stops moving, because silently overwriting a name
+    /// somebody typed would be worse than asking for it in the first place.
+    /// </remarks>
+    private bool _namedByHand;
     private int _gameCap;
     private int _byteCap;
     private int _ordering;
@@ -166,7 +177,11 @@ public sealed class SetEditorViewModel : IScreen
 
             if (IsNew)
             {
-                rows.Add(new EditorRow("Name", _name.Length == 0 ? "not set" : _name, null, false));
+                rows.Add(new EditorRow(
+                    "Name",
+                    _name.Length == 0 ? "named after what you choose" : _name,
+                    null,
+                    false));
                 rows.Add(new EditorRow("Scope", SyncSetStore.ScopeText(_scope), null, false));
 
                 if (_scope == CatalogScopeKind.Platform)
@@ -315,6 +330,7 @@ public sealed class SetEditorViewModel : IScreen
             typed =>
             {
                 _name = typed.Trim();
+                _namedByHand = _name.Length > 0;
                 return new TypedResult(null);
             })),
 
@@ -389,6 +405,7 @@ public sealed class SetEditorViewModel : IScreen
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
                 _platformLabel = platforms[index].Label;
                 _platformFolder = platforms[index].Folder;
+                Suggest(platforms[index].Label);
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this")
@@ -454,6 +471,7 @@ public sealed class SetEditorViewModel : IScreen
             {
                 _collectionValue = options[index].Value;
                 _collectionLabel = options[index].Label;
+                Suggest(options[index].Label);
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this");
@@ -542,6 +560,15 @@ public sealed class SetEditorViewModel : IScreen
         }
 
         return ScreenCommand.Pop;
+    }
+
+    /// <summary>Names the set after what it points at, unless somebody named it themselves.</summary>
+    private void Suggest(string label)
+    {
+        if (!_namedByHand)
+        {
+            _name = label;
+        }
     }
 
     private static int Wrap(int index, int count) => ((index % count) + count) % count;

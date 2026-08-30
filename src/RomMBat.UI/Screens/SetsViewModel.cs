@@ -53,13 +53,23 @@ public static class SetsScreens
             index => ScreenCommand.Push(Detail(session, sets[index].Set.Name, connect)),
             acceptLabel: "Open",
             backLabel: "Back",
-            new FooterHint(NavAction.Start, "New set"))
+            new FooterHint(NavAction.Start, "New set"),
+            new FooterHint(NavAction.Alternate, "Resolve all"))
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform or a "
                 + "filter, with a limit on how much of it to hold.",
-            Verbs = (action, _) => action == NavAction.Start
-                ? ScreenCommand.Push(SetEditorViewModel.ForNew(session))
-                : null,
+            Verbs = (action, _) => action switch
+            {
+                NavAction.Start => ScreenCommand.Push(SetEditorViewModel.ForNew(session)),
+
+                // Every set at once, because doing them one at a time is the hassle a person
+                // notices first. SetResolveService already walks a list; nothing new is needed
+                // except somewhere to press.
+                NavAction.Alternate when sets.Count > 0 =>
+                    ScreenCommand.Push(Resolve(session, [.. sets.Select(summary => summary.Set)], connect)),
+
+                _ => null,
+            },
         };
     }
 
@@ -75,13 +85,49 @@ public static class SetsScreens
     {
         ArgumentNullException.ThrowIfNull(session);
 
-        var detail = new SyncSetService(session).Show(name);
+        var service = new SyncSetService(session);
+        var detail = service.Show(name);
 
         if (detail is null)
         {
             return new MessageScreen("Sync sets", $"There is no set named '{name}' any more.");
         }
 
+        // Re-read on return, because resolving happens on a screen above this one and used to
+        // leave the counts and the last-resolved time showing what they said before it ran.
+        IReadOnlyList<ListRow> Rows()
+        {
+            detail = service.Show(name) ?? detail;
+            return DetailRows(session, detail);
+        }
+
+        return new ListScreen(
+            detail.Set.Name,
+            Rows,
+            _ => ScreenCommand.Stay,
+            acceptLabel: "Edit limits",
+            backLabel: "Back",
+            new FooterHint(NavAction.Start, "Resolve now"),
+            new FooterHint(NavAction.Alternate, "Delete set"))
+        {
+            // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
+            // and the accept hint was suppressed while Verbs went on handling the press. The
+            // edit worked and the footer never said so.
+            AlwaysOfferAccept = true,
+            Note = "Resolving asks RomM what this set contains now, and needs the network.",
+            Verbs = (action, _) => action switch
+            {
+                // Accept opens, it never adjusts. Editing is a screen, not a step.
+                NavAction.Accept => ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set)),
+                NavAction.Start => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
+                NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name)),
+                _ => null,
+            },
+        };
+    }
+
+    private static List<ListRow> DetailRows(InstallSession session, SetDetail detail)
+    {
         var rows = new List<ListRow>
         {
             new("Scope", ScopeValue(session, detail.Set), null, false),
@@ -107,32 +153,7 @@ public static class SetsScreens
                 false));
         }
 
-        return new ListScreen(
-            detail.Set.Name,
-            rows,
-            _ => ScreenCommand.Stay,
-            acceptLabel: "Edit limits",
-            backLabel: "Back",
-            new FooterHint(NavAction.Start, "Resolve now"),
-            new FooterHint(NavAction.Alternate, "Delete set"))
-        {
-            // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
-            // and the accept hint was suppressed while Verbs went on handling the press. The
-            // edit worked and the footer never said so.
-            // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
-            // and the accept hint was suppressed while Verbs went on handling the press. The
-            // edit worked and the footer never said so.
-            AlwaysOfferAccept = true,
-            Note = "Resolving asks RomM what this set contains now, and needs the network.",
-            Verbs = (action, _) => action switch
-            {
-                // Accept opens, it never adjusts. Editing is a screen, not a step.
-                NavAction.Accept => ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail.Set)),
-                NavAction.Start => ScreenCommand.Push(Resolve(session, detail.Set, connect)),
-                NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail.Set.Name)),
-                _ => null,
-            },
-        };
+        return rows;
     }
 
     /// <summary>
@@ -166,12 +187,12 @@ public static class SetsScreens
             acceptLabel: "Delete",
             backLabel: "Keep it");
 
-    /// <summary>Resolving one set, which is the only screen here that needs the network.</summary>
+    /// <summary>Resolving one or more sets, the only screen here that needs the network.</summary>
     public static IScreen Resolve(
         InstallSession session,
-        SyncSetDefinition set,
+        IReadOnlyList<SyncSetDefinition> sets,
         Func<Uri, RomMConnection>? connect) =>
-        new ResolveViewModel(session, set, connect);
+        new ResolveViewModel(session, sets, connect);
 
     /// <summary>The scope, with a platform's id shown as the name a person recognises.</summary>
     private static string ScopeValue(InstallSession session, SyncSetDefinition set)

@@ -342,7 +342,12 @@ internal static class ScreenView
         {
             Spacing = 14,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 980,
+
+            // Fixed, not a maximum. A stack that sizes to its content is as wide as the widest
+            // row currently drawn, and the drawn rows change as the window scrolls, so the
+            // whole block grew and shrank under the cursor. Fixing the height was only half of
+            // it and the half nobody noticed.
+            Width = ListWidth,
         };
 
         if (list.Note is { } note)
@@ -417,29 +422,53 @@ internal static class ScreenView
     private static Border ListItem(ListRow row, bool selected)
     {
         var lines = new StackPanel { Spacing = 3 };
-        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+
+        // A grid rather than a horizontal stack, so the value sits at the right edge of every
+        // row instead of wherever its label happens to end. With a fixed row width that puts
+        // the second column on one line down the list, which is what makes it readable across
+        // a room, and it is the same reason the status screen pins its label column.
+        var head = new Grid
+        {
+            ColumnDefinitions =
+            [
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+            ],
+        };
 
         // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
         // thing rather than as a row with a missing value.
         var ink = row.Available ? Ink : Muted;
 
-        head.Children.Add(new TextBlock
+        var label = new TextBlock
         {
             Text = row.Label,
             Foreground = selected ? Brushes.Black : ink,
             FontSize = 21,
-            MinWidth = 300,
-        });
+
+            // A name longer than the row is trimmed rather than allowed to widen it. The live
+            // platform list has names from "Bally Astrocade" to "Bandai - WonderSwan Color
+            // (Unofficial)".
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        Grid.SetColumn(label, 0);
+        head.Children.Add(label);
 
         if (row.Value is { } value)
         {
-            head.Children.Add(new TextBlock
+            var right = new TextBlock
             {
                 Text = value,
                 Foreground = selected ? Brushes.Black : Muted,
                 FontSize = 19,
+                Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-            });
+            };
+
+            Grid.SetColumn(right, 1);
+            head.Children.Add(right);
         }
 
         lines.Children.Add(head);
@@ -482,6 +511,15 @@ internal static class ScreenView
     /// make the drawn block change size as the cursor passes between them.
     /// </remarks>
     private const double RowHeight = 78;
+
+    /// <summary>
+    /// How wide a list is, fixed so it cannot breathe as the window scrolls.
+    /// </summary>
+    /// <remarks>
+    /// Wide enough for the longest platform name the live install carries with its folder
+    /// beside it, and narrow enough to leave margins on a 720p display.
+    /// </remarks>
+    private const double ListWidth = 980;
 
     /// <summary>
     /// A form whose values are stepped rather than typed.

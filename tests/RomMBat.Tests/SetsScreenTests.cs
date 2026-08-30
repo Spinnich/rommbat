@@ -339,6 +339,97 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Equal(SyncSetStore.OrderingText(SetOrdering.RecentlyUpdated), ordering);
     }
 
+    [Fact]
+    public void A_new_set_is_named_after_the_platform_it_mirrors()
+    {
+        SeedPlatform(4, "snes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+
+        // A platform and a collection both already have a name in RomM, so making somebody
+        // spell one out on a d-pad to mirror it is work for nothing. This is also what takes
+        // the on-screen keyboard off the common path entirely.
+        Assert.Equal("named after what you choose", editor.Rows.Single(r => r.Label == "Name").Value);
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, 2));
+        picker.Handle(NavAction.Accept);
+
+        var named = editor.Rows.Single(r => r.Label == "Name").Value;
+        Assert.NotEqual("named after what you choose", named);
+        Assert.Equal(new SyncSetService(_session).PlatformsKnownHere()[0].Label, named);
+    }
+
+    [Fact]
+    public void A_name_somebody_typed_is_not_overwritten_by_a_later_choice()
+    {
+        SeedPlatform(4, "snes");
+        SeedPlatform(9, "megadrive");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+
+        var keyboard = Assert.IsType<OnScreenKeyboard>(OpenRow(editor, 0));
+        keyboard.Handle(NavAction.Accept);
+        keyboard.Handle(NavAction.Start);
+
+        var typed = editor.Rows.Single(r => r.Label == "Name").Value;
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, 2));
+        picker.Handle(NavAction.Accept);
+
+        // Silently replacing a name somebody entered would be worse than asking for one.
+        Assert.Equal(typed, editor.Rows.Single(r => r.Label == "Name").Value);
+    }
+
+    [Fact]
+    public void Resolving_from_the_detail_screen_updates_what_it_shows()
+    {
+        var set = Seed("stale");
+        var detail = SetsScreens.Detail(_session, set.Name, null);
+        var list = Assert.IsType<ListScreen>(detail);
+
+        Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value == "0 games, 0 B");
+
+        // Stand in for what a resolve writes. It happens on a screen above this one, which used
+        // to leave the counts and the last-resolved time saying what they said before it ran.
+        _session.Store.SyncSets.ReplaceMembers(
+            set.Id,
+            [Member(set)],
+            "1 game",
+            Now,
+            complete: true);
+
+        list.Returned();
+
+        Assert.Contains(list.Rows, row => row.Label == "Holds" && row.Value!.StartsWith("1 game", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Every_set_can_be_resolved_at_once_from_the_list()
+    {
+        Seed("one");
+        Seed("two");
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+
+        // Doing them one at a time is the hassle a person notices first, and the service
+        // already walks a list.
+        var command = navigator.Current.Handle(NavAction.Alternate);
+        using var resolve = Assert.IsType<ResolveViewModel>(command.Screen);
+
+        Assert.Contains("2", resolve.Title, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_all_is_not_offered_when_there_is_nothing_to_resolve()
+    {
+        var list = SetsScreens.List(_session);
+
+        // An empty list offering to resolve everything is a footer promising a no-op.
+        Assert.Empty(Assert.IsType<ListScreen>(list).Rows);
+        Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Alternate).Kind);
+    }
+
     // ---- offline is a working state ----
 
     [Fact]
@@ -564,6 +655,22 @@ public sealed class SetsScreenTests : IDisposable
                 new Dictionary<string, string>())
                 .Resolve(new RomMBat.Core.Mapping.RomMPlatform(id, folder, folder, folder)),
             Now);
+
+    private static SyncSetMember Member(SyncSetDefinition set) =>
+        new()
+        {
+            RomId = 1,
+            State = MemberState.Member,
+            Folder = "snes",
+            PlatformSlug = "snes",
+            FsName = "g.sfc",
+            FsExtension = "sfc",
+            SizeBytes = 2048,
+            DisplayName = "Game",
+            SortKey = "game",
+            Position = 1,
+            ResolvedAt = Now,
+        };
 
     private SyncSetDefinition Seed(string name) =>
         _session.Store.SyncSets.Add(
