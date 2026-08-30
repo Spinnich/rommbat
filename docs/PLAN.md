@@ -25,7 +25,7 @@ UI `RomMBat.exe`.
 | Decision     | Choice                                                                                                                                 |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | Architecture | Standalone companion app; integrate via RetroBat's existing folder and script seams                                                    |
-| Stack        | C# / .NET 10 (LTS), published self-contained single-file win-x64                                                                       |
+| Stack        | C# / .NET 10 (LTS), published self-contained win-x64: the agent and hook as one file, the UI as an exe plus its natives                |
 | v1 scope     | Full two-way sync (selective library pull + saves/states/playtime push)                                                                |
 | UX           | Gamepad-navigable full-screen app launched from ES, plus a headless agent                                                              |
 | Auth         | Device pairing only (`/api/auth/device/*`): scan a QR or type the 8-character code. No password entry, no token pasting, no other flow |
@@ -877,12 +877,19 @@ saves/dreamcast/reicast/states` while the file declares `{{system}}/flycast/ssta
   high-severity advisory and so fails the `-warnaserror` build, for a backend a win-x64 ship
   cannot use.
 
-  | Single file, natives bundled | Size         | First frame |
-  | ---------------------------- | ------------ | ----------- |
-  | the console stub it replaced | 77.9 MB      | n/a         |
-  | **shipped: untrimmed**       | **101.1 MB** | **1041 ms** |
-  | untrimmed + ReadyToRun       | 132.0 MB     | 533 ms      |
-  | trimmed + ReadyToRun         | 61.1 MB      | 517 ms      |
+  | Publish variant              | Size         | First frame | Shape                     |
+  | ---------------------------- | ------------ | ----------- | ------------------------- |
+  | the console stub it replaced | 77.9 MB      | n/a         | one file                  |
+  | **shipped: untrimmed**       | **101.1 MB** | **1041 ms** | **exe plus four natives** |
+  | untrimmed + ReadyToRun       | 132.0 MB     | 533 ms      | exe plus four natives     |
+  | trimmed + ReadyToRun         | 61.1 MB      | 517 ms      | bundled, refused below    |
+
+  **Size is the total of the published files, and only the console stub is one of them.**
+  The shipped 101.1 MB is the exe plus `av_libglesv2`, `libSkiaSharp`, `libHarfBuzzSharp` and
+  `e_sqlite3`. `IncludeNativeLibrariesForSelfExtract` does produce a single file, and it is
+  refused on core principle 4: self-extraction unpacks the natives into the **host's** temp
+  directory rather than the tree, afresh on every machine a portable drive is carried to.
+  `docs/ARCHITECTURE.md` lists the five files and their sizes.
 
   **The size argument holds and is not yet collected.** Trimming really does take this below
   the agent, and it is off because Core and `RomM.Client` raise 16 `IL2026` warnings across
