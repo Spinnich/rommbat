@@ -25,6 +25,7 @@ macOS backends. Build the app with `.UseWin32().UseSkia()` rather than `.UsePlat
 | `probe1-input-and-focus.cs`    | A full-screen Avalonia window that logs input, focus, foreground and ES liveness  |
 | `probe1-selected-hook.cs`      | Stamps ES's `game-selected` / `system-selected`, which is what made 219 provable  |
 | `probe4-unreachable-server.cs` | Times an unreachable server through the path the UI uses. Needs only Core         |
+| `probe5-controller-hotplug.cs` | A controller switched off and on, through the shipped `GamepadReader`             |
 
 ## The two that mattered
 
@@ -37,6 +38,12 @@ record. Remove the folders afterwards; they are not part of a RetroBat install.
 **218, whether a layout has to be detected**, is answered by `es_input.cfg` and not by the
 probe. The probe's job was only to confirm the file's ids resolve against live hardware
 through the shipped parser, which they do, for all 21 names on the 8BitDo.
+
+**Probe 5 is the only evidence the hotplug path has**, and it has to be a window for the reason
+in finding 226. Run it, switch the controller **off**, wait, switch it **on**, and press
+something. It drives `GamepadReader` itself rather than a copy, so a green run is a statement
+about the shipped code. Deleting the `SDL_JoystickGetAttached` check leaves the whole unit suite
+passing, which is what this exists to cover.
 
 ## Three things learned the hard way, so the next session does not repeat them
 
