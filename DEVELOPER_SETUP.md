@@ -207,6 +207,17 @@ $env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
 dotnet test
 ```
 
+**Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
+these variables exported, **20 of the tests pair against the real server**, minting and revoking
+real credentials on the account behind the approver token. Nothing warns you first. Two runs
+overlapping share that one account and the server answers `Too many authorize attempts. Try
+again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
+clears on its own. If you want a run that touches nothing, unset both variables and the 20 skip:
+
+```bash
+env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test
+```
+
 **When these start failing, check the token first.** It is a `ClientToken` like any other,
 so it expires on whatever `expires_in` it was created with and can be revoked from the RomM
 UI. A revoked or lapsed token fails on `ReadPendingAsync` with a 401 rather than the 403
