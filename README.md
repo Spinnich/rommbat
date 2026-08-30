@@ -141,9 +141,19 @@ degrades by feature, telling you what is off, rather than throwing errors at you
 --protect` adds AES-GCM under a passphrase you type, at the cost of unattended syncing:
 > nothing can decrypt the token without you typing it again. See [SECURITY.md](SECURITY.md).
 
-### Pairing from the console
+### Pairing
 
-Until the gamepad UI lands in M7 stage 7b, pairing runs from the agent, QR included:
+Open **RomMBat** from the EmulationStation menu and choose **Pair with RomM** from the footer.
+The address is typed on an on-screen keyboard, the QR is on screen to scan with a phone, and
+the code is there to read aloud if you would rather type it. Nothing in that flow needs a
+keyboard or a mouse.
+
+The footer draws each action's button as a **position** rather than a letter, the way
+EmulationStation does, because the bottom face button is A on an Xbox pad, Cross on a
+DualSense and B on a Switch Pro. RomMBat uses whatever your `es_input.cfg` says, so the
+button that works here is the one that works in EmulationStation.
+
+It is also still a console command, which is what a headless or scripted install uses:
 
 ```powershell
 emulators\rommbat\rommbat-agent.exe pair --server https://your-romm-instance
@@ -270,17 +280,17 @@ drive with plenty free.
 RomMBat is built in milestones, and platforms are certified one at a time after the
 framework works end to end.
 
-| Milestone | Scope                                                                                                               | State                                                                                                                                  |
-| --------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                                                            |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                                                |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet                                |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance                                |
-| M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance                         |
-| M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                                             |
-| M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                                                     |
-| M7        | Closing the EmulationStation loop, then the gamepad UI                                                              | **Stage 7a complete.** Hooks start the sync passes, RomMBat is in the ES menu, config changes can wait for a quit. The UI itself is 7b |
-| M8        | Packaging, docs, release                                                                                            | Not started                                                                                                                            |
+| Milestone | Scope                                                                                                               | State                                                                                                                                                                                                                                                 |
+| --------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M0        | Probes against a real RetroBat install; findings recorded in [docs/retrobat-findings.md](docs/retrobat-findings.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                                                                                                                                                                           |
+| M1        | Device pairing, portable identity, SQLite schema and outbox                                                         | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                                                                                                                                                               |
+| M2        | Paged catalog browsing, sync sets, platform mapping                                                                 | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet                                                                                                                                               |
+| M3        | Content sync, resumable downloads, disk budget and eviction                                                         | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance                                                                                                                                               |
+| M4        | `gamelist.xml` generation, metadata and media                                                                       | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance                                                                                                                                        |
+| M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                                                                                                                                                            |
+| M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                                                                                                                                                                    |
+| M7        | Closing the EmulationStation loop, then the gamepad UI                                                              | **Stages 7a and 7b-1 complete.** Hooks start the sync passes, RomMBat is in the ES menu, and the menu entry now opens a real full-screen interface: pairing and status, driven by a controller. Sets, browse, install and conflicts are 7b-2 and 7b-3 |
+| M8        | Packaging, docs, release                                                                                            | Not started                                                                                                                                                                                                                                           |
 
 M6 is the one milestone where a missed detail loses a save rather than a download, so it
 ships in stages small enough to review. The first cut is at the save-class boundary; the
@@ -413,7 +423,7 @@ src/RomM.Client/openapi
                       it is. Generated output is committed under Generated/
 src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
 src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
-src/RomMBat.UI        Gamepad-navigable front end (Avalonia, settled in M7 stage 7a; still a stub)
+src/RomMBat.UI        Gamepad-navigable front end (Avalonia, Win32 + Skia)
 tests/RomMBat.Tests   xUnit, over Core and Client
 tests/RomMBat.Agent.Tests
                       xUnit, over the Agent's subcommands and their gates

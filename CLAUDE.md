@@ -14,15 +14,15 @@ is only its index.
 
 ## The stack at a glance
 
-|             |                                                                |
-| ----------- | -------------------------------------------------------------- |
-| Language    | C# / .NET 10 (LTS, supported to Nov 2028)                      |
-| Ships as    | Self-contained single-file `win-x64`, no .NET install required |
-| Local state | SQLite, inside the RetroBat tree                               |
-| UI          | Full-screen gamepad-navigable, launched from EmulationStation  |
-| Agent       | Short-lived console process invoked by ES `.bat` hooks         |
-| Lint        | Trunk (`trunk fmt && trunk check`)                             |
-| Licence     | GPL-3.0                                                        |
+|             |                                                               |
+| ----------- | ------------------------------------------------------------- |
+| Language    | C# / .NET 10 (LTS, supported to Nov 2028)                     |
+| Ships as    | Self-contained `win-x64`, no .NET install required            |
+| Local state | SQLite, inside the RetroBat tree                              |
+| UI          | Full-screen gamepad-navigable, launched from EmulationStation |
+| Agent       | Short-lived console process invoked by ES `.bat` hooks        |
+| Lint        | Trunk (`trunk fmt && trunk check`)                            |
+| Licence     | GPL-3.0                                                       |
 
 | Project         | Role                                                                                                             |
 | --------------- | ---------------------------------------------------------------------------------------------------------------- |
@@ -31,6 +31,13 @@ is only its index.
 | `RomMBat.Agent` | Console exe: `pair`, `sync`, `game-start`, `game-end`, `flush`, `status`                                         |
 | `RomMBat.UI`    | Gamepad-navigable front end                                                                                      |
 | `*.Tests`       | xUnit                                                                                                            |
+
+**"Self-contained" is not "one file", and the difference is the UI.** The agent and the hook
+publish as a single file. `RomMBat.exe` publishes as **five**: the exe plus Avalonia's three
+native libraries and `e_sqlite3.dll`, because `IncludeNativeLibrariesForSelfExtract` unpacks
+natives into the **host's** temp directory rather than the tree, which core principle 4 forbids.
+M8's installer places five files and losing one breaks the app. `docs/ARCHITECTURE.md` has the
+sizes.
 
 ---
 

@@ -207,6 +207,17 @@ $env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
 dotnet test
 ```
 
+**Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
+these variables exported, **20 of the tests pair against the real server**, minting and revoking
+real credentials on the account behind the approver token. Nothing warns you first. Two runs
+overlapping share that one account and the server answers `Too many authorize attempts. Try
+again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
+clears on its own. If you want a run that touches nothing, unset both variables and the 20 skip:
+
+```bash
+env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test
+```
+
 **When these start failing, check the token first.** It is a `ClientToken` like any other,
 so it expires on whatever `expires_in` it was created with and can be revoked from the RomM
 UI. A revoked or lapsed token fails on `ReadPendingAsync` with a 401 rather than the 403
@@ -252,8 +263,8 @@ is gitignored.
 
 ### Pairing by hand, without a UI
 
-The gamepad UI arrives in M7 stage 7b, so the pairing surface today is the console agent,
-ASCII QR included:
+The gamepad UI pairs from the couch as of M7 stage 7b-1. The console agent does the same
+thing without a window, ASCII QR included, which is what a headless or scripted install uses:
 
 ```powershell
 dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
@@ -263,6 +274,41 @@ dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
 `--root` is only needed when the agent is not running from inside the tree. Add `--protect`
 to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
 reachability probe.
+
+### Running the gamepad UI at a desk
+
+It runs standalone, with no EmulationStation in front of it and no controller plugged in:
+
+```powershell
+dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
+```
+
+**A physical keyboard drives it**, which exists so the interface can be worked on at a desk and
+is deliberately not a supported user flow: arrows move, Enter is A, Escape is B, Backspace is
+L1, Tab is X, F5 is Start. With a controller connected it is read through the same `es_input.cfg` a real
+install uses, so what you press at a desk is what a user presses on a sofa.
+
+**Running standalone changes nothing about `es_settings.cfg`.** The UI never writes that file,
+EmulationStation up or not, because the queue is the only path that exists and a test asserts
+the assembly cannot even name the writer. "ES is always up" is a fact about how it is launched,
+not a load-bearing assumption.
+
+**A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
+identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.
+To re-test pairing without collecting a device per attempt, **delete the store and keep
+`device.id`**:
+
+```powershell
+Remove-Item D:\retrobat-test\emulators\rommbat\rommbat.db*
+```
+
+Pairing anchors on `client_device_identifier` and never on MAC or hostname, so the next pairing
+updates the same RomM device rather than creating another. Deleting `device.id` as well is what
+mints a new one.
+
+**A store from a completed pairing holds a live token in the clear** unless it was made with
+`--protect`. Do not copy one out of a tree, and do not paste the contents of the `device` table
+anywhere: `token_cipher` holds the token itself when protection is `none`.
 
 ### Pulling content, without filling your disk
 

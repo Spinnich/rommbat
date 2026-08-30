@@ -1,7 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!--
+      WinExe, not Exe. The stub was a console app; this is a full-screen window launched from
+      the EmulationStation menu over a live ES, and Exe would flash a console behind it at
+      every open. Same reason the hooks spawn the background pass with CreateNoWindow.
+    -->
+    <OutputType>WinExe</OutputType>
     <RootNamespace>RomMBat.UI</RootNamespace>
     <!-- The es_menu entry launches this name. -->
     <AssemblyName>RomMBat</AssemblyName>
@@ -12,15 +17,29 @@
   </PropertyGroup>
 
   <!--
-    The framework is Avalonia, settled in M7 stage 7a on size: WPF cannot be trimmed and
-    needs the Windows Desktop runtime inside a self-contained publish. The package arrives
-    with the app in stage 7b, so nothing is referenced yet and OutputType stays Exe rather
-    than WinExe until it is. Presentation owns no logic: set resolution, mapping, conflict
-    handling and the outbox all live in RomMBat.Core.
+    Avalonia, settled in M7 stage 7a on size. Win32 and Skia are referenced explicitly rather
+    than through Avalonia.Desktop, for two reasons: RomMBat ships win-x64 only and has no use
+    for the X11 or macOS backends, and Avalonia.Desktop drags in Tmds.DBus.Protocol for X11,
+    which raises NU1903 for a known high-severity advisory that -warnaserror turns into a
+    failed build.
+
+    Not trimmed, and that is measured rather than lazy: trimming takes this from 101 MB to
+    61 MB and 1041 ms to 517 ms, but Core and RomM.Client raise 16 IL2026 warnings whose
+    failure mode is a runtime deserialisation fault in a build that linked cleanly. See #98.
   -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Win32" />
+    <PackageReference Include="Avalonia.Skia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\RomMBat.Core\RomMBat.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="RomMBat.Tests" />
   </ItemGroup>
 
 </Project>
