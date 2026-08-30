@@ -38,12 +38,19 @@ record. Remove the folders afterwards; they are not part of a RetroBat install.
 probe. The probe's job was only to confirm the file's ids resolve against live hardware
 through the shipped parser, which they do, for all 21 names on the 8BitDo.
 
-## Two things learned the hard way, so the next session does not repeat them
+## Three things learned the hard way, so the next session does not repeat them
 
 - **Do not put the exit gesture on a button the sweep asks you to press.** The first two runs
   ended after 6 seconds because `start` both exited the probe and was one of the inputs under
   test. `--no-pad-exit` exists for that reason; the ES-menu run needs the pad exit because
   there is no keyboard in there.
+- **A console probe sees no controllers at all, and says so confidently.** SDL 2.32.8 defaults
+  to the RAWINPUT backend, which needs a Win32 message pump, so `SDL_NumJoysticks()` returns 0
+  in a plain console process while three pads are attached. Run the probe with
+  `SDL_JOYSTICK_RAWINPUT=0` in the environment, or put it behind a real window. Either way the
+  GUID it then reads carries a different driver byte from the one `es_input.cfg` holds, so a
+  console probe can measure _whether_ a pad is there and must not be used to check whether it
+  matches the file. Findings 226 and 227.
 - **The first observation of any input is its resting value, not a press.** Otherwise every run
   opens with a burst of phantom events, and on this pad two of them would be the triggers,
   which rest at `-32768` rather than zero (finding 223).

@@ -290,10 +290,25 @@ imports **`SDL2.dll`** (2.32.8 on 8.2.1) and not `SDL3.dll`, though RetroBat shi
 loads **`emulationstation/SDL2.dll`** rather than bundling its own build: that costs zero
 published bytes, and more importantly it makes an index mismatch impossible by construction,
 where a different SDL build enumerating some pad differently would mis-map **silently**.
-`SDL_Init(SDL_INIT_JOYSTICK)` alone works, with no video subsystem, no window and no SDL message
-pump. If the library is missing or the pad has no `inputConfig`, say so and name the fix
+`SDL_Init(SDL_INIT_JOYSTICK)` alone is enough, with no video subsystem and no SDL event loop.
+**It does need a Win32 message pump, which is a different thing**, and the failure is silent:
+SDL 2.32.8 defaults to the RAWINPUT backend, and in a console process with no pumped window
+`SDL_NumJoysticks()` returns **0** while three controllers are attached (finding 226). Avalonia
+pumps, so the shipped UI is unaffected; **a console probe of controller state is not**, and has
+to set `SDL_JOYSTICK_RAWINPUT=0`, which then changes the GUID it reads and makes it
+incomparable to the file (finding 227). If the library is missing or the pad has no
+`inputConfig`, say so and name the fix
 (configure the controller in EmulationStation first) rather than inventing a default map: a pad
 ES cannot drive is one the user's own front end cannot drive either.
+
+**Enumerate more than once, because a controller is not a fixed fact about a session.** A pad
+asleep in its cradle at launch, batteries that go mid-session, and a virtual pad from a
+streaming host that attaches only once the client sends input are the same shape, and all three
+end with a person holding a controller that does nothing and no way to reach the thing that
+would restart the app. A lost pad also does not announce itself: reading a handle whose device
+has gone away returns released buttons and centred axes, which is exactly what an untouched
+controller looks like, so `SDL_JoystickGetAttached` is the only way to tell them apart.
+`GamepadReader` asks that per frame and re-enumerates once a second when it holds nothing.
 
 **A UI launched from the ES menu has the controller to itself, and needs no workaround.**
 Measured with a stamping hook on `game-selected`: ES fired **zero** navigation events during the
