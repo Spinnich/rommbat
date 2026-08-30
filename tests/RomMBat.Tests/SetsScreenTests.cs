@@ -136,20 +136,45 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
-    public void Deleting_a_set_says_that_nothing_on_disk_was_touched()
+    public void Deleting_a_set_says_that_nothing_on_disk_was_touched_before_it_happens()
     {
         Seed("doomed");
 
-        var confirm = SetsScreens.ConfirmDelete(_session, "doomed");
-        var command = confirm.Handle(NavAction.Accept);
+        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        Assert.Equal(ScreenCommandKind.Replace, command.Kind);
-        var message = Assert.IsType<MessageScreen>(command.Screen);
+        // sets remove has always said this, and a person deleting from a couch has no other way
+        // to learn that their games are still there. It is on the confirmation rather than on a
+        // screen afterwards, because a warning after the act is not a warning.
+        Assert.Contains(
+            confirm.Rows,
+            row => row.Detail is { } detail
+                && detail.Contains("Nothing on disk is touched", StringComparison.Ordinal));
 
-        // sets remove has always said this, and a person deleting from a couch has no other
-        // way to learn that their games are still there.
-        Assert.Contains("Nothing on disk was touched", message.Message, StringComparison.Ordinal);
+        Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Empty(new SyncSetService(_session).List());
+    }
+
+    [Fact]
+    public void Deleting_a_set_lands_back_on_the_list_rather_than_stranding()
+    {
+        Seed("doomed");
+        Seed("survivor");
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+        var list = Assert.IsType<ListScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Alternate);
+        navigator.Handle(NavAction.Accept);
+
+        // Back on the list, with the deleted set gone from it. It used to land on a message
+        // screen whose only way onward was to leave RomMBat, and the detail screen underneath
+        // was describing a set that no longer existed.
+        Assert.Same(list, navigator.Current);
+        Assert.Equal(2, navigator.Depth);
+        Assert.Single(list.Rows);
+        Assert.Equal("survivor", list.Rows[0].Label);
     }
 
     [Fact]

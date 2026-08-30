@@ -29,11 +29,19 @@ public enum ScreenCommandKind
 }
 
 /// <summary>A screen's answer to one action.</summary>
-public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Screen = null)
+/// <param name="Depth">
+/// How many screens a pop closes. More than one when the screen underneath has been made
+/// meaningless by what just happened: deleting a set leaves its detail screen describing
+/// something that no longer exists, so the confirmation and the detail go together.
+/// </param>
+public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Screen = null, int Depth = 1)
 {
     public static ScreenCommand Stay => new(ScreenCommandKind.Stay);
 
     public static ScreenCommand Pop => new(ScreenCommandKind.Pop);
+
+    /// <summary>Closes this screen and the ones under it that it invalidated.</summary>
+    public static ScreenCommand PopMany(int depth) => new(ScreenCommandKind.Pop, null, depth);
 
     public static ScreenCommand Exit => new(ScreenCommandKind.Exit);
 

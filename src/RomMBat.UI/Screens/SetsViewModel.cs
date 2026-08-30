@@ -156,12 +156,12 @@ public static class SetsScreens
             {
                 new SyncSetService(session).Remove(name);
 
-                // Two pops: this confirmation and the detail screen underneath it, whose set
-                // no longer exists. Landing back on a detail screen for a deleted set would
-                // be a screen describing nothing.
-                return ScreenCommand.Replace(new MessageScreen(
-                    "Sync sets",
-                    $"'{name}' was deleted. Nothing on disk was touched."));
+                // Back to the list, closing the detail screen underneath, whose set no longer
+                // exists. It used to land on a message screen instead, which said the right
+                // sentence at the wrong moment and left the only way onward being to quit
+                // RomMBat entirely. The sentence belongs on the confirmation below, before the
+                // press rather than after it, which is where a warning is any use.
+                return ScreenCommand.PopMany(2);
             },
             acceptLabel: "Delete",
             backLabel: "Keep it");

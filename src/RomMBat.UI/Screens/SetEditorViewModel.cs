@@ -90,6 +90,8 @@ public sealed class SetEditorViewModel : IScreen
     private string? _platformLabel;
     private string? _platformFolder;
     private string? _searchTerm;
+    private string? _collectionValue;
+    private string? _collectionLabel;
     private int _gameCap;
     private int _byteCap;
     private int _ordering;
@@ -170,6 +172,14 @@ public sealed class SetEditorViewModel : IScreen
                 if (_scope == CatalogScopeKind.Platform)
                 {
                     rows.Add(new EditorRow("Platform", _platformLabel ?? "not chosen", null, false));
+                }
+                else if (CatalogScopeService.CanList(_scope))
+                {
+                    rows.Add(new EditorRow(
+                        "Collection",
+                        _collectionLabel ?? "not chosen",
+                        null,
+                        false));
                 }
                 else if (_scope == CatalogScopeKind.Filter)
                 {
@@ -312,6 +322,8 @@ public sealed class SetEditorViewModel : IScreen
 
         "Platform" => ScreenCommand.Push(PlatformPicker()),
 
+        "Collection" => ScreenCommand.Push(CollectionPicker()),
+
         "Search for" => ScreenCommand.Push(new OnScreenKeyboard(
             "Search for",
             "Only games whose name matches this.",
@@ -354,6 +366,8 @@ public sealed class SetEditorViewModel : IScreen
                 _platformValue = null;
                 _platformLabel = null;
                 _platformFolder = null;
+                _collectionValue = null;
+                _collectionLabel = null;
                 Cursor = 0;
                 return ScreenCommand.Pop;
             },
@@ -392,6 +406,59 @@ public sealed class SetEditorViewModel : IScreen
     /// folder that the save then refuses. A test drives every offered folder through
     /// <see cref="SyncSetService.Add"/> and requires it to be accepted.
     /// </remarks>
+    /// <summary>
+    /// The collections this RomM holds, fetched when the picker opens.
+    /// </summary>
+    /// <remarks>
+    /// <b>The one screen in this stage that reaches the network to be built.</b> Everything else
+    /// on the sets surface is answerable offline, and this is not: a collection is the server's
+    /// to name. An unreachable server is a message on the screen rather than an empty list,
+    /// because an empty list would read as "you have no collections".
+    /// </remarks>
+    private IScreen CollectionPicker()
+    {
+        var attempt = _session.Authenticate();
+
+        if (attempt.Connection is null)
+        {
+            return new MessageScreen(
+                "Collections",
+                attempt.Problem ?? "This install is not paired with a RomM server.");
+        }
+
+        using var connection = attempt.Connection;
+
+        var values = new CatalogScopeService(connection)
+            .ListAsync(_scope)
+            .GetAwaiter()
+            .GetResult();
+
+        if (values.IsRefused)
+        {
+            return new MessageScreen("Collections", values.Problem!);
+        }
+
+        if (values.Options.Count == 0)
+        {
+            return new MessageScreen(
+                "Collections",
+                $"This RomM has no {SyncSetStore.ScopeText(_scope)} to choose from.");
+        }
+
+        var options = values.Options;
+
+        return new ListScreen(
+            "Which collection?",
+            [.. options.Select(option => new ListRow(option.Label, option.Detail))],
+            index =>
+            {
+                _collectionValue = options[index].Value;
+                _collectionLabel = options[index].Label;
+                return ScreenCommand.Pop;
+            },
+            acceptLabel: "Use this");
+    }
+
     private ListScreen FolderPicker()
     {
         var folders = new SyncSetService(_session).FoldersKnownHere();
@@ -450,7 +517,12 @@ public sealed class SetEditorViewModel : IScreen
             {
                 Name = _name,
                 Scope = _scope,
-                ScopeValue = _scope == CatalogScopeKind.Platform ? _platformValue : null,
+                ScopeValue = _scope switch
+                {
+                    CatalogScopeKind.Platform => _platformValue,
+                    CatalogScopeKind.Filter => null,
+                    _ => _collectionValue,
+                },
                 Filter = _scope == CatalogScopeKind.Filter
                     ? new CatalogFilter { SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm }
                     : null,

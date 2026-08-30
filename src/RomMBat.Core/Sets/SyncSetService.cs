@@ -273,11 +273,22 @@ public sealed class SyncSetService
 
         return
         [
-            .. Enum.GetValues<CatalogScopeKind>().Select(kind => new ScopeOption(
-                kind,
-                SyncSetStore.ScopeText(kind),
-                !RequiresCollections(kind) || allowed,
-                RequiresCollections(kind) ? unavailable : null)),
+            .. Enum.GetValues<CatalogScopeKind>().Select(kind =>
+            {
+                // Two different reasons a scope may not be pickable, and they are not
+                // interchangeable. One is this pairing's grant, which the user can fix by
+                // pairing again. The other is that RomMBat cannot list what the scope could
+                // point at, which they cannot fix at all, and a scope offered without a way to
+                // complete it is worse than one that is not offered.
+                var missingGrant = RequiresCollections(kind) && !allowed;
+                var cannotList = CatalogScopeService.WhyNotListable(kind);
+
+                return new ScopeOption(
+                    kind,
+                    SyncSetStore.ScopeText(kind),
+                    !missingGrant && cannotList is null,
+                    missingGrant ? unavailable : cannotList);
+            }),
         ];
     }
 

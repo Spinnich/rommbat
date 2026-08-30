@@ -241,11 +241,49 @@ public sealed class SyncSetServiceTests : IDisposable
     }
 
     [Fact]
-    public void A_full_grant_leaves_every_scope_pickable()
+    public void A_full_grant_leaves_every_listable_scope_pickable()
     {
         PairWith([.. RomMScopes.Requested]);
 
-        Assert.All(Service.Scopes(), option => Assert.True(option.Available));
+        // Every scope except the one RomMBat cannot list the values of. A grant is not the only
+        // reason a scope may be unpickable, and conflating the two would make a permanent gap
+        // look like something re-pairing would fix.
+        Assert.All(
+            Service.Scopes().Where(option => option.Kind != CatalogScopeKind.VirtualCollection),
+            option => Assert.True(option.Available, $"{option.Kind} should be pickable"));
+    }
+
+    [Fact]
+    public void A_scope_whose_values_cannot_be_listed_is_never_offered_as_pickable()
+    {
+        PairWith([.. RomMScopes.Requested]);
+
+        // A hands-on pass reached a scope that could be picked and then not completed: the
+        // editor had no row to set a value and the only thing the screen could say was that a
+        // value was needed. Offering a scope with no way to finish it is worse than not
+        // offering it, and the reason has to say so rather than blaming the pairing.
+        var virtualCollection = Service.Scopes().Single(o => o.Kind == CatalogScopeKind.VirtualCollection);
+
+        Assert.False(virtualCollection.Available);
+        Assert.NotNull(virtualCollection.Unavailable);
+        Assert.DoesNotContain("granted", virtualCollection.Unavailable, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Every_pickable_scope_has_a_way_to_supply_its_value()
+    {
+        PairWith([.. RomMScopes.Requested]);
+
+        // The generalising form. A scope is pickable only if something can produce its value:
+        // the platform picker, the collection picker, or the filter's own fields.
+        foreach (var option in Service.Scopes().Where(o => o.Available))
+        {
+            var completable = option.Kind == CatalogScopeKind.Filter
+                || option.Kind == CatalogScopeKind.Platform
+                || CatalogScopeService.CanList(option.Kind);
+
+            Assert.True(completable, $"{option.Kind} is offered with no way to set its value");
+        }
     }
 
     [Fact]

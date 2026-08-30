@@ -78,8 +78,12 @@ public sealed class Navigator
 
             case ScreenCommandKind.Pop when _screens.Count > 1:
                 // A screen that started work owns stopping it. Pairing polls until told not to.
-                (_screens[^1] as IDisposable)?.Dispose();
-                _screens.RemoveAt(_screens.Count - 1);
+                for (var closing = 0; closing < Math.Max(1, command.Depth) && _screens.Count > 1; closing++)
+                {
+                    (_screens[^1] as IDisposable)?.Dispose();
+                    _screens.RemoveAt(_screens.Count - 1);
+                }
+
                 _repeat.CarryNothingOver();
 
                 // Whatever is underneath may have been overtaken while it was covered, and this

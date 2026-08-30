@@ -379,20 +379,17 @@ internal static class ScreenView
         // being drawn off it, with the cursor moving somewhere invisible.
         var window = ListWindow.Compute(list.Cursor, list.Rows.Count);
 
-        if (window.Above > 0)
-        {
-            stack.Children.Add(More(window.Above, "above"));
-        }
+        // Both markers always, empty when there is nothing to say. Adding and removing them as
+        // the cursor reaches an end changed the height of the whole block, and the block is
+        // centred, so the list visibly resized and shifted while being scrolled.
+        stack.Children.Add(More(window.Above, "above"));
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
             stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
         }
 
-        if (window.Below > 0)
-        {
-            stack.Children.Add(More(window.Below, "below"));
-        }
+        stack.Children.Add(More(window.Below, "below"));
 
         return stack;
     }
@@ -407,9 +404,13 @@ internal static class ScreenView
     private static TextBlock More(int count, string direction) =>
         new()
         {
-            Text = $"{count} more {direction}",
+            Text = count > 0 ? $"{count} more {direction}" : string.Empty,
             Foreground = Muted,
             FontSize = 15,
+
+            // Reserved whether or not it says anything, so the block does not change height as
+            // the cursor reaches an end.
+            Height = 20,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
 
@@ -464,9 +465,23 @@ internal static class ScreenView
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(18, 12, 18, 12),
+
+            // Every row the same height whether or not it carries a second line. A window of a
+            // fixed number of rows whose heights differ is a block whose height changes as the
+            // cursor moves through it, which is what made scrolling feel like zooming.
+            MinHeight = RowHeight,
             Child = lines,
         };
     }
+
+    /// <summary>
+    /// One list row, tall enough for a label and a detail line.
+    /// </summary>
+    /// <remarks>
+    /// Uniform on purpose. The window draws a fixed number of rows, so rows of differing height
+    /// make the drawn block change size as the cursor passes between them.
+    /// </remarks>
+    private const double RowHeight = 78;
 
     /// <summary>
     /// A form whose values are stepped rather than typed.
