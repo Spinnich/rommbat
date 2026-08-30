@@ -531,7 +531,28 @@ answers while ES is running, so every call needs a short timeout and a no-ES fal
 **A 200 from this API is never evidence the action happened**, and that now covers every route
 that does something. `/quit` and `/emukill` are ignored while a game is running; `/reloadgames`
 is too, and answers in 1-2 ms before doing the work either way; and **`POST /launch` does not
-launch anything at all**. Driven twice with the exact path `/systems/<system>/games` reports
+launch anything at all**.
+
+**"Ignored" is the wrong word for `/reloadgames`, and the difference decides a design.** It is
+**deferred, not discarded**: a reload issued while an app is in front of ES is queued and
+applied when that app exits. Measured on 8.2.1 with RomMBat itself as the app in front, which
+is the case that matters because an ES-menu launch is suspended exactly as a game is (finding
+233):
+
+| With RomMBat in front                               | `totalGames`                               |
+| --------------------------------------------------- | ------------------------------------------ |
+| marker written, reload issued, 200 in 6 ms          | unchanged for 10 s                         |
+| RomMBat exits                                       | **the change lands, with no further call** |
+| marker written, **no** reload issued, RomMBat exits | **no change, ever**                        |
+
+The third row is the one that carries it: **ES does not rescan on resume by itself**, so the
+call is still required, it simply takes effect later. **So issue `/reloadgames` after writing
+gamelists even from the interface**, and expect the games to appear when the user leaves
+RomMBat rather than while they are still in it. Do not build a workaround, do not tell the user
+to restart the front end, and do not skip the call on the theory that ES will notice.
+
+Also measured, since it costs nothing to say: the control reload worked with **ES unfocused**,
+so ES's own reload does not depend on focus. Driven twice with the exact path `/systems/<system>/games` reports
 and an explicit `text/plain` body: 200, empty response, `emulatorLauncher.log` did not grow by
 a byte, no emulator process. M0 recorded `/launch` as working from the API's own help page,
 which was documentation rather than a drive. **A hands-on pass covering `game-start` and

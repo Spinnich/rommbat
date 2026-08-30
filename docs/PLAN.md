@@ -2845,6 +2845,15 @@ design to put minutes-long cancellable work inside a process a user can close, w
 shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
 and `EvictionService` landed in 7b-2a and are unfaced until here.
 
+**`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
+Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is
+**deferred, not discarded**, and applies when RomMBat exits. ES does **not** rescan on resume
+by itself, proven by a marker written with no reload at all, which never landed. So the sync
+screen calls `/reloadgames` after writing gamelists exactly as the agent does, and the new
+games appear the moment the user leaves RomMBat, which is when they would look for them. No
+workaround is owed, nothing tells the user to restart the front end, and the call must not be
+skipped on the theory that ES will notice by itself.
+
 ###### 7b-2c: browse
 
 Online paged browse with search, offline browse of the local subset, per-game install and
