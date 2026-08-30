@@ -711,7 +711,8 @@ public class SyncSetTests : IDisposable
         var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
         var pager = new RomPager(connection, SetResolver.QueryFor(set), pageSize, startOffset);
 
-        var resolution = await resolver.ResolveAsync(set, pager, walkStartedAt, carried, cancellationToken);
+        var resolution = await resolver.ResolveAsync(
+            set, pager, walkStartedAt, carried, cancellationToken: cancellationToken);
         var complete = resolution.Outcome == ResolutionOutcome.Resolved;
 
         _store.SyncSets.ReplaceMembers(

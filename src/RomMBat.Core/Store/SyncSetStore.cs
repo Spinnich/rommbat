@@ -260,6 +260,43 @@ public sealed class SyncSetStore
         return command.ExecuteNonQuery() > 0;
     }
 
+    /// <summary>
+    /// Changes a set's caps, ordering and folder, leaving its scope and membership alone.
+    /// </summary>
+    /// <remarks>
+    /// <b>Scope is deliberately not updatable.</b> Pointing a set at something else makes its
+    /// recorded membership an answer to a different question, and there is no migration from
+    /// one to the other short of a re-resolve. Removing and re-adding is the honest route and
+    /// touches nothing on disk.
+    /// <para>
+    /// The membership is not swept here either. A cap tightened between resolves is an
+    /// intention rather than an outcome, and it is the next resolve that applies it.
+    /// </para>
+    /// </remarks>
+    public void UpdatePolicy(SyncSetDefinition definition, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        using var command = _connection.Command(
+            """
+            UPDATE sync_set
+               SET max_games = $maxGames,
+                   max_bytes = $maxBytes,
+                   ordering = $ordering,
+                   folder_override = $folderOverride,
+                   updated_at = $now
+             WHERE id = $id;
+            """)
+            .With("$maxGames", SqliteValues.OrNull(definition.MaxGames))
+            .With("$maxBytes", SqliteValues.OrNull(definition.MaxBytes))
+            .With("$ordering", OrderingText(definition.Ordering))
+            .With("$folderOverride", SqliteValues.OrNull(definition.FolderOverride))
+            .With("$now", SqliteValues.ToText(now))
+            .With("$id", definition.Id);
+
+        command.ExecuteNonQuery();
+    }
+
     /// <summary>Sets the folder this set writes to, which is how an arcade set is answered.</summary>
     public void SetFolderOverride(long id, string? folder, DateTimeOffset now)
     {

@@ -105,7 +105,7 @@ internal static class SyncCommand
                 if (!command.Has("no-resolve"))
                 {
                     var resolved = await SetsCommand
-                        .ResolveSetsAsync(context, connection, sets, cancellationToken)
+                        .ReportResolveAsync(context, connection, sets, cancellationToken)
                         .ConfigureAwait(false);
 
                     if (resolved != ExitCode.Ok)
