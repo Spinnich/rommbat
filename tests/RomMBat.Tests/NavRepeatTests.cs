@@ -172,4 +172,22 @@ public class NavRepeatTests
         Assert.Contains(NavAction.Up, fired);
         Assert.Contains(NavAction.Right, fired);
     }
+
+    [Fact]
+    public void Delete_repeats_because_it_clears_an_address_and_shift_does_not_because_it_toggles()
+    {
+        var nav = new NavRepeat();
+        var held = Held("pageup", "y");
+
+        Assert.Contains(NavAction.PageUp, nav.Advance(held, T0));
+
+        // Both fired on the press. Only one may fire again while the thumb stays down: a
+        // repeating case toggle flickers between layers many times a second.
+        var later = T0 + NavRepeat.DefaultDelay + NavRepeat.DefaultInterval;
+
+        var fired = nav.Advance(held, later);
+
+        Assert.Contains(NavAction.PageUp, fired);
+        Assert.DoesNotContain(NavAction.Alternate, fired);
+    }
 }

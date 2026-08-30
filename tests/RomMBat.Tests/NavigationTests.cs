@@ -137,20 +137,25 @@ public class NavigationTests
     }
 
     [Fact]
-    public void Backspace_is_not_on_the_button_that_confirms()
+    public void Delete_is_on_L1_where_EmulationStations_own_keyboard_puts_it()
     {
         var keyboard = new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
-        // The EmulationStation name, which is the button an Xbox-layout pad prints X on. The
-        // two are not the same and the footer follows the printed label, not the file's name.
-        Press(navigator, "y", ref clock);
+        // ES's own on-screen keyboard binds DELETE to L and SPACE to R, so a RetroBat user
+        // already has the habit. Putting the case toggle here instead, which is what this UI
+        // did first, means their thumb deletes nothing and changes case instead.
+        Press(navigator, "pageup", ref clock);
         Assert.Equal("ab", keyboard.Text);
 
         // Accept types the selected character rather than deleting, so a mistyped URL cannot be
         // made worse by the button the user reaches for first.
         Press(navigator, "a", ref clock);
+        Assert.Equal("ab1", keyboard.Text);
+
+        // R1 is ES's SPACE and stays unbound: a space is never part of a server address.
+        Press(navigator, "pagedown", ref clock);
         Assert.Equal("ab1", keyboard.Text);
     }
 
@@ -198,15 +203,19 @@ public class NavigationTests
         Press(navigator, "down", ref clock);
         Assert.Equal("q", keyboard.Selected);
 
-        Press(navigator, "pageup", ref clock);
+        // The EmulationStation name, which is the button an Xbox-layout pad prints X on, and
+        // where ES's own keyboard puts SHIFT. The footer follows the printed label rather than
+        // the file's name for it.
+        Press(navigator, "y", ref clock);
 
         Assert.True(keyboard.IsShifted);
         Assert.Equal("Q", keyboard.Selected);
         Assert.Equal(1, keyboard.CursorRow);
         Assert.Equal(0, keyboard.CursorColumn);
 
-        // Either shoulder toggles, because a user reaches for whichever is nearer.
-        Press(navigator, "pagedown", ref clock);
+        // A toggle, so the same button comes back. It must not repeat while held: a shift that
+        // flickers under a thumb is worse than one that needs a second press.
+        Press(navigator, "y", ref clock);
         Assert.False(keyboard.IsShifted);
         Assert.Equal("q", keyboard.Selected);
     }

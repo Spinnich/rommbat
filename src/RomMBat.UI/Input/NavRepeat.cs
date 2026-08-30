@@ -51,10 +51,14 @@ public sealed class NavRepeat
         // Bound to EmulationStation's "y", which is the button an Xbox-layout pad prints X on.
         // Measured, not assumed: on the 8BitDo the file maps x to SDL button 3 and y to button
         // 2, so ES's names for the left and top face buttons are the other way round from the
-        // labels printed on the pad. Binding ES's "x" put backspace on the physical Y while the
-        // footer said X. Repeats, so holding it clears a mistyped URL rather than asking for one
-        // press per character.
-        (NavAction.Alternate, ["y"], true),
+        // labels printed on the pad. Binding ES's "x" put a footer hint reading X on the
+        // physical Y. Does not repeat: it is a toggle wherever it is used, and a repeating
+        // toggle flickers under a held thumb.
+        (NavAction.Alternate, ["y"], false),
+
+        // L1 and R1. EmulationStation's own on-screen keyboard puts DELETE on L and SPACE on R,
+        // so these repeat: holding L clears a mistyped address rather than asking for one press
+        // per character.
         (NavAction.PageUp, ["pageup"], true),
         (NavAction.PageDown, ["pagedown"], true),
     ];

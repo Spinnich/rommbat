@@ -154,7 +154,8 @@ internal sealed class ShellWindow : Window
             Key.Right => NavAction.Right,
             Key.Enter => NavAction.Accept,
             Key.Escape => NavAction.Back,
-            Key.Back => NavAction.Alternate,
+            Key.Back => NavAction.PageUp,
+            Key.Tab => NavAction.Alternate,
             Key.F5 => NavAction.Start,
             _ => null,
         };

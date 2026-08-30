@@ -105,8 +105,8 @@ public sealed class OnScreenKeyboard : IScreen
     public IReadOnlyList<FooterHint> Hints =>
     [
         new FooterHint("A", "Type", 4),
-        new FooterHint("L1/R1", IsShifted ? "abc" : "ABC", 3),
-        new FooterHint("X", "Backspace", 2),
+        new FooterHint("L1", "Delete", 3),
+        new FooterHint("X", IsShifted ? "abc" : "ABC", 2),
         new FooterHint("Start", "Done", 4),
         new FooterHint("B", "Cancel", 1),
     ];
@@ -132,10 +132,10 @@ public sealed class OnScreenKeyboard : IScreen
                 break;
 
             case NavAction.PageUp:
-            case NavAction.PageDown:
-                // The layers are the same shape, so the cursor stays exactly where it is and the
-                // key under it simply changes case.
-                IsShifted = !IsShifted;
+                // L1, where EmulationStation's own keyboard puts DELETE. R1 is its SPACE and is
+                // deliberately unbound here: this field is a server address, and a space is
+                // never part of one.
+                Backspace();
                 break;
 
             case NavAction.Accept:
@@ -144,7 +144,9 @@ public sealed class OnScreenKeyboard : IScreen
                 break;
 
             case NavAction.Alternate:
-                Backspace();
+                // The layers are the same shape, so the cursor stays exactly where it is and the
+                // key under it simply changes case.
+                IsShifted = !IsShifted;
                 break;
 
             case NavAction.Start:

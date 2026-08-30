@@ -274,7 +274,7 @@ dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
 
 **A physical keyboard drives it**, which exists so the interface can be worked on at a desk and
 is deliberately not a supported user flow: arrows move, Enter is A, Escape is B, Backspace is
-X, F5 is Start. With a controller connected it is read through the same `es_input.cfg` a real
+L1, Tab is X, F5 is Start. With a controller connected it is read through the same `es_input.cfg` a real
 install uses, so what you press at a desk is what a user presses on a sofa.
 
 **Running standalone changes nothing about `es_settings.cfg`.** The UI never writes that file,
