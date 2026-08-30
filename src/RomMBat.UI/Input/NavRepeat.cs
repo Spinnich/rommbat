@@ -63,6 +63,16 @@ public sealed class NavRepeat
         (NavAction.PageDown, ["pagedown"], true),
     ];
 
+    /// <summary>
+    /// Every action a controller can actually produce.
+    /// </summary>
+    /// <remarks>
+    /// Exposed so a footer hint can be checked against it: a screen promising a button that
+    /// nothing is bound to is a lie a user can only discover by pressing it.
+    /// </remarks>
+    public static IReadOnlySet<NavAction> Bound { get; } =
+        Bindings.Select(binding => binding.Action).ToHashSet();
+
     private readonly TimeSpan _delay;
     private readonly TimeSpan _interval;
     private readonly Dictionary<NavAction, DateTimeOffset> _downSince = [];

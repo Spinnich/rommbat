@@ -100,18 +100,18 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
     {
-        PairingStage.Paired => [new FooterHint("B", "Done", 3)],
+        PairingStage.Paired => [new FooterHint(NavAction.Back, "Done", 3)],
         PairingStage.WaitingForApproval =>
         [
-            new FooterHint("X", "New code", 2),
-            new FooterHint("B", "Cancel", 3),
+            new FooterHint(NavAction.Alternate, "New code", 2),
+            new FooterHint(NavAction.Back, "Cancel", 3),
         ],
         PairingStage.Unreachable or PairingStage.Refused =>
         [
-            new FooterHint("X", "Try again", 2),
-            new FooterHint("B", "Back", 3),
+            new FooterHint(NavAction.Alternate, "Try again", 2),
+            new FooterHint(NavAction.Back, "Back", 3),
         ],
-        _ => [new FooterHint("B", "Cancel", 3)],
+        _ => [new FooterHint(NavAction.Back, "Cancel", 3)],
     };
 
     public ScreenCommand Handle(NavAction action)

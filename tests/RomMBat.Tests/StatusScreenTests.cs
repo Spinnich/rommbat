@@ -108,7 +108,7 @@ public class StatusScreenTests
         Assert.True(status.NeedsPairing);
         Assert.Equal(ScreenCommandKind.Push, status.Handle(NavAction.Accept).Kind);
         Assert.Equal(1, opened);
-        Assert.Equal("Pair with RomM", status.Hints.Single(h => h.Button == "A").Label);
+        Assert.Equal("Pair with RomM", status.Hints.Single(h => h.Action == NavAction.Accept).Label);
 
         Pair(session, expiresAt: DateTimeOffset.UtcNow.AddDays(90));
         Assert.False(status.NeedsPairing);
@@ -118,7 +118,7 @@ public class StatusScreenTests
         // accepting. M1 makes re-pairing cheap on purpose; a screen that hides it strands you.
         Assert.Equal(ScreenCommandKind.Push, status.Handle(NavAction.Accept).Kind);
         Assert.Equal(2, opened);
-        Assert.Equal("Pair again", status.Hints.Single(h => h.Button == "A").Label);
+        Assert.Equal("Pair again", status.Hints.Single(h => h.Action == NavAction.Accept).Label);
     }
 
     [Fact]

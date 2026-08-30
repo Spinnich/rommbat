@@ -78,8 +78,8 @@ public sealed class StatusViewModel : IScreen
         // Pairing is reachable whether or not this install is paired. Re-pairing is how a user
         // moves to a different server, and how they recover an expired or rejected token: M1
         // makes it deliberately cheap, and a screen that hides it strands them.
-        new FooterHint("A", NeedsPairing ? "Pair with RomM" : "Pair again", 3),
-        new FooterHint("B", "Back to EmulationStation", 2),
+        new FooterHint(NavAction.Accept, NeedsPairing ? "Pair with RomM" : "Pair again", 3),
+        new FooterHint(NavAction.Back, "Back to EmulationStation", 2),
     ];
 
     /// <summary>

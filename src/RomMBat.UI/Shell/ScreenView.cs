@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
 using RomMBat.Core.Identity;
+using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
 
 namespace RomMBat.UI.Shell;
@@ -37,16 +39,62 @@ internal static class ScreenView
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
+    /// <summary>
+    /// Where each face-button action sits on the pad, clockwise from the bottom.
+    /// </summary>
+    /// <remarks>
+    /// <b>Position is the only thing every controller layout agrees on.</b> The bottom face
+    /// button is A on an Xbox pad, Cross on a DualSense and B on a Switch Pro, so a footer that
+    /// prints a letter is wrong on two of the three, and the live install has all three
+    /// configured. EmulationStation draws a four-dot diamond with one dot filled for exactly
+    /// this reason, and copying it costs nothing.
+    /// <para>
+    /// Read from <c>es_input.cfg</c>'s own names rather than from labels: <c>a</c> is the
+    /// bottom button, <c>b</c> the right, <c>y</c> the left and <c>x</c> the top. The last two
+    /// are the ones printed X and Y the other way round (finding 225).
+    /// </para>
+    /// </remarks>
+    private static readonly (double X, double Y)[] Diamond =
+    [
+        (0.5, 1.0),
+        (1.0, 0.5),
+        (0.5, 0.0),
+        (0.0, 0.5),
+    ];
+
+    private static int? FacePosition(NavAction action) => action switch
+    {
+        NavAction.Accept => 0,
+        NavAction.Back => 1,
+        NavAction.Alternate => 3,
+        _ => null,
+    };
+
+    /// <summary>The shoulders and Start, which every layout does spell the same way.</summary>
+    private static string ButtonWord(NavAction action) => action switch
+    {
+        NavAction.Start => "Start",
+        NavAction.PageUp => "L1",
+        NavAction.PageDown => "R1",
+        _ => action.ToString(),
+    };
+
     public static Control Hint(FooterHint hint)
     {
+        ArgumentNullException.ThrowIfNull(hint);
+
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+
+        Control glyph = FacePosition(hint.Action) is { } filled
+            ? FaceGlyph(filled)
+            : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
 
         row.Children.Add(new Border
         {
             Background = Panel,
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(10, 3, 10, 3),
-            Child = new TextBlock { Text = hint.Button, Foreground = Accent, FontSize = 17 },
+            Child = glyph,
         });
 
         row.Children.Add(new TextBlock
@@ -353,4 +401,32 @@ internal static class ScreenView
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
         };
+
+    /// <summary>Four dots in a diamond, with the one this action lives on filled.</summary>
+    private static Canvas FaceGlyph(int filled)
+    {
+        const double Size = 20;
+        const double Dot = 6;
+
+        var canvas = new Canvas { Width = Size, Height = Size };
+
+        for (var i = 0; i < Diamond.Length; i++)
+        {
+            var (x, y) = Diamond[i];
+            var dot = new Ellipse
+            {
+                Width = Dot,
+                Height = Dot,
+                Fill = i == filled ? Accent : Panel,
+                Stroke = i == filled ? Accent : Muted,
+                StrokeThickness = 1,
+            };
+
+            Canvas.SetLeft(dot, (x * (Size - Dot)) + 0.5);
+            Canvas.SetTop(dot, (y * (Size - Dot)) + 0.5);
+            canvas.Children.Add(dot);
+        }
+
+        return canvas;
+    }
 }

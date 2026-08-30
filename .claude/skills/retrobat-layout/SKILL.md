@@ -312,6 +312,14 @@ there, which is where a RetroBat user's thumb expects delete), and ES's keyboard
 layers, upper, lower and special, plus an `ALT GR`, where two is enough only because the one
 field here is a URL.
 
+**Never print a button letter in a prompt; draw its position.** The bottom face button is A on
+an Xbox pad, Cross on a DualSense and B on a Switch Pro, so any letter is wrong on two layouts
+out of three, and a stock RetroBat `es_input.cfg` routinely has all three configured. ES draws a
+four-dot diamond with one dot filled, naming a **position**, which is what `es_input.cfg` already
+encodes: `a` is the bottom button, `b` the right, `y` the left, `x` the top. In RomMBat a
+`FooterHint` therefore carries a `NavAction` and never a string, so a screen **cannot** name a
+button and there is one place to be wrong. Finding 230.
+
 **ES surfaces controller hotplug itself**, with `%s connected` and `%s disconnected` in that same
 string table. A front end living inside it that cannot notice a pad arriving is the odd one out.
 

@@ -45,13 +45,19 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
 /// <summary>
 /// One line of the footer, and how readily it is dropped when there is no room.
 /// </summary>
+/// <param name="Action">
+/// What the hint promises, rather than what to call the button. A screen cannot name a button
+/// here, deliberately: <c>es_input.cfg</c>'s <c>x</c> is the button printed Y and its <c>y</c>
+/// is the one printed X, so a screen free to write "X" writes the wrong one, which is exactly
+/// what finding 225 was. The renderer owns the glyph and there is one place to be wrong.
+/// </param>
 /// <param name="Priority">Lower goes last. Hints shed in a fixed order rather than wrapping.</param>
 /// <remarks>
 /// The fixed order is Argosy's convention and worth keeping: a footer that reflows or truncates
 /// as the content changes makes the controls feel unreliable, where one that always drops the
 /// same hints in the same order stays readable.
 /// </remarks>
-public sealed record FooterHint(string Button, string Label, int Priority = 0);
+public sealed record FooterHint(NavAction Action, string Label, int Priority = 0);
 
 /// <summary>
 /// A screen, as the shell sees it.

@@ -290,4 +290,29 @@ public class NavigationTests
             Press(navigator, "a", ref clock);
         }
     }
+
+    [Fact]
+    public void No_screen_promises_a_button_that_nothing_is_bound_to()
+    {
+        // A hint carries the action rather than a button name, so a screen cannot write "X" and
+        // mean the button printed Y. What it can still do is promise an action the controller
+        // map never produces, which a user discovers only by pressing and getting nothing.
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        var screens = new IScreen[]
+        {
+            new StatusViewModel(session, NoPad),
+            new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null)),
+            new MessageScreen("title", "body"),
+        };
+
+        foreach (var screen in screens)
+        {
+            Assert.NotEmpty(screen.Hints);
+            Assert.All(
+                screen.Hints,
+                hint => Assert.Contains(hint.Action, NavRepeat.Bound));
+        }
+    }
 }

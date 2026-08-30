@@ -21,7 +21,7 @@ public sealed class MessageScreen(string title, string message) : IScreen
 
     public IReadOnlyList<FooterHint> Hints =>
     [
-        new FooterHint("B", "Back to EmulationStation", 2),
+        new FooterHint(NavAction.Back, "Back to EmulationStation", 2),
     ];
 
     // Every action leaves, including accept: there is nothing here to accept, and a button that
