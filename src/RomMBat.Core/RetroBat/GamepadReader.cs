@@ -174,14 +174,20 @@ public sealed class GamepadReader : IDisposable
         var first = connected[0];
         var named = string.IsNullOrWhiteSpace(first.DeviceName) ? "That controller" : first.DeviceName;
 
+        // An unreadable es_input.cfg reaches here as a map with nothing in it, which without
+        // this reads as "we have never seen your pad" for a pad that is configured. The remedy
+        // is the same either way, because configuring a controller is what rewrites the file.
+        var why = map.Problem is { } problem
+            ? $"{named} is connected but {problem}"
+            : $"{named} is connected but EmulationStation has no configuration for it.";
+
         return new GamepadChoice(
             null,
             new GamepadStatus(
                 GamepadAvailability.NotConfigured,
                 first.DeviceName,
                 first.DeviceGuid,
-                $"{named} is connected but EmulationStation has no configuration for it. "
-                    + "Configure it in EmulationStation first, and RomMBat will use the same "
+                $"{why} Configure it in EmulationStation first, and RomMBat will use the same "
                     + "buttons."));
     }
 

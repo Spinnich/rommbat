@@ -280,6 +280,18 @@ Three traps, all measured rather than reasoned about:
   An axis binding names a **direction** (`value` is `-1` or `1`) and only a reading of that sign
   is that input. Treating any non-zero axis as pressed reports both triggers permanently held.
 
+**A half-written `es_input.cfg` is an ordinary state, so parsing it must not throw.** ES rewrites
+the whole file every time a pad is configured, which makes an interrupted write the normal way to
+find one that is empty or unclosed, and `XDocument.Load` on an empty file throws
+`XmlException: Root element is missing`. The UI reads this before any window exists, in a
+`WinExe`: a throw there is the ES menu entry flashing and returning with nothing on screen, on a
+device with no keyboard to diagnose from. `EsInputMap.Read` degrades to an **empty map** and keeps
+the reason in `Problem`; `EsInputMap.Load`, which a caller hands a path to, throws
+`EsInputException` as `EsSystemsFile` and `GamelistDocument` do for the other two live ES XML
+files. Keeping the reason matters: an empty map otherwise reaches the status screen as "your pad
+is not configured" for a pad that is. The remedy is the same sentence either way, because
+configuring a controller in ES is what rewrites the file.
+
 **The GUID has two spellings and a straight comparison never matches.** SDL 2.0.18+ fills bytes
 2-3 of a joystick GUID with a CRC-16 of the device name; ES writes them zeroed. The same 8BitDo
 is `0300b155c82d0000...` from the running library and `03000000c82d0000...` in the file.

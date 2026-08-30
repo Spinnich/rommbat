@@ -1,3 +1,4 @@
+using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using Xunit;
 
@@ -204,5 +205,64 @@ public class EsInputMapTests
         Assert.Empty(map.Devices);
         Assert.Null(map.Keyboard);
         Assert.Null(map.ForGuid(EightBitDoGuid));
+        Assert.Null(map.Problem);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("<?xml version=\"1.0\"?>\n<inputList>")]
+    [InlineData("not xml at all")]
+    public void A_half_written_file_reads_as_empty_with_a_reason_rather_than_throwing(string content)
+    {
+        using var tree = Support.TempRetroBatTree.Create();
+
+        var path = tree.Install().Resolve(EsInputMap.Location);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+
+        // EmulationStation rewrites this file every time a pad is configured, so an interrupted
+        // write is the ordinary way to get one. The reader that follows this call is inside a
+        // WinExe with no window open yet, where a throw is an exit with nothing on screen.
+        var map = EsInputMap.Read(tree.Install());
+
+        Assert.Empty(map.Devices);
+        Assert.NotNull(map.Problem);
+
+        // Naming a path a caller chose is a different contract: it wants to know.
+        Assert.Throws<EsInputException>(() => EsInputMap.Load(path));
+    }
+
+    [Fact]
+    public void An_unreadable_file_is_not_reported_as_a_pad_nobody_has_configured()
+    {
+        var unreadable = EsInputMap.Read(Broken(out var tree));
+        using var _ = tree;
+
+        var connected = new[]
+        {
+            new GamepadReader.GamepadCandidate(0, "(8BitDo Ultimate 2 Wireless Controller)", EightBitDoGuid),
+        };
+
+        var choice = GamepadReader.Choose(connected, unreadable);
+
+        Assert.Equal(GamepadAvailability.NotConfigured, choice.Status.Availability);
+
+        // The two states are indistinguishable on screen without this, and the person reading
+        // it has no keyboard to tell them apart with.
+        Assert.Contains("es_input.cfg", choice.Status.Detail, StringComparison.Ordinal);
+        Assert.Contains("EmulationStation", choice.Status.Detail, StringComparison.Ordinal);
+    }
+
+    private static RetroBatInstall Broken(out Support.TempRetroBatTree tree)
+    {
+        tree = Support.TempRetroBatTree.Create();
+
+        var install = tree.Install();
+        var path = install.Resolve(EsInputMap.Location);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, string.Empty);
+
+        return install;
     }
 }

@@ -108,7 +108,11 @@ public sealed record EsInputDevice(
 /// </remarks>
 public sealed class EsInputMap
 {
-    private EsInputMap(IReadOnlyList<EsInputDevice> devices) => Devices = devices;
+    private EsInputMap(IReadOnlyList<EsInputDevice> devices, string? problem = null)
+    {
+        Devices = devices;
+        Problem = problem;
+    }
 
     /// <summary>Where the file lives, relative to the RetroBat root.</summary>
     public static RelativePath Location { get; } =
@@ -116,6 +120,16 @@ public sealed class EsInputMap
 
     /// <summary>Every configured device, in file order.</summary>
     public IReadOnlyList<EsInputDevice> Devices { get; }
+
+    /// <summary>
+    /// Why this map is empty, when the file was there but could not be read. Null otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Carried so the reason survives the degrade. Without it an unreadable file and a pad
+    /// EmulationStation has never been shown look identical from the status screen, and the
+    /// person reading it has no keyboard to tell them apart with.
+    /// </remarks>
+    public string? Problem { get; }
 
     /// <summary>The keyboard entry, which EmulationStation always writes.</summary>
     public EsInputDevice? Keyboard => Devices.FirstOrDefault(device => device.IsKeyboard);
@@ -169,22 +183,64 @@ public sealed class EsInputMap
             : identifier;
     }
 
-    /// <summary>Reads the live file from an install.</summary>
-    /// <returns>An empty map when the file is absent, which is an ordinary state.</returns>
+    /// <summary>
+    /// Reads the live file from an install, and never throws.
+    /// </summary>
+    /// <remarks>
+    /// <b>An unreadable file degrades to an empty map, it does not propagate.</b> The front end
+    /// that reads this is a full-screen <c>WinExe</c> and calls it before any window exists, so
+    /// a throw here is an exit with nothing on screen and no console to say why, on a device
+    /// whose whole premise is that there is no keyboard. Half-written is not an exotic state
+    /// either: EmulationStation rewrites this file every time a pad is configured, so an
+    /// interrupted write is the ordinary way to arrive at one. The reason is kept in
+    /// <see cref="Problem"/> rather than dropped.
+    /// </remarks>
+    /// <returns>An empty map when the file is absent or unreadable. Both are ordinary states.</returns>
     public static EsInputMap Read(RetroBatInstall install)
     {
         ArgumentNullException.ThrowIfNull(install);
 
         var path = install.Resolve(Location);
-        return File.Exists(path) ? Load(path) : new EsInputMap([]);
+
+        if (!File.Exists(path))
+        {
+            return new EsInputMap([]);
+        }
+
+        try
+        {
+            return Load(path);
+        }
+        catch (EsInputException ex)
+        {
+            return new EsInputMap([], ex.Message);
+        }
+        catch (IOException ex)
+        {
+            // A write in progress holds the file, which is the same interrupted-write case.
+            return new EsInputMap([], $"es_input.cfg could not be opened: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return new EsInputMap([], $"es_input.cfg could not be opened: {ex.Message}");
+        }
     }
 
     /// <summary>Parses one <c>es_input.cfg</c>.</summary>
+    /// <exception cref="EsInputException">The content is not readable XML.</exception>
     public static EsInputMap Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var document = XDocument.Load(path);
+        XDocument document;
+        try
+        {
+            document = XDocument.Load(path);
+        }
+        catch (System.Xml.XmlException ex)
+        {
+            throw new EsInputException($"es_input.cfg is not readable XML: {ex.Message}", ex);
+        }
 
         var devices = document.Root?
             .Elements("inputConfig")
@@ -230,4 +286,27 @@ public sealed class EsInputMap
             out var value)
             ? value
             : 0;
+}
+
+/// <summary>Thrown when <c>es_input.cfg</c> cannot be parsed.</summary>
+/// <remarks>
+/// <see cref="EsInputMap.Read"/> turns this back into an empty map: a caller that named a path
+/// wants to know, and the front end reading the live file has nowhere to show it.
+/// </remarks>
+public sealed class EsInputException : Exception
+{
+    public EsInputException(string message)
+        : base(message)
+    {
+    }
+
+    public EsInputException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    public EsInputException()
+        : base("es_input.cfg could not be read.")
+    {
+    }
 }
