@@ -2828,9 +2828,20 @@ flag is the caller's, because it would be false on the other one. A test sweeps 
 Core returns for the second kind.
 
 On screen: the sets list, one set's detail with its exclusions, an editor that both creates and
-edits, the scope, platform and folder pickers, a resolve with progress, and the disk budget and
-free-space floor. Caps and ordering step on Left and Right rather than being typed; only a name
-and a search term reach the on-screen keyboard.
+edits, the scope, platform, collection and folder pickers, a resolve with progress, and the disk
+budget and free-space floor.
+
+**Per-set caps are not on the interface, which is a change to M2's shape and came from a
+hands-on pass.** A set made from a collection or a platform is usually a mirror of something the
+user already chose, and capping it to N leaves RomMBat guessing which N; no ordering makes that
+guess good. The bound a person sets is the install-wide disk budget, which already existed and
+which `ContentPlanner` and `EvictionPlanner` already enforce. `sets add` keeps `--max-games`,
+`--max-bytes` and `--order`, and a set given caps from the console keeps them: the editor sends
+no cap values at all rather than the cleared ones a hidden row would have produced.
+
+**A set is named after what it mirrors.** A platform and a collection both already have a name
+in RomM, so a platform or collection set is pick, pick, create, and the on-screen keyboard is
+off the common path entirely.
 
 **A resolve is minutes-long work, and that is measured.** A platform scope of 9,196 roms took
 **8 minutes 15 seconds** against a live 5.2.0 instance. So the resolve screen shows a count
@@ -2844,6 +2855,14 @@ Sync from the interface with progress, cancellation and eviction. The first thin
 design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
 shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
 and `EvictionService` landed in 7b-2a and are unfaced until here.
+
+**Media is written outside the disk budget, and 7b-2a made that matter more.** `ContentPlanner`
+bounds the ROM transfer; `MediaSync` runs afterwards and nothing bounds it. That was a smaller
+claim while a set could also cap itself, and 7b-2a removed per-set caps from the interface, so
+the install-wide budget is now the only bound a person sets. Measured on the live install at
+roughly 1.8 MB of artwork per game where a video is fetched, which is about 900 MB across a
+500-game set. Eviction already sees media through its `local_file` rows, so only the forward
+bound is missing. Issue #102, and it belongs on the screen that shows a budget being spent.
 
 **`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
 Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is

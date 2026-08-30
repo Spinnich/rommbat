@@ -34,53 +34,6 @@ public sealed record EditorRow(string Label, string Value, string? Detail, bool 
 /// </remarks>
 public sealed class SetEditorViewModel : IScreen
 {
-    /// <summary>
-    /// The game caps a d-pad steps through.
-    /// </summary>
-    /// <remarks>
-    /// Null is "no cap" and is first, because it is the honest default: a set with no cap and
-    /// no byte budget is refused at resolve time only if the scope is enormous, and most
-    /// scopes are not.
-    /// </remarks>
-    private static readonly int?[] GameCaps = [null, 10, 20, 40, 60, 100, 200, 500, 1000];
-
-    /// <summary>
-    /// The byte caps a d-pad steps through.
-    /// </summary>
-    /// <remarks>
-    /// Stops at 512 GB because past that the disk budget is the binding constraint and a set
-    /// cap is theatre. Powers of two, because that is what a drive is sold as.
-    /// </remarks>
-    private static readonly long?[] ByteCaps =
-    [
-        null,
-        1L << 30,
-        2L << 30,
-        4L << 30,
-        8L << 30,
-        16L << 30,
-        32L << 30,
-        64L << 30,
-        128L << 30,
-        256L << 30,
-        512L << 30,
-    ];
-
-    /// <summary>
-    /// The orderings, with the default first so a new set starts on it.
-    /// </summary>
-    /// <remarks>
-    /// Recent leads because that is what a cap should keep. By name, a set of forty keeps
-    /// everything beginning with A.
-    /// </remarks>
-    private static readonly SetOrdering[] Orderings =
-    [
-        SetOrdering.RecentlyUpdated,
-        SetOrdering.Name,
-        SetOrdering.SizeAscending,
-        SetOrdering.SizeDescending,
-    ];
-
     private readonly InstallSession _session;
     private readonly SyncSetDefinition? _existing;
 
@@ -103,9 +56,6 @@ public sealed class SetEditorViewModel : IScreen
     /// somebody typed would be worse than asking for it in the first place.
     /// </remarks>
     private bool _namedByHand;
-    private int _gameCap;
-    private int _byteCap;
-    private int _ordering;
     private string? _folder;
 
     private SetEditorViewModel(InstallSession session, SyncSetDefinition? existing)
@@ -116,9 +66,6 @@ public sealed class SetEditorViewModel : IScreen
         _name = existing?.Name ?? string.Empty;
         _scope = existing?.Scope ?? CatalogScopeKind.Platform;
         _folder = existing?.FolderOverride;
-        _gameCap = Nearest(GameCaps, existing?.MaxGames);
-        _byteCap = Nearest(ByteCaps, existing?.MaxBytes);
-        _ordering = Math.Max(0, Array.IndexOf(Orderings, existing?.Ordering ?? SyncSetStore.DefaultOrdering));
 
         if (existing?.Scope == CatalogScopeKind.Platform)
         {
@@ -206,24 +153,6 @@ public sealed class SetEditorViewModel : IScreen
                 }
             }
 
-            rows.Add(new EditorRow(
-                "Most games",
-                GameCaps[_gameCap] is { } games ? games.ToString(CultureInfo.CurrentCulture) : "no limit",
-                null,
-                true));
-
-            rows.Add(new EditorRow(
-                "Most space",
-                ByteCaps[_byteCap] is { } bytes ? ByteSize.Format(bytes) : "no limit",
-                null,
-                true));
-
-            rows.Add(new EditorRow(
-                "Keep first",
-                SyncSetStore.OrderingText(Orderings[_ordering]),
-                "Which games a limit keeps when the set is bigger than it.",
-                true));
-
             // Hidden unless it is actually needed, which is the fix for a hands-on finding.
             // Two rows that look alike were doing different jobs: Platform is the scope's own
             // value ("this set holds Atari 2600 games") and Folder is a RomM-to-RetroBat
@@ -278,15 +207,10 @@ public sealed class SetEditorViewModel : IScreen
                 Cursor = (Cursor + 1) % rows.Count;
                 return ScreenCommand.Stay;
 
-            case NavAction.Left when rows[Cursor].Steps:
-                Step(rows[Cursor].Label, -1);
-                return ScreenCommand.Stay;
-
-            case NavAction.Right when rows[Cursor].Steps:
-                Step(rows[Cursor].Label, 1);
-                return ScreenCommand.Stay;
-
-            case NavAction.Accept when !rows[Cursor].Steps:
+            // Nothing on this screen steps any more. Every row opens something, which is what
+            // Accept is for; the caps that used to move on Left and Right are gone, because the
+            // bound a person sets is the install-wide disk budget.
+            case NavAction.Accept:
                 return Open(rows[Cursor].Label);
 
             case NavAction.Start:
@@ -297,27 +221,6 @@ public sealed class SetEditorViewModel : IScreen
 
             default:
                 return ScreenCommand.Stay;
-        }
-    }
-
-    private void Step(string label, int direction)
-    {
-        switch (label)
-        {
-            case "Most games":
-                _gameCap = Wrap(_gameCap + direction, GameCaps.Length);
-                break;
-
-            case "Most space":
-                _byteCap = Wrap(_byteCap + direction, ByteCaps.Length);
-                break;
-
-            case "Keep first":
-                _ordering = Wrap(_ordering + direction, Orderings.Length);
-                break;
-
-            default:
-                break;
         }
     }
 
@@ -501,15 +404,14 @@ public sealed class SetEditorViewModel : IScreen
 
         if (!IsNew)
         {
+            // Only the folder. Caps are not shown here any more, and an unset property on
+            // SetEdit means "leave it alone", so a set given a cap from the console keeps it.
+            // Sending the cleared values a hidden row would have produced would silently wipe
+            // somebody's limit for opening a screen.
             var edited = service.Edit(
                 _existing!.Name,
                 new SetEdit
                 {
-                    ClearMaxGames = GameCaps[_gameCap] is null,
-                    MaxGames = GameCaps[_gameCap],
-                    ClearMaxBytes = ByteCaps[_byteCap] is null,
-                    MaxBytes = ByteCaps[_byteCap],
-                    Ordering = Orderings[_ordering],
                     ClearFolderOverride = _folder is null,
                     FolderOverride = _folder,
                 },
@@ -544,9 +446,10 @@ public sealed class SetEditorViewModel : IScreen
                 Filter = _scope == CatalogScopeKind.Filter
                     ? new CatalogFilter { SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm }
                     : null,
-                MaxGames = GameCaps[_gameCap],
-                MaxBytes = ByteCaps[_byteCap],
-                Ordering = Orderings[_ordering],
+                // No caps from here. The disk budget is the bound a person sets, and it is
+                // install-wide; a per-set cap made an optional refinement look like a decision
+                // every set needs, and no ordering makes "which 10 of 9,196" a good guess.
+                // SetDraft's defaults carry the rest, and sets add keeps every flag it has.
                 FolderOverride = _folder,
             },
             now);
@@ -571,40 +474,4 @@ public sealed class SetEditorViewModel : IScreen
         }
     }
 
-    private static int Wrap(int index, int count) => ((index % count) + count) % count;
-
-    /// <summary>
-    /// The step nearest an existing value, so editing a set never silently changes its cap.
-    /// </summary>
-    /// <remarks>
-    /// A set defined from the console can hold any number, and the steps here are a fixed
-    /// ladder. Snapping to the nearest rung and saving would move a cap the user did not
-    /// touch, so an exact match is used where there is one and the nearest below otherwise,
-    /// which can only ever tighten and never quietly loosen a limit.
-    /// </remarks>
-    private static int Nearest<T>(T?[] ladder, T? value)
-        where T : struct, IComparable<T>
-    {
-        if (value is null)
-        {
-            return 0;
-        }
-
-        var exact = Array.IndexOf(ladder, value);
-        if (exact >= 0)
-        {
-            return exact;
-        }
-
-        var best = 0;
-        for (var index = 1; index < ladder.Length; index++)
-        {
-            if (ladder[index] is { } rung && rung.CompareTo(value.Value) <= 0)
-            {
-                best = index;
-            }
-        }
-
-        return best;
-    }
 }

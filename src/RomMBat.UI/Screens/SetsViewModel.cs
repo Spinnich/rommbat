@@ -56,8 +56,9 @@ public static class SetsScreens
             new FooterHint(NavAction.Start, "New set"),
             new FooterHint(NavAction.Alternate, "Resolve all"))
         {
-            EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform or a "
-                + "filter, with a limit on how much of it to hold.",
+            EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
+                + "collection, or a search. How much room they may use together is set under "
+                + "disk space.",
             Verbs = (action, _) => action switch
             {
                 NavAction.Start => ScreenCommand.Push(SetEditorViewModel.ForNew(session)),
@@ -101,11 +102,16 @@ public static class SetsScreens
             return DetailRows(session, detail);
         }
 
+        // The only thing left to edit is the folder, and most sets do not have one. Offering
+        // "Edit" on a screen where it opens an empty form is a footer promising nothing, which
+        // is the same defect as a footer promising nothing where an action exists.
+        var editable = SetEditorViewModel.ForExisting(session, detail.Set).NeedsFolderChoice;
+
         return new ListScreen(
             detail.Set.Name,
             Rows,
             _ => ScreenCommand.Stay,
-            acceptLabel: "Edit limits",
+            acceptLabel: "Change folder",
             backLabel: "Back",
             new FooterHint(NavAction.Start, "Resolve now"),
             new FooterHint(NavAction.Alternate, "Delete set"))
@@ -113,12 +119,12 @@ public static class SetsScreens
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
-            AlwaysOfferAccept = true,
+            AlwaysOfferAccept = editable,
             Note = "Resolving asks RomM what this set contains now, and needs the network.",
             Verbs = (action, _) => action switch
             {
-                // Accept opens, it never adjusts. Editing is a screen, not a step.
-                NavAction.Accept => ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set)),
+                NavAction.Accept when editable =>
+                    ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set)),
                 NavAction.Start => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
                 NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name)),
                 _ => null,

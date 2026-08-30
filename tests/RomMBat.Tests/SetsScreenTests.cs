@@ -327,16 +327,68 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
-    public void A_new_set_keeps_the_most_recent_games_rather_than_the_alphabetical_ones()
+    public void The_editor_asks_for_nothing_but_what_the_set_points_at()
     {
         SeedPlatform(4, "snes");
 
         var editor = SetEditorViewModel.ForNew(_session);
-        var ordering = editor.Rows.Single(row => row.Label == "Keep first").Value;
 
-        // The ordering only does anything once a cap bites, and at that moment "by name" means
-        // a set of forty keeps everything beginning with A.
-        Assert.Equal(SyncSetStore.OrderingText(SetOrdering.RecentlyUpdated), ordering);
+        // No caps. The bound a person sets is the install-wide disk budget, and a per-set cap
+        // made an optional refinement look like a decision every set needs. Which 10 of 9,196
+        // is not a question any ordering answers well.
+        Assert.DoesNotContain(editor.Rows, row => row.Label is "Most games" or "Most space" or "Keep first");
+        Assert.All(editor.Rows, row => Assert.False(row.Steps));
+
+        Assert.Equal(["Name", "Scope", "Platform"], editor.Rows.Select(row => row.Label));
+    }
+
+    [Fact]
+    public void Editing_a_set_from_the_console_leaves_the_caps_it_was_given()
+    {
+        var folder = new SyncSetService(_session).FoldersKnownHere()[0];
+
+        var set = new SyncSetService(_session).Add(
+            new SetDraft
+            {
+                Name = "capped",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "4",
+                MaxGames = 40,
+                MaxBytes = 8L << 30,
+                Ordering = SetOrdering.Name,
+                FolderOverride = folder,
+            },
+            Now).Set!;
+
+        // The screen no longer shows caps, so it must not send the cleared values a hidden row
+        // would have produced. Opening a screen must never wipe a limit somebody set elsewhere.
+        var editor = SetEditorViewModel.ForExisting(_session, set);
+        editor.Handle(NavAction.Start);
+
+        var after = new SyncSetService(_session).Show("capped")!.Set;
+
+        Assert.Equal(40, after.MaxGames);
+        Assert.Equal(8L << 30, after.MaxBytes);
+        Assert.Equal(SetOrdering.Name, after.Ordering);
+    }
+
+    [Fact]
+    public void The_detail_screen_offers_an_edit_only_when_there_is_something_to_edit()
+    {
+        SeedPlatform(4, "snes");
+
+        var plain = new SyncSetService(_session).Add(
+            new SetDraft { Name = "plain", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+            Now).Set!;
+
+        // With caps gone, the folder is the only editable thing left, and most sets have none.
+        // Offering "Change folder" on a screen where it opens an empty form is a footer
+        // promising nothing, which is the same defect as a footer that promises nothing where
+        // an action does exist.
+        var detail = SetsScreens.Detail(_session, plain.Name, null);
+
+        Assert.DoesNotContain(detail.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Stay, detail.Handle(NavAction.Accept).Kind);
     }
 
     [Fact]
