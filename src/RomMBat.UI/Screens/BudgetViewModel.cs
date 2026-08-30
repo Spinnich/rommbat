@@ -83,19 +83,37 @@ public sealed class BudgetViewModel : IScreen
     /// <summary>True once something has been changed and not yet saved.</summary>
     public bool IsDirty { get; private set; }
 
+    /// <summary>
+    /// The floor first, because it is the one that is always on.
+    /// </summary>
+    /// <remarks>
+    /// <b>The two answer different questions and only one of them is a safety net.</b> The
+    /// floor bounds what is left on the volume and is accurate by construction, because it
+    /// reads the real disk: it accounts for saves, states, RetroBat itself, other applications,
+    /// and the artwork RomMBat wrote, without predicting any of them. The budget bounds what
+    /// RomMBat took, which is a policy rather than a safety net and matters on a drive shared
+    /// with other things: a 2 TB disk with an 8 GB floor would let RomMBat take 1.99 TB and
+    /// still be inside the floor.
+    /// <para>
+    /// Listing the budget first made the optional one look like the primary one, which is what
+    /// made this screen hard to read. The defaults already say which is which: the floor is
+    /// always enforced at 2 GB, and the budget starts unset.
+    /// </para>
+    /// </remarks>
     public IReadOnlyList<EditorRow> Rows =>
     [
         new EditorRow(
-            "Budget",
-            Budgets[_budget] is { } cap ? ByteSize.Format(cap) : "no budget",
-            "The most space RomMBat's own downloads may take up. Games you put there yourself "
-                + "are never counted and never removed.",
-            true),
-        new EditorRow(
             "Always leave free",
             ByteSize.Format(Floors[_floor]),
-            "RomMBat stops downloading before the drive gets this empty, so the system and "
-                + "your saves still have somewhere to go.",
+            "RomMBat stops downloading before the drive gets this empty, so EmulationStation, "
+                + "your saves and everything else still have somewhere to go. Always on.",
+            true),
+        new EditorRow(
+            "Limit RomMBat to",
+            Budgets[_budget] is { } cap ? ByteSize.Format(cap) : "no limit",
+            "An extra cap on what RomMBat's own downloads may take up, for a drive shared with "
+                + "other things. Games you put there yourself are never counted and never "
+                + "removed.",
             true),
     ];
 
@@ -140,11 +158,11 @@ public sealed class BudgetViewModel : IScreen
     {
         if (Cursor == 0)
         {
-            _budget = Wrap(_budget + direction, Budgets.Length);
+            _floor = Wrap(_floor + direction, Floors.Length);
         }
         else
         {
-            _floor = Wrap(_floor + direction, Floors.Length);
+            _budget = Wrap(_budget + direction, Budgets.Length);
         }
 
         IsDirty = true;

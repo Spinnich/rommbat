@@ -122,18 +122,44 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Alternate);
         var budget = Assert.IsType<BudgetViewModel>(navigator.Current);
 
+        // The floor leads, because it is the one that is always on. The budget is an extra cap
+        // for a shared drive and starts unset, and listing it first made the optional one look
+        // like the primary one.
+        Assert.Equal("Always leave free", budget.Rows[0].Label);
+        Assert.Equal("Limit RomMBat to", budget.Rows[1].Label);
+        Assert.Equal("no limit", budget.Rows[1].Value);
+
         Assert.False(budget.IsDirty);
         navigator.Handle(NavAction.Right);
         Assert.True(budget.IsDirty);
 
         navigator.Handle(NavAction.Start);
 
-        // Both written, not just the one that was touched: the floor has a default that has
-        // never been persisted, and leaving it unwritten would make the saved state depend on
+        // The floor is written, because that is the row that moved and it is the one always in
+        // force. The budget is left unset, because opening a screen must not invent a cap
+        // nobody asked for: an unset budget means "no extra limit", and turning it into a
+        // number would silently start refusing downloads.
+        // One rung above the 2 GB default, which is where a single step right lands.
+        Assert.Equal(4L << 30, _session.Store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes));
+        Assert.Null(_session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes));
+    }
+
+    [Fact]
+    public void The_budget_can_be_set_and_then_it_is_written()
+    {
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Alternate);
+
+        navigator.Handle(NavAction.Down);
+        navigator.Handle(NavAction.Right);
+        navigator.Handle(NavAction.Start);
+
+        // Both are persisted once either is touched, so the saved state does not depend on
         // which row somebody happened to move.
         Assert.NotNull(_session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes));
         Assert.NotNull(_session.Store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes));
     }
+
 
     [Fact]
     public void Deleting_a_set_says_that_nothing_on_disk_was_touched_before_it_happens()
