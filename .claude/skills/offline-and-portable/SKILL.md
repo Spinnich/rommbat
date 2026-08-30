@@ -82,6 +82,36 @@ the source of truth; the network is optional, probed with a short-timeout
   coexist. The gamepad UI is read-only through stage 7b-1 and therefore never touches the lock,
   which a structural test asserts against the built assembly.
 
+  **The UI writes as of stage 7b-2a and the assertion still holds, because a Core service takes
+  the lock and the UI never names the type.** Two rules fall out, and the first is the one that
+  looks wrong:
+  - **A write to SQLite alone takes no lock.** Defining, editing or deleting a sync set, and
+    setting the disk budget, are rows in a WAL database. The tree lock serialises writers of
+    _files in the tree_, and taking it for a set definition would refuse a user's set because
+    somebody else was draining the outbox: two unrelated things sharing a mutex. A test asserts
+    a set is definable while a background pass holds it.
+  - **A write to files takes the lock inside Core and returns the refusal as a value.**
+    `PartialSweep.Apply` already did this before the seam existed, returning
+    `PartialSweepOutcome.Skipped` with its own sentence ("partial/ was left alone: another
+    agent is writing there. The next pass sweeps it."). `EvictionService` surfaces that rather
+    than reimplementing it. **This is the pattern to copy**: never a throw, never a silent
+    no-op, and never a lock taken speculatively to answer a question.
+
+  `UiTreeLockTests` carries the anti-vacuity companion as of #100: Core must still _define_
+  `TreeLock`, or renaming it would disarm the boundary with nothing saying so.
+
+- **Which operations work with the server off, on the sets surface.** Listing sets, defining
+  one, editing its caps and ordering, deleting it, and setting the disk budget and free-space
+  floor are all local and all answerable offline. **Only resolving needs the network**, and it
+  is the only screen that says so. A screen that cannot tell those two apart is wrong: the
+  whole point of defining a set on a handheld away from its server is that it can be done.
+
+  **A resolve is minutes-long work, measured rather than assumed:** a platform scope of 9,196
+  roms took **8 minutes 15 seconds** against a live 5.2.0 instance at 250 rows a page. So
+  cancelling it is the ordinary case, not a failure path, and a cancel records its offset
+  exactly as an unreachable server does so the next run continues. Discarding the walk on
+  cancel would make the feature worse than not offering it.
+
 - Partial downloads survive power loss: write `.part`, verify, rename. **The `.part` lives
   under `emulators/rommbat/partial/`, never beside the target**, so a power loss cannot leave
   a half-written file in a folder EmulationStation scans and offers to launch. Only a

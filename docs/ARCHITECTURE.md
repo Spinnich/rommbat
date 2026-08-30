@@ -106,6 +106,7 @@ the one with all the interesting invariants.
 | RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it         |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                      |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                             |
+| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `EvictionService`, `RoamingConfigService`             |
 
 ### `src/RomMBat.Agent`
 
@@ -197,8 +198,11 @@ Full-screen, gamepad-navigable, published as `RomMBat.exe`, registered with
 EmulationStation through `system/es_menu/*.menu`.
 
 **The entry that launches it exists as of M7 stage 7a**, and as of stage 7b-1 it opens a real
-interface: pairing behind an on-screen keyboard, and status. Sets, browse, install and
-conflict resolution are 7b-2 and 7b-3.
+interface: pairing behind an on-screen keyboard, and status. **Stage 7b-2a added the sets
+surface**: listing, defining, editing and deleting a set, the scope, platform and folder
+pickers, resolving one with progress, and the disk budget. Downloading anything, browse and
+per-game install are 7b-2b and 7b-2c; conflict resolution and acting on the queued-config
+surface are 7b-3.
 
 **The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
 deciding argument is size on a portable drive rather than either start time or
@@ -211,8 +215,15 @@ that machine's Windows Desktop stack.
 `Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.Themes.Fluent`, never `Avalonia.Desktop`,
 which drags in `Tmds.DBus.Protocol` for the X11 backend and raises `NU1903` for a known
 high-severity advisory that `-warnaserror` turns into a failed build, for a backend this
-win-x64 build cannot use. Published untrimmed at **101.1 MB**, first frame **1041 ms**,
-against the 77.9 MB console stub it replaces.
+win-x64 build cannot use. Published untrimmed at **96.6 MB across five files**, against the
+console stub it replaces.
+
+**These numbers move with the toolchain, so compare them only against a build taken the same
+day on the same machine.** Stage 7b-1 recorded 101.1 MB and 1041 ms; stage 7b-2a measured
+96.5 MB for that same commit re-published months later, which is the SDK moving underneath
+both. The like-for-like figure that means something is the **delta**: moving the sets, sync
+and eviction orchestration into Core cost **+0.1 MB and 2 ms**, 96.5 MB and 936 ms before
+against 96.6 MB and 934 ms after, five runs each, warm cache.
 
 **Trimming is not switched on, and that is measured rather than lazy.** It takes the same
 build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
@@ -225,11 +236,11 @@ that is not a risk to carry for a size win. Tracked as #98.
 `e_sqlite3.dll` already does for the agent:
 
 ```text
-RomMBat.exe            82.5 MB
-av_libglesv2.dll        5.4 MB
-libSkiaSharp.dll        9.4 MB
-libHarfBuzzSharp.dll    1.8 MB
-e_sqlite3.dll           2.0 MB
+RomMBat.exe            78.8 MB
+libSkiaSharp.dll        9.0 MB
+av_libglesv2.dll        5.2 MB
+e_sqlite3.dll           1.9 MB
+libHarfBuzzSharp.dll    1.7 MB
 ```
 
 `IncludeNativeLibrariesForSelfExtract=true` does produce one file, and it was measured at
@@ -259,6 +270,15 @@ success and exits having done nothing, so a UI that took the lock for an instant
 report whether a pass was running would make a concurrent `background quit` flush skip the
 upload and call it success. Reading needs no lock: the store is WAL. See the
 `offline-and-portable` skill.
+
+**It survived the UI starting to write, which is what stage 7b-2a made it do.** Defining,
+editing and deleting a set, and setting the budget, are all rows in SQLite, and the tree lock
+serialises writers of _files in the tree_; taking it for a set definition would be the
+speculative acquire above wearing a different hat. Where a lock genuinely is needed the Core
+service takes it and returns the refusal as a value: `PartialSweep.Apply` already did exactly
+that before the seam existed, and `EvictionService` surfaces it rather than reimplementing it.
+Both halves are asserted: a set is definable while a background pass holds the lock, and an
+eviction under a held lock leaves `partial/` alone and says so.
 
 Presentation owns no logic. Set resolution, mapping, conflict handling and the outbox all live
 in Core, and the UI project holds views and view models over them. Screens carry no Avalonia

@@ -113,6 +113,14 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   key. Measured at 88,331 roms on 5.2.0: **scoped, turning it off costs 3.4 to 3.7 times the
   latency** (2.3 s to 8.5 s a page) to save 63 KiB. Unscoped it costs about 1.15 times to
   save 604 KiB. **Off only when the request is unscoped.**
+
+  **`CatalogQuery` obeys this as of M7 stage 7b-2a, and did not before.** This rule was written
+  from A1's measurement and the code went on sending a constant `false` for a further two
+  stages, which is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
+  **8 m 15 s**, 13.4 s a page at 250, where `RomPager`'s own comment records 2.5 s a page for
+  the unscoped case. **A rule in a skill is not a rule in the code**, and this one went
+  unnoticed until a stage put the walk behind a screen somebody had to sit and watch.
+
 - **`with_total` rides on that flag.** `resolve_total()` returns `len(rom_id_index)`, so the
   count is free with the index on (1 ms) and costs 124 ms with it off. Keep it on; do not
   pair it with an index opt-out on a scoped walk, which is the one combination that pays for

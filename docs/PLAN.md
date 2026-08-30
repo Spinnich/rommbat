@@ -2804,13 +2804,58 @@ authenticated call after pairing completes, so there is no path on which a token
 rejected mid-session. What is reachable, and is shown, is an expired token with a route back to
 pairing. The drop-to-pairing-on-rejection rule from M1 belongs with the first screen that syncs.
 
-##### 7b-2: sets and browse
+##### 7b-2: sets, the sync run, and browse
 
-Sync sets, online paged browse with search, offline browse of the local subset, per-game
-install and evict, the disk budget, and sync progress. **This is very likely more than one PR**
-and looks like M2, M3 and `EvictionPlanner` given a face at once; sync progress is also the
-first thing in this design to put minutes-long cancellable work inside a process a user can
-close. 7b-1's shell is shaped for that: a screen owns its work and is disposed when left.
+**Cut into three, and the first has landed.** 7b-1's ledger owed a verdict on the split, since
+7b-2 as first written is M2, M3 and `EvictionPlanner` given a face at once.
+
+###### 7b-2a: the seam, and sets (done)
+
+**Mostly not a UI stage.** Everything 7b-2 had to put on screen existed only inside the
+agent's subcommands, welded to `Console`, so the interface could only have had a second copy
+of each rule. The orchestration moved into `RomMBat.Core/Sets/` as console-free services that
+return values with the words already chosen, report through `IProgress<T>` and take a
+cancellation token: `SyncSetService`, `SetResolveService`, `LibrarySyncService`,
+`EvictionService` and `RoamingConfigService`. The subcommands are printers over them.
+
+**The evidence the refactor is correct is that nothing changed.** Twenty-four agent
+invocations covering every refusal path produce byte-identical stdout, stderr and exit codes
+against the commit before it.
+
+**Where a sentence lives is a rule.** A sentence stating a rule or a fact about the library is
+Core's, because it reads the same on either front end; a sentence naming a subcommand or a
+flag is the caller's, because it would be false on the other one. A test sweeps every string
+Core returns for the second kind.
+
+On screen: the sets list, one set's detail with its exclusions, an editor that both creates and
+edits, the scope, platform and folder pickers, a resolve with progress, and the disk budget and
+free-space floor. Caps and ordering step on Left and Right rather than being typed; only a name
+and a search term reach the on-screen keyboard.
+
+**A resolve is minutes-long work, and that is measured.** A platform scope of 9,196 roms took
+**8 minutes 15 seconds** against a live 5.2.0 instance. So the resolve screen shows a count
+that moves, and cancelling records the offset and resumes rather than discarding the paging.
+The same measurement moved #88 into this stage: `with_rom_id_index` now follows the scope,
+which is where three and a half of those eight minutes were.
+
+###### 7b-2b: the sync run
+
+Sync from the interface with progress, cancellation and eviction. The first thing in this
+design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
+shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
+and `EvictionService` landed in 7b-2a and are unfaced until here.
+
+###### 7b-2c: browse
+
+Online paged browse with search, offline browse of the local subset, per-game install and
+evict.
+
+**Per-game install needs a schema decision, taken in 7b-2a and not built there.** A hand-picked
+set is a set: it has caps, an ordering and it evicts like any other, so the shape to leave room
+for is a sixth `CatalogScopeKind` with its own migration, not an id list smuggled inside a
+`Filter` scope and not an unmanaged download that `EvictionPlanner` has to be taught to ignore.
+The second overloads one column with two meanings; the third means storing "this orphan is
+deliberate", which is a set by another name.
 
 ##### 7b-3: conflicts and settings
 
@@ -2826,6 +2871,11 @@ whatever the two stages before it turn up.
 M7 is what makes the platform rollout bearable, because every certification pass needs a
 person launching games and the gamepad UI is what they do it with. Nothing in the rollout
 starts before 7b lands.
+
+**Re-checked against the three-PR cut, and it does not move forward.** The gate is 7b, not
+7b-2a. A certification pass needs a person to say what to sync, sync it, and launch a game;
+7b-2a supplies only the first of those from the couch, since syncing is still a terminal
+command until 7b-2b. The earliest the gate can open is when 7b-2b lands.
 
 ### M8: packaging, docs, release
 
