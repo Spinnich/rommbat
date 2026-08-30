@@ -79,6 +79,11 @@ public sealed class StatusViewModel : IScreen
         // moves to a different server, and how they recover an expired or rejected token: M1
         // makes it deliberately cheap, and a screen that hides it strands them.
         new FooterHint(NavAction.Accept, NeedsPairing ? "Pair with RomM" : "Pair again", 3),
+        // EmulationStation rather than RetroBat, and deliberately. RetroBat is the install, which
+        // is why the first row above names it; EmulationStation is the front end this returns to,
+        // and its own menu for the same action reads "QUIT EMULATIONSTATION". "RetroBat" appears
+        // nowhere in its user-facing strings. You also never left RetroBat: RomMBat runs inside
+        // the tree.
         new FooterHint(NavAction.Back, "Back to EmulationStation", 2),
     ];
 
