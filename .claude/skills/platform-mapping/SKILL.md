@@ -92,8 +92,14 @@ that is the seed's `segacd`/`megacd` divergence showing up in a second place.
 - **Two platforms can share one folder** (`snes` and `sfam`, several arcade platforms into
   `mame`). Key the local file index and gamelist generation by **resolved folder**, or the
   second write clobbers the first.
-- **Arcade needs an explicit user choice per sync set.** Which of the ten folders is right
-  depends on the romset, and arcade names are romset-versioned. Do not guess.
+- **Arcade refuses to guess only when the library has not already answered.** The `fs_slug`
+  match against the live `es_systems.cfg` runs **ahead** of the arcade check, so a platform
+  carrying `fs_slug: fbneo` on an install that has an `fbneo` system resolves there: naming
+  the folder is how the person filing the library made the choice. An arcade slug whose
+  `fs_slug` names no folder this install has still stops and asks, because which of the ten
+  folders is right depends on the romset and arcade names are romset-versioned. Measured in
+  M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
+  part way to demand a choice that had already been made.
 - **The bundled table is a seed, not an authority.** Correct it against
   `reference/systems_names.lst`, and expect drift as both projects add systems.
 
@@ -103,5 +109,6 @@ Edit `tools/build-platform-map.py`, not the JSON: `data/retrobat/platforms.json`
 generated from the seed and regenerating overwrites a hand edit. Then run
 `python tools/build-platform-map.py` and the mapping regression, which asserts every bundled
 mapping resolves to a folder that exists in `systems_names.lst`, that multi-folder slugs
-resolve deterministically against a fixture `es_systems.cfg`, and that `arcade` never
-resolves on its own.
+resolve deterministically against a fixture `es_systems.cfg`, and that an `arcade` slug
+whose `fs_slug` names no folder does not resolve on its own while one whose `fs_slug` does
+name a folder resolves there.

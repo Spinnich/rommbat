@@ -1150,9 +1150,13 @@ release and users add custom ones.
 
 Two consequences that reach other milestones:
 
-- **Arcade needs its own decision, not a mapping row.** Which of the ten folders is correct
-  depends on the romset the file came from, and arcade ROM names are romset-versioned. For
-  v1, require an explicit user choice per arcade sync set and do not guess.
+- **Arcade needs its own decision, not a mapping row, unless the library already made it.**
+  Which of the ten folders is correct depends on the romset the file came from, and arcade
+  ROM names are romset-versioned, so v1 requires an explicit user choice per arcade sync set
+  rather than guessing. The exception is the `fs_slug` match above, which runs first: a
+  platform whose `fs_slug` already names a folder this install has needs no choice, because
+  naming the folder is the choice. M7 stage 7b-2a measured the cost of refusing anyway, on
+  RomM's "Arcade (FinalBurn Neo)" against an install with an `fbneo` system.
 - **Two RomM platforms can legitimately share one folder** (a user may point both `snes`
   and `sfam` at `snes`). See M4, which must therefore key gamelist generation by folder
   rather than by platform.
