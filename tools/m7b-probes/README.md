@@ -27,6 +27,26 @@ macOS backends. Build the app with `.UseWin32().UseSkia()` rather than `.UsePlat
 | `probe4-unreachable-server.cs` | Times an unreachable server through the path the UI uses. Needs only Core         |
 | `probe5-controller-hotplug.cs` | A controller switched off and on, through the shipped `GamepadReader`             |
 
+**Probe 6 is PowerShell and needs nothing built**, because the question is about ES rather
+than about RomMBat: it writes a marker, calls the API and polls ES's own model. Run it in
+phases around a person launching and exiting RomMBat from the menu:
+
+```powershell
+.\probe6-reload-under-app.ps1 -Phase control   # ES up, nothing in front
+.\probe6-reload-under-app.ps1 -Phase live      # RomMBat up from the ES menu
+.\probe6-reload-under-app.ps1 -Phase silent    # the discriminating one: no reload issued
+.\probe6-reload-under-app.ps1 -Phase cleanup   # removes every marker it wrote
+```
+
+**Always run `control` first.** A null result in `live` means nothing unless the reload is
+known to work on that install that day, and without the control a wrong system name or a
+stopped API looks identical to the finding.
+
+**`silent` is the phase that earned the probe its answer**, and it was added only after `live`
+produced a result with two explanations. Writing a marker and issuing _no_ reload separates
+"ES rescans on resume" from "the reload was deferred". Recording that a result has two readings
+and building the phase that splits them is worth more than the first four phases combined.
+
 ## The two that mattered
 
 **219, whether ES keeps reading the pad behind us**, could not be observed at all until the

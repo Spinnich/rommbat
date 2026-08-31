@@ -72,7 +72,18 @@ public sealed record SyncSetDefinition
 
     public long? MaxBytes { get; init; }
 
-    public SetOrdering Ordering { get; init; } = SetOrdering.Name;
+    /// <summary>
+    /// Which games a cap keeps when the scope is bigger than it.
+    /// </summary>
+    /// <remarks>
+    /// <b>Recently updated by default, not by name.</b> The ordering only does anything once a
+    /// cap bites, and at that moment "by name" means a set of forty keeps everything beginning
+    /// with A, which is nobody's intention and reads as a bug the first time somebody sees it.
+    /// Newest-in-RomM is what a person means by "give me some of this platform". Changed on a
+    /// hands-on finding in stage 7b-2a; the ordering is still explicit on every set the console
+    /// creates with <c>--order</c>.
+    /// </remarks>
+    public SetOrdering Ordering { get; init; } = SyncSetStore.DefaultOrdering;
 
     public string EvictionPolicy { get; init; } = "keep_favourites";
 
@@ -258,6 +269,80 @@ public sealed class SyncSetStore
             .With("$name", name);
 
         return command.ExecuteNonQuery() > 0;
+    }
+
+    /// <summary>
+    /// Changes a set's caps, ordering and folder, leaving its scope and membership alone.
+    /// </summary>
+    /// <remarks>
+    /// <b>Scope is deliberately not updatable here.</b> Pointing a set at something else makes
+    /// its recorded membership an answer to a different question, and there is no migration
+    /// from one to the other short of a re-resolve. Removing and re-adding is the honest route
+    /// and touches nothing on disk. <see cref="UpdateFilter"/> is the one narrowing of that
+    /// rule and it carries its own argument.
+    /// <para>
+    /// The membership is not swept here either. A cap tightened between resolves is an
+    /// intention rather than an outcome, and it is the next resolve that applies it.
+    /// </para>
+    /// </remarks>
+    public void UpdatePolicy(SyncSetDefinition definition, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        using var command = _connection.Command(
+            """
+            UPDATE sync_set
+               SET max_games = $maxGames,
+                   max_bytes = $maxBytes,
+                   ordering = $ordering,
+                   folder_override = $folderOverride,
+                   updated_at = $now
+             WHERE id = $id;
+            """)
+            .With("$maxGames", SqliteValues.OrNull(definition.MaxGames))
+            .With("$maxBytes", SqliteValues.OrNull(definition.MaxBytes))
+            .With("$ordering", OrderingText(definition.Ordering))
+            .With("$folderOverride", SqliteValues.OrNull(definition.FolderOverride))
+            .With("$now", SqliteValues.ToText(now))
+            .With("$id", definition.Id);
+
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Changes a filter set's filter, and marks it as needing a resolve.
+    /// </summary>
+    /// <remarks>
+    /// <b>A narrowing of "scope is not updatable", not an exception to it.</b> That rule was
+    /// written when a resolve was a terminal command, and its reason is that membership becomes
+    /// an answer to a different question. It still is. What changed is that answering the new
+    /// question costs one press from the couch, and that a filter's scope value is a query
+    /// rather than an identity: a set called "European platformers" is still that set when its
+    /// genre list gains a genre, where a platform set pointed at a different platform is not.
+    /// A set whose scope <i>kind</i> or target changes still has to be made again.
+    /// <para>
+    /// <b>The resolution stamp is cleared and the membership is not.</b> Deleting members would
+    /// orphan whatever is already on disk and hand it to the next eviction pass, on nothing
+    /// better than an edit. Clearing the stamp makes the set read as needing a resolve, and the
+    /// resolve replaces the membership wholesale, which is the same path a new set takes.
+    /// </para>
+    /// </remarks>
+    public void UpdateFilter(long id, string scopeValue, DateTimeOffset now)
+    {
+        using var command = _connection.Command(
+            """
+            UPDATE sync_set
+               SET scope_value = $scopeValue,
+                   last_resolved_at = NULL,
+                   last_resolution_summary = NULL,
+                   updated_at = $now
+             WHERE id = $id AND scope_kind = 'filter';
+            """)
+            .With("$scopeValue", scopeValue)
+            .With("$now", SqliteValues.ToText(now))
+            .With("$id", id);
+
+        command.ExecuteNonQuery();
     }
 
     /// <summary>Sets the folder this set writes to, which is how an arcade set is answered.</summary>
@@ -513,12 +598,25 @@ public sealed class SyncSetStore
         _ => throw new ArgumentOutOfRangeException(nameof(ordering), ordering, "Unknown ordering."),
     };
 
+    /// <summary>
+    /// What a set is ordered by when nothing says otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <b>One place, because it used to be two.</b> The record's initializer said one thing and
+    /// <see cref="ParseOrdering"/> answered a different one for an absent value, so changing
+    /// "the default" changed nothing on the path that actually creates sets. Every caller reads
+    /// it from here now.
+    /// </remarks>
+    public static SetOrdering DefaultOrdering => SetOrdering.RecentlyUpdated;
+
+    /// <summary>Reads a stored or supplied ordering. An unrecognised value is the default.</summary>
     public static SetOrdering ParseOrdering(string? text) => text switch
     {
+        "name" => SetOrdering.Name,
         "size_asc" => SetOrdering.SizeAscending,
         "size_desc" => SetOrdering.SizeDescending,
         "recent" => SetOrdering.RecentlyUpdated,
-        _ => SetOrdering.Name,
+        _ => DefaultOrdering,
     };
 
     internal static string StateText(MemberState state) => state switch

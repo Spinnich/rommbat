@@ -29,8 +29,32 @@ public class CatalogPagingTests
 
         Assert.Contains("with_char_index=false", built, StringComparison.Ordinal);
         Assert.Contains("with_filter_values=false", built, StringComparison.Ordinal);
-        Assert.Contains("with_rom_id_index=false", built, StringComparison.Ordinal);
         Assert.Contains("with_files=false", built, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The rom id index follows the scope, because its cost inverts with one.
+    /// </summary>
+    /// <remarks>
+    /// Scoped, the index spans the scope rather than the library and is what lets the server
+    /// answer by primary key: measured at six seconds a page to save 63 KiB with it off.
+    /// Unscoped it is the whole library and costs about 130 ms to save 600 KiB. Sending
+    /// <c>false</c> for both was #88, and it made a 9,196-rom platform resolve take 8m 15s
+    /// against a live instance.
+    /// </remarks>
+    [Theory]
+    [InlineData(CatalogScopeKind.Platform, "true")]
+    [InlineData(CatalogScopeKind.Collection, "true")]
+    [InlineData(CatalogScopeKind.SmartCollection, "true")]
+    [InlineData(CatalogScopeKind.VirtualCollection, "true")]
+    [InlineData(CatalogScopeKind.Filter, "false")]
+    public void The_rom_id_index_is_on_for_a_scoped_walk_and_off_for_an_unscoped_one(
+        CatalogScopeKind scope,
+        string expected)
+    {
+        var built = new CatalogQuery { Scope = scope, ScopeId = "6" }.ToQueryString(limit: 250, offset: 0);
+
+        Assert.Contains($"with_rom_id_index={expected}", built, StringComparison.Ordinal);
     }
 
     [Fact]

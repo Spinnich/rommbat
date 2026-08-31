@@ -1,6 +1,7 @@
 using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Paths;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Agent;
@@ -25,6 +26,17 @@ internal sealed class AgentContext : IDisposable
     public RetroBatInstall Install => _session.Install;
 
     public LocalStore Store => _session.Store;
+
+    /// <summary>The session itself, for the Core services that take one.</summary>
+    public InstallSession Session => _session;
+
+    /// <summary>
+    /// Set definitions, the picker data behind them, and the rules they are subject to.
+    /// </summary>
+    /// <remarks>
+    /// Built per access rather than cached: it holds no state of its own, only the session.
+    /// </remarks>
+    public SyncSetService Sets => new(_session);
 
     /// <summary>Opens the install, or writes why it will not and sets an exit code.</summary>
     public static AgentContext? Open(CommandLine command, TextWriter error, out int exitCode)

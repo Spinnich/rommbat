@@ -25,6 +25,36 @@ public enum ResolutionOutcome
     Refused,
 }
 
+/// <summary>How far through a scope a walk has got.</summary>
+/// <param name="Scanned">
+/// Rows this segment has folded in. <b>Not how far through the scope the walk is</b>: a walk
+/// resuming at row 500 of 600 starts this count at zero, because it has folded in nothing yet.
+/// </param>
+/// <param name="Total">Rows the server says the scope matches, or 0 before the first page.</param>
+/// <param name="Offset">
+/// Rows consumed overall, which is what the cursor records and what a person means by progress.
+/// A resumed walk starts here at the offset it resumed from, so the bar carries on rather than
+/// starting again at nothing while the work is real.
+/// </param>
+public readonly record struct SetResolveProgress(
+    string SetName,
+    int Scanned,
+    int Total,
+    int Offset,
+    int SetIndex = 1,
+    int SetCount = 1)
+{
+    /// <summary>
+    /// How far through the scope, or null until the first page says how big it is.
+    /// </summary>
+    /// <remarks>
+    /// Measured on <see cref="Offset"/> rather than <see cref="Scanned"/>. Using the segment's
+    /// own count sent a resumed walk's bar back to zero and crawling, while the work already
+    /// done was real and recorded, which reads as the resume having achieved nothing.
+    /// </remarks>
+    public double? Fraction => Total > 0 ? Math.Clamp((double)Offset / Total, 0, 1) : null;
+}
+
 /// <summary>What one resolution produced.</summary>
 public sealed record SetResolution
 {
@@ -158,7 +188,7 @@ public sealed class SetResolver
         ArgumentNullException.ThrowIfNull(set);
 
         return set.Scope == CatalogScopeKind.Filter
-            ? new CatalogQuery { Scope = set.Scope, Filter = CatalogFilterJson.Parse(set.ScopeValue) }
+            ? new CatalogQuery { Scope = set.Scope, Filter = Sets.SyncSetService.FilterOf(set) }
             : new CatalogQuery { Scope = set.Scope, ScopeId = set.ScopeValue };
     }
 
@@ -178,11 +208,22 @@ public sealed class SetResolver
     /// caps apply to the whole walk rather than to each segment, and selection state does not
     /// survive the process, so a resumed run has to be handed back what it had.
     /// </param>
+    /// <param name="progress">
+    /// Reported once per page, after the page is folded in.
+    /// <para>
+    /// <b>A walk is minutes long, so this is not decoration.</b> Measured against a live
+    /// instance, a 9,196-rom platform scope walks in 8m 15s at 250 rows a page, and a screen
+    /// that cannot show it moving is indistinguishable from a hung one. The alternative was
+    /// polling the pager's mutable offset from another thread, which is a worse thing to have
+    /// to explain. <see cref="Content.ContentSync"/> already reports the same way.
+    /// </para>
+    /// </param>
     public async Task<SetResolution> ResolveAsync(
         SyncSetDefinition set,
         RomPager pager,
         DateTimeOffset resolvedAt,
         IReadOnlyList<SyncSetMember>? carried = null,
+        IProgress<SetResolveProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(set);
@@ -214,9 +255,29 @@ public sealed class SetResolver
 
         while (!pager.IsComplete)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            // Stopped, not thrown. A cancelled walk is an interruption exactly as an
+            // unreachable server is, and this is what makes that true rather than merely
+            // written down: throwing here left the caller with no resolution to record, so the
+            // offset was saved and every game found before it was dropped. The next walk then
+            // resumed at the right page with an empty accumulator and finished short.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
 
-            var response = await pager.NextAsync(cancellationToken).ConfigureAwait(false);
+            RomMResponse<RomPage> response;
+
+            try
+            {
+                response = await pager.NextAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelled mid-request. The pager only advances on success, so the offset is
+                // still the last page that completed and this page is simply read again.
+                break;
+            }
+
             if (!response.IsSuccess)
             {
                 failure = response;
@@ -276,6 +337,10 @@ public sealed class SetResolver
                     Member(row, resolution.Folder, MemberState.Member, resolvedAt),
                     GameMetadata.From(row, resolution.Folder, resolvedAt));
             }
+
+            // Per page rather than per row. A row is a few microseconds and a page is seconds,
+            // so this is the granularity a person can actually see change.
+            progress?.Report(new SetResolveProgress(set.Name, scanned, pager.Total ?? 0, pager.Offset));
         }
 
         var selected = selector.Drain();

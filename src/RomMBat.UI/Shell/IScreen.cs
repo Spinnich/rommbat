@@ -29,11 +29,34 @@ public enum ScreenCommandKind
 }
 
 /// <summary>A screen's answer to one action.</summary>
-public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Screen = null)
+/// <param name="Depth">
+/// How many screens a pop closes. More than one when the screen underneath has been made
+/// meaningless by what just happened: deleting a set leaves its detail screen describing
+/// something that no longer exists, so the confirmation and the detail go together.
+/// </param>
+public readonly record struct ScreenCommand(
+    ScreenCommandKind Kind,
+    IScreen? Screen = null,
+    int Depth = 1,
+    IScreen? Then = null)
 {
     public static ScreenCommand Stay => new(ScreenCommandKind.Stay);
 
     public static ScreenCommand Pop => new(ScreenCommandKind.Pop);
+
+    /// <summary>Closes this screen and the ones under it that it invalidated.</summary>
+    public static ScreenCommand PopMany(int depth) => new(ScreenCommandKind.Pop, null, depth);
+
+    /// <summary>
+    /// Swaps this screen for one, then opens another over it.
+    /// </summary>
+    /// <remarks>
+    /// For a step that both finishes and starts something. Creating a set lands on that set and
+    /// begins resolving it, and the set has to be underneath rather than beside it, or backing
+    /// out of the resolve would reach the list and skip the thing just made.
+    /// </remarks>
+    public static ScreenCommand ReplaceThenOpen(IScreen replacement, IScreen opened) =>
+        new(ScreenCommandKind.Replace, replacement, 1, opened);
 
     public static ScreenCommand Exit => new(ScreenCommandKind.Exit);
 
@@ -60,7 +83,22 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
 /// widths are known, and the order it drops them in is Argosy's convention and worth keeping:
 /// a footer that reflows as the content changes makes the controls feel unreliable.
 /// </remarks>
-public sealed record FooterHint(NavAction Action, string Label);
+public sealed record FooterHint(NavAction Action, string Label)
+{
+    /// <summary>True when the hint stands for all four directions rather than the one named.</summary>
+    public bool IsDirectional { get; private init; }
+
+    /// <summary>
+    /// A hint for moving about, drawn as a pad rather than as one direction.
+    /// </summary>
+    /// <remarks>
+    /// It carries <see cref="NavAction.Up"/> so the rule that a hint names a bound action still
+    /// holds; the renderer draws what it means. EmulationStation's own footer says MOVE CURSOR
+    /// the same way, and the keyboard is the first screen here where which way to move is not
+    /// obvious from the content.
+    /// </remarks>
+    public static FooterHint Move(string label) => new(NavAction.Up, label) { IsDirectional = true };
+}
 
 /// <summary>
 /// A screen, as the shell sees it.
@@ -86,6 +124,27 @@ public interface IScreen
 
     /// <summary>Responds to one action.</summary>
     ScreenCommand Handle(NavAction action);
+}
+
+/// <summary>
+/// A screen that has to rebuild when it becomes current again.
+/// </summary>
+/// <remarks>
+/// <b>Because a screen above it can write.</b> Creating a set left the list underneath showing
+/// the sets from before, and it corrected itself only when the whole screen was rebuilt by
+/// leaving and coming back. The navigator raises this on whatever a pop lands on, which is the
+/// only moment a screen already on the stack can have been overtaken without being pressed. A
+/// replacement is freshly constructed and has nothing stale to re-read, so it is not raised
+/// there.
+/// <para>
+/// Distinct from <see cref="ILiveScreen"/>, which is about work the screen itself started.
+/// This is about work somebody else finished.
+/// </para>
+/// </remarks>
+public interface IReturnAware
+{
+    /// <summary>Something above this screen closed. Re-read anything that may have changed.</summary>
+    void Returned();
 }
 
 /// <summary>

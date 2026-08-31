@@ -87,20 +87,36 @@ public sealed partial class RomMConnection
     /// The one call that deliberately turns a sidecar on. It costs 280 KB and describes the
     /// whole library rather than a page, so it is fetched with <c>limit=1</c> and cached for
     /// the session. Nothing that pages ever asks for it.
+    /// <para>
+    /// <b>Read through <see cref="RomFilterValuesPage"/>, which ignores the row.</b> This used
+    /// the generated page type and inherited its <c>int32</c> <c>fs_size_bytes</c>, so one ROM
+    /// at or above 2 GiB left every facet empty on a library that had thousands of values.
+    /// </para>
     /// </remarks>
-    public async Task<RomMResponse<RomFiltersDict>> GetFilterValuesAsync(
+    public async Task<RomMResponse<RomFilterValues>> GetFilterValuesAsync(
         CatalogQuery query,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        var response = await GetAuthenticatedAsync<CustomLimitOffsetPage_SimpleRomSchema_>(
+        var response = await GetAuthenticatedAsync<RomFilterValuesPage>(
             "api/roms?" + query.ToQueryString(limit: 1, offset: 0, withFilterValues: true),
             cancellationToken).ConfigureAwait(false);
 
-        return response.IsSuccess
-            ? RomMResponse.Success(response.Value!.Filter_values)
-            : RomMResponse.Failure<RomFiltersDict>(response.Status, response.Message ?? "The filter values were not returned.");
+        if (!response.IsSuccess)
+        {
+            return RomMResponse.Failure<RomFilterValues>(
+                response.Status,
+                response.Message ?? "The filter values were not returned.");
+        }
+
+        // Absent rather than empty is a server that answered without the sidecar, which is a
+        // different thing from a library with nothing to filter by and reads differently.
+        return response.Value!.FilterValues is { } values
+            ? RomMResponse.Success(values)
+            : RomMResponse.Failure<RomFilterValues>(
+                response.Status,
+                "The server answered without the filter values it was asked for.");
     }
 
     /// <summary>

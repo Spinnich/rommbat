@@ -73,14 +73,31 @@ public sealed class Navigator
             case ScreenCommandKind.Replace when command.Screen is { } replacement:
                 (_screens[^1] as IDisposable)?.Dispose();
                 _screens[^1] = replacement;
+
+                // A step that both finishes and starts something leaves what it finished
+                // underneath, so backing out of what it started reaches it.
+                if (command.Then is { } opened)
+                {
+                    _screens.Add(opened);
+                }
+
                 _repeat.CarryNothingOver();
                 break;
 
             case ScreenCommandKind.Pop when _screens.Count > 1:
                 // A screen that started work owns stopping it. Pairing polls until told not to.
-                (_screens[^1] as IDisposable)?.Dispose();
-                _screens.RemoveAt(_screens.Count - 1);
+                for (var closing = 0; closing < Math.Max(1, command.Depth) && _screens.Count > 1; closing++)
+                {
+                    (_screens[^1] as IDisposable)?.Dispose();
+                    _screens.RemoveAt(_screens.Count - 1);
+                }
+
                 _repeat.CarryNothingOver();
+
+                // Whatever is underneath may have been overtaken while it was covered, and this
+                // is the only moment that can happen without the screen being pressed. A set
+                // created in the editor above left the list showing the sets from before.
+                (_screens[^1] as IReturnAware)?.Returned();
                 break;
 
             case ScreenCommandKind.Pop:

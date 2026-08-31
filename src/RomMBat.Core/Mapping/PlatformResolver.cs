@@ -159,9 +159,31 @@ public sealed class PlatformResolver
                     : $"Set by you to '{chosen}'.");
         }
 
-        // An arcade-shaped slug stops here. Which folder is right depends on the romset the
-        // file came from, and arcade rom names are romset-versioned, so every remaining layer
-        // would be guessing. Candidates are still reported so the choice can be offered.
+        // 2. fs_slug against the live file. When someone's RomM library is already laid out
+        //    Batocera-style, fs_slug is the folder name and no translation is needed.
+        //
+        //    This runs ahead of the arcade check below, and the order is the whole point. An
+        //    arcade-shaped slug is ambiguous because ten folders could be right; an fs_slug
+        //    that already names one of them is not ambiguous at all, because the person filing
+        //    the library has answered the question by naming the folder. Refusing anyway made
+        //    a platform whose fs_slug is literally 'fbneo', on an install that has an 'fbneo'
+        //    system and a roms/fbneo directory, demand a per-set choice it did not need, and
+        //    it did so halfway through resolving a collection that merely happened to contain
+        //    an arcade game.
+        if (_install.TryGetFolder(platform.FsSlug, out var byFsSlug))
+        {
+            return Applied(
+                platform,
+                byFsSlug.Folder,
+                MappingSource.FsSlug,
+                candidates,
+                $"RomM's fs_slug '{platform.FsSlug}' is already a folder in this install.");
+        }
+
+        // An arcade-shaped slug stops here, once the fs_slug has failed to answer it. Which
+        // folder is right depends on the romset the file came from, and arcade rom names are
+        // romset-versioned, so every remaining layer would be guessing. Candidates are still
+        // reported so the choice can be offered.
         if (mustChoose)
         {
             return new PlatformResolution(
@@ -176,18 +198,6 @@ public sealed class PlatformResolver
                 RequiresExplicitChoice: true,
                 FolderMissingFromInstall: false,
                 whyChoose);
-        }
-
-        // 2. fs_slug against the live file. When someone's RomM library is already laid out
-        //    Batocera-style, fs_slug is the folder name and no translation is needed.
-        if (_install.TryGetFolder(platform.FsSlug, out var byFsSlug))
-        {
-            return Applied(
-                platform,
-                byFsSlug.Folder,
-                MappingSource.FsSlug,
-                candidates,
-                $"RomM's fs_slug '{platform.FsSlug}' is already a folder in this install.");
         }
 
         // 3. Bundled table, first candidate the install actually has.

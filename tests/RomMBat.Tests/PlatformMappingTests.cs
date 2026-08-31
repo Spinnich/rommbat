@@ -80,13 +80,35 @@ public class PlatformMappingTests
         Assert.Equal(MappingSource.Bundled, resolution.ResolvedBy);
     }
 
+    /// <summary>
+    /// Arcade still refuses to guess, but only when there is something to guess about.
+    /// </summary>
+    /// <remarks>
+    /// <b>This assertion was inverted in M7 stage 7b-2a, on a hands-on finding, and the reason
+    /// is worth reading before inverting it back.</b> It used to pass <c>fs_slug: "mame"</c>
+    /// and require a refusal, which put the arcade check ahead of the fs_slug match. But
+    /// <c>docs/PLAN.md</c>'s M2 orders the chain the other way, "try this before any table",
+    /// and the arcade rule comes from that table.
+    /// <para>
+    /// What it cost on a live install: RomM's "Arcade (FinalBurn Neo)" carries
+    /// <c>slug: arcade</c> and <c>fs_slug: fbneo</c>, RetroBat has an <c>fbneo</c> system and a
+    /// <c>roms/fbneo</c> directory, and resolving a collection that merely contained one arcade
+    /// game stopped halfway to demand a per-set folder choice that the library had already
+    /// answered by naming the folder.
+    /// </para>
+    /// <para>
+    /// The refusal is kept for the case it exists for: an arcade slug whose fs_slug names
+    /// nothing this install has. Arcade rom names are romset-versioned, so choosing among ten
+    /// folders with no evidence puts files where the emulator cannot read them.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public void Arcade_never_resolves_on_its_own()
+    public void Arcade_refuses_to_guess_when_the_fs_slug_names_no_folder()
     {
         var install = Fixtures.LoadEsSystems();
         var resolver = new PlatformResolver(install);
 
-        var resolution = resolver.Resolve(new RomMPlatform(1, "arcade", "mame", "Arcade"));
+        var resolution = resolver.Resolve(new RomMPlatform(1, "arcade", "arcade", "Arcade"));
 
         Assert.Null(resolution.Folder);
         Assert.True(resolution.RequiresExplicitChoice);
@@ -260,4 +282,28 @@ public class PlatformMappingTests
     [InlineData("Sega_CD", "segacd")]
     public void Normalization_strips_case_and_punctuation(string input, string expected) =>
         Assert.Equal(expected, PlatformResolver.Normalize(input));
+
+    [Fact]
+    public void An_arcade_platform_whose_fs_slug_already_names_a_folder_needs_no_choice()
+    {
+        // Found on a live install. RomM's "Arcade (FinalBurn Neo)" carries slug 'arcade' and
+        // fs_slug 'fbneo', and RetroBat has an fbneo system with a roms/fbneo directory. The
+        // arcade check keyed on the slug and ran before the fs_slug match, so a platform whose
+        // folder was already named refused to resolve and demanded a per-set choice, halfway
+        // through resolving a collection that merely happened to contain an arcade game.
+        //
+        // An arcade slug is ambiguous because ten folders could be right. An fs_slug that
+        // already names one of them is not ambiguous: the person filing the library answered
+        // the question by naming the folder.
+        var install = Fixtures.LoadEsSystems();
+        var resolver = new PlatformResolver(install, new Dictionary<string, string>());
+
+        var resolution = resolver.Resolve(
+            new RomMPlatform(9, "arcade", "fbneo", "Arcade (FinalBurn Neo)"));
+
+        Assert.Equal("fbneo", resolution.Folder);
+        Assert.False(resolution.RequiresExplicitChoice);
+        Assert.Equal(MappingSource.FsSlug, resolution.ResolvedBy);
+    }
+
 }

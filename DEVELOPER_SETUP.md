@@ -293,6 +293,31 @@ EmulationStation up or not, because the queue is the only path that exists and a
 the assembly cannot even name the writer. "ES is always up" is a fact about how it is launched,
 not a load-bearing assumption.
 
+#### Driving the sets screens
+
+From the status screen: **Start** opens the sets list, **the screen's secondary action** opens
+the disk budget. On the list, Start makes a new set and Accept opens the one under the cursor.
+On a set, Accept edits its limits, Start resolves it and the secondary action deletes it.
+
+Caps and ordering **step on Left and Right** rather than being typed. Only a set's name and a
+filter's search term open the on-screen keyboard, which is the point: entering "8 GB" on a grid
+of letters is the interaction the whole stage exists to remove.
+
+**Everything except resolving works with no server at all**, so most of this surface can be
+driven against a throwaway tree that has never been paired. Resolve on an unpaired install says
+so immediately rather than waiting on a timeout.
+
+**The platform picker is empty until something has populated `platform_map`.** It offers what
+this install has heard of, which a `sync`, a `platforms list` or a resolve fills in. On a fresh
+tree the picker says so rather than showing an empty box. To get rows without a real server,
+run `platforms list` against one once, or seed the table the way `SyncSetServiceTests` does.
+
+**A resolve is minutes long against a real library**, measured at 8 m 15 s for a 9,196-rom
+platform scope. The screen shows a count that moves, and backing out of it records where it
+stopped: the next resolve continues from that offset rather than starting again. If you are
+testing the resolve screen repeatedly, use a small scope or a filter with a search term, which
+is what the sets on the live test install are.
+
 **A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
 identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.
 To re-test pairing without collecting a device per attempt, **delete the store and keep

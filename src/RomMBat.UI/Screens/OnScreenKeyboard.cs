@@ -8,6 +8,63 @@ namespace RomMBat.UI.Screens;
 /// <param name="Problem">Why it was no good, shown above the grid so it can be corrected.</param>
 public sealed record TypedResult(IScreen? Next, string? Problem = null);
 
+/// <summary>What pressing a key does.</summary>
+public enum KeyKind
+{
+    /// <summary>Appends its own face. Empty on a layer that has nothing there, and then inert.</summary>
+    Character,
+
+    /// <summary>Removes the last character. <c>DEL</c> upstream.</summary>
+    Backspace,
+
+    /// <summary>Appends a space.</summary>
+    Space,
+
+    /// <summary>Upper or lower.</summary>
+    Shift,
+
+    /// <summary>The accented layer, and off again. <c>ALT</c> upstream.</summary>
+    Layer,
+
+    /// <summary>Back to the text this screen opened with.</summary>
+    Reset,
+
+    /// <summary>Commits, exactly as the primary action does.</summary>
+    Accept,
+
+    /// <summary>Leaves without committing, exactly as back does.</summary>
+    Cancel,
+}
+
+/// <summary>
+/// One key, placed on the grid rather than merely ordered in a row.
+/// </summary>
+/// <remarks>
+/// Keys span cells, so a row is not a string: the layer key is two cells wide and the accept
+/// key two rows tall. <see cref="Row"/> and <see cref="Column"/> are its top-left cell, and the
+/// four faces are what it shows on each layer.
+/// </remarks>
+public sealed record KeyboardKey(
+    KeyKind Kind,
+    string Lower,
+    string Upper,
+    string Alted,
+    string AltedUpper,
+    int Row,
+    int Column,
+    int Width,
+    int Height)
+{
+    /// <summary>What this key shows, and types, in one layer.</summary>
+    public string Face(bool shifted, bool alted) => (alted, shifted) switch
+    {
+        (true, true) => AltedUpper,
+        (true, false) => Alted,
+        (false, true) => Upper,
+        _ => Lower,
+    };
+}
+
 /// <summary>
 /// Typing on a gamepad, which the plan names as the one genuinely hostile step.
 /// </summary>
@@ -16,48 +73,50 @@ public sealed record TypedResult(IScreen? Next, string? Problem = null);
 /// risks table calls it out by name, and the mitigation is this plus remembering the answer so
 /// it is typed once.
 /// <para>
-/// <b>QWERTY, not alphabetical.</b> An alphabetical grid looks tidier and is slower to use:
-/// people know where keys are on a keyboard and have to hunt on anything else. Every console
-/// keyboard is QWERTY and that is not an accident.
+/// <b>It is EmulationStation's keyboard, and the layout is transcribed rather than designed.</b>
+/// Finding 228 established that ES ships one and that RomMBat had quietly disagreed with it;
+/// finding 234 read its source and settled what it actually contains. See
+/// <see cref="KeyboardLayouts"/> for the tables and their provenance. Everything below follows
+/// from them: a thirteen-column grid, four faces per key, delete, accept and the layer key down
+/// the right-hand edge, and shift, space, reset and cancel along the bottom.
 /// </para>
 /// <para>
-/// <b>Case is a toggle, and the first version of this screen got that wrong deliberately.</b>
-/// The argument for putting both cases on one flat grid was that a mode is something a user can
-/// end up in without knowing how they got there. The price was seventy keys with the alphabet
-/// printed twice, which is far more travel and a hunt on every capital. The answer to a
-/// confusing mode is to show it plainly, which the grid does by redrawing under the cursor, not
-/// to pay that. Bound to L1 and R1, where a console keyboard puts it.
+/// <b>Every one of those four bottom keys is also a button</b>, which is what the footer says
+/// and what upstream does. Both routes exist for the same reason: the button is faster once you
+/// know it and the key is the only one that can be found without being told.
 /// </para>
 /// <para>
-/// <b>The layers are the same shape</b>, so toggling never moves the cursor, and the pairs
-/// follow a real keyboard wherever that does not cost a URL something: <c>:</c> and <c>/</c>
-/// stay unshifted, because <c>http://</c> would otherwise need the toggle twice in four
-/// characters.
+/// <b>Case costs a press on a URL now, and that is the trade.</b> The layout this replaced put
+/// <c>:</c> and <c>/</c> on the unshifted layer so <c>http://</c> needed no toggle. Upstream
+/// puts them under shift, and a layout a RetroBat user already has in their fingers beats one
+/// that saves two presses on a string typed once and then remembered.
 /// </para>
 /// <para>
-/// <b>Movement wraps.</b> On a grid this small a cursor that stops dead at the edge costs more
-/// presses than it saves.
+/// <b>Reset is the one key that does not do what upstream's does.</b> ES's commits the empty
+/// string and closes, which is how a setting is cleared there. Neither field RomMBat asks for
+/// may be empty, so the same key in the same place under the same word puts back the text the
+/// screen opened with, which is the useful reading of it here and identical on an empty field.
+/// </para>
+/// <para>
+/// <b>Movement crosses a key rather than a cell</b>, so a wide key is one press to leave and
+/// the two-row accept key is not a hole the cursor falls into. It wraps in all four directions:
+/// upstream wraps left and right and spends up and down on its text field, which this screen
+/// does not have.
 /// </para>
 /// </remarks>
 public sealed class OnScreenKeyboard : IScreen
 {
-    private static readonly string[] Lower =
-    [
-        "1234567890",
-        "qwertyuiop",
-        "asdfghjkl:",
-        "zxcvbnm./-",
-    ];
+    /// <summary>Cells across, which every row fills exactly.</summary>
+    public const int Columns = KeyboardLayouts.Columns;
 
-    private static readonly string[] Upper =
-    [
-        "!@#$%^&*()",
-        "QWERTYUIOP",
-        "ASDFGHJKL~",
-        "ZXCVBNM_?=",
-    ];
+    /// <summary>Cells down, the last being shift, space, reset and cancel.</summary>
+    public const int Rows = 5;
+
+    private static readonly Dictionary<KeyboardLayout, KeyboardKey[]> Built = [];
+    private static readonly Dictionary<KeyboardLayout, KeyboardKey?[][]> Cells = [];
 
     private readonly Func<string, TypedResult> _accepted;
+    private readonly string _initial;
 
     /// <param name="accepted">
     /// Given what was typed, either the next screen or the reason it cannot be used. Validation
@@ -65,14 +124,26 @@ public sealed class OnScreenKeyboard : IScreen
     /// a server address that is <see cref="Core.InstallSession.ResolveOrigin"/>, which already
     /// owns the rule and its words.
     /// </param>
-    public OnScreenKeyboard(string title, string prompt, string initial, Func<string, TypedResult> accepted)
+    /// <param name="language">
+    /// The language EmulationStation is running in, from
+    /// <see cref="Core.InstallSession.EmulationStationLanguage"/>. Null gives the same grid ES
+    /// itself gives every language but two.
+    /// </param>
+    public OnScreenKeyboard(
+        string title,
+        string prompt,
+        string initial,
+        Func<string, TypedResult> accepted,
+        string? language = null)
     {
         ArgumentNullException.ThrowIfNull(accepted);
 
         Title = title;
         Prompt = prompt;
-        Text = initial ?? string.Empty;
+        _initial = initial ?? string.Empty;
+        Text = _initial;
         _accepted = accepted;
+        Layout = KeyboardLayouts.For(language);
     }
 
     public string Title { get; }
@@ -80,96 +151,115 @@ public sealed class OnScreenKeyboard : IScreen
     /// <summary>The line above the grid, explaining what is being asked for.</summary>
     public string Prompt { get; }
 
+    /// <summary>Which of EmulationStation's three grids is on screen.</summary>
+    public KeyboardLayout Layout { get; }
+
     /// <summary>What has been typed so far.</summary>
     public string Text { get; private set; }
 
     /// <summary>Why the last attempt to commit was refused, or null.</summary>
     public string? Problem { get; private set; }
 
-    /// <summary>True while the upper layer is showing.</summary>
+    /// <summary>True while the upper face of the current layer is showing.</summary>
     public bool IsShifted { get; private set; }
+
+    /// <summary>True while the accented layer is showing rather than the alphabetic one.</summary>
+    public bool IsAlted { get; private set; }
 
     public int CursorRow { get; private set; }
 
     public int CursorColumn { get; private set; }
 
-    /// <summary>The layer currently on screen.</summary>
-    public IReadOnlyList<string> Keys => IsShifted ? Upper : Lower;
+    /// <summary>Every key of this layout, in reading order.</summary>
+    public IReadOnlyList<KeyboardKey> Keys => KeysOf(Layout);
 
-    /// <summary>The character the cursor is on, in the current layer.</summary>
-    public string Selected => Keys[CursorRow][CursorColumn].ToString();
+    /// <summary>The key the cursor is on.</summary>
+    public KeyboardKey Selected => CellsOf(Layout)[CursorRow][CursorColumn]!;
 
-    /// <summary>Both layers, for the test that asserts they are the same shape.</summary>
-    public static IReadOnlyList<IReadOnlyList<string>> Layers => [Lower, Upper];
+    /// <summary>What the cursor is on, as it reads on screen.</summary>
+    public string SelectedFace => Face(Selected);
 
+    /// <summary>
+    /// EmulationStation's own legend, in EmulationStation's own words.
+    /// </summary>
+    /// <remarks>
+    /// The words come from <c>emulationstation2.po</c> and the buttons from
+    /// <c>getHelpPrompts</c>, so a RetroBat user reads the same footer here as everywhere else.
+    /// Pressing the highlighted key is not among them, upstream either: the grid is visibly a
+    /// set of buttons and the action that presses one is the action that presses everything
+    /// else in this app.
+    /// </remarks>
     public IReadOnlyList<FooterHint> Hints =>
     [
-        new FooterHint(NavAction.Accept, "Type"),
+        new FooterHint(NavAction.Start, "OK"),
+        new FooterHint(NavAction.Back, "Back"),
+        new FooterHint(NavAction.PageDown, "Space"),
         new FooterHint(NavAction.PageUp, "Delete"),
-        new FooterHint(NavAction.Alternate, IsShifted ? "abc" : "ABC"),
-        new FooterHint(NavAction.Start, "Done"),
-        new FooterHint(NavAction.Back, "Cancel"),
+        new FooterHint(NavAction.Alternate, "Shift"),
+        new FooterHint(NavAction.Extra, "Reset"),
+        FooterHint.Move("Move cursor"),
     ];
+
+    /// <summary>What one key shows, and types, right now.</summary>
+    public string Face(KeyboardKey key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        return key.Kind switch
+        {
+            KeyKind.Character => key.Face(IsShifted, IsAlted),
+            KeyKind.Backspace => "←",
+            KeyKind.Accept => "✓",
+            KeyKind.Shift => "↑",
+
+            // Upstream draws Font Awesome's ellipsis here. RomMBat ships no icon font, so it is
+            // the three dots that glyph is, which is also what the key looks like on screen.
+            KeyKind.Layer => "...",
+            _ => key.Lower,
+        };
+    }
 
     public ScreenCommand Handle(NavAction action)
     {
         switch (action)
         {
             case NavAction.Up:
-                CursorRow = (CursorRow - 1 + Keys.Count) % Keys.Count;
+                Step(-1, 0);
                 break;
 
             case NavAction.Down:
-                CursorRow = (CursorRow + 1) % Keys.Count;
+                Step(1, 0);
                 break;
 
             case NavAction.Left:
-                CursorColumn = (CursorColumn - 1 + Keys[CursorRow].Length) % Keys[CursorRow].Length;
+                Step(0, -1);
                 break;
 
             case NavAction.Right:
-                CursorColumn = (CursorColumn + 1) % Keys[CursorRow].Length;
-                break;
-
-            case NavAction.PageUp:
-                // L1, where EmulationStation's own keyboard puts DELETE. R1 is its SPACE and is
-                // deliberately unbound here: this field is a server address, and a space is
-                // never part of one.
-                Backspace();
+                Step(0, 1);
                 break;
 
             case NavAction.Accept:
-                Text += Selected;
-                Problem = null;
+                return Press(Selected);
+
+            case NavAction.PageUp:
+                Backspace();
+                break;
+
+            case NavAction.PageDown:
+                Type(" ");
                 break;
 
             case NavAction.Alternate:
-                // The layers are the same shape, so the cursor stays exactly where it is and the
-                // key under it simply changes case.
-                IsShifted = !IsShifted;
+                Shift();
+                break;
+
+            case NavAction.Extra:
+                Reset();
                 break;
 
             case NavAction.Start:
-                // Committing an empty string would ask the caller to make sense of nothing.
-                if (Text.Length == 0)
-                {
-                    break;
-                }
-
-                var result = _accepted(Text);
-                Problem = result.Problem;
-
-                // Three answers, and the third is the one worth naming: a caller that took the
-                // text and has nowhere to send the user is done with this screen, so it closes.
-                // Leaving it open would strand them on a keyboard they have finished with.
-                if (result.Next is { } next)
-                {
-                    // Replace rather than push: back from what follows means "not this", not
-                    // "let me retype it".
-                    return ScreenCommand.Replace(next);
-                }
-
-                return result.Problem is null ? ScreenCommand.Pop : ScreenCommand.Stay;
+                return Commit();
 
             case NavAction.Back:
                 return ScreenCommand.Pop;
@@ -181,6 +271,197 @@ public sealed class OnScreenKeyboard : IScreen
         return ScreenCommand.Stay;
     }
 
+    /// <summary>Builds one layout's keys from upstream's table, once.</summary>
+    private static KeyboardKey[] KeysOf(KeyboardLayout layout)
+    {
+        lock (Built)
+        {
+            if (Built.TryGetValue(layout, out var cached))
+            {
+                return cached;
+            }
+
+            var table = KeyboardLayouts.Table(layout);
+            var keys = new List<KeyboardKey>();
+
+            for (var row = 0; row < Rows; row++)
+            {
+                var faces = row * KeyboardLayouts.Faces;
+
+                for (var column = 0; column < Columns; column++)
+                {
+                    var lower = table[faces][column];
+
+                    // A cell swallowed by the key above or to its left. An empty face is not
+                    // one of those: that key exists and holds focus, it just does nothing here.
+                    if (lower is "-rowspan-" or "-colspan-")
+                    {
+                        continue;
+                    }
+
+                    var width = 1;
+                    while (column + width < Columns && table[faces][column + width] == "-colspan-")
+                    {
+                        width++;
+                    }
+
+                    var height = 1;
+                    while (row + height < Rows
+                        && table[(row + height) * KeyboardLayouts.Faces][column] == "-rowspan-")
+                    {
+                        height++;
+                    }
+
+                    keys.Add(new KeyboardKey(
+                        KindOf(lower),
+                        lower,
+                        table[faces + 1][column],
+                        table[faces + 2][column],
+                        table[faces + 3][column],
+                        row,
+                        column,
+                        width,
+                        height));
+                }
+            }
+
+            Built[layout] = [.. keys];
+            Cells[layout] = Occupy(Built[layout]);
+            return Built[layout];
+        }
+    }
+
+    private static KeyboardKey?[][] CellsOf(KeyboardLayout layout)
+    {
+        _ = KeysOf(layout);
+
+        lock (Built)
+        {
+            return Cells[layout];
+        }
+    }
+
+    private static KeyKind KindOf(string lower) => lower switch
+    {
+        "DEL" => KeyKind.Backspace,
+        "OK" => KeyKind.Accept,
+        "SPACE" => KeyKind.Space,
+        "SHIFT" => KeyKind.Shift,
+        "ALT" => KeyKind.Layer,
+        "RESET" => KeyKind.Reset,
+        "CANCEL" => KeyKind.Cancel,
+        _ => KeyKind.Character,
+    };
+
+    private static KeyboardKey?[][] Occupy(KeyboardKey[] keys)
+    {
+        var cells = new KeyboardKey?[Rows][];
+
+        for (var row = 0; row < Rows; row++)
+        {
+            cells[row] = new KeyboardKey?[Columns];
+        }
+
+        foreach (var key in keys)
+        {
+            for (var row = key.Row; row < key.Row + key.Height; row++)
+            {
+                for (var column = key.Column; column < key.Column + key.Width; column++)
+                {
+                    cells[row][column] = key;
+                }
+            }
+        }
+
+        return cells;
+    }
+
+    /// <summary>
+    /// Moves to the next key in one direction, stepping over the rest of the current one.
+    /// </summary>
+    /// <remarks>
+    /// Bounded by the grid rather than looping until it finds something, because a layout whose
+    /// transcription left a row with one key would otherwise spin here rather than fail where
+    /// it is wrong.
+    /// </remarks>
+    private void Step(int rows, int columns)
+    {
+        var cells = CellsOf(Layout);
+        var from = Selected;
+
+        var row = CursorRow;
+        var column = CursorColumn;
+
+        for (var step = 0; step < Math.Max(Rows, Columns); step++)
+        {
+            row = ((row + rows) % Rows + Rows) % Rows;
+            column = ((column + columns) % Columns + Columns) % Columns;
+
+            if (cells[row][column] is { } landed && landed != from)
+            {
+                CursorRow = row;
+                CursorColumn = column;
+                return;
+            }
+        }
+    }
+
+    private ScreenCommand Press(KeyboardKey key)
+    {
+        switch (key.Kind)
+        {
+            case KeyKind.Character:
+                // Blank on this layer, which upstream draws and ignores rather than hiding.
+                Type(Face(key));
+                break;
+
+            case KeyKind.Space:
+                Type(" ");
+                break;
+
+            case KeyKind.Backspace:
+                Backspace();
+                break;
+
+            case KeyKind.Reset:
+                Reset();
+                break;
+
+            case KeyKind.Shift:
+                Shift();
+                break;
+
+            case KeyKind.Layer:
+                // Upstream drops shift on the way in, so the alted layer is entered the same
+                // way every time rather than depending on what the last layer was left in.
+                IsShifted = false;
+                IsAlted = !IsAlted;
+                break;
+
+            case KeyKind.Cancel:
+                return ScreenCommand.Pop;
+
+            case KeyKind.Accept:
+                return Commit();
+
+            default:
+                break;
+        }
+
+        return ScreenCommand.Stay;
+    }
+
+    private void Type(string face)
+    {
+        if (face.Length == 0)
+        {
+            return;
+        }
+
+        Text += face;
+        Problem = null;
+    }
+
     private void Backspace()
     {
         Problem = null;
@@ -189,5 +470,39 @@ public sealed class OnScreenKeyboard : IScreen
         {
             Text = Text[..^1];
         }
+    }
+
+    private void Reset()
+    {
+        Text = _initial;
+        Problem = null;
+    }
+
+    // The layers are the same shape, so the cursor stays exactly where it is and the key under
+    // it simply changes face.
+    private void Shift() => IsShifted = !IsShifted;
+
+    private ScreenCommand Commit()
+    {
+        // Committing an empty string would ask the caller to make sense of nothing.
+        if (Text.Length == 0)
+        {
+            return ScreenCommand.Stay;
+        }
+
+        var result = _accepted(Text);
+        Problem = result.Problem;
+
+        // Three answers, and the third is the one worth naming: a caller that took the text and
+        // has nowhere to send the user is done with this screen, so it closes. Leaving it open
+        // would strand them on a keyboard they have finished with.
+        if (result.Next is { } next)
+        {
+            // Replace rather than push: back from what follows means "not this", not "let me
+            // retype it".
+            return ScreenCommand.Replace(next);
+        }
+
+        return result.Problem is null ? ScreenCommand.Pop : ScreenCommand.Stay;
     }
 }

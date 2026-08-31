@@ -32,9 +32,6 @@ namespace RomMBat.Tests;
 /// </remarks>
 public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCatalogFixture>
 {
-    private const string PageFlags =
-        "with_char_index=false&with_rom_id_index=false&with_filter_values=false&with_total=true&with_files=false";
-
     private const string NotConfigured =
         "Set ROMMBAT_TEST_SERVER and ROMMBAT_TEST_APPROVER_TOKEN to run the live tests.";
 

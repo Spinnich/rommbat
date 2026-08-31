@@ -65,7 +65,10 @@ internal sealed class App : Application
                 // https by default: a RomM behind anything but a LAN address wants it, and it
                 // is two characters to delete against eight to type on a d-pad.
                 _session.Store.Settings.Get(UiSettings.LastServerOrigin) ?? "https://",
-                Typed),
+                Typed,
+                _session.EmulationStationLanguage()),
+            OpenSets = () => SetsScreens.List(_session),
+            OpenBudget = () => new BudgetViewModel(_session),
         };
 
         return new ShellWindow(new Navigator(status), _gamepad, () => desktop.Shutdown());

@@ -1150,9 +1150,13 @@ release and users add custom ones.
 
 Two consequences that reach other milestones:
 
-- **Arcade needs its own decision, not a mapping row.** Which of the ten folders is correct
-  depends on the romset the file came from, and arcade ROM names are romset-versioned. For
-  v1, require an explicit user choice per arcade sync set and do not guess.
+- **Arcade needs its own decision, not a mapping row, unless the library already made it.**
+  Which of the ten folders is correct depends on the romset the file came from, and arcade
+  ROM names are romset-versioned, so v1 requires an explicit user choice per arcade sync set
+  rather than guessing. The exception is the `fs_slug` match above, which runs first: a
+  platform whose `fs_slug` already names a folder this install has needs no choice, because
+  naming the folder is the choice. M7 stage 7b-2a measured the cost of refusing anyway, on
+  RomM's "Arcade (FinalBurn Neo)" against an install with an `fbneo` system.
 - **Two RomM platforms can legitimately share one folder** (a user may point both `snes`
   and `sfam` at `snes`). See M4, which must therefore key gamelist generation by folder
   rather than by platform.
@@ -2804,28 +2808,199 @@ authenticated call after pairing completes, so there is no path on which a token
 rejected mid-session. What is reachable, and is shown, is an expired token with a route back to
 pairing. The drop-to-pairing-on-rejection rule from M1 belongs with the first screen that syncs.
 
-##### 7b-2: sets and browse
+##### 7b-2: sets, the sync run, and browse
 
-Sync sets, online paged browse with search, offline browse of the local subset, per-game
-install and evict, the disk budget, and sync progress. **This is very likely more than one PR**
-and looks like M2, M3 and `EvictionPlanner` given a face at once; sync progress is also the
-first thing in this design to put minutes-long cancellable work inside a process a user can
-close. 7b-1's shell is shaped for that: a screen owns its work and is disposed when left.
+**Cut into three, and the first has landed.** 7b-1's ledger owed a verdict on the split, since
+7b-2 as first written is M2, M3 and `EvictionPlanner` given a face at once.
+
+###### 7b-2a: the seam, and sets (done)
+
+**Mostly not a UI stage.** Everything 7b-2 had to put on screen existed only inside the
+agent's subcommands, welded to `Console`, so the interface could only have had a second copy
+of each rule. The orchestration moved into `RomMBat.Core/Sets/` as console-free services that
+return values with the words already chosen, report through `IProgress<T>` and take a
+cancellation token: `SyncSetService`, `SetResolveService`, `LibrarySyncService`,
+`EvictionService` and `RoamingConfigService`. The subcommands are printers over them.
+
+**The evidence the refactor is correct is that nothing changed.** Twenty-four agent
+invocations covering every refusal path produce byte-identical stdout, stderr and exit codes
+against the commit before it.
+
+**Where a sentence lives is a rule.** A sentence stating a rule or a fact about the library is
+Core's, because it reads the same on either front end; a sentence naming a subcommand or a
+flag is the caller's, because it would be false on the other one. A test sweeps every string
+Core returns for the second kind.
+
+On screen: the sets list, one set's detail with its exclusions, an editor that both creates and
+edits, the scope, platform, collection and folder pickers, a resolve with progress, and the disk
+budget and free-space floor.
+
+**Per-set caps are not on the interface, which is a change to M2's shape and came from a
+hands-on pass.** A set made from a collection or a platform is usually a mirror of something the
+user already chose, and capping it to N leaves RomMBat guessing which N; no ordering makes that
+guess good. The bound a person sets is the install-wide disk budget, which already existed and
+which `ContentPlanner` and `EvictionPlanner` already enforce. `sets add` keeps `--max-games`,
+`--max-bytes` and `--order`, and a set given caps from the console keeps them: the editor sends
+no cap values at all rather than the cleared ones a hidden row would have produced.
+
+**A set is named after what it mirrors.** A platform and a collection both already have a name
+in RomM, so a platform or collection set is pick, pick, create, and the on-screen keyboard is
+off the common path entirely.
+
+**A filter scope is a saved search rather than a name match, and it is RomM's whole search.**
+Eleven multi-selects, each with the `any` / `all` / `none` operator RomM's own `*_logic`
+parameters take, and ten yes-or-no properties. The values come from the live library through
+`with_filter_values`, which is the single job that sidecar exists for and which M2 wrote
+`GetFilterValuesAsync` to serve.
+
+**It shipped as five of the eleven and two of the ten, and the reasoning for that was wrong.**
+The subset was chosen as "the ones `CatalogFilter` can persist, roam through
+`Device.sync_config` and replay against a server that has never seen this device". They all
+persist: it is one JSON column and one dictionary, so the constraint being satisfied was a
+constraint on nothing, and what a person actually met was a filter screen offering a third of
+what the web interface does, with no way to tell which third. A subset needs a reason a user
+can state, and this one had none.
+
+**Two of the eleven are not in the sidecar and are not derived from the library.** Statuses are
+a vocabulary the user assigns, taken from the pinned schema's `RomUserStatus`. Metadata
+providers have no enumeration in the schema at all, and the server **silently ignores** a value
+it does not recognise, so a wrong entry would hand somebody the whole library while looking
+like a filter: they were probed one at a time against a live instance (finding 236). Deriving
+them from the rom row's `*_id` fields would have been wrong, which the probe is how we know.
+
+**Four properties answer from RomM's records rather than from the game**, so a set carrying one
+resolves differently on another account or after a scan. That is said on the row, once it is
+set, rather than left in a document. A set is re-resolved on demand and is expected to move,
+which is why this is a caveat and not a reason to withhold them.
+
+**A filter can be changed after the set exists, which narrows "scope is not updatable".** That
+rule stands for a scope's kind and its target: a set pointed at a different platform is a
+different set. A filter's scope value is a query rather than an identity, and the rule's own
+reason, that answering the new question means a re-resolve, was written when a resolve was a
+terminal command and now costs one press. Changing one clears the resolution stamp and lands
+on the set resolving, exactly as creating one does. The membership is deliberately **not**
+deleted: that would orphan whatever is on disk and hand it to the next eviction pass on the
+strength of an edit.
+
+**A scope that can be picked has to be completable.** Virtual collections are offered and
+disabled, because that route needs a `type` parameter the pinned 5.2.0 schema declares as a
+bare string with no enumeration, and inventing a list of likely values is the vendor-id table
+the input work threw out. A test asserts the general rule: every scope offered as pickable has
+something that can produce its value.
+
+**A resolve is minutes-long work, and both ends of that are measured.** A platform scope of
+9,196 roms took **8 minutes 15 seconds** against a live 5.2.0 instance before #88, and a
+collection of 4,773 took about **2 minutes 30 seconds** after it. So the resolve screen shows a
+count that moves, names the set it is on and which of how many, and can be stopped.
+
+**Stopping keeps what it found, and that took two attempts to get right.** Recording the cursor
+was never the hard part; `SetResolver` threw on cancellation instead of returning, so the
+membership that segment had accumulated was never written and the next walk resumed at the
+right page with an empty accumulator. Cancellation is an interruption now, exactly as this
+type's own remarks had claimed since the seam landed. Progress is reported on the walk's offset
+rather than the segment's own count, or a resumed bar restarts at nothing while the work is
+real.
+
+**Creating a set lands on it and starts resolving.** A set that has never resolved holds
+nothing and can do nothing, so returning to the list left the person one press short of what
+they had just described. Starting minutes of network work uninvited is only reasonable because
+stopping costs one press and keeps what it found.
+
+**A set defined from the interface roams, and the resolve is what mirrors it.** `sets add` and
+`sets resolve` both push `Device.sync_config`; the editor pushed nothing, so the same action
+persisted differently depending on which front end took it, and a second device paired against
+the same server found none of the sets made from the couch. The push hangs off the resolve
+screen rather than off the save, because creating and editing both land there and it is the one
+place with somewhere to say the push failed. Best effort as everywhere else: its own connection,
+never on the screen's cancellation token, and a failure is a note appended to the result rather
+than an error. Roaming is the mechanism M2 gave set definitions, and the front end with no
+prompt is the one that needs it most.
+
+###### 7b-2b: the sync run
+
+Sync from the interface with progress, cancellation and eviction. The first thing in this
+design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
+shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
+and `EvictionService` landed in 7b-2a and are unfaced until here.
+
+**The plan is optimistic by one run's artwork.** Media is _already inside_ the budget's
+accounting: `MediaSync` writes `FileOrigin.Synced` rows and both `ContentPlanner.ManagedBytes`
+and `EvictionPlanner.BytesOverBudget` sum them. What `ContentPlanner.Plan` does not do is
+**reserve** for the artwork the same run will fetch, so one sync can overshoot the cap by
+roughly the media for the games in it and the next plan corrects. Measured at about 1.8 MB per
+game where a video is fetched, so around 72 MB on a 40-game sync against a budget in the tens
+of GB: self-correcting rather than cumulative. Issue #102, and it belongs on the screen that
+shows a budget being spent.
+
+**`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
+Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is
+**deferred, not discarded**, and applies when RomMBat exits. ES does **not** rescan on resume
+by itself, proven by a marker written with no reload at all, which never landed. So the sync
+screen calls `/reloadgames` after writing gamelists exactly as the agent does, and the new
+games appear the moment the user leaves RomMBat, which is when they would look for them. No
+workaround is owed, nothing tells the user to restart the front end, and the call must not be
+skipped on the theory that ES will notice by itself.
+
+###### 7b-2c: browse
+
+Online paged browse with search, offline browse of the local subset, per-game install and
+evict.
+
+**Per-game install needs a schema decision, taken in 7b-2a and not built there.** A hand-picked
+set is a set: it has caps, an ordering and it evicts like any other, so the shape to leave room
+for is a sixth `CatalogScopeKind` with its own migration, not an id list smuggled inside a
+`Filter` scope and not an unmanaged download that `EvictionPlanner` has to be taught to ignore.
+The second overloads one column with two meanings; the third means storing "this orphan is
+deliberate", which is a set by another name.
 
 ##### 7b-3: conflicts and settings
 
 Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
 whatever the two stages before it turn up.
 
+**The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
+for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
+unmapped platform is currently found out by a resolve stopping partway through a collection
+that happened to contain one of its games, and the only repair from the interface is a per-set
+folder override, which is the wrong shape: the mapping is install-wide and `platform_map`
+already holds it. So the status screen should say how many platforms are unmapped, and the
+mapping screen should be reachable from there, before a sync is attempted rather than after one
+fails.
+
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.
+
+**The on-screen keyboard is EmulationStation's, transcribed rather than resembled.** 7b-1
+matched its bindings and invented its own grid; 7b-2a read upstream's source and took the grid
+too, because the half that was still RomMBat's own was the half a RetroBat user had to relearn.
+Findings 234 and 235 hold the detail. Two consequences shaped code rather than pixels: the
+second face button finally earns a binding, since ES puts shift and reset on two of them, and
+`InstallSession.EmulationStationLanguage` exists because the layout follows the language ES is
+running in and the UI may not read `es_settings.cfg` itself.
+
+**Deferred, and worth stating so it is not re-derived: RomMBat does not speak that language,
+only types in it.** Reading `Language` to pick a keyboard is one setting and a three-way switch.
+Localising the interface is a different thing entirely, and the cost is not the resource files:
+Core returns records carrying **pre-written English sentences**, which is the decision 7b-1 made
+deliberately so that a refusal reads identically on both front ends. Every one of those would
+have to become a key plus arguments, across Core, the agent and the UI, and the agent's output
+is what `sets`, `sync` and `evict` are tested on byte for byte. It also contradicts CLAUDE.md's
+"English only outside of localisation files" as written, so the rule moves in the same change or
+not at all. **A milestone, not a commit**, and nothing before M8 ships. Note also that only three
+keyboards exist upstream, so a German or Japanese install already types on the US grid in ES
+itself: matching the interface's language would outrun the keyboard's, not follow it.
 
 #### 7c: the wave rollout gate
 
 M7 is what makes the platform rollout bearable, because every certification pass needs a
 person launching games and the gamepad UI is what they do it with. Nothing in the rollout
 starts before 7b lands.
+
+**Re-checked against the three-PR cut, and it does not move forward.** The gate is 7b, not
+7b-2a. A certification pass needs a person to say what to sync, sync it, and launch a game;
+7b-2a supplies only the first of those from the couch, since syncing is still a terminal
+command until 7b-2b. The earliest the gate can open is when 7b-2b lands.
 
 ### M8: packaging, docs, release
 

@@ -36,6 +36,10 @@ internal static class ScreenView
         OnScreenKeyboard keyboard => Keyboard(keyboard),
         PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
+        ListScreen list => List(list),
+        SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
+        BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
+        ResolveViewModel resolve => Resolve(resolve),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -67,6 +71,7 @@ internal static class ScreenView
         NavAction.Accept => 0,
         NavAction.Back => 1,
         NavAction.Alternate => 3,
+        NavAction.Extra => 2,
         _ => null,
     };
 
@@ -85,9 +90,11 @@ internal static class ScreenView
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
 
-        Control glyph = FacePosition(hint.Action) is { } filled
-            ? FaceGlyph(filled)
-            : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
+        Control glyph = hint.IsDirectional
+            ? PadGlyph()
+            : FacePosition(hint.Action) is { } filled
+                ? FaceGlyph(filled)
+                : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
 
         row.Children.Add(new Border
         {
@@ -217,47 +224,75 @@ internal static class ScreenView
             });
         }
 
-        var grid = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+        stack.Children.Add(KeyboardGrid(keyboard));
+        return stack;
+    }
 
-        for (var r = 0; r < keyboard.Keys.Count; r++)
+    /// <summary>
+    /// The keys, on a real grid because they span cells.
+    /// </summary>
+    /// <remarks>
+    /// Every cell is the same size and every key is a whole number of them, which is what makes
+    /// the accept key two rows tall and the space bar seven columns wide without a second
+    /// layout pass. The screen owns the spans; this only places them.
+    /// </remarks>
+    private static Grid KeyboardGrid(OnScreenKeyboard keyboard)
+    {
+        const double CellWidth = 66;
+        const double CellHeight = 58;
+        const double Gap = 6;
+
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+
+        for (var column = 0; column < OnScreenKeyboard.Columns; column++)
         {
-            var line = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 8,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-
-            for (var c = 0; c < keyboard.Keys[r].Length; c++)
-            {
-                var selected = r == keyboard.CursorRow && c == keyboard.CursorColumn;
-
-                line.Children.Add(new Border
-                {
-                    // Fill and ring only. The box is the same size selected or not, so the grid
-                    // never shifts under the cursor.
-                    Width = 62,
-                    Height = 62,
-                    Background = selected ? Accent : Panel,
-                    BorderBrush = selected ? Ink : Panel,
-                    BorderThickness = new Thickness(2),
-                    CornerRadius = new CornerRadius(8),
-                    Child = new TextBlock
-                    {
-                        Text = keyboard.Keys[r][c].ToString(),
-                        Foreground = selected ? Brushes.Black : Ink,
-                        FontSize = 26,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                    },
-                });
-            }
-
-            grid.Children.Add(line);
+            grid.ColumnDefinitions.Add(new ColumnDefinition(CellWidth, GridUnitType.Pixel));
         }
 
-        stack.Children.Add(grid);
-        return stack;
+        for (var row = 0; row < OnScreenKeyboard.Rows; row++)
+        {
+            grid.RowDefinitions.Add(new RowDefinition(CellHeight, GridUnitType.Pixel));
+        }
+
+        foreach (var key in keyboard.Keys)
+        {
+            var selected = key == keyboard.Selected;
+            var face = keyboard.Face(key);
+
+            // Shift and the layer key are modes, so they say whether they are on. Upstream
+            // colours them for the same reason, and a mode nobody can see is the thing the
+            // original flat grid was built to avoid.
+            var engaged = (key.Kind == KeyKind.Shift && keyboard.IsShifted)
+                || (key.Kind == KeyKind.Layer && keyboard.IsAlted);
+
+            var cell = new Border
+            {
+                // Margin rather than size, so the box is identical selected or not and the grid
+                // never shifts under the cursor.
+                Margin = new Thickness(Gap / 2),
+                Background = selected ? Accent : engaged ? Warn : Panel,
+                BorderBrush = selected ? Ink : Panel,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Child = new TextBlock
+                {
+                    Text = face,
+                    Foreground = selected || engaged ? Brushes.Black : Ink,
+                    FontSize = face.Length <= 3 ? 26 : 15,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+
+            Grid.SetRow(cell, key.Row);
+            Grid.SetColumn(cell, key.Column);
+            Grid.SetRowSpan(cell, key.Height);
+            Grid.SetColumnSpan(cell, key.Width);
+
+            grid.Children.Add(cell);
+        }
+
+        return grid;
     }
 
     private static StackPanel Pairing(PairingViewModel pairing)
@@ -318,6 +353,391 @@ internal static class ScreenView
                     $"{requirement.Name} (missing {string.Join(", ", missing)})",
                     15));
             }
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// A list of rows with the cursor on one of them.
+    /// </summary>
+    /// <remarks>
+    /// <b>An unavailable row is dimmed and keeps its reason.</b> Hiding it would be tidier and
+    /// would teach the user nothing: the commonest case is a scope this pairing was not
+    /// granted, which is fixable by pairing again, and a row that is simply absent says none
+    /// of that.
+    /// </remarks>
+    private static StackPanel List(ListScreen list)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+
+            // Fixed, not a maximum. A stack that sizes to its content is as wide as the widest
+            // row currently drawn, and the drawn rows change as the window scrolls, so the
+            // whole block grew and shrank under the cursor. Fixing the height was only half of
+            // it and the half nobody noticed.
+            Width = ListWidth,
+        };
+
+        if (list.Note?.Invoke() is { } note)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = note,
+                Foreground = Muted,
+                FontSize = 17,
+                MaxWidth = 900,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+        }
+
+        if (list.IsLoading)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = list.LoadingMessage,
+                Foreground = Muted,
+                FontSize = 20,
+                MaxWidth = 760,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+
+            return stack;
+        }
+
+        if (list.Rows.Count == 0)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = list.LoadProblem ?? list.EmptyMessage ?? "Nothing here.",
+                Foreground = Muted,
+                FontSize = 20,
+                MaxWidth = 760,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+
+            return stack;
+        }
+
+        // Windowed, because drawing every row does not scroll: the folder picker is about a
+        // hundred systems on a real install and everything past the height of the display was
+        // being drawn off it, with the cursor moving somewhere invisible. The screen decides
+        // the window; this only draws it.
+        var window = list.Window;
+
+        // Both markers always, empty when there is nothing to say. Adding and removing them as
+        // the cursor reaches an end changed the height of the whole block, and the block is
+        // centred, so the list visibly resized and shifted while being scrolled.
+        stack.Children.Add(More(window.Above, "above"));
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
+        {
+            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
+        }
+
+        stack.Children.Add(More(window.Below, "below"));
+
+        return stack;
+    }
+
+    /// <summary>
+    /// How much of the list is off screen, said rather than implied.
+    /// </summary>
+    /// <remarks>
+    /// A window with nothing marking its edges reads as the whole list, which is worse than
+    /// the bug it replaces: the user stops looking rather than keeps scrolling.
+    /// </remarks>
+    private static TextBlock More(int count, string direction) =>
+        new()
+        {
+            Text = count > 0 ? $"{count} more {direction}" : string.Empty,
+            Foreground = Muted,
+            FontSize = 15,
+
+            // Reserved whether or not it says anything, so the block does not change height as
+            // the cursor reaches an end.
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+    private static Border ListItem(ListRow row, bool selected)
+    {
+        var lines = new StackPanel { Spacing = 3 };
+
+        // A grid rather than a horizontal stack, so the value sits at the right edge of every
+        // row instead of wherever its label happens to end. With a fixed row width that puts
+        // the second column on one line down the list, which is what makes it readable across
+        // a room, and it is the same reason the status screen pins its label column.
+        var head = new Grid
+        {
+            ColumnDefinitions =
+            [
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+            ],
+        };
+
+        // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
+        // thing rather than as a row with a missing value.
+        var ink = row.Available ? Ink : Muted;
+
+        var label = new TextBlock
+        {
+            Text = row.Label,
+            Foreground = selected ? Brushes.Black : ink,
+            FontSize = 21,
+
+            // A name longer than the row is trimmed rather than allowed to widen it. The live
+            // platform list has names from "Bally Astrocade" to "Bandai - WonderSwan Color
+            // (Unofficial)".
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        Grid.SetColumn(label, 0);
+        head.Children.Add(label);
+
+        if (row.Value is { } value)
+        {
+            var right = new TextBlock
+            {
+                Text = value,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 19,
+                Margin = new Thickness(18, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            Grid.SetColumn(right, 1);
+            head.Children.Add(right);
+        }
+
+        lines.Children.Add(head);
+
+        if (row.Detail is { } detail)
+        {
+            lines.Children.Add(new TextBlock
+            {
+                Text = detail,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 16,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return new Border
+        {
+            // Fill and ring only. A row is the same size selected or not, so a held d-pad never
+            // makes the list shift under the cursor.
+            Background = selected ? Accent : Panel,
+            BorderBrush = selected ? Ink : Panel,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(18, 12, 18, 12),
+
+            // Every row the same height whether or not it carries a second line. A window of a
+            // fixed number of rows whose heights differ is a block whose height changes as the
+            // cursor moves through it, which is what made scrolling feel like zooming.
+            MinHeight = RowHeight,
+            Child = lines,
+        };
+    }
+
+    /// <summary>
+    /// One list row, tall enough for a label and a detail line.
+    /// </summary>
+    /// <remarks>
+    /// Uniform on purpose. The window draws a fixed number of rows, so rows of differing height
+    /// make the drawn block change size as the cursor passes between them.
+    /// </remarks>
+    private const double RowHeight = 78;
+
+    /// <summary>
+    /// How wide a list is, fixed so it cannot breathe as the window scrolls.
+    /// </summary>
+    /// <remarks>
+    /// Wide enough for the longest platform name the live install carries with its folder
+    /// beside it, and narrow enough to leave margins on a 720p display.
+    /// </remarks>
+    private const double ListWidth = 980;
+
+    /// <summary>
+    /// A form whose values are stepped rather than typed.
+    /// </summary>
+    /// <remarks>
+    /// A steppable row is drawn with a chevron either side of its value, which is the
+    /// affordance for "this moves with left and right" that needs neither words nor a button
+    /// name.
+    /// </remarks>
+    private static StackPanel Editor(
+        IReadOnlyList<EditorRow> rows,
+        int cursor,
+        ListView window,
+        string? problem)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 14,
+            HorizontalAlignment = HorizontalAlignment.Center,
+
+            // Fixed, not a maximum, and this is the second screen to learn it. A maximum makes
+            // the block as wide as its widest drawn row, and the drawn rows change as the
+            // window scrolls, so the whole thing grows and shrinks under the cursor. The list
+            // was fixed for that in round three; this screen only started scrolling later, and
+            // inherited the bug the moment it did.
+            Width = ListWidth,
+        };
+
+        if (problem is { } text)
+        {
+            // Where the eye already is, rather than at the top of the screen.
+            stack.Children.Add(new TextBlock
+            {
+                Text = text,
+                Foreground = Warn,
+                FontSize = 18,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+        }
+
+        // Both markers always, empty when there is nothing to say, because the block is centred
+        // and adding one as the cursor reaches an end resizes the whole thing under the thumb.
+        stack.Children.Add(More(window.Above, "above"));
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
+        {
+            stack.Children.Add(EditorItem(rows[index], index == cursor));
+        }
+
+        stack.Children.Add(More(window.Below, "below"));
+
+        return stack;
+    }
+
+    private static Border EditorItem(EditorRow row, bool selected)
+    {
+        var lines = new StackPanel { Spacing = 3 };
+        var head = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 18 };
+
+        head.Children.Add(new TextBlock
+        {
+            Text = row.Label,
+            Foreground = selected ? Brushes.Black : Ink,
+            FontSize = 21,
+            MinWidth = 300,
+        });
+
+        head.Children.Add(new TextBlock
+        {
+            Text = row.Steps ? $"‹  {row.Value}  ›" : row.Value,
+            Foreground = selected ? Brushes.Black : Muted,
+            FontSize = 19,
+            VerticalAlignment = VerticalAlignment.Center,
+        });
+
+        lines.Children.Add(head);
+
+        if (row.Detail is { } detail)
+        {
+            lines.Children.Add(new TextBlock
+            {
+                Text = detail,
+                Foreground = selected ? Brushes.Black : Muted,
+                FontSize = 16,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return new Border
+        {
+            Background = selected ? Accent : Panel,
+            BorderBrush = selected ? Ink : Panel,
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(18, 12, 18, 12),
+            Child = lines,
+        };
+    }
+
+    /// <summary>
+    /// A resolve while it runs.
+    /// </summary>
+    /// <remarks>
+    /// <b>The count is the point of the screen.</b> A platform resolve measured 8m 15s against
+    /// a live instance, and one that cannot show movement is, from a sofa, the same screen as
+    /// a hung one. The bar appears only once the server has said how big the scope is, because
+    /// before that it would sit at zero and look stuck.
+    /// </remarks>
+    private static StackPanel Resolve(ResolveViewModel resolve)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = resolve.Detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        if (resolve.Progressing is { } where)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = where,
+                Foreground = Ink,
+                FontSize = 21,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (resolve.Counted is { } counted)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = counted,
+                Foreground = Muted,
+                FontSize = 24,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (resolve.Progress?.Fraction is { } fraction)
+        {
+            stack.Children.Add(new Border
+            {
+                Background = Panel,
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
+                Width = 620,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new Border
+                {
+                    Background = Accent,
+                    CornerRadius = new CornerRadius(6),
+                    Width = Math.Max(6, 620 * fraction),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                },
+            });
         }
 
         return stack;
@@ -411,6 +831,39 @@ internal static class ScreenView
     /// says nothing. Drawn as outlined rings rather than filled with <c>Panel</c>, which is
     /// within a few values of the footer's own background and disappeared on a television.
     /// </remarks>
+    /// <summary>
+    /// A cross, for a hint that means every direction rather than one of them.
+    /// </summary>
+    /// <remarks>
+    /// A shape rather than four lit dots, because four lit dots is what a face-button glyph
+    /// with nothing selected would look like and the two must not be confusable.
+    /// </remarks>
+    private static Canvas PadGlyph()
+    {
+        const double Size = 26;
+        const double Arm = 9;
+
+        var canvas = new Canvas { Width = Size, Height = Size };
+
+        foreach (var (width, height) in ((double, double)[])[(Arm, Size), (Size, Arm)])
+        {
+            var bar = new Rectangle
+            {
+                Width = width,
+                Height = height,
+                Fill = Accent,
+                RadiusX = 2,
+                RadiusY = 2,
+            };
+
+            Canvas.SetLeft(bar, (Size - width) / 2);
+            Canvas.SetTop(bar, (Size - height) / 2);
+            canvas.Children.Add(bar);
+        }
+
+        return canvas;
+    }
+
     private static Canvas FaceGlyph(int filled)
     {
         const double Size = 26;
