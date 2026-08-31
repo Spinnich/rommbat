@@ -29,6 +29,31 @@ public sealed record MediaSyncOutcome
 
     public bool IsNoOp => Downloaded == 0 && Adopted == 0 && Failed == 0;
 
+    /// <summary>
+    /// Two outcomes as one, for a caller that fetches artwork a game at a time.
+    /// </summary>
+    /// <remarks>
+    /// The run still reports one media line, because a person watching a sync wants to know
+    /// what the artwork cost rather than what it cost forty times.
+    /// </remarks>
+    public static MediaSyncOutcome Merge(MediaSyncOutcome first, MediaSyncOutcome second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+
+        return new MediaSyncOutcome
+        {
+            Downloaded = first.Downloaded + second.Downloaded,
+            AlreadyPresent = first.AlreadyPresent + second.AlreadyPresent,
+            Adopted = first.Adopted + second.Adopted,
+            Missing = first.Missing + second.Missing,
+            Blocked = first.Blocked + second.Blocked,
+            Failed = first.Failed + second.Failed,
+            BytesTransferred = first.BytesTransferred + second.BytesTransferred,
+            Problems = [.. first.Problems, .. second.Problems],
+        };
+    }
+
     public string Summary
     {
         get

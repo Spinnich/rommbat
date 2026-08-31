@@ -206,6 +206,19 @@ internal static class SyncCommand
 
                     break;
 
+                case GameRolledBack(var title, var files, var bytes, var rollbackProblems):
+                    ClearProgressLine();
+                    Console.WriteLine(
+                        $"  {title}: not finished, so the {files} {(files == 1 ? "file" : "files")} "
+                            + $"this run wrote for it were removed ({ByteSize.Format(bytes)}).");
+
+                    foreach (var problem in rollbackProblems)
+                    {
+                        Console.Error.WriteLine($"    {problem}");
+                    }
+
+                    break;
+
                 case MediaProgressed(var what):
                     Console.Write($"\r    {Trim(what, 60),-64}");
                     break;

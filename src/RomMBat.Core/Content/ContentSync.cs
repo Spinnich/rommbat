@@ -35,6 +35,32 @@ public sealed record ContentSyncOutcome
     /// <summary>True when the run wrote nothing at all, which is what an unchanged set should do.</summary>
     public bool IsNoOp => Downloaded == 0 && Resumed == 0 && Adopted == 0 && Failed == 0;
 
+    /// <summary>
+    /// Two outcomes as one, for a caller that applies a plan in pieces.
+    /// </summary>
+    /// <remarks>
+    /// Interleaving artwork means one call per game rather than one per set, so the set's own
+    /// line has to be assembled from forty of these. Here rather than at the caller so a field
+    /// added above is one a reader is looking at when they wonder whether it sums.
+    /// </remarks>
+    public static ContentSyncOutcome Merge(ContentSyncOutcome first, ContentSyncOutcome second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+
+        return new ContentSyncOutcome
+        {
+            Downloaded = first.Downloaded + second.Downloaded,
+            Resumed = first.Resumed + second.Resumed,
+            Adopted = first.Adopted + second.Adopted,
+            AlreadyPresent = first.AlreadyPresent + second.AlreadyPresent,
+            Blocked = first.Blocked + second.Blocked,
+            Failed = first.Failed + second.Failed,
+            BytesTransferred = first.BytesTransferred + second.BytesTransferred,
+            Problems = [.. first.Problems, .. second.Problems],
+        };
+    }
+
     public string Summary
     {
         get
