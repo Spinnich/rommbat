@@ -21,9 +21,12 @@ namespace RomMBat.Tests;
 /// stopped, or lost the server.
 /// <para>
 /// <b>"With its artwork" cannot mean every configured kind, and the tests say what it does
-/// mean.</b> <see cref="MediaSyncOutcome.Missing"/> counts the ordinary case where RomM holds
-/// no cover for a game, and no run can fix that. What the invariant forbids is the systematic
-/// stripping #102 caused, where a budget filled by ROMs left the whole library with no covers.
+/// mean.</b> Nothing guarantees the server has it: the RomM administrator may not have scraped
+/// that kind, and the upstream source (ScreenScraper, IGDB) may never have held it for that
+/// game. <see cref="MediaSyncOutcome.Missing"/> counts exactly that, no run can fix it, and a
+/// rule demanding every kind would declare most real libraries permanently broken. What the
+/// invariant forbids is the systematic stripping #102 caused, where artwork the server did have
+/// went unfetched because the ROMs had eaten the budget first.
 /// </para>
 /// <para>
 /// <b>Removing content is <c>evict</c>'s job and that rule is not weakened here.</b> What the

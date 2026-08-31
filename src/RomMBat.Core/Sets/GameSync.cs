@@ -95,10 +95,17 @@ public sealed record GameSyncOutcome
 /// <b>The rollback is bounded to the ROMs, not to the artwork.</b> A game whose every ROM
 /// committed is landed: it is playable and it gets a gamelist entry, and a stop during its
 /// artwork leaves it present with the next run filling the rest in, which is exactly what an
-/// <see cref="ContentAction.AlreadyPresent"/> game plus a media pass already does. Artwork
-/// completeness cannot be part of the invariant in any case, because
-/// <see cref="MediaSyncOutcome.Missing"/> counts the ordinary case where RomM holds no cover
-/// and no run can fix that.
+/// <see cref="ContentAction.AlreadyPresent"/> game plus a media pass already does.
+/// </para>
+/// <para>
+/// <b>Artwork completeness could not be part of the invariant even if it were wanted, because
+/// nothing guarantees a server has the artwork at all.</b> Two independent reasons, neither of
+/// them a fault and neither fixable by a re-run: the RomM administrator may not have scraped
+/// that kind, and the upstream source (ScreenScraper, IGDB) may never have held it for that
+/// game. <see cref="MediaSyncOutcome.Missing"/> is the count of exactly that, and a rule that
+/// said "wholly present means every configured kind" would declare most real libraries
+/// permanently broken. What the invariant forbids is the systematic stripping #102 caused,
+/// where artwork RomM did have went unfetched because the ROMs had eaten the budget first.
 /// </para>
 /// <para>
 /// <b>It fires on any incomplete game and not only on a stop.</b> A multi-disc title whose
