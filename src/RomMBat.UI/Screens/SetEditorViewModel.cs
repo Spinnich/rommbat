@@ -57,10 +57,28 @@ public sealed class SetEditorViewModel : IScreen
             _ => new HashSet<string>(StringComparer.CurrentCultureIgnoreCase),
             StringComparer.Ordinal);
 
-    private bool _favouritesOnly;
+    /// <summary>How each facet's chosen values combine. Any is the default and the common case.</summary>
+    private readonly Dictionary<string, FilterLogic> _logic =
+        FilterFacet.Multi.ToDictionary(facet => facet, _ => FilterLogic.Any, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The yes-or-no properties, three-state because "either" is the default.
+    /// </summary>
+    /// <remarks>
+    /// Null is "do not filter on this", which is not the same as false. Favourites used to be
+    /// a two-state toggle here and could therefore only ever say yes or nothing; RomM's own
+    /// interface offers all three, and "games I have not favourited" is a real thing to sync.
+    /// </remarks>
+    private readonly Dictionary<string, bool?> _properties =
+        FilterFacet.Properties.ToDictionary(property => property, _ => (bool?)null, StringComparer.Ordinal);
 
     /// <summary>The facet values this library offers, fetched once when a filter is chosen.</summary>
-    private IReadOnlyDictionary<string, IReadOnlyList<string>>? _facetValues;
+    /// <remarks>
+    /// Internal rather than private so a test can seed it. Every screen here is drivable with
+    /// no window and no controller, and the facet pickers were the one exception: their rows
+    /// come from the network, so without this the operator row could only be checked by hand.
+    /// </remarks>
+    internal IReadOnlyDictionary<string, IReadOnlyList<string>>? _facetValues;
     private string? _collectionValue;
     private string? _collectionLabel;
 
@@ -84,6 +102,29 @@ public sealed class SetEditorViewModel : IScreen
         _name = existing?.Name ?? string.Empty;
         _scope = existing?.Scope ?? CatalogScopeKind.Platform;
         _folder = existing?.FolderOverride;
+
+        if (existing?.Scope == CatalogScopeKind.Filter)
+        {
+            // Editing a filter set used to open on a blank filter, so the screen showed
+            // "anything" for a set that had one. Nothing was lost, because SetEdit had no way
+            // to write a filter either, but a set defined from the couch could never be
+            // changed from it.
+            var stored = SyncSetService.FilterOf(existing);
+
+            _searchTerm = stored.SearchTerm;
+
+            foreach (var facet in FilterFacet.Multi)
+            {
+                var key = FilterFacet.KeyOf(facet);
+                _facets[facet].UnionWith(stored.ValuesFor(key));
+                _logic[facet] = stored.LogicFor(key);
+            }
+
+            foreach (var property in FilterFacet.Properties)
+            {
+                _properties[property] = stored.Property(FilterFacet.KeyOf(property));
+            }
+        }
 
         if (existing?.Scope == CatalogScopeKind.Platform)
         {
@@ -126,8 +167,8 @@ public sealed class SetEditorViewModel : IScreen
     private bool IsEmptyFilter =>
         _scope == CatalogScopeKind.Filter
         && string.IsNullOrWhiteSpace(_searchTerm)
-        && !_favouritesOnly
-        && _facets.Values.All(chosen => chosen.Count == 0);
+        && _facets.Values.All(chosen => chosen.Count == 0)
+        && _properties.Values.All(value => value is null);
 
     public bool NeedsFolderChoice =>
         _folder is not null
@@ -137,6 +178,20 @@ public sealed class SetEditorViewModel : IScreen
 
     /// <summary>Which row the cursor is on.</summary>
     public int Cursor { get; private set; }
+
+    /// <summary>
+    /// Which slice of the rows is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>Decided here rather than in the renderer, because the renderer cannot be tested.</b>
+    /// The windowing arithmetic lived in <c>ScreenView</c>, so a screen that simply never called
+    /// it drew every row it had and everything past the height of the display went off it, with
+    /// the cursor moving somewhere invisible. That happened twice, to two screens, and the
+    /// second time was found from the couch on a twenty-two row filter editor. A property is
+    /// something a test can assert on; a call the renderer might not make is not.
+    /// </remarks>
+    public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
+
 
     /// <summary>The refusal from Core, shown where the eye already is.</summary>
     public string? Problem { get; private set; }
@@ -172,33 +227,58 @@ public sealed class SetEditorViewModel : IScreen
                         _name.Length == 0 ? "not set" : _name,
                         null,
                         false));
+                }
+            }
 
-                    rows.Add(new EditorRow(
-                        "Search for",
-                        string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
-                        null,
-                        false));
+            // Outside the block above, so a filter set can be changed and not merely made. The
+            // whole scope section used to be new-set-only, which left Edit on a filter set
+            // showing one row about folders and nothing about the filter itself.
+            if (_scope == CatalogScopeKind.Filter)
+            {
+                rows.Add(new EditorRow(
+                    "Search for",
+                    string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
+                    null,
+                    false));
 
-                    // The facets, so a filter is a saved search rather than a name match. A
-                    // facet this library has no values for is left out: a picker that opens on
-                    // an empty list is a row that goes nowhere.
-                    foreach (var facet in FilterFacet.Multi)
+                // The facets, so a filter is a saved search rather than a name match. A facet
+                // this library has no values for is left out: a picker that opens on an empty
+                // list is a row that goes nowhere.
+                foreach (var facet in FilterFacet.Multi)
+                {
+                    if (_facetValues is { } values
+                        && values.TryGetValue(facet, out var available)
+                        && available.Count == 0
+                        && _facets[facet].Count == 0)
                     {
-                        if (_facetValues is { } values
-                            && values.TryGetValue(facet, out var available)
-                            && available.Count == 0
-                            && _facets[facet].Count == 0)
-                        {
-                            continue;
-                        }
-
-                        rows.Add(new EditorRow(facet, Describe(_facets[facet]), null, false));
+                        continue;
                     }
 
+                    rows.Add(new EditorRow(facet, Describe(facet), null, false));
+                }
+
+                // The yes-or-no half. Four of them are answered from RomM's own bookkeeping
+                // rather than from the game, and a set carrying one resolves differently on
+                // another account or after a scan, so the row says so rather than the
+                // documentation saying it somewhere nobody is looking.
+                foreach (var property in FilterFacet.Properties)
+                {
                     rows.Add(new EditorRow(
-                        FilterFacet.Favourites,
-                        _favouritesOnly ? "yes" : "no",
-                        IsEmptyFilter ? "A filter with nothing set matches the whole library." : null,
+                        property,
+                        _properties[property] switch { true => "yes", false => "no", _ => "either" },
+                        _properties[property] is not null && FilterFacet.DependOnTheServer.Contains(property)
+                            ? "RomM answers this from its own records, so this set can resolve "
+                                + "differently on another account or after a scan."
+                            : null,
+                        false));
+                }
+
+                if (IsEmptyFilter)
+                {
+                    rows.Add(new EditorRow(
+                        "Matches",
+                        "the whole library",
+                        "A filter with nothing set matches every game RomM holds.",
                         false));
                 }
             }
@@ -307,9 +387,12 @@ public sealed class SetEditorViewModel : IScreen
 
         "Folder" => ScreenCommand.Push(FolderPicker()),
 
-        FilterFacet.Favourites => Toggle(),
+        _ when FilterFacet.Properties.Contains(label) => Cycle(label),
 
         _ when FilterFacet.Multi.Contains(label) => ScreenCommand.Push(FacetPicker(label)),
+
+        // Nothing to open. It is a sentence, and it goes away the moment anything is set.
+        "Matches" => ScreenCommand.Stay,
 
         _ => ScreenCommand.Stay,
     };
@@ -406,19 +489,36 @@ public sealed class SetEditorViewModel : IScreen
         }.Enriching();
     }
 
-    private ScreenCommand Toggle()
+    /// <summary>Either, then yes, then no, then either again.</summary>
+    /// <remarks>
+    /// In that order because "either" is where the row starts and where a person undoing a
+    /// choice wants to get back to, and two presses is the whole way round.
+    /// </remarks>
+    private ScreenCommand Cycle(string property)
     {
-        _favouritesOnly = !_favouritesOnly;
+        _properties[property] = _properties[property] switch
+        {
+            null => true,
+            true => false,
+            false => null,
+        };
+
         return ScreenCommand.Stay;
     }
 
     /// <summary>
-    /// The values one facet can take, ticked as they are chosen.
+    /// The values one facet can take, ticked as they are chosen, above how they combine.
     /// </summary>
     /// <remarks>
     /// A multi-select rather than a pick-one, because a filter genuinely means "any of these".
     /// Accept toggles and stays, which is why <see cref="ListScreen"/> re-reads its rows after
     /// a choice that does not navigate.
+    /// <para>
+    /// <b>The operator is the first row rather than a row of its own in the editor.</b> It
+    /// belongs to this facet and means nothing without it, and putting all eleven in the
+    /// editor would double a list that is already long. It reads as a sentence with the values
+    /// under it: "any of", then the things.
+    /// </para>
     /// </remarks>
     private ListScreen FacetPicker(string facet)
     {
@@ -426,15 +526,36 @@ public sealed class SetEditorViewModel : IScreen
         IReadOnlyList<string> available =
             _facetValues is { } known && known.TryGetValue(facet, out var seeded) ? seeded : [];
 
+        // No values, no operator: combining nothing is not a choice, and a picker holding one
+        // unusable row would never show its empty message.
+        bool HasLogicRow() => available.Count > 0;
+
         IReadOnlyList<ListRow> Rows() =>
-            [.. available.Select(value => new ListRow(value, chosen.Contains(value) ? "chosen" : null))];
+        [
+            .. HasLogicRow()
+                ? (ListRow[])[new ListRow("Match", FilterFacet.Says(_logic[facet]))]
+                : [],
+            .. available.Select(value => new ListRow(value, chosen.Contains(value) ? "chosen" : null)),
+        ];
 
         return new ListScreen(
             facet,
             Rows,
             index =>
             {
-                var value = available[index];
+                if (HasLogicRow() && index == 0)
+                {
+                    _logic[facet] = _logic[facet] switch
+                    {
+                        FilterLogic.Any => FilterLogic.All,
+                        FilterLogic.All => FilterLogic.None,
+                        _ => FilterLogic.Any,
+                    };
+
+                    return ScreenCommand.Stay;
+                }
+
+                var value = available[HasLogicRow() ? index - 1 : index];
 
                 if (!chosen.Remove(value))
                 {
@@ -447,7 +568,11 @@ public sealed class SetEditorViewModel : IScreen
             acceptLabel: "Add or remove",
             backLabel: "Done")
         {
-            Note = $"Games matching any of the {facet.ToLowerInvariant()} chosen here.",
+            // Names the operator, and follows it. Printing all three choices on the right of
+            // the row read as three things being on at once, and a fixed note went on saying
+            // "any of" after the operator had been changed to none.
+            Note = () => $"Games matching {FilterFacet.Says(_logic[facet])} the "
+                + $"{facet.ToLowerInvariant()} chosen here.",
 
             // Said plainly, because it is slow and the reason is not the user's fault. RomM
             // works the values out across every game in the library, and this is measured in
@@ -478,13 +603,60 @@ public sealed class SetEditorViewModel : IScreen
         }.Started();
     }
 
-    /// <summary>What a facet row shows: nothing, one value, or how many.</summary>
-    private static string Describe(HashSet<string> chosen) => chosen.Count switch
+    /// <summary>
+    /// Everything the filter rows currently say, as one record.
+    /// </summary>
+    /// <remarks>
+    /// Driven off <see cref="FilterFacet"/>'s own lists rather than naming each field, so a
+    /// facet added there reaches storage without a second edit here. The logic operator is
+    /// written only where it is not the default, which keeps a plain filter's stored JSON as
+    /// small as it was and lets the default move later.
+    /// </remarks>
+    private CatalogFilter BuildFilter()
     {
-        0 => "any",
-        1 => chosen.First(),
-        _ => string.Create(CultureInfo.CurrentCulture, $"{chosen.Count} chosen"),
-    };
+        var filter = new CatalogFilter
+        {
+            SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+            Logic = FilterFacet.Multi
+                .Where(facet => _facets[facet].Count > 0 && _logic[facet] != FilterLogic.Any)
+                .ToDictionary(FilterFacet.KeyOf, facet => _logic[facet], StringComparer.Ordinal),
+        };
+
+        foreach (var facet in FilterFacet.Multi)
+        {
+            filter = filter.WithValues(FilterFacet.KeyOf(facet), [.. _facets[facet]]);
+        }
+
+        foreach (var property in FilterFacet.Properties)
+        {
+            filter = filter.WithProperty(FilterFacet.KeyOf(property), _properties[property]);
+        }
+
+        return filter;
+    }
+
+    /// <summary>
+    /// What a facet row shows: nothing, one value, or how many, and how they combine.
+    /// </summary>
+    /// <remarks>
+    /// The operator is named only when it is not the default, so a plain filter reads the way
+    /// it always did and the two rows that were set to something unusual stand out.
+    /// </remarks>
+    private string Describe(string facet)
+    {
+        var chosen = _facets[facet];
+
+        var what = chosen.Count switch
+        {
+            0 => "any",
+            1 => chosen.First(),
+            _ => string.Create(CultureInfo.CurrentCulture, $"{chosen.Count} chosen"),
+        };
+
+        return chosen.Count == 0 || _logic[facet] == FilterLogic.Any
+            ? what
+            : $"{what}, {FilterFacet.Says(_logic[facet])}";
+    }
 
     /// <summary>
     /// The systems this install actually has, read live from <c>es_systems.cfg</c>.
@@ -571,16 +743,17 @@ public sealed class SetEditorViewModel : IScreen
 
         if (!IsNew)
         {
-            // Only the folder. Caps are not shown here any more, and an unset property on
-            // SetEdit means "leave it alone", so a set given a cap from the console keeps it.
-            // Sending the cleared values a hidden row would have produced would silently wipe
-            // somebody's limit for opening a screen.
+            // The folder, and a filter set's filter. Caps are not shown here any more, and an
+            // unset property on SetEdit means "leave it alone", so a set given a cap from the
+            // console keeps it. Sending the cleared values a hidden row would have produced
+            // would silently wipe somebody's limit for opening a screen.
             var edited = service.Edit(
                 _existing!.Name,
                 new SetEdit
                 {
                     ClearFolderOverride = _folder is null,
                     FolderOverride = _folder,
+                    Filter = _scope == CatalogScopeKind.Filter ? BuildFilter() : null,
                 },
                 now);
 
@@ -588,6 +761,16 @@ public sealed class SetEditorViewModel : IScreen
             {
                 Problem = edited.Problem;
                 return ScreenCommand.Stay;
+            }
+
+            // A changed filter clears the resolution stamp, so the set now holds membership
+            // that answers the old question. Resolving straight away closes that window,
+            // which is the same reasoning that puts a new set into a resolve.
+            if (edited.Set is { LastResolvedAt: null } stale && _scope == CatalogScopeKind.Filter)
+            {
+                return ScreenCommand.ReplaceThenOpen(
+                    SetsScreens.Detail(_session, stale.Name, null),
+                    SetsScreens.Resolve(_session, [stale], null));
             }
 
             return ScreenCommand.Pop;
@@ -610,18 +793,7 @@ public sealed class SetEditorViewModel : IScreen
                     CatalogScopeKind.Filter => null,
                     _ => _collectionValue,
                 },
-                Filter = _scope == CatalogScopeKind.Filter
-                    ? new CatalogFilter
-                    {
-                        SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
-                        Genres = [.. _facets[FilterFacet.Genres]],
-                        Regions = [.. _facets[FilterFacet.Regions]],
-                        Languages = [.. _facets[FilterFacet.Languages]],
-                        Tags = [.. _facets[FilterFacet.Tags]],
-                        Franchises = [.. _facets[FilterFacet.Franchises]],
-                        Favorite = _favouritesOnly ? true : null,
-                    }
-                    : null,
+                Filter = _scope == CatalogScopeKind.Filter ? BuildFilter() : null,
                 // No caps from here. The disk budget is the bound a person sets, and it is
                 // install-wide; a per-set cap made an optional refinement look like a decision
                 // every set needs, and no ordering makes "which 10 of 9,196" a good guess.

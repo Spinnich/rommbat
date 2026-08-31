@@ -5,30 +5,126 @@ using RomM.Client.Catalog;
 namespace RomMBat.Core.Sets;
 
 /// <summary>
-/// The filter facets RomMBat can store, which is fewer than RomM offers.
+/// Every filter RomM offers, with the words a screen shows for each.
 /// </summary>
 /// <remarks>
-/// RomM returns ten in <c>filter_values</c>. These five plus favourites are what
-/// <see cref="CatalogFilter"/> persists, and a facet that cannot be saved is a picker that
-/// forgets, so the others are not offered.
+/// <b>The API's names are the keys and these are only labels.</b>
+/// <see cref="CatalogFilter.Facets"/> and <see cref="CatalogFilter.Properties"/> decide what
+/// exists; this decides what it is called, which is a presentation concern that lives here
+/// because both front ends need the same words.
+/// <para>
+/// This was five facets and two properties, chosen as the ones that survive being stored. They
+/// all survive being stored, and a filter screen offering a third of what the server does is a
+/// subset a person has to learn the edges of. So it is all of them now.
+/// </para>
 /// </remarks>
 public static class FilterFacet
 {
     public const string Genres = "Genres";
 
+    public const string Franchises = "Franchises";
+
+    public const string Collections = "Collections";
+
+    public const string Companies = "Companies";
+
+    public const string AgeRatings = "Age ratings";
+
+    public const string Statuses = "Statuses";
+
     public const string Regions = "Regions";
 
     public const string Languages = "Languages";
 
+    public const string PlayerCounts = "Player counts";
+
+    public const string MetadataProviders = "Metadata providers";
+
     public const string Tags = "Tags";
 
-    public const string Franchises = "Franchises";
+    /// <summary>The multi-select facets, in the order RomM's own interface lists them.</summary>
+    public static IReadOnlyList<string> Multi { get; } =
+    [
+        Genres,
+        Franchises,
+        Collections,
+        Companies,
+        AgeRatings,
+        Statuses,
+        Regions,
+        Languages,
+        PlayerCounts,
+        MetadataProviders,
+        Tags,
+    ];
 
-    /// <summary>Favourites are collection membership in RomM, so this is a yes or no.</summary>
-    public const string Favourites = "Favourites only";
+    /// <summary>The yes-or-no properties, in the order RomM's own interface lists them.</summary>
+    public static IReadOnlyList<string> Properties { get; } =
+    [
+        "Matched",
+        "Favourite",
+        "Has versions",
+        "Playable in browser",
+        "Missing from disk",
+        "Hash verified",
+        "Has RetroAchievements",
+        "Has saves",
+        "Has save states",
+        "Has soundtrack",
+    ];
 
-    /// <summary>The multi-select facets, in the order a picker offers them.</summary>
-    public static IReadOnlyList<string> Multi { get; } = [Genres, Regions, Languages, Tags, Franchises];
+    /// <summary>
+    /// The four whose answer depends on who is asking and when.
+    /// </summary>
+    /// <remarks>
+    /// RomM answers these from its own bookkeeping rather than from the game, so a set
+    /// carrying one resolves differently on another account or after a scan. Said on the
+    /// screen rather than used to withhold them: a set is re-resolved on demand and is
+    /// expected to move.
+    /// </remarks>
+    public static IReadOnlySet<string> DependOnTheServer { get; } =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Favourite",
+            "Missing from disk",
+            "Has saves",
+            "Has save states",
+        };
+
+    /// <summary>The API name behind a label, which is what goes on the wire and into storage.</summary>
+    public static string KeyOf(string label) => label switch
+    {
+        Genres => "genres",
+        Franchises => "franchises",
+        Collections => "collections",
+        Companies => "companies",
+        AgeRatings => "age_ratings",
+        Statuses => "statuses",
+        Regions => "regions",
+        Languages => "languages",
+        PlayerCounts => "player_counts",
+        MetadataProviders => "metadata_providers",
+        Tags => "tags",
+        "Matched" => "matched",
+        "Favourite" => "favorite",
+        "Has versions" => "duplicate",
+        "Playable in browser" => "playable",
+        "Missing from disk" => "missing",
+        "Hash verified" => "verified",
+        "Has RetroAchievements" => "has_ra",
+        "Has saves" => "has_saves",
+        "Has save states" => "has_states",
+        "Has soundtrack" => "has_soundtrack",
+        _ => string.Empty,
+    };
+
+    /// <summary>How a logic operator reads on a row, in words rather than as an enum name.</summary>
+    public static string Says(FilterLogic logic) => logic switch
+    {
+        FilterLogic.All => "all of",
+        FilterLogic.None => "none of",
+        _ => "any of",
+    };
 }
 
 /// <summary>One value a scope could take, as a picker shows it.</summary>
@@ -203,10 +299,21 @@ public sealed class CatalogScopeService
             return new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
             {
                 [FilterFacet.Genres] = Sorted(values.Genres),
+                [FilterFacet.Franchises] = Sorted(values.Franchises),
+                [FilterFacet.Collections] = Sorted(values.Collections),
+                [FilterFacet.Companies] = Sorted(values.Companies),
+                [FilterFacet.AgeRatings] = Sorted(values.AgeRatings),
                 [FilterFacet.Regions] = Sorted(values.Regions),
                 [FilterFacet.Languages] = Sorted(values.Languages),
+                [FilterFacet.PlayerCounts] = Sorted(values.PlayerCounts),
                 [FilterFacet.Tags] = Sorted(values.Tags),
-                [FilterFacet.Franchises] = Sorted(values.Franchises),
+
+                // Two the sidecar does not carry, so a picker for them would open on nothing.
+                // Statuses are a fixed vocabulary the user assigns and metadata providers are
+                // the scrapers RomM was built with; neither is derived from the library, which
+                // is all filter_values reports.
+                [FilterFacet.Statuses] = Statuses,
+                [FilterFacet.MetadataProviders] = MetadataProviders,
             };
         }
         catch (RomMUnreachableException)
@@ -214,6 +321,41 @@ public sealed class CatalogScopeService
             return empty;
         }
     }
+
+    /// <summary>
+    /// The statuses a user can set, which the filter sidecar does not report.
+    /// </summary>
+    /// <remarks>
+    /// <c>filter_values</c> describes the library, and a status nobody has assigned yet is
+    /// still one you can filter for. Straight off <c>RomUserStatus</c> in the pinned schema,
+    /// which enumerates them; a live probe cannot corroborate it, because an unrecognised
+    /// status returns zero rows rather than the whole library and so looks exactly like a real
+    /// status nobody has used.
+    /// </remarks>
+    private static IReadOnlyList<string> Statuses { get; } =
+        ["incomplete", "finished", "completed_100", "retired", "never_playing"];
+
+    /// <summary>
+    /// The metadata sources RomM will filter on, measured rather than derived.
+    /// </summary>
+    /// <remarks>
+    /// <b>The pinned schema declares this parameter as a bare array of strings with no
+    /// enumeration</b>, and the server <b>silently ignores</b> a value it does not know, which
+    /// makes a wrong entry here worse than a missing one: the user picks a provider and is
+    /// handed the whole library. So these were probed one at a time against a live 5.2.0
+    /// instance, where a recognised value narrows the total and an unrecognised one leaves it
+    /// alone. Finding 236.
+    /// <para>
+    /// Deriving them from <c>SimpleRomSchema</c>'s <c>*_id</c> fields would have been wrong:
+    /// <c>sgdb</c> is one of those and the filter ignores it.
+    /// </para>
+    /// <para>
+    /// Shown as RomM spells them. <c>ss</c> and <c>ra</c> are opaque, and a friendlier name
+    /// would be one this repository made up for a value the server defines.
+    /// </para>
+    /// </remarks>
+    private static IReadOnlyList<string> MetadataProviders { get; } =
+        ["igdb", "moby", "ss", "ra", "launchbox", "hasheous", "tgdb", "flashpoint", "hltb", "gamelist", "libretro"];
 
     private static IReadOnlyList<string> Sorted(IEnumerable<string>? values) =>
         [.. (values ?? []).Where(v => !string.IsNullOrWhiteSpace(v))

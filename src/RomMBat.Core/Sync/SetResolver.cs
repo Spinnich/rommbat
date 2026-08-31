@@ -188,7 +188,7 @@ public sealed class SetResolver
         ArgumentNullException.ThrowIfNull(set);
 
         return set.Scope == CatalogScopeKind.Filter
-            ? new CatalogQuery { Scope = set.Scope, Filter = CatalogFilterJson.Parse(set.ScopeValue) }
+            ? new CatalogQuery { Scope = set.Scope, Filter = Sets.SyncSetService.FilterOf(set) }
             : new CatalogQuery { Scope = set.Scope, ScopeId = set.ScopeValue };
     }
 

@@ -80,6 +80,20 @@ public sealed class BudgetViewModel : IScreen
 
     public int Cursor { get; private set; }
 
+    /// <summary>
+    /// Which slice of the rows is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>Decided here rather than in the renderer, because the renderer cannot be tested.</b>
+    /// The windowing arithmetic lived in <c>ScreenView</c>, so a screen that simply never called
+    /// it drew every row it had and everything past the height of the display went off it, with
+    /// the cursor moving somewhere invisible. That happened twice, to two screens, and the
+    /// second time was found from the couch on a twenty-two row filter editor. A property is
+    /// something a test can assert on; a call the renderer might not make is not.
+    /// </remarks>
+    public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
+
+
     /// <summary>True once something has been changed and not yet saved.</summary>
     public bool IsDirty { get; private set; }
 

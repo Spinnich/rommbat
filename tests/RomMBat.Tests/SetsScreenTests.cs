@@ -580,20 +580,211 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     [Fact]
-    public void A_filter_offers_the_facets_it_can_persist_and_no_others()
+    public void Every_screen_with_more_rows_than_fit_keeps_its_cursor_inside_its_window()
+    {
+        // The windowing arithmetic used to live in the renderer, so a screen that never called
+        // it drew every row it had and everything past the height of the display went off it.
+        // That happened to the folder picker, was fixed there, and happened again to the set
+        // editor the moment a filter grew to twenty-two rows. The suite could not see either,
+        // because it does not render. The window is a property now, and this walks it.
+        var editor = FilterEditor();
+        Assert.True(
+            editor.Rows.Count > ListWindow.Capacity,
+            "this test is vacuous unless the editor is longer than one screen");
+
+        for (var step = 0; step < editor.Rows.Count; step++)
+        {
+            var window = editor.Window;
+
+            Assert.InRange(editor.Cursor, window.Start, window.Start + window.Count - 1);
+            Assert.Equal(editor.Rows.Count, window.Above + window.Count + window.Below);
+
+            editor.Handle(NavAction.Down);
+        }
+
+        var list = Assert.IsType<ListScreen>(SetsScreens.List(_session));
+        Assert.Equal(list.Rows.Count, list.Window.Above + list.Window.Count + list.Window.Below);
+    }
+
+    [Fact]
+    public void A_filter_offers_every_facet_RomM_does()
     {
         var editor = FilterEditor();
 
-        // RomM returns ten facets in filter_values. These are the ones CatalogFilter can store,
-        // roam through sync_config and replay against a server that has never seen this device.
-        // Offering one that cannot be saved would be a picker that forgets.
+        // It offered five of eleven facets and two of ten properties, on the reasoning that
+        // those were the ones a set could store. They all store: this is one JSON column and
+        // one dictionary, so the subset was a subset of nothing.
         var labels = editor.Rows.Select(row => row.Label).ToList();
 
         Assert.Contains("Search for", labels);
-        Assert.Contains(FilterFacet.Favourites, labels);
-        Assert.DoesNotContain("Companies", labels);
-        Assert.DoesNotContain("Age ratings", labels);
-        Assert.DoesNotContain("Player counts", labels);
+        Assert.All(FilterFacet.Multi, facet => Assert.Contains(facet, labels));
+        Assert.All(FilterFacet.Properties, property => Assert.Contains(property, labels));
+    }
+
+    [Fact]
+    public void Every_facet_and_property_offered_reaches_the_query_string()
+    {
+        // The screen and the wire are driven off the same two lists, and this is the assertion
+        // that says so: a facet added to FilterFacet with no home in CatalogFilter would show
+        // as a row that changes nothing.
+        Assert.Equal(CatalogFilter.Facets.Count, FilterFacet.Multi.Count);
+        Assert.Equal(CatalogFilter.Properties.Count, FilterFacet.Properties.Count);
+
+        foreach (var label in FilterFacet.Multi)
+        {
+            var key = FilterFacet.KeyOf(label);
+            Assert.Contains(key, CatalogFilter.Facets);
+
+            var query = new CatalogQuery
+            {
+                Scope = CatalogScopeKind.Filter,
+                Filter = new CatalogFilter().WithValues(key, ["x"]),
+            }.ToQueryString(limit: 1, offset: 0);
+
+            Assert.Contains($"{key}=x", query, StringComparison.Ordinal);
+        }
+
+        foreach (var label in FilterFacet.Properties)
+        {
+            var key = FilterFacet.KeyOf(label);
+            Assert.Contains(key, CatalogFilter.Properties);
+
+            var query = new CatalogQuery
+            {
+                Scope = CatalogScopeKind.Filter,
+                Filter = new CatalogFilter().WithProperty(key, true),
+            }.ToQueryString(limit: 1, offset: 0);
+
+            Assert.Contains($"{key}=true", query, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void A_logic_operator_reaches_the_wire_only_when_it_is_not_the_default()
+    {
+        var chosen = new CatalogFilter().WithValues("genres", ["Platform", "Puzzle"]);
+
+        // Any is RomM's own default, so sending it would add a parameter to every filter query
+        // for no change in meaning and would pin the default where a later one could not reach.
+        var plain = new CatalogQuery { Scope = CatalogScopeKind.Filter, Filter = chosen }
+            .ToQueryString(limit: 1, offset: 0);
+
+        Assert.DoesNotContain("genres_logic", plain, StringComparison.Ordinal);
+
+        var all = new CatalogQuery
+        {
+            Scope = CatalogScopeKind.Filter,
+            Filter = chosen with
+            {
+                Logic = new Dictionary<string, FilterLogic>(StringComparer.Ordinal)
+                {
+                    ["genres"] = FilterLogic.All,
+                },
+            },
+        }.ToQueryString(limit: 1, offset: 0);
+
+        Assert.Contains("genres_logic=all", all, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_logic_operator_is_set_inside_the_facet_it_belongs_to()
+    {
+        var editor = FilterEditor();
+        editor._facetValues = Library();
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
+
+        // The first row, because an operator belongs to its facet and means nothing without
+        // it, and eleven more editor rows would double a list that is already long. Name on
+        // the left and the one live setting on the right, like every other row: printing all
+        // three choices there read as three things being on at once.
+        Assert.Equal("Match", picker.Rows[0].Label);
+        Assert.Equal("any of", picker.Rows[0].Value);
+
+        Assert.Equal(ScreenCommandKind.Stay, picker.Handle(NavAction.Accept).Kind);
+        Assert.Equal("all of", picker.Rows[0].Value);
+
+        picker.Handle(NavAction.Accept);
+        Assert.Equal("none of", picker.Rows[0].Value);
+
+        picker.Handle(NavAction.Accept);
+        Assert.Equal("any of", picker.Rows[0].Value);
+    }
+
+    [Fact]
+    public void The_line_above_a_facet_picker_follows_the_operator_rather_than_asserting_one()
+    {
+        var editor = FilterEditor();
+        editor._facetValues = Library();
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
+
+        // It was a fixed string reading "matching any of", so it went on saying that while the
+        // row under it said none. Two statements of the same fact, one of them stale.
+        Assert.Equal("Games matching any of the genres chosen here.", picker.Note?.Invoke());
+
+        picker.Handle(NavAction.Accept);
+        picker.Handle(NavAction.Accept);
+
+        Assert.Equal("Games matching none of the genres chosen here.", picker.Note?.Invoke());
+    }
+
+    [Fact]
+    public void The_operator_row_does_not_swallow_the_value_under_it()
+    {
+        var editor = FilterEditor();
+        editor._facetValues = Library();
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
+
+        // An off-by-one here would tick the wrong genre, which is the kind of defect a person
+        // finds three screens later when the resolve returns the wrong games.
+        picker.Handle(NavAction.Down);
+        Assert.Equal("Platform", picker.Rows[1].Label);
+
+        picker.Handle(NavAction.Accept);
+        Assert.Equal("chosen", picker.Rows[1].Value);
+    }
+
+    [Fact]
+    public void A_facet_row_names_its_operator_only_when_it_is_not_the_default()
+    {
+        var editor = FilterEditor();
+        editor._facetValues = Library();
+
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
+        picker.Handle(NavAction.Down);
+        picker.Handle(NavAction.Accept);
+
+        // Any is the default, so naming it on every row would be noise on ten rows to make one
+        // stand out. It is named as soon as it is something else.
+        var row = MoveTo(editor, FilterFacet.Genres);
+        Assert.Equal("Platform", editor.Rows[row].Value);
+
+        picker.Handle(NavAction.Up);
+        picker.Handle(NavAction.Accept);
+
+        row = MoveTo(editor, FilterFacet.Genres);
+        Assert.Equal("Platform, all of", editor.Rows[row].Value);
+    }
+
+    /// <summary>Facet values as a library would report them, so a picker has rows offline.</summary>
+    private static Dictionary<string, IReadOnlyList<string>> Library() =>
+        FilterFacet.Multi.ToDictionary(
+            facet => facet,
+            IReadOnlyList<string> (_) => ["Platform", "Puzzle", "Shooter"],
+            StringComparer.Ordinal);
+
+    [Fact]
+    public void An_operator_over_no_values_is_not_offered()
+    {
+        var editor = FilterEditor();
+
+        // Combining nothing is not a choice, and a picker holding one unusable row would never
+        // reach the empty message that explains why it is otherwise blank.
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, FilterFacet.Genres));
+
+        Assert.Empty(picker.Rows);
     }
 
     [Fact]
@@ -605,20 +796,70 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Contains(
             editor.Rows,
             row => row.Detail is { } detail
-                && detail.Contains("matches the whole library", StringComparison.Ordinal));
+                && detail.Contains("matches every game", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Favourites_toggles_in_place_rather_than_opening_a_screen()
+    public void A_property_cycles_through_three_states_rather_than_two()
     {
         var editor = FilterEditor();
-        var row = MoveTo(editor, FilterFacet.Favourites);
+        var row = MoveTo(editor, "Favourite");
 
-        Assert.Equal("no", editor.Rows[row].Value);
+        // It was a yes-or-no toggle, so it could say "favourites only" and nothing else. RomM
+        // offers all three and "games I have not favourited" is a real thing to sync.
+        Assert.Equal("either", editor.Rows[row].Value);
 
-        // A yes or no is not worth a screen, and Accept is what acts on a row.
         Assert.Equal(ScreenCommandKind.Stay, editor.Handle(NavAction.Accept).Kind);
         Assert.Equal("yes", editor.Rows[row].Value);
+
+        editor.Handle(NavAction.Accept);
+        Assert.Equal("no", editor.Rows[row].Value);
+
+        editor.Handle(NavAction.Accept);
+        Assert.Equal("either", editor.Rows[row].Value);
+    }
+
+    [Fact]
+    public void A_property_answered_from_RomMs_own_records_says_so_once_it_is_set()
+    {
+        var editor = FilterEditor();
+        var row = MoveTo(editor, "Has saves");
+
+        // Unset it says nothing, because a caveat on a row nobody has touched is noise.
+        Assert.Null(editor.Rows[row].Detail);
+
+        editor.Handle(NavAction.Accept);
+
+        Assert.Contains(
+            "another account",
+            editor.Rows[row].Detail ?? string.Empty,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Editing_a_filter_set_opens_on_the_filter_it_already_has()
+    {
+        var stored = new CatalogFilter()
+            .WithValues("genres", ["Platform"])
+            .WithProperty("favorite", true);
+
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "mine",
+                Scope = CatalogScopeKind.Filter,
+                ScopeValue = RomMBat.Core.Sync.CatalogFilterJson.Write(stored),
+            },
+            Now);
+
+        // It opened on a blank filter, so every row said "any" for a set that had one. Nothing
+        // was lost, because the edit could not write a filter either, but a set defined from
+        // the couch could never be looked at from it.
+        var editor = SetEditorViewModel.ForExisting(_session, set);
+        var labels = editor.Rows.Select(row => row.Label).ToList();
+
+        Assert.Equal("Platform", editor.Rows[labels.IndexOf(FilterFacet.Genres)].Value);
+        Assert.Equal("yes", editor.Rows[labels.IndexOf("Favourite")].Value);
     }
 
     [Fact]
@@ -872,7 +1113,7 @@ public sealed class SetsScreenTests : IDisposable
         switch (screen)
         {
             case ListScreen list:
-                if (list.Note is { } note)
+                if (list.Note?.Invoke() is { } note)
                 {
                     text.Add(note);
                 }

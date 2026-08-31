@@ -2843,12 +2843,40 @@ no cap values at all rather than the cleared ones a hidden row would have produc
 in RomM, so a platform or collection set is pick, pick, create, and the on-screen keyboard is
 off the common path entirely.
 
-**A filter scope is a saved search rather than a name match.** Genres, regions, languages,
-tags, franchises and favourites, each a multi-select over the values the live library reports
-through `with_filter_values`, which is the single job that sidecar exists for and which M2
-wrote `GetFilterValuesAsync` to serve. Those six are what `CatalogFilter` can persist, roam
-through `Device.sync_config` and replay against a server that has never seen this device;
-offering one of RomM's other four would be a picker that forgets.
+**A filter scope is a saved search rather than a name match, and it is RomM's whole search.**
+Eleven multi-selects, each with the `any` / `all` / `none` operator RomM's own `*_logic`
+parameters take, and ten yes-or-no properties. The values come from the live library through
+`with_filter_values`, which is the single job that sidecar exists for and which M2 wrote
+`GetFilterValuesAsync` to serve.
+
+**It shipped as five of the eleven and two of the ten, and the reasoning for that was wrong.**
+The subset was chosen as "the ones `CatalogFilter` can persist, roam through
+`Device.sync_config` and replay against a server that has never seen this device". They all
+persist: it is one JSON column and one dictionary, so the constraint being satisfied was a
+constraint on nothing, and what a person actually met was a filter screen offering a third of
+what the web interface does, with no way to tell which third. A subset needs a reason a user
+can state, and this one had none.
+
+**Two of the eleven are not in the sidecar and are not derived from the library.** Statuses are
+a vocabulary the user assigns, taken from the pinned schema's `RomUserStatus`. Metadata
+providers have no enumeration in the schema at all, and the server **silently ignores** a value
+it does not recognise, so a wrong entry would hand somebody the whole library while looking
+like a filter: they were probed one at a time against a live instance (finding 236). Deriving
+them from the rom row's `*_id` fields would have been wrong, which the probe is how we know.
+
+**Four properties answer from RomM's records rather than from the game**, so a set carrying one
+resolves differently on another account or after a scan. That is said on the row, once it is
+set, rather than left in a document. A set is re-resolved on demand and is expected to move,
+which is why this is a caveat and not a reason to withhold them.
+
+**A filter can be changed after the set exists, which narrows "scope is not updatable".** That
+rule stands for a scope's kind and its target: a set pointed at a different platform is a
+different set. A filter's scope value is a query rather than an identity, and the rule's own
+reason, that answering the new question means a re-resolve, was written when a resolve was a
+terminal command and now costs one press. Changing one clears the resolution stamp and lands
+on the set resolving, exactly as creating one does. The membership is deliberately **not**
+deleted: that would orphan whatever is on disk and hand it to the next eviction pass on the
+strength of an edit.
 
 **A scope that can be picked has to be completable.** Virtual collections are offered and
 disabled, because that route needs a `type` parameter the pinned 5.2.0 schema declares as a

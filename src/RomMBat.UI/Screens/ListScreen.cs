@@ -106,8 +106,30 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// <summary>Which row is selected. Always in range; -1 only when the list is empty.</summary>
     public int Cursor { get; private set; }
 
+    /// <summary>
+    /// Which slice of the rows is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>Decided here rather than in the renderer, because the renderer cannot be tested.</b>
+    /// The windowing arithmetic lived in <c>ScreenView</c>, so a screen that simply never called
+    /// it drew every row it had and everything past the height of the display went off it, with
+    /// the cursor moving somewhere invisible. That happened twice, to two screens, and the
+    /// second time was found from the couch on a twenty-two row filter editor. A property is
+    /// something a test can assert on; a call the renderer might not make is not.
+    /// </remarks>
+    public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
+
+
     /// <summary>An extra line under the title, when the list needs explaining.</summary>
-    public string? Note { get; init; }
+    /// <summary>
+    /// A line above the rows, or null.
+    /// </summary>
+    /// <remarks>
+    /// A function rather than a string, because it can depend on state the rows themselves
+    /// change: a facet picker's note names the operator, and a fixed string went on saying
+    /// "matching any of" after the operator had been set to none.
+    /// </remarks>
+    public Func<string?>? Note { get; init; }
 
     /// <summary>What is shown instead of rows when there are none.</summary>
     public string? EmptyMessage { get; init; }

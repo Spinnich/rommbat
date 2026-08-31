@@ -37,8 +37,8 @@ internal static class ScreenView
         PairingViewModel pairing => Pairing(pairing),
         MessageScreen message => Message(message),
         ListScreen list => List(list),
-        SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Problem),
-        BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, null),
+        SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
+        BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
@@ -381,7 +381,7 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        if (list.Note is { } note)
+        if (list.Note?.Invoke() is { } note)
         {
             stack.Children.Add(new TextBlock
             {
@@ -428,8 +428,9 @@ internal static class ScreenView
 
         // Windowed, because drawing every row does not scroll: the folder picker is about a
         // hundred systems on a real install and everything past the height of the display was
-        // being drawn off it, with the cursor moving somewhere invisible.
-        var window = ListWindow.Compute(list.Cursor, list.Rows.Count);
+        // being drawn off it, with the cursor moving somewhere invisible. The screen decides
+        // the window; this only draws it.
+        var window = list.Window;
 
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
@@ -576,13 +577,23 @@ internal static class ScreenView
     /// affordance for "this moves with left and right" that needs neither words nor a button
     /// name.
     /// </remarks>
-    private static StackPanel Editor(IReadOnlyList<EditorRow> rows, int cursor, string? problem)
+    private static StackPanel Editor(
+        IReadOnlyList<EditorRow> rows,
+        int cursor,
+        ListView window,
+        string? problem)
     {
         var stack = new StackPanel
         {
             Spacing = 14,
             HorizontalAlignment = HorizontalAlignment.Center,
-            MaxWidth = 980,
+
+            // Fixed, not a maximum, and this is the second screen to learn it. A maximum makes
+            // the block as wide as its widest drawn row, and the drawn rows change as the
+            // window scrolls, so the whole thing grows and shrinks under the cursor. The list
+            // was fixed for that in round three; this screen only started scrolling later, and
+            // inherited the bug the moment it did.
+            Width = ListWidth,
         };
 
         if (problem is { } text)
@@ -599,10 +610,16 @@ internal static class ScreenView
             });
         }
 
-        for (var index = 0; index < rows.Count; index++)
+        // Both markers always, empty when there is nothing to say, because the block is centred
+        // and adding one as the cursor reaches an end resizes the whole thing under the thumb.
+        stack.Children.Add(More(window.Above, "above"));
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
         {
             stack.Children.Add(EditorItem(rows[index], index == cursor));
         }
+
+        stack.Children.Add(More(window.Below, "below"));
 
         return stack;
     }

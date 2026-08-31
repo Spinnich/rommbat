@@ -146,6 +146,27 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   an invented parameter both answer `total=83131`. No 422, no warning, no echo of what was
   applied. Check parameter names against the pinned schema, and treat a scoped walk whose
   `total` equals the library total as a bug in the query.
+- **An unrecognised _value_ of a known filter is ignored the same way, and that is worse.**
+  `metadata_providers=zzz-not-a-provider` returns the whole library, so a picker offering a
+  value the server does not know hands somebody every game while looking like a filter.
+  **Never invent a vocabulary for a parameter the schema declares as a bare array of strings.**
+  Two of them are: `metadata_providers` has no enumeration anywhere and was probed one value at
+  a time against a live instance, where a recognised value moves the total and an unrecognised
+  one does not. Deriving it from `SimpleRomSchema`'s `*_id` fields would have been wrong,
+  because `sgdb` is one of those and the filter ignores it. `statuses` cannot be probed that
+  way at all, since an unrecognised status returns **zero** rather than everything and so looks
+  exactly like a real status nobody has used; its authority is `RomUserStatus` in the schema.
+  Finding 236.
+- **`filter_values` is not the list of what you can filter on.** The sidecar reports
+  `game_modes`, which no query parameter accepts, and omits `statuses` and
+  `metadata_providers`, which two do. It also reports `platforms`, which is a scope rather than
+  a facet, and as **ids** where every other key is names. Drive a filter screen off the
+  endpoint's parameters and use the sidecar only for the values. Finding 237.
+- **The sidecar rides on `/api/roms`, so asking for it means being sent a row.** Read it with a
+  shape that ignores `items` entirely. Deserialising the row through the generated page type
+  put an `int32` on `fs_size_bytes`, and a single ROM at or above 2 GiB then failed the whole
+  body, leaving every facet empty on a library with thousands of values. `RomRow` exists for
+  that overflow and says so; `RomFilterValuesPage` is the same lesson for this call.
 - **Send `Range: bytes=0-` on a single-file ROM download, and never on a multi-file one.**
   Single-file answers 206 with an `ETag` (nginx's `hex(mtime)-hex(size)`) and resumes; a
   stale `If-Range` returns a full 200 rather than a corrupt splice. **Any `Range` on a

@@ -167,6 +167,15 @@ public sealed record SetEdit
     public bool ClearFolderOverride { get; init; }
 
     public string? FolderOverride { get; init; }
+
+    /// <summary>
+    /// A replacement filter, for a filter-scoped set. Null leaves it alone.
+    /// </summary>
+    /// <remarks>
+    /// Ignored on any other scope, because a platform set's scope value is an identity rather
+    /// than a query and changing it is what removing and re-adding is for.
+    /// </remarks>
+    public CatalogFilter? Filter { get; init; }
 }
 
 /// <summary>
@@ -193,6 +202,23 @@ public sealed record SetEdit
 /// </remarks>
 public sealed class SyncSetService
 {
+    /// <summary>
+    /// The saved filter of a filter-scoped set, or an empty one for any other scope.
+    /// </summary>
+    /// <remarks>
+    /// <b>That a filter set keeps its filter in <c>scope_value</c> is one fact and belongs in
+    /// one place.</b> <see cref="SetResolver"/> knew it and the set editor was about to learn
+    /// it separately, which is two readers of a storage decision neither of them makes.
+    /// </remarks>
+    public static CatalogFilter FilterOf(SyncSetDefinition set)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+
+        return set.Scope == CatalogScopeKind.Filter
+            ? CatalogFilterJson.Parse(set.ScopeValue)
+            : new CatalogFilter();
+    }
+
     private readonly InstallSession _session;
 
     public SyncSetService(InstallSession session)
@@ -434,6 +460,18 @@ public sealed class SyncSetService
         };
 
         _session.Store.SyncSets.UpdatePolicy(updated, now);
+
+        // Written second and only when it changed, so an edit that touched the caps alone does
+        // not throw away a resolve that is still valid.
+        if (edit.Filter is { } filter && set.Scope == CatalogScopeKind.Filter)
+        {
+            var written = CatalogFilterJson.Write(filter);
+
+            if (!string.Equals(written, set.ScopeValue, StringComparison.Ordinal))
+            {
+                _session.Store.SyncSets.UpdateFilter(set.Id, written, now);
+            }
+        }
 
         return SetOutcome.Ok(_session.Store.SyncSets.Find(name) ?? updated);
     }

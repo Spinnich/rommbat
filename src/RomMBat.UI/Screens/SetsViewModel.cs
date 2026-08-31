@@ -133,7 +133,7 @@ public static class SetsScreens
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
             AlwaysOfferAccept = editable,
-            Note = "Resolving asks RomM what this set contains now, and needs the network.",
+            Note = () => "Resolving asks RomM what this set contains now, and needs the network.",
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when editable =>
