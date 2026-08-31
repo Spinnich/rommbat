@@ -144,16 +144,19 @@ public sealed class SetResolveService
                 reports.Add(Unreachable(set, ex.Message, pager));
                 return reports;
             }
-            catch (OperationCanceledException)
+
+            // Written down first, cancellation reported second. The resolver stops rather than
+            // throwing, so a cancelled walk arrives here as an ordinary Interrupted resolution
+            // and Record persists the games it found along with the offset. Reporting the
+            // cancellation before recording is what lost them.
+            reports.Add(Record(set, resolution, endpoint, pager, walkStartedAt));
+
+            if (cancellationToken.IsCancellationRequested)
             {
-                // The ordinary way a resolve ends on a handheld. Recorded exactly as an
-                // unreachable server is, so the next run continues rather than restarting.
-                _session.Store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, DateTimeOffset.UtcNow);
-                reports.Add(Cancelled(set, pager));
+                // The ordinary way a resolve ends on a handheld, and the caller has to be able
+                // to tell it from a walk that finished.
                 throw new SetResolveCancelledException(reports);
             }
-
-            reports.Add(Record(set, resolution, endpoint, pager, walkStartedAt));
         }
 
         return reports;
@@ -232,16 +235,6 @@ public sealed class SetResolveService
 
     private static ResolveReport Unreachable(SyncSetDefinition set, string message, RomPager pager) =>
         new(set.Name, ResolveState.Interrupted, message, message, pager.Offset, pager.Total ?? 0, []);
-
-    private static ResolveReport Cancelled(SyncSetDefinition set, RomPager pager) =>
-        new(
-            set.Name,
-            ResolveState.Interrupted,
-            $"stopped at {pager.Offset} of {pager.Total ?? 0}. The next run continues from there.",
-            null,
-            pager.Offset,
-            pager.Total ?? 0,
-            []);
 }
 
 /// <summary>

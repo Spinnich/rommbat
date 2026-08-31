@@ -141,6 +141,67 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_cancelled_walk_keeps_the_games_it_had_already_found()
+    {
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+        var set = Set();
+
+        using var cancel = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+            new SetResolveService(_session, connection).ResolveAsync(
+                [set],
+                // Cancel once two pages are in, so there is something to lose.
+                new Immediate<SetResolveProgress>(progress =>
+                {
+                    if (progress.Scanned >= 500)
+                    {
+                        cancel.Cancel();
+                    }
+                }),
+                cancel.Token));
+
+        // The whole point of resuming. Recording the offset and dropping the rows found before
+        // it means the next walk restarts its accumulator from nothing, so the finished set is
+        // missing everything before the cancel: the offset survives and the work does not.
+        var (games, _) = _session.Store.SyncSets.MemberTotals(set.Id);
+
+        Assert.True(games > 0, "a cancelled walk kept none of the games it had already read");
+        Assert.Equal(500, games);
+    }
+
+    [Fact]
+    public async Task Resuming_after_a_cancel_ends_with_every_game_the_scope_holds()
+    {
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+        var set = Set();
+
+        using var cancel = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+            new SetResolveService(_session, connection).ResolveAsync(
+                [set],
+                new Immediate<SetResolveProgress>(progress =>
+                {
+                    if (progress.Scanned >= 250)
+                    {
+                        cancel.Cancel();
+                    }
+                }),
+                cancel.Token));
+
+        var reports = await new SetResolveService(_session, connection).ResolveAsync(
+            [set], progress: null, TestContext.Current.CancellationToken);
+
+        // End to end, which is what a person actually checks: stop it, start it again, and the
+        // set holds what it would have held if nobody had touched it.
+        Assert.Equal(ResolveState.Resolved, Assert.Single(reports).State);
+        Assert.Equal(600, _session.Store.SyncSets.MemberTotals(set.Id).Games);
+    }
+
+    [Fact]
     public async Task A_cancelled_walk_does_not_retire_membership_because_half_a_walk_proves_nothing()
     {
         using var stub = Library(600);

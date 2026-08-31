@@ -241,9 +241,29 @@ public sealed class SetResolver
 
         while (!pager.IsComplete)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            // Stopped, not thrown. A cancelled walk is an interruption exactly as an
+            // unreachable server is, and this is what makes that true rather than merely
+            // written down: throwing here left the caller with no resolution to record, so the
+            // offset was saved and every game found before it was dropped. The next walk then
+            // resumed at the right page with an empty accumulator and finished short.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
 
-            var response = await pager.NextAsync(cancellationToken).ConfigureAwait(false);
+            RomMResponse<RomPage> response;
+
+            try
+            {
+                response = await pager.NextAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelled mid-request. The pager only advances on success, so the offset is
+                // still the last page that completed and this page is simply read again.
+                break;
+            }
+
             if (!response.IsSuccess)
             {
                 failure = response;
