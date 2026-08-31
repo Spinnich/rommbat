@@ -42,7 +42,7 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
     private readonly CancellationTokenSource _load = new();
 
-    private IReadOnlyList<ListRow> _current;
+    private volatile ListState _state;
     private bool _disposed;
     private bool _started;
 
@@ -87,24 +87,24 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         Title = title;
         BackLabel = backLabel;
         _rows = rows;
-        _current = rows();
         _choose = choose;
         _acceptLabel = acceptLabel;
         _extra = extra ?? [];
 
         // Never park on a row that cannot be chosen, or the first thing a user does is press
         // Accept and get nothing with no explanation.
-        Cursor = FirstAvailable(0, 1);
+        var initial = rows();
+        _state = new ListState(initial, FirstAvailable(initial, 0, 1));
     }
 
     public string Title { get; }
 
-    public IReadOnlyList<ListRow> Rows => _current;
+    public IReadOnlyList<ListRow> Rows => _state.Rows;
 
     public string BackLabel { get; }
 
     /// <summary>Which row is selected. Always in range; -1 only when the list is empty.</summary>
-    public int Cursor { get; private set; }
+    public int Cursor => _state.Cursor;
 
     /// <summary>
     /// Which slice of the rows is on screen.
@@ -117,7 +117,14 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// second time was found from the couch on a twenty-two row filter editor. A property is
     /// something a test can assert on; a call the renderer might not make is not.
     /// </remarks>
-    public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
+    public ListView Window
+    {
+        get
+        {
+            var state = _state;
+            return ListWindow.Compute(state.Cursor, state.Rows.Count);
+        }
+    }
 
 
     /// <summary>
@@ -269,7 +276,9 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         {
             var hints = new List<FooterHint>();
 
-            if (AlwaysOfferAccept || (Cursor >= 0 && Rows[Cursor].Available))
+            var state = _state;
+
+            if (AlwaysOfferAccept || (state.Cursor >= 0 && state.Rows[state.Cursor].Available))
             {
                 hints.Add(new FooterHint(NavAction.Accept, _acceptLabel));
             }
@@ -284,21 +293,26 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// <summary>Re-reads the rows, because something above this screen may have written.</summary>
     public void Returned()
     {
-        _current = _rows();
+        var rows = _rows();
+        var cursor = _state.Cursor;
 
-        if (Cursor >= _current.Count || (Cursor >= 0 && !_current[Cursor].Available))
+        if (cursor >= rows.Count || (cursor >= 0 && !rows[cursor].Available))
         {
-            Cursor = FirstAvailable(Math.Max(0, Math.Min(Cursor, _current.Count - 1)), 1);
+            cursor = FirstAvailable(rows, Math.Max(0, Math.Min(cursor, rows.Count - 1)), 1);
         }
-        else if (Cursor < 0)
+        else if (cursor < 0)
         {
-            Cursor = FirstAvailable(0, 1);
+            cursor = FirstAvailable(rows, 0, 1);
         }
+
+        _state = new ListState(rows, cursor);
     }
 
     public ScreenCommand Handle(NavAction action)
     {
-        if (Verbs?.Invoke(action, Cursor) is { } answered)
+        var state = _state;
+
+        if (Verbs?.Invoke(action, state.Cursor) is { } answered)
         {
             return answered;
         }
@@ -306,16 +320,16 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         switch (action)
         {
             case NavAction.Up:
-                Cursor = FirstAvailable(Cursor - 1, -1);
+                _state = state with { Cursor = FirstAvailable(state.Rows, state.Cursor - 1, -1) };
                 return ScreenCommand.Stay;
 
             case NavAction.Down:
-                Cursor = FirstAvailable(Cursor + 1, 1);
+                _state = state with { Cursor = FirstAvailable(state.Rows, state.Cursor + 1, 1) };
                 return ScreenCommand.Stay;
 
-            case NavAction.Accept when Cursor >= 0 && Rows[Cursor].Available:
+            case NavAction.Accept when state.Cursor >= 0 && state.Rows[state.Cursor].Available:
             {
-                var answer = _choose(Cursor);
+                var answer = _choose(state.Cursor);
 
                 // A choice that stays put has changed something this list shows, which is what
                 // makes a multi-select possible without a second screen kind: the rows are a
@@ -344,25 +358,38 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// rows are all unavailable is a real state: a pairing with no collection scope viewing a
     /// picker offering only collections would otherwise spin here forever.
     /// </remarks>
-    private int FirstAvailable(int from, int step)
+    private static int FirstAvailable(IReadOnlyList<ListRow> rows, int from, int step)
     {
-        if (Rows.Count == 0)
+        if (rows.Count == 0)
         {
             return -1;
         }
 
-        var index = ((from % Rows.Count) + Rows.Count) % Rows.Count;
+        var index = ((from % rows.Count) + rows.Count) % rows.Count;
 
-        for (var tried = 0; tried < Rows.Count; tried++)
+        for (var tried = 0; tried < rows.Count; tried++)
         {
-            if (Rows[index].Available)
+            if (rows[index].Available)
             {
                 return index;
             }
 
-            index = ((index + step) % Rows.Count + Rows.Count) % Rows.Count;
+            index = ((index + step) % rows.Count + rows.Count) % rows.Count;
         }
 
         return -1;
     }
+
+    /// <summary>
+    /// The rows and the cursor into them, which are one value rather than two.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because a loader finishes on the thread pool.</b> <see cref="Returned"/> runs in the
+    /// load's continuation, before <see cref="Invalidated"/> is raised and marshalled, so it
+    /// writes while the drawing thread may be inside <c>Handle</c> or <c>Hints</c>. Written as
+    /// two fields it set the rows first and clamped the cursor second, and a read landing
+    /// between them indexed a shorter list with the old cursor. One reference assignment
+    /// publishes both, so a reader sees the pair before or the pair after and never a mix.
+    /// </remarks>
+    private sealed record ListState(IReadOnlyList<ListRow> Rows, int Cursor);
 }
