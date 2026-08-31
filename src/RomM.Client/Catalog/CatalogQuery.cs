@@ -29,9 +29,14 @@ public enum CatalogScopeKind
 }
 
 /// <summary>How a resolved set is ordered before the caps are applied.</summary>
+/// <remarks>
+/// <b>Which member a set falls back to is not stated here.</b> That belongs to the layer that
+/// creates sets, and naming it in a doc comment beside the enum is how it came to be declared
+/// in three places and answered differently in two of them.
+/// </remarks>
 public enum SetOrdering
 {
-    /// <summary>By sort name, ascending. The default.</summary>
+    /// <summary>By sort name, ascending.</summary>
     Name,
 
     /// <summary>Smallest first, which fits the most games into a byte budget.</summary>
