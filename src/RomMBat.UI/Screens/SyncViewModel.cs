@@ -54,7 +54,6 @@ public enum SyncStage
 /// </remarks>
 /// <param name="Pass">Which of the ten passes is running, in words.</param>
 /// <param name="Game">The game being fetched, or null between them.</param>
-/// <param name="Fraction">How far through that game's transfer, when the server said how big.</param>
 /// <param name="Problems">
 /// Everything that went wrong, in arrival order. Accumulated rather than replaced: they are the
 /// only part of a run a person cannot read back once it ends.
@@ -64,12 +63,16 @@ public sealed record SyncSnapshot(
     string Detail,
     string? Pass = null,
     string? Game = null,
-    double? Fraction = null,
     int Done = 0,
     int Total = 0,
     long? BudgetUsed = null,
     long? BudgetCap = null,
     int Blocked = 0,
+    long TransferredBytes = 0,
+    long TotalBytes = 0,
+    long GameTransferred = 0,
+    long GameTotal = 0,
+    double BytesPerSecond = 0,
     IReadOnlyList<string>? Problems = null)
 {
     public IReadOnlyList<string> Problems { get; init; } = Problems ?? [];
@@ -77,6 +80,34 @@ public sealed record SyncSnapshot(
     /// <summary>The count as a person reads it, or null before the first game.</summary>
     public string? Counted => Total > 0
         ? string.Create(CultureInfo.CurrentCulture, $"{Done:N0} of {Total:N0}")
+        : null;
+
+    /// <summary>
+    /// How far through the whole run, by bytes, or null when there is nothing to transfer.
+    /// </summary>
+    /// <remarks>
+    /// <b>The run rather than the game, because the game was unreadable.</b> A per-game bar over
+    /// a set of small ROMs flashes from empty to full several times a second and tells nobody
+    /// anything. Bytes rather than games, because the plan counts games and they are not the
+    /// same size: forty Atari cartridges and one PS2 disc are both "1 of 2".
+    /// </remarks>
+    public double? Fraction => TotalBytes > 0
+        ? Math.Clamp((double)TransferredBytes / TotalBytes, 0, 1)
+        : null;
+
+    /// <summary>What the run has taken against what it planned to.</summary>
+    public string? Transferred => TotalBytes > 0
+        ? $"{ByteSize.Format(TransferredBytes)} of {ByteSize.Format(TotalBytes)}"
+        : null;
+
+    /// <summary>How far through the game in front of the user, as text rather than a bar.</summary>
+    public string? GameProgress => GameTotal > 0
+        ? $"{ByteSize.Format(GameTransferred)} of {ByteSize.Format(GameTotal)}"
+        : null;
+
+    /// <summary>Current transfer rate, or null before there is enough to average.</summary>
+    public string? Speed => BytesPerSecond > 0
+        ? $"{ByteSize.Format((long)BytesPerSecond)}/s"
         : null;
 
     /// <summary>What the run took against what it may take, or null when no cap is set.</summary>
@@ -115,6 +146,27 @@ public sealed record SyncSnapshot(
 /// </remarks>
 public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 {
+    /// <summary>How long the transfer rate is averaged over.</summary>
+    /// <remarks>
+    /// Between two reports on a fast link is milliseconds, and a rate taken over that swings by
+    /// an order of magnitude report to report. A second is long enough to be steady and short
+    /// enough that a stall is visible.
+    /// </remarks>
+    private static readonly TimeSpan RateWindow = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// The shortest gap between two redraws caused by transfer progress.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because the screen was starving its own input.</b> Progress arrives per buffer read,
+    /// which on a LAN is many times a second, and every one rebuilt the whole visual tree; a
+    /// hands-on pass found the stop taking several presses to register during a large download.
+    /// Anything a person acts on, which is the stage, the pass, a new game or a problem, is
+    /// published at once regardless.
+    /// </remarks>
+    private static readonly TimeSpan RedrawGap = TimeSpan.FromMilliseconds(120);
+
+    private readonly TimeProvider _clock = TimeProvider.System;
     private readonly InstallSession _session;
     private readonly IReadOnlyList<SyncSetDefinition> _sets;
     private readonly CancellationTokenSource _run = new();
@@ -128,6 +180,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private Task? _work;
     private bool _disposed;
     private bool _stopping;
+
+    private long _sent;
+    private long _inFlight;
+    private long _planned;
+    private long _sentBefore;
+    private int _game = -1;
+    private long _rateFrom;
+    private long _rateBytes;
+    private long _lastDrawn;
 
     /// <param name="connect">
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the
@@ -317,14 +378,16 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             {
                 Stage = SyncStage.Stopped,
                 Detail = "Stopped. Everything that finished is on this device.",
+                Pass = null,
                 Game = null,
-                Fraction = null,
+                GameTotal = 0,
+                GameTransferred = 0,
             });
         }
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Publish(_state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null, Fraction = null });
+            Publish(_state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
         }
         finally
         {
@@ -387,7 +450,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         switch (reported)
         {
             case FlushStarting:
-                Publish(_state with { Pass = "Sending saves and play time", Game = null, Fraction = null });
+                Publish(_state with { Pass = "Sending saves and play time", Game = null });
                 break;
 
             case SetResolved(var resolve):
@@ -395,7 +458,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 break;
 
             case BiosPlanned or BiosApplied:
-                Publish(_state with { Pass = "Firmware", Game = null, Fraction = null });
+                Publish(_state with { Pass = "Firmware", Game = null });
                 break;
 
             case BiosProblem(var message):
@@ -403,26 +466,20 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 break;
 
             case SetPlanned(var set, var plan):
+                _planned = plan.BytesToTransfer;
+                _sentBefore = _sent;
+
                 Publish(_state with
                 {
                     Pass = _sets.Count == 1 ? "Downloading" : $"Downloading '{set.Name}'",
                     Total = plan.Steps.Count,
                     Done = 0,
+                    TotalBytes = _sent + _planned,
                 });
                 break;
 
             case ContentProgressed(var step):
-                Publish(_state with
-                {
-                    Game = step.Step.Member.DisplayName,
-                    Fraction = step.Progress?.Fraction,
-
-                    // The index is the game being worked on, so the count of finished ones is
-                    // one behind it. A screen reading "40 of 40" while the last game is still
-                    // transferring is the thing that makes a progress display untrustworthy.
-                    Done = Math.Max(0, step.Index - 1),
-                    Total = step.Total,
-                });
+                Advance(step);
                 break;
 
             case GameRolledBack(var title, var files, var bytes, var problems):
@@ -442,17 +499,21 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                     Note(problem);
                 }
 
+                // Counted from the outcome, never from the total. A stopped run reports this
+                // too, and setting it to the total told a person who had stopped after one game
+                // that all forty-one had finished.
                 Publish(_state with
                 {
-                    Done = _state.Total,
+                    Done = outcome.Downloaded + outcome.Resumed + outcome.Adopted + outcome.AlreadyPresent,
                     Game = null,
-                    Fraction = null,
+                    GameTotal = 0,
+                    GameTransferred = 0,
                     Blocked = _state.Blocked + outcome.Blocked,
                 });
                 break;
 
             case MediaProgressed(var what):
-                Publish(_state with { Pass = "Artwork", Game = what, Fraction = null });
+                Publish(_state with { Pass = "Artwork", Game = what, GameTotal = 0, GameTransferred = 0 });
                 break;
 
             case MediaApplied(var outcome):
@@ -468,7 +529,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 // issued while RomMBat is in front of EmulationStation is deferred rather than
                 // discarded, and that ES does not rescan on resume by itself, so the games
                 // appear the moment the user leaves. Nothing here tells them to restart it.
-                Publish(_state with { Pass = "Telling EmulationStation", Game = null, Fraction = null });
+                Publish(_state with { Pass = "Telling EmulationStation", Game = null });
                 break;
 
             case BudgetReported(var used, var cap):
@@ -502,7 +563,83 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             _ => (SyncStage.Incomplete, "Some games could not be fetched. Syncing again picks up where this left off."),
         };
 
-        Publish(_state with { Stage = stage, Detail = detail, Game = null, Fraction = null });
+        // Pass and the game go with the run. Leaving them set told a person the sync was still
+        // "Telling EmulationStation" after it had finished, which reads as a screen that has
+        // not noticed it is done.
+        Publish(_state with
+        {
+            Stage = stage,
+            Detail = detail,
+            Pass = null,
+            Game = null,
+            GameTotal = 0,
+            GameTransferred = 0,
+        });
+    }
+
+    /// <summary>
+    /// Folds one transfer report into the run's totals.
+    /// </summary>
+    /// <remarks>
+    /// <b>The run's bytes are the sum of the games behind it plus the one in flight.</b>
+    /// <c>ContentSyncProgress</c> reports a position within the current game and nothing about
+    /// the run, so the total has to be carried here: <see cref="_sent"/> is everything finished
+    /// games moved, and the game in front of the user contributes its own position on top.
+    /// <para>
+    /// The rate is averaged over a short window rather than taken between two reports, which on
+    /// a fast link arrive milliseconds apart and produce a number that swings by an order of
+    /// magnitude and reads as instability.
+    /// </para>
+    /// </remarks>
+    private void Advance(ContentSyncProgress step)
+    {
+        var position = step.Progress?.Position ?? 0;
+        var total = step.Progress?.TotalBytes ?? step.Step.Member.SizeBytes;
+
+        if (step.Index != _game)
+        {
+            // A new game: whatever the last one moved is now behind us for good.
+            _sent += _inFlight;
+            _inFlight = 0;
+            _game = step.Index;
+        }
+
+        _inFlight = Math.Max(_inFlight, position);
+
+        var now = _clock.GetTimestamp();
+        var moved = _sent + _inFlight;
+
+        if (_rateFrom == 0)
+        {
+            _rateFrom = now;
+            _rateBytes = moved;
+        }
+
+        var window = _clock.GetElapsedTime(_rateFrom, now);
+        var rate = _state.BytesPerSecond;
+
+        if (window >= RateWindow)
+        {
+            rate = (moved - _rateBytes) / window.TotalSeconds;
+            _rateFrom = now;
+            _rateBytes = moved;
+        }
+
+        Publish(_state with
+        {
+            Game = step.Step.Member.DisplayName,
+
+            // The index is the game being worked on, so the count of finished ones is one
+            // behind it. A screen reading "40 of 40" while the last game is still transferring
+            // is the thing that makes a progress display untrustworthy.
+            Done = Math.Max(0, step.Index - 1),
+            Total = step.Total,
+            GameTransferred = _inFlight,
+            GameTotal = total,
+            TransferredBytes = moved,
+            TotalBytes = Math.Max(_state.TotalBytes, moved),
+            BytesPerSecond = rate,
+        });
     }
 
     /// <summary>Adds a problem, in arrival order, and never the same one twice in a row.</summary>
@@ -520,11 +657,43 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         }
     }
 
-    // One reference assignment, then a redraw. The shell marshals it off whatever thread the
-    // transfer is on.
+    /// <summary>
+    /// Publishes the next value, and redraws unless the only change was more bytes.
+    /// </summary>
+    /// <remarks>
+    /// One reference assignment, then a redraw the shell marshals off whatever thread the
+    /// transfer is on. The value is always published; what is rate-limited is telling anybody
+    /// about it, because the renderer rebuilds the whole panel and doing that on every buffer
+    /// read left no time for the pad to be polled.
+    /// </remarks>
     private void Publish(SyncSnapshot next)
     {
+        var previous = _state;
         _state = next;
+
+        if (Interesting(previous, next))
+        {
+            _lastDrawn = _clock.GetTimestamp();
+            Invalidated?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
+        if (_clock.GetElapsedTime(_lastDrawn) < RedrawGap)
+        {
+            return;
+        }
+
+        _lastDrawn = _clock.GetTimestamp();
         Invalidated?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>True when something a person would act on changed, rather than only a count.</summary>
+    private static bool Interesting(SyncSnapshot before, SyncSnapshot after) =>
+        before.Stage != after.Stage
+        || !string.Equals(before.Detail, after.Detail, StringComparison.Ordinal)
+        || !string.Equals(before.Pass, after.Pass, StringComparison.Ordinal)
+        || !string.Equals(before.Game, after.Game, StringComparison.Ordinal)
+        || before.Problems.Count != after.Problems.Count
+        || before.Blocked != after.Blocked
+        || before.BudgetUsed != after.BudgetUsed;
 }

@@ -62,7 +62,7 @@ public static class SetsScreens
             backLabel: "Back",
             new FooterHint(NavAction.Start, "New set"),
             new FooterHint(NavAction.Alternate, "Sync everything"),
-            new FooterHint(NavAction.Extra, "Resolve everything"))
+            new FooterHint(NavAction.Extra, "Check every set"))
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
                 + "collection, or a search. How much room they may use together is set under "
@@ -103,7 +103,9 @@ public static class SetsScreens
 
         return new ListRow(
             summary.Set.Name,
-            $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
+            summary.OnDiskBytes > 0
+                ? $"{summary.Games} games, {ByteSize.Format(summary.OnDiskBytes)} here"
+                : $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
             $"{SyncSetStore.ScopeText(summary.Set.Scope)}; "
                 + (capped ? $"{summary.Policy}; " : string.Empty)
                 + $"last resolved {Moment(summary.Set.LastResolvedAt)}");
@@ -146,15 +148,15 @@ public static class SetsScreens
             acceptLabel: "Change folder",
             backLabel: "Back",
             new FooterHint(NavAction.Start, "Sync now"),
-            new FooterHint(NavAction.Extra, "Resolve now"),
+            new FooterHint(NavAction.Extra, "Check what is in it"),
             new FooterHint(NavAction.Alternate, "Delete set"))
         {
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
             AlwaysOfferAccept = editable,
-            Note = () => "Syncing pulls this set onto the device. Resolving only asks RomM what "
-                + "it contains now. Both need the network.",
+            Note = () => "Syncing puts this set on the device. Checking only asks RomM what is "
+                + "in it, and downloads nothing. Both need the network.",
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when editable =>
@@ -172,7 +174,16 @@ public static class SetsScreens
         var rows = new List<ListRow>
         {
             new("Scope", ScopeValue(session, detail.Set), null, false),
-            new("Holds", $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}", null, false),
+            new(
+                "Holds",
+                $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}",
+                "What RomM says these games weigh. Artwork has no size until it is fetched.",
+                false),
+            new(
+                "On this device",
+                ByteSize.Format(detail.OnDiskBytes),
+                "Everything this set has put here, artwork included.",
+                false),
             new("Last resolved", Moment(detail.Set.LastResolvedAt), detail.Set.LastResolutionSummary, false),
         };
 

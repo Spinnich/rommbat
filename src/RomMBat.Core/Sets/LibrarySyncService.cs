@@ -389,8 +389,18 @@ public sealed class LibrarySyncService
 
             using var emulationStation = new EmulationStationClient();
 
+            // Not on the run's token, and this is the whole of "a stopped sync ends with a
+            // correct tree rather than with work postponed". Handing the cancelled token here
+            // made the pass throw the instant it started, so a stop left every finished game on
+            // disk and invisible to EmulationStation, which is worse than not having fetched it.
+            // Found by a hands-on pass: the first game of a set landed on the drive and never
+            // appeared in the front end.
+            //
+            // Bounded rather than unbounded: the write is local and the reload has a 400 ms
+            // connect timeout, so a screen being disposed waits for two file writes and one
+            // refused socket at most.
             progress.Report(new GamelistsWritten(await new GamelistSync(_session.Install, _session.Store)
-                .ApplyAsync(folders, emulationStation, cancellationToken)
+                .ApplyAsync(folders, emulationStation, CancellationToken.None)
                 .ConfigureAwait(false)));
         }
 

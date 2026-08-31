@@ -162,6 +162,91 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_stopped_run_still_writes_the_gamelist_for_what_finished()
+    {
+        // Found by a hands-on pass, and it is the defect this stage would most have deserved to
+        // be caught on. The first game of a set landed on the drive and never appeared in
+        // EmulationStation, because the gamelist pass was handed the run's cancellation token
+        // and threw the instant a stop reached it. A sync that leaves finished games invisible
+        // has postponed work, which is exactly what "a stopped sync ends with a correct tree"
+        // says it must not do.
+        //
+        // Deterministic because Immediate reports inline: cancelling while the first game's
+        // artwork is being fetched means the second game's transfer throws at its first
+        // cancellation check.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        using var stopping = new CancellationTokenSource();
+        var events = new List<SyncEvent>();
+
+        await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(NoResolve: true),
+            new RomMConnection(new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" }, stub),
+            new Immediate<SyncEvent>(reported =>
+            {
+                events.Add(reported);
+
+                if (reported is MediaProgressed)
+                {
+                    stopping.Cancel();
+                }
+            }),
+            _ => Task.CompletedTask,
+            stopping.Token);
+
+        // The pass ran at all, which is the half that was missing.
+        Assert.Contains(events, reported => reported is GamelistsWritten);
+
+        var gamelist = _session.Install.Resolve(RelativePath.Create("roms/psx/gamelist.xml"));
+
+        Assert.True(File.Exists(gamelist), "a stopped run left no gamelist, so ES shows nothing");
+        Assert.Contains("Game 1", File.ReadAllText(gamelist), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_finished_count_comes_from_what_landed_rather_than_from_the_plan()
+    {
+        // A hands-on pass stopped a 41-game sync after one game and the screen read "41 of 41".
+        // The count was taken from the plan's total on the set-finished event, which fires on a
+        // run that stopped or failed just as it does on one that completed.
+        //
+        // Driven here by a failure rather than a stop, because that is deterministic against a
+        // stub: right id, wrong length, so ContentSync verifies and refuses.
+        using var stub = Library(2);
+        stub.Content[2] = new byte[16];
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(2, sync.State.Total);
+        Assert.Equal(1, sync.State.Done);
+    }
+
+    [Fact]
+    public async Task Nothing_stale_is_left_on_the_screen_once_the_run_is_over()
+    {
+        // A hands-on pass finished a sync and the screen still read "Telling EmulationStation",
+        // which is a screen that looks like it has not noticed it is done.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Done, sync.State.Stage);
+        Assert.Null(sync.State.Pass);
+        Assert.Null(sync.State.Game);
+        Assert.Null(sync.State.GameProgress);
+    }
+
+    [Fact]
     public async Task The_stop_hint_says_what_the_press_costs()
     {
         using var stub = Library(2);

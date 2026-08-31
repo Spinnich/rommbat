@@ -805,6 +805,20 @@ internal static class ScreenView
             });
         }
 
+        // The game's own progress as text, not a second bar. On a set of small ROMs a per-game
+        // bar fills and empties several times a second, which a hands-on pass reported as
+        // flashing rather than as progress.
+        if (state.GameProgress is { } inGame)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = inGame,
+                Foreground = Muted,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
         if (state.Counted is { } counted)
         {
             stack.Children.Add(new TextBlock
@@ -816,8 +830,9 @@ internal static class ScreenView
             });
         }
 
-        // The bar tracks the game in front of the user rather than the run, because a run's
-        // fraction is unknowable: the plan counts games and they are not the same size.
+        // One bar, for the run, measured in bytes. Games are not the same size, so a bar over
+        // the count of them moves in lurches that mean nothing: forty cartridges and one disc
+        // are both "1 of 2".
         if (state.Fraction is { } fraction)
         {
             stack.Children.Add(new Border
@@ -834,6 +849,19 @@ internal static class ScreenView
                     Width = Math.Max(6, 620 * fraction),
                     HorizontalAlignment = HorizontalAlignment.Left,
                 },
+            });
+        }
+
+        if (state.Transferred is { } transferred)
+        {
+            var line = state.Speed is { } speed ? $"{transferred}          {speed}" : transferred;
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = line,
+                Foreground = Muted,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
 

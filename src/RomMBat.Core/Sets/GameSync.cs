@@ -260,13 +260,32 @@ public sealed class GameSync
             // budget has left, and interleaving moved that reading to a moment when most of the
             // run's ROMs are not yet on disk to be counted: without this, a 1 MB budget was
             // measured finishing 703 KB over it.
-            var fetched = await artwork
-                .ApplyAsync(
-                    [.. game.RomIds],
-                    new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
-                    RemainingRomBytes(plan, walked),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            MediaSyncOutcome fetched;
+
+            try
+            {
+                fetched = await artwork
+                    .ApplyAsync(
+                        [.. game.RomIds],
+                        new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
+                        RemainingRomBytes(plan, walked),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Stopped while fetching this game's artwork. **The game is not rolled back**:
+                // every one of its ROMs committed, so it is playable and gets a gamelist entry,
+                // and the next run fills in the artwork exactly as it would for any game that
+                // was already present.
+                //
+                // Returned rather than rethrown, for the same reason the ROM path is: letting
+                // it escape skipped the caller's gamelist pass, so a stop during artwork left
+                // every finished game on disk and invisible to EmulationStation. That is the
+                // same defect a hands-on pass found on the ROM path, in the place beside it.
+                stopped = true;
+                break;
+            }
 
             media = MediaSyncOutcome.Merge(media, fetched);
         }

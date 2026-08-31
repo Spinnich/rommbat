@@ -41,19 +41,25 @@ namespace RomMBat.UI.Screens;
 /// </remarks>
 public static class EvictionScreens
 {
-    /// <summary>What would go, and the one press that carries it out.</summary>
+    /// <summary>
+    /// What would go, and the one press that carries it out.
+    /// </summary>
+    /// <remarks>
+    /// <b>The scan runs off the drawing thread, because it is seconds of work.</b>
+    /// <see cref="EvictionService.Preview"/> rescans states and saves before it plans anything,
+    /// which it has to: without them the guard answers from the last flush, and a game whose
+    /// save is still unsent would be offered up for removal. Doing that inside the press left
+    /// the interface frozen for about four seconds on a real install, which a hands-on pass
+    /// reported as the button feeling broken.
+    /// </remarks>
     public static IScreen Preview(InstallSession session)
     {
         ArgumentNullException.ThrowIfNull(session);
 
         var service = new EvictionService(session);
-        var report = service.Preview();
+        EvictionReport? report = null;
 
-        IReadOnlyList<ListRow> Rows()
-        {
-            report = service.Preview();
-            return PreviewRows(report);
-        }
+        IReadOnlyList<ListRow> Rows() => report is null ? [] : PreviewRows(report);
 
         return new ListScreen(
             "Free up space",
@@ -70,14 +76,25 @@ public static class EvictionScreens
             AlwaysOfferAccept = true,
             EmptyMessage = "Nothing to free. RomMBat is inside its budget and there are no "
                 + "abandoned transfers to clear up.",
-            Note = () => Headline(report),
+
+            // Not "Asking RomM": nothing here touches the network. It reads the tree.
+            LoadingMessage = "Looking at what is on this device.",
+            Load = token => Task.Run(
+                () =>
+                {
+                    report = service.Preview();
+                    return (string?)null;
+                },
+                token),
+            Note = () => report is null ? null : Headline(report),
             Verbs = (action, _) => action switch
             {
-                NavAction.Accept when !report.IsEmpty => ScreenCommand.Push(Confirm(session, report)),
+                NavAction.Accept when report is { IsEmpty: false } ready =>
+                    ScreenCommand.Push(Confirm(session, ready)),
                 NavAction.Alternate => ScreenCommand.Push(new BudgetViewModel(session)),
                 _ => null,
             },
-        };
+        }.Started();
     }
 
     /// <summary>The sentence above the rows, which says whether there is anything to do at all.</summary>

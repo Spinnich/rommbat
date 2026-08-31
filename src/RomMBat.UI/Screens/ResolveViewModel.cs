@@ -105,9 +105,18 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
     public event EventHandler? Invalidated;
 
+    /// <summary>
+    /// What the screen is called, which is not what the code calls it.
+    /// </summary>
+    /// <remarks>
+    /// "Resolving" is the word the design has used since M2 and it means nothing to a person: a
+    /// hands-on pass reported that resolving and syncing read as the same thing. The type keeps
+    /// the name, because that is what the operation is called everywhere else in the codebase
+    /// and renaming it would cost more than it buys; what a person sees says what it does.
+    /// </remarks>
     public string Title => _sets.Count == 1
-        ? $"Resolving '{_sets[0].Name}'"
-        : $"Resolving {_sets.Count} sync sets";
+        ? $"Checking what is in '{_sets[0].Name}'"
+        : $"Checking {_sets.Count} sync sets";
 
     public ResolveStage Stage { get; private set; } = ResolveStage.Working;
 
