@@ -132,8 +132,10 @@ public interface IScreen
 /// <remarks>
 /// <b>Because a screen above it can write.</b> Creating a set left the list underneath showing
 /// the sets from before, and it corrected itself only when the whole screen was rebuilt by
-/// leaving and coming back. The navigator raises this on whatever it lands on after a pop or a
-/// replace, which is the only moment a screen can have been overtaken without being pressed.
+/// leaving and coming back. The navigator raises this on whatever a pop lands on, which is the
+/// only moment a screen already on the stack can have been overtaken without being pressed. A
+/// replacement is freshly constructed and has nothing stale to re-read, so it is not raised
+/// there.
 /// <para>
 /// Distinct from <see cref="ILiveScreen"/>, which is about work the screen itself started.
 /// This is about work somebody else finished.
