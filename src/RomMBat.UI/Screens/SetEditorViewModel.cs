@@ -1,4 +1,5 @@
 using System.Globalization;
+using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
 using RomMBat.Core.Sets;
@@ -93,11 +94,16 @@ public sealed class SetEditorViewModel : IScreen
     /// </remarks>
     private bool _namedByHand;
     private string? _folder;
+    private readonly Func<Uri, RomMConnection>? _connect;
 
-    private SetEditorViewModel(InstallSession session, SyncSetDefinition? existing)
+    private SetEditorViewModel(
+        InstallSession session,
+        SyncSetDefinition? existing,
+        Func<Uri, RomMConnection>? connect)
     {
         _session = session;
         _existing = existing;
+        _connect = connect;
 
         _name = existing?.Name ?? string.Empty;
         _scope = existing?.Scope ?? CatalogScopeKind.Platform;
@@ -138,17 +144,27 @@ public sealed class SetEditorViewModel : IScreen
         }
     }
 
-    public static SetEditorViewModel ForNew(InstallSession session)
+    /// <param name="connect">
+    /// How a resolve started from here reaches the server. Carried rather than dropped so the
+    /// create-then-resolve path can be driven against a stub: it is the flow that starts
+    /// minutes of uninvited network work, and it was the only one a test could not reach past
+    /// <c>NotPaired</c>. See #105.
+    /// </param>
+    public static SetEditorViewModel ForNew(InstallSession session, Func<Uri, RomMConnection>? connect = null)
     {
         ArgumentNullException.ThrowIfNull(session);
-        return new SetEditorViewModel(session, null);
+        return new SetEditorViewModel(session, null, connect);
     }
 
-    public static SetEditorViewModel ForExisting(InstallSession session, SyncSetDefinition set)
+    /// <param name="connect">See <see cref="ForNew"/>.</param>
+    public static SetEditorViewModel ForExisting(
+        InstallSession session,
+        SyncSetDefinition set,
+        Func<Uri, RomMConnection>? connect = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(set);
-        return new SetEditorViewModel(session, set);
+        return new SetEditorViewModel(session, set, connect);
     }
 
     /// <summary>True when this is defining a set rather than changing one.</summary>
@@ -196,9 +212,31 @@ public sealed class SetEditorViewModel : IScreen
     /// <summary>The refusal from Core, shown where the eye already is.</summary>
     public string? Problem { get; private set; }
 
+    /// <summary>
+    /// The rows, which are never none.
+    /// </summary>
+    /// <remarks>
+    /// <b>The floor is the fix for #106.</b> An existing set that is not filter-scoped and
+    /// needs no folder built nothing at all: <c>Hints</c> then indexed <c>Rows[Cursor]</c> on
+    /// the first frame and <c>Handle</c> divided by <c>rows.Count</c> on the first press. The
+    /// only thing stopping that was <c>SetsScreens.Detail</c> computing the same predicate
+    /// before it would push the screen, which is a guard living three files from the thing it
+    /// guards. 7b-2b and 7b-2c both add screens that reach this surface.
+    /// </remarks>
     public IReadOnlyList<EditorRow> Rows
     {
         get
+        {
+            var rows = BuildRows();
+
+            return rows.Count > 0
+                ? rows
+                : [new EditorRow("Nothing to change", "this set is defined by its scope", null, false)];
+        }
+    }
+
+    private List<EditorRow> BuildRows()
+    {
         {
             var rows = new List<EditorRow>();
 
@@ -769,8 +807,8 @@ public sealed class SetEditorViewModel : IScreen
             if (edited.Set is { LastResolvedAt: null } stale && _scope == CatalogScopeKind.Filter)
             {
                 return ScreenCommand.ReplaceThenOpen(
-                    SetsScreens.Detail(_session, stale.Name, null),
-                    SetsScreens.Resolve(_session, [stale], null));
+                    SetsScreens.Detail(_session, stale.Name, _connect),
+                    SetsScreens.Resolve(_session, [stale], _connect));
             }
 
             return ScreenCommand.Pop;
@@ -819,8 +857,8 @@ public sealed class SetEditorViewModel : IScreen
         // The editor is replaced rather than pushed over, so backing out of the resolve reaches
         // the set, and backing out of that reaches the list exactly once.
         return ScreenCommand.ReplaceThenOpen(
-            SetsScreens.Detail(_session, added.Set!.Name, null),
-            SetsScreens.Resolve(_session, [added.Set], null));
+            SetsScreens.Detail(_session, added.Set!.Name, _connect),
+            SetsScreens.Resolve(_session, [added.Set], _connect));
     }
 
     /// <summary>Names the set after what it points at, unless somebody named it themselves.</summary>

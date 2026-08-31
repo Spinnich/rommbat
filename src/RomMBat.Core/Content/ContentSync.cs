@@ -32,6 +32,22 @@ public sealed record ContentSyncOutcome
     /// <summary>One line per game that did not work, in the words the user should see.</summary>
     public IReadOnlyList<string> Problems { get; init; } = [];
 
+    /// <summary>
+    /// True when the server rejected this device's identity rather than a particular request.
+    /// </summary>
+    /// <remarks>
+    /// <b>A 401 is not a transient fault, so retrying is not a recovery.</b> Every game after
+    /// the first rejection would send the same token and be refused identically, turning one
+    /// expired or revoked pairing into a run that fails every game in the set and reports forty
+    /// identical problems. The caller stops instead and offers to pair again, which is what
+    /// <see cref="RomMResponseStatus.Unauthorized"/>'s own remarks have said since M1.
+    /// <para>
+    /// 403 is deliberately not this. A missing scope is a fact about what this pairing may do,
+    /// and it is per call rather than per identity: the run carries on and reports the game.
+    /// </para>
+    /// </remarks>
+    public bool Rejected { get; init; }
+
     /// <summary>True when the run wrote nothing at all, which is what an unchanged set should do.</summary>
     public bool IsNoOp => Downloaded == 0 && Resumed == 0 && Adopted == 0 && Failed == 0;
 
@@ -58,6 +74,7 @@ public sealed record ContentSyncOutcome
             Failed = first.Failed + second.Failed,
             BytesTransferred = first.BytesTransferred + second.BytesTransferred,
             Problems = [.. first.Problems, .. second.Problems],
+            Rejected = first.Rejected || second.Rejected,
         };
     }
 
@@ -161,6 +178,7 @@ public sealed class ContentSync
         var failed = 0;
         var bytes = 0L;
         var problems = new List<string>();
+        var rejected = false;
 
         for (var index = 0; index < plan.Steps.Count; index++)
         {
@@ -189,6 +207,8 @@ public sealed class ContentSync
                 case ContentAction.Resume:
                     var result = await TransferAsync(step, index, plan.Steps.Count, progress, cancellationToken)
                         .ConfigureAwait(false);
+
+                    rejected |= result.Rejected;
 
                     if (result.Problem is { } problem)
                     {
@@ -225,6 +245,7 @@ public sealed class ContentSync
             Failed = failed,
             BytesTransferred = bytes,
             Problems = problems,
+            Rejected = rejected,
         };
     }
 
@@ -256,7 +277,7 @@ public sealed class ContentSync
         });
     }
 
-    private async Task<(long Bytes, string? Problem)> TransferAsync(
+    private async Task<(long Bytes, string? Problem, bool Rejected)> TransferAsync(
         ContentStep step,
         int index,
         int total,
@@ -292,7 +313,7 @@ public sealed class ContentSync
             if (wrong is null)
             {
                 Commit(step, partAbsolute, targetAbsolute, finished!);
-                return (0, null);
+                return (0, null, false);
             }
 
             SafeDelete(partAbsolute);
@@ -344,11 +365,15 @@ public sealed class ContentSync
                     // says it is discarded, so discard it. The next run downloads whole.
                     SafeDelete(partAbsolute);
                     _store.Downloads.Remove(member.RomId);
-                    return (0, response.Message);
+                    return (0, response.Message, false);
                 }
 
                 _store.Downloads.Fail(member.RomId, response.Message ?? "the download failed", _time.GetUtcNow());
-                return (0, response.Message);
+
+                // 401 only. A 403 is a fact about what this pairing may do and is per call;
+                // a 401 is the identity itself being refused, and the next game would send the
+                // same token.
+                return (0, response.Message, response.Status == RomMResponseStatus.Unauthorized);
             }
 
             var transferred = response.Value!.BytesWritten;
@@ -359,30 +384,32 @@ public sealed class ContentSync
                 // forever, and each attempt would end the same way.
                 SafeDelete(partAbsolute);
                 _store.Downloads.Remove(member.RomId);
-                return (transferred, wrong);
+                return (transferred, wrong, false);
             }
 
             Commit(step, partAbsolute, targetAbsolute, verification.Fingerprint!);
-            return (transferred, null);
+            return (transferred, null, false);
         }
         catch (RomMUnreachableException ex)
         {
             // The partial file stays: the whole point of writing one is that the next run
             // continues rather than starting again.
             _store.Downloads.Fail(member.RomId, ex.Message, _time.GetUtcNow());
-            return (0, ex.Message);
+            return (0, ex.Message, false);
         }
         catch (PathTooLongException)
         {
             _store.Downloads.Fail(member.RomId, "the path is too long", _time.GetUtcNow());
-            return (0,
+            return (
+                0,
                 $"the full path to '{member.FsName}' is longer than this machine allows. Move the RetroBat "
-                    + "install closer to the root of the drive, or turn on long path support in Windows.");
+                    + "install closer to the root of the drive, or turn on long path support in Windows.",
+                false);
         }
         catch (IOException ex)
         {
             _store.Downloads.Fail(member.RomId, ex.Message, _time.GetUtcNow());
-            return (0, $"the file could not be written: {ex.Message}");
+            return (0, $"the file could not be written: {ex.Message}", false);
         }
     }
 

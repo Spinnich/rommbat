@@ -113,6 +113,16 @@ public enum SyncState
     Refused,
 
     /// <summary>
+    /// The server refused this device. Pairing again is the only way on.
+    /// </summary>
+    /// <remarks>
+    /// A 401 mid-run is an identity change rather than a transient fault, so the run stops
+    /// instead of sending the same rejected token forty more times. Everything already fetched
+    /// stays, and the gamelists for it are still written.
+    /// </remarks>
+    Rejected,
+
+    /// <summary>
     /// The user stopped it. The tree is correct, not postponed.
     /// </summary>
     /// <remarks>
@@ -338,6 +348,12 @@ public sealed class LibrarySyncService
             if (outcome.Content.Failed > 0)
             {
                 worst = SyncState.Incomplete;
+            }
+
+            if (outcome.Rejected)
+            {
+                worst = SyncState.Rejected;
+                break;
             }
 
             if (outcome.Stopped)

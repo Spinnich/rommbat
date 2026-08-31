@@ -40,6 +40,8 @@ internal static class ScreenView
         SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
+        SyncViewModel sync => Sync(sync),
+        EvictionRunViewModel eviction => Working(eviction.Detail),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -739,6 +741,179 @@ internal static class ScreenView
                 },
             });
         }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// A sync, which is the busiest screen here and the only one that spends the user's disk.
+    /// </summary>
+    /// <remarks>
+    /// <b>Fixed fields that update in place, plus problems that accumulate.</b> A live tail of
+    /// forty games in three minutes is unreadable from a sofa and the count already says how
+    /// many went by; what cannot be reconstructed afterwards is what failed, so that is what
+    /// is kept on screen.
+    /// <para>
+    /// <b>Read once, into a local.</b> The value is published from whatever thread is doing the
+    /// transfer, so reading the property twice while building this could draw a game name from
+    /// one moment beside a count from another.
+    /// </para>
+    /// </remarks>
+    private static StackPanel Sync(SyncViewModel sync)
+    {
+        var state = sync.State;
+
+        var stack = new StackPanel
+        {
+            Spacing = 18,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = state.Detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        if (state.Pass is { } pass)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = pass,
+                Foreground = Accent,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Game is { } game)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = game,
+                Foreground = Ink,
+                FontSize = 24,
+                MaxWidth = 860,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Counted is { } counted)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = counted,
+                Foreground = Muted,
+                FontSize = 21,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        // The bar tracks the game in front of the user rather than the run, because a run's
+        // fraction is unknowable: the plan counts games and they are not the same size.
+        if (state.Fraction is { } fraction)
+        {
+            stack.Children.Add(new Border
+            {
+                Background = Panel,
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
+                Width = 620,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new Border
+                {
+                    Background = Accent,
+                    CornerRadius = new CornerRadius(6),
+                    Width = Math.Max(6, 620 * fraction),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                },
+            });
+        }
+
+        // On this screen because this is where it is being spent.
+        if (state.Budget is { } budget)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"Disk used  {budget}",
+                Foreground = Muted,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Problems.Count > 0)
+        {
+            stack.Children.Add(Problems(state.Problems));
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// What went wrong, oldest first, bounded to what fits.
+    /// </summary>
+    /// <remarks>
+    /// <b>The newest are kept when there are too many.</b> A run that fails every game produces
+    /// one line each, and the first eight of forty identical sentences are the least useful
+    /// eight: the count says how many there were and the tail says what was happening most
+    /// recently.
+    /// </remarks>
+    private static StackPanel Problems(IReadOnlyList<string> problems)
+    {
+        const int Shown = 6;
+
+        var stack = new StackPanel { Spacing = 6, MaxWidth = 860 };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = problems.Count == 1 ? "PROBLEM" : $"PROBLEMS ({problems.Count})",
+            Foreground = Accent,
+            FontSize = 13,
+        });
+
+        foreach (var problem in problems.Skip(Math.Max(0, problems.Count - Shown)))
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = problem,
+                Foreground = Muted,
+                FontSize = 15,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return stack;
+    }
+
+    /// <summary>A screen whose only content is one sentence about work in progress.</summary>
+    private static StackPanel Working(string detail)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
 
         return stack;
     }

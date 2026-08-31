@@ -1,0 +1,530 @@
+using System.Globalization;
+using RomM.Client;
+using RomMBat.Core;
+using RomMBat.Core.Content;
+using RomMBat.Core.Sets;
+using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
+using RomMBat.UI.Input;
+using RomMBat.UI.Shell;
+
+namespace RomMBat.UI.Screens;
+
+/// <summary>Where a sync has got to.</summary>
+public enum SyncStage
+{
+    /// <summary>Fetching.</summary>
+    Working,
+
+    /// <summary>Everything asked for happened.</summary>
+    Done,
+
+    /// <summary>Stopped by the user. The tree is correct, not postponed.</summary>
+    Stopped,
+
+    /// <summary>Something could not be fetched. The next run tries again.</summary>
+    Incomplete,
+
+    /// <summary>A set could not be resolved, so the run did not start.</summary>
+    Refused,
+
+    /// <summary>There is no pairing to sync against.</summary>
+    NotPaired,
+
+    /// <summary>The server refused this device part way through.</summary>
+    Rejected,
+}
+
+/// <summary>
+/// Everything the screen draws, as one value.
+/// </summary>
+/// <remarks>
+/// <b>Because the events arrive on the thread pool.</b> A sync reports through
+/// <see cref="IProgress{T}"/> from whatever thread is doing the transfer, while the drawing
+/// thread reads these fields inside <c>Handle</c> and the renderer. Written as eight fields it
+/// would publish a game name from one event beside a count from another, and a reader landing
+/// between two writes would draw a mix that never existed. One reference assignment publishes
+/// all of it, so a reader sees the value before or the value after.
+/// <para>
+/// #103's <c>c735636</c> fixed exactly this on <c>ListScreen</c>, where the rows and the cursor
+/// were two fields and a loader finishing on the pool could leave the cursor indexing a shorter
+/// list. <c>ListState</c>'s remarks carry the reasoning; this is the same rule on a screen with
+/// far more moving parts.
+/// </para>
+/// </remarks>
+/// <param name="Pass">Which of the ten passes is running, in words.</param>
+/// <param name="Game">The game being fetched, or null between them.</param>
+/// <param name="Fraction">How far through that game's transfer, when the server said how big.</param>
+/// <param name="Problems">
+/// Everything that went wrong, in arrival order. Accumulated rather than replaced: they are the
+/// only part of a run a person cannot read back once it ends.
+/// </param>
+public sealed record SyncSnapshot(
+    SyncStage Stage,
+    string Detail,
+    string? Pass = null,
+    string? Game = null,
+    double? Fraction = null,
+    int Done = 0,
+    int Total = 0,
+    long? BudgetUsed = null,
+    long? BudgetCap = null,
+    int Blocked = 0,
+    IReadOnlyList<string>? Problems = null)
+{
+    public IReadOnlyList<string> Problems { get; init; } = Problems ?? [];
+
+    /// <summary>The count as a person reads it, or null before the first game.</summary>
+    public string? Counted => Total > 0
+        ? string.Create(CultureInfo.CurrentCulture, $"{Done:N0} of {Total:N0}")
+        : null;
+
+    /// <summary>What the run took against what it may take, or null when no cap is set.</summary>
+    public string? Budget => BudgetCap is { } cap && BudgetUsed is { } used
+        ? $"{ByteSize.Format(used)} of {ByteSize.Format(cap)}"
+        : BudgetUsed is { } taken
+            ? ByteSize.Format(taken)
+            : null;
+}
+
+/// <summary>
+/// Syncing, while somebody watches.
+/// </summary>
+/// <remarks>
+/// <b>The first minutes-long, network-bound, gigabyte-writing thing this interface has ever
+/// done.</b> Resolving was minutes long and wrote two SQLite rows; this writes into the user's
+/// tree, so what the screen owes them is different in kind: what it is doing now, how far
+/// through it is, what it has spent, and what went wrong, all without scrolling.
+/// <para>
+/// <b>Fixed fields and an accumulating problem list, not a live tail.</b> Forty games in three
+/// minutes is unreadable from a sofa, and the count already says how many went by. What cannot
+/// be reconstructed afterwards is what failed, so that is the part that is kept.
+/// </para>
+/// <para>
+/// <b>Back stops and stays; a second Back leaves.</b> The stop here destroys something, so a
+/// screen that closed on the press would never be able to say what went. That also settles
+/// #107, where the resolve screen's carefully-indexed stopped summary was written to a screen
+/// that had already been popped: both screens answer Back the same way now, or a user learns
+/// two rules.
+/// </para>
+/// <para>
+/// <b>Every decision belongs to <see cref="LibrarySyncService"/>.</b> Which passes run, in what
+/// order, what a stop removes, whether a rejection ends the run: all asked. What this file owns
+/// is which words go on which line.
+/// </para>
+/// </remarks>
+public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
+{
+    private readonly InstallSession _session;
+    private readonly IReadOnlyList<SyncSetDefinition> _sets;
+    private readonly CancellationTokenSource _run = new();
+    private readonly List<string> _problems = [];
+    private readonly Func<IScreen>? _pair;
+    private readonly Func<IScreen>? _freeSpace;
+
+    private volatile SyncSnapshot _state =
+        new(SyncStage.Working, "Working out what this device should hold.");
+
+    private Task? _work;
+    private bool _disposed;
+    private bool _stopping;
+
+    /// <param name="connect">
+    /// How the screen reaches the server. Taken so a test can stand a stub in its place, the
+    /// way <see cref="ResolveViewModel"/> and <see cref="PairingViewModel"/> already do.
+    /// </param>
+    /// <param name="pair">
+    /// Where pairing starts, for the one outcome a user can act on from here. Null leaves the
+    /// offer off rather than opening a blank screen.
+    /// </param>
+    public SyncViewModel(
+        InstallSession session,
+        IReadOnlyList<SyncSetDefinition> sets,
+        Func<Uri, RomMConnection>? connect = null,
+        Func<IScreen>? pair = null,
+        Func<IScreen>? freeSpace = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(sets);
+
+        _session = session;
+        _sets = sets;
+        _pair = pair;
+        _freeSpace = freeSpace;
+
+        Start(connect);
+    }
+
+    /// <summary>Syncing a single set, which is what the detail screen asks for.</summary>
+    public SyncViewModel(
+        InstallSession session,
+        SyncSetDefinition set,
+        Func<Uri, RomMConnection>? connect = null,
+        Func<IScreen>? pair = null,
+        Func<IScreen>? freeSpace = null)
+        : this(session, [set], connect, pair, freeSpace)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+    }
+
+    public event EventHandler? Invalidated;
+
+    public string Title => _sets.Count == 1
+        ? $"Syncing '{_sets[0].Name}'"
+        : $"Syncing {_sets.Count} sync sets";
+
+    /// <summary>Everything the renderer draws, read once so it cannot change mid-draw.</summary>
+    public SyncSnapshot State => _state;
+
+    public IReadOnlyList<FooterHint> Hints => _state.Stage switch
+    {
+        // Says what the press costs. "Stop for now" is honest on the resolve screen because
+        // nothing is lost there; this one drops the game it is in, and the label has to say so.
+        SyncStage.Working => [new FooterHint(NavAction.Back, "Stop, and drop the game in progress")],
+
+        SyncStage.NotPaired or SyncStage.Rejected when _pair is not null =>
+        [
+            new FooterHint(NavAction.Accept, "Pair with RomM"),
+            new FooterHint(NavAction.Back, "Back"),
+        ],
+
+        // The one thing a person can do about a run the budget cut short, offered where they
+        // find out it happened rather than three screens away under disk space.
+        _ when _state.Blocked > 0 && _freeSpace is not null =>
+        [
+            new FooterHint(NavAction.Accept, "Free up space"),
+            new FooterHint(NavAction.Back, "Back"),
+        ],
+
+        _ => [new FooterHint(NavAction.Back, "Back")],
+    };
+
+    public ScreenCommand Handle(NavAction action)
+    {
+        switch (action)
+        {
+            case NavAction.Accept when _pair is not null
+                && _state.Stage is SyncStage.NotPaired or SyncStage.Rejected:
+                return ScreenCommand.Push(_pair());
+
+            case NavAction.Accept when _state.Stage != SyncStage.Working
+                && _state.Blocked > 0
+                && _freeSpace is { } free:
+                return ScreenCommand.Push(free());
+
+            case NavAction.Back when _state.Stage == SyncStage.Working:
+                // Stop and stay. The run removes the game it was in, and a screen that closed
+                // on the press could never say which one that was.
+                Stop();
+                return ScreenCommand.Stay;
+
+            case NavAction.Back:
+                return ScreenCommand.Pop;
+
+            default:
+                return ScreenCommand.Stay;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        // Cancelled, never disposed. A run still unwinding registers on this token, and
+        // disposing it would raise ObjectDisposedException on a thread nobody is watching.
+        _run.Cancel();
+
+        // Then wait, briefly. The run breaks out of its loop, rolls back the game it was in and
+        // writes the gamelists, and the screen underneath is rebuilt the moment this returns.
+        // Bounded because a screen that cannot be left is worse than one briefly out of date,
+        // and a request already in flight is abandoned rather than waited on.
+        try
+        {
+            _work?.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException)
+        {
+            // A run that ends by throwing its cancellation is an expected way out.
+        }
+    }
+
+    /// <summary>Asks the run to stop, and says so at once rather than when it notices.</summary>
+    /// <remarks>
+    /// The press has to change the screen immediately: a stop that removes a part-fetched game
+    /// takes as long as the delete, and a footer that still offers to stop reads as ignored.
+    /// </remarks>
+    private void Stop()
+    {
+        if (_stopping)
+        {
+            return;
+        }
+
+        _stopping = true;
+        Publish(_state with { Detail = "Stopping, and putting back the game in progress." });
+        _run.Cancel();
+    }
+
+    private void Start(Func<Uri, RomMConnection>? connect)
+    {
+        var attempt = _session.Authenticate();
+
+        if (attempt.Connection is null)
+        {
+            Publish(new SyncSnapshot(
+                attempt.NotPaired ? SyncStage.NotPaired : SyncStage.Refused,
+                attempt.Problem ?? "This install is not paired with a RomM server."));
+            return;
+        }
+
+        var origin = _session.Store.Device.Read()?.ServerOrigin;
+        var connection = connect is not null && origin is not null ? connect(origin) : attempt.Connection;
+
+        if (!ReferenceEquals(connection, attempt.Connection))
+        {
+            attempt.Connection.Dispose();
+        }
+
+        _work = Task.Run(() => RunAsync(connection), CancellationToken.None);
+    }
+
+    private async Task RunAsync(RomMConnection connection)
+    {
+        try
+        {
+            var report = await new LibrarySyncService(_session)
+                .RunAsync(
+                    _sets,
+                    new SyncOptions(),
+                    connection,
+                    new Immediate<SyncEvent>(Observe),
+                    token => FlushAsync(connection, token),
+                    _run.Token)
+                .ConfigureAwait(false);
+
+            Settle(report);
+        }
+        catch (OperationCanceledException)
+        {
+            // The service returns a stop rather than throwing one, so reaching here means the
+            // token fired somewhere that does not, which is still a stop from here.
+            Publish(_state with
+            {
+                Stage = SyncStage.Stopped,
+                Detail = "Stopped. Everything that finished is on this device.",
+                Game = null,
+                Fraction = null,
+            });
+        }
+        catch (RomMUnreachableException ex)
+        {
+            // Offline is a working state, so this is a sentence rather than an error screen.
+            Publish(_state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null, Fraction = null });
+        }
+        finally
+        {
+            connection.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// The saves flush, which the service runs before it fetches anything.
+    /// </summary>
+    /// <remarks>
+    /// <b>The run's own connection, not a second one.</b> Authenticating again here would open
+    /// a connection to whatever the store says the origin is, which is right in production and
+    /// wrong everywhere a caller has supplied one: a test standing a stub in front of this
+    /// screen watched the sync go to the stub and the flush go to the real address. The screen
+    /// has exactly one server and it is the one it was given.
+    /// <para>
+    /// A refusal to take the tree lock is an ordinary outcome and is reported as a line rather
+    /// than an error, which is what keeps this file from ever naming <c>TreeLock</c>.
+    /// </para>
+    /// </remarks>
+    private async Task FlushAsync(RomMConnection connection, CancellationToken cancellationToken)
+    {
+        var report = await new SaveFlushService(_session)
+            .RunAsync(new FlushOptions(), connection, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (report.State == FlushState.Skipped)
+        {
+            Note("Saves were left to the pass already running.");
+        }
+
+        foreach (var problem in Problems(report))
+        {
+            Note(problem);
+        }
+    }
+
+    private static IEnumerable<string> Problems(FlushReport report)
+    {
+        foreach (var problem in report.Playtime?.Problems ?? [])
+        {
+            yield return problem;
+        }
+
+        foreach (var problem in report.SavesSent?.Problems ?? [])
+        {
+            yield return problem;
+        }
+
+        foreach (var problem in report.StatesSent?.Problems ?? [])
+        {
+            yield return problem;
+        }
+    }
+
+    /// <summary>Turns one reported event into the next value of the screen.</summary>
+    private void Observe(SyncEvent reported)
+    {
+        switch (reported)
+        {
+            case FlushStarting:
+                Publish(_state with { Pass = "Sending saves and play time", Game = null, Fraction = null });
+                break;
+
+            case SetResolved(var resolve):
+                Publish(_state with { Pass = $"Asking RomM what '{resolve.SetName}' contains", Game = null });
+                break;
+
+            case BiosPlanned or BiosApplied:
+                Publish(_state with { Pass = "Firmware", Game = null, Fraction = null });
+                break;
+
+            case BiosProblem(var message):
+                Note(message);
+                break;
+
+            case SetPlanned(var set, var plan):
+                Publish(_state with
+                {
+                    Pass = _sets.Count == 1 ? "Downloading" : $"Downloading '{set.Name}'",
+                    Total = plan.Steps.Count,
+                    Done = 0,
+                });
+                break;
+
+            case ContentProgressed(var step):
+                Publish(_state with
+                {
+                    Game = step.Step.Member.DisplayName,
+                    Fraction = step.Progress?.Fraction,
+
+                    // The index is the game being worked on, so the count of finished ones is
+                    // one behind it. A screen reading "40 of 40" while the last game is still
+                    // transferring is the thing that makes a progress display untrustworthy.
+                    Done = Math.Max(0, step.Index - 1),
+                    Total = step.Total,
+                });
+                break;
+
+            case GameRolledBack(var title, var files, var bytes, var problems):
+                Note($"{title} was not finished, so the {files} {(files == 1 ? "file" : "files")} "
+                    + $"downloaded for it were removed ({ByteSize.Format(bytes)}).");
+
+                foreach (var problem in problems)
+                {
+                    Note(problem);
+                }
+
+                break;
+
+            case SetSynced(_, var outcome):
+                foreach (var problem in outcome.Problems)
+                {
+                    Note(problem);
+                }
+
+                Publish(_state with
+                {
+                    Done = _state.Total,
+                    Game = null,
+                    Fraction = null,
+                    Blocked = _state.Blocked + outcome.Blocked,
+                });
+                break;
+
+            case MediaProgressed(var what):
+                Publish(_state with { Pass = "Artwork", Game = what, Fraction = null });
+                break;
+
+            case MediaApplied(var outcome):
+                foreach (var problem in outcome.Problems)
+                {
+                    Note(problem);
+                }
+
+                break;
+
+            case GamelistsWritten:
+                // Called exactly as the agent calls it. Finding 233 measured that a reload
+                // issued while RomMBat is in front of EmulationStation is deferred rather than
+                // discarded, and that ES does not rescan on resume by itself, so the games
+                // appear the moment the user leaves. Nothing here tells them to restart it.
+                Publish(_state with { Pass = "Telling EmulationStation", Game = null, Fraction = null });
+                break;
+
+            case BudgetReported(var used, var cap):
+                Publish(_state with { BudgetUsed = used, BudgetCap = cap });
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private void Settle(SyncReport report)
+    {
+        var (stage, detail) = report.State switch
+        {
+            Core.Sets.SyncState.Done => (SyncStage.Done, "Everything in these sync sets is on this device."),
+
+            Core.Sets.SyncState.Stopped => (
+                SyncStage.Stopped,
+                "Stopped. Everything that finished is on this device, and the game in progress was put back."),
+
+            Core.Sets.SyncState.Rejected => (
+                SyncStage.Rejected,
+                "RomM would not accept this device. Pair again to sign back in. Your games, saves and "
+                    + "settings are kept."),
+
+            Core.Sets.SyncState.Refused => (
+                SyncStage.Refused,
+                "A sync set could not be resolved, so nothing was fetched."),
+
+            _ => (SyncStage.Incomplete, "Some games could not be fetched. Syncing again picks up where this left off."),
+        };
+
+        Publish(_state with { Stage = stage, Detail = detail, Game = null, Fraction = null });
+    }
+
+    /// <summary>Adds a problem, in arrival order, and never the same one twice in a row.</summary>
+    private void Note(string problem)
+    {
+        lock (_problems)
+        {
+            if (_problems.Count > 0 && string.Equals(_problems[^1], problem, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _problems.Add(problem);
+            Publish(_state with { Problems = [.. _problems] });
+        }
+    }
+
+    // One reference assignment, then a redraw. The shell marshals it off whatever thread the
+    // transfer is on.
+    private void Publish(SyncSnapshot next)
+    {
+        _state = next;
+        Invalidated?.Invoke(this, EventArgs.Empty);
+    }
+}

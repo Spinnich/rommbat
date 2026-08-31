@@ -66,6 +66,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     private Task? _walk;
     private Task? _roaming;
     private bool _disposed;
+    private bool _stopping;
 
     /// <param name="connect">
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the
@@ -150,11 +151,44 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         _ => [new FooterHint(NavAction.Back, "Back")],
     };
 
-    public ScreenCommand Handle(NavAction action) => action switch
+    public ScreenCommand Handle(NavAction action)
     {
-        NavAction.Back => ScreenCommand.Pop,
-        _ => ScreenCommand.Stay,
-    };
+        switch (action)
+        {
+            case NavAction.Back when Stage == ResolveStage.Working:
+                // Stop and stay; a second Back leaves. #107: this screen already composed a
+                // sentence naming the set that was interrupted, and nothing could ever display
+                // it, because Back popped the screen and Dispose was the only thing that
+                // cancelled the walk. The stopped summary was written to a screen that had
+                // already left the stack.
+                //
+                // The sync screen answers Back the same way and has to, since its stop removes
+                // a part-fetched game. Two minutes-long screens with two different rules for
+                // the same press is a rule a user has to learn twice.
+                Stop();
+                return ScreenCommand.Stay;
+
+            case NavAction.Back:
+                return ScreenCommand.Pop;
+
+            default:
+                return ScreenCommand.Stay;
+        }
+    }
+
+    /// <summary>Asks the walk to stop, and says so at once rather than when it notices.</summary>
+    private void Stop()
+    {
+        if (_stopping)
+        {
+            return;
+        }
+
+        _stopping = true;
+        Detail = "Stopping. What has been found so far is kept.";
+        Raise();
+        _run.Cancel();
+    }
 
     public void Dispose()
     {

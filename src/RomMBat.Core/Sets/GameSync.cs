@@ -46,6 +46,15 @@ public sealed record GameSyncOutcome
     public IReadOnlyList<string> RollbackProblems { get; init; } = [];
 
     /// <summary>
+    /// True when the server refused this device's identity and the run stopped for it.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Stopped"/>, which is the user's own press. Nothing about this
+    /// is recoverable by trying again: the caller offers to pair.
+    /// </remarks>
+    public bool Rejected { get; init; }
+
+    /// <summary>
     /// True when the user stopped the run.
     /// </summary>
     /// <remarks>
@@ -195,6 +204,7 @@ public sealed class GameSync
         var rolledBack = 0;
         var problems = new List<string>();
         var stopped = false;
+        var rejected = false;
         var walked = 0;
 
         var roms = new ContentSync(_install, _store, _connection, _time);
@@ -231,6 +241,16 @@ public sealed class GameSync
             if (landed.Failed > 0)
             {
                 RollBack(game, progress, problems, ref rolledBack);
+
+                if (landed.Rejected)
+                {
+                    // The server refused this device rather than this request, so every game
+                    // after it would send the same token and be refused identically. One
+                    // expired pairing must not become forty problems.
+                    rejected = true;
+                    break;
+                }
+
                 continue;
             }
 
@@ -252,6 +272,7 @@ public sealed class GameSync
             RolledBack = rolledBack,
             RollbackProblems = problems,
             Stopped = stopped,
+            Rejected = rejected,
         };
     }
 
