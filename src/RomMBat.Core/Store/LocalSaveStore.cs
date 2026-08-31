@@ -36,6 +36,18 @@ public sealed record LocalSave
 
     public long SizeBytes { get; init; }
 
+    /// <summary>
+    /// When the scan that recorded this row ran.
+    /// </summary>
+    /// <remarks>
+    /// The column has always been written and nothing could read it back. It is exposed because
+    /// the flush's rule that states are scanned before saves (#64) had no witness outside a
+    /// class C fixture: the sidecar attribution route reads <c>local_state</c>, so scanning
+    /// saves first leaves it reading an empty table, and the two stamps are what a test compares.
+    /// </remarks>
+    public DateTimeOffset? ScannedAtUtc { get; init; }
+
+
     public DateTimeOffset? FileMtimeUtc { get; init; }
 
     /// <summary>
@@ -151,7 +163,7 @@ public sealed class LocalSaveStore
         """
         SELECT relative_path, system, emulator, shape_class, rom_id, rom_relative_path, slot,
                content_hash, size_bytes, file_mtime_utc, uploaded_content_hash, uploaded_at_utc,
-               unit_key
+               unit_key, scanned_at_utc
         FROM local_save
         WHERE ($romId IS NULL OR rom_id = $romId)
         ORDER BY relative_path, unit_key;
@@ -211,6 +223,7 @@ public sealed class LocalSaveStore
                 UploadedContentHash = reader.GetStringOrNull(10),
                 UploadedAtUtc = reader.GetTimestampOrNull(11),
                 UnitKey = reader.GetString(12),
+                ScannedAtUtc = reader.GetTimestampOrNull(13),
             });
         }
 
