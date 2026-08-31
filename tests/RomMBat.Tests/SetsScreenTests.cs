@@ -75,11 +75,18 @@ public sealed class SetsScreenTests : IDisposable
 
         navigator.Handle(NavAction.Start);
 
-        // Back on the list, with the set defined and named after what it mirrors. The on-screen
-        // keyboard was never opened.
+        // Onto the set that was just made, resolving it, rather than back to the list. A set
+        // that has never resolved holds nothing, so landing on the list would ask for one more
+        // press to get the thing just described. The on-screen keyboard was never opened.
+        using var resolving = Assert.IsType<ResolveViewModel>(navigator.Current);
+
+        // The set is underneath, so backing out of the resolve reaches it and not the list.
+        Assert.Equal(4, navigator.Depth);
+        navigator.Handle(NavAction.Back);
         Assert.IsType<ListScreen>(navigator.Current);
 
         var made = new SyncSetService(_session).List();
+        Assert.Equal(made[0].Set.Name, navigator.Current.Title);
         Assert.Single(made);
         Assert.Equal(new SyncSetService(_session).PlatformsKnownHere()[0].Label, made[0].Set.Name);
     }

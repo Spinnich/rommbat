@@ -636,7 +636,17 @@ public sealed class SetEditorViewModel : IScreen
             return ScreenCommand.Stay;
         }
 
-        return ScreenCommand.Pop;
+        // Onto the set that was just made, and straight into resolving it. A set that has never
+        // resolved holds nothing and can do nothing, so stopping at a screen reading "0 games,
+        // never resolved" asks for one more press to get the thing that was just described.
+        // Starting minutes of network work uninvited is only reasonable because stopping it
+        // costs one press and keeps what it found.
+        //
+        // The editor is replaced rather than pushed over, so backing out of the resolve reaches
+        // the set, and backing out of that reaches the list exactly once.
+        return ScreenCommand.ReplaceThenOpen(
+            SetsScreens.Detail(_session, added.Set!.Name, null),
+            SetsScreens.Resolve(_session, [added.Set], null));
     }
 
     /// <summary>Names the set after what it points at, unless somebody named it themselves.</summary>

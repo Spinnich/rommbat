@@ -34,7 +34,11 @@ public enum ScreenCommandKind
 /// meaningless by what just happened: deleting a set leaves its detail screen describing
 /// something that no longer exists, so the confirmation and the detail go together.
 /// </param>
-public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Screen = null, int Depth = 1)
+public readonly record struct ScreenCommand(
+    ScreenCommandKind Kind,
+    IScreen? Screen = null,
+    int Depth = 1,
+    IScreen? Then = null)
 {
     public static ScreenCommand Stay => new(ScreenCommandKind.Stay);
 
@@ -42,6 +46,17 @@ public readonly record struct ScreenCommand(ScreenCommandKind Kind, IScreen? Scr
 
     /// <summary>Closes this screen and the ones under it that it invalidated.</summary>
     public static ScreenCommand PopMany(int depth) => new(ScreenCommandKind.Pop, null, depth);
+
+    /// <summary>
+    /// Swaps this screen for one, then opens another over it.
+    /// </summary>
+    /// <remarks>
+    /// For a step that both finishes and starts something. Creating a set lands on that set and
+    /// begins resolving it, and the set has to be underneath rather than beside it, or backing
+    /// out of the resolve would reach the list and skip the thing just made.
+    /// </remarks>
+    public static ScreenCommand ReplaceThenOpen(IScreen replacement, IScreen opened) =>
+        new(ScreenCommandKind.Replace, replacement, 1, opened);
 
     public static ScreenCommand Exit => new(ScreenCommandKind.Exit);
 

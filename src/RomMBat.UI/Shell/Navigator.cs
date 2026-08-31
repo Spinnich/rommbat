@@ -73,6 +73,14 @@ public sealed class Navigator
             case ScreenCommandKind.Replace when command.Screen is { } replacement:
                 (_screens[^1] as IDisposable)?.Dispose();
                 _screens[^1] = replacement;
+
+                // A step that both finishes and starts something leaves what it finished
+                // underneath, so backing out of what it started reaches it.
+                if (command.Then is { } opened)
+                {
+                    _screens.Add(opened);
+                }
+
                 _repeat.CarryNothingOver();
                 break;
 
