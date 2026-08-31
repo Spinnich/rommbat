@@ -158,9 +158,28 @@ public sealed class MediaSync
     /// Which games to consider. The caller passes the ones a sync just landed, so a run does
     /// not re-walk the whole install.
     /// </param>
+    /// <param name="reservedBytes">
+    /// How many bytes of ROM the caller still intends to fetch in this run.
+    /// </param>
+    /// <remarks>
+    /// <b>The reservation exists because artwork is now fetched a game at a time.</b> Room is
+    /// <c>cap - managed</c>, and <c>managed</c> is read from <c>local_file</c> when the call is
+    /// made. One call after every ROM had landed saw the true total; one call per game sees the
+    /// budget as it stands after only that game's ROM, with every later ROM still to come, so
+    /// early artwork spends what the plan had already earmarked. Measured against a live
+    /// instance before this parameter existed: a 1 MB budget finished 703 KB over it, where the
+    /// pass it replaced finished at 1023.3 KB of 1 MB.
+    /// <para>
+    /// <b>This is a reservation for ROMs, not for media, and the difference is why it can
+    /// exist.</b> A ROM's size is on the member row and the plan already has it. Media has no
+    /// size until it is fetched, because RomM publishes none on the rom row, which is exactly
+    /// why the fix for #102 was to interleave rather than to reserve.
+    /// </para>
+    /// </remarks>
     public async Task<MediaSyncOutcome> ApplyAsync(
         IReadOnlyCollection<int> romIds,
         IProgress<string>? progress = null,
+        long reservedBytes = 0,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(romIds);
@@ -178,8 +197,16 @@ public sealed class MediaSync
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
+        // Recomputed from local_file on every call. Fine at tens of games, which is one query
+        // per game; an install syncing thousands would want this hoisted into the caller and
+        // carried across games instead.
         var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
-        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor);
+
+        // The ROMs still to come are spoken for, against both bounds. Without this the last
+        // game in a plan finds its budget already spent on the first game's artwork.
+        managed += reservedBytes;
+
+        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedBytes);
         var budgetExhausted = false;
 
         foreach (var romId in romIds.Distinct())

@@ -255,10 +255,16 @@ public sealed class GameSync
             }
 
             // Straight after this game's ROMs, before the next game's. The whole point of #102.
+            //
+            // The ROMs still ahead are passed as a reservation. Artwork is bounded by what the
+            // budget has left, and interleaving moved that reading to a moment when most of the
+            // run's ROMs are not yet on disk to be counted: without this, a 1 MB budget was
+            // measured finishing 703 KB over it.
             var fetched = await artwork
                 .ApplyAsync(
                     [.. game.RomIds],
                     new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
+                    RemainingRomBytes(plan, walked),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -291,6 +297,20 @@ public sealed class GameSync
         int total) =>
         new Immediate<ContentSyncProgress>(step =>
             progress.Report(new ContentProgressed(step with { Index = offset + step.Index, Total = total })));
+
+    /// <summary>
+    /// How many bytes of ROM this run still intends to fetch, from the given step onwards.
+    /// </summary>
+    /// <remarks>
+    /// Only <see cref="ContentAction.Download"/> and <see cref="ContentAction.Resume"/> count.
+    /// A step that is already present or adopted is on disk and already in <c>local_file</c>,
+    /// and a blocked one is never fetched at all, so counting either would reserve room twice.
+    /// </remarks>
+    private static long RemainingRomBytes(ContentPlan plan, int from) =>
+        plan.Steps
+            .Skip(from)
+            .Where(step => step.Action is ContentAction.Download or ContentAction.Resume)
+            .Sum(step => step.BytesToTransfer);
 
     /// <summary>Takes back every file this run placed for one game, and the rows with them.</summary>
     private void RollBack(

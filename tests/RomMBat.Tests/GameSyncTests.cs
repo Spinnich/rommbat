@@ -181,6 +181,47 @@ public sealed class GameSyncTests : IDisposable
         AssertGone(3, "Second (Disc 2).chd");
     }
 
+    [Fact]
+    public async Task Interleaved_artwork_never_spends_the_budget_the_remaining_roms_are_owed()
+    {
+        // Found by a live probe, not by reading, and it is the cost of the interleave rather
+        // than a slip. Room is `cap - managed`, and `managed` is read from local_file when the
+        // call is made. One media pass after every ROM had landed saw the true total; one pass
+        // per game sees the budget as it stands after only that game's ROM, with every later
+        // ROM still to come. Early artwork then spends what the plan had already earmarked.
+        //
+        // Measured against a live instance before the reservation existed: a 1 MB budget
+        // finished 703 KB over, where the pass it replaced finished at 1023.3 KB of 1 MB.
+        using var stub = Library((1, "First.chd"), (2, "Second.chd"), (3, "Third.chd"));
+
+        foreach (var romId in new[] { 1, 2, 3 })
+        {
+            stub.Media[$"/assets/romm/resources/roms/1/{romId}/cover/big.png"] = new byte[2048];
+        }
+
+        // Three 1 KB ROMs, 2 KB of artwork each, and a cap with 1000 bytes to spare over the
+        // ROMs. The numbers are chosen so the first game's artwork alone would take more than
+        // the budget has left once the other two ROMs are counted: without the reservation the
+        // first game sees 3,048 bytes free, spends 2,048 of it, and the two ROMs behind it push
+        // the run 1,048 bytes past the cap.
+        var cap = (3 * 1024L) + 1000;
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, cap, Now);
+
+        var outcome = await RunAsync(stub);
+
+        var managed = _session.Store.Files.List()
+            .Where(file => file.Origin == FileOrigin.Synced)
+            .Sum(file => file.SizeBytes);
+
+        Assert.True(
+            managed <= cap,
+            $"the run took {managed} bytes against a {cap} byte budget, so the artwork spent "
+                + "what the ROMs after it were owed");
+
+        // And the ROMs still all landed, which is the half the reservation is protecting.
+        Assert.Equal(3, outcome.Content.Downloaded);
+    }
+
     // ------------------------------------------------------------------ the three fences
 
     [Fact]
