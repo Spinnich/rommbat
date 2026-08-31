@@ -2891,6 +2891,15 @@ deliberate", which is a set by another name.
 Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
 whatever the two stages before it turn up.
 
+**The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
+for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
+unmapped platform is currently found out by a resolve stopping partway through a collection
+that happened to contain one of its games, and the only repair from the interface is a per-set
+folder override, which is the wrong shape: the mapping is install-wide and `platform_map`
+already holds it. So the status screen should say how many platforms are unmapped, and the
+mapping screen should be reachable from there, before a sync is attempted rather than after one
+fails.
+
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.

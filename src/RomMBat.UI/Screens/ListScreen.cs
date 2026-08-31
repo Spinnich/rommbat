@@ -33,14 +33,18 @@ public sealed record ListRow(string Label, string? Value = null, string? Detail 
 /// broken, and the alternative is a user paging back up through forty systems.
 /// </para>
 /// </remarks>
-public sealed class ListScreen : IScreen, IReturnAware
+public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
     private readonly string _acceptLabel;
     private readonly FooterHint[] _extra;
 
+    private readonly CancellationTokenSource _load = new();
+
     private IReadOnlyList<ListRow> _current;
+    private bool _disposed;
+    private bool _started;
 
     /// <param name="choose">What Accept on a row does. Only called for an available row.</param>
     /// <param name="acceptLabel">
@@ -129,6 +133,102 @@ public sealed class ListScreen : IScreen, IReturnAware
     /// failure as promising an action that does not exist, pointed the other way.
     /// </remarks>
     public bool AlwaysOfferAccept { get; init; }
+
+    /// <summary>
+    /// Work that has to finish before the rows mean anything.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because some of these lists come from the server, and asking blocks.</b> The
+    /// collection picker, the filter facets and the platform counts are all one request, and
+    /// the filter values are computed across the whole library: measured in minutes on an
+    /// 88,000-rom instance, not seconds. Fetching those on the thread that draws meant the
+    /// interface stopped responding for the duration, with nothing on screen saying why, which
+    /// from the couch is indistinguishable from a crash.
+    /// <para>
+    /// Set this and the screen opens immediately saying it is loading, fills in when the work
+    /// lands, and stays leavable throughout. Same shape as the resolve screen, and the reason
+    /// <see cref="ILiveScreen"/> exists.
+    /// </para>
+    /// </remarks>
+    public Func<CancellationToken, Task<string?>>? Load { get; init; }
+
+    /// <summary>What to say while <see cref="Load"/> runs.</summary>
+    public string LoadingMessage { get; init; } = "Asking RomM.";
+
+    /// <summary>True until the loader has finished, or immediately when there is none.</summary>
+    public bool IsLoading { get; private set; }
+
+    /// <summary>Why the load failed, when it did.</summary>
+    public string? LoadProblem { get; private set; }
+
+    public event EventHandler? Invalidated;
+
+    /// <summary>Starts the loader. Called by whoever pushes the screen.</summary>
+    /// <remarks>
+    /// Not started in the constructor, so a screen can be built and inspected in a test without
+    /// reaching for a network, and so the caller decides when the work begins.
+    /// </remarks>
+    public ListScreen Started() => Begin(hideRows: true);
+
+    /// <summary>
+    /// Starts the loader without hiding the rows behind a loading state.
+    /// </summary>
+    /// <remarks>
+    /// For a list that is already correct before the work finishes and only gets richer after
+    /// it. The platform picker reads its rows from <c>platform_map</c> with no network, and the
+    /// game counts are enrichment; showing "loading" over rows that are already there would
+    /// trade a working screen for a spinner.
+    /// </remarks>
+    public ListScreen Enriching() => Begin(hideRows: false);
+
+    private ListScreen Begin(bool hideRows)
+    {
+        if (Load is null || IsLoading || _started)
+        {
+            return this;
+        }
+
+        _started = true;
+        IsLoading = hideRows;
+
+        _ = Task.Run(
+            async () =>
+            {
+                try
+                {
+                    LoadProblem = await Load(_load.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Left before it finished, which is the point of it being cancellable.
+                    return;
+                }
+                finally
+                {
+                    IsLoading = false;
+                    Returned();
+
+                    // Raised from whatever thread did the work. The shell marshals it.
+                    Invalidated?.Invoke(this, EventArgs.Empty);
+                }
+            },
+            CancellationToken.None);
+
+        return this;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        // Cancelled, never disposed: a request still unwinding can register on this token.
+        _load.Cancel();
+    }
 
     public IReadOnlyList<FooterHint> Hints
     {

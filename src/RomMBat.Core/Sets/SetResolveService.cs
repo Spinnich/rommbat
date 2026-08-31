@@ -109,6 +109,15 @@ public sealed class SetResolveService
 
         foreach (var set in sets)
         {
+            // Which set, and which of how many. Resolving five sets reported only a running
+            // count of games, so from the couch it looked like one long operation that kept
+            // restarting.
+            var position = reports.Count + 1;
+            var relay = progress is null
+                ? null
+                : new Immediate<SetResolveProgress>(step => progress.Report(
+                    step with { SetIndex = position, SetCount = sets.Count }));
+
             var endpoint = EndpointFor(set);
             var cursor = _session.Store.Cursors.BeginWalk(endpoint, DateTimeOffset.UtcNow);
             var startOffset = cursor.ResumeOffset ?? 0;
@@ -126,7 +135,7 @@ public sealed class SetResolveService
             try
             {
                 resolution = await resolver
-                    .ResolveAsync(set, pager, walkStartedAt, carried, progress, cancellationToken)
+                    .ResolveAsync(set, pager, walkStartedAt, carried, relay, cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (RomMUnreachableException ex)

@@ -5,6 +5,7 @@ using RomMBat.Core;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using RomMBat.UI.Input;
 using RomMBat.UI.Screens;
@@ -54,25 +55,17 @@ public sealed class SetsScreenTests : IDisposable
 
         var navigator = new Navigator(Status());
 
-        // Start on the status screen opens the sets list. Nothing here uses a mouse, and
-        // nothing here types except the name, which is the on-screen keyboard.
+        // Start on the status screen opens the sets list, Start again opens the editor.
         navigator.Handle(NavAction.Start);
         Assert.IsType<ListScreen>(navigator.Current);
 
-        // Start again opens the editor for a new set.
         navigator.Handle(NavAction.Start);
         var editor = Assert.IsType<SetEditorViewModel>(navigator.Current);
         Assert.True(editor.IsNew);
 
-        // Name it.
-        navigator.Handle(NavAction.Accept);
-        var keyboard = Assert.IsType<OnScreenKeyboard>(navigator.Current);
-        Type(navigator, keyboard, "snes");
-        Assert.Same(editor, navigator.Current);
-
-        // Scope: the second row, already Platform, so step down to the platform row instead.
-        navigator.Handle(NavAction.Down);
-        navigator.Handle(NavAction.Down);
+        // Pick the platform. There is no name to type: a platform is named by RomM already and
+        // the set takes that name, so this whole flow is pick and create.
+        MoveTo(editor, "Platform");
         navigator.Handle(NavAction.Accept);
 
         var platforms = Assert.IsType<ListScreen>(navigator.Current);
@@ -80,15 +73,15 @@ public sealed class SetsScreenTests : IDisposable
         navigator.Handle(NavAction.Accept);
         Assert.Same(editor, navigator.Current);
 
-        // A cap, stepped rather than typed.
-        navigator.Handle(NavAction.Down);
-        navigator.Handle(NavAction.Right);
-
         navigator.Handle(NavAction.Start);
 
-        // Back on the list, with the set defined.
+        // Back on the list, with the set defined and named after what it mirrors. The on-screen
+        // keyboard was never opened.
         Assert.IsType<ListScreen>(navigator.Current);
-        Assert.Contains(new SyncSetService(_session).List(), summary => summary.Set.Name == "snes");
+
+        var made = new SyncSetService(_session).List();
+        Assert.Single(made);
+        Assert.Equal(new SyncSetService(_session).PlatformsKnownHere()[0].Label, made[0].Set.Name);
     }
 
     [Fact]
@@ -379,7 +372,7 @@ public sealed class SetsScreenTests : IDisposable
         Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
 
         // A filter is the one scope that is not a mirror of something RomM has already named.
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
         MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Filter));
         scopes.Handle(NavAction.Accept);
 
@@ -480,17 +473,18 @@ public sealed class SetsScreenTests : IDisposable
 
         var editor = SetEditorViewModel.ForNew(_session);
 
-        // A platform and a collection both already have a name in RomM, so making somebody
-        // spell one out on a d-pad to mirror it is work for nothing. This is also what takes
-        // the on-screen keyboard off the common path entirely.
-        Assert.Equal("named after what you choose", editor.Rows.Single(r => r.Label == "Name").Value);
+        // No Name row at all: a platform and a collection are named by RomM already, and making
+        // somebody spell one out on a d-pad to mirror it is work for nothing. The name is only
+        // observable once the set exists.
+        Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
 
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, 2));
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
         picker.Handle(NavAction.Accept);
+        editor.Handle(NavAction.Start);
 
-        var named = editor.Rows.Single(r => r.Label == "Name").Value;
-        Assert.NotEqual("named after what you choose", named);
-        Assert.Equal(new SyncSetService(_session).PlatformsKnownHere()[0].Label, named);
+        var made = new SyncSetService(_session).List();
+        Assert.Single(made);
+        Assert.Equal(new SyncSetService(_session).PlatformsKnownHere()[0].Label, made[0].Set.Name);
     }
 
     [Fact]
@@ -511,11 +505,11 @@ public sealed class SetsScreenTests : IDisposable
         var typed = editor.Rows.Single(row => row.Label == "Name").Value;
         Assert.NotEqual("not set", typed);
 
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
         MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Platform));
         scopes.Handle(NavAction.Accept);
 
-        var platforms = Assert.IsType<ListScreen>(OpenRow(editor, 1));
+        var platforms = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
         platforms.Handle(NavAction.Accept);
 
         // A platform set shows no Name row at all, so what it was named can only be read off
@@ -626,17 +620,21 @@ public sealed class SetsScreenTests : IDisposable
         var editor = FilterEditor();
         MoveTo(editor, FilterFacet.Genres);
 
-        // This install is not paired, so no facet values can be read. An empty picker would be
-        // a row that goes nowhere; a sentence is at least true.
-        var opened = editor.Handle(NavAction.Accept).Screen;
-        Assert.IsType<MessageScreen>(opened);
+        using var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
+
+        // A list rather than a message, because whether there are any values is not known until
+        // the server answers, and finding that out on the drawing thread is what froze the
+        // interface. The sentence is the empty message instead, shown once the load lands.
+        Assert.Empty(picker.Rows);
+        Assert.NotNull(picker.EmptyMessage);
+        Assert.Contains("genres", picker.EmptyMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
     private SetEditorViewModel FilterEditor()
     {
         var editor = SetEditorViewModel.ForNew(_session);
-        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, "Scope"));
 
         // Walked by label rather than by counting presses. The cursor skips unavailable rows,
         // so pressing down N times does not land on index N, and virtual collections are
@@ -686,6 +684,70 @@ public sealed class SetsScreenTests : IDisposable
 
         Assert.Fail($"no row labelled '{label}' among [{string.Join(", ", editor.Rows.Select(r => r.Label))}]");
         return -1;
+    }
+
+    // ---- nothing waits on the network while it is drawing ----
+
+    [Fact]
+    public void A_picker_that_asks_the_server_opens_at_once_and_says_it_is_loading()
+    {
+        var editor = FilterEditor();
+        MoveTo(editor, FilterFacet.Genres);
+
+        // The filter values are worked out by RomM across every game in the library, which is
+        // minutes on a large one. Fetching that on the thread that draws froze the interface
+        // with nothing on screen saying why, which from the couch is a crash.
+        var clock = Stopwatch.StartNew();
+        var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
+        clock.Stop();
+
+        Assert.True(
+            clock.ElapsedMilliseconds < 500,
+            $"opening the facet picker took {clock.ElapsedMilliseconds} ms, so it waited on something");
+
+        Assert.NotEmpty(picker.LoadingMessage);
+        Assert.Contains(NavAction.Back, picker.Hints.Select(hint => hint.Action));
+    }
+
+    [Fact]
+    public void A_loading_picker_is_still_leavable()
+    {
+        var editor = FilterEditor();
+        MoveTo(editor, FilterFacet.Genres);
+
+        using var picker = Assert.IsType<ListScreen>(editor.Handle(NavAction.Accept).Screen);
+
+        // The whole point of not blocking. A screen that cannot be left while it waits is the
+        // same as a frozen one for anybody holding a controller.
+        Assert.Equal(ScreenCommandKind.Pop, picker.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
+    public void The_platform_picker_shows_its_rows_before_any_counts_arrive()
+    {
+        SeedPlatform(4, "snes");
+        SeedPlatform(9, "megadrive");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        var picker = Assert.IsType<ListScreen>(OpenRow(editor, "Platform"));
+
+        // Read from platform_map with no network, so the rows are right from the first frame.
+        // The game counts are enrichment, and hiding a working list behind a spinner to wait
+        // for a decoration would be a bad trade.
+        Assert.False(picker.IsLoading);
+        Assert.Equal(2, picker.Rows.Count);
+    }
+
+    [Fact]
+    public void Resolving_several_sets_says_which_one_it_is_on()
+    {
+        // Reporting only a running count of games made five sets read as one long operation
+        // that kept starting over.
+        var progress = new SetResolveProgress("PSX", 250, 9196, 250, SetIndex: 2, SetCount: 5);
+
+        Assert.Equal(2, progress.SetIndex);
+        Assert.Equal(5, progress.SetCount);
+        Assert.Equal("PSX", progress.SetName);
     }
 
     // ---- offline is a working state ----
@@ -838,12 +900,13 @@ public sealed class SetsScreenTests : IDisposable
         };
 
         // The pickers, which are reached from the editor rather than constructed directly.
+        // Named rather than numbered: which rows exist depends on the scope, and asking for an
+        // index that no longer exists is what made this hang.
         var editor = SetEditorViewModel.ForNew(_session);
 
-        foreach (var action in new[] { 0, 1, 2 })
+        foreach (var label in editor.Rows.Select(row => row.Label).ToList())
         {
-            var opened = OpenRow(editor, action);
-            if (opened is not null)
+            if (OpenRow(editor, label) is { } opened)
             {
                 screens.Add(opened);
             }
@@ -855,14 +918,20 @@ public sealed class SetsScreenTests : IDisposable
         return screens;
     }
 
-    /// <summary>Opens the picker behind row <paramref name="row"/> of a new-set editor.</summary>
-    private static IScreen? OpenRow(SetEditorViewModel editor, int row)
+    /// <summary>
+    /// Opens whatever the row with this label leads to.
+    /// </summary>
+    /// <remarks>
+    /// <b>By label and bounded, for the second time.</b> This asked for a row by index and
+    /// spun the cursor until it matched, which stops being reachable the moment the editor's
+    /// rows change: dropping the caps took it from five rows to two, and asking for index 2
+    /// left it stepping between 0 and 1 for ever. The same defect was fixed in
+    /// <see cref="MoveTo(ListScreen, string)"/> and left standing here, which is what made one
+    /// test take 68 seconds.
+    /// </remarks>
+    private static IScreen? OpenRow(SetEditorViewModel editor, string label)
     {
-        while (editor.Cursor != row)
-        {
-            editor.Handle(NavAction.Down);
-        }
-
+        MoveTo(editor, label);
         return editor.Handle(NavAction.Accept).Screen;
     }
 

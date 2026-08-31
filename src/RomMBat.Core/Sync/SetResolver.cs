@@ -29,7 +29,13 @@ public enum ResolutionOutcome
 /// <param name="Scanned">Rows folded in so far, which is what a person watches move.</param>
 /// <param name="Total">Rows the server says the scope matches, or 0 before the first page.</param>
 /// <param name="Offset">Where a resumed walk would restart, which is what the cursor records.</param>
-public readonly record struct SetResolveProgress(string SetName, int Scanned, int Total, int Offset)
+public readonly record struct SetResolveProgress(
+    string SetName,
+    int Scanned,
+    int Total,
+    int Offset,
+    int SetIndex = 1,
+    int SetCount = 1)
 {
     /// <summary>Null until the first page has told us how big the scope is.</summary>
     public double? Fraction => Total > 0 ? Math.Clamp((double)Scanned / Total, 0, 1) : null;

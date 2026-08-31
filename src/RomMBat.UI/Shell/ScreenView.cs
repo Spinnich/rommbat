@@ -363,11 +363,27 @@ internal static class ScreenView
             });
         }
 
+        if (list.IsLoading)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = list.LoadingMessage,
+                Foreground = Muted,
+                FontSize = 20,
+                MaxWidth = 760,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+
+            return stack;
+        }
+
         if (list.Rows.Count == 0)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = list.EmptyMessage ?? "Nothing here.",
+                Text = list.LoadProblem ?? list.EmptyMessage ?? "Nothing here.",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -634,6 +650,17 @@ internal static class ScreenView
             TextAlignment = TextAlignment.Center,
             HorizontalAlignment = HorizontalAlignment.Center,
         });
+
+        if (resolve.Progressing is { } where)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = where,
+                Foreground = Ink,
+                FontSize = 21,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
 
         if (resolve.Counted is { } counted)
         {

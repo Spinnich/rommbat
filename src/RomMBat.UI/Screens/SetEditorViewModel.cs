@@ -343,10 +343,6 @@ public sealed class SetEditorViewModel : IScreen
                 _collectionLabel = null;
                 Cursor = 0;
 
-                if (_scope == CatalogScopeKind.Filter)
-                {
-                    _facetValues ??= FacetValues();
-                }
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this");
@@ -355,21 +351,23 @@ public sealed class SetEditorViewModel : IScreen
     private ListScreen PlatformPicker()
     {
         var platforms = new SyncSetService(_session).PlatformsKnownHere();
+        IReadOnlyDictionary<int, (int Games, long Bytes)> facts = new Dictionary<int, (int, long)>();
 
-        // Enrichment, never a requirement: the picker is answerable offline from platform_map,
-        // and a server that cannot be reached costs the counts rather than the screen.
-        var facts = PlatformFacts();
-
-        return new ListScreen(
-            "Which platform?",
-            [.. platforms.Select(option => new ListRow(
+        IReadOnlyList<ListRow> Rows() =>
+        [
+            .. platforms.Select(option => new ListRow(
                 option.Label,
                 facts.TryGetValue(option.PlatformId, out var fact)
                     ? $"{fact.Games:N0} games, {ByteSize.Format(fact.Bytes)}"
                     : option.Folder ?? "no folder yet",
                 option.Folder is null
                     ? option.Note
-                    : facts.ContainsKey(option.PlatformId) ? $"into {option.Folder}" : null))],
+                    : facts.ContainsKey(option.PlatformId) ? $"into {option.Folder}" : null)),
+        ];
+
+        return new ListScreen(
+            "Which platform?",
+            Rows,
             index =>
             {
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
@@ -382,7 +380,28 @@ public sealed class SetEditorViewModel : IScreen
         {
             EmptyMessage = "This device has not seen RomM's platform list yet. Sync once, and "
                 + "the platforms it knows appear here.",
-        };
+
+            // Enriching rather than Started: the rows are right from the first frame, read from
+            // platform_map with no network, and the counts only make them richer. Hiding a
+            // working list behind a spinner to wait for a decoration is a bad trade.
+            Load = async token =>
+            {
+                var attempt = _session.Authenticate();
+
+                if (attempt.Connection is null)
+                {
+                    return null;
+                }
+
+                using var connection = attempt.Connection;
+
+                facts = await new CatalogScopeService(connection)
+                    .ListPlatformFactsAsync(token)
+                    .ConfigureAwait(false);
+
+                return null;
+            },
+        }.Enriching();
     }
 
     private ScreenCommand Toggle()
@@ -399,20 +418,11 @@ public sealed class SetEditorViewModel : IScreen
     /// Accept toggles and stays, which is why <see cref="ListScreen"/> re-reads its rows after
     /// a choice that does not navigate.
     /// </remarks>
-    private IScreen FacetPicker(string facet)
+    private ListScreen FacetPicker(string facet)
     {
-        var available = _facetValues is { } values && values.TryGetValue(facet, out var list)
-            ? list
-            : [];
-
-        if (available.Count == 0)
-        {
-            return new MessageScreen(
-                facet,
-                $"This library reports no {facet.ToLowerInvariant()} to filter by.");
-        }
-
         var chosen = _facets[facet];
+        IReadOnlyList<string> available =
+            _facetValues is { } known && known.TryGetValue(facet, out var seeded) ? seeded : [];
 
         IReadOnlyList<ListRow> Rows() =>
             [.. available.Select(value => new ListRow(value, chosen.Contains(value) ? "chosen" : null))];
@@ -436,7 +446,34 @@ public sealed class SetEditorViewModel : IScreen
             backLabel: "Done")
         {
             Note = $"Games matching any of the {facet.ToLowerInvariant()} chosen here.",
-        };
+
+            // Said plainly, because it is slow and the reason is not the user's fault. RomM
+            // works the values out across every game in the library, and this is measured in
+            // minutes on an 88,000-rom instance rather than seconds.
+            LoadingMessage = "Asking RomM what this library can be filtered by. On a large "
+                + "library this takes a while: the values are worked out across every game.",
+            EmptyMessage = $"This library reports no {facet.ToLowerInvariant()} to filter by.",
+
+            // Fetched once for the whole editor. Opening a second facet is instant.
+            Load = _facetValues is not null ? null : async token =>
+            {
+                var attempt = _session.Authenticate();
+
+                if (attempt.Connection is null)
+                {
+                    return attempt.Problem ?? "This install is not paired with a RomM server.";
+                }
+
+                using var connection = attempt.Connection;
+
+                _facetValues = await new CatalogScopeService(connection)
+                    .ListFilterValuesAsync(token)
+                    .ConfigureAwait(false);
+
+                available = _facetValues.TryGetValue(facet, out var loaded) ? loaded : [];
+                return null;
+            },
+        }.Started();
     }
 
     /// <summary>What a facet row shows: nothing, one value, or how many.</summary>
@@ -446,42 +483,6 @@ public sealed class SetEditorViewModel : IScreen
         1 => chosen.First(),
         _ => string.Create(CultureInfo.CurrentCulture, $"{chosen.Count} chosen"),
     };
-
-    /// <summary>The facet values this library offers, or an empty map when offline.</summary>
-    private IReadOnlyDictionary<string, IReadOnlyList<string>> FacetValues()
-    {
-        var attempt = _session.Authenticate();
-
-        if (attempt.Connection is null)
-        {
-            return new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        }
-
-        using var connection = attempt.Connection;
-
-        return new CatalogScopeService(connection)
-            .ListFilterValuesAsync()
-            .GetAwaiter()
-            .GetResult();
-    }
-
-    /// <summary>How big each platform is, or an empty map when the server cannot be reached.</summary>
-    private IReadOnlyDictionary<int, (int Games, long Bytes)> PlatformFacts()
-    {
-        var attempt = _session.Authenticate();
-
-        if (attempt.Connection is null)
-        {
-            return new Dictionary<int, (int, long)>();
-        }
-
-        using var connection = attempt.Connection;
-
-        return new CatalogScopeService(connection)
-            .ListPlatformFactsAsync()
-            .GetAwaiter()
-            .GetResult();
-    }
 
     /// <summary>
     /// The systems this install actually has, read live from <c>es_systems.cfg</c>.
@@ -500,41 +501,18 @@ public sealed class SetEditorViewModel : IScreen
     /// to name. An unreachable server is a message on the screen rather than an empty list,
     /// because an empty list would read as "you have no collections".
     /// </remarks>
-    private IScreen CollectionPicker()
+    private ListScreen CollectionPicker()
     {
-        var attempt = _session.Authenticate();
+        IReadOnlyList<ScopeValueOption> options = [];
 
-        if (attempt.Connection is null)
-        {
-            return new MessageScreen(
-                "Collections",
-                attempt.Problem ?? "This install is not paired with a RomM server.");
-        }
+        IReadOnlyList<ListRow> Rows() =>
+            [.. options.Select(option => new ListRow(option.Label, option.Detail))];
 
-        using var connection = attempt.Connection;
-
-        var values = new CatalogScopeService(connection)
-            .ListAsync(_scope)
-            .GetAwaiter()
-            .GetResult();
-
-        if (values.IsRefused)
-        {
-            return new MessageScreen("Collections", values.Problem!);
-        }
-
-        if (values.Options.Count == 0)
-        {
-            return new MessageScreen(
-                "Collections",
-                $"This RomM has no {SyncSetStore.ScopeText(_scope)} to choose from.");
-        }
-
-        var options = values.Options;
+        var scope = _scope;
 
         return new ListScreen(
             "Which collection?",
-            [.. options.Select(option => new ListRow(option.Label, option.Detail))],
+            Rows,
             index =>
             {
                 _collectionValue = options[index].Value;
@@ -542,7 +520,29 @@ public sealed class SetEditorViewModel : IScreen
                 Suggest(options[index].Label);
                 return ScreenCommand.Pop;
             },
-            acceptLabel: "Use this");
+            acceptLabel: "Use this")
+        {
+            LoadingMessage = "Asking RomM which collections it has.",
+            EmptyMessage = $"This RomM has no {SyncSetStore.ScopeText(scope)} to choose from.",
+            Load = async token =>
+            {
+                var attempt = _session.Authenticate();
+
+                if (attempt.Connection is null)
+                {
+                    return attempt.Problem ?? "This install is not paired with a RomM server.";
+                }
+
+                using var connection = attempt.Connection;
+
+                var values = await new CatalogScopeService(connection)
+                    .ListAsync(scope, token)
+                    .ConfigureAwait(false);
+
+                options = values.Options;
+                return values.Problem;
+            },
+        }.Started();
     }
 
     private ListScreen FolderPicker()

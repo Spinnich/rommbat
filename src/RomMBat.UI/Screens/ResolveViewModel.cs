@@ -105,6 +105,22 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// <summary>How many rows have been read, and out of how many, once the server has said.</summary>
     public SetResolveProgress? Progress => _progress;
 
+    /// <summary>
+    /// Which set is being walked, and which of how many.
+    /// </summary>
+    /// <remarks>
+    /// Resolving several reported only a running count of games, so from the couch it read as
+    /// one long operation that kept starting over rather than as five in a row.
+    /// </remarks>
+    public string? Progressing =>
+        _progress is { } step
+            ? step.SetCount > 1
+                ? string.Create(
+                    CultureInfo.CurrentCulture,
+                    $"{step.SetName}  ({step.SetIndex} of {step.SetCount})")
+                : step.SetName
+            : null;
+
     /// <summary>The count as a person reads it, or null before the first page.</summary>
     public string? Counted =>
         _progress is { Total: > 0 } progress
