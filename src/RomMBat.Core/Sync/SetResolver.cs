@@ -277,6 +277,22 @@ public sealed class SetResolver
                 // still the last page that completed and this page is simply read again.
                 break;
             }
+            catch (RomMUnreachableException unreachable)
+            {
+                // Stopped, not thrown, for the same reason cancellation is (#104). This was the
+                // one exit of the three that unwound the stack, and the accumulator went with
+                // the frame: the offset was still saved, so the next walk resumed at the right
+                // page with nothing carried, completed, and its completion sweep retired every
+                // game the lost segment had found. On a handheld that drops its wifi mid-walk
+                // that is the ordinary path rather than the unlucky one.
+                //
+                // Reported as a failed page so the resolution comes out Interrupted carrying
+                // the server's own sentence, which is what the caller already prints.
+                failure = RomMResponse.Failure<RomPage>(
+                    RomMResponseStatus.ServerError,
+                    unreachable.Message);
+                break;
+            }
 
             if (!response.IsSuccess)
             {

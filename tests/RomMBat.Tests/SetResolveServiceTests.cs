@@ -129,6 +129,55 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_walk_the_server_drops_keeps_the_membership_that_segment_found()
+    {
+        // #104. The three ways a walk can stop were not treated alike: a cancel and an HTTP
+        // failure both break out of the page loop and arrive at Record with the accumulator
+        // intact, and only RomMUnreachableException unwound the stack, taking the games found
+        // so far with the frame. The offset still advanced, so the next walk resumed at the
+        // right page with nothing carried and completed short, retiring everything before it.
+        //
+        // On a handheld that drops its wifi mid-walk this is the ordinary path, not the
+        // unlucky one.
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+        var set = Set();
+
+        await new SetResolveService(_session, connection).ResolveAsync(
+            [set],
+            new Immediate<SetResolveProgress>(progress =>
+            {
+                // The link goes after the first page lands, so one segment's worth of members
+                // is in the accumulator when the next request throws.
+                if (progress.Offset >= 250)
+                {
+                    stub.IsReachable = false;
+                }
+            }),
+            TestContext.Current.CancellationToken);
+
+        var afterDrop = _session.Store.SyncSets.Members(_session.Store.SyncSets.Find("resume")!.Id);
+
+        Assert.True(
+            afterDrop.Count >= 250,
+            $"the dropped walk kept {afterDrop.Count} members, so the segment it found was lost");
+
+        stub.IsReachable = true;
+
+        await new SetResolveService(_session, connection).ResolveAsync(
+            [set],
+            new Immediate<SetResolveProgress>(_ => { }),
+            TestContext.Current.CancellationToken);
+
+        // Both segments, which is the whole claim. The second walk completes and its
+        // completion sweep retires anything the set no longer holds, so a first segment that
+        // was never written is a first segment permanently gone.
+        var complete = _session.Store.SyncSets.Members(_session.Store.SyncSets.Find("resume")!.Id);
+
+        Assert.Equal(600, complete.Count);
+    }
+
+    [Fact]
     public async Task A_resumed_walk_keeps_the_exclusions_the_first_segment_found()
     {
         // The shape a real collection has: most rows sync, some are refused for a reason worth
