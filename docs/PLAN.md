@@ -2906,6 +2906,16 @@ nothing and can do nothing, so returning to the list left the person one press s
 they had just described. Starting minutes of network work uninvited is only reasonable because
 stopping costs one press and keeps what it found.
 
+**A set defined from the interface roams, and the resolve is what mirrors it.** `sets add` and
+`sets resolve` both push `Device.sync_config`; the editor pushed nothing, so the same action
+persisted differently depending on which front end took it, and a second device paired against
+the same server found none of the sets made from the couch. The push hangs off the resolve
+screen rather than off the save, because creating and editing both land there and it is the one
+place with somewhere to say the push failed. Best effort as everywhere else: its own connection,
+never on the screen's cancellation token, and a failure is a note appended to the result rather
+than an error. Roaming is the mechanism M2 gave set definitions, and the front end with no
+prompt is the one that needs it most.
+
 ###### 7b-2b: the sync run
 
 Sync from the interface with progress, cancellation and eviction. The first thing in this

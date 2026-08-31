@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Globalization;
+using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
+using RomMBat.Core.Identity;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
@@ -25,6 +27,7 @@ namespace RomMBat.Tests;
 public sealed class SetsScreenTests : IDisposable
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 30, 12, 0, 0, TimeSpan.Zero);
+    private static readonly Uri Origin = new("https://romm.invalid/");
 
     private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
     private readonly InstallSession _session;
@@ -1072,6 +1075,47 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Equal(ResolveStage.NotPaired, resolve.Stage);
         Assert.NotEmpty(resolve.Detail);
         Assert.Equal(ScreenCommandKind.Pop, resolve.Handle(NavAction.Back).Kind);
+    }
+
+    [Fact]
+    public async Task Resolving_from_the_interface_mirrors_the_definitions_the_way_the_agent_does()
+    {
+        // Both `sets add` and `sets resolve` push Device.sync_config, and the interface pushed
+        // nothing at all: a set defined from the couch stayed on the device that defined it,
+        // while the identical set defined at a prompt followed its user to the next one. Same
+        // action, two front ends, different persistence. Roaming is the mechanism M2 gave set
+        // definitions, so the front end that has no prompt is the one that needs it most.
+        var set = Seed("roaming");
+
+        using var stub = new StubRomMServer();
+        stub.ThenApproved(RomMScopes.Requested, "device-77");
+
+        using var pairing = new RomMConnection(new RomMClientOptions { Origin = Origin }, stub);
+        var service = new PairingService(_tree.Install(), _session.Store);
+
+        var begun = await service.BeginAsync(pairing, cancellationToken: TestContext.Current.CancellationToken);
+        var paired = await service.CompleteAsync(
+            pairing,
+            begun,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(paired.IsPaired);
+
+        var pushed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        using var resolve = new ResolveViewModel(
+            _session,
+            set,
+            _ => new RomMConnection(new RomMClientOptions { Origin = Origin }, stub),
+            _ =>
+            {
+                pushed.TrySetResult();
+                return Task.FromResult(new RoamingPush(true, null));
+            });
+
+        // Bounded rather than polled. The walk against an empty stub library is one request,
+        // and the mirror follows it whatever the walk found.
+        await pushed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
     // ---- rule 1 ----

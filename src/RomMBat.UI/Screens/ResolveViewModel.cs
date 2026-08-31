@@ -60,24 +60,33 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     private readonly IReadOnlyList<SyncSetDefinition> _sets;
     private readonly CancellationTokenSource _run = new();
 
+    private readonly Func<CancellationToken, Task<RoamingPush>> _roam;
+
     private SetResolveProgress? _progress;
     private Task? _walk;
+    private Task? _roaming;
     private bool _disposed;
 
     /// <param name="connect">
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the
     /// way <see cref="Screens.PairingViewModel"/> already does.
     /// </param>
+    /// <param name="roam">
+    /// How the definitions are mirrored once the walk is over. Taken for the same reason, since
+    /// <see cref="RoamingConfigService"/> opens its own connection out of the store.
+    /// </param>
     public ResolveViewModel(
         InstallSession session,
         IReadOnlyList<SyncSetDefinition> sets,
-        Func<Uri, RomMConnection>? connect = null)
+        Func<Uri, RomMConnection>? connect = null,
+        Func<CancellationToken, Task<RoamingPush>>? roam = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(sets);
 
         _session = session;
         _sets = sets;
+        _roam = roam ?? (token => new RoamingConfigService(session).PushAsync(cancellationToken: token));
 
         Start(connect);
     }
@@ -86,8 +95,9 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     public ResolveViewModel(
         InstallSession session,
         SyncSetDefinition set,
-        Func<Uri, RomMConnection>? connect = null)
-        : this(session, [set], connect)
+        Func<Uri, RomMConnection>? connect = null,
+        Func<CancellationToken, Task<RoamingPush>>? roam = null)
+        : this(session, [set], connect, roam)
     {
         ArgumentNullException.ThrowIfNull(set);
     }
@@ -245,6 +255,31 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         finally
         {
             connection.Dispose();
+        }
+
+        // Mirrored into Device.sync_config exactly as `sets resolve` does. Without this a set
+        // defined from the couch never followed its user: `sets add` roamed, the editor did
+        // not, and the same action persisted differently depending on which front end took it.
+        // Run whatever the walk did, including after a stop, because the definition exists
+        // either way and roaming it is not the thing that was stopped.
+        _roaming = Task.Run(RoamAsync, CancellationToken.None);
+    }
+
+    /// <summary>Mirrors the definitions, and says so only when it could not.</summary>
+    /// <remarks>
+    /// <b>Not on this screen's token, and not waited on by <see cref="Dispose"/>.</b> The push
+    /// is best effort by contract: it opens its own connection, returns every failure as a note
+    /// and throws none, so a screen that has been left can abandon it. Dispose's bounded wait
+    /// stays what its comment says it is, the walk's two SQLite writes.
+    /// </remarks>
+    private async Task RoamAsync()
+    {
+        var push = await _roam(CancellationToken.None).ConfigureAwait(false);
+
+        if (push.Note is { } note)
+        {
+            Detail = $"{Detail} {note}";
+            Raise();
         }
     }
 
