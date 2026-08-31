@@ -2843,11 +2843,36 @@ no cap values at all rather than the cleared ones a hidden row would have produc
 in RomM, so a platform or collection set is pick, pick, create, and the on-screen keyboard is
 off the common path entirely.
 
-**A resolve is minutes-long work, and that is measured.** A platform scope of 9,196 roms took
-**8 minutes 15 seconds** against a live 5.2.0 instance. So the resolve screen shows a count
-that moves, and cancelling records the offset and resumes rather than discarding the paging.
-The same measurement moved #88 into this stage: `with_rom_id_index` now follows the scope,
-which is where three and a half of those eight minutes were.
+**A filter scope is a saved search rather than a name match.** Genres, regions, languages,
+tags, franchises and favourites, each a multi-select over the values the live library reports
+through `with_filter_values`, which is the single job that sidecar exists for and which M2
+wrote `GetFilterValuesAsync` to serve. Those six are what `CatalogFilter` can persist, roam
+through `Device.sync_config` and replay against a server that has never seen this device;
+offering one of RomM's other four would be a picker that forgets.
+
+**A scope that can be picked has to be completable.** Virtual collections are offered and
+disabled, because that route needs a `type` parameter the pinned 5.2.0 schema declares as a
+bare string with no enumeration, and inventing a list of likely values is the vendor-id table
+the input work threw out. A test asserts the general rule: every scope offered as pickable has
+something that can produce its value.
+
+**A resolve is minutes-long work, and both ends of that are measured.** A platform scope of
+9,196 roms took **8 minutes 15 seconds** against a live 5.2.0 instance before #88, and a
+collection of 4,773 took about **2 minutes 30 seconds** after it. So the resolve screen shows a
+count that moves, names the set it is on and which of how many, and can be stopped.
+
+**Stopping keeps what it found, and that took two attempts to get right.** Recording the cursor
+was never the hard part; `SetResolver` threw on cancellation instead of returning, so the
+membership that segment had accumulated was never written and the next walk resumed at the
+right page with an empty accumulator. Cancellation is an interruption now, exactly as this
+type's own remarks had claimed since the seam landed. Progress is reported on the walk's offset
+rather than the segment's own count, or a resumed bar restarts at nothing while the work is
+real.
+
+**Creating a set lands on it and starts resolving.** A set that has never resolved holds
+nothing and can do nothing, so returning to the list left the person one press short of what
+they had just described. Starting minutes of network work uninvited is only reasonable because
+stopping costs one press and keeps what it found.
 
 ###### 7b-2b: the sync run
 
