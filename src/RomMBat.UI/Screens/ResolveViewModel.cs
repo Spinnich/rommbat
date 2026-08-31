@@ -220,8 +220,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             // Not a failure. The offset is recorded and the next resolve continues from it,
             // which is the whole reason stopping is offered at all.
             Stage = ResolveStage.Stopped;
+
+            // The last report is the set that was interrupted, because reports are appended in
+            // walk order and the cancel is raised straight after the current set is recorded.
+            // Reports[0] named set one of three while set three was the one that stopped.
             Detail = cancelled.Reports.Count > 0
-                ? $"Stopped. {cancelled.Reports[0].Summary}"
+                ? $"Stopped. {cancelled.Reports[^1].Summary}"
                 : "Stopped. The next resolve continues from here.";
             Raise();
         }
