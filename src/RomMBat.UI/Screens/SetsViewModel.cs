@@ -74,12 +74,25 @@ public static class SetsScreens
         };
     }
 
-    private static ListRow ToRow(SetSummary summary) =>
-        new(
+    /// <summary>
+    /// One set as the list shows it.
+    /// </summary>
+    /// <remarks>
+    /// The caps are named only when there are any. Every set made from the interface has none,
+    /// so quoting the policy on every row spent a third of the line saying "no game cap, no size
+    /// cap" about sets that never had one.
+    /// </remarks>
+    private static ListRow ToRow(SetSummary summary)
+    {
+        var capped = summary.Set.MaxGames is not null || summary.Set.MaxBytes is not null;
+
+        return new ListRow(
             summary.Set.Name,
             $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
-            $"{SyncSetStore.ScopeText(summary.Set.Scope)}; {summary.Policy}; "
+            $"{SyncSetStore.ScopeText(summary.Set.Scope)}; "
+                + (capped ? $"{summary.Policy}; " : string.Empty)
                 + $"last resolved {Moment(summary.Set.LastResolvedAt)}");
+    }
 
     /// <summary>One set: what it holds, and the three things that can be done to it.</summary>
     public static IScreen Detail(InstallSession session, string name, Func<Uri, RomMConnection>? connect)
@@ -137,10 +150,17 @@ public static class SetsScreens
         var rows = new List<ListRow>
         {
             new("Scope", ScopeValue(session, detail.Set), null, false),
-            new("Limits", detail.Policy, null, false),
             new("Holds", $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}", null, false),
             new("Last resolved", Moment(detail.Set.LastResolvedAt), detail.Set.LastResolutionSummary, false),
         };
+
+        // Only when there is one. Every set made from the interface has no caps now, so the row
+        // said "no game cap, no size cap" on every one of them, which is a line of noise that
+        // outlived the feature it described. A set given caps from the console still shows them.
+        if (detail.Set.MaxGames is not null || detail.Set.MaxBytes is not null)
+        {
+            rows.Insert(1, new ListRow("Limits", detail.Policy, null, false));
+        }
 
         // Shown rather than hidden, so a user can see in RomM what to fix. An exclusion is a
         // fact about the last resolution, not something on disk.

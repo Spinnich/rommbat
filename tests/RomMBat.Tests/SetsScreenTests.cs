@@ -365,7 +365,63 @@ public sealed class SetsScreenTests : IDisposable
         Assert.DoesNotContain(editor.Rows, row => row.Label is "Most games" or "Most space" or "Keep first");
         Assert.All(editor.Rows, row => Assert.False(row.Steps));
 
-        Assert.Equal(["Name", "Scope", "Platform"], editor.Rows.Select(row => row.Label));
+        // No Name row either. A platform and a collection are named by RomM already, and the
+        // set takes that name, so only a filter needs one typed.
+        Assert.Equal(["Scope", "Platform"], editor.Rows.Select(row => row.Label));
+    }
+
+    [Fact]
+    public void Only_a_filter_set_asks_for_a_name()
+    {
+        SeedPlatform(4, "snes");
+
+        var editor = SetEditorViewModel.ForNew(_session);
+        Assert.DoesNotContain(editor.Rows, row => row.Label == "Name");
+
+        // A filter is the one scope that is not a mirror of something RomM has already named.
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Filter));
+        scopes.Handle(NavAction.Accept);
+
+        Assert.Contains(editor.Rows, row => row.Label == "Name");
+        Assert.Contains(editor.Rows, row => row.Label == "Search for");
+    }
+
+    [Fact]
+    public void A_set_with_no_caps_does_not_spend_a_line_saying_so()
+    {
+        SeedPlatform(4, "snes");
+
+        var uncapped = new SyncSetService(_session).Add(
+            new SetDraft { Name = "uncapped", Scope = CatalogScopeKind.Platform, ScopeValue = "4" },
+            Now).Set!;
+
+        var detail = Assert.IsType<ListScreen>(SetsScreens.Detail(_session, uncapped.Name, null));
+        Assert.DoesNotContain(detail.Rows, row => row.Label == "Limits");
+
+        var list = Assert.IsType<ListScreen>(SetsScreens.List(_session));
+        Assert.DoesNotContain("no game cap", list.Rows[0].Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_set_that_does_have_caps_still_shows_them()
+    {
+        SeedPlatform(4, "snes");
+
+        var capped = new SyncSetService(_session).Add(
+            new SetDraft
+            {
+                Name = "capped",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "4",
+                MaxGames = 40,
+            },
+            Now).Set!;
+
+        // The interface cannot make one, but sets add can, and hiding a limit somebody set
+        // would leave them wondering why their set stopped at forty.
+        var detail = Assert.IsType<ListScreen>(SetsScreens.Detail(_session, capped.Name, null));
+        Assert.Contains(detail.Rows, row => row.Label == "Limits");
     }
 
     [Fact]
@@ -441,21 +497,35 @@ public sealed class SetsScreenTests : IDisposable
     public void A_name_somebody_typed_is_not_overwritten_by_a_later_choice()
     {
         SeedPlatform(4, "snes");
-        SeedPlatform(9, "megadrive");
 
-        var editor = SetEditorViewModel.ForNew(_session);
+        // Only a filter scope offers a name to type, so that is the path that can produce a
+        // hand-typed one. Switching back to a platform afterwards must not silently replace it:
+        // overwriting a name somebody entered is worse than never asking for one.
+        var editor = FilterEditor();
+        MoveTo(editor, "Name");
 
-        var keyboard = Assert.IsType<OnScreenKeyboard>(OpenRow(editor, 0));
+        var keyboard = Assert.IsType<OnScreenKeyboard>(editor.Handle(NavAction.Accept).Screen);
         keyboard.Handle(NavAction.Accept);
         keyboard.Handle(NavAction.Start);
 
-        var typed = editor.Rows.Single(r => r.Label == "Name").Value;
+        var typed = editor.Rows.Single(row => row.Label == "Name").Value;
+        Assert.NotEqual("not set", typed);
 
-        var picker = Assert.IsType<ListScreen>(OpenRow(editor, 2));
-        picker.Handle(NavAction.Accept);
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Platform));
+        scopes.Handle(NavAction.Accept);
 
-        // Silently replacing a name somebody entered would be worse than asking for one.
-        Assert.Equal(typed, editor.Rows.Single(r => r.Label == "Name").Value);
+        var platforms = Assert.IsType<ListScreen>(OpenRow(editor, 1));
+        platforms.Handle(NavAction.Accept);
+
+        // A platform set shows no Name row at all, so what it was named can only be read off
+        // the set once it exists. That is the assertion that matters anyway: the picker
+        // suggests a name for a set that has none, and this one has one.
+        editor.Handle(NavAction.Start);
+
+        var made = new SyncSetService(_session).List();
+        Assert.Single(made);
+        Assert.Equal(typed, made[0].Set.Name);
     }
 
     [Fact]
@@ -506,6 +576,116 @@ public sealed class SetsScreenTests : IDisposable
         // An empty list offering to resolve everything is a footer promising a no-op.
         Assert.Empty(Assert.IsType<ListScreen>(list).Rows);
         Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Alternate).Kind);
+    }
+
+    [Fact]
+    public void A_filter_offers_the_facets_it_can_persist_and_no_others()
+    {
+        var editor = FilterEditor();
+
+        // RomM returns ten facets in filter_values. These are the ones CatalogFilter can store,
+        // roam through sync_config and replay against a server that has never seen this device.
+        // Offering one that cannot be saved would be a picker that forgets.
+        var labels = editor.Rows.Select(row => row.Label).ToList();
+
+        Assert.Contains("Search for", labels);
+        Assert.Contains(FilterFacet.Favourites, labels);
+        Assert.DoesNotContain("Companies", labels);
+        Assert.DoesNotContain("Age ratings", labels);
+        Assert.DoesNotContain("Player counts", labels);
+    }
+
+    [Fact]
+    public void A_filter_with_nothing_set_says_it_matches_everything()
+    {
+        var editor = FilterEditor();
+
+        // Worth saying before it happens rather than after a resolve walks the whole library.
+        Assert.Contains(
+            editor.Rows,
+            row => row.Detail is { } detail
+                && detail.Contains("matches the whole library", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Favourites_toggles_in_place_rather_than_opening_a_screen()
+    {
+        var editor = FilterEditor();
+        var row = MoveTo(editor, FilterFacet.Favourites);
+
+        Assert.Equal("no", editor.Rows[row].Value);
+
+        // A yes or no is not worth a screen, and Accept is what acts on a row.
+        Assert.Equal(ScreenCommandKind.Stay, editor.Handle(NavAction.Accept).Kind);
+        Assert.Equal("yes", editor.Rows[row].Value);
+    }
+
+    [Fact]
+    public void A_facet_with_no_values_in_this_library_says_so_rather_than_opening_an_empty_list()
+    {
+        var editor = FilterEditor();
+        MoveTo(editor, FilterFacet.Genres);
+
+        // This install is not paired, so no facet values can be read. An empty picker would be
+        // a row that goes nowhere; a sentence is at least true.
+        var opened = editor.Handle(NavAction.Accept).Screen;
+        Assert.IsType<MessageScreen>(opened);
+    }
+
+    /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
+    private SetEditorViewModel FilterEditor()
+    {
+        var editor = SetEditorViewModel.ForNew(_session);
+        var scopes = Assert.IsType<ListScreen>(OpenRow(editor, 0));
+
+        // Walked by label rather than by counting presses. The cursor skips unavailable rows,
+        // so pressing down N times does not land on index N, and virtual collections are
+        // unavailable. Counting put the cursor on the wrong scope and the test that followed
+        // then searched for a row that did not exist.
+        MoveTo(scopes, SyncSetStore.ScopeText(CatalogScopeKind.Filter));
+        scopes.Handle(NavAction.Accept);
+
+        return editor;
+    }
+
+    /// <summary>
+    /// Walks a list's cursor onto the row with this label, and fails rather than spinning.
+    /// </summary>
+    /// <remarks>
+    /// Bounded on purpose. An unbounded walk looking for a row that is not there does not fail
+    /// the test, it hangs the whole run, which is what it did.
+    /// </remarks>
+    private static int MoveTo(ListScreen list, string label)
+    {
+        for (var step = 0; step <= list.Rows.Count; step++)
+        {
+            if (list.Cursor >= 0 && list.Rows[list.Cursor].Label == label)
+            {
+                return list.Cursor;
+            }
+
+            list.Handle(NavAction.Down);
+        }
+
+        Assert.Fail($"no row labelled '{label}' among [{string.Join(", ", list.Rows.Select(r => r.Label))}]");
+        return -1;
+    }
+
+    /// <summary>The same, for the editor, which has its own cursor.</summary>
+    private static int MoveTo(SetEditorViewModel editor, string label)
+    {
+        for (var step = 0; step <= editor.Rows.Count; step++)
+        {
+            if (editor.Rows[editor.Cursor].Label == label)
+            {
+                return editor.Cursor;
+            }
+
+            editor.Handle(NavAction.Down);
+        }
+
+        Assert.Fail($"no row labelled '{label}' among [{string.Join(", ", editor.Rows.Select(r => r.Label))}]");
+        return -1;
     }
 
     // ---- offline is a working state ----

@@ -4,6 +4,33 @@ using RomM.Client.Catalog;
 
 namespace RomMBat.Core.Sets;
 
+/// <summary>
+/// The filter facets RomMBat can store, which is fewer than RomM offers.
+/// </summary>
+/// <remarks>
+/// RomM returns ten in <c>filter_values</c>. These five plus favourites are what
+/// <see cref="CatalogFilter"/> persists, and a facet that cannot be saved is a picker that
+/// forgets, so the others are not offered.
+/// </remarks>
+public static class FilterFacet
+{
+    public const string Genres = "Genres";
+
+    public const string Regions = "Regions";
+
+    public const string Languages = "Languages";
+
+    public const string Tags = "Tags";
+
+    public const string Franchises = "Franchises";
+
+    /// <summary>Favourites are collection membership in RomM, so this is a yes or no.</summary>
+    public const string Favourites = "Favourites only";
+
+    /// <summary>The multi-select facets, in the order a picker offers them.</summary>
+    public static IReadOnlyList<string> Multi { get; } = [Genres, Regions, Languages, Tags, Franchises];
+}
+
 /// <summary>One value a scope could take, as a picker shows it.</summary>
 /// <param name="Value">What gets stored as the set's scope value.</param>
 /// <param name="Detail">How big it is, so a person can tell two similarly named ones apart.</param>
@@ -101,6 +128,97 @@ public sealed class CatalogScopeService
             return new ScopeValues([], ex.Message);
         }
     }
+
+    /// <summary>
+    /// How many games each platform holds and how much room they take, by RomM platform id.
+    /// </summary>
+    /// <remarks>
+    /// <b>Enrichment, never a requirement.</b> The platform picker is answerable offline from
+    /// <c>platform_map</c>, and it stays that way: a caller that cannot reach the server shows
+    /// the platforms with no counts rather than showing nothing. The local map has no room for
+    /// these without a migration, and a count that is one sync stale is worse than one fetched
+    /// when the picker opens.
+    /// <para>
+    /// One <c>GET /api/platforms</c>, measured at 424 KB and 0.40 s for a 123-platform library.
+    /// <c>PlatformRow</c> rather than the generated DTO, whose <c>fs_size_bytes</c> is an
+    /// <c>int32</c> and overflows on the first platform of a real library.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<int, (int Games, long Bytes)>> ListPlatformFactsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await _connection
+                .ListPlatformsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccess)
+            {
+                return new Dictionary<int, (int, long)>();
+            }
+
+            return response.Value!
+                .GroupBy(row => row.Id)
+                .ToDictionary(group => group.Key, group => (group.First().RomCount, group.First().SizeBytes));
+        }
+        catch (RomMUnreachableException)
+        {
+            return new Dictionary<int, (int, long)>();
+        }
+    }
+
+    /// <summary>
+    /// The values each filter facet can take, read from the library itself.
+    /// </summary>
+    /// <remarks>
+    /// <b>The sidecar this repository turns off everywhere else, used for the one job it is
+    /// for.</b> <c>with_filter_values</c> costs a flat 841 KB and is refused on every page of a
+    /// walk; here it is a single request at <c>limit=1</c> when the filter editor opens, which
+    /// is what <see cref="RomMConnection.GetFilterValuesAsync"/> was built for and what its
+    /// comment has said since M2.
+    /// <para>
+    /// Only the facets <see cref="CatalogFilter"/> can persist are returned. RomM offers ten;
+    /// the six here are the ones that survive being stored, roamed through
+    /// <c>Device.sync_config</c> and replayed against a server that has never seen this device.
+    /// Offering a facet that cannot be saved would be a picker that forgets.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ListFilterValuesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var empty = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
+        try
+        {
+            var response = await _connection
+                .GetFilterValuesAsync(new CatalogQuery { Scope = CatalogScopeKind.Filter }, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!response.IsSuccess || response.Value is not { } values)
+            {
+                return empty;
+            }
+
+            return new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+            {
+                [FilterFacet.Genres] = Sorted(values.Genres),
+                [FilterFacet.Regions] = Sorted(values.Regions),
+                [FilterFacet.Languages] = Sorted(values.Languages),
+                [FilterFacet.Tags] = Sorted(values.Tags),
+                [FilterFacet.Franchises] = Sorted(values.Franchises),
+            };
+        }
+        catch (RomMUnreachableException)
+        {
+            return empty;
+        }
+    }
+
+    private static IReadOnlyList<string> Sorted(IEnumerable<string>? values) =>
+        [.. (values ?? []).Where(v => !string.IsNullOrWhiteSpace(v))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(v => v, StringComparer.CurrentCultureIgnoreCase)];
 
     private static ScopeValues From<T>(
         RomMResponse<ICollection<T>> response,

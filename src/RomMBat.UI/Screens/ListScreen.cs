@@ -181,7 +181,19 @@ public sealed class ListScreen : IScreen, IReturnAware
                 return ScreenCommand.Stay;
 
             case NavAction.Accept when Cursor >= 0 && Rows[Cursor].Available:
-                return _choose(Cursor);
+            {
+                var answer = _choose(Cursor);
+
+                // A choice that stays put has changed something this list shows, which is what
+                // makes a multi-select possible without a second screen kind: the rows are a
+                // factory, so re-reading them is how a tick appears next to what was chosen.
+                if (answer.Kind == ScreenCommandKind.Stay)
+                {
+                    Returned();
+                }
+
+                return answer;
+            }
 
             case NavAction.Back:
                 return ScreenCommand.Pop;

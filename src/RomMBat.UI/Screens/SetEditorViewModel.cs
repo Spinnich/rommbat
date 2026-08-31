@@ -43,6 +43,24 @@ public sealed class SetEditorViewModel : IScreen
     private string? _platformLabel;
     private string? _platformFolder;
     private string? _searchTerm;
+
+    /// <summary>
+    /// What each multi-select facet currently holds.
+    /// </summary>
+    /// <remarks>
+    /// Kept as sets rather than as a <see cref="CatalogFilter"/> so a picker can toggle one
+    /// value without rebuilding the record, and turned into the filter only on save.
+    /// </remarks>
+    private readonly Dictionary<string, HashSet<string>> _facets =
+        FilterFacet.Multi.ToDictionary(
+            facet => facet,
+            _ => new HashSet<string>(StringComparer.CurrentCultureIgnoreCase),
+            StringComparer.Ordinal);
+
+    private bool _favouritesOnly;
+
+    /// <summary>The facet values this library offers, fetched once when a filter is chosen.</summary>
+    private IReadOnlyDictionary<string, IReadOnlyList<string>>? _facetValues;
     private string? _collectionValue;
     private string? _collectionLabel;
 
@@ -104,6 +122,13 @@ public sealed class SetEditorViewModel : IScreen
     /// is right depends on the romset the file came from. A set that already carries an
     /// override keeps showing it, so one made from the console stays visible and changeable.
     /// </remarks>
+    /// <summary>True when a filter would match everything, which is worth saying before it does.</summary>
+    private bool IsEmptyFilter =>
+        _scope == CatalogScopeKind.Filter
+        && string.IsNullOrWhiteSpace(_searchTerm)
+        && !_favouritesOnly
+        && _facets.Values.All(chosen => chosen.Count == 0);
+
     public bool NeedsFolderChoice =>
         _folder is not null
         || (_scope == CatalogScopeKind.Platform && _platformValue is not null && _platformFolder is null);
@@ -124,11 +149,6 @@ public sealed class SetEditorViewModel : IScreen
 
             if (IsNew)
             {
-                rows.Add(new EditorRow(
-                    "Name",
-                    _name.Length == 0 ? "named after what you choose" : _name,
-                    null,
-                    false));
                 rows.Add(new EditorRow("Scope", SyncSetStore.ScopeText(_scope), null, false));
 
                 if (_scope == CatalogScopeKind.Platform)
@@ -145,10 +165,40 @@ public sealed class SetEditorViewModel : IScreen
                 }
                 else if (_scope == CatalogScopeKind.Filter)
                 {
+                    // The only scope that needs a name typed, because it is the only one that
+                    // is not a mirror of something RomM has already named.
+                    rows.Add(new EditorRow(
+                        "Name",
+                        _name.Length == 0 ? "not set" : _name,
+                        null,
+                        false));
+
                     rows.Add(new EditorRow(
                         "Search for",
                         string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
-                        "A filter with nothing set matches the whole library.",
+                        null,
+                        false));
+
+                    // The facets, so a filter is a saved search rather than a name match. A
+                    // facet this library has no values for is left out: a picker that opens on
+                    // an empty list is a row that goes nowhere.
+                    foreach (var facet in FilterFacet.Multi)
+                    {
+                        if (_facetValues is { } values
+                            && values.TryGetValue(facet, out var available)
+                            && available.Count == 0
+                            && _facets[facet].Count == 0)
+                        {
+                            continue;
+                        }
+
+                        rows.Add(new EditorRow(facet, Describe(_facets[facet]), null, false));
+                    }
+
+                    rows.Add(new EditorRow(
+                        FilterFacet.Favourites,
+                        _favouritesOnly ? "yes" : "no",
+                        IsEmptyFilter ? "A filter with nothing set matches the whole library." : null,
                         false));
                 }
             }
@@ -255,6 +305,10 @@ public sealed class SetEditorViewModel : IScreen
 
         "Folder" => ScreenCommand.Push(FolderPicker()),
 
+        FilterFacet.Favourites => Toggle(),
+
+        _ when FilterFacet.Multi.Contains(label) => ScreenCommand.Push(FacetPicker(label)),
+
         _ => ScreenCommand.Stay,
     };
 
@@ -288,6 +342,11 @@ public sealed class SetEditorViewModel : IScreen
                 _collectionValue = null;
                 _collectionLabel = null;
                 Cursor = 0;
+
+                if (_scope == CatalogScopeKind.Filter)
+                {
+                    _facetValues ??= FacetValues();
+                }
                 return ScreenCommand.Pop;
             },
             acceptLabel: "Use this");
@@ -297,12 +356,20 @@ public sealed class SetEditorViewModel : IScreen
     {
         var platforms = new SyncSetService(_session).PlatformsKnownHere();
 
+        // Enrichment, never a requirement: the picker is answerable offline from platform_map,
+        // and a server that cannot be reached costs the counts rather than the screen.
+        var facts = PlatformFacts();
+
         return new ListScreen(
             "Which platform?",
             [.. platforms.Select(option => new ListRow(
                 option.Label,
-                option.Folder ?? "no folder yet",
-                option.Folder is null ? option.Note : null))],
+                facts.TryGetValue(option.PlatformId, out var fact)
+                    ? $"{fact.Games:N0} games, {ByteSize.Format(fact.Bytes)}"
+                    : option.Folder ?? "no folder yet",
+                option.Folder is null
+                    ? option.Note
+                    : facts.ContainsKey(option.PlatformId) ? $"into {option.Folder}" : null))],
             index =>
             {
                 _platformValue = platforms[index].PlatformId.ToString(CultureInfo.InvariantCulture);
@@ -316,6 +383,104 @@ public sealed class SetEditorViewModel : IScreen
             EmptyMessage = "This device has not seen RomM's platform list yet. Sync once, and "
                 + "the platforms it knows appear here.",
         };
+    }
+
+    private ScreenCommand Toggle()
+    {
+        _favouritesOnly = !_favouritesOnly;
+        return ScreenCommand.Stay;
+    }
+
+    /// <summary>
+    /// The values one facet can take, ticked as they are chosen.
+    /// </summary>
+    /// <remarks>
+    /// A multi-select rather than a pick-one, because a filter genuinely means "any of these".
+    /// Accept toggles and stays, which is why <see cref="ListScreen"/> re-reads its rows after
+    /// a choice that does not navigate.
+    /// </remarks>
+    private IScreen FacetPicker(string facet)
+    {
+        var available = _facetValues is { } values && values.TryGetValue(facet, out var list)
+            ? list
+            : [];
+
+        if (available.Count == 0)
+        {
+            return new MessageScreen(
+                facet,
+                $"This library reports no {facet.ToLowerInvariant()} to filter by.");
+        }
+
+        var chosen = _facets[facet];
+
+        IReadOnlyList<ListRow> Rows() =>
+            [.. available.Select(value => new ListRow(value, chosen.Contains(value) ? "chosen" : null))];
+
+        return new ListScreen(
+            facet,
+            Rows,
+            index =>
+            {
+                var value = available[index];
+
+                if (!chosen.Remove(value))
+                {
+                    chosen.Add(value);
+                }
+
+                // Stays, so several can be picked without leaving and coming back.
+                return ScreenCommand.Stay;
+            },
+            acceptLabel: "Add or remove",
+            backLabel: "Done")
+        {
+            Note = $"Games matching any of the {facet.ToLowerInvariant()} chosen here.",
+        };
+    }
+
+    /// <summary>What a facet row shows: nothing, one value, or how many.</summary>
+    private static string Describe(HashSet<string> chosen) => chosen.Count switch
+    {
+        0 => "any",
+        1 => chosen.First(),
+        _ => string.Create(CultureInfo.CurrentCulture, $"{chosen.Count} chosen"),
+    };
+
+    /// <summary>The facet values this library offers, or an empty map when offline.</summary>
+    private IReadOnlyDictionary<string, IReadOnlyList<string>> FacetValues()
+    {
+        var attempt = _session.Authenticate();
+
+        if (attempt.Connection is null)
+        {
+            return new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        }
+
+        using var connection = attempt.Connection;
+
+        return new CatalogScopeService(connection)
+            .ListFilterValuesAsync()
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    /// <summary>How big each platform is, or an empty map when the server cannot be reached.</summary>
+    private IReadOnlyDictionary<int, (int Games, long Bytes)> PlatformFacts()
+    {
+        var attempt = _session.Authenticate();
+
+        if (attempt.Connection is null)
+        {
+            return new Dictionary<int, (int, long)>();
+        }
+
+        using var connection = attempt.Connection;
+
+        return new CatalogScopeService(connection)
+            .ListPlatformFactsAsync()
+            .GetAwaiter()
+            .GetResult();
     }
 
     /// <summary>
@@ -444,7 +609,16 @@ public sealed class SetEditorViewModel : IScreen
                     _ => _collectionValue,
                 },
                 Filter = _scope == CatalogScopeKind.Filter
-                    ? new CatalogFilter { SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm }
+                    ? new CatalogFilter
+                    {
+                        SearchTerm = string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+                        Genres = [.. _facets[FilterFacet.Genres]],
+                        Regions = [.. _facets[FilterFacet.Regions]],
+                        Languages = [.. _facets[FilterFacet.Languages]],
+                        Tags = [.. _facets[FilterFacet.Tags]],
+                        Franchises = [.. _facets[FilterFacet.Franchises]],
+                        Favorite = _favouritesOnly ? true : null,
+                    }
                     : null,
                 // No caps from here. The disk budget is the bound a person sets, and it is
                 // install-wide; a per-set cap made an optional refinement look like a decision
