@@ -129,6 +129,70 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_resumed_walk_keeps_the_exclusions_the_first_segment_found()
+    {
+        // The shape a real collection has: most rows sync, some are refused for a reason worth
+        // reporting. Measured on a live install, a resumed walk finished saying "1 skipped,
+        // format not supported" where the complete walk had said 92, because an earlier
+        // segment's exclusions are not carried and the completion sweep then retires them.
+        using var stub = new StubRomMServer();
+
+        for (var id = 1; id <= 600; id++)
+        {
+            // Every third rom carries an extension this system cannot launch.
+            var supported = id % 3 != 0;
+
+            stub.Library.Add(new StubRom(
+                id,
+                1,
+                "snes",
+                "snes",
+                $"Game {id:0000}",
+                supported ? $"g{id}.sfc" : $"g{id}.xyz",
+                supported ? "sfc" : "xyz",
+                1024));
+        }
+
+        using var connection = Connect(stub);
+
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "mixed",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "1",
+            },
+            Now);
+
+        using var cancel = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+            new SetResolveService(_session, connection).ResolveAsync(
+                [set],
+                new Immediate<SetResolveProgress>(p =>
+                {
+                    if (p.Offset >= 250)
+                    {
+                        cancel.Cancel();
+                    }
+                }),
+                cancel.Token));
+
+        await new SetResolveService(_session, connection).ResolveAsync(
+            [set], progress: null, TestContext.Current.CancellationToken);
+
+        var members = _session.Store.SyncSets.MemberTotals(set.Id).Games;
+        var skipped = _session.Store.SyncSets
+            .Exclusions(set.Id)
+            .Where(e => e.State == MemberState.ExcludedExtension)
+            .Sum(e => e.Count);
+
+        // 400 launchable, 200 refused on format, whether or not anybody stopped it half way.
+        Assert.Equal(400, members);
+        Assert.Equal(200, skipped);
+    }
+
+    [Fact]
     public void Progress_has_no_fraction_until_the_first_page_says_how_big_the_scope_is()
     {
         // Shown as a bare count rather than a bar until then. A progress bar that sits at zero
@@ -232,6 +296,37 @@ public sealed class SetResolveServiceTests : IDisposable
         using var stub = Library(600);
         using var connection = Connect(stub);
         var set = Set();
+
+        await ResumeKeepsEverything(stub, connection, set);
+    }
+
+    [Fact]
+    public async Task Resuming_an_uncapped_set_also_ends_with_every_game()
+    {
+        // The shape the interface makes. Per-set caps were dropped in this stage, so every set
+        // created from a screen is uncapped, and the capped path is the only one the resume was
+        // ever tested against.
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "uncapped",
+                Scope = CatalogScopeKind.Platform,
+                ScopeValue = "1",
+            },
+            Now);
+
+        await ResumeKeepsEverything(stub, connection, set);
+    }
+
+    private async Task ResumeKeepsEverything(
+        StubRomMServer stub,
+        RomMConnection connection,
+        SyncSetDefinition set)
+    {
+        _ = stub;
 
         using var cancel = new CancellationTokenSource();
 
