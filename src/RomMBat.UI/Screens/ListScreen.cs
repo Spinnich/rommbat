@@ -120,7 +120,6 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     public ListView Window => ListWindow.Compute(Cursor, Rows.Count);
 
 
-    /// <summary>An extra line under the title, when the list needs explaining.</summary>
     /// <summary>
     /// A line above the rows, or null.
     /// </summary>

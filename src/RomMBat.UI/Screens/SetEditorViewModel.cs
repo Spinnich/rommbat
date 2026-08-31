@@ -154,6 +154,13 @@ public sealed class SetEditorViewModel : IScreen
     /// <summary>True when this is defining a set rather than changing one.</summary>
     public bool IsNew => _existing is null;
 
+    /// <summary>True when a filter would match everything, which is worth saying before it does.</summary>
+    private bool IsEmptyFilter =>
+        _scope == CatalogScopeKind.Filter
+        && string.IsNullOrWhiteSpace(_searchTerm)
+        && _facets.Values.All(chosen => chosen.Count == 0)
+        && _properties.Values.All(value => value is null);
+
     /// <summary>
     /// True when this set has to be told which RetroBat folder it writes into.
     /// </summary>
@@ -163,13 +170,6 @@ public sealed class SetEditorViewModel : IScreen
     /// is right depends on the romset the file came from. A set that already carries an
     /// override keeps showing it, so one made from the console stays visible and changeable.
     /// </remarks>
-    /// <summary>True when a filter would match everything, which is worth saying before it does.</summary>
-    private bool IsEmptyFilter =>
-        _scope == CatalogScopeKind.Filter
-        && string.IsNullOrWhiteSpace(_searchTerm)
-        && _facets.Values.All(chosen => chosen.Count == 0)
-        && _properties.Values.All(value => value is null);
-
     public bool NeedsFolderChoice =>
         _folder is not null
         || (_scope == CatalogScopeKind.Platform && _platformValue is not null && _platformFolder is null);
@@ -659,14 +659,6 @@ public sealed class SetEditorViewModel : IScreen
     }
 
     /// <summary>
-    /// The systems this install actually has, read live from <c>es_systems.cfg</c>.
-    /// </summary>
-    /// <remarks>
-    /// The list and the validation are the same call into Core, so a picker cannot offer a
-    /// folder that the save then refuses. A test drives every offered folder through
-    /// <see cref="SyncSetService.Add"/> and requires it to be accepted.
-    /// </remarks>
-    /// <summary>
     /// The collections this RomM holds, fetched when the picker opens.
     /// </summary>
     /// <remarks>
@@ -719,6 +711,14 @@ public sealed class SetEditorViewModel : IScreen
         }.Started();
     }
 
+    /// <summary>
+    /// The systems this install actually has, read live from <c>es_systems.cfg</c>.
+    /// </summary>
+    /// <remarks>
+    /// The list and the validation are the same call into Core, so a picker cannot offer a
+    /// folder that the save then refuses. A test drives every offered folder through
+    /// <see cref="SyncSetService.Add"/> and requires it to be accepted.
+    /// </remarks>
     private ListScreen FolderPicker()
     {
         var folders = new SyncSetService(_session).FoldersKnownHere();
