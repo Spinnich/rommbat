@@ -3,6 +3,7 @@ using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Mapping;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -64,6 +65,84 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.False(raw.RootElement.TryGetProperty("rom_id_index", out var index) && index.GetArrayLength() > 0);
         Assert.False(raw.RootElement.TryGetProperty("char_index", out var chars) && chars.EnumerateObject().Any());
         Assert.True(raw.RootElement.TryGetProperty("total", out _), "with_total should still be on.");
+    }
+
+    [Fact]
+    public async Task The_filter_picker_gets_values_from_a_real_library()
+    {
+        Assert.SkipUnless(IsConfigured, NotConfigured);
+
+        var session = fixture.Session;
+
+        // The raw body first, so a failure here separates "the server sent nothing" from "we
+        // could not read what it sent". The filter editor showed every facet empty against a
+        // library whose JSON carries thousands of values, and only one of those two was true.
+        using var raw = await session.RawAsync(
+            "api/roms?" + new CatalogQuery { Scope = CatalogScopeKind.Filter }
+                .ToQueryString(limit: 1, offset: 0, withFilterValues: true),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(
+            raw.RootElement.TryGetProperty("filter_values", out var sidecar),
+            "with_filter_values did not produce the sidecar.");
+
+        Assert.SkipWhen(
+            sidecar.ValueKind != JsonValueKind.Object || !sidecar.EnumerateObject().Any(),
+            "This library reports no filter values at all.");
+
+        var response = await session.Connection.GetFilterValuesAsync(
+            new CatalogQuery { Scope = CatalogScopeKind.Filter },
+            TestContext.Current.CancellationToken);
+
+        Assert.SkipWhen(response.Status == RomMResponseStatus.Forbidden, "This account cannot read the library.");
+        Assert.True(response.IsSuccess, response.Message);
+
+        // Every facet the sidecar carried has to survive into the typed value. A count of zero
+        // where the JSON had entries is the shape of the defect this test exists for.
+        foreach (var facet in sidecar.EnumerateObject())
+        {
+            if (facet.Value.ValueKind != JsonValueKind.Array || facet.Value.GetArrayLength() == 0)
+            {
+                continue;
+            }
+
+            var read = facet.Name switch
+            {
+                "genres" => response.Value!.Genres.Count,
+                "franchises" => response.Value!.Franchises.Count,
+                "collections" => response.Value!.Collections.Count,
+                "companies" => response.Value!.Companies.Count,
+                "game_modes" => response.Value!.GameModes.Count,
+                "age_ratings" => response.Value!.AgeRatings.Count,
+                "player_counts" => response.Value!.PlayerCounts.Count,
+                "regions" => response.Value!.Regions.Count,
+                "languages" => response.Value!.Languages.Count,
+                "tags" => response.Value!.Tags.Count,
+                "platforms" => response.Value!.Platforms.Count,
+                _ => -1,
+            };
+
+            Assert.SkipWhen(read < 0, $"The schema has no property for '{facet.Name}'.");
+            Assert.True(
+                read == facet.Value.GetArrayLength(),
+                $"'{facet.Name}': the body carried {facet.Value.GetArrayLength()} and we read {read}");
+        }
+    }
+
+    [Fact]
+    public async Task The_facets_a_set_can_persist_reach_the_picker()
+    {
+        Assert.SkipUnless(IsConfigured, NotConfigured);
+
+        var session = fixture.Session;
+
+        var facets = await new CatalogScopeService(session.Connection)
+            .ListFilterValuesAsync(TestContext.Current.CancellationToken);
+
+        // One level up from the client, because this is what the editor actually calls and the
+        // screen said "This library reports no genres to filter by" on a library with 343.
+        Assert.NotEmpty(facets);
+        Assert.Contains(facets, facet => facet.Value.Count > 0);
     }
 
     [Fact]

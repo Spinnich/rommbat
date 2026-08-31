@@ -203,6 +203,18 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
                     // Left before it finished, which is the point of it being cancellable.
                     return;
                 }
+                catch (Exception ex)
+                {
+                    // A throw used to fault this task unobserved, so the screen drew its empty
+                    // message and told the user the library had none of what it had failed to
+                    // ask for. A filter picker said "this library reports no genres" against a
+                    // library with 343, because one ROM over 2 GiB broke the response.
+                    //
+                    // Broad on purpose. A loader talks to a server, a disk and a database, and
+                    // the alternative to catching everything here is drawing "nothing" for
+                    // whatever was not listed.
+                    LoadProblem = ex.Message;
+                }
                 finally
                 {
                     IsLoading = false;

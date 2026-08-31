@@ -637,6 +637,43 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Contains("genres", picker.EmptyMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task A_load_that_throws_says_what_went_wrong_rather_than_drawing_an_empty_list()
+    {
+        // The screen reported "this library reports no genres to filter by" against a library
+        // with 343 of them: the load threw, Task.Run swallowed it unobserved, LoadProblem
+        // stayed null and the empty message was all that was left to draw. An empty list and a
+        // failed request look identical to a user and must not look identical here.
+        using var screen = new ListScreen(
+            "Genres",
+            () => [],
+            _ => ScreenCommand.Stay)
+        {
+            EmptyMessage = "This library reports no genres to filter by.",
+            Load = _ => throw new InvalidOperationException("RomM could not be read."),
+        }.Started();
+
+        await Wait(() => !screen.IsLoading);
+
+        Assert.Equal("RomM could not be read.", screen.LoadProblem);
+    }
+
+    /// <summary>Waits for a background load to settle, bounded so a hang fails rather than hangs.</summary>
+    private static async Task Wait(Func<bool> until)
+    {
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            if (until())
+            {
+                return;
+            }
+
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Fail("The load never settled.");
+    }
+
     /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>
     private SetEditorViewModel FilterEditor()
     {
