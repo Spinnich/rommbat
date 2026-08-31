@@ -140,6 +140,18 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>Flip to false to make every subsequent call fail as a connect timeout.</summary>
     public bool IsReachable { get; set; } = true;
 
+    /// <summary>
+    /// Flip to true to answer every authenticated call 401, as a revoked or expired token does.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="IsReachable"/> because the two need opposite responses from
+    /// the app: an unreachable server is a working state that queues and retries, and a
+    /// rejected one is an identity change where retrying sends the same refused token. The
+    /// heartbeat and the pairing endpoints are left answering, since neither carries the token
+    /// being refused.
+    /// </remarks>
+    public bool RejectsToken { get; set; }
+
     /// <summary>What <c>GET /api/heartbeat</c> reports as <c>SYSTEM.VERSION</c>.</summary>
     public string ServerVersion { get; set; } = "5.2.0";
 
@@ -329,6 +341,11 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         if (path.EndsWith("/api/heartbeat", StringComparison.Ordinal))
         {
             return Heartbeat();
+        }
+
+        if (RejectsToken && !path.Contains("/api/auth/", StringComparison.Ordinal))
+        {
+            return Detail(HttpStatusCode.Unauthorized, "Not authenticated");
         }
 
         if (path.EndsWith("/api/auth/device/init", StringComparison.Ordinal))

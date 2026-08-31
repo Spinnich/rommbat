@@ -62,6 +62,16 @@ public sealed record SetResolution
 
     public required ResolutionOutcome Outcome { get; init; }
 
+    /// <summary>
+    /// True when the walk stopped because the server refused this device's identity.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from every other interruption because the recovery is different: nothing here
+    /// is worth trying again, and the only way on is to pair. 403 is deliberately not this, as
+    /// a missing scope is a fact about what this pairing may do rather than about the pairing.
+    /// </remarks>
+    public bool Rejected { get; init; }
+
     /// <summary>The games in the set, in the set's own order.</summary>
     public IReadOnlyList<SyncSetMember> Members { get; init; } = [];
 
@@ -374,6 +384,7 @@ public sealed class SetResolver
         {
             Set = set,
             Outcome = outcome,
+            Rejected = failure?.Status == RomMResponseStatus.Unauthorized,
             Members = members,
             Excluded = excluded,
             ScopeTotal = pager.Total ?? scanned,

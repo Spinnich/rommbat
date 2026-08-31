@@ -38,6 +38,17 @@ public sealed record ResolveReport(
 {
     /// <summary>True when the membership recorded is now a complete answer.</summary>
     public bool IsComplete => State == ResolveState.Resolved;
+
+    /// <summary>
+    /// True when the server refused this device rather than this request.
+    /// </summary>
+    /// <remarks>
+    /// The resolve is the first authenticated call a sync makes, so it is where a rejected
+    /// token is met in practice. Measured: driving a live 401 through the sync screen reported
+    /// <c>Incomplete</c> and told the user that syncing again would pick up where it left off,
+    /// which is false until they pair again.
+    /// </remarks>
+    public bool Rejected { get; init; }
 }
 
 /// <summary>
@@ -226,7 +237,10 @@ public sealed class SetResolveService
                 resolution.Problem,
                 pager.Offset,
                 pager.Total ?? 0,
-                _session.Store.SyncSets.Exclusions(set.Id));
+                _session.Store.SyncSets.Exclusions(set.Id))
+            {
+                Rejected = resolution.Rejected,
+            };
         }
 
         _session.Store.Cursors.CompleteWalk(endpoint, now);

@@ -282,6 +282,14 @@ public sealed class LibrarySyncService
                     return new SyncReport(SyncState.Refused, ran);
                 }
 
+                if (report.Rejected)
+                {
+                    // The resolve is the first authenticated call a sync makes, so a rejected
+                    // token is met here rather than in the content pass. Reported as what it
+                    // is: nothing about it is worth trying again, and the caller offers to pair.
+                    return new SyncReport(SyncState.Rejected, ran);
+                }
+
                 if (report.State == ResolveState.Interrupted)
                 {
                     return new SyncReport(SyncState.Incomplete, ran);

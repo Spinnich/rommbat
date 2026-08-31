@@ -247,6 +247,49 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_token_the_server_refuses_stops_the_run_and_offers_pairing()
+    {
+        // A 401 is an identity change, not a transient fault: every game after the first
+        // rejection would send the same refused token. So the run stops and the one thing a
+        // person can do about it is on the footer.
+        //
+        // The stage this reaches was measured before it was written. Driving a live 401 through
+        // this screen against the real server reported Incomplete and said "Syncing again picks
+        // up where this left off", which is false until the user pairs again. The resolve is the
+        // first authenticated call a sync makes, so that is where a refused token is met, and
+        // the rejection had to be carried out of the resolve rather than only out of the
+        // content pass.
+        using var stub = Library(2);
+        stub.RejectsToken = true;
+
+        Pair();
+        Seed("games", 2);
+
+        var opened = false;
+        var sync = new SyncViewModel(
+            _session,
+            Set(),
+            Connect(stub),
+            pair: () =>
+            {
+                opened = true;
+                return new MessageScreen("Pair", "here");
+            });
+
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Rejected, sync.State.Stage);
+        Assert.Contains("Pair again", sync.State.Detail, StringComparison.Ordinal);
+
+        // And nothing telling them to try again, which is the sentence the live probe caught.
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.True(opened);
+    }
+
+    [Fact]
     public async Task Nothing_any_of_these_screens_says_names_a_face_button()
     {
         // es_input.cfg's `x` is the button printed Y and its `y` is the one printed X, so a
