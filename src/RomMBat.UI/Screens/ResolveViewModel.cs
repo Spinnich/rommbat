@@ -61,6 +61,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     private readonly CancellationTokenSource _run = new();
 
     private SetResolveProgress? _progress;
+    private Task? _walk;
     private bool _disposed;
 
     /// <param name="connect">
@@ -126,9 +127,9 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         _progress is { Total: > 0 } progress
             ? string.Create(
                 CultureInfo.CurrentCulture,
-                $"{progress.Scanned:N0} of {progress.Total:N0} games looked at")
+                $"{progress.Offset:N0} of {progress.Total:N0} games looked at")
             : _progress is { } started
-                ? string.Create(CultureInfo.CurrentCulture, $"{started.Scanned:N0} games looked at")
+                ? string.Create(CultureInfo.CurrentCulture, $"{started.Offset:N0} games looked at")
                 : null;
 
     public IReadOnlyList<FooterHint> Hints => Stage switch
@@ -156,6 +157,23 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
         // Cancelled, never disposed. A walk still unwinding registers on this token.
         _run.Cancel();
+
+        // Then wait, briefly, for it to finish writing what it found. The screen underneath is
+        // rebuilt the moment this returns, and without the wait it was rebuilt before the
+        // cancelled walk had recorded, so it showed the counts from before the resolve ran.
+        //
+        // This is not a network wait: the walk breaks out of its loop and performs two SQLite
+        // writes. The bound is here because a screen that cannot be left is worse than one that
+        // is briefly out of date, and a request already in flight is abandoned rather than
+        // waited on.
+        try
+        {
+            _walk?.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (AggregateException)
+        {
+            // The walk ends by throwing its cancellation, which is the expected way out.
+        }
     }
 
     private void Start(Func<Uri, RomMConnection>? connect)
@@ -177,7 +195,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
             attempt.Connection.Dispose();
         }
 
-        _ = Task.Run(() => WalkAsync(connection), CancellationToken.None);
+        _walk = Task.Run(() => WalkAsync(connection), CancellationToken.None);
     }
 
     private async Task WalkAsync(RomMConnection connection)

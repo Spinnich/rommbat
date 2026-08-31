@@ -74,6 +74,61 @@ public sealed class SetResolveServiceTests : IDisposable
     }
 
     [Fact]
+    public void Progress_through_a_resumed_walk_counts_from_where_it_resumed()
+    {
+        // The segment's own count starts at zero on a resume, because it has folded in nothing
+        // yet, and reporting that sent the bar back to the start while the work already done
+        // was real and recorded. Offset is what the cursor keeps and what a person means.
+        var resumed = new SetResolveProgress("s", Scanned: 50, Total: 600, Offset: 550);
+
+        Assert.Equal(550d / 600d, resumed.Fraction);
+        Assert.NotEqual(50d / 600d, resumed.Fraction);
+    }
+
+    [Fact]
+    public async Task A_resumed_walk_reports_progress_that_carries_on_rather_than_restarting()
+    {
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+        var set = Set();
+
+        using var cancel = new CancellationTokenSource();
+
+        await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+            new SetResolveService(_session, connection).ResolveAsync(
+                [set],
+                new Immediate<SetResolveProgress>(p =>
+                {
+                    if (p.Offset >= 250)
+                    {
+                        cancel.Cancel();
+                    }
+                }),
+                cancel.Token));
+
+        var seen = new List<SetResolveProgress>();
+
+        await new SetResolveService(_session, connection).ResolveAsync(
+            [set],
+            new Immediate<SetResolveProgress>(seen.Add),
+            TestContext.Current.CancellationToken);
+
+        // What this covers, and what it does not. The offset was always right, so this asserts
+        // the walk genuinely resumed rather than re-read from the start; the fix itself is that
+        // Fraction and the displayed count are derived from the offset, which the record-level
+        // test above pins exactly.
+        Assert.NotEmpty(seen);
+        Assert.True(
+            seen[0].Offset >= 250,
+            $"the resumed walk reported offset {seen[0].Offset}, so it did not resume");
+
+        Assert.All(seen, p => Assert.True(p.Fraction >= 250d / 600d));
+
+        // Monotonic across the resume, which is the property a person actually watches.
+        Assert.Equal(seen.Select(p => p.Offset).Order(), seen.Select(p => p.Offset));
+    }
+
+    [Fact]
     public void Progress_has_no_fraction_until_the_first_page_says_how_big_the_scope_is()
     {
         // Shown as a bare count rather than a bar until then. A progress bar that sits at zero

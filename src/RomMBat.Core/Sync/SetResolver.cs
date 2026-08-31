@@ -26,9 +26,16 @@ public enum ResolutionOutcome
 }
 
 /// <summary>How far through a scope a walk has got.</summary>
-/// <param name="Scanned">Rows folded in so far, which is what a person watches move.</param>
+/// <param name="Scanned">
+/// Rows this segment has folded in. <b>Not how far through the scope the walk is</b>: a walk
+/// resuming at row 500 of 600 starts this count at zero, because it has folded in nothing yet.
+/// </param>
 /// <param name="Total">Rows the server says the scope matches, or 0 before the first page.</param>
-/// <param name="Offset">Where a resumed walk would restart, which is what the cursor records.</param>
+/// <param name="Offset">
+/// Rows consumed overall, which is what the cursor records and what a person means by progress.
+/// A resumed walk starts here at the offset it resumed from, so the bar carries on rather than
+/// starting again at nothing while the work is real.
+/// </param>
 public readonly record struct SetResolveProgress(
     string SetName,
     int Scanned,
@@ -37,8 +44,15 @@ public readonly record struct SetResolveProgress(
     int SetIndex = 1,
     int SetCount = 1)
 {
-    /// <summary>Null until the first page has told us how big the scope is.</summary>
-    public double? Fraction => Total > 0 ? Math.Clamp((double)Scanned / Total, 0, 1) : null;
+    /// <summary>
+    /// How far through the scope, or null until the first page says how big it is.
+    /// </summary>
+    /// <remarks>
+    /// Measured on <see cref="Offset"/> rather than <see cref="Scanned"/>. Using the segment's
+    /// own count sent a resumed walk's bar back to zero and crawling, while the work already
+    /// done was real and recorded, which reads as the resume having achieved nothing.
+    /// </remarks>
+    public double? Fraction => Total > 0 ? Math.Clamp((double)Offset / Total, 0, 1) : null;
 }
 
 /// <summary>What one resolution produced.</summary>
