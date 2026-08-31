@@ -417,11 +417,43 @@ public sealed class SetResolveServiceTests : IDisposable
         Assert.Equal(250, cursor.ResumeOffset);
     }
 
-    private SyncSetDefinition Set() =>
+    [Fact]
+    public async Task A_cancelled_run_carries_its_reports_in_walk_order()
+    {
+        // What the resolve screen reads to name the set it stopped on. It took the first
+        // report, so stopping during the third of three printed the first one's summary under
+        // "Stopped." The order is the contract, and it was never asserted.
+        using var stub = Library(600);
+        using var connection = Connect(stub);
+
+        var sets = new[] { Set("first"), Set("second"), Set("third") };
+
+        using var cancel = new CancellationTokenSource();
+
+        var thrown = await Assert.ThrowsAsync<SetResolveCancelledException>(() =>
+            new SetResolveService(_session, connection).ResolveAsync(
+                sets,
+                new Immediate<SetResolveProgress>(p =>
+                {
+                    if (p.SetIndex == 3)
+                    {
+                        cancel.Cancel();
+                    }
+                }),
+                cancel.Token));
+
+        Assert.Equal(["first", "second", "third"], thrown.Reports.Select(r => r.SetName));
+
+        // The one a person is looking at, and the one the screen names.
+        Assert.Equal("third", thrown.Reports[^1].SetName);
+        Assert.Equal(ResolveState.Interrupted, thrown.Reports[^1].State);
+    }
+
+    private SyncSetDefinition Set(string name = "resume") =>
         _session.Store.SyncSets.Add(
             new SyncSetDefinition
             {
-                Name = "resume",
+                Name = name,
                 Scope = CatalogScopeKind.Platform,
                 ScopeValue = "1",
                 MaxGames = 5000,
