@@ -70,6 +70,19 @@ the source of truth; the network is optional, probed with a short-timeout
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.
 
+- **A cancelled transfer's partial is truncated before its handle is closed, and this is a
+  measurement about slow drives rather than about tidiness.** Cancelling a download is instant.
+  What is not instant is closing the handle over a large part-written file, because that waits
+  for the drive's write cache: measured on the live install, stopping 10.9 s into a PS2-sized
+  download spent **20.1 s** in `FileStream.DisposeAsync` alone, and the file was deleted a
+  moment later. RomMBat was paying to flush bytes it was about to discard. Truncating first took
+  the same stop from 20.2 s to 0.2 s. It costs the resume, so it is done **only** on a user
+  cancellation, where the transfer is discarded by ruling. An unreachable server keeps its
+  partial, because resuming from it is the whole reason one is written.
+
+  Portable installs are exactly where this bites: the same code on an internal SSD would hide
+  it, and RomMBat lives on the removable drive by design.
+
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
   (`FlushCommand.cs:68-72`). So anything that grabs the lock for an instant just to look at it
@@ -100,10 +113,18 @@ the source of truth; the network is optional, probed with a short-timeout
   `UiTreeLockTests` carries the anti-vacuity companion as of #100: Core must still _define_
   `TreeLock`, or renaming it would disarm the boundary with nothing saying so.
 
+  **The flush settles this for good as of 7b-2b: it takes the lock itself and returns
+  `FlushState.Skipped`.** `SaveFlushService` is one Core service that both `flush` and the sync
+  screen are printers over, so the lock is acquired in exactly one place and the refusal reaches
+  either front end as a value with its own sentence. Nothing outside Core needs to know the lock
+  exists. `FlushCommand` keeps only `--quiet`, the conflict block and the exit codes.
+
 - **Which operations work with the server off, on the sets surface.** Listing sets, defining
   one, editing its caps and ordering, deleting it, and setting the disk budget and free-space
-  floor are all local and all answerable offline. **Only resolving needs the network**, and it
-  is the only screen that says so. A screen that cannot tell those two apart is wrong: the
+  floor are all local and all answerable offline. **The whole eviction surface is offline too**,
+  added in 7b-2b: the preview is two local scans and a walk of `local_file`, and carrying it out
+  deletes files and rewrites gamelists from local state. **Only resolving and syncing need the
+  network**, and they are the only screens that say so. A screen that cannot tell those two apart is wrong: the
   whole point of defining a set on a handheld away from its server is that it can be done.
 
   **A resolve is minutes-long work, measured rather than assumed:** a platform scope of 9,196

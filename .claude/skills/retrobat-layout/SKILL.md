@@ -575,6 +575,17 @@ gamelists even from the interface**, and expect the games to appear when the use
 RomMBat rather than while they are still in it. Do not build a workaround, do not tell the user
 to restart the front end, and do not skip the call on the theory that ES will notice.
 
+**Built that way in 7b-2b, and the stop path is included.** The sync screen runs the same
+`GamelistSync` pass the agent does, through `LibrarySyncService`, and it runs it **after a stop
+as well as after a completed run**. A run that ended early still touched folders, and leaving
+their lists unwritten would be work postponed rather than a run that stopped.
+
+**A rolled-back game needs no gamelist handling of its own**, which is worth knowing before
+adding some. `GamelistSync` writes from `local_file`, and the rollback removes the row with the
+bytes, so a game that was taken back is simply never written. Verified on the live install: a
+sync stopped mid-transfer left no row without a file, nothing under `partial/`, and the store
+byte-identical to before the run.
+
 Also measured, since it costs nothing to say: the control reload worked with **ES unfocused**,
 so ES's own reload does not depend on focus. Driven twice with the exact path `/systems/<system>/games` reports
 and an explicit `text/plain` body: 200, empty response, `emulatorLauncher.log` did not grow by

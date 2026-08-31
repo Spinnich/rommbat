@@ -297,7 +297,9 @@ not a load-bearing assumption.
 
 From the status screen: **Start** opens the sets list, **the screen's secondary action** opens
 the disk budget. On the list, Start makes a new set and Accept opens the one under the cursor.
-On a set, Accept edits its limits, Start resolves it and the secondary action deletes it.
+On a set, Accept changes its folder if it has one, **Start syncs it**, the third face button
+resolves it without downloading anything, and the secondary action deletes it. On the list,
+the secondary action syncs every set and the third resolves every set.
 
 Caps and ordering **step on Left and Right** rather than being typed. Only a set's name and a
 filter's search term open the on-screen keyboard, which is the point: entering "8 GB" on a grid
@@ -317,6 +319,49 @@ platform scope. The screen shows a count that moves, and backing out of it recor
 stopped: the next resolve continues from that offset rather than starting again. If you are
 testing the resolve screen repeatedly, use a small scope or a filter with a search term, which
 is what the sets on the live test install are.
+
+#### Driving the sync screen
+
+Start on a set, or the secondary action on the list for every set at once. The screen shows the
+pass it is in, the game it is on with a bar for that game's transfer, a running count, the disk
+budget as it is spent, and problems as they arrive.
+
+**Back stops and stays; a second Back leaves.** The first press is not a way out, and that is
+deliberate: the stop removes the game it was in, and a screen that closed on the press could
+never say what went. The resolve screen answers Back the same way.
+
+**A stop is meant to be exercised, so make it easy to hit.** A set of small ROMs finishes before
+you can press anything: 76 Atari 5200 games took 17 seconds end to end against a live instance.
+Use a set with large files, where the interesting window is one game's transfer rather than the
+whole run.
+
+**What to check after a stop**, which is the invariant the stage is built around:
+
+```powershell
+# nothing half-finished in the tree
+dir D:
+etrobat-test\emulators
+ommbat\partial      # empty
+dotnet run --project src/RomMBat.Agent -- status --root D:
+etrobat-test
+```
+
+The game that was in progress should be wholly gone, ROM and rows together, and every game that
+finished before it should still be there with its artwork and a gamelist entry.
+
+#### Driving the eviction screens
+
+From the disk budget screen, the secondary action opens the preview, which is offered only when
+there is nothing unsaved on the budget rows. **Opening it removes nothing**: it lists what would
+go with the reason for each, what is being kept and why, and any dead transfers under
+`partial/`. One confirmation carries it out.
+
+A sync that hit the budget offers the same screen from its own footer, which is where a person
+finds out it happened.
+
+**The whole eviction surface works with the server switched off**, because the preview is two
+local scans and a walk of `local_file`, and carrying it out deletes files and rewrites gamelists
+from local state.
 
 **A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
 identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.

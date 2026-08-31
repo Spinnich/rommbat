@@ -13,8 +13,8 @@ rules as its standing authority.
 7b-2a closed with PR #103, merged at `7e18e30`. The orchestration is in Core, sets have a face, and
 a person can define what this device should hold from the couch and resolve it. **They still cannot
 sync it.** `LibrarySyncService` and `EvictionService` have never driven a screen, which #103's own
-ledger names as the gap in as many words: *"Nobody has seen a sync, which is the next stage's whole
-subject."*
+ledger names as the gap in as many words: _"Nobody has seen a sync, which is the next stage's whole
+subject."_
 
 Branch off `7e18e30` or later.
 
@@ -209,7 +209,7 @@ Eviction, reached from the disk screen and from a sync that blocked games:
 - **Browse, search and per-game install.** 7b-2c. Say what the hand-picked `CatalogScopeKind`
   needs; add nothing and add no migration for it.
 - **Conflict resolution and acting on the queued-config surface.** 7b-3. The flush lift brings
-  conflict *display* with it because the report carries the rows; acting on them does not follow.
+  conflict _display_ with it because the report carries the rows; acting on them does not follow.
 - **`POST /api/activity/heartbeat`.** Still a milestone decision about the `background` pass.
 - **#78**, `sets add --scope filter` silently ignoring `--value`. Preserved and asserted. **Do not
   fix it while passing.**

@@ -2916,21 +2916,80 @@ never on the screen's cancellation token, and a failure is a note appended to th
 than an error. Roaming is the mechanism M2 gave set definitions, and the front end with no
 prompt is the one that needs it most.
 
-###### 7b-2b: the sync run
+###### 7b-2b: the sync run (done)
 
 Sync from the interface with progress, cancellation and eviction. The first thing in this
 design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
 shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
-and `EvictionService` landed in 7b-2a and are unfaced until here.
+and `EvictionService` landed in 7b-2a and were unfaced until here.
 
-**The plan is optimistic by one run's artwork.** Media is _already inside_ the budget's
-accounting: `MediaSync` writes `FileOrigin.Synced` rows and both `ContentPlanner.ManagedBytes`
-and `EvictionPlanner.BytesOverBudget` sum them. What `ContentPlanner.Plan` does not do is
-**reserve** for the artwork the same run will fetch, so one sync can overshoot the cap by
-roughly the media for the games in it and the next plan corrects. Measured at about 1.8 MB per
-game where a video is fetched, so around 72 MB on a 40-game sync against a budget in the tens
-of GB: self-correcting rather than cumulative. Issue #102, and it belongs on the screen that
-shows a budget being spent.
+**The invariant the stage is built around.** A sync leaves every game either wholly present,
+with its gamelist entry and whatever artwork the server actually had for it, or wholly absent.
+Whether it ran to the end, was stopped, or lost the server. `GameSync` is the type that owns
+that sentence: it groups a `ContentPlan` into games by `DiscSet`, fetches each game's ROMs and
+then its artwork, and takes back any game that did not land whole.
+
+**"With its artwork" cannot mean every configured kind, and the reason is not RomMBat's.**
+Nothing guarantees a server holds it: the administrator may not have scraped that kind, and the
+upstream source may never have had it for that game. `MediaSyncOutcome.Missing` counts exactly
+that, no run can fix it, and a rule demanding every kind would declare most real libraries
+permanently broken.
+
+**The rollback fires on any incomplete game, not only on a stop.** A multi-disc title whose
+second disc fails leaves half a game on disk with nobody pressing anything, and `ContentSync`'s
+"a failure is per game, not per run" makes that the ordinary path. It is bounded to the ROMs:
+once every ROM of a game has committed the game is playable and listed, and a stop during its
+artwork leaves it present for the next run to finish. Three fences keep it to this run's own
+writes, each with a test that fails when the fence is removed: only `FileOrigin.Synced` rows,
+never a game that entered as `AlreadyPresent`, and the `local_file` row goes with the bytes.
+
+**A stop is returned, not thrown**, which is 7b-2a's lesson about a cancelled resolve throwing
+away what it found. The run carries on to write gamelists and report the budget, so a stopped
+sync ends with a correct tree rather than with work postponed.
+
+###### 7b-2b: what #102 turned out to be
+
+**The issue's analysis was wrong twice over and is corrected here rather than closed quietly.**
+
+**A sync cannot overshoot the budget by artwork.** `RomMConnection.Media` refuses a media file
+whose `Content-Length` exceeds the room left, stops the read when the server declared no
+length, and the caller discards the partial in both cases. What actually happened was quieter:
+`ContentPlanner.Plan` filled the cap with ROMs, `MediaSync` then found `Room()` at or near zero,
+and the games landed in EmulationStation with no covers, with no later run repairing it because
+nothing frees space by itself.
+
+**And interleaving does not recover that artwork. It concentrates the same bytes.** Measured on
+the live instance, Atari 5200, 76 games, 757.5 KB of ROMs against a 1 MB budget:
+
+|                               | complete games | partial | no artwork | budget            |
+| ----------------------------- | -------------- | ------- | ---------- | ----------------- |
+| before, media after every ROM | 0              | 8       | 68         | 1023.3 KB of 1 MB |
+| after, media per game         | 0              | 8       | 68         | 1022.4 KB of 1 MB |
+
+And with room to spare, Atari 2600, 53 games against 6 MB: 12 complete and 8 partial before, 12
+complete and **3 partial** after. So the reproducible effect is that the games which get artwork
+get all of it and half-decorated games roughly halve, not that more artwork arrives. The
+interleave is kept because the whole-game rollback needs a per-game artwork unit, not because it
+saves a byte.
+
+**Media is not a rounding error on retro platforms, which is the one thing #102 understated.**
+The plan said about 1.8 MB per game where a video is fetched, self-correcting rather than
+cumulative. Measured on two Atari platforms with three kinds each and no video: 296.6 KB of
+Atari 2600 ROMs pulled **28 MB** of artwork, and 757.5 KB of Atari 5200 ROMs pulled **46.8 MB**.
+Artwork is 62 to 94 times the ROM bytes there, so on a small-ROM library the budget is spent
+almost entirely on media.
+
+**A reservation was added, for the ROMs and not for the media.** Interleaving broke the cap:
+`MediaSync` bounds artwork by `cap - managed`, and `managed` is read when the call is made, so
+one call per game sees the budget as it stands before most of the run's ROMs exist. A 1 MB
+budget was measured finishing 703 KB over it. `GameSync` now passes the ROM bytes still ahead.
+That reservation is possible precisely where a media one is not: a ROM's size is on the member
+row and the plan already holds it, and RomM publishes no media size at all.
+
+**A stopped transfer's partial is truncated before its handle closes.** The cancellation is
+instant; closing a handle over a large part-written file waits for the drive's write cache, and
+the file is deleted immediately afterwards. Measured on the live install: a stop 10.9 s into a
+PS2-sized download took **20.1 s** in that close alone, and 0.2 s after the change.
 
 **`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
 Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is
@@ -2939,7 +2998,8 @@ by itself, proven by a marker written with no reload at all, which never landed.
 screen calls `/reloadgames` after writing gamelists exactly as the agent does, and the new
 games appear the moment the user leaves RomMBat, which is when they would look for them. No
 workaround is owed, nothing tells the user to restart the front end, and the call must not be
-skipped on the theory that ES will notice by itself.
+skipped on the theory that ES will notice by itself. Built that way: the sync screen runs the
+same `GamelistSync` pass the agent does, through `LibrarySyncService`, including after a stop.
 
 ###### 7b-2c: browse
 
@@ -2957,6 +3017,11 @@ deliberate", which is a set by another name.
 
 Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
 whatever the two stages before it turn up.
+
+**Re-checked after 7b-2b, and two things it was going to owe are already paid.** `FlushReport`
+carries every open conflict as rows, so displaying them needs no new Core surface and only the
+screen and the choice remain. And a refused token now ends a run as `SyncState.Rejected` with
+pairing offered on the spot, so re-pairing is not a thing 7b-3 has to invent a route to.
 
 **The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
 for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
@@ -2999,8 +3064,16 @@ starts before 7b lands.
 
 **Re-checked against the three-PR cut, and it does not move forward.** The gate is 7b, not
 7b-2a. A certification pass needs a person to say what to sync, sync it, and launch a game;
-7b-2a supplies only the first of those from the couch, since syncing is still a terminal
+7b-2a supplies only the first of those from the couch, since syncing was still a terminal
 command until 7b-2b. The earliest the gate can open is when 7b-2b lands.
+
+**With 7b-2b landed the gate is open for the first two of the three, and not yet the third.** A
+person can now say what to sync and sync it from the couch, both measured against a live
+instance. Launching a game has never needed RomMBat and does not now, so what 7c actually waits
+on from here is nothing in this stage: 7b-2c adds browse and per-game install, which a
+certification pass does not require. The honest statement is that the gate opens when a hands-on
+pass has driven the sync screen with a controller, which is the one thing this branch could not
+do for itself.
 
 ### M8: packaging, docs, release
 
