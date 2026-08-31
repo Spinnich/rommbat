@@ -274,10 +274,16 @@ public sealed class CatalogScopeService
     /// is what <see cref="RomMConnection.GetFilterValuesAsync"/> was built for and what its
     /// comment has said since M2.
     /// <para>
-    /// Only the facets <see cref="CatalogFilter"/> can persist are returned. RomM offers ten;
-    /// the six here are the ones that survive being stored, roamed through
-    /// <c>Device.sync_config</c> and replayed against a server that has never seen this device.
-    /// Offering a facet that cannot be saved would be a picker that forgets.
+    /// <b>Eleven facets, which is RomM's whole multi-select surface rather than a subset of
+    /// it.</b> Nine come from the sidecar. <c>statuses</c> and <c>metadata_providers</c> are
+    /// hardcoded below because the sidecar does not report them, and the two keys it does
+    /// report that no query parameter accepts, <c>game_modes</c> and <c>platforms</c>, are
+    /// dropped. Finding 237.
+    /// </para>
+    /// <para>
+    /// This returned six until the last commit of stage 7b-2a, on the reasoning that they were
+    /// the ones that survive being stored and roamed through <c>Device.sync_config</c>. They
+    /// all survive, because a filter is one JSON column, so that was a constraint on nothing.
     /// </para>
     /// </remarks>
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ListFilterValuesAsync(
