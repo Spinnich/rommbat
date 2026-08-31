@@ -1,6 +1,7 @@
 using RomM.Client;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Core;
@@ -80,6 +81,24 @@ public sealed class InstallSession : IDisposable
     public RetroBatInstall Install { get; }
 
     public LocalStore Store { get; }
+
+    /// <summary>
+    /// The language EmulationStation is running in, or null when it is running in its default.
+    /// </summary>
+    /// <remarks>
+    /// <b>Read afresh rather than cached</b>, because ES rewrites this file twice a session and
+    /// RomMBat's own process outlives neither event reliably.
+    /// <para>
+    /// <b>Absent is the ordinary answer and means the default.</b> ES prunes any setting equal
+    /// to its own default, measured on this very key, so a null here is not evidence that
+    /// nobody chose a language. It is also what ES itself sees: on a Windows release build
+    /// <c>SystemConf</c> has no config file of its own and falls back to these settings, which
+    /// is why the language that picks a keyboard lives here and not in <c>batocera.conf</c>.
+    /// Finding 234.
+    /// </para>
+    /// </remarks>
+    public string? EmulationStationLanguage() =>
+        EsSettingsFile.Load(Install.Resolve(EsSettingsFile.Location)).Value("Language");
 
     /// <summary>Locates the install, checks its version and opens the store.</summary>
     /// <param name="explicitRoot">A root given on the command line, which wins over discovery.</param>

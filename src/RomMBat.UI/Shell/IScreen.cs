@@ -83,7 +83,22 @@ public readonly record struct ScreenCommand(
 /// widths are known, and the order it drops them in is Argosy's convention and worth keeping:
 /// a footer that reflows as the content changes makes the controls feel unreliable.
 /// </remarks>
-public sealed record FooterHint(NavAction Action, string Label);
+public sealed record FooterHint(NavAction Action, string Label)
+{
+    /// <summary>True when the hint stands for all four directions rather than the one named.</summary>
+    public bool IsDirectional { get; private init; }
+
+    /// <summary>
+    /// A hint for moving about, drawn as a pad rather than as one direction.
+    /// </summary>
+    /// <remarks>
+    /// It carries <see cref="NavAction.Up"/> so the rule that a hint names a bound action still
+    /// holds; the renderer draws what it means. EmulationStation's own footer says MOVE CURSOR
+    /// the same way, and the keyboard is the first screen here where which way to move is not
+    /// obvious from the content.
+    /// </remarks>
+    public static FooterHint Move(string label) => new(NavAction.Up, label) { IsDirectional = true };
+}
 
 /// <summary>
 /// A screen, as the shell sees it.

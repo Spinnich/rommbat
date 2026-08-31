@@ -71,6 +71,7 @@ internal static class ScreenView
         NavAction.Accept => 0,
         NavAction.Back => 1,
         NavAction.Alternate => 3,
+        NavAction.Extra => 2,
         _ => null,
     };
 
@@ -89,9 +90,11 @@ internal static class ScreenView
 
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
 
-        Control glyph = FacePosition(hint.Action) is { } filled
-            ? FaceGlyph(filled)
-            : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
+        Control glyph = hint.IsDirectional
+            ? PadGlyph()
+            : FacePosition(hint.Action) is { } filled
+                ? FaceGlyph(filled)
+                : new TextBlock { Text = ButtonWord(hint.Action), Foreground = Accent, FontSize = 17 };
 
         row.Children.Add(new Border
         {
@@ -221,47 +224,75 @@ internal static class ScreenView
             });
         }
 
-        var grid = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center };
+        stack.Children.Add(KeyboardGrid(keyboard));
+        return stack;
+    }
 
-        for (var r = 0; r < keyboard.Keys.Count; r++)
+    /// <summary>
+    /// The keys, on a real grid because they span cells.
+    /// </summary>
+    /// <remarks>
+    /// Every cell is the same size and every key is a whole number of them, which is what makes
+    /// the accept key two rows tall and the space bar seven columns wide without a second
+    /// layout pass. The screen owns the spans; this only places them.
+    /// </remarks>
+    private static Grid KeyboardGrid(OnScreenKeyboard keyboard)
+    {
+        const double CellWidth = 66;
+        const double CellHeight = 58;
+        const double Gap = 6;
+
+        var grid = new Grid { HorizontalAlignment = HorizontalAlignment.Center };
+
+        for (var column = 0; column < OnScreenKeyboard.Columns; column++)
         {
-            var line = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                Spacing = 8,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-
-            for (var c = 0; c < keyboard.Keys[r].Length; c++)
-            {
-                var selected = r == keyboard.CursorRow && c == keyboard.CursorColumn;
-
-                line.Children.Add(new Border
-                {
-                    // Fill and ring only. The box is the same size selected or not, so the grid
-                    // never shifts under the cursor.
-                    Width = 62,
-                    Height = 62,
-                    Background = selected ? Accent : Panel,
-                    BorderBrush = selected ? Ink : Panel,
-                    BorderThickness = new Thickness(2),
-                    CornerRadius = new CornerRadius(8),
-                    Child = new TextBlock
-                    {
-                        Text = keyboard.Keys[r][c].ToString(),
-                        Foreground = selected ? Brushes.Black : Ink,
-                        FontSize = 26,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                    },
-                });
-            }
-
-            grid.Children.Add(line);
+            grid.ColumnDefinitions.Add(new ColumnDefinition(CellWidth, GridUnitType.Pixel));
         }
 
-        stack.Children.Add(grid);
-        return stack;
+        for (var row = 0; row < OnScreenKeyboard.Rows; row++)
+        {
+            grid.RowDefinitions.Add(new RowDefinition(CellHeight, GridUnitType.Pixel));
+        }
+
+        foreach (var key in keyboard.Keys)
+        {
+            var selected = key == keyboard.Selected;
+            var face = keyboard.Face(key);
+
+            // Shift and the layer key are modes, so they say whether they are on. Upstream
+            // colours them for the same reason, and a mode nobody can see is the thing the
+            // original flat grid was built to avoid.
+            var engaged = (key.Kind == KeyKind.Shift && keyboard.IsShifted)
+                || (key.Kind == KeyKind.Layer && keyboard.IsAlted);
+
+            var cell = new Border
+            {
+                // Margin rather than size, so the box is identical selected or not and the grid
+                // never shifts under the cursor.
+                Margin = new Thickness(Gap / 2),
+                Background = selected ? Accent : engaged ? Warn : Panel,
+                BorderBrush = selected ? Ink : Panel,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Child = new TextBlock
+                {
+                    Text = face,
+                    Foreground = selected || engaged ? Brushes.Black : Ink,
+                    FontSize = face.Length <= 3 ? 26 : 15,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
+            };
+
+            Grid.SetRow(cell, key.Row);
+            Grid.SetColumn(cell, key.Column);
+            Grid.SetRowSpan(cell, key.Height);
+            Grid.SetColumnSpan(cell, key.Width);
+
+            grid.Children.Add(cell);
+        }
+
+        return grid;
     }
 
     private static StackPanel Pairing(PairingViewModel pairing)
@@ -783,6 +814,39 @@ internal static class ScreenView
     /// says nothing. Drawn as outlined rings rather than filled with <c>Panel</c>, which is
     /// within a few values of the footer's own background and disappeared on a television.
     /// </remarks>
+    /// <summary>
+    /// A cross, for a hint that means every direction rather than one of them.
+    /// </summary>
+    /// <remarks>
+    /// A shape rather than four lit dots, because four lit dots is what a face-button glyph
+    /// with nothing selected would look like and the two must not be confusable.
+    /// </remarks>
+    private static Canvas PadGlyph()
+    {
+        const double Size = 26;
+        const double Arm = 9;
+
+        var canvas = new Canvas { Width = Size, Height = Size };
+
+        foreach (var (width, height) in ((double, double)[])[(Arm, Size), (Size, Arm)])
+        {
+            var bar = new Rectangle
+            {
+                Width = width,
+                Height = height,
+                Fill = Accent,
+                RadiusX = 2,
+                RadiusY = 2,
+            };
+
+            Canvas.SetLeft(bar, (Size - width) / 2);
+            Canvas.SetTop(bar, (Size - height) / 2);
+            canvas.Children.Add(bar);
+        }
+
+        return canvas;
+    }
+
     private static Canvas FaceGlyph(int filled)
     {
         const double Size = 26;

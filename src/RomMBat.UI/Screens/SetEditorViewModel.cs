@@ -285,7 +285,8 @@ public sealed class SetEditorViewModel : IScreen
                 _name = typed.Trim();
                 _namedByHand = _name.Length > 0;
                 return new TypedResult(null);
-            })),
+            },
+            _session.EmulationStationLanguage())),
 
         "Scope" => ScreenCommand.Push(ScopePicker()),
 
@@ -301,7 +302,8 @@ public sealed class SetEditorViewModel : IScreen
             {
                 _searchTerm = typed.Trim();
                 return new TypedResult(null);
-            })),
+            },
+            _session.EmulationStationLanguage())),
 
         "Folder" => ScreenCommand.Push(FolderPicker()),
 

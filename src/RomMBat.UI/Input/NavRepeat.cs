@@ -56,6 +56,11 @@ public sealed class NavRepeat
         // toggle flickers under a held thumb.
         (NavAction.Alternate, ["y"], false),
 
+        // The top face button, which the same measurement puts under ES's "x". Unbound until
+        // the on-screen keyboard needed shift and reset at once, which is where ES puts them.
+        // A toggle and a corrective action, so neither repeats.
+        (NavAction.Extra, ["x"], false),
+
         // L1 and R1. EmulationStation's own on-screen keyboard puts DELETE on L and SPACE on R,
         // so these repeat: holding L clears a mistyped address rather than asking for one press
         // per character.

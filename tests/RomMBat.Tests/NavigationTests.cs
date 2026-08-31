@@ -137,26 +137,45 @@ public class NavigationTests
     }
 
     [Fact]
-    public void Delete_is_on_L1_where_EmulationStations_own_keyboard_puts_it()
+    public void The_shoulders_do_what_EmulationStations_own_keyboard_does_with_them()
     {
         var keyboard = new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
-        // ES's own on-screen keyboard binds DELETE to L and SPACE to R, so a RetroBat user
-        // already has the habit. Putting the case toggle here instead, which is what this UI
-        // did first, means their thumb deletes nothing and changes case instead.
+        // GuiTextEditPopupKeyboard binds pageup to DELETE and pagedown to SPACE, so a RetroBat
+        // user already has the habit in their thumbs. Putting the case toggle there instead,
+        // which is what this UI did first, means both of them do the wrong thing.
         Press(navigator, "pageup", ref clock);
         Assert.Equal("ab", keyboard.Text);
 
-        // Accept types the selected character rather than deleting, so a mistyped URL cannot be
+        Press(navigator, "pagedown", ref clock);
+        Assert.Equal("ab ", keyboard.Text);
+
+        // Accept types the selected key rather than deleting, so a mistyped address cannot be
         // made worse by the button the user reaches for first.
         Press(navigator, "a", ref clock);
-        Assert.Equal("ab1", keyboard.Text);
+        Assert.Equal("ab 1", keyboard.Text);
+    }
 
-        // R1 is ES's SPACE and stays unbound: a space is never part of a server address.
-        Press(navigator, "pagedown", ref clock);
-        Assert.Equal("ab1", keyboard.Text);
+    [Fact]
+    public void Reset_puts_back_the_text_the_screen_opened_with()
+    {
+        var keyboard = new OnScreenKeyboard("t", "p", "https://", _ => new TypedResult(null));
+        var navigator = new Navigator(keyboard);
+        var clock = T0;
+
+        Press(navigator, "a", ref clock);
+        Assert.Equal("https://1", keyboard.Text);
+
+        // The one key that does not do what upstream's does: ES commits the empty string and
+        // closes, which is how a setting is cleared there, and neither field RomMBat asks for
+        // may be empty. Same key, same word, the useful reading of it here.
+        Press(navigator, "x", ref clock);
+
+        Assert.Equal("https://", keyboard.Text);
+        Assert.False(navigator.HasExited);
+        Assert.Equal(1, navigator.Depth);
     }
 
     [Fact]
@@ -174,22 +193,55 @@ public class NavigationTests
     }
 
     [Fact]
-    public void The_cursor_wraps_in_both_directions_on_every_row()
+    public void The_cursor_wraps_in_both_directions_and_crosses_a_key_rather_than_a_cell()
     {
         var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
         var navigator = new Navigator(keyboard);
         var clock = T0;
 
-        Assert.Equal("1", keyboard.Selected);
+        Assert.Equal("1", keyboard.SelectedFace);
 
+        // Left from the first cell wraps to the last, which on the digit row is delete.
         Press(navigator, "left", ref clock);
-        Assert.Equal("0", keyboard.Selected);
+        Assert.Equal(KeyKind.Backspace, keyboard.Selected.Kind);
 
         Press(navigator, "right", ref clock);
-        Assert.Equal("1", keyboard.Selected);
+        Assert.Equal("1", keyboard.SelectedFace);
+
+        // The space bar is seven cells wide and takes one press to cross, not seven. Down four
+        // rows from the digit row lands on it, and one more right reaches reset.
+        for (var i = 0; i < 4; i++)
+        {
+            Press(navigator, "down", ref clock);
+        }
+
+        Assert.Equal(KeyKind.Shift, keyboard.Selected.Kind);
+
+        Press(navigator, "right", ref clock);
+        Assert.Equal(KeyKind.Space, keyboard.Selected.Kind);
+
+        Press(navigator, "right", ref clock);
+        Assert.Equal(KeyKind.Reset, keyboard.Selected.Kind);
+    }
+
+    [Fact]
+    public void The_accept_key_is_two_rows_tall_and_is_not_a_hole_the_cursor_falls_into()
+    {
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
+        var navigator = new Navigator(keyboard);
+        var clock = T0;
+
+        // Onto delete, then down into the accept key, which occupies the two letter rows. A
+        // cursor that stepped by cell would need two presses to leave it and would look stuck.
+        Press(navigator, "left", ref clock);
+        Press(navigator, "down", ref clock);
+        Assert.Equal(KeyKind.Accept, keyboard.Selected.Kind);
+
+        Press(navigator, "down", ref clock);
+        Assert.Equal(KeyKind.Layer, keyboard.Selected.Kind);
 
         Press(navigator, "up", ref clock);
-        Assert.Equal(keyboard.Keys.Count - 1, keyboard.CursorRow);
+        Assert.Equal(KeyKind.Accept, keyboard.Selected.Kind);
     }
 
     [Fact]
@@ -201,15 +253,14 @@ public class NavigationTests
 
         // Down one row and along to "q", the key that proves this is QWERTY and not alphabetical.
         Press(navigator, "down", ref clock);
-        Assert.Equal("q", keyboard.Selected);
+        Assert.Equal("q", keyboard.SelectedFace);
 
-        // The EmulationStation name, which is the button an Xbox-layout pad prints X on, and
-        // where ES's own keyboard puts SHIFT. The footer follows the printed label rather than
-        // the file's name for it.
+        // ES's own keyboard puts shift on the button es_input.cfg calls "y", which is the one
+        // an Xbox-layout pad prints X on. The footer draws a position rather than a letter.
         Press(navigator, "y", ref clock);
 
         Assert.True(keyboard.IsShifted);
-        Assert.Equal("Q", keyboard.Selected);
+        Assert.Equal("Q", keyboard.SelectedFace);
         Assert.Equal(1, keyboard.CursorRow);
         Assert.Equal(0, keyboard.CursorColumn);
 
@@ -217,53 +268,222 @@ public class NavigationTests
         // flickers under a thumb is worse than one that needs a second press.
         Press(navigator, "y", ref clock);
         Assert.False(keyboard.IsShifted);
-        Assert.Equal("q", keyboard.Selected);
+        Assert.Equal("q", keyboard.SelectedFace);
     }
 
     [Fact]
-    public void The_two_layers_are_the_same_shape_so_the_cursor_can_never_be_stranded()
+    public void The_layer_key_drops_shift_so_the_accented_layer_is_entered_the_same_way_every_time()
     {
-        var lower = OnScreenKeyboard.Layers[0];
-        var upper = OnScreenKeyboard.Layers[1];
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
+        var navigator = new Navigator(keyboard);
+        var clock = T0;
 
-        // Toggling case must never move the cursor or index out of range, which is exactly what
-        // layers of different shapes would do on the row or column the shorter one lacks.
-        Assert.Equal(lower.Count, upper.Count);
+        Press(navigator, "y", ref clock);
+        Assert.True(keyboard.IsShifted);
 
-        for (var row = 0; row < lower.Count; row++)
+        // Onto the layer key, which upstream's altKeys() clears shift on the way through.
+        Press(navigator, "down", ref clock);
+        Press(navigator, "down", ref clock);
+        Press(navigator, "down", ref clock);
+        Press(navigator, "left", ref clock);
+        Assert.Equal(KeyKind.Layer, keyboard.Selected.Kind);
+
+        Press(navigator, "a", ref clock);
+
+        Assert.True(keyboard.IsAlted);
+        Assert.False(keyboard.IsShifted);
+    }
+
+    [Fact]
+    public void A_key_with_nothing_on_this_layer_types_nothing_rather_than_vanishing()
+    {
+        var keyboard = new OnScreenKeyboard("t", "p", string.Empty, _ => new TypedResult(null));
+
+        // Upstream draws the special layer's blank half and ignores presses on it rather than
+        // hiding the keys, which is what keeps every layer the same shape and the cursor
+        // impossible to strand. Row 3, column 1 is the first of them on the US grid.
+        keyboard.Handle(NavAction.Down);
+        keyboard.Handle(NavAction.Down);
+        keyboard.Handle(NavAction.Down);
+        keyboard.Handle(NavAction.Left);
+        keyboard.Handle(NavAction.Accept);
+
+        Assert.True(keyboard.IsAlted);
+
+        while (keyboard.SelectedFace != "€")
         {
-            Assert.Equal(lower[row].Length, upper[row].Length);
+            keyboard.Handle(NavAction.Right);
         }
 
-        Assert.All(lower, row => Assert.Equal(lower[0].Length, row.Length));
+        keyboard.Handle(NavAction.Right);
+
+        Assert.Equal(string.Empty, keyboard.SelectedFace);
+        Assert.Equal(KeyKind.Character, keyboard.Selected.Kind);
+
+        keyboard.Handle(NavAction.Accept);
+        Assert.Equal(string.Empty, keyboard.Text);
+    }
+
+    [Fact]
+    public void The_cancel_and_accept_keys_do_what_their_buttons_do()
+    {
+        var committed = (string?)null;
+
+        TypedResult Take(string text)
+        {
+            committed = text;
+            return new TypedResult(null);
+        }
+
+        var cancelling = new OnScreenKeyboard("t", "p", "abc", Take);
+        var cancel = new Navigator(cancelling);
+        var clock = T0;
+
+        // Bottom row, last key.
+        Press(cancel, "up", ref clock);
+        while (cancelling.Selected.Kind != KeyKind.Cancel)
+        {
+            Press(cancel, "right", ref clock);
+        }
+
+        Press(cancel, "a", ref clock);
+        Assert.Null(committed);
+        Assert.True(cancel.HasExited);
+
+        var accepting = new OnScreenKeyboard("t", "p", "abc", Take);
+        var accept = new Navigator(accepting);
+
+        Press(accept, "left", ref clock);
+        Press(accept, "down", ref clock);
+        Assert.Equal(KeyKind.Accept, accepting.Selected.Kind);
+
+        Press(accept, "a", ref clock);
+        Assert.Equal("abc", committed);
+    }
+
+    [Fact]
+    public void Every_layout_is_transcribed_at_the_shape_upstream_holds_it_in()
+    {
+        // The tables are a copy of a compiled-in C++ array, so the failure mode is a slipped
+        // cell rather than a wrong idea. Four faces per key, thirteen columns, five rows.
+        foreach (var layout in Enum.GetValues<KeyboardLayout>())
+        {
+            var table = KeyboardLayouts.Table(layout);
+
+            Assert.Equal(OnScreenKeyboard.Rows * KeyboardLayouts.Faces, table.Length);
+            Assert.All(table, row => Assert.Equal(KeyboardLayouts.Columns, row.Length));
+        }
+    }
+
+    [Fact]
+    public void Every_cell_of_every_layout_belongs_to_exactly_one_key()
+    {
+        // A span that overlaps its neighbour or stops short leaves the cursor somewhere it can
+        // sit and do nothing, which is the one way a transcription slip could pass silently.
+        foreach (var layout in Enum.GetValues<KeyboardLayout>())
+        {
+            var covered = new int[OnScreenKeyboard.Rows, KeyboardLayouts.Columns];
+
+            foreach (var key in Keys(layout))
+            {
+                Assert.InRange(key.Row + key.Height, 1, OnScreenKeyboard.Rows);
+                Assert.InRange(key.Column + key.Width, 1, KeyboardLayouts.Columns);
+
+                for (var row = key.Row; row < key.Row + key.Height; row++)
+                {
+                    for (var column = key.Column; column < key.Column + key.Width; column++)
+                    {
+                        covered[row, column]++;
+                    }
+                }
+            }
+
+            for (var row = 0; row < OnScreenKeyboard.Rows; row++)
+            {
+                for (var column = 0; column < KeyboardLayouts.Columns; column++)
+                {
+                    Assert.True(
+                        covered[row, column] == 1,
+                        $"{layout} cell {row},{column} belongs to {covered[row, column]} keys");
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null, KeyboardLayout.UnitedStates)]
+    [InlineData("", KeyboardLayout.UnitedStates)]
+    [InlineData("en_US", KeyboardLayout.UnitedStates)]
+    [InlineData("de_DE", KeyboardLayout.UnitedStates)]
+    [InlineData("fr_FR", KeyboardLayout.French)]
+    [InlineData("fr", KeyboardLayout.French)]
+    [InlineData("FR", KeyboardLayout.French)]
+    [InlineData("ko_KR", KeyboardLayout.Korean)]
+    public void The_layout_follows_the_language_EmulationStation_is_running_in(
+        string? language,
+        KeyboardLayout expected)
+    {
+        // Upstream reads es_settings.cfg's Language on a Windows release build, lowercases the
+        // part before the underscore, and knows three keyboards. The bare "FR" case is the one
+        // deviation: upstream only lowercases when a region is present, so it would miss.
+        Assert.Equal(expected, KeyboardLayouts.For(language));
+        Assert.Equal(expected, new OnScreenKeyboard("t", "p", "", _ => new TypedResult(null), language).Layout);
     }
 
     [Fact]
     public void Both_cases_and_the_characters_a_url_needs_are_all_reachable()
     {
-        var everything = OnScreenKeyboard.Layers
-            .SelectMany(layer => layer.SelectMany(row => row))
-            .ToHashSet();
+        var everything = KeyboardLayouts.Table(KeyboardLayout.UnitedStates)
+            .SelectMany(row => row)
+            .ToHashSet(StringComparer.Ordinal);
 
         // Letters in both cases, digits, and the punctuation an address is made of.
-        Assert.All("abcdefghijklmnopqrstuvwxyz", c => Assert.Contains(c, everything));
-        Assert.All("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c => Assert.Contains(c, everything));
-        Assert.All("0123456789", c => Assert.Contains(c, everything));
-        Assert.All(":/.-_~?=@%", c => Assert.Contains(c, everything));
+        Assert.All("abcdefghijklmnopqrstuvwxyz", c => Assert.Contains(c.ToString(), everything));
+        Assert.All("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c => Assert.Contains(c.ToString(), everything));
+        Assert.All("0123456789", c => Assert.Contains(c.ToString(), everything));
+        Assert.All(":/.-_~?=@%", c => Assert.Contains(c.ToString(), everything));
     }
 
     [Fact]
-    public void A_url_needs_no_case_toggle_for_its_punctuation()
+    public void A_url_costs_one_shift_press_now_and_that_is_upstreams_layout_not_a_slip()
     {
-        var unshifted = OnScreenKeyboard.Layers[0].SelectMany(row => row).ToHashSet();
+        // The layout this replaced put : and / unshifted so http:// needed no toggle. ES puts
+        // them on the upper face, and a grid a RetroBat user already knows beats two presses
+        // saved on a string that is typed once and then remembered.
+        var unshifted = Keys(KeyboardLayout.UnitedStates)
+            .Select(key => key.Lower)
+            .ToHashSet(StringComparer.Ordinal);
 
-        // http:// would otherwise need the toggle twice in four characters, which is why these
-        // two deviate from a real keyboard's shift pairs.
-        Assert.Contains(':', unshifted);
-        Assert.Contains('/', unshifted);
+        Assert.DoesNotContain(":", unshifted);
+        Assert.DoesNotContain("/", unshifted);
+
+        var shifted = Keys(KeyboardLayout.UnitedStates)
+            .Select(key => key.Upper)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains(":", shifted);
+        Assert.Contains("/", shifted);
     }
 
+    /// <summary>One layout's keys, which is what the screen builds from the table.</summary>
+    private static IReadOnlyList<KeyboardKey> Keys(KeyboardLayout layout) =>
+        new OnScreenKeyboard(
+            "t",
+            "p",
+            string.Empty,
+            _ => new TypedResult(null),
+            layout switch
+            {
+                KeyboardLayout.French => "fr_FR",
+                KeyboardLayout.Korean => "ko_KR",
+                _ => "en_US",
+            }).Keys;
+
     /// <summary>Types a string by walking the grid, which is what a person does.</summary>
+    /// <remarks>
+    /// Two layers, because a URL's punctuation lives on the upper face now: it walks what is on
+    /// screen, presses shift if that did not find the character, and walks again.
+    /// </remarks>
     private static void Type(Navigator navigator, ref DateTimeOffset clock, string text)
     {
         var keyboard = (OnScreenKeyboard)navigator.Current;
@@ -272,22 +492,39 @@ public class NavigationTests
         {
             var target = character.ToString();
 
-            // Bounded: the grid is finite, so a character that is not on it fails loudly here
-            // rather than looping.
-            var guard = 0;
-            while (!string.Equals(keyboard.Selected, target, StringComparison.Ordinal))
+            for (var layer = 0; layer < 2 && keyboard.SelectedFace != target; layer++)
             {
-                Press(navigator, "right", ref clock);
+                Walk(navigator, ref clock, target);
 
-                if (keyboard.CursorColumn == 0)
+                if (keyboard.SelectedFace != target)
                 {
-                    Press(navigator, "down", ref clock);
+                    Press(navigator, "y", ref clock);
                 }
-
-                Assert.True(++guard < 500, $"'{target}' is not reachable on the keyboard grid.");
             }
 
+            Assert.Equal(target, keyboard.SelectedFace);
             Press(navigator, "a", ref clock);
+        }
+    }
+
+    /// <summary>Sweeps the layer on screen for one face. Bounded: the grid is finite.</summary>
+    private static void Walk(Navigator navigator, ref DateTimeOffset clock, string target)
+    {
+        var keyboard = (OnScreenKeyboard)navigator.Current;
+
+        for (var step = 0; step < OnScreenKeyboard.Rows * OnScreenKeyboard.Columns; step++)
+        {
+            if (keyboard.SelectedFace == target)
+            {
+                return;
+            }
+
+            Press(navigator, "right", ref clock);
+
+            if (keyboard.CursorColumn == 0)
+            {
+                Press(navigator, "down", ref clock);
+            }
         }
     }
 

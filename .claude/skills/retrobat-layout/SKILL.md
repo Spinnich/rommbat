@@ -313,16 +313,40 @@ incomparable to the file (finding 227). If the library is missing or the pad has
 (configure the controller in EmulationStation first) rather than inventing a default map: a pad
 ES cannot drive is one the user's own front end cannot drive either.
 
-**EmulationStation has already answered the on-screen keyboard, so match it rather than
-inventing one.** Its `GuiTextEditPopupKeyboard` binds **A** to press the highlighted key,
-**Start** to OK, **B** to back, **L (`pageup`) to DELETE**, **R (`pagedown`) to SPACE**, a face
-button to SHIFT, and the d-pad to move the cursor. Read off a live 8.2.1 session and corroborated
-in `resources/locale/*/LC_MESSAGES/emulationstation2.po`, which carries `MOVE CURSOR`, `SHIFT`,
-`SPACE`, `DELETE`, `RESET` and `SHIFTS FOR UPPER, LOWER, AND SPECIAL` as its own strings. Two
-consequences worth having: **the shoulders are not free** (RomMBat first put the case toggle
-there, which is where a RetroBat user's thumb expects delete), and ES's keyboard has **three**
-layers, upper, lower and special, plus an `ALT GR`, where two is enough only because the one
-field here is a URL.
+**EmulationStation has already answered the on-screen keyboard, and RomMBat now copies it
+rather than resembling it.** `GuiTextEditPopupKeyboard` binds **A** to press the highlighted key,
+**Start** to OK, **B** to BACK, **L (`pageup`) to DELETE**, **R (`pagedown`) to SPACE**,
+**`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. Findings 228 and 234:
+read off a live 8.2.1 session, corroborated in
+`resources/locale/*/LC_MESSAGES/emulationstation2.po`, and then settled against upstream's own
+source, which is the only place the layout exists.
+
+- **The tables are compiled into `emulationstation.exe`**, so there is nothing for
+  `reference/refresh.sh` to pull and nothing on disk to read. `KeyboardLayouts` holds a
+  transcription in upstream's exact shape, which is what makes re-checking it against a newer ES
+  a diff. Its provenance comment names the file; keep it accurate or the copy becomes folklore.
+- **Three layouts, `kbUs`, `kbFr` and `kbKr`, and no mechanism to add one.** A German install
+  types on the US grid upstream and does here too.
+- **Four faces per key** (lower, upper, alted, alted-upper) on a **13-column, 5-row** grid.
+  `OK` spans two rows, the layer key two columns, and the bottom row 2/7/2/2. A key whose face
+  is empty on the current layer is **drawn, holds focus and does nothing**, which is what keeps
+  every layer the same shape and the cursor impossible to strand. Do not compact it.
+- **The shoulders are not free.** RomMBat first put the case toggle there, which is where a
+  RetroBat user's thumb expects delete and space.
+- **`:` and `/` are on the upper face**, so a URL costs one shift press. That is upstream's
+  layout and not a slip; the grid RetroBat already taught the user beats two presses saved.
+- **RESET is the one key whose meaning does not transfer.** Upstream's commits the empty string
+  and closes, which is how a setting is cleared there. RomMBat has no field that may be empty,
+  so the same key in the same place under the same word restores what the screen opened with.
+
+**The language picks the layout, and on Windows it lives in `es_settings.cfg`.** ES asks
+`SystemConf` for `system.language`; on a Windows **release** build `SystemConf` has no config
+file of its own, because `Paths.cpp` sets one only under `#if defined(WIN32) && defined(_DEBUG)`,
+so it falls back to ES's `Settings` and reads `Language` from `es_settings.cfg`. `batocera.conf`
+is absent on the live install, which agrees. `InstallSession.EmulationStationLanguage` is the one
+place that reads it: **the UI may not name `EsSettingsFile`** and a structural test says so.
+**Absent is the ordinary answer** and means ES's default, because ES prunes any setting equal to
+one (finding 170), so never read a null here as "nobody chose". Finding 235.
 
 **Never print a button letter in a prompt; draw its position.** The bottom face button is A on
 an Xbox pad, Cross on a DualSense and B on a Switch Pro, so any letter is wrong on two layouts

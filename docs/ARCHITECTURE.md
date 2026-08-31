@@ -204,6 +204,14 @@ pickers, resolving one with progress, and the disk budget. Downloading anything,
 per-game install are 7b-2b and 7b-2c; conflict resolution and acting on the queued-config
 surface are 7b-3.
 
+**The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
+transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
+`OnScreenKeyboard` builds them into a 13-column grid of spanning keys with four faces each. The
+layout follows the language ES is running in, which
+`InstallSession.EmulationStationLanguage` reads from `es_settings.cfg` because the UI may not
+name `EsSettingsFile`. RomMBat's interface itself stays English: see M7's 7b section for why
+that is a milestone rather than a follow-up.
+
 **The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
 deciding argument is size on a portable drive rather than either start time or
 cross-platform reach. WPF cannot be trimmed at all, so it has a floor nothing moves, and it

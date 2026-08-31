@@ -33,11 +33,19 @@ public enum NavAction
     /// The screen's secondary action, named in the footer wherever it exists.
     /// </summary>
     /// <remarks>
-    /// Bound to <c>x</c>. Kept apart from <see cref="Accept"/> because a screen that needs a
-    /// destructive or corrective action, backspace being the obvious one, must not put it on
-    /// the button that also confirms.
+    /// The left face button, which <c>es_input.cfg</c> calls <c>y</c>. Kept apart from
+    /// <see cref="Accept"/> because a screen that needs a destructive or corrective action must
+    /// not put it on the button that also confirms.
     /// </remarks>
     Alternate,
+
+    /// <summary>A third action, on screens where two are not enough.</summary>
+    /// <remarks>
+    /// The top face button, which <c>es_input.cfg</c> calls <c>x</c>. It earns its place on the
+    /// on-screen keyboard, where EmulationStation's own puts shift and reset on two different
+    /// face buttons and a RomMBat that offered one of them would be the odd one out.
+    /// </remarks>
+    Extra,
 
     /// <summary>Previous page or previous section.</summary>
     PageUp,

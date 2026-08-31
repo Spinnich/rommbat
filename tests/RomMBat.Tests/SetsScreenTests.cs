@@ -942,46 +942,6 @@ public sealed class SetsScreenTests : IDisposable
         return editor.Handle(NavAction.Accept).Screen;
     }
 
-    private static void Type(Navigator navigator, OnScreenKeyboard keyboard, string text)
-    {
-        foreach (var character in text)
-        {
-            Move(navigator, keyboard, character);
-            navigator.Handle(NavAction.Accept);
-        }
-
-        navigator.Handle(NavAction.Start);
-    }
-
-    /// <summary>
-    /// Walks the keyboard cursor onto one character, the way a thumb would.
-    /// </summary>
-    /// <remarks>
-    /// Both directions, because the grid is four rows: pressing only Right walks one row for
-    /// ever and never reaches the home row, which is where most letters are.
-    /// </remarks>
-    private static void Move(Navigator navigator, OnScreenKeyboard keyboard, char character)
-    {
-        var wanted = character.ToString();
-
-        for (var row = 0; row < keyboard.Keys.Count; row++)
-        {
-            for (var column = 0; column < keyboard.Keys[keyboard.CursorRow].Length; column++)
-            {
-                if (keyboard.Selected == wanted)
-                {
-                    return;
-                }
-
-                navigator.Handle(NavAction.Right);
-            }
-
-            navigator.Handle(NavAction.Down);
-        }
-
-        Assert.Fail($"'{character}' is not reachable on the keyboard");
-    }
-
     private void SeedPlatform(int id, string folder) =>
         _session.Store.PlatformMap.Record(
             new RomMBat.Core.Mapping.PlatformResolver(

@@ -2929,6 +2929,26 @@ fails.
   exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.
 
+**The on-screen keyboard is EmulationStation's, transcribed rather than resembled.** 7b-1
+matched its bindings and invented its own grid; 7b-2a read upstream's source and took the grid
+too, because the half that was still RomMBat's own was the half a RetroBat user had to relearn.
+Findings 234 and 235 hold the detail. Two consequences shaped code rather than pixels: the
+second face button finally earns a binding, since ES puts shift and reset on two of them, and
+`InstallSession.EmulationStationLanguage` exists because the layout follows the language ES is
+running in and the UI may not read `es_settings.cfg` itself.
+
+**Deferred, and worth stating so it is not re-derived: RomMBat does not speak that language,
+only types in it.** Reading `Language` to pick a keyboard is one setting and a three-way switch.
+Localising the interface is a different thing entirely, and the cost is not the resource files:
+Core returns records carrying **pre-written English sentences**, which is the decision 7b-1 made
+deliberately so that a refusal reads identically on both front ends. Every one of those would
+have to become a key plus arguments, across Core, the agent and the UI, and the agent's output
+is what `sets`, `sync` and `evict` are tested on byte for byte. It also contradicts CLAUDE.md's
+"English only outside of localisation files" as written, so the rule moves in the same change or
+not at all. **A milestone, not a commit**, and nothing before M8 ships. Note also that only three
+keyboards exist upstream, so a German or Japanese install already types on the US grid in ES
+itself: matching the interface's language would outrun the keyboard's, not follow it.
+
 #### 7c: the wave rollout gate
 
 M7 is what makes the platform rollout bearable, because every certification pass needs a
