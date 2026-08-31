@@ -341,20 +341,44 @@ public sealed class ContentSync
                 FileAccess.ReadWrite,
                 FileShare.None))
             {
-                response = await _connection.DownloadRomContentAsync(
-                    new RomContentRequest
-                    {
-                        RomId = member.RomId,
-                        FsName = member.FsName,
-                        IsMultiFile = member.IsMultiFile,
-                        ResumeFrom = resumeFrom,
-                        Validator = record.Validator,
-                    },
-                    destination,
-                    new Progress<RomContentProgress>(value =>
-                        progress?.Report(new ContentSyncProgress(step, index + 1, total, value))),
-                    validator => _store.Downloads.RecordValidator(member.RomId, validator, _time.GetUtcNow()),
-                    cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    response = await _connection.DownloadRomContentAsync(
+                        new RomContentRequest
+                        {
+                            RomId = member.RomId,
+                            FsName = member.FsName,
+                            IsMultiFile = member.IsMultiFile,
+                            ResumeFrom = resumeFrom,
+                            Validator = record.Validator,
+                        },
+                        destination,
+                        new Progress<RomContentProgress>(value =>
+                            progress?.Report(new ContentSyncProgress(step, index + 1, total, value))),
+                        validator => _store.Downloads.RecordValidator(member.RomId, validator, _time.GetUtcNow()),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Thrown away before the handle closes, and this is a measurement rather
+                    // than a tidy-up. A stop discards this transfer, so the bytes already
+                    // written are dead; closing a handle over a large part-written file waits
+                    // for the drive's write cache, measured on the live install at 20.1 s after
+                    // 10.9 s of downloading, while the user watches a screen saying "Stopping".
+                    // The cancellation itself is instant: it was the close that was slow.
+                    //
+                    // Only on a cancellation. An unreachable server keeps its partial, because
+                    // resuming from it is the whole reason one is written.
+                    //
+                    // Covered by measurement rather than by a test, deliberately. Asserting it
+                    // needs a transfer in flight when the token fires, and the byte-level
+                    // progress this type reports goes through System.Progress, which posts to
+                    // the thread pool: against an in-memory stub the transfer finishes before
+                    // the callback that would cancel it runs. A test written that way passes
+                    // whether or not this line is here, which is worse than no test.
+                    Truncate(destination);
+                    throw;
+                }
             }
 
             if (!response.IsSuccess)
@@ -490,6 +514,23 @@ public sealed class ContentSync
         }
 
         return ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash) ? VerifiedBy.Sha1 : VerifiedBy.Size;
+    }
+
+    /// <summary>Discards a partial transfer's bytes before its handle is closed.</summary>
+    /// <remarks>
+    /// Best effort by construction: the file is about to be deleted either way, so failing here
+    /// costs the slow close this exists to avoid and nothing else.
+    /// </remarks>
+    private static void Truncate(FileStream destination)
+    {
+        try
+        {
+            destination.SetLength(0);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ObjectDisposedException)
+        {
+            // The close pays for the write cache, which is the behaviour this avoids when it can.
+        }
     }
 
     private static void SafeDelete(string path)
