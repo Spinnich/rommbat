@@ -62,7 +62,7 @@ public static class SetsScreens
             backLabel: "Back",
             new FooterHint(NavAction.Start, "New set"),
             new FooterHint(NavAction.Alternate, "Sync everything"),
-            new FooterHint(NavAction.Extra, "Check every set"))
+            new FooterHint(NavAction.Extra, "Query every set"))
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
                 + "collection, or a search. How much room they may use together is set under "
@@ -148,14 +148,14 @@ public static class SetsScreens
             acceptLabel: "Change folder",
             backLabel: "Back",
             new FooterHint(NavAction.Start, "Sync now"),
-            new FooterHint(NavAction.Extra, "Check what is in it"),
+            new FooterHint(NavAction.Extra, "Query this set"),
             new FooterHint(NavAction.Alternate, "Delete set"))
         {
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
             AlwaysOfferAccept = editable,
-            Note = () => "Syncing puts this set on the device. Checking only asks RomM what is "
+            Note = () => "Syncing puts this set on the device. Querying only asks RomM what is "
                 + "in it, and downloads nothing. Both need the network.",
             Verbs = (action, _) => action switch
             {

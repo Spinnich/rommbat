@@ -113,6 +113,12 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// hands-on pass reported that resolving and syncing read as the same thing. The type keeps
     /// the name, because that is what the operation is called everywhere else in the codebase
     /// and renaming it would cost more than it buys; what a person sees says what it does.
+    /// <para>
+    /// <b>"Query" rather than the "Check" that first replaced it.</b> Check is plain but says
+    /// nothing about what is being checked or against what, and a footer offering "Check every
+    /// set" beside one offering "Sync" gave no clue which one reaches the network. Query names
+    /// the act: this asks the server and writes down the answer. Spinnich's word.
+    /// </para>
     /// </remarks>
     /// <summary>
     /// What the screen is doing, in the tense it is doing it in.
@@ -126,11 +132,11 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// </remarks>
     public string Title => Stage == ResolveStage.Working
         ? _sets.Count == 1
-            ? $"Checking what is in '{_sets[0].Name}'"
-            : $"Checking {_sets.Count} sync sets"
+            ? $"Querying '{_sets[0].Name}'"
+            : $"Querying {_sets.Count} sync sets"
         : _sets.Count == 1
-            ? $"Checked '{_sets[0].Name}'"
-            : $"Checked {_sets.Count} sync sets";
+            ? $"Queried '{_sets[0].Name}'"
+            : $"Queried {_sets.Count} sync sets";
 
     /// <summary>
     /// One word for how it ended, or null while it is still going.

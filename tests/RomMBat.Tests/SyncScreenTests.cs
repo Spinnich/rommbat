@@ -404,7 +404,7 @@ public sealed class SyncScreenTests : IDisposable
     [Fact]
     public async Task A_finished_run_says_so_in_its_title_its_outcome_and_its_footer()
     {
-        // A hands-on pass sat on a resolve reading "Checking what is in 'X'" over a full bar
+        // A hands-on pass sat on a resolve reading "Querying 'X'" over a full bar
         // and 107 of 107, and could not tell a finished screen from a stuck one. A full bar and
         // a stalled bar are the same picture, so the screen has to say which it is. Three
         // places, because the title is what a person reads first and the footer is where they
@@ -466,12 +466,12 @@ public sealed class SyncScreenTests : IDisposable
 
         var resolve = new ResolveViewModel(_session, Set(), Connect(stub));
 
-        Assert.StartsWith("Checking", resolve.Title, StringComparison.Ordinal);
+        Assert.StartsWith("Querying", resolve.Title, StringComparison.Ordinal);
         Assert.Null(resolve.Outcome);
 
         await SettledAsync(resolve);
 
-        Assert.StartsWith("Checked", resolve.Title, StringComparison.Ordinal);
+        Assert.StartsWith("Queried", resolve.Title, StringComparison.Ordinal);
         Assert.Equal("Finished", resolve.Outcome);
         Assert.Equal("Done", Assert.Single(resolve.Hints, hint => hint.Action == NavAction.Back).Label);
 
