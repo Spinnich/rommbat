@@ -106,7 +106,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     public event EventHandler? Invalidated;
 
     /// <summary>
-    /// What the screen is called, which is not what the code calls it.
+    /// What the screen is called and what it is doing, in the tense it is doing it in.
     /// </summary>
     /// <remarks>
     /// "Resolving" is the word the design has used since M2 and it means nothing to a person: a
@@ -119,16 +119,13 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// set" beside one offering "Sync" gave no clue which one reaches the network. Query names
     /// the act: this asks the server and writes down the answer. Spinnich's word.
     /// </para>
-    /// </remarks>
-    /// <summary>
-    /// What the screen is doing, in the tense it is doing it in.
-    /// </summary>
-    /// <remarks>
+    /// <para>
     /// <b>Past tense once the work is over, because the present tense is a claim that it is
     /// still running.</b> A hands-on pass sat on a finished resolve reading "Checking what is
     /// in 'X'" over a full bar and 107 of 107, and could not tell whether the last game was
     /// stuck or the screen was about to move on. The title is the largest thing on the screen
     /// and it was the thing saying the wrong one.
+    /// </para>
     /// </remarks>
     public string Title => Stage == ResolveStage.Working
         ? _sets.Count == 1

@@ -237,110 +237,108 @@ public sealed class SetEditorViewModel : IScreen
 
     private List<EditorRow> BuildRows()
     {
+        var rows = new List<EditorRow>();
+
+        if (IsNew)
         {
-            var rows = new List<EditorRow>();
+            rows.Add(new EditorRow("Scope", SyncSetStore.ScopeText(_scope), null, false));
 
-            if (IsNew)
+            if (_scope == CatalogScopeKind.Platform)
             {
-                rows.Add(new EditorRow("Scope", SyncSetStore.ScopeText(_scope), null, false));
-
-                if (_scope == CatalogScopeKind.Platform)
-                {
-                    rows.Add(new EditorRow("Platform", _platformLabel ?? "not chosen", null, false));
-                }
-                else if (CatalogScopeService.CanList(_scope))
-                {
-                    rows.Add(new EditorRow(
-                        "Collection",
-                        _collectionLabel ?? "not chosen",
-                        null,
-                        false));
-                }
-                else if (_scope == CatalogScopeKind.Filter)
-                {
-                    // The only scope that needs a name typed, because it is the only one that
-                    // is not a mirror of something RomM has already named.
-                    rows.Add(new EditorRow(
-                        "Name",
-                        _name.Length == 0 ? "not set" : _name,
-                        null,
-                        false));
-                }
+                rows.Add(new EditorRow("Platform", _platformLabel ?? "not chosen", null, false));
             }
-
-            // Outside the block above, so a filter set can be changed and not merely made. The
-            // whole scope section used to be new-set-only, which left Edit on a filter set
-            // showing one row about folders and nothing about the filter itself.
-            if (_scope == CatalogScopeKind.Filter)
+            else if (CatalogScopeService.CanList(_scope))
             {
                 rows.Add(new EditorRow(
-                    "Search for",
-                    string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
+                    "Collection",
+                    _collectionLabel ?? "not chosen",
                     null,
                     false));
+            }
+            else if (_scope == CatalogScopeKind.Filter)
+            {
+                // The only scope that needs a name typed, because it is the only one that
+                // is not a mirror of something RomM has already named.
+                rows.Add(new EditorRow(
+                    "Name",
+                    _name.Length == 0 ? "not set" : _name,
+                    null,
+                    false));
+            }
+        }
 
-                // The facets, so a filter is a saved search rather than a name match. A facet
-                // this library has no values for is left out: a picker that opens on an empty
-                // list is a row that goes nowhere.
-                foreach (var facet in FilterFacet.Multi)
+        // Outside the block above, so a filter set can be changed and not merely made. The
+        // whole scope section used to be new-set-only, which left Edit on a filter set
+        // showing one row about folders and nothing about the filter itself.
+        if (_scope == CatalogScopeKind.Filter)
+        {
+            rows.Add(new EditorRow(
+                "Search for",
+                string.IsNullOrWhiteSpace(_searchTerm) ? "anything" : _searchTerm,
+                null,
+                false));
+
+            // The facets, so a filter is a saved search rather than a name match. A facet
+            // this library has no values for is left out: a picker that opens on an empty
+            // list is a row that goes nowhere.
+            foreach (var facet in FilterFacet.Multi)
+            {
+                if (_facetValues is { } values
+                    && values.TryGetValue(facet, out var available)
+                    && available.Count == 0
+                    && _facets[facet].Count == 0)
                 {
-                    if (_facetValues is { } values
-                        && values.TryGetValue(facet, out var available)
-                        && available.Count == 0
-                        && _facets[facet].Count == 0)
-                    {
-                        continue;
-                    }
-
-                    rows.Add(new EditorRow(facet, Describe(facet), null, false));
+                    continue;
                 }
 
-                // The yes-or-no half. Four of them are answered from RomM's own bookkeeping
-                // rather than from the game, and a set carrying one resolves differently on
-                // another account or after a scan, so the row says so rather than the
-                // documentation saying it somewhere nobody is looking.
-                foreach (var property in FilterFacet.Properties)
-                {
-                    rows.Add(new EditorRow(
-                        property,
-                        _properties[property] switch { true => "yes", false => "no", _ => "either" },
-                        _properties[property] is not null && FilterFacet.DependOnTheServer.Contains(property)
-                            ? "RomM answers this from its own records, so this set can resolve "
-                                + "differently on another account or after a scan."
-                            : null,
-                        false));
-                }
-
-                if (IsEmptyFilter)
-                {
-                    rows.Add(new EditorRow(
-                        "Matches",
-                        "the whole library",
-                        "A filter with nothing set matches every game RomM holds.",
-                        false));
-                }
+                rows.Add(new EditorRow(facet, Describe(facet), null, false));
             }
 
-            // Hidden unless it is actually needed, which is the fix for a hands-on finding.
-            // Two rows that look alike were doing different jobs: Platform is the scope's own
-            // value ("this set holds Atari 2600 games") and Folder is a RomM-to-RetroBat
-            // mapping override. The mapping belongs in platform_map, where platforms list
-            // already reads it and where docs/PLAN.md's M2 puts a screen of its own in 7b-3.
-            // It survives here only for the case that genuinely needs a per-set answer: an
-            // arcade platform resolving to none of the ten possible folders. Offering it on
-            // every set made a global setting look like a per-set one, and it is meaningless
-            // on a filter or a collection, which can span platforms.
-            if (NeedsFolderChoice)
+            // The yes-or-no half. Four of them are answered from RomM's own bookkeeping
+            // rather than from the game, and a set carrying one resolves differently on
+            // another account or after a scan, so the row says so rather than the
+            // documentation saying it somewhere nobody is looking.
+            foreach (var property in FilterFacet.Properties)
             {
                 rows.Add(new EditorRow(
-                    "Folder",
-                    _folder ?? "not chosen",
-                    "RomMBat cannot tell which RetroBat system this platform means, so pick one.",
+                    property,
+                    _properties[property] switch { true => "yes", false => "no", _ => "either" },
+                    _properties[property] is not null && FilterFacet.DependOnTheServer.Contains(property)
+                        ? "RomM answers this from its own records, so this set can resolve "
+                            + "differently on another account or after a scan."
+                        : null,
                     false));
             }
 
-            return rows;
+            if (IsEmptyFilter)
+            {
+                rows.Add(new EditorRow(
+                    "Matches",
+                    "the whole library",
+                    "A filter with nothing set matches every game RomM holds.",
+                    false));
+            }
         }
+
+        // Hidden unless it is actually needed, which is the fix for a hands-on finding.
+        // Two rows that look alike were doing different jobs: Platform is the scope's own
+        // value ("this set holds Atari 2600 games") and Folder is a RomM-to-RetroBat
+        // mapping override. The mapping belongs in platform_map, where platforms list
+        // already reads it and where docs/PLAN.md's M2 puts a screen of its own in 7b-3.
+        // It survives here only for the case that genuinely needs a per-set answer: an
+        // arcade platform resolving to none of the ten possible folders. Offering it on
+        // every set made a global setting look like a per-set one, and it is meaningless
+        // on a filter or a collection, which can span platforms.
+        if (NeedsFolderChoice)
+        {
+            rows.Add(new EditorRow(
+                "Folder",
+                _folder ?? "not chosen",
+                "RomMBat cannot tell which RetroBat system this platform means, so pick one.",
+                false));
+        }
+
+        return rows;
     }
 
     public IReadOnlyList<FooterHint> Hints

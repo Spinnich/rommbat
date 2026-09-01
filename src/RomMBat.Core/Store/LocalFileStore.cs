@@ -104,9 +104,7 @@ public sealed record LocalFile
 
     public string? Md5Hash { get; init; }
 
-
-
-    /// <summary>What the three hashes describe.</summary>
+    /// <summary>What the hash describes.</summary>
     public HashScope HashScope { get; init; } = HashScope.File;
 
     /// <summary>

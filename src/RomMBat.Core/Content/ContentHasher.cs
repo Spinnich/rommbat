@@ -4,24 +4,22 @@ using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
 
-/// <summary>What a local file hashes to, and what those hashes describe.</summary>
+/// <summary>What a local file hashes to, and what that hash describes.</summary>
 public sealed record ContentFingerprint
 {
+    /// <summary>Lower-case hex, matching how RomM writes <c>md5_hash</c>.</summary>
     public required string Md5 { get; init; }
 
-
-    /// <summary>Lower-case hex, matching how RomM writes <c>crc_hash</c>.</summary>
-
-    /// <summary>Whether the hashes describe the file or the single entry inside it.</summary>
+    /// <summary>Whether the hash describes the file or the single entry inside it.</summary>
     public required HashScope Scope { get; init; }
 
     /// <summary>
-    /// True when these hashes describe the same bytes RomM's do, so comparing them means something.
+    /// True when this hash describes the same bytes RomM's does, so comparing them means something.
     /// </summary>
     /// <remarks>
     /// False for an archive whose single entry could not be reached: a <c>.7z</c>, or a
-    /// <c>.zip</c> that holds more than one file. Both are hashed as files while RomM's hashes
-    /// describe content, so a mismatch between the two says nothing about the file, and treating
+    /// <c>.zip</c> that holds more than one file. Both are hashed as files while RomM's hash
+    /// describes content, so a mismatch between the two says nothing about the file, and treating
     /// it as one would refuse a correct download on every run. Verification falls back to size.
     /// </remarks>
     public required bool DescribesLibraryContent { get; init; }

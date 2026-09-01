@@ -399,6 +399,12 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         }
     }
 
+    /// <summary>Where the cursor lands next, which on a reading list is simply the next row.</summary>
+    private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
+        Reading
+            ? rows.Count == 0 ? -1 : ((from % rows.Count) + rows.Count) % rows.Count
+            : FirstAvailable(rows, from, step);
+
     /// <summary>
     /// The first choosable row from <paramref name="from"/>, wrapping, or -1 if there is none.
     /// </summary>
@@ -407,12 +413,6 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// rows are all unavailable is a real state: a pairing with no collection scope viewing a
     /// picker offering only collections would otherwise spin here forever.
     /// </remarks>
-    /// <summary>Where the cursor lands next, which on a reading list is simply the next row.</summary>
-    private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
-        Reading
-            ? rows.Count == 0 ? -1 : ((from % rows.Count) + rows.Count) % rows.Count
-            : FirstAvailable(rows, from, step);
-
     private static int FirstAvailable(IReadOnlyList<ListRow> rows, int from, int step)
     {
         if (rows.Count == 0)
