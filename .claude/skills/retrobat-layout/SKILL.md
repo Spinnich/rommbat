@@ -536,10 +536,12 @@ close. Switching SCRAPE FROM therefore rewrites a source the user never touched.
 value, map what is recognised, fall back on anything else, and **ignore `Scraper`**: RomM is
 not one of the scrapers it names. Finding 241.
 
-**Four of the remaining switches are real and two are dead.** `ScrapeBezel` and `ScrapeBoxBack`
-map onto RomM's `bezel_path` and `box2d_back_path`; `ScrapeFanart` maps onto a field measured
-at 0%; `ScrapeMap` and `ScrapePadToKey` have no RomM counterpart at all, and padtokey is input
-config rather than media. Findings 239 and 240.
+**Three of the remaining switches map onto real RomM fields and two are dead.** `ScrapeBezel`,
+`ScrapeBoxBack` and `ScrapeFanart` map onto `bezel_path`, `box2d_back_path` and `fanart_path`.
+`ScrapeMap` and `ScrapePadToKey` have no counterpart at all, which is a fact about the schema
+rather than about one library, and padtokey is input config rather than media. **Do not rule a
+kind out because a library holds none of it**: that number says when the platform was last
+scraped. Findings 239 and 240.
 
 **A kind turned off is also a kind removed.** Stopping future downloads and leaving what is
 already there makes the setting mean two different things depending on which way it is moved,

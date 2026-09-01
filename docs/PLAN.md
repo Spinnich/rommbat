@@ -3009,9 +3009,10 @@ three pickers are not new media kinds: `ScrapperImageSrc` feeds `<image>`, `Scra
 feeds `<thumbnail>` and `ScrapperLogoSrc` feeds `<marquee>`, which are slots RomMBat already
 writes, so they choose what fills a slot rather than adding one. RomM can serve most of them,
 because `ss_metadata` carries fourteen paths against the one `logo_path` RomMBat reads.
-**`ScrapeMap` and `ScrapePadToKey` are dead** (no map field exists in the 5.2.0 schema, and
-padtokey is not media), and **`ScrapeFanart` resolves to nothing measurable**, at 0% on three
-platforms. Findings 239 to 242.
+**`ScrapeMap` and `ScrapePadToKey` are dead**, which is a schema fact rather than a coverage
+one: no map field exists in 5.2.0, and padtokey is input config rather than media. Nothing else
+is ruled out, and a kind measured at 0% on one library particularly is not, because coverage
+says when a platform was last scraped and not what RomM can serve. Findings 239 to 242.
 
 **Ruled with Spinnich: the source settings are honoured as written, including the template's.**
 RetroBat seeds `ScrapperImageSrc=sstitle`, so following it means a stock install gets title

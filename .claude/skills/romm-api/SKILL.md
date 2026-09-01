@@ -80,6 +80,26 @@ so the path returns the moment RomM starts serving it.
 
 **Do not assume the whole kind is absent for the platform.** It was 39 of 40, not 40 of 40.
 
+## A coverage percentage is a fact about one library on one day
+
+**How much of a kind a library holds says when its platforms were last scraped, and with what
+settings.** It says nothing about what RomM can serve, what ScreenScraper holds, or what the
+next instance will look like. Sampling three platforms on a live 5.2.0 instance showed
+`box2d_path` at 0% on megadrive and 100% on atari2600, with `box3d_path` the exact inverse,
+which reads as a per-platform property of the upstream scraper and is not one: that library's
+older platforms predate `box2d` in that form, and its owner had recently stopped storing
+`box3d`, so only the recently scraped platform reflects the new setting.
+
+**So never decide what to support from a coverage number.** Support what the schema exposes and
+let an absent path be the ordinary `Missing` case, which is what `MediaSync` already reports.
+The same reasoning is already in `GameSync`'s remarks for why artwork cannot be part of the
+whole-game invariant: an administrator may not have scraped a kind, and upstream may never have
+held it, and neither is a fault or fixable by re-running. A kind measured at 0% today is one
+rescrape away from 100%.
+
+**Quote the library and the date beside any such number**, or a later session will read it as a
+property of RomM. Finding 239 is the worked example, including the wrong reading first.
+
 ## `fs_size_bytes` can be stale against the file the server serves
 
 **Reported from a live library on `fbneo`: the size on the rom row disagreed with the bytes the
