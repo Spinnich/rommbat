@@ -645,8 +645,23 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
     private void Settle(SyncReport report)
     {
+        var blocked = _state.Blocked;
+
         var (stage, detail) = report.State switch
         {
+            // A blocked ROM is not a failed one, so the service reports Done for a run the
+            // budget stopped dead: a hands-on pass met 386 games left out, 334 problems, nothing
+            // downloaded, and a screen reading FINISHED over "Everything in these sync sets is
+            // on this device". That is the opposite of what happened.
+            //
+            // Corrected here rather than in the service, because SyncState.Incomplete is what
+            // the agent turns into its Offline exit code, and a full disk budget is not being
+            // offline. What the run is at the service level is left as it was.
+            Core.Sets.SyncState.Done when blocked > 0 => (
+                SyncStage.Incomplete,
+                "The disk budget is full, so some games were left out. Raise the budget or make "
+                    + "room, then sync again."),
+
             Core.Sets.SyncState.Done => (SyncStage.Done, "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (

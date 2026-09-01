@@ -749,6 +749,39 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_run_the_budget_stopped_dead_never_reports_that_everything_is_here()
+    {
+        // Found by a hands-on pass, on a screen reading FINISHED over "Everything in these sync
+        // sets is on this device", above "0 of 386" and "386 ROMs were left out". Every one of
+        // those numbers was right and the sentence was the exact opposite of them.
+        //
+        // The cause is that a blocked ROM is not a failed one, so LibrarySyncService's worst
+        // state stays Done and this screen believed it. Telling somebody their library is on the
+        // device when none of it is, is worse than any of the counts being wrong.
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "1", DateTimeOffset.UtcNow);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.True(sync.State.Blocked > 0, "the fixture did not reproduce a blocked run");
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Equal("Finished with problems", sync.State.Outcome);
+
+        Assert.DoesNotContain("on this device", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("budget", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
+
+        // And it does not promise that running it again gets past this, which is the lie the
+        // ordinary Incomplete sentence would tell here: the same budget blocks identically.
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
+
+        sync.Dispose();
+    }
+
+    [Fact]
     public void A_dirty_budget_offers_only_save_and_discard_so_nothing_navigates_away_from_it()
     {
         // Offering a third press while there are unsaved changes would be offering to discard
