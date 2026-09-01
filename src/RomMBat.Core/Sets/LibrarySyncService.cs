@@ -525,11 +525,14 @@ public sealed class LibrarySyncService
 
         progress.Report(new SetSynced(set, outcome.Content));
 
-        if (outcome.Media.Downloaded > 0 || outcome.Media.Problems.Count > 0)
-        {
-            ran.Add(SyncPass.Media);
-            progress.Report(new MediaApplied(outcome.Media));
-        }
+        // Reported whenever the artwork pass ran, not only when it fetched something, which is
+        // what the whole-library run does and what this got wrong first. A live install of a
+        // 2.6 GB Wii U title finished with no artwork on the server and said nothing at all,
+        // where MediaSyncOutcome.Missing is exactly the count that explains a game landing
+        // without a cover. Nothing guarantees a server holds the artwork, so silence there is
+        // the ordinary case and the one most worth wording.
+        ran.Add(SyncPass.Media);
+        progress.Report(new MediaApplied(outcome.Media));
 
         var folders = plan.Steps
             .Where(step => step.Action != ContentAction.Blocked)

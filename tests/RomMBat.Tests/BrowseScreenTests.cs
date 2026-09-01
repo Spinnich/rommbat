@@ -299,6 +299,11 @@ public sealed class BrowseScreenTests : IDisposable
 
         Assert.Equal(SyncStage.Done, sync.State.Stage);
 
+        // Four passes, and the six that are missing are missing for a reason each. Asserted
+        // here because a person watching this screen is the only witness to which ran, and a
+        // live install of a 2.6 GB title reported exactly these four.
+        Assert.Contains("is on this device", sync.State.Detail, StringComparison.Ordinal);
+
         // The pick is a set, and it holds exactly the game that was picked.
         var picked = new PickedSetService(_session);
         var set = picked.Find();

@@ -77,7 +77,20 @@ public sealed record BrowsePage(
 /// <b>Fifty rows a page, not <see cref="RomPager.DefaultPageSize"/>'s 250.</b> That number was
 /// measured for a resolve, which walks a whole scope and wants the fewest requests; a person
 /// scrolling wants the shortest wait. A screen shows eight rows at a time, so 250 is 31 screens
-/// of scrolling per fetch. At M0's measured ~10 ms per ROM a 50-row page is about half a second.
+/// of scrolling per fetch against six.
+/// </para>
+/// <para>
+/// <b>Measured on the live 96,060-rom instance rather than reasoned from M0.</b> Unscoped, warm:
+/// <b>50 rows in 280 ms, 250 rows in 611 ms</b> (cold, 439 ms and 629 ms). So 250 is cheaper per
+/// row and more than twice the wait for the page a person is actually looking at, which is the
+/// one that decides whether the screen feels instant. The estimate this was first written from,
+/// "about half a second at ~10 ms per ROM", was pessimistic; the real figure is better and the
+/// choice is unchanged.
+/// </para>
+/// <para>
+/// Marking a page costs almost nothing on top: the whole <see cref="PageAsync"/> call measured
+/// 285 ms against the raw page's 280 ms, which is the two aggregate queries #111 is about doing
+/// their job.
 /// </para>
 /// </remarks>
 public sealed class BrowseService
@@ -86,8 +99,8 @@ public sealed class BrowseService
     /// Rows per page.
     /// </summary>
     /// <remarks>
-    /// Reasoned from M0 probe 5's ~10 ms per ROM and from <c>ListWindow.Capacity</c> being 8
-    /// rows, then measured on the live instance. See this type's remarks.
+    /// Reasoned from <c>ListWindow.Capacity</c> being 8 rows, then measured on the live
+    /// 96,060-rom instance at 280 ms against 250 rows' 611 ms. See this type's remarks.
     /// </remarks>
     public const int PageSize = 50;
 
