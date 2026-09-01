@@ -123,7 +123,13 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         get
         {
             var state = _state;
-            return ListWindow.Compute(state.Cursor, state.Rows.Count);
+
+            // Fewer rows when each one is taller, or the block runs off the bottom of the
+            // window and Avalonia draws a scroll bar no gamepad can reach.
+            return ListWindow.Compute(
+                state.Cursor,
+                state.Rows.Count,
+                Reading ? ListWindow.ReadingCapacity : ListWindow.Capacity);
         }
     }
 

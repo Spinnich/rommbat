@@ -529,6 +529,48 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public void A_window_of_reading_rows_is_no_taller_than_a_window_of_ordinary_ones()
+    {
+        // The capacity was written for a 78px row and the reading row is 122, so eight of them
+        // ran off the bottom of the window and Avalonia drew a scroll bar on it. A gamepad
+        // cannot drive that bar, and it is not how this interface scrolls: the window is.
+        // Found from the couch one round after the taller row was introduced.
+        var ordinary = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.RowHeight);
+        var reading = ListWindow.BlockHeight(ListWindow.ReadingCapacity, ListWindow.ReadingRowHeight);
+
+        Assert.True(
+            reading <= ordinary,
+            $"a reading window is {reading}px against the {ordinary}px already known to fit");
+
+        // And not so few that the list is a porthole. One more would overflow, which is the
+        // other half of the claim and the half that goes stale if a row grows.
+        var oneMore = ListWindow.BlockHeight(ListWindow.ReadingCapacity + 1, ListWindow.ReadingRowHeight);
+
+        Assert.True(oneMore > ordinary, $"{ListWindow.ReadingCapacity + 1} reading rows would also have fitted");
+    }
+
+    [Fact]
+    public void A_reading_list_windows_to_its_own_capacity()
+    {
+        var screen = new ListScreen(
+            "30 problems",
+            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "why", false))],
+            _ => ScreenCommand.Stay)
+        {
+            Reading = true,
+        };
+
+        Assert.Equal(ListWindow.ReadingCapacity, screen.Window.Count);
+
+        var picker = new ListScreen(
+            "30 things",
+            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture)))],
+            _ => ScreenCommand.Stay);
+
+        Assert.Equal(ListWindow.Capacity, picker.Window.Count);
+    }
+
+    [Fact]
     public void A_picker_still_skips_the_rows_that_cannot_be_chosen()
     {
         // The reading flag must not change the ordinary list. Parking on a row Accept cannot

@@ -372,7 +372,7 @@ internal static class ScreenView
     {
         var stack = new StackPanel
         {
-            Spacing = 14,
+            Spacing = ListWindow.RowSpacing,
             HorizontalAlignment = HorizontalAlignment.Center,
 
             // Fixed, not a maximum. A stack that sizes to its content is as wide as the widest
@@ -569,23 +569,15 @@ internal static class ScreenView
     /// One list row, tall enough for a label and a detail line.
     /// </summary>
     /// <remarks>
-    /// Uniform on purpose. The window draws a fixed number of rows, so rows of differing height
-    /// make the drawn block change size as the cursor passes between them.
+    /// Uniform on purpose, and declared beside the capacity that counts them: the window draws
+    /// a fixed number of rows, so how tall one is decides how many fit.
     /// </remarks>
-    private const double RowHeight = 78;
+    private const double RowHeight = ListWindow.RowHeight;
 
-    /// <summary>
-    /// A row on a list that is read rather than chosen from, and the height of its sentence.
-    /// </summary>
-    /// <remarks>
-    /// Three wrapped lines at 16px plus the label above them and the border's padding. Sized
-    /// from the longest sentence the sync run actually produces, which is the stale-record one
-    /// naming two byte counts and wrapping to two lines at this width, so three leaves headroom
-    /// without turning a list of short problems into a list of mostly empty boxes.
-    /// </remarks>
+    private const double ReadingRowHeight = ListWindow.ReadingRowHeight;
+
+    /// <summary>Three wrapped lines of detail, which is what makes a reading row its height.</summary>
     private const double ReadingDetailHeight = 66;
-
-    private const double ReadingRowHeight = 122;
 
     /// <summary>
     /// How wide a list is, fixed so it cannot breathe as the window scrolls.
