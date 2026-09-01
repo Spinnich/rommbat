@@ -707,6 +707,11 @@ internal static class ScreenView
             MaxWidth = 900,
         };
 
+        if (resolve.Outcome is { } finished)
+        {
+            stack.Children.Add(Outcome(finished));
+        }
+
         stack.Children.Add(new TextBlock
         {
             Text = resolve.Detail,
@@ -798,6 +803,11 @@ internal static class ScreenView
             HorizontalAlignment = HorizontalAlignment.Center,
             MaxWidth = 900,
         };
+
+        if (state.Outcome is { } finished)
+        {
+            stack.Children.Add(Outcome(finished));
+        }
 
         stack.Children.Add(new TextBlock
         {
@@ -990,6 +1000,26 @@ internal static class ScreenView
 
         return stack;
     }
+
+    /// <summary>
+    /// That the work on this screen has stopped happening, said in as many words.
+    /// </summary>
+    /// <remarks>
+    /// <b>A finished progress bar and a stalled one are the same picture.</b> A hands-on pass
+    /// sat on a resolve at 107 of 107 under a full bar and could not tell whether the last game
+    /// had hung. Drawn in the accent colour above the sentence, in the same treatment the
+    /// problems heading already uses, so it reads as a label on the screen rather than as one
+    /// more line of detail. The word itself comes from the view model, because which one
+    /// applies is a fact about the outcome.
+    /// </remarks>
+    private static TextBlock Outcome(string word) =>
+        new()
+        {
+            Text = word.ToUpperInvariant(),
+            Foreground = Accent,
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
 
     /// <summary>A screen whose only content is one sentence about work in progress.</summary>
     private static StackPanel Working(string detail)

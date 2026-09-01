@@ -399,6 +399,85 @@ public sealed class SyncScreenTests : IDisposable
         }
     }
 
+    // ------------------------------------------------------------------ saying it has finished
+
+    [Fact]
+    public async Task A_finished_run_says_so_in_its_title_its_outcome_and_its_footer()
+    {
+        // A hands-on pass sat on a resolve reading "Checking what is in 'X'" over a full bar
+        // and 107 of 107, and could not tell a finished screen from a stuck one. A full bar and
+        // a stalled bar are the same picture, so the screen has to say which it is. Three
+        // places, because the title is what a person reads first and the footer is where they
+        // look for what to press.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+
+        Assert.StartsWith("Syncing", sync.Title, StringComparison.Ordinal);
+        Assert.Null(sync.State.Outcome);
+        Assert.Contains(sync.Hints, hint => hint.Label.Contains("Stop", StringComparison.Ordinal));
+
+        await SettledAsync(sync);
+
+        Assert.StartsWith("Synced", sync.Title, StringComparison.Ordinal);
+        Assert.Equal("Finished", sync.State.Outcome);
+
+        var back = Assert.Single(sync.Hints, hint => hint.Action == NavAction.Back);
+        Assert.Equal("Done", back.Label);
+
+        // The one rule a person has to learn: a stop means it is going, Done means it is over.
+        Assert.DoesNotContain(sync.Hints, hint => hint.Label.Contains("Stop", StringComparison.Ordinal));
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_that_did_not_all_work_says_that_rather_than_finished()
+    {
+        // "Finished" over a list of problems reports a success the run did not have.
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+
+        foreach (var rom in stub.Library)
+        {
+            stub.Content[rom.Id] = new byte[2048];
+        }
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Equal("Finished with problems", sync.State.Outcome);
+        Assert.Equal("Done", Assert.Single(sync.Hints, hint => hint.Action == NavAction.Back).Label);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_finished_resolve_says_so_the_same_way()
+    {
+        // Same rule on both screens, or a user learns two.
+        using var stub = Library(2);
+        Pair();
+        Seed("games", 2);
+
+        var resolve = new ResolveViewModel(_session, Set(), Connect(stub));
+
+        Assert.StartsWith("Checking", resolve.Title, StringComparison.Ordinal);
+        Assert.Null(resolve.Outcome);
+
+        await SettledAsync(resolve);
+
+        Assert.StartsWith("Checked", resolve.Title, StringComparison.Ordinal);
+        Assert.Equal("Finished", resolve.Outcome);
+        Assert.Equal("Done", Assert.Single(resolve.Hints, hint => hint.Action == NavAction.Back).Label);
+
+        resolve.Dispose();
+    }
+
     // ------------------------------------------------------------------ the screen holds still
 
     [Fact]
@@ -769,6 +848,18 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     /// <summary>Waits for the run to reach a terminal stage, or gives up and says so.</summary>
+    private static async Task SettledAsync(ResolveViewModel resolve)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+
+        while (resolve.Stage == ResolveStage.Working && DateTimeOffset.UtcNow < deadline)
+        {
+            await Task.Delay(15, TestContext.Current.CancellationToken);
+        }
+
+        Assert.True(resolve.Stage != ResolveStage.Working, "the resolve never finished");
+    }
+
     private static async Task SettledAsync(SyncViewModel sync)
     {
         var deadline = DateTimeOffset.UtcNow.AddSeconds(30);

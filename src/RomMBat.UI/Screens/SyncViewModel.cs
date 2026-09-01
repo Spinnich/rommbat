@@ -77,6 +77,24 @@ public sealed record SyncSnapshot(
 {
     public IReadOnlyList<string> Problems { get; init; } = Problems ?? [];
 
+    /// <summary>
+    /// One word for how the run ended, or null while it is still going.
+    /// </summary>
+    /// <remarks>
+    /// <b>Said outright rather than left to be inferred from a full progress bar.</b> A bar at
+    /// the end and a bar that has stopped moving look identical, and the second is what a user
+    /// fears. Incomplete gets its own word because "Finished" over a list of problems would be
+    /// reporting a success the run did not have.
+    /// </remarks>
+    public string? Outcome => Stage switch
+    {
+        SyncStage.Working => null,
+        SyncStage.Done => "Finished",
+        SyncStage.Stopped => "Stopped",
+        SyncStage.Incomplete => "Finished with problems",
+        _ => "Did not finish",
+    };
+
     /// <summary>The count as a person reads it, or null before the first game.</summary>
     public string? Counted => Total > 0
         ? string.Create(CultureInfo.CurrentCulture, $"{Done:N0} of {Total:N0}")
@@ -231,9 +249,21 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
     public event EventHandler? Invalidated;
 
-    public string Title => _sets.Count == 1
-        ? $"Syncing '{_sets[0].Name}'"
-        : $"Syncing {_sets.Count} sync sets";
+    /// <summary>
+    /// What the screen is doing, in the tense it is doing it in.
+    /// </summary>
+    /// <remarks>
+    /// Past tense once the work is over. The present tense is a claim that it is still running,
+    /// and a finished run under a full bar is otherwise indistinguishable from a stuck one.
+    /// See <see cref="ResolveViewModel.Title"/>, where a hands-on pass found it.
+    /// </remarks>
+    public string Title => _state.Stage == SyncStage.Working
+        ? _sets.Count == 1
+            ? $"Syncing '{_sets[0].Name}'"
+            : $"Syncing {_sets.Count} sync sets"
+        : _sets.Count == 1
+            ? $"Synced '{_sets[0].Name}'"
+            : $"Synced {_sets.Count} sync sets";
 
     /// <summary>Everything the renderer draws, read once so it cannot change mid-draw.</summary>
     public SyncSnapshot State => _state;
@@ -247,7 +277,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         SyncStage.NotPaired or SyncStage.Rejected when _pair is not null =>
         [
             new FooterHint(NavAction.Accept, "Pair with RomM"),
-            new FooterHint(NavAction.Back, "Back"),
+            new FooterHint(NavAction.Back, "Done"),
         ],
 
         // Only once there are more than the screen shows. Offering it for two problems that are
@@ -255,10 +285,13 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         _ when _state.Problems.Count > ProblemsShown =>
         [
             new FooterHint(NavAction.Accept, $"See all {_state.Problems.Count} problems"),
-            new FooterHint(NavAction.Back, "Back"),
+            new FooterHint(NavAction.Back, "Done"),
         ],
 
-        _ => [new FooterHint(NavAction.Back, "Back")],
+        // "Done" rather than "Back" once nothing is running. If the footer offers a stop the
+        // work is going, and if it says Done it is over: one rule, and the only one a person
+        // has to learn to know whether to keep waiting.
+        _ => [new FooterHint(NavAction.Back, "Done")],
     };
 
     /// <summary>

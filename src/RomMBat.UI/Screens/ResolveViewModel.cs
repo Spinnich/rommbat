@@ -114,9 +114,40 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     /// the name, because that is what the operation is called everywhere else in the codebase
     /// and renaming it would cost more than it buys; what a person sees says what it does.
     /// </remarks>
-    public string Title => _sets.Count == 1
-        ? $"Checking what is in '{_sets[0].Name}'"
-        : $"Checking {_sets.Count} sync sets";
+    /// <summary>
+    /// What the screen is doing, in the tense it is doing it in.
+    /// </summary>
+    /// <remarks>
+    /// <b>Past tense once the work is over, because the present tense is a claim that it is
+    /// still running.</b> A hands-on pass sat on a finished resolve reading "Checking what is
+    /// in 'X'" over a full bar and 107 of 107, and could not tell whether the last game was
+    /// stuck or the screen was about to move on. The title is the largest thing on the screen
+    /// and it was the thing saying the wrong one.
+    /// </remarks>
+    public string Title => Stage == ResolveStage.Working
+        ? _sets.Count == 1
+            ? $"Checking what is in '{_sets[0].Name}'"
+            : $"Checking {_sets.Count} sync sets"
+        : _sets.Count == 1
+            ? $"Checked '{_sets[0].Name}'"
+            : $"Checked {_sets.Count} sync sets";
+
+    /// <summary>
+    /// One word for how it ended, or null while it is still going.
+    /// </summary>
+    /// <remarks>
+    /// <b>Said outright rather than left to be inferred from a full progress bar.</b> A bar at
+    /// the end and a bar that has stopped moving look identical, and the second is what a user
+    /// fears. This is the line that separates them, and it is here rather than in the renderer
+    /// because which word applies is a fact about the outcome.
+    /// </remarks>
+    public string? Outcome => Stage switch
+    {
+        ResolveStage.Working => null,
+        ResolveStage.Done => "Finished",
+        ResolveStage.Stopped => "Stopped",
+        _ => "Did not finish",
+    };
 
     public ResolveStage Stage { get; private set; } = ResolveStage.Working;
 
@@ -157,7 +188,11 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         // Named for what it does rather than for what it stops. "Cancel" reads as though the
         // work is thrown away, and it is not: the walk resumes where it stopped.
         ResolveStage.Working => [new FooterHint(NavAction.Back, "Stop for now")],
-        _ => [new FooterHint(NavAction.Back, "Back")],
+
+        // "Done" rather than "Back" once there is nothing left running, which is the rule the
+        // pairing screen already followed and these two did not: if the footer offers a stop
+        // the work is going, and if it says Done it is over.
+        _ => [new FooterHint(NavAction.Back, "Done")],
     };
 
     public ScreenCommand Handle(NavAction action)

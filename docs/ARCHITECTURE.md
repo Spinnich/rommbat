@@ -211,6 +211,15 @@ and stays so the screen can say what happened, and a second leaves. The sync scr
 removes the game it was in, so its footer says so rather than reading "Stop for now". Both own
 their cancellation and are disposed when left.
 
+**A screen that has finished says so three times, because a full progress bar and a stalled one
+are the same picture.** The title turns past tense ("Checked 'X'", "Synced 'X'"), an outcome
+word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
+finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
+**if the footer offers a stop the work is running, and if it says Done it is over**, which is
+the only thing a person has to learn to know whether to keep waiting. The pairing screen
+already worked this way; a hands-on pass found the other two did not, sitting on a finished
+resolve that still read "Checking what is in 'X'" over 107 of 107.
+
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
 `OnScreenKeyboard` builds them into a 13-column grid of spanning keys with four faces each. The
