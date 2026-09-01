@@ -68,6 +68,20 @@ public sealed record ContentProgressed(ContentSyncProgress Progress) : SyncEvent
 
 public sealed record SetSynced(SyncSetDefinition Set, ContentSyncOutcome Outcome) : SyncEvent(SyncPass.Content);
 
+/// <summary>
+/// A game that did not land whole, and the files this run took back for it.
+/// </summary>
+/// <remarks>
+/// Reported rather than absorbed, because it is the one thing a sync does that removes
+/// something. The user pressed stop, or a disc of a set failed, and either way what they get
+/// told is which game went and how much came back.
+/// </remarks>
+public sealed record GameRolledBack(
+    string Title,
+    int Files,
+    long Bytes,
+    IReadOnlyList<string> Problems) : SyncEvent(SyncPass.Content);
+
 public sealed record MediaProgressed(string What) : SyncEvent(SyncPass.Media);
 
 public sealed record MediaApplied(MediaSyncOutcome Outcome) : SyncEvent(SyncPass.Media);
@@ -97,6 +111,26 @@ public enum SyncState
 
     /// <summary>A set could not be resolved and the run stopped.</summary>
     Refused,
+
+    /// <summary>
+    /// The server refused this device. Pairing again is the only way on.
+    /// </summary>
+    /// <remarks>
+    /// A 401 mid-run is an identity change rather than a transient fault, so the run stops
+    /// instead of sending the same rejected token forty more times. Everything already fetched
+    /// stays, and the gamelists for it are still written.
+    /// </remarks>
+    Rejected,
+
+    /// <summary>
+    /// The user stopped it. The tree is correct, not postponed.
+    /// </summary>
+    /// <remarks>
+    /// A stop still writes the gamelists for the folders it touched and still reports the
+    /// budget, because a run that ends with games on disk that EmulationStation cannot see has
+    /// left work behind rather than stopping.
+    /// </remarks>
+    Stopped,
 }
 
 /// <summary>The outcome of a whole run.</summary>
@@ -248,6 +282,14 @@ public sealed class LibrarySyncService
                     return new SyncReport(SyncState.Refused, ran);
                 }
 
+                if (report.Rejected)
+                {
+                    // The resolve is the first authenticated call a sync makes, so a rejected
+                    // token is met here rather than in the content pass. Reported as what it
+                    // is: nothing about it is worth trying again, and the caller offers to pair.
+                    return new SyncReport(SyncState.Rejected, ran);
+                }
+
                 if (report.State == ResolveState.Interrupted)
                 {
                     return new SyncReport(SyncState.Incomplete, ran);
@@ -264,7 +306,6 @@ public sealed class LibrarySyncService
         // platforms can resolve to one folder, and writing per set would have the second
         // set's write clobber the first's.
         var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var syncedRoms = new List<int>();
 
         ran.Add(SyncPass.Bios);
         await FetchBiosAsync(current, connection, limits, options, progress, cancellationToken)
@@ -272,6 +313,8 @@ public sealed class LibrarySyncService
 
         ran.Add(SyncPass.Content);
         var planner = new ContentPlanner(_session.Install, _session.Store, limits);
+        var artwork = new MediaSyncOutcome();
+        var fetchedArtwork = false;
 
         foreach (var set in current)
         {
@@ -299,38 +342,42 @@ public sealed class LibrarySyncService
                 continue;
             }
 
-            var outcome = await new ContentSync(_session.Install, _session.Store, connection)
-                .ApplyAsync(
-                    plan,
-                    new Immediate<ContentSyncProgress>(p => progress.Report(new ContentProgressed(p))),
-                    cancellationToken)
+            // One game at a time, artwork included, because a run that stops has to leave every
+            // game either wholly present or wholly absent. GameSync owns that sentence.
+            var outcome = await new GameSync(_session.Install, _session.Store, connection, limits)
+                .ApplyAsync(plan, progress, cancellationToken)
                 .ConfigureAwait(false);
 
-            progress.Report(new SetSynced(set, outcome));
+            progress.Report(new SetSynced(set, outcome.Content));
 
-            if (outcome.Failed > 0)
+            artwork = MediaSyncOutcome.Merge(artwork, outcome.Media);
+            fetchedArtwork = true;
+
+            if (outcome.Content.Failed > 0)
             {
                 worst = SyncState.Incomplete;
             }
 
-            foreach (var step in plan.Steps.Where(step => step.Action != ContentAction.Blocked))
+            if (outcome.Rejected)
             {
-                syncedRoms.Add(step.Member.RomId);
+                worst = SyncState.Rejected;
+                break;
+            }
+
+            if (outcome.Stopped)
+            {
+                // Everything below still runs. A stopped sync ends with a correct tree rather
+                // than with work postponed, so the gamelists for the folders it touched are
+                // written and the budget is reported.
+                worst = SyncState.Stopped;
+                break;
             }
         }
 
-        if (!options.DryRun && !options.Offline && connection is not null && syncedRoms.Count > 0)
+        if (fetchedArtwork)
         {
             ran.Add(SyncPass.Media);
-
-            var media = await new MediaSync(_session.Install, _session.Store, connection, limits)
-                .ApplyAsync(
-                    syncedRoms,
-                    new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            progress.Report(new MediaApplied(media));
+            progress.Report(new MediaApplied(artwork));
         }
 
         // Written even on a dry run's opposite, an offline run: the gamelist comes from local
@@ -342,8 +389,18 @@ public sealed class LibrarySyncService
 
             using var emulationStation = new EmulationStationClient();
 
+            // Not on the run's token, and this is the whole of "a stopped sync ends with a
+            // correct tree rather than with work postponed". Handing the cancelled token here
+            // made the pass throw the instant it started, so a stop left every finished game on
+            // disk and invisible to EmulationStation, which is worse than not having fetched it.
+            // Found by a hands-on pass: the first game of a set landed on the drive and never
+            // appeared in the front end.
+            //
+            // Bounded rather than unbounded: the write is local and the reload has a 400 ms
+            // connect timeout, so a screen being disposed waits for two file writes and one
+            // refused socket at most.
             progress.Report(new GamelistsWritten(await new GamelistSync(_session.Install, _session.Store)
-                .ApplyAsync(folders, emulationStation, cancellationToken)
+                .ApplyAsync(folders, emulationStation, CancellationToken.None)
                 .ConfigureAwait(false)));
         }
 

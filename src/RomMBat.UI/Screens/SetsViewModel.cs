@@ -32,7 +32,14 @@ namespace RomMBat.UI.Screens;
 public static class SetsScreens
 {
     /// <summary>The list of sets, which is where this flow starts.</summary>
-    public static IScreen List(InstallSession session, Func<Uri, RomMConnection>? connect = null)
+    /// <param name="pair">
+    /// Where pairing starts, for a sync that the server refuses part way through. Null leaves
+    /// the offer off rather than opening a blank screen.
+    /// </param>
+    public static IScreen List(
+        InstallSession session,
+        Func<Uri, RomMConnection>? connect = null,
+        Func<IScreen>? pair = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -50,23 +57,31 @@ public static class SetsScreens
         return new ListScreen(
             "Sync sets",
             Rows,
-            index => ScreenCommand.Push(Detail(session, sets[index].Set.Name, connect)),
+            index => ScreenCommand.Push(Detail(session, sets[index].Set.Name, connect, pair)),
             acceptLabel: "Open",
             backLabel: "Back",
             new FooterHint(NavAction.Start, "New set"),
-            new FooterHint(NavAction.Alternate, "Resolve all"))
+            new FooterHint(NavAction.Alternate, "Sync everything"),
+            new FooterHint(NavAction.Extra, "Query every set"))
         {
             EmptyMessage = "No sync sets yet. A set is what this device keeps: a platform, a "
                 + "collection, or a search. How much room they may use together is set under "
                 + "disk space.",
             Verbs = (action, _) => action switch
             {
-                NavAction.Start => ScreenCommand.Push(SetEditorViewModel.ForNew(session)),
+                NavAction.Start => ScreenCommand.Push(SetEditorViewModel.ForNew(session, connect)),
+
+                // Syncing is what the sets are for, so it is the first-tier verb here and
+                // resolving moves to the second. A sync re-resolves every set on the way past
+                // anyway, so the two are not a choice a person has to make: resolving alone is
+                // for finding out what a set holds without spending disk on it.
+                NavAction.Alternate when sets.Count > 0 =>
+                    ScreenCommand.Push(Sync(session, [.. sets.Select(summary => summary.Set)], connect, pair)),
 
                 // Every set at once, because doing them one at a time is the hassle a person
                 // notices first. SetResolveService already walks a list; nothing new is needed
                 // except somewhere to press.
-                NavAction.Alternate when sets.Count > 0 =>
+                NavAction.Extra when sets.Count > 0 =>
                     ScreenCommand.Push(Resolve(session, [.. sets.Select(summary => summary.Set)], connect)),
 
                 _ => null,
@@ -88,14 +103,20 @@ public static class SetsScreens
 
         return new ListRow(
             summary.Set.Name,
-            $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
+            summary.OnDiskBytes > 0
+                ? $"{summary.Games} games, {ByteSize.Format(summary.OnDiskBytes)} here"
+                : $"{summary.Games} games, {ByteSize.Format(summary.Bytes)}",
             $"{SyncSetStore.ScopeText(summary.Set.Scope)}; "
                 + (capped ? $"{summary.Policy}; " : string.Empty)
                 + $"last resolved {Moment(summary.Set.LastResolvedAt)}");
     }
 
     /// <summary>One set: what it holds, and the three things that can be done to it.</summary>
-    public static IScreen Detail(InstallSession session, string name, Func<Uri, RomMConnection>? connect)
+    public static IScreen Detail(
+        InstallSession session,
+        string name,
+        Func<Uri, RomMConnection>? connect,
+        Func<IScreen>? pair = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -126,19 +147,22 @@ public static class SetsScreens
             _ => ScreenCommand.Stay,
             acceptLabel: "Change folder",
             backLabel: "Back",
-            new FooterHint(NavAction.Start, "Resolve now"),
+            new FooterHint(NavAction.Start, "Sync now"),
+            new FooterHint(NavAction.Extra, "Query this set"),
             new FooterHint(NavAction.Alternate, "Delete set"))
         {
             // Every row here is a fact rather than a choice, so the cursor has nowhere to sit
             // and the accept hint was suppressed while Verbs went on handling the press. The
             // edit worked and the footer never said so.
             AlwaysOfferAccept = editable,
-            Note = () => "Resolving asks RomM what this set contains now, and needs the network.",
+            Note = () => "Syncing puts this set on the device. Querying only asks RomM what is "
+                + "in it, and downloads nothing. Both need the network.",
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when editable =>
-                    ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set)),
-                NavAction.Start => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
+                    ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set, connect)),
+                NavAction.Start => ScreenCommand.Push(Sync(session, [detail!.Set], connect, pair)),
+                NavAction.Extra => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
                 NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name)),
                 _ => null,
             },
@@ -150,7 +174,16 @@ public static class SetsScreens
         var rows = new List<ListRow>
         {
             new("Scope", ScopeValue(session, detail.Set), null, false),
-            new("Holds", $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}", null, false),
+            new(
+                "Holds",
+                $"{detail.Games} games, {ByteSize.Format(detail.Bytes)}",
+                "What RomM says these games weigh. Artwork has no size until it is fetched.",
+                false),
+            new(
+                "On this device",
+                ByteSize.Format(detail.OnDiskBytes),
+                "Everything this set has put here, artwork included.",
+                false),
             new("Last resolved", Moment(detail.Set.LastResolvedAt), detail.Set.LastResolutionSummary, false),
         };
 
@@ -175,7 +208,7 @@ public static class SetsScreens
             rows.Add(new ListRow(
                 "Left the set",
                 detail.Departed.Count.ToString(CultureInfo.CurrentCulture),
-                "Eviction candidates, not deletions. Nothing has been removed.",
+                "Still on disk. Nothing is removed when a game leaves a set.",
                 false));
         }
 
@@ -213,7 +246,15 @@ public static class SetsScreens
             acceptLabel: "Delete",
             backLabel: "Keep it");
 
-    /// <summary>Resolving one or more sets, the only screen here that needs the network.</summary>
+    /// <summary>Syncing one or more sets, which is what puts games on the device.</summary>
+    public static IScreen Sync(
+        InstallSession session,
+        IReadOnlyList<SyncSetDefinition> sets,
+        Func<Uri, RomMConnection>? connect,
+        Func<IScreen>? pair = null) =>
+        new SyncViewModel(session, sets, connect, pair);
+
+    /// <summary>Resolving one or more sets, which asks RomM what they contain and fetches nothing.</summary>
     public static IScreen Resolve(
         InstallSession session,
         IReadOnlyList<SyncSetDefinition> sets,

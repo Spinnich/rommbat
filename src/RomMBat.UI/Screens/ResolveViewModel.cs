@@ -66,6 +66,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
     private Task? _walk;
     private Task? _roaming;
     private bool _disposed;
+    private bool _stopping;
 
     /// <param name="connect">
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the
@@ -104,9 +105,52 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
 
     public event EventHandler? Invalidated;
 
-    public string Title => _sets.Count == 1
-        ? $"Resolving '{_sets[0].Name}'"
-        : $"Resolving {_sets.Count} sync sets";
+    /// <summary>
+    /// What the screen is called and what it is doing, in the tense it is doing it in.
+    /// </summary>
+    /// <remarks>
+    /// "Resolving" is the word the design has used since M2 and it means nothing to a person: a
+    /// hands-on pass reported that resolving and syncing read as the same thing. The type keeps
+    /// the name, because that is what the operation is called everywhere else in the codebase
+    /// and renaming it would cost more than it buys; what a person sees says what it does.
+    /// <para>
+    /// <b>"Query" rather than the "Check" that first replaced it.</b> Check is plain but says
+    /// nothing about what is being checked or against what, and a footer offering "Check every
+    /// set" beside one offering "Sync" gave no clue which one reaches the network. Query names
+    /// the act: this asks the server and writes down the answer. Spinnich's word.
+    /// </para>
+    /// <para>
+    /// <b>Past tense once the work is over, because the present tense is a claim that it is
+    /// still running.</b> A hands-on pass sat on a finished resolve reading "Checking what is
+    /// in 'X'" over a full bar and 107 of 107, and could not tell whether the last game was
+    /// stuck or the screen was about to move on. The title is the largest thing on the screen
+    /// and it was the thing saying the wrong one.
+    /// </para>
+    /// </remarks>
+    public string Title => Stage == ResolveStage.Working
+        ? _sets.Count == 1
+            ? $"Querying '{_sets[0].Name}'"
+            : $"Querying {_sets.Count} sync sets"
+        : _sets.Count == 1
+            ? $"Queried '{_sets[0].Name}'"
+            : $"Queried {_sets.Count} sync sets";
+
+    /// <summary>
+    /// One word for how it ended, or null while it is still going.
+    /// </summary>
+    /// <remarks>
+    /// <b>Said outright rather than left to be inferred from a full progress bar.</b> A bar at
+    /// the end and a bar that has stopped moving look identical, and the second is what a user
+    /// fears. This is the line that separates them, and it is here rather than in the renderer
+    /// because which word applies is a fact about the outcome.
+    /// </remarks>
+    public string? Outcome => Stage switch
+    {
+        ResolveStage.Working => null,
+        ResolveStage.Done => "Finished",
+        ResolveStage.Stopped => "Stopped",
+        _ => "Did not finish",
+    };
 
     public ResolveStage Stage { get; private set; } = ResolveStage.Working;
 
@@ -147,14 +191,51 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         // Named for what it does rather than for what it stops. "Cancel" reads as though the
         // work is thrown away, and it is not: the walk resumes where it stopped.
         ResolveStage.Working => [new FooterHint(NavAction.Back, "Stop for now")],
-        _ => [new FooterHint(NavAction.Back, "Back")],
+
+        // "Done" rather than "Back" once there is nothing left running, which is the rule the
+        // pairing screen already followed and these two did not: if the footer offers a stop
+        // the work is going, and if it says Done it is over.
+        _ => [new FooterHint(NavAction.Back, "Done")],
     };
 
-    public ScreenCommand Handle(NavAction action) => action switch
+    public ScreenCommand Handle(NavAction action)
     {
-        NavAction.Back => ScreenCommand.Pop,
-        _ => ScreenCommand.Stay,
-    };
+        switch (action)
+        {
+            case NavAction.Back when Stage == ResolveStage.Working:
+                // Stop and stay; a second Back leaves. #107: this screen already composed a
+                // sentence naming the set that was interrupted, and nothing could ever display
+                // it, because Back popped the screen and Dispose was the only thing that
+                // cancelled the walk. The stopped summary was written to a screen that had
+                // already left the stack.
+                //
+                // The sync screen answers Back the same way and has to, since its stop removes
+                // a part-fetched game. Two minutes-long screens with two different rules for
+                // the same press is a rule a user has to learn twice.
+                Stop();
+                return ScreenCommand.Stay;
+
+            case NavAction.Back:
+                return ScreenCommand.Pop;
+
+            default:
+                return ScreenCommand.Stay;
+        }
+    }
+
+    /// <summary>Asks the walk to stop, and says so at once rather than when it notices.</summary>
+    private void Stop()
+    {
+        if (_stopping)
+        {
+            return;
+        }
+
+        _stopping = true;
+        Detail = "Stopping. What has been found so far is kept.";
+        Raise();
+        _run.Cancel();
+    }
 
     public void Dispose()
     {

@@ -7,6 +7,7 @@ using RomM.Client.Content;
 using RomMBat.Core.Content;
 using RomMBat.Core.Mapping;
 using RomMBat.Core.Paths;
+using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;

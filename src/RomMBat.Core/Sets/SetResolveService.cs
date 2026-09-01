@@ -38,6 +38,17 @@ public sealed record ResolveReport(
 {
     /// <summary>True when the membership recorded is now a complete answer.</summary>
     public bool IsComplete => State == ResolveState.Resolved;
+
+    /// <summary>
+    /// True when the server refused this device rather than this request.
+    /// </summary>
+    /// <remarks>
+    /// The resolve is the first authenticated call a sync makes, so it is where a rejected
+    /// token is met in practice. Measured: driving a live 401 through the sync screen reported
+    /// <c>Incomplete</c> and told the user that syncing again would pick up where it left off,
+    /// which is false until they pair again.
+    /// </remarks>
+    public bool Rejected { get; init; }
 }
 
 /// <summary>
@@ -130,32 +141,37 @@ public sealed class SetResolveService
                 ? _session.Store.SyncSets.MembersFrom(set.Id, walkStartedAt)
                 : [];
 
-            SetResolution resolution;
+            // No catch here, and that is the fix for #104. All three ways a walk can stop are
+            // handled inside the resolver now: it breaks out of its page loop on a cancel, on
+            // an HTTP failure and on an unreachable server, so every one of them arrives as an
+            // ordinary Interrupted resolution carrying the games that segment found.
+            //
+            // The unreachable case used to unwind the stack instead, and the accumulator went
+            // with the frame while the offset was still saved. The next walk then resumed at
+            // the right page with nothing carried, completed, and its completion sweep retired
+            // every game the lost segment had found.
+            var resolution = await resolver
+                .ResolveAsync(set, pager, walkStartedAt, carried, relay, cancellationToken)
+                .ConfigureAwait(false);
 
-            try
-            {
-                resolution = await resolver
-                    .ResolveAsync(set, pager, walkStartedAt, carried, relay, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (RomMUnreachableException ex)
-            {
-                _session.Store.Cursors.RecordProgress(endpoint, pager.Offset, pager.Total, DateTimeOffset.UtcNow);
-                reports.Add(Unreachable(set, ex.Message, pager));
-                return reports;
-            }
-
-            // Written down first, cancellation reported second. The resolver stops rather than
-            // throwing, so a cancelled walk arrives here as an ordinary Interrupted resolution
-            // and Record persists the games it found along with the offset. Reporting the
-            // cancellation before recording is what lost them.
-            reports.Add(Record(set, resolution, endpoint, pager, walkStartedAt));
+            // Written down first, cancellation reported second. Record persists the games the
+            // segment found along with the offset, and reporting the cancellation before
+            // recording is what lost them.
+            var report = Record(set, resolution, endpoint, pager, walkStartedAt);
+            reports.Add(report);
 
             if (cancellationToken.IsCancellationRequested)
             {
                 // The ordinary way a resolve ends on a handheld, and the caller has to be able
                 // to tell it from a walk that finished.
                 throw new SetResolveCancelledException(reports);
+            }
+
+            if (report.State == ResolveState.Interrupted && report.Problem is not null)
+            {
+                // The server went, so the sets after this one would each pay a round trip to
+                // find out the same thing. What this one found is recorded either way.
+                return reports;
             }
         }
 
@@ -215,10 +231,16 @@ public sealed class SetResolveService
                 set.Name,
                 ResolveState.Interrupted,
                 resolution.Summary,
-                null,
+                // Null for a cancel, which has no reason worth printing, and the server's own
+                // sentence for a walk that was stopped by a failure. Interrupted used to mean
+                // only the first of those.
+                resolution.Problem,
                 pager.Offset,
                 pager.Total ?? 0,
-                _session.Store.SyncSets.Exclusions(set.Id));
+                _session.Store.SyncSets.Exclusions(set.Id))
+            {
+                Rejected = resolution.Rejected,
+            };
         }
 
         _session.Store.Cursors.CompleteWalk(endpoint, now);
@@ -233,8 +255,6 @@ public sealed class SetResolveService
             _session.Store.SyncSets.Exclusions(set.Id));
     }
 
-    private static ResolveReport Unreachable(SyncSetDefinition set, string message, RomPager pager) =>
-        new(set.Name, ResolveState.Interrupted, message, message, pager.Offset, pager.Total ?? 0, []);
 }
 
 /// <summary>

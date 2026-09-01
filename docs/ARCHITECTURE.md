@@ -97,16 +97,16 @@ here**; see §5.
 Local state, plus everything that knows RetroBat's disk layout. The largest project and
 the one with all the interesting invariants.
 
-| Area             | Responsibility                                                                                                                                                                |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary |
-| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                             |
-| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                              |
-| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                       |
-| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it         |
-| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                      |
-| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                             |
-| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `EvictionService`, `RoamingConfigService`             |
+| Area             | Responsibility                                                                                                                                                                                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                |
+| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                            |
+| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                             |
+| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                                                                                      |
+| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                        |
+| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                     |
+| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                            |
+| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
 
 ### `src/RomMBat.Agent`
 
@@ -114,19 +114,19 @@ Console executable, published as `rommbat-agent.exe`. Short-lived: one pass, the
 There is no daemon, because a portable install cannot register a service or a scheduled
 task.
 
-| Subcommand   | Network       | Notes                                                                                 |
-| ------------ | ------------- | ------------------------------------------------------------------------------------- |
-| `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                       |
-| `sync`       | yes           | Flush first, then resolve sets, BIOS, content, media, gamelists, and scan saves       |
-| `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`              |
-| `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                |
-| `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu         |
-| `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision |
-| `game-start` | **never**     | Append a start record and exit                                                        |
-| `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit             |
-| `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server      |
-| `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types         |
-| `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts |
+| Subcommand   | Network       | Notes                                                                                                  |
+| ------------ | ------------- | ------------------------------------------------------------------------------------------------------ |
+| `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                                        |
+| `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves |
+| `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`                               |
+| `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
+| `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                          |
+| `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision                  |
+| `game-start` | **never**     | Append a start record and exit                                                                         |
+| `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                              |
+| `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server                       |
+| `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
+| `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
 All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
 one subcommand that needs the network and a decision from a person, and the only caller of
@@ -200,9 +200,27 @@ EmulationStation through `system/es_menu/*.menu`.
 **The entry that launches it exists as of M7 stage 7a**, and as of stage 7b-1 it opens a real
 interface: pairing behind an on-screen keyboard, and status. **Stage 7b-2a added the sets
 surface**: listing, defining, editing and deleting a set, the scope, platform and folder
-pickers, resolving one with progress, and the disk budget. Downloading anything, browse and
-per-game install are 7b-2b and 7b-2c; conflict resolution and acting on the queued-config
+pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added the sync run**:
+syncing every set or one set with live progress, a stop that leaves the tree correct, and the
+budget as it is spent. Freeing space is not on the interface.
+Browse and per-game install are 7b-2c; conflict resolution and acting on the queued-config
 surface are 7b-3.
+
+**Two screens run minutes-long work, and they answer Back the same way**: the first press stops
+and stays so the screen can say what happened, and a second leaves. The sync screen's stop
+removes the game it was in, so its footer says so rather than reading "Stop for now". Both own
+their cancellation and are disposed when left.
+
+**A screen that has finished says so three times, because a full progress bar and a stalled one
+are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'"), an outcome
+word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
+finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
+**if the footer offers a stop the work is running, and if it says Done it is over**, which is
+the only thing a person has to learn to know whether to keep waiting. The pairing screen
+already worked this way; a hands-on pass found the other two did not, sitting on a finished
+resolve that still read "Checking what is in 'X'" over 107 of 107. That screen now says
+**Query** rather than Check: "Check every set" gave no clue which of the two footer actions
+reaches the network, where "Query" names the act of asking the server.
 
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
@@ -232,6 +250,13 @@ day on the same machine.** Stage 7b-1 recorded 101.1 MB and 1041 ms; stage 7b-2a
 both. The like-for-like figure that means something is the **delta**: moving the sets, sync
 and eviction orchestration into Core cost **+0.1 MB and 2 ms**, 96.5 MB and 936 ms before
 against 96.6 MB and 934 ms after, five runs each, warm cache.
+
+Stage 7b-2b, which adds three screens and lifts the flush into Core, cost **+0.1 MB and nothing
+measurable in start time**: 96.6 MB and 884 ms for its base commit against 96.7 MB and 872 ms
+after, both re-published and re-timed the same day, median of five with a warm-up discarded. The
+12 ms sits inside a spread of 858 to 919 ms, so the claim is no measurable change rather than an
+improvement. Reading the branch against 7b-2a's recorded 934 ms instead would have shown a 62 ms
+gain that does not exist, which is the mistake 7b-2a's own ledger records making.
 
 **Trimming is not switched on, and that is measured rather than lazy.** It takes the same
 build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
@@ -381,17 +406,28 @@ the same reason as the tables: a single-file publish carries it with no second f
 
 ## 4. The local store
 
+**One connection, gated.** Every store class shares a single `SqliteConnection`, which is not
+thread-safe, and access is serialised inside the process by a re-entrant gate taken when a
+command is created and released when it is disposed. Nothing serialised it before M7 stage
+7b-2b, which is the stage that made the race reachable: a sync writes from a background thread
+for minutes while the drawing thread reads the same connection on every redraw. A command must
+therefore be created and disposed on one thread, which every store method satisfies by being
+synchronous.
+
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Eleven have been
-added since, by migrations whose headers state what shape could not carry the work. The schema lives
+so each milestone has somewhere honest to write from the moment it starts. Twelve migrations
+have been added since, whose headers state what shape could not carry the work, and 013 is the
+first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
+nothing read either back and computing them was most of the cost of verifying a download. The
+schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `device`           | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token                         |
 | `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                      |
-| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5/sha1/crc, mtime, last verified, synced or adopted |
+| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced or adopted          |
 | `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                 |
 | `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, and whether RomM serves each as one file |
 | `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |
@@ -627,6 +663,23 @@ sharing a region folder with every other game on the system. So the path alone i
 identity, which is what `local_save.unit_key` exists for. Containers are declared in
 `data/retrobat/save_shapes.json` and never discovered: hashing an emulator's whole data root
 took 426 s where the scoped subtree took 0.06 s.
+
+**The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
+`SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
+`StateSync` and returns a `FlushReport`; `flush` and the sync screen are both printers over it.
+Three properties of that pass are rules rather than implementation, and each has a test:
+
+- **The tree lock is taken there and a failed acquire is `FlushState.Skipped`**, an outcome with
+  its own sentence rather than an error. Two flushes overlap whenever somebody runs one beside a
+  sync, and the second exits rather than waiting, because waiting would put a process to sleep
+  inside the game-launch path. It is also what keeps a front end from ever naming `TreeLock`.
+- **The local half always runs and only sending needs a link.** Draining, correlating and both
+  scans answer from the tree, so a caller that could not authenticate passes no connection and
+  still gets all of it.
+- **States are scanned before saves and sent last.** The first is #64: the sidecar attribution
+  route reads `local_state` and `SaveScanner` runs it, so scanning saves first leaves the route
+  reading an empty table. The second is because states are the only part of the pass nobody has
+  to act on.
 
 Three rules that are not obvious:
 

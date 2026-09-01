@@ -104,11 +104,7 @@ public sealed record LocalFile
 
     public string? Md5Hash { get; init; }
 
-    public string? Sha1Hash { get; init; }
-
-    public string? CrcHash { get; init; }
-
-    /// <summary>What the three hashes describe.</summary>
+    /// <summary>What the hash describes.</summary>
     public HashScope HashScope { get; init; } = HashScope.File;
 
     /// <summary>
@@ -140,8 +136,8 @@ public sealed record LocalFile
 public sealed class LocalFileStore
 {
     private const string SelectColumns = """
-        SELECT id, relative_path, folder, rom_id, file_name, size_bytes, md5_hash, sha1_hash,
-               crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin, kind
+        SELECT id, relative_path, folder, rom_id, file_name, size_bytes, md5_hash,
+               hash_scope, mtime_utc, verified_at, verified_by, origin, kind
         FROM local_file
         """;
 
@@ -157,12 +153,12 @@ public sealed class LocalFileStore
         using var command = _connection.Command(
             """
             INSERT INTO local_file (
-              relative_path, folder, rom_id, file_name, size_bytes, md5_hash, sha1_hash,
-              crc_hash, hash_scope, mtime_utc, verified_at, verified_by, origin, kind
+              relative_path, folder, rom_id, file_name, size_bytes, md5_hash,
+              hash_scope, mtime_utc, verified_at, verified_by, origin, kind
             )
             VALUES (
-              $path, $folder, $romId, $fileName, $size, $md5, $sha1,
-              $crc, $scope, $mtime, $verifiedAt, $verifiedBy, $origin, $kind
+              $path, $folder, $romId, $fileName, $size, $md5,
+              $scope, $mtime, $verifiedAt, $verifiedBy, $origin, $kind
             )
             ON CONFLICT (relative_path) DO UPDATE SET
               folder      = excluded.folder,
@@ -171,8 +167,6 @@ public sealed class LocalFileStore
               file_name   = excluded.file_name,
               size_bytes  = excluded.size_bytes,
               md5_hash    = excluded.md5_hash,
-              sha1_hash   = excluded.sha1_hash,
-              crc_hash    = excluded.crc_hash,
               hash_scope  = excluded.hash_scope,
               mtime_utc   = excluded.mtime_utc,
               verified_at = excluded.verified_at,
@@ -186,8 +180,6 @@ public sealed class LocalFileStore
             .With("$fileName", file.FileName)
             .With("$size", file.SizeBytes)
             .With("$md5", SqliteValues.OrNull(Normalize(file.Md5Hash)))
-            .With("$sha1", SqliteValues.OrNull(Normalize(file.Sha1Hash)))
-            .With("$crc", SqliteValues.OrNull(Normalize(file.CrcHash)))
             .With("$scope", ScopeText(file.HashScope))
             .With("$mtime", SqliteValues.ToTextOrNull(file.ModifiedUtc))
             .With("$verifiedAt", SqliteValues.ToTextOrNull(file.VerifiedAt))
@@ -406,13 +398,11 @@ public sealed class LocalFileStore
         FileName = reader.GetString(4),
         SizeBytes = reader.GetInt64(5),
         Md5Hash = reader.GetStringOrNull(6),
-        Sha1Hash = reader.GetStringOrNull(7),
-        CrcHash = reader.GetStringOrNull(8),
-        HashScope = ParseScope(reader.GetStringOrNull(9)),
-        ModifiedUtc = reader.GetTimestampOrNull(10),
-        VerifiedAt = reader.GetTimestampOrNull(11),
-        VerifiedBy = ParseVerified(reader.GetStringOrNull(12)),
-        Origin = ParseOrigin(reader.GetStringOrNull(13)),
-        Kind = ParseKind(reader.GetStringOrNull(14)),
+        HashScope = ParseScope(reader.GetStringOrNull(7)),
+        ModifiedUtc = reader.GetTimestampOrNull(8),
+        VerifiedAt = reader.GetTimestampOrNull(9),
+        VerifiedBy = ParseVerified(reader.GetStringOrNull(10)),
+        Origin = ParseOrigin(reader.GetStringOrNull(11)),
+        Kind = ParseKind(reader.GetStringOrNull(12)),
     };
 }

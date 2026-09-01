@@ -46,6 +46,18 @@ public sealed record LocalState
 
     public long SizeBytes { get; init; }
 
+    /// <summary>
+    /// When the scan that recorded this row ran.
+    /// </summary>
+    /// <remarks>
+    /// The column has always been written and nothing could read it back. It is exposed because
+    /// the flush's rule that states are scanned before saves (#64) had no witness outside a
+    /// class C fixture: the sidecar attribution route reads <c>local_state</c>, so scanning
+    /// saves first leaves it reading an empty table, and the two stamps are what a test compares.
+    /// </remarks>
+    public DateTimeOffset? ScannedAtUtc { get; init; }
+
+
     public DateTimeOffset? FileMtimeUtc { get; init; }
 
     public int? StateId { get; init; }
@@ -191,7 +203,7 @@ public sealed class LocalStateStore
             SELECT relative_path, system, emulator, core, emulator_version, retrobat_version,
                    rom_id, rom_relative_path, slot, screenshot_path, native_name, content_hash,
                    size_bytes, file_mtime_utc, state_id, uploaded_file_name,
-                   uploaded_content_hash, uploaded_at_utc
+                   uploaded_content_hash, uploaded_at_utc, scanned_at_utc
             FROM local_state
             WHERE ($romId IS NULL OR rom_id = $romId)
             ORDER BY relative_path;
@@ -223,6 +235,7 @@ public sealed class LocalStateStore
                 UploadedFileName = reader.GetStringOrNull(15),
                 UploadedContentHash = reader.GetStringOrNull(16),
                 UploadedAtUtc = reader.GetTimestampOrNull(17),
+                ScannedAtUtc = reader.GetTimestampOrNull(18),
             });
         }
 

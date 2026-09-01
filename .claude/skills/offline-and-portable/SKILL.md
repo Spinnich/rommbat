@@ -70,9 +70,78 @@ the source of truth; the network is optional, probed with a short-timeout
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.
 
+- **A cancelled transfer's partial is truncated before its handle is closed, and this is a
+  measurement about slow drives rather than about tidiness.** Cancelling a download is instant.
+  What is not instant is closing the handle over a large part-written file, because that waits
+  for the drive's write cache: measured on the live install, stopping 10.9 s into a PS2-sized
+  download spent **20.1 s** in `FileStream.DisposeAsync` alone, and the file was deleted a
+  moment later. RomMBat was paying to flush bytes it was about to discard. Truncating first took
+  the same stop from 20.2 s to 0.2 s. It costs the resume, so it is done **only** on a user
+  cancellation, where the transfer is discarded by ruling. An unreachable server keeps its
+  partial, because resuming from it is the whole reason one is written.
+
+  Portable installs are exactly where this bites: the same code on an internal SSD would hide
+  it, and RomMBat lives on the removable drive by design.
+
+  **The rollback above it has to obey the same rule, and it did not.** `GameSync` takes a game
+  back whenever it did not land whole, which is a stop _or_ a failure, and its first version
+  deleted the `.part` and the `local_file` download row on both. A 929 MB image that lost the
+  LAN at 800 MB was therefore rolled back correctly and made unresumable silently, since no file
+  had been removed and no `GameRolledBack` event fired to say so. The rollback now takes the
+  bytes and leaves the partial unless the user cancelled. **A size-mismatch test cannot catch
+  this**, because `ContentSync` deletes the partial itself on a verification failure and the two
+  paths then look identical from outside: it needs a transfer the server drops.
+
+  **Bytes are what make a partial worth keeping, and an empty one is discarded either way.**
+  `ContentSync` opens the `.part` before it makes the request, so a response that never carries
+  a body still leaves an empty file and a download row. Measured on a live install during a
+  hands-on pass: one RomM answering **502 for three seconds left 155 empty partials and 155
+  download rows**, not one of them resumable, and the person watching reasonably read the pile
+  as a fault. Keeping a partial with nothing in it is litter rather than progress.
+
+- **One `SqliteConnection` is shared by every store class, and it is gated inside the process.**
+  `SqliteConnection` is not thread-safe and nothing serialised it until M7 stage 7b-2b, which is
+  the stage that made the race reachable: before it the only background work touching the store
+  was a resolve, and a sync writes from a background thread for minutes while the drawing thread
+  reads the same connection on every redraw. The symptom is not a clean exception but
+  "Collection was modified" thrown out of `SqliteCommand.Dispose`, from two threads mutating one
+  connection's prepared-statement list.
+
+  The gate is entered when a command is created and left when it is disposed, which covers the
+  reader because every call site reads inside the command's own `using` scope.
+
+  **A transaction is not a command, and it has to take the gate itself.** `BeginTransaction` and
+  `Commit` issue their own `BEGIN` and `COMMIT` through the connection directly, so relying on
+  the store calls inside the transaction to gate themselves drops the gate between every
+  statement: another thread creates and disposes its own command mid-transaction, which is the
+  unserialised prepared-statement-list mutation this exists to stop, and its reads land inside an
+  open transaction and see uncommitted rows. `InTransaction` therefore enters the gate around the
+  whole thing. `NextSequence` and `CurrentSequence` go through `Command()` for the same reason:
+  a raw `CreateCommand` is ungated by construction. This was wrong when the gate was added, in
+  the code and in three documents, and `A_transaction_holds_the_gate_for_the_whole_transaction`
+  is what pins it.
+
+  **A command must be created and disposed on the same thread.** The gate is a `Monitor`, which
+  belongs to the thread that took it, so an `await` between opening a command and disposing it
+  can resume elsewhere and the release then finds a gate it does not hold, holding it for ever.
+  Every store method is synchronous, which is what makes this safe; an `async` one needs a
+  different primitive, and a **re-entrant** one, because `InTransaction` holds the gate across
+  the store calls inside the transaction.
+
+  **`StoreGate.Leave` returns rather than throwing when this thread is not the holder, and that
+  guard is load-bearing.** `SqliteConnection.Close` disposes every command the connection still
+  tracks, on whatever thread closed it, which fires the `Disposed` handler that releases the
+  gate. A background loader still mid-read when the store is disposed therefore gets its command
+  released by the disposing thread. Removing the guard to make the release diagnosable was tried
+  on the strength of a review finding and two tests caught it.
+
+  **This orders threads inside one process and nothing else.** The database is WAL and the hooks
+  write to it from their own processes; `TreeLock` and the busy timeout are what order those.
+
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
-  (`FlushCommand.cs:68-72`). So anything that grabs the lock for an instant just to look at it
+  (`SaveFlushService.cs:168-176`, moved out of `FlushCommand` in 7b-2b so both front ends get
+  the same answer). So anything that grabs the lock for an instant just to look at it
   makes a `background quit` flush starting in that instant skip the upload entirely and call it
   success, leaving the user's save in the outbox until the next quit with nothing saying why.
   **Take the lock only around work you are actually going to do**, and hold it for the whole of
@@ -100,11 +169,25 @@ the source of truth; the network is optional, probed with a short-timeout
   `UiTreeLockTests` carries the anti-vacuity companion as of #100: Core must still _define_
   `TreeLock`, or renaming it would disarm the boundary with nothing saying so.
 
+  **The flush settles this for good as of 7b-2b: it takes the lock itself and returns
+  `FlushState.Skipped`.** `SaveFlushService` is one Core service that both `flush` and the sync
+  screen are printers over, so the lock is acquired in exactly one place and the refusal reaches
+  either front end as a value with its own sentence. Nothing outside Core needs to know the lock
+  exists. `FlushCommand` keeps only `--quiet`, the conflict block and the exit codes.
+
 - **Which operations work with the server off, on the sets surface.** Listing sets, defining
   one, editing its caps and ordering, deleting it, and setting the disk budget and free-space
-  floor are all local and all answerable offline. **Only resolving needs the network**, and it
-  is the only screen that says so. A screen that cannot tell those two apart is wrong: the
-  whole point of defining a set on a handheld away from its server is that it can be done.
+  floor are all local and all answerable offline. **Only resolving and syncing need the
+  network**, and they are the only screens that say so. A screen that cannot tell those two apart
+  is wrong: the whole point of defining a set on a handheld away from its server is that it can
+  be done.
+
+  **Eviction is offline too and has no screen**, which are two separate facts and 7b-2b settled
+  both. `EvictionService` in Core is a preview from two local scans and a walk of `local_file`,
+  and carrying it out deletes files and rewrites gamelists from local state, so `rommbat-agent
+evict` works with the server off. What 7b-2b removed is the interface to it: RomMBat guessing
+  which games matter least is a bad policy even when a person starts it, so freeing space is the
+  user's, by dropping a sync set or a single game. Do not go looking for eviction screens.
 
   **A resolve is minutes-long work, measured rather than assumed:** a platform scope of 9,196
   roms took **8 minutes 15 seconds** against a live 5.2.0 instance at 250 rows a page. So

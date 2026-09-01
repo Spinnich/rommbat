@@ -131,10 +131,21 @@ public sealed class BudgetViewModel : IScreen
             true),
     ];
 
-    public IReadOnlyList<FooterHint> Hints =>
-        IsDirty
-            ? [new FooterHint(NavAction.Start, "Save"), new FooterHint(NavAction.Back, "Discard")]
-            : [new FooterHint(NavAction.Back, "Back")];
+    public IReadOnlyList<FooterHint> Hints
+    {
+        get
+        {
+            // While there are unsaved changes the footer says only what the two presses do to
+            // them. Offering a third that navigates away would be offering to discard without
+            // saying so.
+            if (IsDirty)
+            {
+                return [new FooterHint(NavAction.Start, "Save"), new FooterHint(NavAction.Back, "Discard")];
+            }
+
+            return [new FooterHint(NavAction.Back, "Back")];
+        }
+    }
 
     public ScreenCommand Handle(NavAction action)
     {

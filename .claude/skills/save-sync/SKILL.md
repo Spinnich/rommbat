@@ -12,6 +12,37 @@ API. Everything below is squeezed through that.
 Grout is thin prior art: `sync/directory_saves.go` marks only `psp`, because Linux
 handhelds run a narrow emulator set. RetroBat meets every case.
 
+## Where the flush passes live
+
+**One Core service, and both front ends are printers over it.** `Sync/SaveFlushService` composes
+`SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
+`StateSync` and returns a `FlushReport`. `flush` was 289 lines welded to `Console` until M7 stage
+7b-2b; what is left in the agent is `--quiet`, the conflict block and the exit-code mapping.
+**Add a pass to the service, never to a subcommand**, or the gamepad UI silently stops doing it.
+
+Four properties of that pass are rules rather than implementation, and each has a test:
+
+- **The tree lock is taken there and a failed acquire is `FlushState.Skipped`.** An outcome with
+  its own sentence, never an exception and never a null report. Two flushes overlap whenever
+  somebody runs one beside a sync, and the second exits rather than waiting, because waiting
+  would put a process to sleep inside the game-launch path.
+- **The local half always runs and only sending needs a link.** A caller that could not
+  authenticate passes no connection and still gets the drain, the correlate and both scans.
+- **States are scanned before saves** (#64) **and sent last.** The scan order is what lets the
+  sidecar attribution route see `local_state`; the send order is because states are the only
+  part of the pass nobody has to act on.
+- **The connection is a parameter, not something the service opens.** Authenticating reads a
+  passphrase off a command line and maps to an exit code Core cannot know. A caller that
+  supplies a connection gets that one used for the whole pass, sends included: a screen that
+  authenticated once must not have its flush quietly open a second connection to whatever the
+  store calls the origin.
+
+`FlushState` distinguishes `Done`, `Skipped`, `LocalOnly`, `NotPaired`, `Unreachable` and
+`Partial`. **`Unreachable` is not reached in practice** and that is worth knowing before relying
+on it: all three sending passes absorb `RomMUnreachableException` per item and report it, so a
+server that goes away mid-flush ends the pass `Partial`. The outer catch is inherited from the
+subcommand rather than designed.
+
 ## Save states: parse, do not hardcode
 
 `.emulationstation/es_savestates.cfg` gives directory, file, image, autosave templates and

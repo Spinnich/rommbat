@@ -43,6 +43,7 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     private readonly CancellationTokenSource _load = new();
 
     private volatile ListState _state;
+    private bool _reading;
     private bool _disposed;
     private bool _started;
 
@@ -122,7 +123,13 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         get
         {
             var state = _state;
-            return ListWindow.Compute(state.Cursor, state.Rows.Count);
+
+            // Fewer rows when each one is taller, or the block runs off the bottom of the
+            // window and Avalonia draws a scroll bar no gamepad can reach.
+            return ListWindow.Compute(
+                state.Cursor,
+                state.Rows.Count,
+                Reading ? ListWindow.ReadingCapacity : ListWindow.Capacity);
         }
     }
 
@@ -161,6 +168,42 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// failure as promising an action that does not exist, pointed the other way.
     /// </remarks>
     public bool AlwaysOfferAccept { get; init; }
+
+    /// <summary>
+    /// Every row is text to read rather than a choice, so the cursor walks all of them.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because an unavailable row is normally one the cursor skips, and a list of nothing
+    /// but unavailable rows therefore does not scroll at all.</b> That is right for a picker,
+    /// where parking on a row Accept cannot act on is a press that does nothing, and wrong for
+    /// a list whose whole purpose is reading: the sync run's problems opened with a cursor of
+    /// -1, so a hands-on pass could see the first few and move through none of them.
+    /// <para>
+    /// Accept still offers nothing, because <see cref="Hints"/> asks the row under the cursor
+    /// and every row here is unavailable. The renderer also draws these rows at a uniform
+    /// height, since text long enough to wrap is what makes a windowed list change size as it
+    /// scrolls.
+    /// </para>
+    /// </remarks>
+    public bool Reading
+    {
+        get => _reading;
+
+        init
+        {
+            _reading = value;
+
+            // Set here rather than read in the constructor, because an object initialiser runs
+            // after it: the constructor computed a cursor with this still false, parked at -1
+            // because no row is available, and the first press then stepped from -2. Caught by
+            // the test below rather than from the couch, which is the only reason it is not a
+            // fourth hands-on round.
+            if (value && _state.Cursor < 0 && _state.Rows.Count > 0)
+            {
+                _state = _state with { Cursor = 0 };
+            }
+        }
+    }
 
     /// <summary>
     /// Work that has to finish before the rows mean anything.
@@ -296,7 +339,13 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         var rows = _rows();
         var cursor = _state.Cursor;
 
-        if (cursor >= rows.Count || (cursor >= 0 && !rows[cursor].Available))
+        if (Reading)
+        {
+            // Only clamped. Availability decides nothing here, and re-reading must not throw
+            // away where the user had scrolled to.
+            cursor = rows.Count == 0 ? -1 : Math.Clamp(cursor, 0, rows.Count - 1);
+        }
+        else if (cursor >= rows.Count || (cursor >= 0 && !rows[cursor].Available))
         {
             cursor = FirstAvailable(rows, Math.Max(0, Math.Min(cursor, rows.Count - 1)), 1);
         }
@@ -320,11 +369,11 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         switch (action)
         {
             case NavAction.Up:
-                _state = state with { Cursor = FirstAvailable(state.Rows, state.Cursor - 1, -1) };
+                _state = state with { Cursor = Step(state.Rows, state.Cursor - 1, -1) };
                 return ScreenCommand.Stay;
 
             case NavAction.Down:
-                _state = state with { Cursor = FirstAvailable(state.Rows, state.Cursor + 1, 1) };
+                _state = state with { Cursor = Step(state.Rows, state.Cursor + 1, 1) };
                 return ScreenCommand.Stay;
 
             case NavAction.Accept when state.Cursor >= 0 && state.Rows[state.Cursor].Available:
@@ -349,6 +398,12 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
                 return ScreenCommand.Stay;
         }
     }
+
+    /// <summary>Where the cursor lands next, which on a reading list is simply the next row.</summary>
+    private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
+        Reading
+            ? rows.Count == 0 ? -1 : ((from % rows.Count) + rows.Count) % rows.Count
+            : FirstAvailable(rows, from, step);
 
     /// <summary>
     /// The first choosable row from <paramref name="from"/>, wrapping, or -1 if there is none.

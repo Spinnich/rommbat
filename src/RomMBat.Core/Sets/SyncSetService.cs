@@ -69,20 +69,36 @@ public sealed record SetSelection(IReadOnlyList<SyncSetDefinition> Sets, string?
 }
 
 /// <summary>One set as a list shows it: the definition plus what it currently resolves to.</summary>
-public sealed record SetSummary(SyncSetDefinition Set, int Games, long Bytes)
+/// <param name="Bytes">
+/// What the games weigh according to RomM, which is the only figure available before a sync.
+/// </param>
+/// <param name="OnDiskBytes">
+/// What this set actually occupies now, artwork included.
+/// </param>
+/// <remarks>
+/// <b>Two figures because they answer different questions, and the gap between them is the
+/// point.</b> <paramref name="Bytes"/> is ROMs only: RomM publishes no media size on the rom
+/// row, so nothing can predict the artwork. Measured on two Atari platforms, artwork is 62 to
+/// 94 times the ROM bytes, so a set reading "296.6 KB" was occupying 28 MB and had no way of
+/// saying so.
+/// </remarks>
+public sealed record SetSummary(SyncSetDefinition Set, int Games, long Bytes, long OnDiskBytes = 0)
 {
     /// <summary>The caps and ordering as a sentence.</summary>
     public string Policy => SyncSetService.DescribePolicy(Set);
 }
 
 /// <summary>Everything <c>sets show</c> knows about one set.</summary>
+/// <param name="Bytes">What the games weigh according to RomM. See <see cref="SetSummary"/>.</param>
+/// <param name="OnDiskBytes">What this set occupies now, artwork included.</param>
 public sealed record SetDetail(
     SyncSetDefinition Set,
     int Games,
     long Bytes,
     IReadOnlyList<SyncSetMember> Members,
     IReadOnlyList<SyncSetMember> Departed,
-    IReadOnlyList<ExclusionSummary> Exclusions)
+    IReadOnlyList<ExclusionSummary> Exclusions,
+    long OnDiskBytes = 0)
 {
     public string Policy => SyncSetService.DescribePolicy(Set);
 }
@@ -235,7 +251,7 @@ public sealed class SyncSetService
         return [.. store.List().Select(set =>
         {
             var (games, bytes) = store.MemberTotals(set.Id);
-            return new SetSummary(set, games, bytes);
+            return new SetSummary(set, games, bytes, OnDisk(set.Id));
         })];
     }
 
@@ -280,7 +296,38 @@ public sealed class SyncSetService
             bytes,
             store.Members(set.Id),
             store.Members(set.Id, MemberState.Departed),
-            store.Exclusions(set.Id));
+            store.Exclusions(set.Id),
+            OnDisk(set.Id));
+    }
+
+    /// <summary>
+    /// What one set occupies on this device now, every kind of file included.
+    /// </summary>
+    /// <remarks>
+    /// Counted over the set's current members, so a game that has left the set stops counting
+    /// against it the moment it departs, which is what makes the figure answer "what is this
+    /// set costing me" rather than "what did it ever cost me".
+    /// <para>
+    /// <b>Adopted files are counted here and not in the budget, deliberately.</b> The budget
+    /// bounds what RomMBat downloaded, because counting a user's own library would put the app
+    /// permanently over its cap. This figure answers a different question, which is how much of
+    /// the drive the set is using, and the user's own ROM in that folder is using it too.
+    /// </para>
+    /// </remarks>
+    private long OnDisk(long setId)
+    {
+        var files = _session.Store.Files;
+        var total = 0L;
+
+        foreach (var member in _session.Store.SyncSets.Members(setId))
+        {
+            foreach (var file in files.ForRom(member.RomId))
+            {
+                total += file.SizeBytes;
+            }
+        }
+
+        return total;
     }
 
     /// <summary>

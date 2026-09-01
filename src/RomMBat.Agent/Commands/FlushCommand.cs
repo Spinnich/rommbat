@@ -1,5 +1,5 @@
 using RomM.Client;
-using RomMBat.Core.Content;
+using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 
 namespace RomMBat.Agent.Commands;
@@ -8,28 +8,20 @@ namespace RomMBat.Agent.Commands;
 /// <c>flush</c>: one pass over everything waiting, then exit.
 /// </summary>
 /// <remarks>
-/// <b>This is the whole of RomMBat's background work, and it has no daemon to live in.</b> A
-/// portable install cannot register a service or a scheduled task, so the design is one short
-/// pass that anything can invoke, then exit.
+/// <b>This is a printer over <see cref="SaveFlushService"/>.</b> The passes, their order and the
+/// argument for each live there, because the gamepad UI runs the same flush and two
+/// implementations of what a flush does would drift. What is left here is <c>--quiet</c>, the
+/// conflict block, and the mapping from an outcome to an exit code.
 /// <para>
-/// <b>What invokes it today is <c>sync</c>, which runs it before anything else, and a person
-/// typing <c>flush</c>.</b> Nothing else does. The hooks write a spool file and exit without
-/// starting a process, and the UI that would drive this while it runs is M7. So an install that
-/// is never synced accumulates spool files and sends nothing, which is the stage-1 cut rather
-/// than a fault: draining is idempotent and a spool file waits indefinitely.
+/// <b>What invokes a flush today is <c>sync</c>, which runs it before anything else, a person
+/// typing <c>flush</c>, and the detached <c>background</c> pass that <c>start</c> and
+/// <c>quit</c> spawn.</b> The <c>game-start</c> and <c>game-end</c> hooks write a spool file and
+/// exit without starting a process, because they run inside the game-launch path.
 /// </para>
 /// <para>
-/// <b>The local half always runs and the network half is optional.</b> Draining the spool,
-/// correlating play sessions and rescanning saves all happen with the server unreachable, so
-/// an offline flush still moves work forward and leaves less for the next one. Only the
-/// sending needs a link.
-/// </para>
-/// <para>
-/// <b>Failing to take the lock is success.</b> Two of these can overlap whenever a person runs
-/// <c>flush</c> beside a <c>sync</c>, and once hooks invoke it the measured case of three
-/// <c>game-end</c> hooks in flight at once applies. The second and third exit rather than wait,
-/// because the work is already being done and waiting would put a process to sleep inside the
-/// game-launch path.
+/// <b>Every sentence here that names a subcommand stays here.</b> "Pick a side with
+/// <c>rommbat-agent saves resolve</c>" would be false on the other front end, which is why the
+/// conflict block is the caller's and only the rows are Core's.
 /// </para>
 /// </remarks>
 internal static class FlushCommand
@@ -61,23 +53,59 @@ internal static class FlushCommand
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(command);
 
+        var quiet = command.Has("quiet");
+        var offline = command.Has("offline");
         var exitCode = ExitCode.Ok;
+        RomMConnection? connection = null;
 
-        using var held = TreeLock.TryAcquire(context.Install);
+        // Buffered, not written straight out. Authenticating has to happen before the service
+        // runs, because the service takes the connection; the refusal still belongs after the
+        // local half's own lines, which is where it has always appeared. Without this the
+        // stderr sentence overtakes the stdout it used to follow.
+        using var refusal = new StringWriter();
 
-        if (held is null)
+        try
         {
-            // Ordinary, not an error: another agent is draining the same queue.
+            if (!offline)
+            {
+                // Authenticating is the agent's, because it reads --passphrase off this command
+                // line and its refusal maps to an exit code the service cannot know.
+                connection = context.Authenticate(command, refusal, out exitCode);
+            }
+
+            var report = await new SaveFlushService(context.Session)
+                .RunAsync(new FlushOptions(offline), connection, cancellationToken)
+                .ConfigureAwait(false);
+
+            return Show(report, quiet, exitCode, refusal.ToString());
+        }
+        finally
+        {
+            connection?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Turns one report into the lines the console has always written.
+    /// </summary>
+    /// <param name="authExitCode">
+    /// What authenticating said, which is the exit code a refusal maps to. The service reports
+    /// <see cref="FlushState.NotPaired"/> either way and cannot tell an expired token from an
+    /// install that was never paired.
+    /// </param>
+    /// <param name="authRefusal">
+    /// Why authenticating failed, held back so it prints where it always has: after the passes
+    /// that needed no server.
+    /// </param>
+    private static int Show(FlushReport report, bool quiet, int authExitCode, string authRefusal)
+    {
+        if (report.State == FlushState.Skipped)
+        {
             Console.WriteLine("Another flush is already running. Nothing to do.");
             return ExitCode.Ok;
         }
 
-        var quiet = command.Has("quiet");
-
-        // 1. The hooks wrote spool files and nothing else. Turn them into journal rows.
-        var drained = new SpoolDrain(context.Install, context.Store).Drain();
-
-        if (!drained.IsNoOp && !quiet)
+        if (report.Drained is { IsNoOp: false } drained && !quiet)
         {
             Console.WriteLine($"hooks: {drained.Ingested} events read"
                 + (drained.Malformed > 0 ? $", {drained.Malformed} unrecognised and discarded" : string.Empty)
@@ -87,10 +115,7 @@ internal static class FlushCommand
                 + (drained.Abandoned > 0 ? $", {drained.Abandoned} abandoned" : string.Empty));
         }
 
-        // 2. Pair each game-end with its launch, and queue what that produces.
-        var correlated = new PlaytimeCorrelator(context.Install, context.Store).Correlate();
-
-        if (!correlated.IsNoOp && !quiet)
+        if (report.Correlated is { IsNoOp: false } correlated && !quiet)
         {
             Console.WriteLine($"play: {correlated.Sessions} sessions"
                 + (correlated.Orphans > 0
@@ -99,147 +124,104 @@ internal static class FlushCommand
                 + (correlated.Unresolved > 0 ? $", {correlated.Unresolved} still running" : string.Empty));
         }
 
-        // 3. Work out what is on disk. Local, and the thing eviction depends on.
-        //
-        // The state schema goes into both passes: the save scan needs it so it does not report
-        // a state as unsyncable in the same run that uploads it.
-        //
-        // The state scan runs first. The sidecar attribution route reads local_state and
-        // SaveScanner is what runs it, so scanning saves first left the route reading an empty
-        // table on the first flush after an install is set up, and the class C saves it would
-        // have attributed went up on the second flush instead (#64).
-        var schema = StateScanner.LoadSchema(context.Install);
-
-        var scannedStates = schema is null
-            ? null
-            : new StateScanner(context.Install, context.Store, schema).Scan();
-
-        var scanned = new SaveScanner(context.Install, context.Store, states: schema).Scan();
-
         if (!quiet)
         {
-            Console.WriteLine(scanned.Summary);
-        }
+            Console.WriteLine(report.Saves!.Summary);
 
-        // 3b. And the states, which are found the same way and sent a different way.
-        if (scannedStates is not null)
-        {
-            if (!quiet)
+            if (report.States is { } states)
             {
-                Console.WriteLine(scannedStates.Summary);
+                Console.WriteLine(states.Summary);
 
-                foreach (var miss in scannedStates.NearMisses)
+                foreach (var miss in states.NearMisses)
                 {
                     // One line here rather than the two `saves` prints: a flush is not the
                     // report, and the point is that the file stops being invisible.
                     Console.WriteLine($"  {miss.FileName}: {miss.Detail}");
                 }
             }
-        }
-        else if (!quiet)
-        {
-            // The file ships with RetroBat, so its absence is a real fact about this install
-            // rather than a case to pass over quietly.
-            Console.WriteLine("states: es_savestates.cfg is not in this install, so none were looked for");
-        }
-
-        if (command.Has("offline"))
-        {
-            ReportQueued(context, quiet);
-            return ExitCode.Ok;
-        }
-
-        // 4. Everything above this line worked without a server. Only sending needs one.
-        var connection = context.Authenticate(command, Console.Error, out exitCode);
-        if (connection is null)
-        {
-            ReportQueued(context, quiet);
-
-            // Not paired is a real refusal; anything queued is safe and stays queued.
-            return exitCode;
-        }
-
-        using (connection)
-        {
-            var device = context.Store.Device.Read();
-
-            if (device?.RomMDeviceId is not { } deviceId)
+            else
             {
-                Console.Error.WriteLine("This install is paired but has no RomM device id. Pair again.");
-                return ExitCode.NotPaired;
+                // The file ships with RetroBat, so its absence is a real fact about this install
+                // rather than a case to pass over quietly.
+                Console.WriteLine("states: es_savestates.cfg is not in this install, so none were looked for");
             }
+        }
 
-            try
-            {
-                var playtime = await new OutboxFlush(context.Store, connection, deviceId)
-                    .FlushPlaySessionsAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!quiet || playtime.Failed > 0)
-                {
-                    Console.WriteLine(playtime.Summary);
-                }
-
-                foreach (var problem in playtime.Problems)
-                {
-                    Console.Error.WriteLine($"  {problem}");
-                }
-
-                var saves = await new SaveSync(context.Install, context.Store, connection, deviceId)
-                    .RunAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!quiet || saves.Failed > 0 || saves.Conflicts > 0)
-                {
-                    Console.WriteLine(saves.Summary);
-                }
-
-                foreach (var problem in saves.Problems)
-                {
-                    Console.Error.WriteLine($"  {problem}");
-                }
-
-                // States go last because they are the only part of this pass that cannot fail
-                // in a way anyone has to act on: nothing negotiates, nothing conflicts, and an
-                // unsent state is simply sent again next time.
-                var states = await new StateSync(context.Install, context.Store, connection)
-                    .RunAsync(cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (!quiet || states.Failed > 0)
-                {
-                    Console.WriteLine(states.Summary);
-                }
-
-                foreach (var problem in states.Problems)
-                {
-                    Console.Error.WriteLine($"  {problem}");
-                }
-
-                ReportConflicts(context);
-
-                return saves.Failed > 0 || playtime.Failed > 0 || states.Failed > 0
-                    ? ExitCode.Partial
-                    : ExitCode.Ok;
-            }
-            catch (RomMUnreachableException ex)
-            {
-                // Offline is a working state and the headline feature of this milestone.
-                // Everything stays queued and the next flush picks it up.
-                Console.WriteLine($"The server is not reachable: {ex.Message}");
-                ReportQueued(context, quiet: false);
+        switch (report.State)
+        {
+            case FlushState.LocalOnly:
+                ReportQueued(report, quiet);
                 return ExitCode.Ok;
-            }
+
+            case FlushState.NotPaired:
+                if (report.Problem is { } problem)
+                {
+                    Console.Error.WriteLine(problem);
+                    return ExitCode.NotPaired;
+                }
+
+                Console.Error.Write(authRefusal);
+
+                // Anything queued is safe and stays queued.
+                ReportQueued(report, quiet);
+                return authExitCode;
+
+            case FlushState.Unreachable:
+                // Offline is a working state and the headline feature of this milestone.
+                Console.WriteLine(report.Problem);
+                ReportQueued(report, quiet: false);
+                return ExitCode.Ok;
+
+            default:
+                break;
         }
+
+        var playtime = report.Playtime!;
+
+        if (!quiet || playtime.Failed > 0)
+        {
+            Console.WriteLine(playtime.Summary);
+        }
+
+        foreach (var line in playtime.Problems)
+        {
+            Console.Error.WriteLine($"  {line}");
+        }
+
+        var saves = report.SavesSent!;
+
+        if (!quiet || saves.Failed > 0 || saves.Conflicts > 0)
+        {
+            Console.WriteLine(saves.Summary);
+        }
+
+        foreach (var line in saves.Problems)
+        {
+            Console.Error.WriteLine($"  {line}");
+        }
+
+        var sentStates = report.StatesSent!;
+
+        if (!quiet || sentStates.Failed > 0)
+        {
+            Console.WriteLine(sentStates.Summary);
+        }
+
+        foreach (var line in sentStates.Problems)
+        {
+            Console.Error.WriteLine($"  {line}");
+        }
+
+        ReportConflicts(report.Conflicts);
+
+        return report.State == FlushState.Partial ? ExitCode.Partial : ExitCode.Ok;
     }
 
-    private static void ReportQueued(AgentContext context, bool quiet)
+    private static void ReportQueued(FlushReport report, bool quiet)
     {
-        var pending = context.Store.Outbox.PendingCount();
-
-        if (pending > 0 && !quiet)
+        if (report.Queued > 0 && !quiet)
         {
-            Console.WriteLine($"{pending} items are waiting to go up. They will on the next flush.");
+            Console.WriteLine($"{report.Queued} items are waiting to go up. They will on the next flush.");
         }
     }
 
@@ -250,15 +232,13 @@ internal static class FlushCommand
     /// Measured, the conflict body is a bare sentence with no save id and no timestamps, so
     /// everything shown here comes from the negotiate operation and the local row instead.
     /// <para>
-    /// Read from the store rather than from this pass's outcome, so a conflict found by an
-    /// earlier flush and never resolved is still reported. Stage 1 printed the in-memory list
-    /// once and a user who looked away lost the only record of it.
+    /// The rows are every open conflict rather than this pass's, so one found by an earlier
+    /// flush and never resolved is still reported. Stage 1 printed the in-memory list once and
+    /// a user who looked away lost the only record of it.
     /// </para>
     /// </remarks>
-    private static void ReportConflicts(AgentContext context)
+    private static void ReportConflicts(IReadOnlyList<SaveConflictRecord> conflicts)
     {
-        var conflicts = context.Store.SaveConflicts.ListOpen();
-
         if (conflicts.Count == 0)
         {
             return;

@@ -322,8 +322,7 @@ public sealed class ContentPlanner
         // the result is recorded so this costs once rather than every sync.
         var fingerprint = ContentHasher.Compute(absolute);
 
-        if (ContentHasher.Matches(fingerprint.Md5, member.Md5Hash)
-            || ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash))
+        if (ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
         {
             return step with
             {
@@ -334,10 +333,17 @@ public sealed class ContentPlanner
         }
 
         // No hash to compare against is not the same as a mismatch, and neither is a hash that
-        // cannot describe this file. 9% of a real library carries no md5, and a .7z is hashed as
-        // its own bytes while the server's hash describes the content inside it. Re-downloading
+        // cannot describe this file. A .7z is hashed as its own bytes while the server's hash
+        // describes the content inside it, and a few rows carry no hash at all. Re-downloading
         // either on every sync would be worse than trusting a file of exactly the right length.
-        var nothingToCompare = member.Md5Hash is null && member.Sha1Hash is null;
+        //
+        // There is no sha1 arm because sha1 is a second number the same server published rather
+        // than an independent check, and finding 180 measured it being simply wrong on two ps2
+        // rows. How many rows reach this path is unsettled, and #112 is the measurement: the
+        // sample migration 013 was written from and finding 85 disagree, by about a hundred rows
+        // in 1,895. Either way the answer here is recorded as VerifiedBy.Size rather than passed
+        // off as a hash check.
+        var nothingToCompare = member.Md5Hash is null;
 
         if (info.Length == member.SizeBytes && (nothingToCompare || !fingerprint.DescribesLibraryContent))
         {

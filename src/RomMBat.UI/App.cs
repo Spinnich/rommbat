@@ -57,17 +57,21 @@ internal sealed class App : Application
         var map = EsInputMap.Read(_session.Install);
         _gamepad = GamepadReader.Open(_session.Install, map);
 
-        var status = new StatusViewModel(_session, () => _gamepad.Status)
-        {
-            StartPairing = () => new OnScreenKeyboard(
+        // Built once and handed to whatever needs it. A sync the server refuses part way
+        // through has exactly one thing a person can do about it, and it is this.
+        IScreen StartPairing() => new OnScreenKeyboard(
                 "Pair with RomM",
                 "Type your RomM server address, then press Start.",
                 // https by default: a RomM behind anything but a LAN address wants it, and it
                 // is two characters to delete against eight to type on a d-pad.
                 _session.Store.Settings.Get(UiSettings.LastServerOrigin) ?? "https://",
                 Typed,
-                _session.EmulationStationLanguage()),
-            OpenSets = () => SetsScreens.List(_session),
+                _session.EmulationStationLanguage());
+
+        var status = new StatusViewModel(_session, () => _gamepad.Status)
+        {
+            StartPairing = StartPairing,
+            OpenSets = () => SetsScreens.List(_session, connect: null, pair: StartPairing),
             OpenBudget = () => new BudgetViewModel(_session),
         };
 

@@ -566,10 +566,30 @@ public sealed class SetsScreenTests : IDisposable
 
         // Doing them one at a time is the hassle a person notices first, and the service
         // already walks a list.
-        var command = navigator.Current.Handle(NavAction.Alternate);
+        //
+        // Moved from Alternate to Extra in 7b-2b, deliberately: syncing is what a set is for
+        // and it took the first-tier verb. Resolving alone stays offered because it is how a
+        // person finds out what a set holds without spending disk on it, and a sync re-resolves
+        // on the way past anyway, so the two are not a choice anybody has to make.
+        var command = navigator.Current.Handle(NavAction.Extra);
         using var resolve = Assert.IsType<ResolveViewModel>(command.Screen);
 
         Assert.Contains("2", resolve.Title, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Syncing_everything_is_the_first_tier_verb_on_the_list()
+    {
+        Seed("one");
+        Seed("two");
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+
+        using var sync = Assert.IsType<SyncViewModel>(
+            navigator.Current.Handle(NavAction.Alternate).Screen);
+
+        Assert.Contains("2", sync.Title, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -577,8 +597,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         var list = SetsScreens.List(_session);
 
-        // An empty list offering to resolve everything is a footer promising a no-op.
+        // An empty list offering to resolve or sync everything is a footer promising a no-op.
         Assert.Empty(Assert.IsType<ListScreen>(list).Rows);
+        Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Extra).Kind);
         Assert.Equal(ScreenCommandKind.Stay, list.Handle(NavAction.Alternate).Kind);
     }
 

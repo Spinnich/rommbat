@@ -1245,7 +1245,7 @@ the rollout order below can be derived rather than hand-maintained.
   `has_simple_single_file`, `has_nested_single_file`, `has_multiple_files`. An empty
   `fs_extension` covers the last two and cannot separate them.
 
-  The code was already right: `SetResolver.cs:242` keys the exclusion on `HasMultipleFiles`,
+  The code was already right: `SetResolver.cs:341` keys the exclusion on `HasMultipleFiles`,
   never on the extension, so nothing mis-excludes today. Had anyone taken this plan at its
   word and simplified that check to the extension test it called equivalent, 391 of 602
   extensionless ROMs in that sample would have been wrongly excluded.
@@ -1274,10 +1274,11 @@ the rollout order below can be derived rather than hand-maintained.
   list `.m3u`; how many can consume one is a per-emulator fact the config does not carry. See
   [freegosy-findings.md](freegosy-findings.md), F18.
 
-- Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
-  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
-  answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
-  files and is never a library-wide sweep.
+- Adopt files already on disk: hash local ROMs and match on `md5_hash`, or query
+  `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash` answers a hit
+  in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown files and is
+  never a library-wide sweep. **md5 only as of migration 013**, and a row the server published
+  no md5 for adopts by length and records `VerifiedBy.Size`.
 - **All three of `md5_hash`, `sha1_hash` and `crc_hash` describe the _uncompressed_
   content**, not only `crc_hash` as this plan previously said. A `.zip` reports the hashes of
   the file inside it. So verification hashes inside a single-entry archive, adoption does the
@@ -1285,7 +1286,9 @@ the rollout order below can be derived rather than hand-maintained.
   wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
   so. See finding 80.
 - **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
-  size when the server has none, and reports which check it made.
+  size when the server has no md5, and reports which check it made. **Only md5 is compared as
+  of migration 013**, so the 9% is what degrades rather than the 3.7%, and how far those two
+  numbers really are apart on this library is #112.
 - **Only `.zip` can be looked inside**, because it is the one archive format the base class
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
@@ -1428,7 +1431,9 @@ cleanly.
   marquee, 1.99 MB of video and 2.45 MB of manual, so a 100-game `nes` set is ~12.8 MB of
   ROMs against ~550 MB of media. **The default fetches covers, marquee and video, and leaves
   manuals opt-in**, which is ~3.1 MB per game and matches what this milestone is done-when.
-  Finding 92.
+  Finding 92. **Amended in 7b-2b**: video and manuals follow RetroBat's own scraper switches
+  rather than this default, and RetroBat ships both on, so a stock install fetches manuals too
+  and only a user who turned a switch off gets fewer kinds. Finding 238.
 - **Media comes off static resource paths, not the `/api/roms/{id}/content` route M3 built**,
   and three things about them decide the code:
   - **Never use `url_cover` or `url_manual`.** They are ScreenScraper API URLs carrying a
@@ -2916,21 +2921,178 @@ never on the screen's cancellation token, and a failure is a note appended to th
 than an error. Roaming is the mechanism M2 gave set definitions, and the front end with no
 prompt is the one that needs it most.
 
-###### 7b-2b: the sync run
+###### 7b-2b: the sync run (done)
 
-Sync from the interface with progress, cancellation and eviction. The first thing in this
-design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
-shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
-and `EvictionService` landed in 7b-2a and are unfaced until here.
+Sync from the interface, with progress and cancellation. The first thing in this design to put
+minutes-long cancellable work inside a process a user can close, which 7b-1's shell is shaped
+for: a screen owns its work and is disposed when left. `LibrarySyncService` landed in 7b-2a and
+was unfaced until here.
 
-**The plan is optimistic by one run's artwork.** Media is _already inside_ the budget's
-accounting: `MediaSync` writes `FileOrigin.Synced` rows and both `ContentPlanner.ManagedBytes`
-and `EvictionPlanner.BytesOverBudget` sum them. What `ContentPlanner.Plan` does not do is
-**reserve** for the artwork the same run will fetch, so one sync can overshoot the cap by
-roughly the media for the games in it and the next plan corrects. Measured at about 1.8 MB per
-game where a video is fetched, so around 72 MB on a 40-game sync against a budget in the tens
-of GB: self-correcting rather than cumulative. Issue #102, and it belongs on the screen that
-shows a budget being spent.
+**The invariant the stage is built around.** A sync leaves every game either wholly present,
+with its gamelist entry and whatever artwork the server actually had for it, or wholly absent.
+Whether it ran to the end, was stopped, or lost the server. `GameSync` is the type that owns
+that sentence: it groups a `ContentPlan` into games by `DiscSet`, fetches each game's ROMs and
+then its artwork, and takes back any game that did not land whole.
+
+**A stopped sync writes its gamelists, and getting that wrong is what the first hands-on pass
+found.** The pass was handed the run's cancellation token, so on a stop it threw before writing
+anything and every finished game sat on the drive invisible to EmulationStation. It runs on
+`CancellationToken.None`, which is bounded: two local file writes and one reload with a 400 ms
+connect timeout. The same defect existed a second time, on the path where a stop lands during a
+game's artwork rather than during its ROMs.
+
+**"With its artwork" cannot mean every configured kind, and the reason is not RomMBat's.**
+Nothing guarantees a server holds it: the administrator may not have scraped that kind, and the
+upstream source may never have had it for that game. `MediaSyncOutcome.Missing` counts exactly
+that, no run can fix it, and a rule demanding every kind would declare most real libraries
+permanently broken.
+
+**The rollback fires on any incomplete game, not only on a stop.** A multi-disc title whose
+second disc fails leaves half a game on disk with nobody pressing anything, and `ContentSync`'s
+"a failure is per game, not per run" makes that the ordinary path. It is bounded to the ROMs:
+once every ROM of a game has committed the game is playable and listed, and a stop during its
+artwork leaves it present for the next run to finish. Three fences keep it to this run's own
+writes, each with a test that fails when the fence is removed: only `FileOrigin.Synced` rows,
+never a game that entered as `AlreadyPresent`, and the `local_file` row goes with the bytes.
+
+**A stop is returned, not thrown**, which is 7b-2a's lesson about a cancelled resolve throwing
+away what it found. The run carries on to write gamelists and report the budget, so a stopped
+sync ends with a correct tree rather than with work postponed.
+
+**Eviction is deliberately not on the interface, and that is a reversal.** The stage was briefed
+to give `EvictionService` a face, the screens were built, and they were cut after a hands-on
+round. Ruled by Spinnich: RomMBat guessing which games matter least is a bad policy even when a
+person starts it, and freeing space belongs to the user, by dropping a sync set or (once 7b-2c
+lands) a single game. `EvictionService` stays in Core and `rommbat-agent evict` stays, previewing
+by default and writing on `--apply`. **A sync the budget cut short still says so** and simply
+offers nothing: the count and the reason come from `MediaSync` and `ContentSync`, and removing
+the offer must not remove the fact. Two tests hold that line, one per entry point the screens
+used to have, because the risk is a later stage quietly re-adding a footer hint.
+
+###### 7b-2b: what #102 turned out to be
+
+**The issue's analysis was wrong twice over and is corrected here rather than closed quietly.**
+
+**A sync cannot overshoot the budget by artwork.** `RomMConnection.Media` refuses a media file
+whose `Content-Length` exceeds the room left, stops the read when the server declared no
+length, and the caller discards the partial in both cases. What actually happened was quieter:
+`ContentPlanner.Plan` filled the cap with ROMs, `MediaSync` then found `Room()` at or near zero,
+and the games landed in EmulationStation with no covers, with no later run repairing it because
+nothing frees space by itself.
+
+**And interleaving does not recover that artwork. It concentrates the same bytes.** Measured on
+the live instance, Atari 5200, 76 games, 757.5 KB of ROMs against a 1 MB budget:
+
+|                               | complete games | partial | no artwork | budget            |
+| ----------------------------- | -------------- | ------- | ---------- | ----------------- |
+| before, media after every ROM | 0              | 8       | 68         | 1023.3 KB of 1 MB |
+| after, media per game         | 0              | 8       | 68         | 1022.4 KB of 1 MB |
+
+And with room to spare, Atari 2600, 53 games against 6 MB: 12 complete and 8 partial before, 12
+complete and **3 partial** after. So the reproducible effect is that the games which get artwork
+get all of it and half-decorated games roughly halve, not that more artwork arrives. The
+interleave is kept because the whole-game rollback needs a per-game artwork unit, not because it
+saves a byte.
+
+**Media is not a rounding error on retro platforms, which is the one thing #102 understated.**
+The plan said about 1.8 MB per game where a video is fetched, self-correcting rather than
+cumulative. Measured on two Atari platforms with three kinds each and no video: 296.6 KB of
+Atari 2600 ROMs pulled **28 MB** of artwork, and 757.5 KB of Atari 5200 ROMs pulled **46.8 MB**.
+Artwork is 62 to 94 times the ROM bytes there, so on a small-ROM library the budget is spent
+almost entirely on media.
+
+**A reservation was added, for the ROMs and not for the media.** Interleaving broke the cap:
+`MediaSync` bounds artwork by `cap - managed`, and `managed` is read when the call is made, so
+one call per game sees the budget as it stands before most of the run's ROMs exist. A 1 MB
+budget was measured finishing 703 KB over it. `GameSync` now passes the ROM bytes still ahead.
+That reservation is possible precisely where a media one is not: a ROM's size is on the member
+row and the plan already holds it, and RomM publishes no media size at all.
+
+**Which media kinds are fetched follows RetroBat's own scraper settings.** `es_settings.cfg`
+carries `ScrapeVideos` and `ScrapeManual`, and RomMBat was ignoring both: a hands-on pass turned
+video off in RetroBat and RomMBat kept downloading it. They set the default now, with an
+explicit `media.kinds` still winning. There is no upstream toggle for the cover, the thumbnail
+or the marquee, so those three keep RomMBat's default and no keys are invented for them. Same
+rule as the on-screen keyboard following `Language`: where RetroBat already has the setting,
+RomMBat asks it.
+
+**The other nine scraper options are scoped but not built, and the ruling is on record.**
+RetroBat's menu carries three source pickers and six switches beyond the two 7b-2b reads. The
+three pickers are not new media kinds: `ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc`
+feeds `<thumbnail>` and `ScrapperLogoSrc` feeds `<marquee>`, which are slots RomMBat already
+writes, so they choose what fills a slot rather than adding one. RomM can serve most of them,
+because `ss_metadata` carries fourteen paths against the one `logo_path` RomMBat reads.
+**`ScrapeMap` and `ScrapePadToKey` are dead**, which is a schema fact rather than a coverage
+one: no map field exists in 5.2.0, and padtokey is input config rather than media. Nothing else
+is ruled out, and a kind measured at 0% on one library particularly is not, because coverage
+says when a platform was last scraped and not what RomM can serve. Findings 239 to 242, #108.
+
+**Ruled with Spinnich: the source settings are honoured as written, including the template's.**
+RetroBat seeds `ScrapperImageSrc=sstitle`, so following it means a stock install gets title
+screenshots in `<image>` rather than cover art. That is the same rule as the video switch and
+it is taken deliberately, against the alternative of treating the template's value as not a
+real choice, which the file cannot distinguish from one anyway. **Deferred to its own stage**
+rather than 7b-2b: it needs source provenance on `local_file` and a migration, and the
+re-fetch-on-change behaviour is worth more than the mapping. Scoped in **#108**.
+
+**An absent scraper key is off, and getting that wrong cost two hands-on rounds.** RetroBat
+seeds `es_settings.cfg` from `system/templates/` with both switches `true`, so a stock install
+has them on. EmulationStation's own compiled defaults are the opposite, and it drops any key
+equal to its default, so turning a switch off **deletes the key** and a literal `false` never
+appears. Absent is therefore a deliberate no rather than an unknown. Reading it as RomMBat's own
+default meant video was fetched whatever RetroBat said, and the round that followed found 389 MB
+of video on one platform and 2.05 GB across the tree that no setting could reach. The trap worth
+carrying forward is the layer, not the key: **RetroBat's templates override EmulationStation's
+compiled defaults**, so upstream source is not evidence of what a RetroBat does. Finding 238.
+
+**Turning a media kind off takes back what was already fetched.** It used to stop future
+downloads and nothing else, so the artwork stayed for ever with nothing able to reclaim it:
+eviction removes whole games under budget pressure and has no notion of a kind. Measured on the
+live install, 1.09 GB of video on one platform and 566 MB on another. Only `FileOrigin.Synced`
+goes, so a user's own scrape at the same name is untouched, which is the fence the sync rollback
+already uses.
+
+**A size that disagrees with the download is still refused, and the message now says why.** The
+check was nearly weakened to accept a file whose hash matched on the theory that only the size
+record had gone stale. Measured against the live instance, that case could not be produced: 120
+`fbneo` ROMs and 40 `megadrive` ROMs all verified cleanly, so the benefit was unevidenced while
+the cost was a weaker check on the one thing standing between a corrupt download and a game that
+will not boot. **Refused as before**, with the message naming the likely cause, which is a
+library record that has not been rescanned.
+
+**What that argument did change is what gets hashed, and it is migration 013.** RomMBat computed
+md5, sha1 and crc32 on every download and compared only md5, or sha1 where the server published
+none. crc32 was never compared anywhere, so `local_file` lost both columns and hashing went from
+**339 MB/s to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor
+numbers.
+
+**Dropping the sha1 comparison is the part that is argued rather than measured, and the plan says
+so in both places now.** A sample of 1,616 rom rows from three platforms found no row carrying a
+sha1 without an md5; finding 85, above, measured 91.0% md5 against 96.3% sha1 on the same
+library, which puts about a hundred rows in 1,895 in exactly that state. Finding 181 shows how
+both could have been seen, since a missing md5 arrives as `''` rather than null. **#112 is the
+measurement and it needs the live instance.** What the comparison is worth does not depend on
+that count: sha1 is a second number the same server published rather than an independent check,
+and finding 180 measured two ps2 rows served byte-correct against sha1 values describing some
+other file. A row with only a sha1 adopts by length and is recorded `VerifiedBy.Size`, which is
+weaker than main was and is honestly labelled rather than silently trusted.
+
+**The development box is the wrong machine to have reasoned from**, which is the more useful
+half of this. There a 34.5 MB/s download leaves verification an order of magnitude of headroom
+and the cost is invisible. The target is a handheld off a cheap stick where the link can be
+faster and the processor several times slower, and there verification is what decides how long a
+sync takes.
+
+**An advertised media path that answers 404 is forgotten rather than re-asked.** Measured on the
+live library: 39 of 40 games on one platform advertised a video the server does not serve, so
+every sync spent 39 requests and printed 39 problems, for ever. Forgetting the path turns it
+into the ordinary `Missing` case and needs no new state, because a resolve rewrites `metadata`
+from the server wholesale and puts it back the moment RomM starts serving it.
+
+**A stopped transfer's partial is truncated before its handle closes.** The cancellation is
+instant; closing a handle over a large part-written file waits for the drive's write cache, and
+the file is deleted immediately afterwards. Measured on the live install: a stop 10.9 s into a
+PS2-sized download took **20.1 s** in that close alone, and 0.2 s after the change.
 
 **`/reloadgames` from the interface works, and the answer is not the one this plan assumed.**
 Measured in 7b-2a (finding 233): a reload issued while RomMBat is the app in front of ES is
@@ -2939,7 +3101,8 @@ by itself, proven by a marker written with no reload at all, which never landed.
 screen calls `/reloadgames` after writing gamelists exactly as the agent does, and the new
 games appear the moment the user leaves RomMBat, which is when they would look for them. No
 workaround is owed, nothing tells the user to restart the front end, and the call must not be
-skipped on the theory that ES will notice by itself.
+skipped on the theory that ES will notice by itself. Built that way: the sync screen runs the
+same `GamelistSync` pass the agent does, through `LibrarySyncService`, including after a stop.
 
 ###### 7b-2c: browse
 
@@ -2957,6 +3120,11 @@ deliberate", which is a set by another name.
 
 Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
 whatever the two stages before it turn up.
+
+**Re-checked after 7b-2b, and two things it was going to owe are already paid.** `FlushReport`
+carries every open conflict as rows, so displaying them needs no new Core surface and only the
+screen and the choice remain. And a refused token now ends a run as `SyncState.Rejected` with
+pairing offered on the spot, so re-pairing is not a thing 7b-3 has to invent a route to.
 
 **The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
 for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
@@ -2999,8 +3167,16 @@ starts before 7b lands.
 
 **Re-checked against the three-PR cut, and it does not move forward.** The gate is 7b, not
 7b-2a. A certification pass needs a person to say what to sync, sync it, and launch a game;
-7b-2a supplies only the first of those from the couch, since syncing is still a terminal
+7b-2a supplies only the first of those from the couch, since syncing was still a terminal
 command until 7b-2b. The earliest the gate can open is when 7b-2b lands.
+
+**With 7b-2b landed the gate is open for the first two of the three, and not yet the third.** A
+person can now say what to sync and sync it from the couch, both measured against a live
+instance. Launching a game has never needed RomMBat and does not now, so what 7c actually waits
+on from here is nothing in this stage: 7b-2c adds browse and per-game install, which a
+certification pass does not require. The honest statement is that the gate opens when a hands-on
+pass has driven the sync screen with a controller, which is the one thing this branch could not
+do for itself.
 
 ### M8: packaging, docs, release
 

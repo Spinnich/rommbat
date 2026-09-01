@@ -23,17 +23,54 @@ public sealed record MediaSyncOutcome
 
     public int Failed { get; init; }
 
+    /// <summary>
+    /// Files removed because their kind is no longer wanted.
+    /// </summary>
+    /// <remarks>
+    /// Turning a kind off used to stop future downloads and nothing else, so the artwork already
+    /// fetched stayed for ever with nothing able to reclaim it: measured on a real install, 1.09
+    /// GB of video on one platform and 566 MB on another. The setting means the same thing in
+    /// both directions now.
+    /// </remarks>
+    public int Removed { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
 
-    public bool IsNoOp => Downloaded == 0 && Adopted == 0 && Failed == 0;
+    public bool IsNoOp => Downloaded == 0 && Adopted == 0 && Failed == 0 && Removed == 0;
+
+    /// <summary>
+    /// Two outcomes as one, for a caller that fetches artwork a game at a time.
+    /// </summary>
+    /// <remarks>
+    /// The run still reports one media line, because a person watching a sync wants to know
+    /// what the artwork cost rather than what it cost forty times.
+    /// </remarks>
+    public static MediaSyncOutcome Merge(MediaSyncOutcome first, MediaSyncOutcome second)
+    {
+        ArgumentNullException.ThrowIfNull(first);
+        ArgumentNullException.ThrowIfNull(second);
+
+        return new MediaSyncOutcome
+        {
+            Downloaded = first.Downloaded + second.Downloaded,
+            AlreadyPresent = first.AlreadyPresent + second.AlreadyPresent,
+            Adopted = first.Adopted + second.Adopted,
+            Missing = first.Missing + second.Missing,
+            Blocked = first.Blocked + second.Blocked,
+            Failed = first.Failed + second.Failed,
+            Removed = first.Removed + second.Removed,
+            BytesTransferred = first.BytesTransferred + second.BytesTransferred,
+            Problems = [.. first.Problems, .. second.Problems],
+        };
+    }
 
     public string Summary
     {
         get
         {
-            if (Downloaded == 0 && Adopted == 0 && Blocked == 0 && Failed == 0)
+            if (Downloaded == 0 && Adopted == 0 && Blocked == 0 && Failed == 0 && Removed == 0)
             {
                 return AlreadyPresent == 0
                     ? "no media to fetch"
@@ -60,6 +97,11 @@ public sealed record MediaSyncOutcome
             if (Blocked > 0)
             {
                 parts.Add($"{Blocked} blocked by the budget");
+            }
+
+            if (Removed > 0)
+            {
+                parts.Add($"{Removed} removed, no longer wanted");
             }
 
             if (Failed > 0)
@@ -133,28 +175,60 @@ public sealed class MediaSync
     /// Which games to consider. The caller passes the ones a sync just landed, so a run does
     /// not re-walk the whole install.
     /// </param>
+    /// <param name="reservedBytes">
+    /// How many bytes of ROM the caller still intends to fetch in this run.
+    /// </param>
+    /// <remarks>
+    /// <b>The reservation exists because artwork is now fetched a game at a time.</b> Room is
+    /// <c>cap - managed</c>, and <c>managed</c> is read from <c>local_file</c> when the call is
+    /// made. One call after every ROM had landed saw the true total; one call per game sees the
+    /// budget as it stands after only that game's ROM, with every later ROM still to come, so
+    /// early artwork spends what the plan had already earmarked. Measured against a live
+    /// instance before this parameter existed: a 1 MB budget finished 703 KB over it, where the
+    /// pass it replaced finished at 1023.3 KB of 1 MB.
+    /// <para>
+    /// <b>This is a reservation for ROMs, not for media, and the difference is why it can
+    /// exist.</b> A ROM's size is on the member row and the plan already has it. Media has no
+    /// size until it is fetched, because RomM publishes none on the rom row, which is exactly
+    /// why the fix for #102 was to interleave rather than to reserve.
+    /// </para>
+    /// </remarks>
     public async Task<MediaSyncOutcome> ApplyAsync(
         IReadOnlyCollection<int> romIds,
         IProgress<string>? progress = null,
+        long reservedBytes = 0,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
-        var kinds = MediaPolicy.Read(_store.Settings);
+        var preference = MediaPolicy.Preference(_store.Settings, _install);
+        var kinds = preference.Kinds;
         var downloaded = 0;
         var present = 0;
         var adopted = 0;
         var missing = 0;
         var blocked = 0;
         var failed = 0;
+        var removed = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
+        // Recomputed from local_file on every call, and List() materialises the whole table
+        // rather than one row, so interleaving turned this from one scan per run into one per
+        // game: quadratic in library size, against a table migration 013 measured at 5,268 rows
+        // on a live install. Invisible at the 76 games this was measured on. An install syncing
+        // thousands wants it summed in SQL, or hoisted into the caller and carried across games.
+        // #111.
         var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
-        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor);
+
+        // The ROMs still to come are spoken for, against both bounds. Without this the last
+        // game in a plan finds its budget already spent on the first game's artwork.
+        managed += reservedBytes;
+
+        var freeRoom = Math.Max(0, _limits.AvailableFreeBytes - floor - reservedBytes);
         var budgetExhausted = false;
 
         foreach (var romId in romIds.Distinct())
@@ -179,6 +253,16 @@ public sealed class MediaSync
             // query asked for roms.
             var rom = romFiles[0];
             var folder = rom.Folder!;
+            var forgotten = new List<MediaKind>();
+
+            // Only on somebody's answer. An unwanted kind is deleted here, and a missing or
+            // half-written es_settings.cfg reads exactly like one where both switches were
+            // turned off, so acting on it would sweep the artwork of an install that never said
+            // anything. Fetching on a guess costs a re-fetch; deleting on one costs the files.
+            if (preference.FromInstall)
+            {
+                removed += Discard(romId, kinds);
+            }
 
             foreach (var kind in kinds)
             {
@@ -244,6 +328,20 @@ public sealed class MediaSync
 
                 if (result.Problem is { } problem)
                 {
+                    if (result.Absent)
+                    {
+                        // The server advertises a path it does not serve. Forgetting the path
+                        // turns this from a failure that is re-attempted on every sync into the
+                        // ordinary Missing case, and a re-resolve puts it back the moment RomM
+                        // starts serving it, because a resolve rewrites this row from the
+                        // server. Measured on a live library: 39 of 40 megadrive games
+                        // advertised a video that answered 404, so this was 39 wasted requests
+                        // and 39 lines of noise on every run, for ever.
+                        forgotten.Add(kind);
+                        missing++;
+                        continue;
+                    }
+
                     failed++;
                     problems.Add($"{metadata.Name}: {problem}");
                     continue;
@@ -255,6 +353,11 @@ public sealed class MediaSync
                 managed += result.Bytes;
                 freeRoom = Math.Max(0, freeRoom - result.Bytes);
             }
+
+            if (forgotten.Count > 0)
+            {
+                Forget(metadata, forgotten);
+            }
         }
 
         return new MediaSyncOutcome
@@ -265,9 +368,69 @@ public sealed class MediaSync
             Missing = missing,
             Blocked = blocked,
             Failed = failed,
+            Removed = removed,
             BytesTransferred = bytes,
             Problems = problems,
         };
+    }
+
+    /// <summary>
+    /// Takes back artwork of a kind this install no longer wants.
+    /// </summary>
+    /// <remarks>
+    /// <b>Turning a kind off has to mean the same thing in both directions.</b> It used to stop
+    /// future downloads and nothing else, so what had already been fetched stayed for ever with
+    /// nothing able to reclaim it: eviction removes whole games under budget pressure and has no
+    /// notion of a kind. Measured on a real install, that was 1.09 GB of video on one platform
+    /// and 566 MB on another.
+    /// <para>
+    /// <b>Only <see cref="FileOrigin.Synced"/>.</b> A user's own scrape sits at exactly these
+    /// names and is recorded as <see cref="FileOrigin.Adopted"/> precisely so that nothing here
+    /// touches it. Same fence the sync rollback uses.
+    /// </para>
+    /// <para>
+    /// The row goes with the bytes, and a file that will not delete keeps its row, because a row
+    /// removed from under a file nothing tracks is unreachable by both the budget and eviction.
+    /// </para>
+    /// </remarks>
+    private int Discard(int romId, IReadOnlyList<MediaKind> wanted)
+    {
+        var keep = wanted.Select(ToFileKind).ToHashSet();
+        var gone = 0;
+
+        foreach (var file in _store.Files.ForRom(romId))
+        {
+            if (file.Kind == LocalFileKind.Rom
+                || file.Kind == LocalFileKind.Firmware
+                || file.Origin != FileOrigin.Synced
+                || keep.Contains(file.Kind))
+            {
+                continue;
+            }
+
+            var absolute = _install.Resolve(file.Path);
+
+            try
+            {
+                File.Delete(absolute);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // Already gone, so the row goes too. File.Delete returns quietly for a missing
+                // file and throws for a missing folder, and that exception is an IOException,
+                // so the catch below was keeping rows for bytes that do not exist.
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Windows refuses two ways and only one is an IOException. Left with its row.
+                continue;
+            }
+
+            _store.Files.Remove(file.Path);
+            gone++;
+        }
+
+        return gone;
     }
 
     /// <summary>How many bytes the next file may take before it breaks a bound.</summary>
@@ -314,7 +477,7 @@ public sealed class MediaSync
         return MediaState.Adopt;
     }
 
-    private async Task<(long Bytes, string? Problem)> FetchAsync(
+    private async Task<(long Bytes, string? Problem, bool Absent)> FetchAsync(
         MediaResource resource,
         RelativePath target,
         long room,
@@ -339,29 +502,51 @@ public sealed class MediaSync
             if (!response.IsSuccess)
             {
                 SafeDelete(partial);
-                return (0, response.Message);
+
+                // 404 only. Every other refusal is about this attempt rather than about the
+                // asset existing, and forgetting a path over a transient server error would
+                // silently stop fetching artwork that is there.
+                return (0, response.Message, response.Status == RomMResponseStatus.NotFound);
             }
 
             // Renamed only once the whole body has landed, so EmulationStation never sees a
             // half-written image and caches a broken texture for it.
             File.Move(partial, absolute, overwrite: true);
-            return (response.Value!.BytesWritten, null);
+            return (response.Value!.BytesWritten, null, false);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(partial);
-            return (0, ex.Message);
+            return (0, ex.Message, false);
         }
         catch (PathTooLongException)
         {
             SafeDelete(partial);
-            return (0, "the path to it is longer than this machine allows.");
+            return (0, "the path to it is longer than this machine allows.", false);
         }
         catch (IOException ex)
         {
             SafeDelete(partial);
-            return (0, $"it could not be written: {ex.Message}");
+            return (0, $"it could not be written: {ex.Message}", false);
         }
+    }
+
+    /// <summary>
+    /// Drops paths the server advertises but does not serve.
+    /// </summary>
+    /// <remarks>
+    /// <b>Forgetting rather than remembering, so nothing new has to be stored.</b> The
+    /// alternative is a table of known-absent assets and a rule for when to expire it. A
+    /// resolve rewrites <c>metadata</c> from the server wholesale, so dropping the path here
+    /// makes "retry when RomM's row changes" fall out of the refresh that already exists.
+    /// </remarks>
+    private void Forget(GameMetadata metadata, IReadOnlyList<MediaKind> kinds)
+    {
+        var kept = metadata.MediaPaths
+            .Where(pair => !kinds.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        _store.Metadata.Record(metadata with { MediaPaths = kept });
     }
 
     private void Record(int romId, MediaKind kind, RelativePath target, string folder, long bytes)

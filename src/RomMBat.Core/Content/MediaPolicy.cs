@@ -1,7 +1,21 @@
+using System.Xml;
 using RomM.Client.Content;
+using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
+
+/// <summary>
+/// What to fetch, and whether the install is what decided it.
+/// </summary>
+/// <param name="Kinds">The kinds a sync fetches.</param>
+/// <param name="FromInstall">
+/// True when this is somebody's answer: a RomMBat setting they typed, or a readable
+/// <c>es_settings.cfg</c>. False when the file is missing or unparseable, where the kinds are
+/// the same but nothing may be deleted on their say-so.
+/// </param>
+public readonly record struct MediaPreference(IReadOnlyList<MediaKind> Kinds, bool FromInstall);
 
 /// <summary>
 /// Which kinds of media a sync fetches.
@@ -12,10 +26,17 @@ namespace RomMBat.Core.Content;
 /// 104 KB of thumbnail, 445 KB of marquee, 525 KB of cover, 1.99 MB of video and 2.45 MB of
 /// manual.
 /// <para>
-/// <b>The default is covers, marquee and video</b>, about 3.1 MB per game, which is what this
-/// milestone is done-when: box art, descriptions and videos. Manuals are left out because
-/// nothing needs them and they are the single largest kind, and because only 46.1% of a real
-/// library has one at all.
+/// <b>The default is covers, thumbnail, marquee and video</b>, about 3.1 MB per game, which is
+/// what this milestone is done-when: box art, descriptions and videos. Manuals are left out
+/// because nothing needs them and they are the single largest kind, and because only 46.1% of a
+/// real library has one at all.
+/// </para>
+/// <para>
+/// <b>An install decides video and manuals for itself.</b>
+/// <see cref="Read(SettingStore, RetroBatInstall)"/> takes those two from RetroBat's own scraper
+/// switches, which ship on, so a stock RetroBat gets manuals as well as this list. Only a user
+/// who turned a switch off gets fewer. This list is what a caller with no install to ask falls
+/// back to.
 /// </para>
 /// </remarks>
 public static class MediaPolicy
@@ -37,6 +58,132 @@ public static class MediaPolicy
         ArgumentNullException.ThrowIfNull(settings);
         return Parse(settings.Get(SettingKey));
     }
+
+    /// <summary>
+    /// The configured kinds, defaulting to what RetroBat's own scraper is set to fetch.
+    /// </summary>
+    /// <remarks>
+    /// <b>RetroBat already has this setting, so RomMBat asks it rather than inventing a second
+    /// one.</b> A hands-on pass turned video off in RetroBat's scraper and RomMBat kept
+    /// downloading it, which is two switches that look like they should agree and do not. Same
+    /// reasoning that made the on-screen keyboard follow <c>Language</c>: the install is the
+    /// authority on what the user already asked for.
+    /// <para>
+    /// <b>Only two kinds are covered, because only two exist upstream.</b> ES writes
+    /// <c>ScrapeVideos</c> and <c>ScrapeManual</c> and has no toggle for the cover, the
+    /// thumbnail or the marquee, so those three follow RomMBat's own default. Do not invent
+    /// keys for them, and do not read an absent one as an unknown: RetroBat ships both of these
+    /// keys as true and ES deletes them when they are turned off, so absent is somebody having
+    /// said no. See <see cref="Wanted"/>.
+    /// </para>
+    /// <para>
+    /// <b>An explicit RomMBat setting still wins.</b> <c>media.kinds</c> is what somebody typed,
+    /// and a preference stated here should not be overridden by one stated elsewhere. RetroBat's
+    /// toggles shape the <i>default</i>, which is what a fresh install gets.
+    /// </para>
+    /// </remarks>
+    public static IReadOnlyList<MediaKind> Read(SettingStore settings, RetroBatInstall install) =>
+        Preference(settings, install).Kinds;
+
+    /// <summary>
+    /// The kinds to fetch, and whether RetroBat itself is what said so.
+    /// </summary>
+    /// <remarks>
+    /// <b>"Absent means off" is a rule about a file that is there.</b> The three states
+    /// <see cref="Wanted"/> reads are states of a real <c>es_settings.cfg</c>: a key missing
+    /// from a file EmulationStation wrote is somebody having turned that switch off. A file that
+    /// is not there at all, or that a power cut left half written, says nothing about what
+    /// anyone asked for, and <see cref="EsSettingsFile.Load"/> answers both with the same empty
+    /// <c>&lt;config&gt;</c> a switched-off install produces.
+    /// <para>
+    /// <b>The kinds are the same in all three cases and this changes no read.</b> What it adds
+    /// is which of them was somebody's answer, because fetching on a guess costs a re-fetch
+    /// while deleting on one costs the files, and <c>MediaSync.Discard</c> deletes. The caller
+    /// cannot tell the states apart from a kind list alone, which is why it is said here.
+    /// </para>
+    /// </remarks>
+    public static MediaPreference Preference(SettingStore settings, RetroBatInstall install)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(install);
+
+        if (settings.Get(SettingKey) is { } chosen && !string.IsNullOrWhiteSpace(chosen))
+        {
+            // Somebody typed this, so it is as decided as an answer gets.
+            return new MediaPreference(Parse(chosen), FromInstall: true);
+        }
+
+        var location = install.Resolve(EsSettingsFile.Location);
+        var readable = File.Exists(location);
+        var es = EsSettingsFile.Empty;
+
+        if (readable)
+        {
+            try
+            {
+                es = EsSettingsFile.Load(location);
+            }
+            catch (XmlException)
+            {
+                // A truncated file after a power cut on a handheld, which is the environment
+                // this project targets. Nothing on this path catches it: it escapes MediaSync,
+                // GameSync, LibrarySyncService and SyncViewModel alike, and the screen is left
+                // sitting at "Working" with a stop footer for ever.
+                readable = false;
+            }
+        }
+
+        // Built up from the kinds ES has no switch for, rather than filtered down from Default.
+        // Filtering was wrong and the wrongness was invisible: Manual is not in Default, so the
+        // ScrapeManual arm could never fire and a user with manuals turned on in RetroBat got
+        // none. A branch that cannot fire is the shape #101 and #107 are open about, written
+        // here by the change that introduced the setting.
+        //
+        // The answer is the same either way: an empty <config> is what a file with both
+        // switches off holds, so a missing one reads off exactly as ES's own would. What
+        // changes is only whether anything may be deleted on the strength of it.
+        return new MediaPreference(
+            [
+                .. All.Where(kind => kind switch
+                {
+                    MediaKind.Video => Wanted(es, "ScrapeVideos"),
+                    MediaKind.Manual => Wanted(es, "ScrapeManual"),
+
+                    // Cover, thumbnail and marquee. ES offers no toggle, so RomMBat's own default
+                    // decides, and that is to fetch them.
+                    _ => Default.Contains(kind),
+                }),
+            ],
+            FromInstall: readable);
+    }
+
+    /// <summary>
+    /// What RetroBat says about a kind. An absent key is the user having turned it off.
+    /// </summary>
+    /// <remarks>
+    /// <b>Both switches ship on and off is unrepresentable, so absent is a deliberate no.</b>
+    /// RetroBat seeds the live file from <c>system/templates/emulationstation/es_settings.cfg</c>,
+    /// which carries <c>ScrapeVideos</c> and <c>ScrapeManual</c> as <c>true</c>, and a fresh
+    /// install shows both on in the scraper menu. EmulationStation's own compiled defaults are
+    /// the opposite (<c>mBoolMap["ScrapeVideos"] = false</c>, and <c>ScrapeManual</c> registered
+    /// nowhere, so <c>getBool</c> returns the map's own <c>false</c>), and <c>saveMap</c> drops
+    /// any key whose value equals its default. Turning a switch off therefore <b>deletes the
+    /// key</b> instead of writing a <c>false</c>. The three states are: present and true is on,
+    /// absent is off, and a literal <c>false</c> never occurs.
+    /// <para>
+    /// <b>Do not read EmulationStation's defaults as RetroBat's.</b> The template overrides them
+    /// before a user ever sees the menu, and reading the upstream source alone gets the stock
+    /// behaviour backwards. Measured on RetroBat 8.2.1, a fresh install beside a used one.
+    /// </para>
+    /// <para>
+    /// <b>This is why RomMBat's own default cannot be the fallback.</b> That is what it was, and
+    /// it made turning video off do nothing: the key vanished, RomMBat read absent, and RomMBat's
+    /// default says video is wanted. Measured on a live install afterwards, 389 MB of video on
+    /// one platform and 2.05 GB across the tree that no setting could reach.
+    /// </para>
+    /// </remarks>
+    private static bool Wanted(EsSettingsFile es, string key) =>
+        es.Has(key) && !string.Equals(es.Value(key), "false", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Parses a setting value. An unreadable one falls back to the default rather than to nothing.</summary>
     public static IReadOnlyList<MediaKind> Parse(string? value)

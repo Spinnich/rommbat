@@ -181,27 +181,47 @@ public sealed class LocalStore : IDisposable
     /// </remarks>
     public long NextSequence()
     {
-        using var command = _connection.CreateCommand();
-        command.CommandText = "UPDATE local_sequence SET value = value + 1 WHERE id = 1 RETURNING value;";
+        using var command = _connection.Command(
+            "UPDATE local_sequence SET value = value + 1 WHERE id = 1 RETURNING value;");
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
     /// <summary>The highest sequence handed out so far, without taking one.</summary>
     public long CurrentSequence()
     {
-        using var command = _connection.CreateCommand();
-        command.CommandText = "SELECT value FROM local_sequence WHERE id = 1;";
+        using var command = _connection.Command("SELECT value FROM local_sequence WHERE id = 1;");
         return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
     }
 
-    /// <summary>Runs an action inside one transaction.</summary>
+    /// <summary>
+    /// Runs an action inside one transaction.
+    /// </summary>
+    /// <remarks>
+    /// <b>The gate is taken for the whole transaction, not left to the store calls inside it.</b>
+    /// <c>BeginTransaction</c> and <c>Commit</c> issue their own <c>BEGIN</c> and <c>COMMIT</c>
+    /// through the connection directly, so a transaction that only relied on its inner calls to
+    /// gate themselves would drop the gate between statements: another thread could create and
+    /// dispose a command on the same connection mid-transaction, which is exactly the
+    /// unserialised prepared-statement-list mutation <see cref="StoreGate"/> exists to stop, and
+    /// its reads would land inside an open transaction and see uncommitted rows.
+    /// <see cref="StoreGate"/> is re-entrant, which is what lets the inner calls take it again.
+    /// </remarks>
     public void InTransaction(Action action)
     {
         ArgumentNullException.ThrowIfNull(action);
 
-        using var transaction = _connection.BeginTransaction();
-        action();
-        transaction.Commit();
+        StoreGate.Enter(_connection);
+
+        try
+        {
+            using var transaction = _connection.BeginTransaction();
+            action();
+            transaction.Commit();
+        }
+        finally
+        {
+            StoreGate.Leave(_connection);
+        }
     }
 
     public void Dispose() => _connection.Dispose();

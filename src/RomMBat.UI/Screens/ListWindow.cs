@@ -35,6 +35,48 @@ public static class ListWindow
     /// </remarks>
     public const int Capacity = 8;
 
+    /// <summary>
+    /// The height of one ordinary row, and of the gap between two.
+    /// </summary>
+    /// <remarks>
+    /// <b>Here rather than in the renderer, because the capacity above is a claim about them
+    /// and a claim wants a test.</b> The renderer draws at these sizes; this file is where the
+    /// arithmetic that says how many fit can be asserted.
+    /// </remarks>
+    public const double RowHeight = 78;
+
+    public const double RowSpacing = 14;
+
+    /// <summary>
+    /// A row on a list that is read rather than chosen from, whose detail is a whole sentence.
+    /// </summary>
+    /// <remarks>
+    /// Three wrapped lines of detail under the label, sized from the longest sentence a sync
+    /// run produces: the stale-record one naming two byte counts, which wraps to two at this
+    /// width, so three leaves headroom.
+    /// </remarks>
+    public const double ReadingRowHeight = 122;
+
+    /// <summary>
+    /// How many reading rows fit, which is fewer because each one is half as tall again.
+    /// </summary>
+    /// <remarks>
+    /// <b>Eight of these overflowed the window and Avalonia put a scroll bar on it</b>, which a
+    /// gamepad cannot drive and which is not how this interface scrolls: the window is. Found
+    /// from the couch, one round after the taller row was introduced without anyone asking how
+    /// many of them fit.
+    /// <para>
+    /// Chosen so a reading block is never taller than an ordinary one, which is a height the
+    /// smallest supported display is already known to hold. <see cref="BlockHeight"/> is the
+    /// arithmetic and a test compares the two.
+    /// </para>
+    /// </remarks>
+    public const int ReadingCapacity = 5;
+
+    /// <summary>How tall a drawn window of rows is, rows and the gaps between them.</summary>
+    public static double BlockHeight(int rows, double rowHeight) =>
+        rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * RowSpacing);
+
     /// <summary>Picks the window that keeps the cursor visible with context around it.</summary>
     /// <remarks>
     /// <b>The cursor is kept off the very edge where there is room.</b> A selection pinned to

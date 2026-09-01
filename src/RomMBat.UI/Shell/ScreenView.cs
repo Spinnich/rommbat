@@ -40,6 +40,7 @@ internal static class ScreenView
         SetEditorViewModel editor => Editor(editor.Rows, editor.Cursor, editor.Window, editor.Problem),
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
+        SyncViewModel sync => Sync(sync),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -371,7 +372,7 @@ internal static class ScreenView
     {
         var stack = new StackPanel
         {
-            Spacing = 14,
+            Spacing = ListWindow.RowSpacing,
             HorizontalAlignment = HorizontalAlignment.Center,
 
             // Fixed, not a maximum. A stack that sizes to its content is as wide as the widest
@@ -439,7 +440,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
+            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor, list.Reading));
         }
 
         stack.Children.Add(More(window.Below, "below"));
@@ -467,7 +468,7 @@ internal static class ScreenView
             HorizontalAlignment = HorizontalAlignment.Center,
         };
 
-    private static Border ListItem(ListRow row, bool selected)
+    private static Border ListItem(ListRow row, bool selected, bool reading = false)
     {
         var lines = new StackPanel { Spacing = 3 };
 
@@ -530,6 +531,14 @@ internal static class ScreenView
                 FontSize = 16,
                 MaxWidth = 860,
                 TextWrapping = TextWrapping.Wrap,
+
+                // On a reading list the detail is the row, and it is a whole sentence rather
+                // than a label, so it is given room for three wrapped lines and clipped past
+                // them. Left to wrap freely it decides the row's height, and rows of differing
+                // height inside a fixed window make the block grow and shrink while it is
+                // being scrolled, which is the thing the fixed row height exists to stop.
+                Height = reading ? ReadingDetailHeight : double.NaN,
+                TextTrimming = reading ? TextTrimming.CharacterEllipsis : TextTrimming.None,
             });
         }
 
@@ -546,7 +555,12 @@ internal static class ScreenView
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the
             // cursor moves through it, which is what made scrolling feel like zooming.
-            MinHeight = RowHeight,
+            //
+            // Fixed rather than a minimum on a reading list, where the detail is a sentence
+            // that wraps: a minimum is only a floor, so a two-line row and a three-line one are
+            // still different heights.
+            MinHeight = reading ? ReadingRowHeight : RowHeight,
+            Height = reading ? ReadingRowHeight : double.NaN,
             Child = lines,
         };
     }
@@ -555,10 +569,15 @@ internal static class ScreenView
     /// One list row, tall enough for a label and a detail line.
     /// </summary>
     /// <remarks>
-    /// Uniform on purpose. The window draws a fixed number of rows, so rows of differing height
-    /// make the drawn block change size as the cursor passes between them.
+    /// Uniform on purpose, and declared beside the capacity that counts them: the window draws
+    /// a fixed number of rows, so how tall one is decides how many fit.
     /// </remarks>
-    private const double RowHeight = 78;
+    private const double RowHeight = ListWindow.RowHeight;
+
+    private const double ReadingRowHeight = ListWindow.ReadingRowHeight;
+
+    /// <summary>Three wrapped lines of detail, which is what makes a reading row its height.</summary>
+    private const double ReadingDetailHeight = 66;
 
     /// <summary>
     /// How wide a list is, fixed so it cannot breathe as the window scrolls.
@@ -688,6 +707,11 @@ internal static class ScreenView
             MaxWidth = 900,
         };
 
+        if (resolve.Outcome is { } finished)
+        {
+            stack.Children.Add(Outcome(finished));
+        }
+
         stack.Children.Add(new TextBlock
         {
             Text = resolve.Detail,
@@ -728,6 +752,138 @@ internal static class ScreenView
                 Background = Panel,
                 CornerRadius = new CornerRadius(6),
                 Height = 18,
+                Width = SyncColumn,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Child = new Border
+                {
+                    Background = Accent,
+                    CornerRadius = new CornerRadius(6),
+                    Width = Math.Max(6, SyncColumn * fraction),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                },
+            });
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// The fixed width every line of the sync screen is laid out in.
+    /// </summary>
+    /// <remarks>
+    /// <b>A centred <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
+    /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
+    /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
+    /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
+    /// and centring the text inside it makes the box still and lets only the glyphs change.
+    /// </remarks>
+    private const double SyncColumn = 620;
+
+    /// <summary>
+    /// A sync, which is the busiest screen here and the only one that spends the user's disk.
+    /// </summary>
+    /// <remarks>
+    /// <b>Fixed fields that update in place, plus problems that accumulate.</b> A live tail of
+    /// forty games in three minutes is unreadable from a sofa and the count already says how
+    /// many went by; what cannot be reconstructed afterwards is what failed, so that is what
+    /// is kept on screen.
+    /// <para>
+    /// <b>Read once, into a local.</b> The value is published from whatever thread is doing the
+    /// transfer, so reading the property twice while building this could draw a game name from
+    /// one moment beside a count from another.
+    /// </para>
+    /// </remarks>
+    private static StackPanel Sync(SyncViewModel sync)
+    {
+        var state = sync.State;
+
+        var stack = new StackPanel
+        {
+            Spacing = 18,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        if (state.Outcome is { } finished)
+        {
+            stack.Children.Add(Outcome(finished));
+        }
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = state.Detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+
+        if (state.Pass is { } pass)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = pass,
+                Foreground = Accent,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Game is { } game)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = game,
+                Foreground = Ink,
+                FontSize = 24,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        // The game's own progress as text, not a second bar. On a set of small ROMs a per-game
+        // bar fills and empties several times a second, which a hands-on pass reported as
+        // flashing rather than as progress.
+        if (state.GameProgress is { } inGame)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = inGame,
+                Foreground = Muted,
+                FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Counted is { } counted)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = counted,
+                Foreground = Muted,
+                FontSize = 21,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        // One bar, for the run, measured in bytes. Games are not the same size, so a bar over
+        // the count of them moves in lurches that mean nothing: forty cartridges and one disc
+        // are both "1 of 2".
+        if (state.Fraction is { } fraction)
+        {
+            stack.Children.Add(new Border
+            {
+                Background = Panel,
+                CornerRadius = new CornerRadius(6),
+                Height = 18,
                 Width = 620,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Child = new Border
@@ -739,6 +895,166 @@ internal static class ScreenView
                 },
             });
         }
+
+        if (state.Transferred is { } transferred)
+        {
+            // Two anchored halves rather than one centred line. The rate and the total change
+            // independently, and a single centred string moves both of them whenever either
+            // changes width. Here the transferred count grows leftwards from a fixed edge and
+            // the rate grows rightwards from another, so neither pushes the other.
+            var line = new Grid
+            {
+                Width = SyncColumn,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ColumnDefinitions = new ColumnDefinitions("*,*"),
+            };
+
+            var moved = new TextBlock
+            {
+                Text = transferred,
+                Foreground = Muted,
+                FontSize = 15,
+                TextAlignment = TextAlignment.Right,
+                Margin = new Thickness(0, 0, 18, 0),
+            };
+
+            Grid.SetColumn(moved, 0);
+            line.Children.Add(moved);
+
+            if (state.Speed is { } speed)
+            {
+                var rate = new TextBlock
+                {
+                    Text = speed,
+                    Foreground = Muted,
+                    FontSize = 15,
+                    TextAlignment = TextAlignment.Left,
+                    Margin = new Thickness(18, 0, 0, 0),
+                };
+
+                Grid.SetColumn(rate, 1);
+                line.Children.Add(rate);
+            }
+
+            stack.Children.Add(line);
+        }
+
+        // On this screen because this is where it is being spent.
+        if (state.Budget is { } budget)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"Disk used  {budget}",
+                Foreground = Muted,
+                FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        // Beside the budget, because that is what took them, and with no offer to fix it.
+        if (state.Held is { } held)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = held,
+                Foreground = Muted,
+                FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        if (state.Problems.Count > 0)
+        {
+            stack.Children.Add(Problems(state.Problems));
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// What went wrong, oldest first, bounded to what fits.
+    /// </summary>
+    /// <remarks>
+    /// <b>The newest are kept when there are too many.</b> A run that fails every game produces
+    /// one line each, and the first six of forty identical sentences are the least useful six:
+    /// the count says how many there were and the tail says what was happening most recently.
+    /// <para>
+    /// <b>The rest are reachable, which they were not.</b> A hands-on pass hit twenty-seven
+    /// problems and could read six, with no press that offered the other twenty-one. The count
+    /// is <see cref="SyncViewModel.ProblemsShown"/> so the footer's offer and this cut cannot
+    /// drift apart.
+    /// </para>
+    /// </remarks>
+    private static StackPanel Problems(IReadOnlyList<string> problems)
+    {
+        var stack = new StackPanel { Spacing = 6, MaxWidth = 860 };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = problems.Count == 1 ? "PROBLEM" : $"PROBLEMS ({problems.Count})",
+            Foreground = Accent,
+            FontSize = 13,
+        });
+
+        foreach (var problem in problems.Skip(Math.Max(0, problems.Count - SyncViewModel.ProblemsShown)))
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = problem,
+                Foreground = Muted,
+                FontSize = 15,
+                MaxWidth = 860,
+                TextWrapping = TextWrapping.Wrap,
+            });
+        }
+
+        return stack;
+    }
+
+    /// <summary>
+    /// That the work on this screen has stopped happening, said in as many words.
+    /// </summary>
+    /// <remarks>
+    /// <b>A finished progress bar and a stalled one are the same picture.</b> A hands-on pass
+    /// sat on a resolve at 107 of 107 under a full bar and could not tell whether the last game
+    /// had hung. Drawn in the accent colour above the sentence, in the same treatment the
+    /// problems heading already uses, so it reads as a label on the screen rather than as one
+    /// more line of detail. The word itself comes from the view model, because which one
+    /// applies is a fact about the outcome.
+    /// </remarks>
+    private static TextBlock Outcome(string word) =>
+        new()
+        {
+            Text = word.ToUpperInvariant(),
+            Foreground = Accent,
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+
+    /// <summary>A screen whose only content is one sentence about work in progress.</summary>
+    private static StackPanel Working(string detail)
+    {
+        var stack = new StackPanel
+        {
+            Spacing = 22,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            MaxWidth = 900,
+        };
+
+        stack.Children.Add(new TextBlock
+        {
+            Text = detail,
+            Foreground = Ink,
+            FontSize = 21,
+            MaxWidth = 860,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
 
         return stack;
     }

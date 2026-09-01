@@ -62,6 +62,85 @@ exceptional: keep the database and outbox, return to pairing, resume after re-pa
 
 CSRF does not apply when an `Authorization` header is present.
 
+## A rom row advertises media it does not serve
+
+**Measured on a live 5.2.0 library: 39 of 40 games on one platform advertised a video path that
+answered 404.** The rom row carries the path whether or not the asset is on disk, so a client
+that trusts the row asks for every one of them on every sync, gets a 404 each time, and reports
+it as a failure.
+
+**Treat a 404 on an advertised asset as a fact about the library, not about the request.** It is
+the one media refusal that will answer identically until the row itself changes, which makes it
+the same class of thing as a 416 on a resume. `RomMResponseStatus.NotFound` exists to keep it
+apart from `ServerError` for exactly that reason.
+
+RomMBat's answer is to forget the path, which turns the case from a failure into the ordinary
+`Missing` one and needs no new state: a resolve rewrites `metadata` from the server wholesale,
+so the path returns the moment RomM starts serving it.
+
+**Do not assume the whole kind is absent for the platform.** It was 39 of 40, not 40 of 40.
+
+## A coverage percentage is a fact about one library on one day
+
+**How much of a kind a library holds says when its platforms were last scraped, and with what
+settings.** It says nothing about what RomM can serve, what ScreenScraper holds, or what the
+next instance will look like. Sampling three platforms on a live 5.2.0 instance showed
+`box2d_path` at 0% on megadrive and 100% on atari2600, with `box3d_path` the exact inverse,
+which reads as a per-platform property of the upstream scraper and is not one: that library's
+older platforms predate `box2d` in that form, and its owner had recently stopped storing
+`box3d`, so only the recently scraped platform reflects the new setting.
+
+**So never decide what to support from a coverage number.** Support what the schema exposes and
+let an absent path be the ordinary `Missing` case, which is what `MediaSync` already reports.
+The same reasoning is already in `GameSync`'s remarks for why artwork cannot be part of the
+whole-game invariant: an administrator may not have scraped a kind, and upstream may never have
+held it, and neither is a fault or fixable by re-running. A kind measured at 0% today is one
+rescrape away from 100%.
+
+**Quote the library and the date beside any such number**, or a later session will read it as a
+property of RomM. Finding 239 is the worked example, including the wrong reading first.
+
+## `fs_size_bytes` can be stale against the file the server serves
+
+**Reported from a live library on `fbneo`: the size on the rom row disagreed with the bytes the
+content endpoint delivered**, because the records on that instance were out of date relative to
+the files. The client is right to notice, and a rescan on the server is the fix, but the failure
+surfaces as RomMBat refusing a download that is perfectly good.
+
+Two consequences for anything verifying a transfer:
+
+- **Say what a mismatch probably means.** "The download is X but the server said Y" is accurate
+  and tells nobody what to do. The likely cause is a library record that has not been rescanned,
+  and the message says so.
+- **Do not accept the file on a matching hash instead.** It was considered and dropped: if the
+  file on the server was replaced, its size and its hash go stale together, so the extra hash
+  confirms the refusal rather than rescuing anything. The case where only the size is stale
+  could not be produced in 120 `fbneo` and 40 `megadrive` downloads against a live instance, and
+  weakening the one check between a corrupt download and an unbootable game needs evidence, not
+  a plausible story.
+
+**Verify with md5 and nothing else.** Every successful download is hashed; the size test is a
+fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in one pass and
+compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
+from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
+RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
+nothing. crc32 was never compared anywhere at all.
+
+The cost of that, measured on a 3.41 GB image already in the OS cache so the numbers are
+processor rather than disk:
+
+|            | throughput   |
+| ---------- | ------------ |
+| read only  | 7,637 MB/s   |
+| md5 only   | **594 MB/s** |
+| md5 + sha1 | 339 MB/s     |
+
+**Do not reason about this from a development box.** There a 34.5 MB/s download leaves an order
+of magnitude of headroom and verification looks free. RomMBat's target is a handheld off a cheap
+stick, where the link can be several times faster and the processor several times slower, and
+verification is then the thing that decides how long a sync takes. Migration 013 dropped both
+columns for that reason.
+
 ## Scopes
 
 **Two roles. Do not conflate them.**

@@ -885,4 +885,163 @@ public class LocalStoreTests
 
         return values;
     }
+
+    [Fact]
+    public async Task A_second_thread_cannot_use_the_connection_while_a_command_is_open()
+    {
+        // One SqliteConnection is shared by every store class and it is not thread-safe.
+        // Nothing serialised it until M7 stage 7b-2b, and the failure is not a clean exception:
+        // two threads mutating one connection's prepared-statement list threw "Collection was
+        // modified" out of SqliteCommand.Dispose during a full test run.
+        //
+        // The stage is what made it reachable. Before it the only background work touching the
+        // store was a resolve; a sync writes from a background thread for minutes, once per ROM
+        // and once per artwork file, while the drawing thread reads the same connection on every
+        // redraw to build the screen underneath.
+        //
+        // **This asserts the gate, not the race, and that is deliberate.** A test that simply
+        // hammers the store from several threads was written first and thrown away: with the
+        // gate removed it caught the corruption in about one run of three at one load and in
+        // none of six at another, which is a test that would have blessed a broken gate most of
+        // the time. Mutual exclusion is the property the gate actually promises, and it can be
+        // asserted exactly.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var token = TestContext.Current.CancellationToken;
+        var connection = store.Connection;
+        using var opened = new SemaphoreSlim(0);
+        using var release = new ManualResetEventSlim(false);
+
+        // Synchronous, and on its own thread, because the gate is a Monitor and a Monitor
+        // belongs to the thread that took it. An `await` between opening a command and
+        // disposing it can resume on a different pool thread, and the release then throws
+        // rather than letting go. Nothing in the store does that, because every store method is
+        // synchronous, but a test that did was flaky until this was understood.
+        var holder = Task.Factory.StartNew(
+            () =>
+            {
+                using var held = connection.Command("SELECT 1;");
+                opened.Release();
+                release.Wait(TimeSpan.FromSeconds(10), token);
+            },
+            token,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+        Assert.True(await opened.WaitAsync(TimeSpan.FromSeconds(10), token), "the first command was never opened");
+
+        var second = Task.Run(
+            () =>
+            {
+                using var blocked = connection.Command("SELECT 2;");
+            },
+            token);
+
+        // The second thread must not get in while the first still holds an open command.
+        var raced = await Task.WhenAny(second, Task.Delay(TimeSpan.FromMilliseconds(500), token));
+
+        Assert.NotSame(second, raced);
+
+        release.Set();
+
+        // And it must get in once the first is disposed, or the gate is a deadlock rather than
+        // a guard. Monitor is re-entrant, so nothing single-threaded would ever notice a gate
+        // that is taken and never released.
+        await holder.WaitAsync(TimeSpan.FromSeconds(10), token);
+        await second.WaitAsync(TimeSpan.FromSeconds(10), token);
+    }
+
+    [Fact]
+    public async Task A_transaction_holds_the_gate_for_the_whole_transaction()
+    {
+        // The gate above is taken per command, and a transaction is not a command. BeginTransaction
+        // and Commit issue their own BEGIN and COMMIT through the connection directly, so a
+        // transaction that relied on the store calls inside it to gate themselves would drop the
+        // gate between every statement.
+        //
+        // That is the path the gate was added for. ContentSync.Commit writes every ROM through
+        // InTransaction, on the sync thread, while the drawing thread reads the same connection to
+        // build the screen underneath, and a read landing inside an open transaction also sees
+        // rows that have not committed.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var token = TestContext.Current.CancellationToken;
+        var connection = store.Connection;
+        using var inside = new SemaphoreSlim(0);
+        using var release = new ManualResetEventSlim(false);
+
+        // On its own thread, for the reason the test above records: a Monitor belongs to the
+        // thread that took it.
+        var holder = Task.Factory.StartNew(
+            () => store.InTransaction(() =>
+            {
+                inside.Release();
+                release.Wait(TimeSpan.FromSeconds(10), token);
+            }),
+            token,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+        Assert.True(await inside.WaitAsync(TimeSpan.FromSeconds(10), token), "the transaction never opened");
+
+        var second = Task.Run(
+            () =>
+            {
+                using var blocked = connection.Command("SELECT 1;");
+            },
+            token);
+
+        var raced = await Task.WhenAny(second, Task.Delay(TimeSpan.FromMilliseconds(500), token));
+
+        Assert.NotSame(second, raced);
+
+        release.Set();
+
+        await holder.WaitAsync(TimeSpan.FromSeconds(10), token);
+        await second.WaitAsync(TimeSpan.FromSeconds(10), token);
+    }
+
+    [Fact]
+    public void The_store_takes_concurrent_use_without_falling_over()
+    {
+        // A smoke test rather than the guard above: it exercises the shape the sync screen
+        // actually creates, a background writer against a foreground reader, and would notice a
+        // gate that serialised nothing at all. It is not evidence on its own, for the reason
+        // recorded above.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var problems = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+        Parallel.For(0, 8, worker =>
+        {
+            try
+            {
+                for (var i = 0; i < 60; i++)
+                {
+                    store.Files.Record(new LocalFile
+                    {
+                        Path = RelativePath.Create($"roms/snes/w{worker}-{i}.sfc"),
+                        Folder = "snes",
+                        RomId = (worker * 1000) + i,
+                        Kind = LocalFileKind.Rom,
+                        FileName = $"w{worker}-{i}.sfc",
+                        SizeBytes = i,
+                    });
+
+                    _ = store.Files.List();
+                }
+            }
+            catch (Exception ex)
+            {
+                problems.Add(ex.Message);
+            }
+        });
+
+        Assert.Empty(problems);
+        Assert.Equal(8 * 60, store.Files.List().Count);
+    }
+
 }
