@@ -78,6 +78,25 @@ public enum VerifiedBy
     Sha1,
 }
 
+/// <summary>Where one ROM's files are on this device, and what they weigh together.</summary>
+/// <param name="Folders">
+/// Every <c>roms/</c> folder holding a copy of the game itself. More than one is legitimate:
+/// <c>folder_override</c> is the only way an arcade set resolves, so a <c>mame</c>-overridden
+/// platform set and an <c>fbneo</c>-overridden collection set drawn from the same platform put
+/// every shared game in both, and both sets are then correct in EmulationStation.
+/// </param>
+/// <param name="Bytes">
+/// Every file of every kind, so two folders genuinely count twice. They do occupy twice the
+/// room, and making that visible is the point.
+/// </param>
+public sealed record RomPlacement(IReadOnlyList<string> Folders, long Bytes)
+{
+    public bool IsHere => Folders.Count > 0;
+}
+
+/// <summary>One game this device holds, as an offline browse lists it.</summary>
+public sealed record InstalledGame(int RomId, string DisplayName, string PlatformSlug);
+
 /// <summary>One file RomMBat knows about inside the RetroBat tree.</summary>
 public sealed record LocalFile
 {
@@ -371,6 +390,174 @@ public sealed class LocalFileStore
 
         return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
     }
+
+    /// <summary>
+    /// Where a ROM's files are on this device, and what they weigh, for a page of rows at once.
+    /// </summary>
+    /// <remarks>
+    /// <b>One query for a page, because a browse row has to say whether the game is here and a
+    /// page is fifty of them.</b> Asked per row it is the shape #111 was filed about, on the
+    /// drawing thread, while somebody scrolls.
+    /// <para>
+    /// Only the game's own rows name a folder. Its artwork lives under that folder too, and
+    /// listing that again would read as another copy of the game.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<int, RomPlacement> PlacementFor(IReadOnlyCollection<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var placements = new Dictionary<int, RomPlacement>();
+
+        if (romIds.Count == 0)
+        {
+            return placements;
+        }
+
+        var names = romIds
+            .Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+
+        using var command = _connection.Command(
+            $"""
+            SELECT rom_id, folder, size_bytes, kind
+            FROM local_file
+            WHERE rom_id IN ({string.Join(", ", names)})
+            ORDER BY folder, relative_path;
+            """);
+
+        var bound = 0;
+        foreach (var romId in romIds)
+        {
+            command.With(names[bound++], romId);
+        }
+
+        using var reader = command.ExecuteReader();
+
+        var folders = new Dictionary<int, List<string>>();
+        var bytes = new Dictionary<int, long>();
+
+        while (reader.Read())
+        {
+            var romId = (int)reader.GetInt64(0);
+            var folder = reader.GetStringOrNull(1);
+
+            bytes[romId] = bytes.GetValueOrDefault(romId) + reader.GetInt64(2);
+
+            if (!string.Equals(reader.GetString(3), "rom", StringComparison.Ordinal) || folder is null)
+            {
+                continue;
+            }
+
+            var known = folders.TryGetValue(romId, out var existing) ? existing : folders[romId] = [];
+
+            if (!known.Contains(folder, StringComparer.OrdinalIgnoreCase))
+            {
+                known.Add(folder);
+            }
+        }
+
+        foreach (var (romId, total) in bytes)
+        {
+            placements[romId] = new RomPlacement(folders.GetValueOrDefault(romId, []), total);
+        }
+
+        return placements;
+    }
+
+    /// <summary>
+    /// The games this device actually holds, as a browsable page.
+    /// </summary>
+    /// <remarks>
+    /// <b>What browse falls back to with no server, and it is not a lesser view of the same
+    /// thing.</b> M2's rule is that the catalog is never mirrored wholesale, so the offline
+    /// browsable set is the locally present subset, which is what EmulationStation shows anyway.
+    /// <para>
+    /// Keyed on the Rom-kind rows rather than on membership, because the question is what is on
+    /// the drive: a game whose set was deleted is still here, and so is a file the user put
+    /// there themselves. The name comes from the membership when there is one, which is why it
+    /// is a left join.
+    /// </para>
+    /// </remarks>
+    public (int Total, IReadOnlyList<InstalledGame> Games) InstalledGames(
+        string? folder,
+        string? search,
+        int limit,
+        int offset)
+    {
+        var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL" };
+
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            clauses.Add("f.folder = $folder COLLATE NOCASE");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            clauses.Add("COALESCE(m.display_name, f.file_name) LIKE $search ESCAPE '~'");
+        }
+
+        var where = "WHERE " + string.Join(" AND ", clauses);
+        const string From = "FROM local_file f LEFT JOIN sync_set_member m ON m.rom_id = f.rom_id";
+
+        using var counting = _connection.Command($"SELECT COUNT(DISTINCT f.rom_id) {From} {where};");
+        Bind(counting);
+
+        var total = Convert.ToInt32(counting.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+
+        // Grouped by rom, so one ROM in two folders is one row that names both, which is the
+        // reading browse gives an online row too.
+        using var command = _connection.Command(
+            $"""
+            SELECT f.rom_id,
+                   MIN(COALESCE(m.display_name, f.file_name)),
+                   MIN(COALESCE(m.platform_slug, f.folder)),
+                   MIN(COALESCE(m.sort_key, f.file_name))
+            {From}
+            {where}
+            GROUP BY f.rom_id
+            ORDER BY 4 COLLATE NOCASE, f.rom_id
+            LIMIT $limit OFFSET $offset;
+            """);
+
+        Bind(command);
+        command.With("$limit", limit).With("$offset", offset);
+
+        using var reader = command.ExecuteReader();
+        var games = new List<InstalledGame>();
+
+        while (reader.Read())
+        {
+            games.Add(new InstalledGame(
+                (int)reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetStringOrNull(2) ?? string.Empty));
+        }
+
+        return (total, games);
+
+        void Bind(SqliteCommand command)
+        {
+            if (!string.IsNullOrWhiteSpace(folder))
+            {
+                command.With("$folder", folder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                // Escaped with a character no path or title carries, because a name holding %
+                // or _ would otherwise widen the search rather than narrow it, and a real
+                // library is full of both.
+                command.With("$search", "%" + Escape(search) + "%");
+            }
+        }
+    }
+
+    /// <summary>Escapes LIKE's two wildcards, and the escape character itself first.</summary>
+    private static string Escape(string term) => term
+        .Replace("~", "~~", StringComparison.Ordinal)
+        .Replace("%", "~%", StringComparison.Ordinal)
+        .Replace("_", "~_", StringComparison.Ordinal);
 
     /// <summary>How many files RomMBat holds and how many bytes they occupy.</summary>
     public (int Files, long Bytes) Totals(string? folder = null, LocalFileKind? kind = null)

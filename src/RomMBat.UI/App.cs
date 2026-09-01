@@ -72,6 +72,7 @@ internal sealed class App : Application
         {
             StartPairing = StartPairing,
             OpenSets = () => SetsScreens.List(_session, connect: null, pair: StartPairing),
+            OpenBrowse = () => new BrowseViewModel(_session),
             OpenBudget = () => new BudgetViewModel(_session),
         };
 

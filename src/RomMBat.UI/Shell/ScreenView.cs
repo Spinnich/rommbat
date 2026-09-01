@@ -41,6 +41,20 @@ internal static class ScreenView
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
         SyncViewModel sync => Sync(sync),
+
+        // The same body a ListScreen draws, given the same four things. Browse is a list with a
+        // pager behind it rather than a different picture, and a second copy of this would be
+        // the file 7b-1 already named as the one most likely to grow worst.
+        BrowseViewModel browse => List(
+            browse.Rows,
+            browse.Cursor,
+            browse.Window,
+            reading: true,
+            note: browse.Note,
+            isLoading: browse.IsLoading,
+            loadingMessage: "Asking RomM.",
+            empty: "Nothing matched. Search for something else, or widen the platform."),
+
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -368,7 +382,36 @@ internal static class ScreenView
     /// granted, which is fixable by pairing again, and a row that is simply absent says none
     /// of that.
     /// </remarks>
-    private static StackPanel List(ListScreen list)
+    private static StackPanel List(ListScreen list) => List(
+        list.Rows,
+        list.Cursor,
+        list.Window,
+        list.Reading,
+        list.Note?.Invoke(),
+        list.IsLoading,
+        list.LoadingMessage,
+        list.LoadProblem ?? list.EmptyMessage);
+
+    /// <summary>
+    /// The list body, given only what it draws.
+    /// </summary>
+    /// <remarks>
+    /// Split out when browse arrived, because browse is a list with a pager behind it rather
+    /// than a different picture, and it is not a <see cref="ListScreen"/>: it holds one page and
+    /// moves by fetching, where a <c>ListScreen</c> has all its rows the moment it opens. Both
+    /// arms draw through here, so the windowing, the two edge markers and the fixed width cannot
+    /// be got right in one and wrong in the other, which is the failure shape this file has
+    /// produced three times.
+    /// </remarks>
+    private static StackPanel List(
+        IReadOnlyList<ListRow> rows,
+        int cursor,
+        ListView window,
+        bool reading,
+        string? note,
+        bool isLoading,
+        string? loadingMessage,
+        string? empty)
     {
         var stack = new StackPanel
         {
@@ -382,7 +425,7 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        if (list.Note?.Invoke() is { } note)
+        if (note is not null)
         {
             stack.Children.Add(new TextBlock
             {
@@ -395,11 +438,11 @@ internal static class ScreenView
             });
         }
 
-        if (list.IsLoading)
+        if (isLoading)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = list.LoadingMessage,
+                Text = loadingMessage ?? "Working.",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -411,11 +454,11 @@ internal static class ScreenView
             return stack;
         }
 
-        if (list.Rows.Count == 0)
+        if (rows.Count == 0)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = list.LoadProblem ?? list.EmptyMessage ?? "Nothing here.",
+                Text = empty ?? "Nothing here.",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -431,8 +474,7 @@ internal static class ScreenView
         // hundred systems on a real install and everything past the height of the display was
         // being drawn off it, with the cursor moving somewhere invisible. The screen decides
         // the window; this only draws it.
-        var window = list.Window;
-
+        //
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
         // centred, so the list visibly resized and shifted while being scrolled.
@@ -440,7 +482,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor, list.Reading));
+            stack.Children.Add(ListItem(rows[index], index == cursor, reading));
         }
 
         stack.Children.Add(More(window.Below, "below"));

@@ -588,6 +588,67 @@ public sealed class SyncSetStore
         return ReadMembers(reader);
     }
 
+    /// <summary>
+    /// Which sets claim each of these ROMs, for a page of rows at once.
+    /// </summary>
+    /// <remarks>
+    /// <b>One query for a page.</b> A browse row says which sets want a game, and asked per row
+    /// that is fifty queries on the drawing thread while somebody scrolls, which is the shape
+    /// #111 was filed about.
+    /// <para>
+    /// Members only. A departed row is a game that has left the set and is being kept for the
+    /// user's benefit, not a claim on it, and reporting it as one would tell somebody a set
+    /// wants a game it no longer contains.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<int, IReadOnlyList<string>> SetsClaiming(IReadOnlyCollection<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var claims = new Dictionary<int, IReadOnlyList<string>>();
+
+        if (romIds.Count == 0)
+        {
+            return claims;
+        }
+
+        var names = romIds
+            .Select((_, index) => "$r" + index.ToString(CultureInfo.InvariantCulture))
+            .ToList();
+
+        using var command = _connection.Command(
+            $"""
+            SELECT m.rom_id, s.name
+            FROM sync_set_member m
+            JOIN sync_set s ON s.id = m.sync_set_id
+            WHERE m.state = 'member' AND m.rom_id IN ({string.Join(", ", names)})
+            ORDER BY s.name;
+            """);
+
+        var bound = 0;
+        foreach (var romId in romIds)
+        {
+            command.With(names[bound++], romId);
+        }
+
+        using var reader = command.ExecuteReader();
+        var building = new Dictionary<int, List<string>>();
+
+        while (reader.Read())
+        {
+            var romId = (int)reader.GetInt64(0);
+            var known = building.TryGetValue(romId, out var existing) ? existing : building[romId] = [];
+            known.Add(reader.GetString(1));
+        }
+
+        foreach (var (romId, sets) in building)
+        {
+            claims[romId] = sets;
+        }
+
+        return claims;
+    }
+
     /// <summary>What the set holds now: how many games and how many bytes.</summary>
     public (int Games, long Bytes) MemberTotals(long syncSetId)
     {
