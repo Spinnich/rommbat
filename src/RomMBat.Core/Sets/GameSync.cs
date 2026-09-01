@@ -210,8 +210,11 @@ public sealed class GameSync
         var roms = new ContentSync(_install, _store, _connection, _time);
         var artwork = new MediaSync(_install, _store, _connection, _limits, _time);
 
-        foreach (var game in Group(plan))
+        var games = Group(plan);
+
+        for (var index = 0; index < games.Count; index++)
         {
+            var game = games[index];
             var offset = walked;
             walked += game.Steps.Count;
 
@@ -231,7 +234,7 @@ public sealed class GameSync
                 // Stopped inside this game's transfer, so this game is the one that goes.
                 // Returned rather than rethrown: everything the pass already did is real, and
                 // 7b-2a's cancelled resolve is the lesson about throwing that work away.
-                RollBack(game, progress, problems, ref rolledBack);
+                RollBack(game, progress, problems, ref rolledBack, Resume.Discard);
                 stopped = true;
                 break;
             }
@@ -240,7 +243,10 @@ public sealed class GameSync
 
             if (landed.Failed > 0)
             {
-                RollBack(game, progress, problems, ref rolledBack);
+                // A failure is not a cancellation, and the difference is the partial. The whole
+                // game still comes off disk, so the invariant holds, but what the next run would
+                // continue from is left alone.
+                RollBack(game, progress, problems, ref rolledBack, Resume.Keep);
 
                 if (landed.Rejected)
                 {
@@ -268,7 +274,7 @@ public sealed class GameSync
                     .ApplyAsync(
                         [.. game.RomIds],
                         new Immediate<string>(what => progress.Report(new MediaProgressed(what))),
-                        RemainingRomBytes(plan, walked),
+                        RemainingRomBytes(games, index + 1),
                         cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -318,25 +324,49 @@ public sealed class GameSync
             progress.Report(new ContentProgressed(step with { Index = offset + step.Index, Total = total })));
 
     /// <summary>
-    /// How many bytes of ROM this run still intends to fetch, from the given step onwards.
+    /// How many bytes of ROM this run still intends to fetch, from the given game onwards.
     /// </summary>
     /// <remarks>
     /// Only <see cref="ContentAction.Download"/> and <see cref="ContentAction.Resume"/> count.
     /// A step that is already present or adopted is on disk and already in <c>local_file</c>,
     /// and a blocked one is never fetched at all, so counting either would reserve room twice.
+    /// <para>
+    /// <b>Counted over the games, not over the plan's own steps.</b> Skipping a step count into
+    /// <see cref="ContentPlan.Steps"/> is only the same window when every game's steps are
+    /// adjacent there, and <see cref="Group"/> makes no such promise: a title whose discs are
+    /// apart in the plan would leave the window counting a disc already fetched and missing one
+    /// still ahead. The error is one game's bytes, which is the size the reservation exists to
+    /// stop being spent.
+    /// </para>
     /// </remarks>
-    private static long RemainingRomBytes(ContentPlan plan, int from) =>
-        plan.Steps
+    private static long RemainingRomBytes(IReadOnlyList<PlannedGame> games, int from) =>
+        games
             .Skip(from)
+            .SelectMany(game => game.Steps)
             .Where(step => step.Action is ContentAction.Download or ContentAction.Resume)
             .Sum(step => step.BytesToTransfer);
+
+    /// <summary>Whether a rollback also throws away what a later run could continue from.</summary>
+    /// <remarks>
+    /// <b>Only a user cancellation discards a partial.</b> A stopped transfer is discarded by
+    /// ruling, and truncating it before the handle closes is what takes the stop from 20.2 s to
+    /// 0.2 s. A transfer that failed on its own, an unreachable server most of all, keeps both
+    /// its <c>.part</c> and its download row, because resuming from them is the whole reason one
+    /// is written: a 929 MB image that lost the LAN at 800 MB must not start again from zero.
+    /// </remarks>
+    private enum Resume
+    {
+        Keep,
+        Discard,
+    }
 
     /// <summary>Takes back every file this run placed for one game, and the rows with them.</summary>
     private void RollBack(
         PlannedGame game,
         IProgress<SyncEvent> progress,
         List<string> problems,
-        ref int rolledBack)
+        ref int rolledBack,
+        Resume resume)
     {
         if (!game.IsThisRunsToRemove)
         {
@@ -370,9 +400,12 @@ public sealed class GameSync
             }
 
             // The interrupted transfer itself, which carries no local_file row because a row is
-            // only written on commit.
-            Delete(_install.Resolve(ContentPlanner.PartFor(romId)));
-            _store.Downloads.Remove(romId);
+            // only written on commit. Kept on a failure: see Resume.
+            if (resume == Resume.Discard)
+            {
+                Delete(_install.Resolve(ContentPlanner.PartFor(romId)));
+                _store.Downloads.Remove(romId);
+            }
         }
 
         problems.AddRange(failures);

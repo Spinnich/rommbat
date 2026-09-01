@@ -158,6 +158,40 @@ public sealed class GameSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_transfer_the_server_dropped_keeps_its_partial_even_though_the_game_is_rolled_back()
+    {
+        // The rollback and the resume are two rules that meet here, and only one of them is
+        // about the user pressing anything. A 929 MB image that loses the LAN at 800 MB must
+        // still be rolled back, because half a game on disk is the thing the invariant forbids,
+        // and must still be resumable, because the whole reason a .part is written is that the
+        // next run continues from it. Deleting it here would silently cost the 800 MB, and
+        // nothing would say so: no file was removed, so no GameRolledBack event fires.
+        //
+        // The size-mismatch tests above cannot catch this. ContentSync deletes the partial
+        // itself on a verification failure, so both paths look identical from outside.
+        using var stub = Library((1, "Title (Disc 1).chd"), (2, "Title (Disc 2).chd"));
+        stub.DropContentAfterBytes = 400;
+
+        var outcome = await RunAsync(stub);
+
+        Assert.False(outcome.Stopped);
+        Assert.Equal(1, outcome.Content.Failed);
+        Assert.Equal(1, outcome.RolledBack);
+
+        // The disc that landed comes off, which is the invariant unchanged.
+        AssertGone(2, "Title (Disc 2).chd");
+
+        // And the disc that died keeps what a resume needs. Not on disk under roms/, because
+        // it never committed.
+        Assert.False(File.Exists(RomPath("Title (Disc 1).chd")));
+
+        var part = _session.Install.Resolve(ContentPlanner.PartFor(1));
+        Assert.True(File.Exists(part), "the partial the next run would continue from was deleted");
+        Assert.Equal(400, new FileInfo(part).Length);
+        Assert.NotNull(_session.Store.Downloads.Find(1));
+    }
+
+    [Fact]
     public async Task Games_that_finished_before_the_stop_keep_their_files_their_rows_and_their_artwork()
     {
         // The other half of the invariant, and the one a person notices: a stop must not undo

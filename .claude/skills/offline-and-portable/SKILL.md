@@ -83,6 +83,15 @@ the source of truth; the network is optional, probed with a short-timeout
   Portable installs are exactly where this bites: the same code on an internal SSD would hide
   it, and RomMBat lives on the removable drive by design.
 
+  **The rollback above it has to obey the same rule, and it did not.** `GameSync` takes a game
+  back whenever it did not land whole, which is a stop _or_ a failure, and its first version
+  deleted the `.part` and the `local_file` download row on both. A 929 MB image that lost the
+  LAN at 800 MB was therefore rolled back correctly and made unresumable silently, since no file
+  had been removed and no `GameRolledBack` event fired to say so. The rollback now takes the
+  bytes and leaves the partial unless the user cancelled. **A size-mismatch test cannot catch
+  this**, because `ContentSync` deletes the partial itself on a verification failure and the two
+  paths then look identical from outside: it needs a transfer the server drops.
+
 - **One `SqliteConnection` is shared by every store class, and it is gated inside the process.**
   `SqliteConnection` is not thread-safe and nothing serialised it until M7 stage 7b-2b, which is
   the stage that made the race reachable: before it the only background work touching the store
@@ -94,12 +103,30 @@ the source of truth; the network is optional, probed with a short-timeout
   The gate is entered when a command is created and left when it is disposed, which covers the
   reader because every call site reads inside the command's own `using` scope.
 
+  **A transaction is not a command, and it has to take the gate itself.** `BeginTransaction` and
+  `Commit` issue their own `BEGIN` and `COMMIT` through the connection directly, so relying on
+  the store calls inside the transaction to gate themselves drops the gate between every
+  statement: another thread creates and disposes its own command mid-transaction, which is the
+  unserialised prepared-statement-list mutation this exists to stop, and its reads land inside an
+  open transaction and see uncommitted rows. `InTransaction` therefore enters the gate around the
+  whole thing. `NextSequence` and `CurrentSequence` go through `Command()` for the same reason:
+  a raw `CreateCommand` is ungated by construction. This was wrong when the gate was added, in
+  the code and in three documents, and `A_transaction_holds_the_gate_for_the_whole_transaction`
+  is what pins it.
+
   **A command must be created and disposed on the same thread.** The gate is a `Monitor`, which
   belongs to the thread that took it, so an `await` between opening a command and disposing it
-  can resume elsewhere and the release then throws instead of letting go, holding the gate for
-  ever. Every store method is synchronous, which is what makes this safe; an `async` one needs a
+  can resume elsewhere and the release then finds a gate it does not hold, holding it for ever.
+  Every store method is synchronous, which is what makes this safe; an `async` one needs a
   different primitive, and a **re-entrant** one, because `InTransaction` holds the gate across
   the store calls inside the transaction.
+
+  **`StoreGate.Leave` returns rather than throwing when this thread is not the holder, and that
+  guard is load-bearing.** `SqliteConnection.Close` disposes every command the connection still
+  tracks, on whatever thread closed it, which fires the `Disposed` handler that releases the
+  gate. A background loader still mid-read when the store is disposed therefore gets its command
+  released by the disposing thread. Removing the guard to make the release diagnosable was tried
+  on the strength of a review finding and two tests caught it.
 
   **This orders threads inside one process and nothing else.** The database is WAL and the hooks
   write to it from their own processes; `TreeLock` and the busy timeout are what order those.
@@ -143,11 +170,17 @@ the source of truth; the network is optional, probed with a short-timeout
 
 - **Which operations work with the server off, on the sets surface.** Listing sets, defining
   one, editing its caps and ordering, deleting it, and setting the disk budget and free-space
-  floor are all local and all answerable offline. **The whole eviction surface is offline too**,
-  added in 7b-2b: the preview is two local scans and a walk of `local_file`, and carrying it out
-  deletes files and rewrites gamelists from local state. **Only resolving and syncing need the
-  network**, and they are the only screens that say so. A screen that cannot tell those two apart is wrong: the
-  whole point of defining a set on a handheld away from its server is that it can be done.
+  floor are all local and all answerable offline. **Only resolving and syncing need the
+  network**, and they are the only screens that say so. A screen that cannot tell those two apart
+  is wrong: the whole point of defining a set on a handheld away from its server is that it can
+  be done.
+
+  **Eviction is offline too and has no screen**, which are two separate facts and 7b-2b settled
+  both. `EvictionService` in Core is a preview from two local scans and a walk of `local_file`,
+  and carrying it out deletes files and rewrites gamelists from local state, so `rommbat-agent
+evict` works with the server off. What 7b-2b removed is the interface to it: RomMBat guessing
+  which games matter least is a bad policy even when a person starts it, so freeing space is the
+  user's, by dropping a sync set or a single game. Do not go looking for eviction screens.
 
   **A resolve is minutes-long work, measured rather than assumed:** a platform scope of 9,196
   roms took **8 minutes 15 seconds** against a live 5.2.0 instance at 250 rows a page. So
