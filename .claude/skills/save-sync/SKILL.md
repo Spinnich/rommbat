@@ -205,7 +205,7 @@ claim safety.
 
 - **Nothing is deleted either way.** Removal walks `local_file`, whose seven kinds hold no
   saves, so the container survives whatever the screen says. What it cannot survive is the
-  *attribution*: the ROM going takes with it the only thing that could ever say which game those
+  _attribution_: the ROM going takes with it the only thing that could ever say which game those
   bytes belong to, and that is not recoverable.
 - **Scoped to the systems the removed games are in**, via `EvictionService.Unvouchable`. Naming
   every unattributed save on the install would be noise on a screen a person is reading in order

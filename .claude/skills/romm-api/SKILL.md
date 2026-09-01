@@ -294,6 +294,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   **Read one ROM as a `RomRow`, not through the generated detail schema.** Same trap as the
   paged read: the pinned schema declares `fs_size_bytes` a bare `integer`, so a generated DTO
   fails outright on any ROM at or above 2 GiB, which is most disc images.
+
 - **`metadatum` units and scales agree with nothing.** `first_release_date` is **milliseconds**
   (read as seconds, every value lands in year 0); `average_rating` is **0-100**;
   `player_count` is a **string** already in EmulationStation's `1-2` form; `companies` is one

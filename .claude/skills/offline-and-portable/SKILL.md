@@ -248,7 +248,7 @@ evict` works with the server off. What 7b-2b removed is the interface to it: Rom
   per fetch.
 - **A paged list stops at the end; it does not wrap.** Every other list in the UI wraps. Wrapping
   to page one after nine thousand rows of paging silently undoes them and looks exactly like the
-  stall a failed fetch produces. Stopping *silently* is worse again, so there is a row saying so.
+  stall a failed fetch produces. Stopping _silently_ is worse again, so there is a row saying so.
   A library that fits one page still wraps: there is no paging to undo.
 
 ### The claim rule: a game another enabled set still wants is held back
@@ -277,7 +277,7 @@ for the next sync to fetch it again**. Written twice it would have been two rule
   `PlanRemoval(romIds, releasing)` is the entry point.
 - **`local_file` has no save kind.** Its seven are `rom`, `image`, `thumbnail`, `marquee`,
   `video`, `manual` and `firmware`, enforced by a `CHECK`; saves live in `local_save` and
-  `local_state`. Anything that removes content walks `local_file`, so it *cannot* delete a save.
+  `local_state`. Anything that removes content walks `local_file`, so it _cannot_ delete a save.
   That is schema-level rather than careful coding, and it belongs in what the confirmation says.
 
 ### `local_file` rows outlive their bytes, and the budget counts them forever
