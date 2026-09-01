@@ -200,9 +200,9 @@ EmulationStation through `system/es_menu/*.menu`.
 **The entry that launches it exists as of M7 stage 7a**, and as of stage 7b-1 it opens a real
 interface: pairing behind an on-screen keyboard, and status. **Stage 7b-2a added the sets
 surface**: listing, defining, editing and deleting a set, the scope, platform and folder
-pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added the sync run and
-eviction**: syncing every set or one set with live progress, a stop that leaves the tree
-correct, and the budget as it is spent. Freeing space is not on the interface.
+pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added the sync run**:
+syncing every set or one set with live progress, a stop that leaves the tree correct, and the
+budget as it is spent. Freeing space is not on the interface.
 Browse and per-game install are 7b-2c; conflict resolution and acting on the queued-config
 surface are 7b-3.
 
