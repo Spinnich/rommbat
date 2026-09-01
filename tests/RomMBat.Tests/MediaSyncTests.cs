@@ -24,6 +24,15 @@ public sealed class MediaSyncTests : IDisposable
 {
     private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
 
+    public MediaSyncTests()
+    {
+        // Written out because the fixture's bare tree has no es_settings.cfg and a real RetroBat
+        // always does: its installer seeds one from system/templates carrying both switches as
+        // true. These tests are about what the media pass does rather than about what decides
+        // it, so they get the stock answer. The policy tests below write their own.
+        WriteEsSettings(_tree.Install(), videos: true, manuals: false);
+    }
+
     public void Dispose()
     {
         _tree.Dispose();
@@ -396,17 +405,40 @@ public sealed class MediaSyncTests : IDisposable
     }
 
     [Fact]
-    public void An_install_with_no_es_settings_gets_the_plain_default()
+    public void A_scraper_switch_that_is_absent_is_off_rather_than_unknown()
     {
-        // Only a key that is present overrides. ES writes a setting when it differs from its own
-        // default, so an absent key is not a "no" and is not reliably a "yes": treating it as on
-        // turned manuals, the largest kind by median, on for every install whose ES had never
-        // written the key.
+        // RetroBat seeds both switches as true from system/templates, and ES deletes a bool
+        // whose value equals its own compiled default, which for both of these is false. So
+        // turning one off deletes the key and a literal false never appears: absent is somebody
+        // having said no, not an install nobody configured. Reading absent as RomMBat's own
+        // default instead made turning video off do nothing at all, found by a hands-on pass
+        // with 389 MB of video on one platform that no setting could reach.
         var install = _tree.Install();
         using var store = LocalStore.Open(install);
 
-        Assert.False(File.Exists(install.Resolve(EsSettingsFile.Location)));
-        Assert.Equal(MediaPolicy.Default, MediaPolicy.Read(store.Settings, install));
+        File.Delete(install.Resolve(EsSettingsFile.Location));
+
+        var nothingWritten = MediaPolicy.Read(store.Settings, install);
+        Assert.DoesNotContain(MediaKind.Video, nothingWritten);
+        Assert.DoesNotContain(MediaKind.Manual, nothingWritten);
+
+        // The three ES has no switch for are untouched by any of this.
+        Assert.Contains(MediaKind.Image, nothingWritten);
+        Assert.Contains(MediaKind.Thumbnail, nothingWritten);
+        Assert.Contains(MediaKind.Marquee, nothingWritten);
+
+        // A file that exists and carries neither key is the same state, because that is exactly
+        // what ES leaves behind when both switches are turned off.
+        WriteEsSettings(install, videos: false, manuals: false);
+        File.WriteAllText(
+            install.Resolve(EsSettingsFile.Location),
+            File.ReadAllText(install.Resolve(EsSettingsFile.Location))
+                .Replace("""<bool name="ScrapeVideos" value="false" />""", string.Empty, StringComparison.Ordinal)
+                .Replace("""<bool name="ScrapeManual" value="false" />""", string.Empty, StringComparison.Ordinal));
+
+        var pruned = MediaPolicy.Read(store.Settings, install);
+        Assert.DoesNotContain(MediaKind.Video, pruned);
+        Assert.DoesNotContain(MediaKind.Manual, pruned);
     }
 
     [Fact]

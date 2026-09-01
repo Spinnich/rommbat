@@ -493,11 +493,32 @@ them map onto anything RomMBat fetches.
 
 **There is no toggle for the cover, the thumbnail or the marquee.** Do not invent keys for them.
 
-**An absent key is not a value.** ES writes a setting when it differs from its own default, so
-a key that is not in the file is neither a yes nor a reliable no, and only a key that is
-actually present should override anything. Reading absent as "on" turned manuals, the largest
-media kind by median, on for every install whose ES had never written the key: a behaviour
-change delivered through a setting nobody touched. Use `EsSettingsFile.Has` before `Value`.
+**Never read EmulationStation's compiled defaults as RetroBat's defaults.** RetroBat ships
+`system/templates/emulationstation/es_settings.cfg` and seeds the live file from it at install,
+so what a user sees on a fresh machine is the template's value and not `Settings.cpp`'s. The two
+disagree on exactly the keys that matter here. Read the template, and check a fresh install
+rather than reasoning from upstream source. Seeding happens once: a used install whose live file
+has lost a key does **not** get it back from the template on the next launch, measured on 8.2.1.
+
+**Both scraper switches ship on, and off is unrepresentable, so an absent key is a deliberate
+no.** `Settings::saveMap` drops any key whose value equals its default, and any key with no
+registered default whose value is `false`:
+
+| Key            | RetroBat template | ES compiled default                                     | So the file says          |
+| -------------- | ----------------- | ------------------------------------------------------- | ------------------------- |
+| `ScrapeVideos` | `true`            | `mBoolMap["ScrapeVideos"] = false` in `Settings.cpp`    | `true` on, **absent** off |
+| `ScrapeManual` | `true`            | none at all, so `getBool` returns the map's own `false` | `true` on, **absent** off |
+
+Turning either switch off in the scraper menu **deletes the key**. A literal `value="false"`
+never occurs, so never write an off branch that depends on seeing one.
+
+Two hands-on rounds were lost to reading absent as something else. First absent was read as
+"on", which turned manuals on for every install whose ES had never written the key. The
+correction read absent as "RomMBat's own default", which for video is also on, so turning video
+off in RetroBat still did nothing at all: measured afterwards on the live install, 389 MB of
+video on one platform and 2.05 GB across the tree that no setting could reach.
+
+Use `EsSettingsFile.Has` before `Value`, and treat the absent branch as off.
 
 **A kind turned off is also a kind removed.** Stopping future downloads and leaving what is
 already there makes the setting mean two different things depending on which way it is moved,

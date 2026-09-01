@@ -1428,7 +1428,9 @@ cleanly.
   marquee, 1.99 MB of video and 2.45 MB of manual, so a 100-game `nes` set is ~12.8 MB of
   ROMs against ~550 MB of media. **The default fetches covers, marquee and video, and leaves
   manuals opt-in**, which is ~3.1 MB per game and matches what this milestone is done-when.
-  Finding 92.
+  Finding 92. **Amended in 7b-2b**: video and manuals follow RetroBat's own scraper switches
+  rather than this default, and RetroBat ships both on, so a stock install fetches manuals too
+  and only a user who turned a switch off gets fewer kinds. Finding 238.
 - **Media comes off static resource paths, not the `/api/roms/{id}/content` route M3 built**,
   and three things about them decide the code:
   - **Never use `url_cover` or `url_manual`.** They are ScreenScraper API URLs carrying a
@@ -3000,6 +3002,16 @@ explicit `media.kinds` still winning. There is no upstream toggle for the cover,
 or the marquee, so those three keep RomMBat's default and no keys are invented for them. Same
 rule as the on-screen keyboard following `Language`: where RetroBat already has the setting,
 RomMBat asks it.
+
+**An absent scraper key is off, and getting that wrong cost two hands-on rounds.** RetroBat
+seeds `es_settings.cfg` from `system/templates/` with both switches `true`, so a stock install
+has them on. EmulationStation's own compiled defaults are the opposite, and it drops any key
+equal to its default, so turning a switch off **deletes the key** and a literal `false` never
+appears. Absent is therefore a deliberate no rather than an unknown. Reading it as RomMBat's own
+default meant video was fetched whatever RetroBat said, and the round that followed found 389 MB
+of video on one platform and 2.05 GB across the tree that no setting could reach. The trap worth
+carrying forward is the layer, not the key: **RetroBat's templates override EmulationStation's
+compiled defaults**, so upstream source is not evidence of what a RetroBat does. Finding 238.
 
 **Turning a media kind off takes back what was already fetched.** It used to stop future
 downloads and nothing else, so the artwork stayed for ever with nothing able to reclaim it:

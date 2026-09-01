@@ -175,7 +175,7 @@ rommbat-agent.exe sync                       # fetch it
 rommbat-agent.exe evict                      # what would go to get back inside the budget
 rommbat-agent.exe evict --apply              # actually remove it
 rommbat-agent.exe gamelist                   # rewrite gamelist.xml from local state
-rommbat-agent.exe gamelist --media all       # also fetch manuals, which are off by default
+rommbat-agent.exe gamelist --media all       # every kind, whatever RetroBat's scraper says
 ```
 
 All of that is on the gamepad interface too, as of M7 stage 7b-2b: define a set, resolve it,
@@ -261,11 +261,19 @@ the same thing on its own and needs no server at all.
 
 **Media is not a rounding error.** At the sizes measured on a real library a game costs about
 3.1 MB of cover, thumbnail, marquee and video, so a hundred-game NES set is roughly 12.8 MB of
-ROMs and 320 MB of artwork. It counts against the same budget, and manuals are opt-in.
+ROMs and 320 MB of artwork. It counts against the same budget.
 
-**Nothing is deleted without `evict --apply`.** Eviction never removes a file RomMBat did not
-download, and never one whose saves have not reached the server. It takes a game's artwork and
-its gamelist entry out with it, and leaves artwork a user scraped themselves alone.
+**Which kinds are fetched is RetroBat's setting, not a second one.** Video and manuals follow
+the VIDEO and MANUAL switches in RetroBat's own scraper menu, which ship on, so a stock install
+gets all five kinds. Turning a switch off stops the downloads **and takes back what was already
+fetched**, on the next sync of that platform. `--media` on the command line overrides all of it.
+
+**Nothing else is deleted without `evict --apply`.** Eviction never removes a file RomMBat did
+not download, and never one whose saves have not reached the server. It takes a game's artwork
+and its gamelist entry out with it, and leaves artwork a user scraped themselves alone. The two
+exceptions are both a user's own instruction carried out immediately: the media kind above, and
+a sync you stop part way, which takes back the one game it was downloading so the tree never
+holds half a game.
 
 `evict` also reports transfers that died part-way, under `emulators/rommbat/partial/`, and
 reclaims them on `--apply`. Those bytes are the only ones the disk budget cannot see, because a
