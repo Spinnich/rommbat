@@ -93,6 +93,94 @@ public sealed class EvictionService
     }
 
     /// <summary>
+    /// What removing named games would do, before anything is done.
+    /// </summary>
+    /// <remarks>
+    /// <b>The first thing RomMBat removes because a person asked for it.</b>
+    /// <see cref="Preview"/> answers "what should go to get back inside a budget", which is the
+    /// question the ruling that took eviction off the interface says RomMBat should not be
+    /// answering on its own. This one answers "can these named games go", and the user has
+    /// already decided.
+    /// <para>
+    /// <b>The two scans run here for exactly the reason <see cref="Preview"/>'s do</b>, and the
+    /// order is as load-bearing: <see cref="SaveGuard"/> reads <c>local_save</c> and
+    /// <c>local_state</c>, and without a scan it answers from the last flush, so a game played
+    /// since could be removed while the save it wrote is still unsent. States before saves,
+    /// because the sidecar attribution route reads <c>local_state</c>. See #64.
+    /// </para>
+    /// <para>
+    /// <b><c>partial/</c> is deliberately not swept here.</b> A removal that also collected
+    /// dead transfers would be doing work the user did not ask for on a path whose whole point
+    /// is that they named what goes. <see cref="ApplyAsync"/> skips an empty sweep plan, so
+    /// nothing extra happens.
+    /// </para>
+    /// </remarks>
+    /// <param name="romIds">The games to take off this device.</param>
+    /// <param name="releasing">
+    /// Sets whose claim on those games is being given up, because they are what the games are
+    /// being removed from. Every other enabled set's claim still holds a game back.
+    /// </param>
+    public EvictionReport PreviewRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var schema = StateScanner.LoadSchema(_session.Install);
+
+        if (schema is not null)
+        {
+            new StateScanner(_session.Install, _session.Store, schema).Scan();
+        }
+
+        new SaveScanner(_session.Install, _session.Store, states: schema).Scan();
+
+        return new EvictionReport(
+            new PartialSweepPlan(),
+            new EvictionPlanner(_session.Store).PlanRemoval(romIds, releasing),
+            _session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes) is not null);
+    }
+
+    /// <summary>
+    /// Containers this removal cannot vouch for, named rather than guarded.
+    /// </summary>
+    /// <remarks>
+    /// <b>A class D shared container has no <c>rom_id</c> by definition</b>, and a class C unit
+    /// whose attribution failed has a null one, so <see cref="SaveGuard"/> cannot attribute
+    /// either to the game being removed and cannot answer for it. A PS2 memory card is the case
+    /// that exists.
+    /// <para>
+    /// <b>Named, and no safety is claimed.</b> Nothing here is deleted, because removal walks
+    /// <c>local_file</c> and that table has no save kind, so the container survives the removal
+    /// whatever this says. What it cannot survive is the attribution: the ROM going takes with
+    /// it the only thing that could ever say which game those bytes belong to. The user decides.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<string> Unvouchable(IReadOnlyList<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        if (romIds.Count == 0)
+        {
+            return [];
+        }
+
+        var systems = _session.Store.SyncSets.List()
+            .SelectMany(set => _session.Store.SyncSets.Members(set.Id, state: null))
+            .Where(member => romIds.Contains(member.RomId))
+            .Select(member => member.Folder)
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return
+        [
+            .. _session.Store.Saves.List()
+                .Where(save => save.RomId is null && systems.Contains(save.System))
+                .Select(save => save.Path.Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Order(StringComparer.OrdinalIgnoreCase),
+        ];
+    }
+
+    /// <summary>
     /// Carries out a report: sweeps <c>partial/</c>, removes what was selected, rewrites lists.
     /// </summary>
     /// <remarks>
@@ -115,7 +203,10 @@ public sealed class EvictionService
         var sweep = new PartialSweep(_session.Install, _session.Store);
         var swept = report.Abandoned.IsEmpty ? null : sweep.Apply(report.Abandoned);
 
-        if (report.Plan.BytesToFree <= 0)
+        // Nothing selected rather than nothing over budget, which are the same thing on the
+        // budget path and are not on the removal one: a removal's BytesToFree is what the
+        // removal frees, so a plan that every guard refused is the case this skips.
+        if (report.Plan.Selected.Count == 0)
         {
             return new EvictionApplied(swept, null, null);
         }

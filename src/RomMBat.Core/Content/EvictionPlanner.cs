@@ -68,10 +68,31 @@ public sealed record EvictionPlan
     /// <summary>True when everything available was selected and it still is not enough.</summary>
     public bool IsShort => BytesFreed < BytesToFree;
 
+    /// <summary>
+    /// True when a person named these games rather than a budget choosing them.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because <see cref="BytesToFree"/> means nothing on that path and the sentence would
+    /// be wrong.</b> A removal is planned against ids, so the target is set to what the removal
+    /// frees purely to satisfy the shared apply, and quoting it as "a budget exceeded by" would
+    /// describe a budget that is not why anything is going. One flag rather than a second plan
+    /// type, so <c>EvictionService.ApplyAsync</c> stays one body.
+    /// </remarks>
+    public bool IsRemoval { get; init; }
+
     public string Summary
     {
         get
         {
+            if (IsRemoval)
+            {
+                var removing = Selected.Count == 0
+                    ? "nothing to remove"
+                    : $"{Selected.Count} {Games(Selected.Count)}, {ByteSize.Format(BytesFreed)}";
+
+                return Refused.Count > 0 ? $"{removing}; {Refused.Count} held back" : removing;
+            }
+
             if (BytesToFree <= 0)
             {
                 return "nothing to evict: the install is inside its budget";
@@ -199,6 +220,76 @@ public sealed class EvictionPlanner
         return new EvictionPlan
         {
             BytesToFree = target,
+            Selected = selected,
+            Refused = refused,
+        };
+    }
+
+    /// <summary>
+    /// Plans the removal of named games, rather than of whatever is worth the most bytes.
+    /// </summary>
+    /// <remarks>
+    /// <b>The other entry point cannot serve this at all.</b> <see cref="Plan"/> returns early
+    /// when nothing is over budget, and its whole ordering exists to answer "which games matter
+    /// least", which is the question the ruling that took eviction off the interface says
+    /// RomMBat should not be answering. Here the user has already answered it.
+    /// <para>
+    /// <b><paramref name="releasing"/> is what makes the claim rule work in both directions.</b>
+    /// The sets being removed from still hold membership rows at preview time, so counting their
+    /// claim would hold every game back against the set the user is dropping. Every <i>other</i>
+    /// enabled set's claim still counts, which is what stops deleting one set from silently
+    /// taking a game a set the user never touched still wants, only for the next sync to fetch
+    /// it again.
+    /// </para>
+    /// <para>
+    /// Every guard the budget path has applies unchanged: <see cref="SaveGuard"/> answers per
+    /// game and its refusals are carried with their reasons, and
+    /// <see cref="EvictionPlanner.Apply"/> re-asks and re-checks the origin.
+    /// </para>
+    /// </remarks>
+    /// <param name="romIds">The games the user named.</param>
+    /// <param name="releasing">Sets whose claim is being given up, because they are what the games are being removed from.</param>
+    public EvictionPlan PlanRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var wanted = romIds.ToHashSet();
+
+        if (wanted.Count == 0)
+        {
+            return new EvictionPlan { IsRemoval = true };
+        }
+
+        var selected = new List<EvictionCandidate>();
+        var refused = new List<EvictionCandidate>();
+
+        foreach (var candidate in Candidates(releasing).Where(candidate => wanted.Contains(candidate.File.RomId ?? 0)))
+        {
+            // Named before the guard is asked, because "another set still wants this" is a
+            // better answer than an unsent save when both are true: the second is temporary
+            // and the first is the user's own other set.
+            if (candidate.SetName is { } claimed && candidate.Reason == EvictionReason.LowestRanked)
+            {
+                refused.Add(candidate with { Refusal = $"it is still in '{claimed}'." });
+                continue;
+            }
+
+            var verdict = _guard.Check(candidate.File.RomId ?? 0, candidate.File.Path);
+
+            if (!verdict.CanRemove)
+            {
+                refused.Add(candidate with { Refusal = verdict.Reason });
+                continue;
+            }
+
+            selected.Add(candidate);
+        }
+
+        return new EvictionPlan
+        {
+            // What this removal frees, so the shared apply runs. Never a budget: see IsRemoval.
+            BytesToFree = selected.Sum(candidate => candidate.Bytes),
+            IsRemoval = true,
             Selected = selected,
             Refused = refused,
         };

@@ -3,6 +3,7 @@ using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
+using RomMBat.Core.Content;
 using RomMBat.Core.Identity;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
@@ -165,19 +166,37 @@ public sealed class SetsScreenTests : IDisposable
 
 
     [Fact]
-    public void Deleting_a_set_says_that_nothing_on_disk_was_touched_before_it_happens()
+    public void Deleting_a_set_says_what_each_answer_does_before_it_happens()
     {
         Seed("doomed");
 
         var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // sets remove has always said this, and a person deleting from a couch has no other way
-        // to learn that their games are still there. It is on the confirmation rather than on a
-        // screen afterwards, because a warning after the act is not a warning.
+        // Two answers, because deleting a set and keeping its games is a legitimate thing to
+        // want, and removal is a choice rather than a consequence. Both sentences are on the
+        // confirmation rather than on a screen afterwards, because a warning after the act is
+        // not a warning.
+        Assert.Equal(2, confirm.Rows.Count);
         Assert.Contains(
             confirm.Rows,
             row => row.Detail is { } detail
                 && detail.Contains("Nothing on disk is touched", StringComparison.Ordinal));
+        Assert.Contains(
+            confirm.Rows,
+            row => row.Detail is { } detail
+                && detail.Contains("Saves and save states are never removed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Keeping_the_games_deletes_the_set_and_touches_no_file()
+    {
+        Seed("doomed");
+
+        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+
+        // The second row, which is the one that keeps them. Reached by moving rather than by
+        // index, so a row added above it does not silently retarget this press.
+        confirm.Handle(NavAction.Down);
 
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Empty(new SyncSetService(_session).List());
@@ -195,6 +214,10 @@ public sealed class SetsScreenTests : IDisposable
 
         navigator.Handle(NavAction.Accept);
         navigator.Handle(NavAction.Alternate);
+
+        // Down to "leave the games where they are", which is the answer that does not open a
+        // preview. The removal half has its own tests, because it is minutes of work.
+        navigator.Handle(NavAction.Down);
         navigator.Handle(NavAction.Accept);
 
         // Back on the list, with the deleted set gone from it. It used to land on a message
@@ -204,6 +227,67 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Equal(2, navigator.Depth);
         Assert.Single(list.Rows);
         Assert.Equal("survivor", list.Rows[0].Label);
+    }
+
+    [Fact]
+    public async Task The_removal_preview_names_what_goes_and_what_is_kept()
+    {
+        var doomed = Seed("doomed");
+        var wanted = Seed("wanted");
+
+        SeedFile(1, "snes", "shared.sfc", 2_048);
+        SeedFile(2, "snes", "only.sfc", 1_024);
+
+        Members(doomed, 1, 2);
+        Members(wanted, 1);
+
+        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        await Wait(() => !preview.IsLoading);
+
+        var shown = Render(preview);
+
+        // The game the other set still wants is kept and the reason names that set, beside
+        // whatever SaveGuard would have said. Without it, deleting one set silently removes a
+        // game a set the user never touched still wants, and the next sync fetches it again.
+        Assert.Contains(shown, text => text.Contains("still in 'wanted'", StringComparison.Ordinal));
+        Assert.Contains(shown, text => text.Contains("only.sfc", StringComparison.Ordinal));
+
+        // Stated before the press, because it is the thing a person on a sofa cannot otherwise
+        // find out, and because it is a schema guarantee rather than an intention.
+        Assert.Contains(
+            shown,
+            text => text.Contains("Saves and save states are never removed", StringComparison.Ordinal));
+
+        // Nothing has happened yet. The preview is the screen, and the footer is what commits.
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
+        Assert.Equal(2, new SyncSetService(_session).List().Count);
+    }
+
+    [Fact]
+    public async Task Removing_takes_the_games_it_named_and_leaves_the_one_it_kept()
+    {
+        var doomed = Seed("doomed");
+        var wanted = Seed("wanted");
+
+        SeedFile(1, "snes", "shared.sfc", 2_048);
+        SeedFile(2, "snes", "only.sfc", 1_024);
+
+        Members(doomed, 1, 2);
+        Members(wanted, 1);
+
+        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        await Wait(() => !preview.IsLoading);
+
+        var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Start).Screen);
+        await Wait(() => !applying.IsLoading);
+
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
+
+        // The set goes last, after its files. Either order self-heals; this one never claims to
+        // have removed something that is still on the disk.
+        Assert.Equal(["wanted"], new SyncSetService(_session).List().Select(summary => summary.Set.Name));
     }
 
     [Fact]
@@ -1244,6 +1328,14 @@ public sealed class SetsScreenTests : IDisposable
             SetsScreens.List(_session),
             SetsScreens.Detail(_session, set.Name, null),
             SetsScreens.ConfirmDelete(_session, set.Name),
+            SetsScreens.ConfirmRemoval(_session, set.Name),
+
+            // Reachable only by driving a preview to completion, so it is constructed directly
+            // rather than left as the one screen on this surface no sweep looks at.
+            SetsScreens.ApplyRemoval(
+                _session,
+                set.Name,
+                new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false)),
             SetEditorViewModel.ForNew(_session),
             SetEditorViewModel.ForExisting(_session, set),
             new BudgetViewModel(_session),
@@ -1308,6 +1400,46 @@ public sealed class SetsScreenTests : IDisposable
             Position = 1,
             ResolvedAt = Now,
         };
+
+    private void Members(SyncSetDefinition set, params int[] romIds) =>
+        _session.Store.SyncSets.ReplaceMembers(
+            set.Id,
+            [
+                .. romIds.Select((romId, index) => new SyncSetMember
+                {
+                    RomId = romId,
+                    State = MemberState.Member,
+                    Folder = "snes",
+                    PlatformSlug = "snes",
+                    FsName = $"rom{romId}.sfc",
+                    FsExtension = "sfc",
+                    SizeBytes = 1_024,
+                    DisplayName = $"Game {romId}",
+                    SortKey = $"game {romId}",
+                    Position = index + 1,
+                    ResolvedAt = Now,
+                }),
+            ],
+            $"{romIds.Length} games",
+            Now);
+
+    private void SeedFile(int romId, string folder, string fileName, long bytes)
+    {
+        var absolute = Path.Combine(_tree.Root, "roms", folder, fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        File.WriteAllBytes(absolute, new byte[bytes]);
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RomMBat.Core.Paths.RelativePath.Create($"roms/{folder}/{fileName}"),
+            Folder = folder,
+            RomId = romId,
+            Kind = LocalFileKind.Rom,
+            FileName = fileName,
+            SizeBytes = bytes,
+            Origin = FileOrigin.Synced,
+        });
+    }
 
     private SyncSetDefinition Seed(string name) =>
         _session.Store.SyncSets.Add(
