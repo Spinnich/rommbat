@@ -9,10 +9,8 @@ public sealed record ContentFingerprint
 {
     public required string Md5 { get; init; }
 
-    public required string Sha1 { get; init; }
 
     /// <summary>Lower-case hex, matching how RomM writes <c>crc_hash</c>.</summary>
-    public required string Crc32 { get; init; }
 
     /// <summary>Whether the hashes describe the file or the single entry inside it.</summary>
     public required HashScope Scope { get; init; }
@@ -200,15 +198,24 @@ public static class ContentHasher
         long fileBytes,
         bool describesLibraryContent)
     {
-        // MD5, SHA-1 and CRC-32 are all here because RomM stores all three and none of them is
-        // being used as a security primitive: the question is only whether two files are the
-        // same file, and matching the server's choice is the whole point.
-#pragma warning disable CA5350, CA5351 // Weak algorithms, deliberately: these mirror RomM's.
+        // MD5 alone, and the other two are gone rather than optional. It is not a security
+        // primitive here: the question is only whether two files are the same file, and md5 is
+        // what RomM publishes and what this client compares.
+        //
+        // SHA-1 and CRC-32 were computed on every download and compared on none. Measured on a
+        // 3.41 GB image already in the OS cache, so these are processor numbers: md5 alone runs
+        // at 594 MB/s where md5 plus sha1 runs at 338, and crc32 was on top of that. On the
+        // development box that headroom is invisible against a 34.5 MB/s download, which is the
+        // wrong machine to reason from: RomMBat's target is a handheld off a cheap stick, where
+        // the link can be faster and the processor several times slower.
+        //
+        // The sha1 comparison was not a fallback worth keeping either. Across 1,616 rom rows
+        // sampled from three platforms of a live library, not one carried a sha1 without also
+        // carrying an md5. See migration 013.
+#pragma warning disable CA5351 // MD5, deliberately: it is what RomM publishes.
         using var md5 = MD5.Create();
-        using var sha1 = SHA1.Create();
-#pragma warning restore CA5350, CA5351
+#pragma warning restore CA5351
 
-        var crc = 0xFFFFFFFFu;
         var buffer = new byte[BufferSize];
         var read = 0L;
 
@@ -221,19 +228,14 @@ public static class ContentHasher
             }
 
             md5.TransformBlock(buffer, 0, count, null, 0);
-            sha1.TransformBlock(buffer, 0, count, null, 0);
-            crc = Crc32.Continue(crc, buffer.AsSpan(0, count));
             read += count;
         }
 
         md5.TransformFinalBlock([], 0, 0);
-        sha1.TransformFinalBlock([], 0, 0);
 
         return new ContentFingerprint
         {
             Md5 = Convert.ToHexString(md5.Hash!).ToLowerInvariant(),
-            Sha1 = Convert.ToHexString(sha1.Hash!).ToLowerInvariant(),
-            Crc32 = (~crc).ToString("x8", System.Globalization.CultureInfo.InvariantCulture),
             Scope = scope,
             DescribesLibraryContent = describesLibraryContent,
             HashedBytes = hashedBytes > 0 ? hashedBytes : read,

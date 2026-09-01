@@ -73,20 +73,39 @@ public static class MediaPolicy
 
         var es = EsSettingsFile.Load(install.Resolve(EsSettingsFile.Location));
 
+        // Built up from the kinds ES has no switch for, rather than filtered down from Default.
+        // Filtering was wrong and the wrongness was invisible: Manual is not in Default, so the
+        // ScrapeManual arm could never fire and a user with manuals turned on in RetroBat got
+        // none. A branch that cannot fire is the shape #101 and #107 are open about, written
+        // here by the change that introduced the setting.
         return
         [
-            .. Default.Where(kind => kind switch
+            .. All.Where(kind => kind switch
             {
-                MediaKind.Video => IsOn(es.Value("ScrapeVideos")),
-                MediaKind.Manual => IsOn(es.Value("ScrapeManual")),
-                _ => true,
+                MediaKind.Video => Wanted(es, "ScrapeVideos", MediaKind.Video),
+                MediaKind.Manual => Wanted(es, "ScrapeManual", MediaKind.Manual),
+
+                // Cover, thumbnail and marquee. ES offers no toggle, so RomMBat's own default
+                // decides, and that is to fetch them.
+                _ => Default.Contains(kind),
             }),
         ];
     }
 
-    /// <summary>An absent key means EmulationStation's own default, which for both of these is on.</summary>
-    private static bool IsOn(string? value) =>
-        value is null || !value.Equals("false", StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// What RetroBat says about a kind, or RomMBat's own default when it says nothing.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only a key that is actually present overrides.</b> EmulationStation writes a setting
+    /// when it differs from its own default, so an absent key is not the same as a "no" and is
+    /// not reliably a "yes" either. Treating absent as on turned manuals, the largest kind by
+    /// median, on for every install whose ES had never written the key, which is a behaviour
+    /// change nobody asked for delivered through a setting they never touched.
+    /// </remarks>
+    private static bool Wanted(EsSettingsFile es, string key, MediaKind kind) =>
+        es.Has(key)
+            ? !string.Equals(es.Value(key), "false", StringComparison.OrdinalIgnoreCase)
+            : Default.Contains(kind);
 
     /// <summary>Parses a setting value. An unreadable one falls back to the default rather than to nothing.</summary>
     public static IReadOnlyList<MediaKind> Parse(string? value)

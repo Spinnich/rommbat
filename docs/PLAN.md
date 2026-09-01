@@ -3001,6 +3001,34 @@ or the marquee, so those three keep RomMBat's default and no keys are invented f
 rule as the on-screen keyboard following `Language`: where RetroBat already has the setting,
 RomMBat asks it.
 
+**Turning a media kind off takes back what was already fetched.** It used to stop future
+downloads and nothing else, so the artwork stayed for ever with nothing able to reclaim it:
+eviction removes whole games under budget pressure and has no notion of a kind. Measured on the
+live install, 1.09 GB of video on one platform and 566 MB on another. Only `FileOrigin.Synced`
+goes, so a user's own scrape at the same name is untouched, which is the fence the sync rollback
+already uses.
+
+**A size that disagrees with the download is still refused, and the message now says why.** The
+check was nearly weakened to accept a file whose hash matched on the theory that only the size
+record had gone stale. Measured against the live instance, that case could not be produced: 120
+`fbneo` ROMs and 40 `megadrive` ROMs all verified cleanly, so the benefit was unevidenced while
+the cost was a weaker check on the one thing standing between a corrupt download and a game that
+will not boot. **Refused as before**, with the message naming the likely cause, which is a
+library record that has not been rescanned.
+
+**What that argument did change is what gets hashed, and it is migration 013.** RomMBat computed
+md5, sha1 and crc32 on every download and compared only md5, or sha1 where the server published
+none. Measured across 1,616 rom rows from three platforms of a live library, not one carries a
+sha1 without also carrying an md5, and crc32 was never compared anywhere: RomM hashes a file
+once and sets every column or none. So `local_file` lost both, and hashing went from **339 MB/s
+to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor numbers.
+
+**The development box is the wrong machine to have reasoned from**, which is the more useful
+half of this. There a 34.5 MB/s download leaves verification an order of magnitude of headroom
+and the cost is invisible. The target is a handheld off a cheap stick where the link can be
+faster and the processor several times slower, and there verification is what decides how long a
+sync takes.
+
 **An advertised media path that answers 404 is forgotten rather than re-asked.** Measured on the
 live library: 39 of 40 games on one platform advertised a video the server does not serve, so
 every sync spent 39 requests and printed 39 problems, for ever. Forgetting the path turns it

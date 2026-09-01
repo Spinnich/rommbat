@@ -264,8 +264,6 @@ public sealed class ContentSync
             FileName = step.Member.FsName,
             SizeBytes = info.Length,
             Md5Hash = fingerprint.Md5,
-            Sha1Hash = fingerprint.Sha1,
-            CrcHash = fingerprint.Crc32,
             HashScope = fingerprint.Scope,
             ModifiedUtc = info.LastWriteTimeUtc,
             VerifiedAt = _time.GetUtcNow(),
@@ -448,9 +446,15 @@ public sealed class ContentSync
 
         if (member.SizeBytes > 0 && length != member.SizeBytes)
         {
+            // Named rather than left as two numbers. Reported from a live library: the size on
+            // the rom row disagreed with the bytes the server delivered, because that instance's
+            // records had not been rescanned since the files changed. The download is refused
+            // either way, and the person reading this can only act on it if it says where to
+            // look.
             return (null,
                 $"the download is {ByteSize.Format(length)} but the server said it would be "
-                    + $"{ByteSize.Format(member.SizeBytes)}.");
+                    + $"{ByteSize.Format(member.SizeBytes)}. RomM's record for this game may be "
+                    + "out of date; rescanning it there usually fixes this.");
         }
 
         var fingerprint = ContentHasher.Compute(partAbsolute, member.FsName);
@@ -465,12 +469,11 @@ public sealed class ContentSync
                 return (null, "the downloaded file does not match the md5 the server reported.");
             }
 
-            if (member.Md5Hash is null
-                && member.Sha1Hash is not null
-                && !ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash))
-            {
-                return (null, "the downloaded file does not match the sha1 the server reported.");
-            }
+            // No sha1 branch, and that is measured rather than assumed. Across 1,616 rom rows
+            // from three platforms of a live library, not one carried a sha1 without also
+            // carrying an md5: RomM hashes a file once and sets every column or none. So the
+            // case a sha1 comparison served does not arise, and computing one cost 43% of the
+            // hashing throughput on every download. See migration 013.
         }
 
         return (fingerprint, null);
@@ -494,8 +497,6 @@ public sealed class ContentSync
                 FileName = step.Member.FsName,
                 SizeBytes = info.Length,
                 Md5Hash = fingerprint.Md5,
-                Sha1Hash = fingerprint.Sha1,
-                CrcHash = fingerprint.Crc32,
                 HashScope = fingerprint.Scope,
                 ModifiedUtc = info.LastWriteTimeUtc,
                 VerifiedAt = _time.GetUtcNow(),
@@ -505,16 +506,16 @@ public sealed class ContentSync
         });
     }
 
-    /// <summary>Which check actually ran, which is not always the one that was wanted.</summary>
-    private static VerifiedBy VerificationOf(SyncSetMember member, ContentFingerprint fingerprint)
-    {
-        if (ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
-        {
-            return VerifiedBy.Md5;
-        }
-
-        return ContentHasher.Matches(fingerprint.Sha1, member.Sha1Hash) ? VerifiedBy.Sha1 : VerifiedBy.Size;
-    }
+    /// <summary>
+    /// Which check actually ran, which is not always the one that was wanted.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="VerifiedBy.Sha1"/> is no longer produced. It stays in the enum and in the
+    /// column's CHECK because rows written before migration 013 carry it, and a value that is
+    /// no longer written is not the same as one that was never valid.
+    /// </remarks>
+    private static VerifiedBy VerificationOf(SyncSetMember member, ContentFingerprint fingerprint) =>
+        ContentHasher.Matches(fingerprint.Md5, member.Md5Hash) ? VerifiedBy.Md5 : VerifiedBy.Size;
 
     /// <summary>Discards a partial transfer's bytes before its handle is closed.</summary>
     /// <remarks>

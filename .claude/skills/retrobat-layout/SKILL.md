@@ -492,7 +492,17 @@ them map onto anything RomMBat fetches.
 | `ScrapperImageSrc` | string, e.g. `sstitle` | **nothing.** It picks which ScreenScraper image ES uses as the cover, and RomM serves its own art |
 
 **There is no toggle for the cover, the thumbnail or the marquee.** Do not invent keys for them.
-An absent key means EmulationStation's own default, which for both booleans is on.
+
+**An absent key is not a value.** ES writes a setting when it differs from its own default, so
+a key that is not in the file is neither a yes nor a reliable no, and only a key that is
+actually present should override anything. Reading absent as "on" turned manuals, the largest
+media kind by median, on for every install whose ES had never written the key: a behaviour
+change delivered through a setting nobody touched. Use `EsSettingsFile.Has` before `Value`.
+
+**A kind turned off is also a kind removed.** Stopping future downloads and leaving what is
+already there makes the setting mean two different things depending on which way it is moved,
+and nothing else reclaims it: eviction works on whole games under budget pressure and has no
+notion of a kind. Only `FileOrigin.Synced` goes; a user's own scrape at the same name is theirs.
 
 **RomMBat honours the two that exist, as the default rather than as an override.** A hands-on
 pass turned video off in RetroBat's scraper and RomMBat carried on downloading it, which is two

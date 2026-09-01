@@ -23,11 +23,22 @@ public sealed record MediaSyncOutcome
 
     public int Failed { get; init; }
 
+    /// <summary>
+    /// Files removed because their kind is no longer wanted.
+    /// </summary>
+    /// <remarks>
+    /// Turning a kind off used to stop future downloads and nothing else, so the artwork already
+    /// fetched stayed for ever with nothing able to reclaim it: measured on a real install, 1.09
+    /// GB of video on one platform and 566 MB on another. The setting means the same thing in
+    /// both directions now.
+    /// </remarks>
+    public int Removed { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
 
-    public bool IsNoOp => Downloaded == 0 && Adopted == 0 && Failed == 0;
+    public bool IsNoOp => Downloaded == 0 && Adopted == 0 && Failed == 0 && Removed == 0;
 
     /// <summary>
     /// Two outcomes as one, for a caller that fetches artwork a game at a time.
@@ -49,6 +60,7 @@ public sealed record MediaSyncOutcome
             Missing = first.Missing + second.Missing,
             Blocked = first.Blocked + second.Blocked,
             Failed = first.Failed + second.Failed,
+            Removed = first.Removed + second.Removed,
             BytesTransferred = first.BytesTransferred + second.BytesTransferred,
             Problems = [.. first.Problems, .. second.Problems],
         };
@@ -58,7 +70,7 @@ public sealed record MediaSyncOutcome
     {
         get
         {
-            if (Downloaded == 0 && Adopted == 0 && Blocked == 0 && Failed == 0)
+            if (Downloaded == 0 && Adopted == 0 && Blocked == 0 && Failed == 0 && Removed == 0)
             {
                 return AlreadyPresent == 0
                     ? "no media to fetch"
@@ -85,6 +97,11 @@ public sealed record MediaSyncOutcome
             if (Blocked > 0)
             {
                 parts.Add($"{Blocked} blocked by the budget");
+            }
+
+            if (Removed > 0)
+            {
+                parts.Add($"{Removed} removed, no longer wanted");
             }
 
             if (Failed > 0)
@@ -191,6 +208,7 @@ public sealed class MediaSync
         var missing = 0;
         var blocked = 0;
         var failed = 0;
+        var removed = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -232,6 +250,8 @@ public sealed class MediaSync
             var rom = romFiles[0];
             var folder = rom.Folder!;
             var forgotten = new List<MediaKind>();
+
+            removed += Discard(romId, kinds);
 
             foreach (var kind in kinds)
             {
@@ -337,9 +357,63 @@ public sealed class MediaSync
             Missing = missing,
             Blocked = blocked,
             Failed = failed,
+            Removed = removed,
             BytesTransferred = bytes,
             Problems = problems,
         };
+    }
+
+    /// <summary>
+    /// Takes back artwork of a kind this install no longer wants.
+    /// </summary>
+    /// <remarks>
+    /// <b>Turning a kind off has to mean the same thing in both directions.</b> It used to stop
+    /// future downloads and nothing else, so what had already been fetched stayed for ever with
+    /// nothing able to reclaim it: eviction removes whole games under budget pressure and has no
+    /// notion of a kind. Measured on a real install, that was 1.09 GB of video on one platform
+    /// and 566 MB on another.
+    /// <para>
+    /// <b>Only <see cref="FileOrigin.Synced"/>.</b> A user's own scrape sits at exactly these
+    /// names and is recorded as <see cref="FileOrigin.Adopted"/> precisely so that nothing here
+    /// touches it. Same fence the sync rollback uses.
+    /// </para>
+    /// <para>
+    /// The row goes with the bytes, and a file that will not delete keeps its row, because a row
+    /// removed from under a file nothing tracks is unreachable by both the budget and eviction.
+    /// </para>
+    /// </remarks>
+    private int Discard(int romId, IReadOnlyList<MediaKind> wanted)
+    {
+        var keep = wanted.Select(ToFileKind).ToHashSet();
+        var gone = 0;
+
+        foreach (var file in _store.Files.ForRom(romId))
+        {
+            if (file.Kind == LocalFileKind.Rom
+                || file.Kind == LocalFileKind.Firmware
+                || file.Origin != FileOrigin.Synced
+                || keep.Contains(file.Kind))
+            {
+                continue;
+            }
+
+            var absolute = _install.Resolve(file.Path);
+
+            try
+            {
+                File.Delete(absolute);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Windows refuses two ways and only one is an IOException. Left with its row.
+                continue;
+            }
+
+            _store.Files.Remove(file.Path);
+            gone++;
+        }
+
+        return gone;
     }
 
     /// <summary>How many bytes the next file may take before it breaks a bound.</summary>

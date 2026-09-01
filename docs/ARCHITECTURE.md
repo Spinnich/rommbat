@@ -397,15 +397,18 @@ the same reason as the tables: a single-file publish carries it with no second f
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Eleven have been
-added since, by migrations whose headers state what shape could not carry the work. The schema lives
+so each milestone has somewhere honest to write from the moment it starts. Twelve migrations
+have been added since, whose headers state what shape could not carry the work, and 013 is the
+first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
+nothing read either back and computing them was most of the cost of verifying a download. The
+schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `device`           | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token                         |
 | `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                      |
-| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5/sha1/crc, mtime, last verified, synced or adopted |
+| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced or adopted          |
 | `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                 |
 | `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, and whether RomM serves each as one file |
 | `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |

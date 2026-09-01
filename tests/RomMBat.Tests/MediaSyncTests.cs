@@ -345,7 +345,6 @@ public sealed class MediaSyncTests : IDisposable
 
     private sealed record SyncOutcome(ContentSyncOutcome Content, MediaSyncOutcome Media, GamelistSyncOutcome Gamelists);
 
-    /// <summary>A stub library of <paramref name="count"/> SNES games, each with metadata and media.</summary>
     // ------------------------------------------------------------------ what RetroBat already says
 
     [Fact]
@@ -362,6 +361,14 @@ public sealed class MediaSyncTests : IDisposable
 
         WriteEsSettings(install, videos: false, manuals: true);
         Assert.DoesNotContain(MediaKind.Video, MediaPolicy.Read(store.Settings, install));
+
+        // Manuals are not in RomMBat's own default, so a rule that filtered the default down
+        // could never turn them on however RetroBat was set. A hands-on pass found exactly
+        // that: manuals on upstream, none downloaded.
+        Assert.Contains(MediaKind.Manual, MediaPolicy.Read(store.Settings, install));
+
+        WriteEsSettings(install, videos: false, manuals: false);
+        Assert.DoesNotContain(MediaKind.Manual, MediaPolicy.Read(store.Settings, install));
 
         // The three kinds ES has no toggle for are unaffected, because inventing keys for them
         // would be guessing at settings upstream does not have.
@@ -391,7 +398,10 @@ public sealed class MediaSyncTests : IDisposable
     [Fact]
     public void An_install_with_no_es_settings_gets_the_plain_default()
     {
-        // An absent key means EmulationStation's own default, which for both of these is on.
+        // Only a key that is present overrides. ES writes a setting when it differs from its own
+        // default, so an absent key is not a "no" and is not reliably a "yes": treating it as on
+        // turned manuals, the largest kind by median, on for every install whose ES had never
+        // written the key.
         var install = _tree.Install();
         using var store = LocalStore.Open(install);
 
@@ -427,6 +437,59 @@ public sealed class MediaSyncTests : IDisposable
         Assert.Equal(0, second.Failed);
     }
 
+    [Fact]
+    public async Task Artwork_of_a_kind_that_has_been_turned_off_is_taken_back()
+    {
+        // Turning a kind off used to stop future downloads and nothing else, so what had already
+        // been fetched stayed for ever: eviction removes whole games under budget pressure and
+        // has no notion of a kind. Measured on a real install, 1.09 GB of video on one platform.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        var video = Path.Combine(_tree.Root, "roms", "snes", "videos", "Game 1 (USA)-video.mp4");
+        Assert.True(File.Exists(video));
+
+        // The user turns video off in RetroBat, exactly as a hands-on pass did.
+        WriteEsSettings(_tree.Install(), videos: false, manuals: false);
+
+        var outcome = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.False(File.Exists(video), "the video stayed after its kind was turned off");
+        Assert.DoesNotContain(store.Files.ForRom(1), file => file.Kind == LocalFileKind.Video);
+
+        // And the kinds still wanted are untouched.
+        Assert.Contains(store.Files.ForRom(1), file => file.Kind == LocalFileKind.Image);
+    }
+
+    [Fact]
+    public async Task A_users_own_scrape_is_never_taken_back_when_a_kind_is_turned_off()
+    {
+        // The fence. Adopted means the user's own file at exactly the name RomMBat would use,
+        // and RomMBat's setting is not a licence to delete what it did not download.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        var videos = Path.Combine(_tree.Root, "roms", "snes", "videos");
+        Directory.CreateDirectory(videos);
+        var theirs = Path.Combine(videos, "Game 1 (USA)-video.mp4");
+        File.WriteAllBytes(theirs, [9, 9, 9]);
+
+        await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+        Assert.Equal(FileOrigin.Adopted, store.Files.ForRom(1, LocalFileKind.Video).Single().Origin);
+
+        WriteEsSettings(_tree.Install(), videos: false, manuals: false);
+
+        var outcome = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Removed);
+        Assert.Equal([9, 9, 9], File.ReadAllBytes(theirs));
+    }
+
     /// <summary>Writes the two scraper toggles ES actually has.</summary>
     private static void WriteEsSettings(RetroBatInstall install, bool videos, bool manuals)
     {
@@ -447,6 +510,7 @@ public sealed class MediaSyncTests : IDisposable
         File.WriteAllLines(path, lines);
     }
 
+    /// <summary>A stub library of <paramref name="count"/> SNES games, each with metadata and media.</summary>
     private static StubRomMServer Library(int count)
     {
         var stub = new StubRomMServer();

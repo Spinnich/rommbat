@@ -80,6 +80,47 @@ so the path returns the moment RomM starts serving it.
 
 **Do not assume the whole kind is absent for the platform.** It was 39 of 40, not 40 of 40.
 
+## `fs_size_bytes` can be stale against the file the server serves
+
+**Reported from a live library on `fbneo`: the size on the rom row disagreed with the bytes the
+content endpoint delivered**, because the records on that instance were out of date relative to
+the files. The client is right to notice, and a rescan on the server is the fix, but the failure
+surfaces as RomMBat refusing a download that is perfectly good.
+
+Two consequences for anything verifying a transfer:
+
+- **Say what a mismatch probably means.** "The download is X but the server said Y" is accurate
+  and tells nobody what to do. The likely cause is a library record that has not been rescanned,
+  and the message says so.
+- **Do not accept the file on a matching hash instead.** It was considered and dropped: if the
+  file on the server was replaced, its size and its hash go stale together, so the extra hash
+  confirms the refusal rather than rescuing anything. The case where only the size is stale
+  could not be produced in 120 `fbneo` and 40 `megadrive` downloads against a live instance, and
+  weakening the one check between a corrupt download and an unbootable game needs evidence, not
+  a plausible story.
+
+**Verify with md5 and nothing else.** Every successful download is hashed; the size test is a
+fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in one pass and
+compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
+from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
+RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
+nothing. crc32 was never compared anywhere at all.
+
+The cost of that, measured on a 3.41 GB image already in the OS cache so the numbers are
+processor rather than disk:
+
+|            | throughput   |
+| ---------- | ------------ |
+| read only  | 7,637 MB/s   |
+| md5 only   | **594 MB/s** |
+| md5 + sha1 | 339 MB/s     |
+
+**Do not reason about this from a development box.** There a 34.5 MB/s download leaves an order
+of magnitude of headroom and verification looks free. RomMBat's target is a handheld off a cheap
+stick, where the link can be several times faster and the processor several times slower, and
+verification is then the thing that decides how long a sync takes. Migration 013 dropped both
+columns for that reason.
+
 ## Scopes
 
 **Two roles. Do not conflate them.**
