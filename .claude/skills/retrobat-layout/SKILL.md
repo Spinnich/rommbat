@@ -520,6 +520,27 @@ video on one platform and 2.05 GB across the tree that no setting could reach.
 
 Use `EsSettingsFile.Has` before `Value`, and treat the absent branch as off.
 
+**Three more settings pick a source for a slot rather than adding a kind.** ES's own comments
+name the tag each one feeds, so these are not new media:
+
+| Key                | Feeds         | Values                                                                    | ES compiled default | RetroBat template |
+| ------------------ | ------------- | ------------------------------------------------------------------------- | ------------------- | ----------------- |
+| `ScrapperImageSrc` | `<image>`     | `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`, `""` | `ss`                | **`sstitle`**     |
+| `ScrapperThumbSrc` | `<thumbnail>` | `box-2D`, `box-3D`, `""`                                                  | `box-2D`            | not seeded        |
+| `ScrapperLogoSrc`  | `<marquee>`   | `wheel`, `marquee`, `""`                                                  | `wheel`             | not seeded        |
+
+**A stored source value is not necessarily a choice.** `GuiScraperSettings` rebuilds every row
+from the currently selected `Scraper`, guarding each on `isMediaSupported(...)`, and when the
+stored value is not in the new scraper's list it calls `selectFirstItem()` and writes it on
+close. Switching SCRAPE FROM therefore rewrites a source the user never touched. Read the
+value, map what is recognised, fall back on anything else, and **ignore `Scraper`**: RomM is
+not one of the scrapers it names. Finding 241.
+
+**Four of the remaining switches are real and two are dead.** `ScrapeBezel` and `ScrapeBoxBack`
+map onto RomM's `bezel_path` and `box2d_back_path`; `ScrapeFanart` maps onto a field measured
+at 0%; `ScrapeMap` and `ScrapePadToKey` have no RomM counterpart at all, and padtokey is input
+config rather than media. Findings 239 and 240.
+
 **A kind turned off is also a kind removed.** Stopping future downloads and leaving what is
 already there makes the setting mean two different things depending on which way it is moved,
 and nothing else reclaims it: eviction works on whole games under budget pressure and has no

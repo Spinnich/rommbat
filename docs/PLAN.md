@@ -3003,6 +3003,24 @@ or the marquee, so those three keep RomMBat's default and no keys are invented f
 rule as the on-screen keyboard following `Language`: where RetroBat already has the setting,
 RomMBat asks it.
 
+**The other nine scraper options are scoped but not built, and the ruling is on record.**
+RetroBat's menu carries three source pickers and six switches beyond the two 7b-2b reads. The
+three pickers are not new media kinds: `ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc`
+feeds `<thumbnail>` and `ScrapperLogoSrc` feeds `<marquee>`, which are slots RomMBat already
+writes, so they choose what fills a slot rather than adding one. RomM can serve most of them,
+because `ss_metadata` carries fourteen paths against the one `logo_path` RomMBat reads.
+**`ScrapeMap` and `ScrapePadToKey` are dead** (no map field exists in the 5.2.0 schema, and
+padtokey is not media), and **`ScrapeFanart` resolves to nothing measurable**, at 0% on three
+platforms. Findings 239 to 242.
+
+**Ruled with Spinnich: the source settings are honoured as written, including the template's.**
+RetroBat seeds `ScrapperImageSrc=sstitle`, so following it means a stock install gets title
+screenshots in `<image>` rather than cover art. That is the same rule as the video switch and
+it is taken deliberately, against the alternative of treating the template's value as not a
+real choice, which the file cannot distinguish from one anyway. **Deferred to its own stage**
+rather than 7b-2b: it needs source provenance on `local_file` and a migration, and the
+re-fetch-on-change behaviour is worth more than the mapping.
+
 **An absent scraper key is off, and getting that wrong cost two hands-on rounds.** RetroBat
 seeds `es_settings.cfg` from `system/templates/` with both switches `true`, so a stock install
 has them on. EmulationStation's own compiled defaults are the opposite, and it drops any key
