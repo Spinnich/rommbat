@@ -131,17 +131,6 @@ public sealed class BudgetViewModel : IScreen
             true),
     ];
 
-    /// <summary>
-    /// Where space is freed, once the shell wires it.
-    /// </summary>
-    /// <remarks>
-    /// On this screen because this is where the two bounds are set, and being over one of them
-    /// is the only reason to free anything. Offered whether or not a budget is set: an install
-    /// inside its budget can still have abandoned transfers to reclaim, and those bytes are
-    /// invisible to both bounds.
-    /// </remarks>
-    public Func<IScreen>? OpenEviction { get; init; }
-
     public IReadOnlyList<FooterHint> Hints
     {
         get
@@ -154,13 +143,7 @@ public sealed class BudgetViewModel : IScreen
                 return [new FooterHint(NavAction.Start, "Save"), new FooterHint(NavAction.Back, "Discard")];
             }
 
-            return OpenEviction is null
-                ? [new FooterHint(NavAction.Back, "Back")]
-                :
-                [
-                    new FooterHint(NavAction.Alternate, "Free up space"),
-                    new FooterHint(NavAction.Back, "Back"),
-                ];
+            return [new FooterHint(NavAction.Back, "Back")];
         }
     }
 
@@ -187,9 +170,6 @@ public sealed class BudgetViewModel : IScreen
             case NavAction.Start when IsDirty:
                 Save();
                 return ScreenCommand.Pop;
-
-            case NavAction.Alternate when !IsDirty && OpenEviction is { } eviction:
-                return ScreenCommand.Push(eviction());
 
             case NavAction.Back:
                 return ScreenCommand.Pop;

@@ -172,7 +172,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly CancellationTokenSource _run = new();
     private readonly List<string> _problems = [];
     private readonly Func<IScreen>? _pair;
-    private readonly Func<IScreen>? _freeSpace;
 
     private volatile SyncSnapshot _state =
         new(SyncStage.Working, "Working out what this device should hold.");
@@ -202,8 +201,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         InstallSession session,
         IReadOnlyList<SyncSetDefinition> sets,
         Func<Uri, RomMConnection>? connect = null,
-        Func<IScreen>? pair = null,
-        Func<IScreen>? freeSpace = null)
+        Func<IScreen>? pair = null)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(sets);
@@ -211,7 +209,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         _session = session;
         _sets = sets;
         _pair = pair;
-        _freeSpace = freeSpace;
 
         Start(connect);
     }
@@ -221,9 +218,8 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         InstallSession session,
         SyncSetDefinition set,
         Func<Uri, RomMConnection>? connect = null,
-        Func<IScreen>? pair = null,
-        Func<IScreen>? freeSpace = null)
-        : this(session, [set], connect, pair, freeSpace)
+        Func<IScreen>? pair = null)
+        : this(session, [set], connect, pair)
     {
         ArgumentNullException.ThrowIfNull(set);
     }
@@ -249,14 +245,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             new FooterHint(NavAction.Back, "Back"),
         ],
 
-        // The one thing a person can do about a run the budget cut short, offered where they
-        // find out it happened rather than three screens away under disk space.
-        _ when _state.Blocked > 0 && _freeSpace is not null =>
-        [
-            new FooterHint(NavAction.Accept, "Free up space"),
-            new FooterHint(NavAction.Back, "Back"),
-        ],
-
         _ => [new FooterHint(NavAction.Back, "Back")],
     };
 
@@ -267,11 +255,6 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             case NavAction.Accept when _pair is not null
                 && _state.Stage is SyncStage.NotPaired or SyncStage.Rejected:
                 return ScreenCommand.Push(_pair());
-
-            case NavAction.Accept when _state.Stage != SyncStage.Working
-                && _state.Blocked > 0
-                && _freeSpace is { } free:
-                return ScreenCommand.Push(free());
 
             case NavAction.Back when _state.Stage == SyncStage.Working:
                 // Stop and stay. The run removes the game it was in, and a screen that closed

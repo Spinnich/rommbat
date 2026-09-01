@@ -2920,10 +2920,10 @@ prompt is the one that needs it most.
 
 ###### 7b-2b: the sync run (done)
 
-Sync from the interface with progress, cancellation and eviction. The first thing in this
-design to put minutes-long cancellable work inside a process a user can close, which 7b-1's
-shell is shaped for: a screen owns its work and is disposed when left. `LibrarySyncService`
-and `EvictionService` landed in 7b-2a and were unfaced until here.
+Sync from the interface, with progress and cancellation. The first thing in this design to put
+minutes-long cancellable work inside a process a user can close, which 7b-1's shell is shaped
+for: a screen owns its work and is disposed when left. `LibrarySyncService` landed in 7b-2a and
+was unfaced until here.
 
 **The invariant the stage is built around.** A sync leaves every game either wholly present,
 with its gamelist entry and whatever artwork the server actually had for it, or wholly absent.
@@ -2955,6 +2955,16 @@ never a game that entered as `AlreadyPresent`, and the `local_file` row goes wit
 **A stop is returned, not thrown**, which is 7b-2a's lesson about a cancelled resolve throwing
 away what it found. The run carries on to write gamelists and report the budget, so a stopped
 sync ends with a correct tree rather than with work postponed.
+
+**Eviction is deliberately not on the interface, and that is a reversal.** The stage was briefed
+to give `EvictionService` a face, the screens were built, and they were cut after a hands-on
+round. Ruled by Spinnich: RomMBat guessing which games matter least is a bad policy even when a
+person starts it, and freeing space belongs to the user, by dropping a sync set or (once 7b-2c
+lands) a single game. `EvictionService` stays in Core and `rommbat-agent evict` stays, previewing
+by default and writing on `--apply`. **A sync the budget cut short still says so** and simply
+offers nothing: the count and the reason come from `MediaSync` and `ContentSync`, and removing
+the offer must not remove the fact. Two tests hold that line, one per entry point the screens
+used to have, because the risk is a later stage quietly re-adding a footer hint.
 
 ###### 7b-2b: what #102 turned out to be
 

@@ -41,7 +41,6 @@ internal static class ScreenView
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
         SyncViewModel sync => Sync(sync),
-        EvictionRunViewModel eviction => Working(eviction.Detail),
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 

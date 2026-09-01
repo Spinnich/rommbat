@@ -72,7 +72,7 @@ internal sealed class App : Application
         {
             StartPairing = StartPairing,
             OpenSets = () => SetsScreens.List(_session, connect: null, pair: StartPairing),
-            OpenBudget = () => new BudgetViewModel(_session) { OpenEviction = () => EvictionScreens.Preview(_session) },
+            OpenBudget = () => new BudgetViewModel(_session),
         };
 
         return new ShellWindow(new Navigator(status), _gamepad, () => desktop.Shutdown());

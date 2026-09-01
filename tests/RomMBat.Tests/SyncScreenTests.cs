@@ -389,9 +389,7 @@ public sealed class SyncScreenTests : IDisposable
         var sync = new SyncViewModel(_session, Set(), Connect(stub));
         await SettledAsync(sync);
 
-        var eviction = EvictionScreens.Preview(_session);
-
-        foreach (var text in Strings(sync).Concat(Strings(eviction)))
+        foreach (var text in Strings(sync))
         {
             foreach (var forbidden in new[] { "Press A", "Press B", "Press X", "Press Y", "button A", "button B" })
             {
@@ -400,39 +398,56 @@ public sealed class SyncScreenTests : IDisposable
         }
     }
 
-    // ------------------------------------------------------------------ eviction
+    // ------------------------------------------------------------------ eviction is not offered
 
     [Fact]
-    public void The_eviction_screen_previews_and_needs_one_confirmation_before_anything_goes()
+    public void No_screen_offers_to_free_space_on_the_users_behalf()
     {
-        // Preview by default is not a flag here, it is the screen. Opening it removes nothing.
-        var preview = Assert.IsType<ListScreen>(EvictionScreens.Preview(_session));
+        // Ruled with Spinnich: RomMBat guessing which games matter least is a bad policy even
+        // when a person starts it, and freeing space belongs to them, by dropping a sync set or
+        // (once 7b-2c lands) a single game. EvictionService stays in Core and `rommbat-agent
+        // evict` stays, both behind a preview; what went is the screen.
+        //
+        // Asserted rather than trusted to the delete, because the entry points were two: the
+        // budget screen's third press, and the offer a blocked sync made where the user found
+        // out the budget had cut it short.
+        Pair();
+        Seed("games", 1);
 
-        Assert.Equal("Free up space", preview.Title);
-        Assert.Contains(preview.Hints, hint => hint.Action == NavAction.Back);
+        var budget = new BudgetViewModel(_session);
 
-        // "preview", never "dry run": hyphenated dry-run names sync's flag and nothing else.
-        foreach (var text in Strings(preview))
+        Assert.DoesNotContain(budget.Hints, hint => hint.Action == NavAction.Alternate);
+        Assert.Equal(ScreenCommandKind.Stay, budget.Handle(NavAction.Alternate).Kind);
+
+        foreach (var text in Strings(budget))
         {
-            Assert.DoesNotContain("dry-run", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("free up space", text, StringComparison.OrdinalIgnoreCase);
         }
     }
 
     [Fact]
-    public void The_eviction_preview_and_the_budget_both_work_with_the_server_switched_off()
+    public async Task A_run_the_budget_cut_short_still_says_so_without_offering_to_fix_it()
     {
-        // Nothing here touches the network: the preview is two local scans and a walk of
-        // local_file. A handheld away from its server can still see what it would free.
+        // Removing the offer must not remove the fact. The count and the reason come from
+        // MediaSync and ContentSync, which word it as "the N budget is full", so the user is
+        // told what happened and left to decide what to do about it.
+        using var stub = Library(3);
         Pair();
+        Seed("games", 3);
 
-        var budget = new BudgetViewModel(_session) { OpenEviction = () => EvictionScreens.Preview(_session) };
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "1", DateTimeOffset.UtcNow);
 
-        Assert.Contains(budget.Hints, hint => hint.Action == NavAction.Alternate);
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
 
-        var opened = budget.Handle(NavAction.Alternate);
+        Assert.True(sync.State.Blocked > 0, "the fixture did not reproduce a blocked run");
+        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
 
-        Assert.Equal(ScreenCommandKind.Push, opened.Kind);
-        Assert.IsType<ListScreen>(opened.Screen);
+        Assert.Contains(
+            sync.State.Problems,
+            problem => problem.Contains("budget", StringComparison.OrdinalIgnoreCase));
+
+        sync.Dispose();
     }
 
     [Fact]
@@ -440,7 +455,7 @@ public sealed class SyncScreenTests : IDisposable
     {
         // Offering a third press while there are unsaved changes would be offering to discard
         // them without saying so.
-        var budget = new BudgetViewModel(_session) { OpenEviction = () => EvictionScreens.Preview(_session) };
+        var budget = new BudgetViewModel(_session);
 
         budget.Handle(NavAction.Right);
 
@@ -466,10 +481,6 @@ public sealed class SyncScreenTests : IDisposable
         _ = sync.Title;
         _ = sync.Hints;
         _ = sync.State;
-
-        var eviction = EvictionScreens.Preview(_session);
-        _ = eviction.Title;
-        _ = eviction.Hints;
 
         started.Stop();
 

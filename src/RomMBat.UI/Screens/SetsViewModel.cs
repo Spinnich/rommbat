@@ -208,7 +208,7 @@ public static class SetsScreens
             rows.Add(new ListRow(
                 "Left the set",
                 detail.Departed.Count.ToString(CultureInfo.CurrentCulture),
-                "Eviction candidates, not deletions. Nothing has been removed.",
+                "Still on disk. Nothing is removed when a game leaves a set.",
                 false));
         }
 
@@ -252,7 +252,7 @@ public static class SetsScreens
         IReadOnlyList<SyncSetDefinition> sets,
         Func<Uri, RomMConnection>? connect,
         Func<IScreen>? pair = null) =>
-        new SyncViewModel(session, sets, connect, pair, () => EvictionScreens.Preview(session));
+        new SyncViewModel(session, sets, connect, pair);
 
     /// <summary>Resolving one or more sets, which asks RomM what they contain and fetches nothing.</summary>
     public static IScreen Resolve(

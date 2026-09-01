@@ -349,19 +349,17 @@ etrobat-test
 The game that was in progress should be wholly gone, ROM and rows together, and every game that
 finished before it should still be there with its artwork and a gamelist entry.
 
-#### Driving the eviction screens
+#### Freeing space is not on the interface, and that is deliberate
 
-From the disk budget screen, the secondary action opens the preview, which is offered only when
-there is nothing unsaved on the budget rows. **Opening it removes nothing**: it lists what would
-go with the reason for each, what is being kept and why, and any dead transfers under
-`partial/`. One confirmation carries it out.
+There is no eviction screen. `EvictionService` is in Core and `rommbat-agent evict` still
+previews by default and writes on `--apply`, but nothing in the gamepad UI offers to choose
+games to delete. Ruled with Spinnich: RomMBat guessing which games matter least is a bad policy
+even when a person starts it, and freeing space belongs to the user, by dropping a sync set or
+(once 7b-2c lands) a single game.
 
-A sync that hit the budget offers the same screen from its own footer, which is where a person
-finds out it happened.
-
-**The whole eviction surface works with the server switched off**, because the preview is two
-local scans and a walk of `local_file`, and carrying it out deletes files and rewrites gamelists
-from local state.
+A sync the budget cut short still **says so**, in the words `MediaSync` and `ContentSync`
+already use. What it no longer does is offer to fix it. Two tests hold that line, one on each
+entry point the screen used to have.
 
 **A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
 identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.
