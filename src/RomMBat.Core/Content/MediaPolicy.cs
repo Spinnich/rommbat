@@ -1,9 +1,21 @@
+using System.Xml;
 using RomM.Client.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
+
+/// <summary>
+/// What to fetch, and whether the install is what decided it.
+/// </summary>
+/// <param name="Kinds">The kinds a sync fetches.</param>
+/// <param name="FromInstall">
+/// True when this is somebody's answer: a RomMBat setting they typed, or a readable
+/// <c>es_settings.cfg</c>. False when the file is missing or unparseable, where the kinds are
+/// the same but nothing may be deleted on their say-so.
+/// </param>
+public readonly record struct MediaPreference(IReadOnlyList<MediaKind> Kinds, bool FromInstall);
 
 /// <summary>
 /// Which kinds of media a sync fetches.
@@ -70,35 +82,79 @@ public static class MediaPolicy
     /// toggles shape the <i>default</i>, which is what a fresh install gets.
     /// </para>
     /// </remarks>
-    public static IReadOnlyList<MediaKind> Read(SettingStore settings, RetroBatInstall install)
+    public static IReadOnlyList<MediaKind> Read(SettingStore settings, RetroBatInstall install) =>
+        Preference(settings, install).Kinds;
+
+    /// <summary>
+    /// The kinds to fetch, and whether RetroBat itself is what said so.
+    /// </summary>
+    /// <remarks>
+    /// <b>"Absent means off" is a rule about a file that is there.</b> The three states
+    /// <see cref="Wanted"/> reads are states of a real <c>es_settings.cfg</c>: a key missing
+    /// from a file EmulationStation wrote is somebody having turned that switch off. A file that
+    /// is not there at all, or that a power cut left half written, says nothing about what
+    /// anyone asked for, and <see cref="EsSettingsFile.Load"/> answers both with the same empty
+    /// <c>&lt;config&gt;</c> a switched-off install produces.
+    /// <para>
+    /// <b>The kinds are the same in all three cases and this changes no read.</b> What it adds
+    /// is which of them was somebody's answer, because fetching on a guess costs a re-fetch
+    /// while deleting on one costs the files, and <c>MediaSync.Discard</c> deletes. The caller
+    /// cannot tell the states apart from a kind list alone, which is why it is said here.
+    /// </para>
+    /// </remarks>
+    public static MediaPreference Preference(SettingStore settings, RetroBatInstall install)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(install);
 
         if (settings.Get(SettingKey) is { } chosen && !string.IsNullOrWhiteSpace(chosen))
         {
-            return Parse(chosen);
+            // Somebody typed this, so it is as decided as an answer gets.
+            return new MediaPreference(Parse(chosen), FromInstall: true);
         }
 
-        var es = EsSettingsFile.Load(install.Resolve(EsSettingsFile.Location));
+        var location = install.Resolve(EsSettingsFile.Location);
+        var readable = File.Exists(location);
+        var es = EsSettingsFile.Empty;
+
+        if (readable)
+        {
+            try
+            {
+                es = EsSettingsFile.Load(location);
+            }
+            catch (XmlException)
+            {
+                // A truncated file after a power cut on a handheld, which is the environment
+                // this project targets. Nothing on this path catches it: it escapes MediaSync,
+                // GameSync, LibrarySyncService and SyncViewModel alike, and the screen is left
+                // sitting at "Working" with a stop footer for ever.
+                readable = false;
+            }
+        }
 
         // Built up from the kinds ES has no switch for, rather than filtered down from Default.
         // Filtering was wrong and the wrongness was invisible: Manual is not in Default, so the
         // ScrapeManual arm could never fire and a user with manuals turned on in RetroBat got
         // none. A branch that cannot fire is the shape #101 and #107 are open about, written
         // here by the change that introduced the setting.
-        return
-        [
-            .. All.Where(kind => kind switch
-            {
-                MediaKind.Video => Wanted(es, "ScrapeVideos"),
-                MediaKind.Manual => Wanted(es, "ScrapeManual"),
+        //
+        // The answer is the same either way: an empty <config> is what a file with both
+        // switches off holds, so a missing one reads off exactly as ES's own would. What
+        // changes is only whether anything may be deleted on the strength of it.
+        return new MediaPreference(
+            [
+                .. All.Where(kind => kind switch
+                {
+                    MediaKind.Video => Wanted(es, "ScrapeVideos"),
+                    MediaKind.Manual => Wanted(es, "ScrapeManual"),
 
-                // Cover, thumbnail and marquee. ES offers no toggle, so RomMBat's own default
-                // decides, and that is to fetch them.
-                _ => Default.Contains(kind),
-            }),
-        ];
+                    // Cover, thumbnail and marquee. ES offers no toggle, so RomMBat's own default
+                    // decides, and that is to fetch them.
+                    _ => Default.Contains(kind),
+                }),
+            ],
+            FromInstall: readable);
     }
 
     /// <summary>

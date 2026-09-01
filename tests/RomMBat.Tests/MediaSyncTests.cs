@@ -522,6 +522,49 @@ public sealed class MediaSyncTests : IDisposable
         Assert.Equal([9, 9, 9], File.ReadAllBytes(theirs));
     }
 
+    [Fact]
+    public async Task An_install_with_no_readable_settings_file_is_never_a_licence_to_delete()
+    {
+        // The read and the delete are two questions and only the read has an answer here. An
+        // absent key is somebody having turned a switch off, which the test above pins, but an
+        // absent *file* is an install that has never said anything, and EsSettingsFile answers
+        // both with the same empty <config>. Sweeping the artwork on the strength of that is
+        // deleting a user's files because RomMBat could not find a file of RetroBat's.
+        //
+        // Both unreadable shapes, because a truncated file after a power cut on a handheld is
+        // the case this project is built for and XDocument.Load throws on it, which nothing
+        // between here and the sync screen catches.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        var video = Path.Combine(_tree.Root, "roms", "snes", "videos", "Game 1 (USA)-video.mp4");
+        var settings = _tree.Install().Resolve(EsSettingsFile.Location);
+        Assert.True(File.Exists(video));
+
+        File.Delete(settings);
+
+        var missing = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, missing.Removed);
+        Assert.True(File.Exists(video), "the video was swept because es_settings.cfg was not there");
+
+        // Half a file, which is what an interrupted write leaves.
+        File.WriteAllText(settings, """<?xml version="1.0"?><config><bool name="ScrapeVi""");
+
+        var truncated = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, truncated.Removed);
+        Assert.True(File.Exists(video), "the video was swept because es_settings.cfg would not parse");
+
+        // And the read is unchanged by any of it: video is still off, which is what stops the
+        // fix from quietly restoring the downloads a hands-on pass turned off.
+        Assert.DoesNotContain(MediaKind.Video, MediaPolicy.Read(store.Settings, _tree.Install()));
+    }
+
     /// <summary>Writes the two scraper toggles ES actually has.</summary>
     private static void WriteEsSettings(RetroBatInstall install, bool videos, bool manuals)
     {

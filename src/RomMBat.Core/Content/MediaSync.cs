@@ -201,7 +201,8 @@ public sealed class MediaSync
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
-        var kinds = MediaPolicy.Read(_store.Settings, _install);
+        var preference = MediaPolicy.Preference(_store.Settings, _install);
+        var kinds = preference.Kinds;
         var downloaded = 0;
         var present = 0;
         var adopted = 0;
@@ -215,9 +216,12 @@ public sealed class MediaSync
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
-        // Recomputed from local_file on every call. Fine at tens of games, which is one query
-        // per game; an install syncing thousands would want this hoisted into the caller and
-        // carried across games instead.
+        // Recomputed from local_file on every call, and List() materialises the whole table
+        // rather than one row, so interleaving turned this from one scan per run into one per
+        // game: quadratic in library size, against a table migration 013 measured at 5,268 rows
+        // on a live install. Invisible at the 76 games this was measured on. An install syncing
+        // thousands wants it summed in SQL, or hoisted into the caller and carried across games.
+        // #111.
         var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
 
         // The ROMs still to come are spoken for, against both bounds. Without this the last
@@ -251,7 +255,14 @@ public sealed class MediaSync
             var folder = rom.Folder!;
             var forgotten = new List<MediaKind>();
 
-            removed += Discard(romId, kinds);
+            // Only on somebody's answer. An unwanted kind is deleted here, and a missing or
+            // half-written es_settings.cfg reads exactly like one where both switches were
+            // turned off, so acting on it would sweep the artwork of an install that never said
+            // anything. Fetching on a guess costs a re-fetch; deleting on one costs the files.
+            if (preference.FromInstall)
+            {
+                removed += Discard(romId, kinds);
+            }
 
             foreach (var kind in kinds)
             {

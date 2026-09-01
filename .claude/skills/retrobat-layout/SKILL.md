@@ -520,6 +520,22 @@ video on one platform and 2.05 GB across the tree that no setting could reach.
 
 Use `EsSettingsFile.Has` before `Value`, and treat the absent branch as off.
 
+**"Absent means off" is a rule about a file that is there, and it does not extend to a file
+that is not.** `EsSettingsFile.Load` answers a missing path with an empty `<config>`, which is
+byte-for-byte the answer a real file with both switches turned off produces, so an install that
+has never said anything is indistinguishable from one that said no to everything. Reading that
+as a decision is harmless where the answer only picks what to fetch next, and it is not harmless
+where the answer decides what to **delete**: `MediaSync.Discard` removes the synced files of any
+kind that is not wanted, so a missing `es_settings.cfg` swept a whole library's artwork. The fix
+is to gate the destructive half, not the read: the kinds stay the same in all three states and
+only the delete asks whether anybody actually said so (`MediaPolicy.Preference`, `FromInstall`).
+
+**A malformed one throws, and nothing on the sync path catches it.** `XDocument.Load` raises
+`XmlException`, which is not an `IOException`, so a truncated file after a power cut escapes
+`MediaSync`, `GameSync`, `LibrarySyncService` and `SyncViewModel` alike and leaves the screen at
+"Working" with a stop footer for ever. Any read of this file on a long-running path catches it.
+`SaveScanner.cs`'s catch filter does not list it either, which is untouched and unfixed.
+
 **Three more settings pick a source for a slot rather than adding a kind.** ES's own comments
 name the tag each one feeds, so these are not new media:
 

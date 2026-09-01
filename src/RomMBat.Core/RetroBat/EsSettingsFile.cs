@@ -97,6 +97,15 @@ public sealed class EsSettingsFile
     /// its first exit that changes something. An unreadable one is, because writing a fresh
     /// document over a file that exists would discard every setting the user has.
     /// </remarks>
+    /// <summary>
+    /// A file with nothing in it, which is what a caller falls back to when one cannot be read.
+    /// </summary>
+    /// <remarks>
+    /// A new instance each time, because this type is mutable: <see cref="Set"/> and
+    /// <see cref="Remove"/> write into the element a caller was handed.
+    /// </remarks>
+    public static EsSettingsFile Empty => new(new XElement("config"));
+
     public static EsSettingsFile Load(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
