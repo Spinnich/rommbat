@@ -440,7 +440,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor));
+            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor, list.Reading));
         }
 
         stack.Children.Add(More(window.Below, "below"));
@@ -468,7 +468,7 @@ internal static class ScreenView
             HorizontalAlignment = HorizontalAlignment.Center,
         };
 
-    private static Border ListItem(ListRow row, bool selected)
+    private static Border ListItem(ListRow row, bool selected, bool reading = false)
     {
         var lines = new StackPanel { Spacing = 3 };
 
@@ -531,6 +531,14 @@ internal static class ScreenView
                 FontSize = 16,
                 MaxWidth = 860,
                 TextWrapping = TextWrapping.Wrap,
+
+                // On a reading list the detail is the row, and it is a whole sentence rather
+                // than a label, so it is given room for three wrapped lines and clipped past
+                // them. Left to wrap freely it decides the row's height, and rows of differing
+                // height inside a fixed window make the block grow and shrink while it is
+                // being scrolled, which is the thing the fixed row height exists to stop.
+                Height = reading ? ReadingDetailHeight : double.NaN,
+                TextTrimming = reading ? TextTrimming.CharacterEllipsis : TextTrimming.None,
             });
         }
 
@@ -547,7 +555,12 @@ internal static class ScreenView
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the
             // cursor moves through it, which is what made scrolling feel like zooming.
-            MinHeight = RowHeight,
+            //
+            // Fixed rather than a minimum on a reading list, where the detail is a sentence
+            // that wraps: a minimum is only a floor, so a two-line row and a three-line one are
+            // still different heights.
+            MinHeight = reading ? ReadingRowHeight : RowHeight,
+            Height = reading ? ReadingRowHeight : double.NaN,
             Child = lines,
         };
     }
@@ -560,6 +573,19 @@ internal static class ScreenView
     /// make the drawn block change size as the cursor passes between them.
     /// </remarks>
     private const double RowHeight = 78;
+
+    /// <summary>
+    /// A row on a list that is read rather than chosen from, and the height of its sentence.
+    /// </summary>
+    /// <remarks>
+    /// Three wrapped lines at 16px plus the label above them and the border's padding. Sized
+    /// from the longest sentence the sync run actually produces, which is the stale-record one
+    /// naming two byte counts and wrapping to two lines at this width, so three leaves headroom
+    /// without turning a list of short problems into a list of mostly empty boxes.
+    /// </remarks>
+    private const double ReadingDetailHeight = 66;
+
+    private const double ReadingRowHeight = 122;
 
     /// <summary>
     /// How wide a list is, fixed so it cannot breathe as the window scrolls.

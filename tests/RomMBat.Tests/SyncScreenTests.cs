@@ -480,6 +480,76 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public void A_list_of_problems_scrolls_even_though_no_row_can_be_chosen()
+    {
+        // The rows are unavailable because there is nothing to choose, and on an ordinary list
+        // that means the cursor skips every one of them: FirstAvailable returns -1 and nothing
+        // moves. A hands-on pass opened the problems screen and could not scroll it.
+        var problems = Enumerable.Range(1, 30).Select(n => $"Game {n}: it did not work").ToList();
+
+        var screen = new ListScreen(
+            "30 problems",
+            [.. problems.Select((problem, index) => new ListRow(
+                (index + 1).ToString(CultureInfo.CurrentCulture), null, problem, false))],
+            _ => ScreenCommand.Stay,
+            acceptLabel: string.Empty)
+        {
+            Reading = true,
+        };
+
+        Assert.Equal(0, screen.Cursor);
+
+        screen.Handle(NavAction.Down);
+        screen.Handle(NavAction.Down);
+        Assert.Equal(2, screen.Cursor);
+
+        // The window follows, or scrolling moves a cursor nobody can see. That was the defect
+        // twice before, on two other screens.
+        var start = screen.Window.Start;
+
+        for (var press = 0; press < 20; press++)
+        {
+            screen.Handle(NavAction.Down);
+        }
+
+        Assert.Equal(22, screen.Cursor);
+        Assert.True(screen.Window.Start > start, "the window did not follow the cursor down");
+        Assert.InRange(screen.Cursor, screen.Window.Start, screen.Window.Start + screen.Window.Count - 1);
+
+        // Up walks back, and the ends wrap rather than sticking.
+        screen.Handle(NavAction.Up);
+        Assert.Equal(21, screen.Cursor);
+
+        screen.Handle(NavAction.Up);
+        Assert.Equal(20, screen.Cursor);
+
+        // Still nothing to press, which is the whole reason the rows are unavailable.
+        Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Stay, screen.Handle(NavAction.Accept).Kind);
+    }
+
+    [Fact]
+    public void A_picker_still_skips_the_rows_that_cannot_be_chosen()
+    {
+        // The reading flag must not change the ordinary list. Parking on a row Accept cannot
+        // act on is a press that does nothing, which is why the cursor skips it.
+        var screen = new ListScreen(
+            "Pick one",
+            [
+                new ListRow("first", null, null, false),
+                new ListRow("second"),
+                new ListRow("third", null, null, false),
+                new ListRow("fourth"),
+            ],
+            _ => ScreenCommand.Stay);
+
+        Assert.Equal(1, screen.Cursor);
+
+        screen.Handle(NavAction.Down);
+        Assert.Equal(3, screen.Cursor);
+    }
+
+    [Fact]
     public async Task A_run_with_no_problems_offers_no_press_to_go_and_read_them()
     {
         // Offering the press when everything already fits on screen is a press that appears to

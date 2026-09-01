@@ -279,7 +279,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// already carries 7b-2a's fix for the window that was shared across instances, and because
     /// a run that fails four hundred games cannot be a wall of text either way. Rows are
     /// unavailable: there is nothing to choose, and marking them so keeps Accept from promising
-    /// a press that does nothing.
+    /// a press that does nothing. <see cref="ListScreen.Reading"/> is what then lets the cursor
+    /// walk them anyway, because a list of nothing but unavailable rows otherwise does not
+    /// scroll.
     /// <para>
     /// Numbered oldest first, which is the order they happened. The run screen keeps the newest
     /// few for the opposite reason, that the tail says what was going on most recently.
@@ -294,7 +296,12 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 problem,
                 false))],
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty);
+            acceptLabel: string.Empty)
+        {
+            // Every row is unavailable, and on an ordinary list that means the cursor skips all
+            // of them and never moves. A hands-on pass opened this and could not scroll.
+            Reading = true,
+        };
 
     public ScreenCommand Handle(NavAction action)
     {
