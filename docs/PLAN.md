@@ -3012,7 +3012,7 @@ because `ss_metadata` carries fourteen paths against the one `logo_path` RomMBat
 **`ScrapeMap` and `ScrapePadToKey` are dead**, which is a schema fact rather than a coverage
 one: no map field exists in 5.2.0, and padtokey is input config rather than media. Nothing else
 is ruled out, and a kind measured at 0% on one library particularly is not, because coverage
-says when a platform was last scraped and not what RomM can serve. Findings 239 to 242.
+says when a platform was last scraped and not what RomM can serve. Findings 239 to 242, #108.
 
 **Ruled with Spinnich: the source settings are honoured as written, including the template's.**
 RetroBat seeds `ScrapperImageSrc=sstitle`, so following it means a stock install gets title
@@ -3020,7 +3020,7 @@ screenshots in `<image>` rather than cover art. That is the same rule as the vid
 it is taken deliberately, against the alternative of treating the template's value as not a
 real choice, which the file cannot distinguish from one anyway. **Deferred to its own stage**
 rather than 7b-2b: it needs source provenance on `local_file` and a migration, and the
-re-fetch-on-change behaviour is worth more than the mapping.
+re-fetch-on-change behaviour is worth more than the mapping. Scoped in **#108**.
 
 **An absent scraper key is off, and getting that wrong cost two hands-on rounds.** RetroBat
 seeds `es_settings.cfg` from `system/templates/` with both switches `true`, so a stock install
