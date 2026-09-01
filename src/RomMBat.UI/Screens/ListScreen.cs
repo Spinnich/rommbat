@@ -33,7 +33,7 @@ public sealed record ListRow(string Label, string? Value = null, string? Detail 
 /// broken, and the alternative is a user paging back up through forty systems.
 /// </para>
 /// </remarks>
-public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
+public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IDisposable
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
@@ -126,10 +126,7 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
             // Fewer rows when each one is taller, or the block runs off the bottom of the
             // window and Avalonia draws a scroll bar no gamepad can reach.
-            return ListWindow.Compute(
-                state.Cursor,
-                state.Rows.Count,
-                Reading ? ListWindow.ReadingCapacity : ListWindow.Capacity);
+            return ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.CapacityFor(Reading));
         }
     }
 

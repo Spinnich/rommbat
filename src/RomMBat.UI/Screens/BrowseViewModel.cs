@@ -43,7 +43,7 @@ namespace RomMBat.UI.Screens;
 /// accident.
 /// </para>
 /// </remarks>
-public sealed class BrowseViewModel : IScreen, ILiveScreen, IDisposable
+public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDisposable
 {
     private readonly InstallSession _session;
     private readonly Func<Uri, RomMConnection>? _connect;
@@ -104,8 +104,25 @@ public sealed class BrowseViewModel : IScreen, ILiveScreen, IDisposable
 
     public int Cursor => _state.Cursor;
 
+    /// <summary>
+    /// Ordinary rows, not reading rows, and the renderer is told rather than assuming.
+    /// </summary>
+    /// <remarks>
+    /// <b>A browse row is a name, a place and one short line</b>, which is the sets list's shape
+    /// and not the problems list's: the reading row is 122px with a three-line wrapped sentence
+    /// in it, and drawing fifty one-liners that way costs 44px a row for nothing.
+    /// <para>
+    /// It also has to be said here rather than in <c>ScreenView</c>, because the count of rows
+    /// and the height of one are the same decision. Told separately, this screen computed a
+    /// window of eight and was drawn at the reading height, which overflows the display by
+    /// exactly the margin <see cref="ListWindow.ReadingCapacity"/> exists to avoid. That is
+    /// 7b-2b's round-four defect, reintroduced on the screen beside it.
+    /// </para>
+    /// </remarks>
+    public bool Reading => false;
+
     /// <summary>Which slice is on screen, decided here rather than in the renderer.</summary>
-    public ListView Window => ListWindow.Compute(_state.Cursor, Rows.Count, ListWindow.Capacity);
+    public ListView Window => ListWindow.Compute(_state.Cursor, Rows.Count, ListWindow.CapacityFor(Reading));
 
     public bool IsLoading => _state.IsLoading;
 

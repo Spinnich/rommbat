@@ -77,6 +77,24 @@ public static class ListWindow
     public static double BlockHeight(int rows, double rowHeight) =>
         rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * RowSpacing);
 
+    /// <summary>How many rows fit, given how tall this screen draws them.</summary>
+    /// <remarks>
+    /// <b>One place, because the count and the height were chosen in two files and disagreed.</b>
+    /// The count lives in a view model and the height in the renderer, so a screen could compute
+    /// a window of eight and be drawn at the 122px reading height, overflowing by exactly the
+    /// margin the reading capacity exists to avoid. That is the defect a hands-on round found on
+    /// the problems list, fixed there by changing one screen; browse then reintroduced it, which
+    /// is what a rule enforced at an instance rather than at its class does.
+    /// <para>
+    /// Pair this with <see cref="RowHeightFor"/>: a screen says whether it is reading once, and
+    /// both the count and the height follow from that answer.
+    /// </para>
+    /// </remarks>
+    public static int CapacityFor(bool reading) => reading ? ReadingCapacity : Capacity;
+
+    /// <summary>How tall this screen's rows are drawn, paired with <see cref="CapacityFor"/>.</summary>
+    public static double RowHeightFor(bool reading) => reading ? ReadingRowHeight : RowHeight;
+
     /// <summary>Picks the window that keeps the cursor visible with context around it.</summary>
     /// <remarks>
     /// <b>The cursor is kept off the very edge where there is room.</b> A selection pinned to

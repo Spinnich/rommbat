@@ -42,14 +42,11 @@ internal static class ScreenView
         ResolveViewModel resolve => Resolve(resolve),
         SyncViewModel sync => Sync(sync),
 
-        // The same body a ListScreen draws, given the same four things. Browse is a list with a
-        // pager behind it rather than a different picture, and a second copy of this would be
-        // the file 7b-1 already named as the one most likely to grow worst.
+        // The same body a ListScreen draws, given the same things. Browse is a list with a pager
+        // behind it rather than a different picture, and a second copy of this would be the file
+        // 7b-1 already named as the one most likely to grow worst.
         BrowseViewModel browse => List(
-            browse.Rows,
-            browse.Cursor,
-            browse.Window,
-            reading: true,
+            browse,
             note: browse.Note,
             isLoading: browse.IsLoading,
             loadingMessage: "Asking RomM.",
@@ -383,10 +380,7 @@ internal static class ScreenView
     /// of that.
     /// </remarks>
     private static StackPanel List(ListScreen list) => List(
-        list.Rows,
-        list.Cursor,
-        list.Window,
-        list.Reading,
+        list,
         list.Note?.Invoke(),
         list.IsLoading,
         list.LoadingMessage,
@@ -404,15 +398,13 @@ internal static class ScreenView
     /// produced three times.
     /// </remarks>
     private static StackPanel List(
-        IReadOnlyList<ListRow> rows,
-        int cursor,
-        ListView window,
-        bool reading,
+        IWindowedScreen screen,
         string? note,
         bool isLoading,
         string? loadingMessage,
         string? empty)
     {
+        var rows = screen.Rows;
         var stack = new StackPanel
         {
             Spacing = ListWindow.RowSpacing,
@@ -473,8 +465,9 @@ internal static class ScreenView
         // Windowed, because drawing every row does not scroll: the folder picker is about a
         // hundred systems on a real install and everything past the height of the display was
         // being drawn off it, with the cursor moving somewhere invisible. The screen decides
-        // the window; this only draws it.
-        //
+        // the window and the row height together; this only draws what it is told.
+        var window = screen.Window;
+
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
         // centred, so the list visibly resized and shifted while being scrolled.
@@ -482,7 +475,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(rows[index], index == cursor, reading));
+            stack.Children.Add(ListItem(rows[index], index == screen.Cursor, screen.Reading));
         }
 
         stack.Children.Add(More(window.Below, "below"));

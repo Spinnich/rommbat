@@ -127,6 +127,44 @@ public interface IScreen
 }
 
 /// <summary>
+/// A screen drawn as a windowed list of rows.
+/// </summary>
+/// <remarks>
+/// <b>Because the number of rows and the height of one are the same decision, and they were
+/// being made in two files.</b> The count lived in a view model and the height in the renderer,
+/// so a screen could compute a window of <see cref="Screens.ListWindow.Capacity"/> and be drawn
+/// at the reading height, overflowing the display by exactly the margin
+/// <see cref="Screens.ListWindow.ReadingCapacity"/> exists to avoid. A hands-on round found that
+/// on the problems list and it was fixed at that one instance; browse then reintroduced it,
+/// which is what a rule enforced at an instance rather than at its class does.
+/// <para>
+/// A screen answers <see cref="Reading"/> once. <c>ListWindow.CapacityFor</c> and
+/// <c>ListWindow.RowHeightFor</c> both follow from it, and the renderer asks rather than
+/// deciding, so the mismatch is no longer representable.
+/// </para>
+/// <para>
+/// No Avalonia here either. <see cref="Window"/> is arithmetic a test can assert on, which is
+/// the whole reason the windowing left the renderer in the first place.
+/// </para>
+/// </remarks>
+public interface IWindowedScreen
+{
+    /// <summary>The rows to draw, which for a paged screen is one page of them.</summary>
+    IReadOnlyList<Screens.ListRow> Rows { get; }
+
+    /// <summary>Which row is selected, or -1 when there are none.</summary>
+    int Cursor { get; }
+
+    /// <summary>Which slice is on screen.</summary>
+    Screens.ListView Window { get; }
+
+    /// <summary>
+    /// True when every row is text to read rather than a choice, and is drawn taller for it.
+    /// </summary>
+    bool Reading { get; }
+}
+
+/// <summary>
 /// A screen that has to rebuild when it becomes current again.
 /// </summary>
 /// <remarks>
