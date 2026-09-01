@@ -523,6 +523,34 @@ public sealed class MediaSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_kind_turned_off_loses_its_row_even_where_the_folder_is_already_gone()
+    {
+        // Same defect as the rollback's, in the other place that deletes. A missing folder
+        // raises DirectoryNotFoundException, which is an IOException, so the catch meant for a
+        // file something else holds open was keeping the row for a file that is not there. The
+        // kind is off, the bytes are gone, and the row outlives both.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        var videos = Path.Combine(_tree.Root, "roms", "snes", "videos");
+        Assert.Contains(store.Files.ForRom(1), file => file.Kind == LocalFileKind.Video);
+
+        // Cleaned up out from under the row, folder and all, which is the state a live install
+        // was found in.
+        Directory.Delete(videos, recursive: true);
+
+        WriteEsSettings(_tree.Install(), videos: false, manuals: false);
+
+        var outcome = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Removed);
+        Assert.DoesNotContain(store.Files.ForRom(1), file => file.Kind == LocalFileKind.Video);
+    }
+
+    [Fact]
     public async Task An_install_with_no_readable_settings_file_is_never_a_licence_to_delete()
     {
         // The read and the delete are two questions and only the read has an answer here. An

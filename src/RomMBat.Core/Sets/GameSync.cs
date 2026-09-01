@@ -423,12 +423,26 @@ public sealed class GameSync
     /// <see cref="IOException"/>: <see cref="UnauthorizedAccessException"/> does not derive from
     /// it, and a read-only attribute or a revoked ACL raises that one instead. Both are caught,
     /// which is the shape <c>TreeLock.TryAcquire</c> already uses.
+    /// <para>
+    /// <b>A file that is already gone is a success, and <see cref="File.Delete(string)"/> is
+    /// inconsistent about which kind of gone.</b> A missing <i>file</i> returns quietly; a
+    /// missing <i>directory</i> throws <see cref="DirectoryNotFoundException"/>, which derives
+    /// from <see cref="IOException"/> and was therefore read as "a media player has this open".
+    /// The row was then kept for bytes that do not exist, which is the inverse of the rule this
+    /// method serves, and the user was told a file they no longer have could not be removed.
+    /// Found on a live install whose <c>roms/ps2/images/</c> had been cleaned up out from under
+    /// its rows.
+    /// </para>
     /// </remarks>
     private static string? Delete(string absolute)
     {
         try
         {
             File.Delete(absolute);
+            return null;
+        }
+        catch (DirectoryNotFoundException)
+        {
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

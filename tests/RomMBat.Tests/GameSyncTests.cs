@@ -192,6 +192,44 @@ public sealed class GameSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rollback_takes_a_row_whose_folder_has_already_gone()
+    {
+        // Found by a hands-on pass, not by reading. File.Delete returns quietly for a missing
+        // file and throws DirectoryNotFoundException for a missing folder, and that derives from
+        // IOException, so the catch written for "a media player has this file open" was also
+        // catching "there is nothing here at all". The row was kept for bytes that do not exist,
+        // which is the inverse of the rule it serves, and a problem was reported about a file
+        // the user no longer has.
+        //
+        // Reached on the live install because roms/ps2/images/ had been cleaned up under its
+        // rows, so a stopped ps2 game left its artwork rows behind for ever.
+        using var stub = Library((1, "Title.chd"), (2, "Other.chd"));
+
+        var orphan = RelativePath.Create("roms/psx/images/Title-image.png");
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = orphan,
+            Folder = "psx",
+            RomId = 1,
+            Kind = LocalFileKind.Image,
+            FileName = orphan.Name,
+            SizeBytes = 64,
+            VerifiedAt = Now,
+            VerifiedBy = VerifiedBy.Size,
+            Origin = FileOrigin.Synced,
+        });
+
+        // The folder itself, not just the file. That is the whole case.
+        Assert.False(Directory.Exists(Path.GetDirectoryName(_session.Install.Resolve(orphan))));
+
+        var outcome = await RunAsync(stub, StopBefore(romId: 1));
+
+        Assert.True(outcome.Stopped);
+        Assert.DoesNotContain(_session.Store.Files.ForRom(1), file => file.Path == orphan);
+        Assert.Empty(outcome.RollbackProblems);
+    }
+
+    [Fact]
     public async Task Games_that_finished_before_the_stop_keep_their_files_their_rows_and_their_artwork()
     {
         // The other half of the invariant, and the one a person notices: a stop must not undo

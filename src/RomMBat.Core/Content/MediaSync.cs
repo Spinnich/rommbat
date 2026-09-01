@@ -414,6 +414,12 @@ public sealed class MediaSync
             {
                 File.Delete(absolute);
             }
+            catch (DirectoryNotFoundException)
+            {
+                // Already gone, so the row goes too. File.Delete returns quietly for a missing
+                // file and throws for a missing folder, and that exception is an IOException,
+                // so the catch below was keeping rows for bytes that do not exist.
+            }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Windows refuses two ways and only one is an IOException. Left with its row.
