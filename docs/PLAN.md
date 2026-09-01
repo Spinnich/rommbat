@@ -1245,7 +1245,7 @@ the rollout order below can be derived rather than hand-maintained.
   `has_simple_single_file`, `has_nested_single_file`, `has_multiple_files`. An empty
   `fs_extension` covers the last two and cannot separate them.
 
-  The code was already right: `SetResolver.cs:242` keys the exclusion on `HasMultipleFiles`,
+  The code was already right: `SetResolver.cs:341` keys the exclusion on `HasMultipleFiles`,
   never on the extension, so nothing mis-excludes today. Had anyone taken this plan at its
   word and simplified that check to the extension test it called equivalent, 391 of 602
   extensionless ROMs in that sample would have been wrongly excluded.

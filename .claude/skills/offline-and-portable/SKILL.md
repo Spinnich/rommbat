@@ -106,7 +106,8 @@ the source of truth; the network is optional, probed with a short-timeout
 
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
-  (`FlushCommand.cs:68-72`). So anything that grabs the lock for an instant just to look at it
+  (`SaveFlushService.cs:168-176`, moved out of `FlushCommand` in 7b-2b so both front ends get
+  the same answer). So anything that grabs the lock for an instant just to look at it
   makes a `background quit` flush starting in that instant skip the upload entirely and call it
   success, leaving the user's save in the outbox until the next quit with nothing saying why.
   **Take the lock only around work you are actually going to do**, and hold it for the whole of
