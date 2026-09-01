@@ -192,6 +192,30 @@ public sealed class GameSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_transfer_that_never_received_a_byte_leaves_no_partial_to_resume_from()
+    {
+        // The other side of the rule above, found by the hands-on pass. ContentSync opens the
+        // .part before it makes the request, so a response that carries no body still leaves an
+        // empty file and a download row. Measured on a live install: one RomM answering 502 for
+        // three seconds left 155 empty partials and 155 rows, none of them resumable and all of
+        // them something a person has to make sense of.
+        //
+        // Bytes are what make a partial worth keeping. Nothing in it, nothing to keep.
+        using var stub = Library((1, "Solo.chd"));
+        stub.DropContentAfterBytes = 0;
+
+        var outcome = await RunAsync(stub);
+
+        Assert.Equal(1, outcome.Content.Failed);
+        Assert.False(File.Exists(RomPath("Solo.chd")));
+
+        Assert.False(
+            File.Exists(_session.Install.Resolve(ContentPlanner.PartFor(1))),
+            "an empty partial was kept, which no resume can use");
+        Assert.Null(_session.Store.Downloads.Find(1));
+    }
+
+    [Fact]
     public async Task A_rollback_takes_a_row_whose_folder_has_already_gone()
     {
         // Found by a hands-on pass, not by reading. File.Delete returns quietly for a missing

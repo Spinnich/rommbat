@@ -92,6 +92,13 @@ the source of truth; the network is optional, probed with a short-timeout
   this**, because `ContentSync` deletes the partial itself on a verification failure and the two
   paths then look identical from outside: it needs a transfer the server drops.
 
+  **Bytes are what make a partial worth keeping, and an empty one is discarded either way.**
+  `ContentSync` opens the `.part` before it makes the request, so a response that never carries
+  a body still leaves an empty file and a download row. Measured on a live install during a
+  hands-on pass: one RomM answering **502 for three seconds left 155 empty partials and 155
+  download rows**, not one of them resumable, and the person watching reasonably read the pile
+  as a fault. Keeping a partial with nothing in it is litter rather than progress.
+
 - **One `SqliteConnection` is shared by every store class, and it is gated inside the process.**
   `SqliteConnection` is not thread-safe and nothing serialised it until M7 stage 7b-2b, which is
   the stage that made the race reachable: before it the only background work touching the store

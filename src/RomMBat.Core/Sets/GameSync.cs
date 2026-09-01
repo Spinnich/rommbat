@@ -348,11 +348,16 @@ public sealed class GameSync
 
     /// <summary>Whether a rollback also throws away what a later run could continue from.</summary>
     /// <remarks>
-    /// <b>Only a user cancellation discards a partial.</b> A stopped transfer is discarded by
-    /// ruling, and truncating it before the handle closes is what takes the stop from 20.2 s to
-    /// 0.2 s. A transfer that failed on its own, an unreachable server most of all, keeps both
-    /// its <c>.part</c> and its download row, because resuming from them is the whole reason one
-    /// is written: a 929 MB image that lost the LAN at 800 MB must not start again from zero.
+    /// <b>Only a user cancellation discards a partial that has bytes in it.</b> A stopped
+    /// transfer is discarded by ruling, and truncating it before the handle closes is what takes
+    /// the stop from 20.2 s to 0.2 s. A transfer that failed on its own, an unreachable server
+    /// most of all, keeps both its <c>.part</c> and its download row, because resuming from them
+    /// is the whole reason one is written: a 929 MB image that lost the LAN at 800 MB must not
+    /// start again from zero.
+    /// <para>
+    /// An empty partial is discarded either way. See <see cref="NothingToResume"/>: there is
+    /// nothing in it to continue from, so keeping it is litter rather than progress.
+    /// </para>
     /// </remarks>
     private enum Resume
     {
@@ -401,9 +406,11 @@ public sealed class GameSync
 
             // The interrupted transfer itself, which carries no local_file row because a row is
             // only written on commit. Kept on a failure: see Resume.
-            if (resume == Resume.Discard)
+            var part = _install.Resolve(ContentPlanner.PartFor(romId));
+
+            if (resume == Resume.Discard || NothingToResume(part))
             {
-                Delete(_install.Resolve(ContentPlanner.PartFor(romId)));
+                Delete(part);
                 _store.Downloads.Remove(romId);
             }
         }
@@ -414,6 +421,34 @@ public sealed class GameSync
         {
             rolledBack++;
             progress.Report(new GameRolledBack(game.Title, removed, freed, failures));
+        }
+    }
+
+    /// <summary>
+    /// True when a partial holds nothing a later run could continue from.
+    /// </summary>
+    /// <remarks>
+    /// <b>Bytes are what make a partial worth keeping, and a transfer that failed before any
+    /// arrived left none.</b> <see cref="ContentSync"/> opens the <c>.part</c> before it makes
+    /// the request, so a response that never carries a body still leaves an empty file and a
+    /// download row behind it. Measured on a live install: one RomM instance answering 502 for
+    /// three seconds produced <b>155 empty partials and 155 download rows</b>, none of which a
+    /// resume could use and all of which a person then has to make sense of.
+    /// <para>
+    /// Unreadable counts as worth keeping. Being unable to measure a file is not evidence that
+    /// it is empty, and the resume is the thing being protected.
+    /// </para>
+    /// </remarks>
+    private static bool NothingToResume(string absolute)
+    {
+        try
+        {
+            var info = new FileInfo(absolute);
+            return !info.Exists || info.Length == 0;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
         }
     }
 
