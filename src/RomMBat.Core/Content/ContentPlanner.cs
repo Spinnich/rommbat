@@ -337,9 +337,12 @@ public sealed class ContentPlanner
         // describes the content inside it, and a few rows carry no hash at all. Re-downloading
         // either on every sync would be worse than trusting a file of exactly the right length.
         //
-        // Measured, so the "few rows" is not a guess: 1,612 of 1,616 rom rows sampled across
-        // three platforms of a live library carry an md5, and the four that do not carry no
-        // sha1 either, which is why there is no sha1 arm here any more.
+        // There is no sha1 arm because sha1 is a second number the same server published rather
+        // than an independent check, and finding 180 measured it being simply wrong on two ps2
+        // rows. How many rows reach this path is unsettled, and #112 is the measurement: the
+        // sample migration 013 was written from and finding 85 disagree, by about a hundred rows
+        // in 1,895. Either way the answer here is recorded as VerifiedBy.Size rather than passed
+        // off as a hash check.
         var nothingToCompare = member.Md5Hash is null;
 
         if (info.Length == member.SizeBytes && (nothingToCompare || !fingerprint.DescribesLibraryContent))

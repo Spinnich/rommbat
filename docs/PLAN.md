@@ -1274,10 +1274,11 @@ the rollout order below can be derived rather than hand-maintained.
   list `.m3u`; how many can consume one is a per-emulator fact the config does not carry. See
   [freegosy-findings.md](freegosy-findings.md), F18.
 
-- Adopt files already on disk: hash local ROMs and match on `md5_hash`/`sha1_hash`, or
-  query `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash`
-  answers a hit in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown
-  files and is never a library-wide sweep.
+- Adopt files already on disk: hash local ROMs and match on `md5_hash`, or query
+  `GET /api/roms/by-hash`, so an existing library is not re-downloaded. `by-hash` answers a hit
+  in 133-385 ms and a **miss in 8.3 s**, so it attributes a handful of unknown files and is
+  never a library-wide sweep. **md5 only as of migration 013**, and a row the server published
+  no md5 for adopts by length and records `VerifiedBy.Size`.
 - **All three of `md5_hash`, `sha1_hash` and `crc_hash` describe the _uncompressed_
   content**, not only `crc_hash` as this plan previously said. A `.zip` reports the hashes of
   the file inside it. So verification hashes inside a single-entry archive, adoption does the
@@ -1285,7 +1286,9 @@ the rollout order below can be derived rather than hand-maintained.
   wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
   so. See finding 80.
 - **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
-  size when the server has none, and reports which check it made.
+  size when the server has no md5, and reports which check it made. **Only md5 is compared as
+  of migration 013**, so the 9% is what degrades rather than the 3.7%, and how far those two
+  numbers really are apart on this library is #112.
 - **Only `.zip` can be looked inside**, because it is the one archive format the base class
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
@@ -3059,10 +3062,20 @@ library record that has not been rescanned.
 
 **What that argument did change is what gets hashed, and it is migration 013.** RomMBat computed
 md5, sha1 and crc32 on every download and compared only md5, or sha1 where the server published
-none. Measured across 1,616 rom rows from three platforms of a live library, not one carries a
-sha1 without also carrying an md5, and crc32 was never compared anywhere: RomM hashes a file
-once and sets every column or none. So `local_file` lost both, and hashing went from **339 MB/s
-to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor numbers.
+none. crc32 was never compared anywhere, so `local_file` lost both columns and hashing went from
+**339 MB/s to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor
+numbers.
+
+**Dropping the sha1 comparison is the part that is argued rather than measured, and the plan says
+so in both places now.** A sample of 1,616 rom rows from three platforms found no row carrying a
+sha1 without an md5; finding 85, above, measured 91.0% md5 against 96.3% sha1 on the same
+library, which puts about a hundred rows in 1,895 in exactly that state. Finding 181 shows how
+both could have been seen, since a missing md5 arrives as `''` rather than null. **#112 is the
+measurement and it needs the live instance.** What the comparison is worth does not depend on
+that count: sha1 is a second number the same server published rather than an independent check,
+and finding 180 measured two ps2 rows served byte-correct against sha1 values describing some
+other file. A row with only a sha1 adopts by length and is recorded `VerifiedBy.Size`, which is
+weaker than main was and is honestly labelled rather than silently trusted.
 
 **The development box is the wrong machine to have reasoned from**, which is the more useful
 half of this. There a 34.5 MB/s download leaves verification an order of magnitude of headroom

@@ -20,16 +20,27 @@
 -- be several times faster and the processor several times slower, and there verification stops
 -- being free and starts being the thing that doubles a sync.
 --
--- And sha1 is not a fallback, it is dead weight. Across 1,616 distinct rom rows sampled from
--- three platforms of a live library, **not one** carries a sha1 without also carrying an md5;
--- the four rows with no md5 have no sha1 either, and all four are ps3. RomM hashes a file once
--- and sets all three columns, or scans nothing and sets none, so the case the sha1 comparison
--- exists to serve, a server that published a sha1 and no md5, does not arise. It was computed
--- for every download and compared for none.
+-- Dropping the sha1 *comparison* is a second decision, and it does not rest on the sample this
+-- header used to cite. That sample was 1,616 rom rows from three platforms, in which no row
+-- carried a sha1 without also carrying an md5. **Finding 85 measured the opposite on the same
+-- library**: 91.0% of 1,895 single-file roms carry md5 and 96.3% sha1, which puts at least 5.3%
+-- of rows, about a hundred, in exactly the state the sample says is empty. Finding 181 says how
+-- both can have been observed: rom 191723 reports `md5_hash: ''` rather than null, so a query
+-- testing for a value present counts an empty string as an md5. Which number is right is #112,
+-- it needs the live instance, and nothing here should be read as having settled it.
 --
--- That is one server, which is the limit of the claim. It is also the only evidence there is,
--- and the alternative is paying 43% of the hashing throughput on every device for a case nobody
--- has seen.
+-- What the comparison is worth is a separate question from how many rows reach it, and that is
+-- the argument this migration actually stands on. **sha1 is a second number the same server
+-- published, not an independent check.** It catches a transfer that went wrong in flight, which
+-- is what the length check catches too, and it cannot catch a server whose record is wrong:
+-- finding 180 measured exactly that, two ps2 `.chd` files served byte-correct against sha1
+-- values that describe some other file, so the strongest check available made the download
+-- unusable rather than safe. A row with only a sha1 now adopts by length and `VerificationOf`
+-- records `VerifiedBy.Size`, so it is honestly recorded as weakly verified rather than silently
+-- trusted.
+--
+-- That is one server, which is the limit of every claim here, and the cost of the other choice
+-- is 43% of the hashing throughput on every device.
 --
 -- Dropping the columns rather than leaving them unwritten, because a field that nothing fills
 -- and nothing reads is a question every later session has to answer again. RomM publishes both

@@ -469,11 +469,12 @@ public sealed class ContentSync
                 return (null, "the downloaded file does not match the md5 the server reported.");
             }
 
-            // No sha1 branch, and that is measured rather than assumed. Across 1,616 rom rows
-            // from three platforms of a live library, not one carried a sha1 without also
-            // carrying an md5: RomM hashes a file once and sets every column or none. So the
-            // case a sha1 comparison served does not arise, and computing one cost 43% of the
-            // hashing throughput on every download. See migration 013.
+            // No sha1 branch. It is a second number the same server published rather than an
+            // independent check, and finding 180 measured it being wrong outright on two ps2
+            // rows served byte-correct, so the strongest check available is what made those
+            // downloads unusable. Computing one cost 43% of the hashing throughput on every
+            // download. How many rows carry a sha1 and no md5 is unsettled and is #112. See
+            // migration 013.
         }
 
         return (fingerprint, null);
