@@ -302,8 +302,33 @@ public sealed class EvictionPlanner
         return file.SizeBytes;
     }
 
-    /// <summary>Everything that could go, worst first.</summary>
-    private IEnumerable<EvictionCandidate> Candidates()
+    /// <summary>
+    /// Everything that could go, worst first.
+    /// </summary>
+    /// <remarks>
+    /// <b>One ROM can hold two Rom-kind rows, and that state is legitimate rather than
+    /// corrupt.</b> <c>folder_override</c> is the only way an arcade set resolves, so a
+    /// <c>mame</c>-overridden platform set and an <c>fbneo</c>-overridden collection set drawn
+    /// from that same platform put every shared game in both folders, and both sets are then
+    /// correct in EmulationStation. Remapping a platform between two syncs reaches the same
+    /// state with no override at all.
+    /// <para>
+    /// So the rows are grouped rather than keyed. This was
+    /// <c>ToDictionary(file =&gt; file.RomId!.Value)</c>, which throws on the second row and
+    /// takes out <c>evict</c>, the budget screen and the eviction inside every sync; the
+    /// comment above it named exactly that hazard and then fixed only the media half of it.
+    /// </para>
+    /// <para>
+    /// <b>Each copy is its own candidate, and refusing the second one would be the wrong
+    /// fix.</b> It is the tidier-looking answer and it breaks a set: the second set's gamelist
+    /// would name a file outside its own folder, which EmulationStation cannot follow. The
+    /// bytes genuinely double and the budget is right to count them twice. What was wrong is
+    /// that nobody could see why, which is what browse's folder column and the sync's own
+    /// report are for.
+    /// </para>
+    /// </remarks>
+    /// <param name="releasing">Sets whose claim does not count, because they are being removed from.</param>
+    private IEnumerable<EvictionCandidate> Candidates(IReadOnlyList<long>? releasing = null)
     {
         // Only what RomMBat downloaded. An adopted file is the user's own and is never a
         // candidate, which is also why it never counted towards the budget.
@@ -311,65 +336,40 @@ public sealed class EvictionPlanner
             .Where(file => file.Origin == FileOrigin.Synced && file.RomId is not null)
             .ToList();
 
-        // Keyed on the ROM row specifically. Since M4 a ROM can have six rows, five of them
-        // media, and keying on rom_id alone would throw on the second.
         var files = synced
             .Where(file => file.Kind == LocalFileKind.Rom)
-            .ToDictionary(file => file.RomId!.Value);
+            .GroupBy(file => file.RomId!.Value)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<LocalFile>)[.. group.OrderBy(file => file.Path.Value, StringComparer.Ordinal)]);
 
-        var mediaByRom = synced
+        var media = synced
             .Where(file => file.Kind != LocalFileKind.Rom)
             .GroupBy(file => file.RomId!.Value)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<LocalFile>)[.. group]);
 
-        var claims = new Dictionary<int, (string SetName, MemberState State, int? Position)>();
-
-        foreach (var set in _store.SyncSets.List().Where(set => set.Enabled))
-        {
-            foreach (var member in _store.SyncSets.Members(set.Id, state: null))
-            {
-                if (!files.ContainsKey(member.RomId))
-                {
-                    continue;
-                }
-
-                // A ROM in two sets is kept for the best claim either of them makes, so a set
-                // being trimmed cannot take a game another set still wants near the top.
-                if (claims.TryGetValue(member.RomId, out var existing)
-                    && Rank(existing.State, existing.Position) <= Rank(member.State, member.Position))
-                {
-                    continue;
-                }
-
-                claims[member.RomId] = (set.Name, member.State, member.Position);
-            }
-        }
-
+        var claims = Claims(files.Keys, releasing);
         var candidates = new List<EvictionCandidate>();
 
-        foreach (var (romId, file) in files)
+        foreach (var (romId, copies) in files)
         {
-            var media = mediaByRom.GetValueOrDefault(romId, []);
+            claims.TryGetValue(romId, out var claim);
 
-            if (!claims.TryGetValue(romId, out var claim))
+            for (var index = 0; index < copies.Count; index++)
             {
                 candidates.Add(new EvictionCandidate
                 {
-                    File = file,
-                    Media = media,
-                    Reason = EvictionReason.Orphaned,
+                    File = copies[index],
+                    Media = MediaFor(media.GetValueOrDefault(romId, []), copies, index),
+                    Reason = claim.SetName is null
+                        ? EvictionReason.Orphaned
+                        : claim.State == MemberState.Member
+                            ? EvictionReason.LowestRanked
+                            : EvictionReason.Departed,
+                    SetName = claim.SetName,
+                    Position = claim.Position,
                 });
-                continue;
             }
-
-            candidates.Add(new EvictionCandidate
-            {
-                File = file,
-                Media = media,
-                Reason = claim.State == MemberState.Member ? EvictionReason.LowestRanked : EvictionReason.Departed,
-                SetName = claim.SetName,
-                Position = claim.Position,
-            });
         }
 
         // Departed and orphaned first, then members from the bottom of their set's own order.
@@ -384,6 +384,79 @@ public sealed class EvictionPlanner
             })
             .ThenByDescending(candidate => candidate.Position ?? int.MaxValue)
             .ThenBy(candidate => candidate.File.RomId ?? 0);
+    }
+
+    /// <summary>
+    /// The best claim any enabled set makes on each ROM.
+    /// </summary>
+    /// <remarks>
+    /// <b>One method because two paths need the same answer.</b> The budget path uses it so a
+    /// set being trimmed cannot take a game another set still wants near the top; the removal
+    /// path uses it so deleting one set cannot silently take a game a set the user never
+    /// touched still claims, which the next sync would then fetch again. Written twice it would
+    /// have been two rules with one name.
+    /// </remarks>
+    /// <param name="releasing">Sets whose claim is being given up, and therefore does not count.</param>
+    private Dictionary<int, (string? SetName, MemberState State, int? Position)> Claims(
+        IEnumerable<int> known,
+        IReadOnlyList<long>? releasing = null)
+    {
+        var wanted = known.ToHashSet();
+        var given = releasing?.ToHashSet() ?? [];
+        var claims = new Dictionary<int, (string? SetName, MemberState State, int? Position)>();
+
+        foreach (var set in _store.SyncSets.List().Where(set => set.Enabled && !given.Contains(set.Id)))
+        {
+            foreach (var member in _store.SyncSets.Members(set.Id, state: null))
+            {
+                if (!wanted.Contains(member.RomId))
+                {
+                    continue;
+                }
+
+                // A ROM in two sets is kept for the best claim either of them makes.
+                if (claims.TryGetValue(member.RomId, out var existing)
+                    && Rank(existing.State, existing.Position) <= Rank(member.State, member.Position))
+                {
+                    continue;
+                }
+
+                claims[member.RomId] = (set.Name, member.State, member.Position);
+            }
+        }
+
+        return claims;
+    }
+
+    /// <summary>
+    /// The artwork that goes with one copy of a ROM.
+    /// </summary>
+    /// <remarks>
+    /// Matched on the folder, because each folder's gamelist references its own files and
+    /// attaching every copy's media to the first candidate would have one removal delete the
+    /// other folder's cover.
+    /// <para>
+    /// Artwork in a folder no copy of the ROM lives in goes with the first copy, so it is
+    /// removed rather than stranded. That is a row for bytes no gamelist can reach, and leaving
+    /// it behind would mean nothing could ever collect it.
+    /// </para>
+    /// </remarks>
+    private static IReadOnlyList<LocalFile> MediaFor(
+        IReadOnlyList<LocalFile> media,
+        IReadOnlyList<LocalFile> copies,
+        int index)
+    {
+        var folders = copies
+            .Select(copy => copy.Folder)
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return
+        [
+            .. media.Where(file =>
+                string.Equals(file.Folder, copies[index].Folder, StringComparison.OrdinalIgnoreCase)
+                || (index == 0 && (file.Folder is null || !folders.Contains(file.Folder)))),
+        ];
     }
 
     /// <summary>Lower is a stronger claim to stay.</summary>
