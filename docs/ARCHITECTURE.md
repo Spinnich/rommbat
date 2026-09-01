@@ -395,6 +395,14 @@ the same reason as the tables: a single-file publish carries it with no second f
 
 ## 4. The local store
 
+**One connection, gated.** Every store class shares a single `SqliteConnection`, which is not
+thread-safe, and access is serialised inside the process by a re-entrant gate taken when a
+command is created and released when it is disposed. Nothing serialised it before M7 stage
+7b-2b, which is the stage that made the race reachable: a sync writes from a background thread
+for minutes while the drawing thread reads the same connection on every redraw. A command must
+therefore be created and disposed on one thread, which every store method satisfies by being
+synchronous.
+
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
 so each milestone has somewhere honest to write from the moment it starts. Twelve migrations

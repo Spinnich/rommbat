@@ -83,6 +83,27 @@ the source of truth; the network is optional, probed with a short-timeout
   Portable installs are exactly where this bites: the same code on an internal SSD would hide
   it, and RomMBat lives on the removable drive by design.
 
+- **One `SqliteConnection` is shared by every store class, and it is gated inside the process.**
+  `SqliteConnection` is not thread-safe and nothing serialised it until M7 stage 7b-2b, which is
+  the stage that made the race reachable: before it the only background work touching the store
+  was a resolve, and a sync writes from a background thread for minutes while the drawing thread
+  reads the same connection on every redraw. The symptom is not a clean exception but
+  "Collection was modified" thrown out of `SqliteCommand.Dispose`, from two threads mutating one
+  connection's prepared-statement list.
+
+  The gate is entered when a command is created and left when it is disposed, which covers the
+  reader because every call site reads inside the command's own `using` scope.
+
+  **A command must be created and disposed on the same thread.** The gate is a `Monitor`, which
+  belongs to the thread that took it, so an `await` between opening a command and disposing it
+  can resume elsewhere and the release then throws instead of letting go, holding the gate for
+  ever. Every store method is synchronous, which is what makes this safe; an `async` one needs a
+  different primitive, and a **re-entrant** one, because `InTransaction` holds the gate across
+  the store calls inside the transaction.
+
+  **This orders threads inside one process and nothing else.** The database is WAL and the hooks
+  write to it from their own processes; `TreeLock` and the busy timeout are what order those.
+
 - **Never take `TreeLock` to find out whether it is held.** Failing to acquire is a _success_
   for a flush: it concludes another pass is draining the queue and exits, reporting `Ok`
   (`FlushCommand.cs:68-72`). So anything that grabs the lock for an instant just to look at it
