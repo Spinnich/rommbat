@@ -96,13 +96,18 @@ public sealed record SyncSnapshot(
         : null;
 
     /// <summary>What the run has taken against what it planned to.</summary>
+    /// <remarks>
+    /// <see cref="ByteSize.Progress"/> rather than two <c>Format</c> calls, so the unit is the
+    /// destination's for the whole run and the width does not change eight times a second. See
+    /// its remarks: a hands-on pass on a set of small ROMs read the reflow as double vision.
+    /// </remarks>
     public string? Transferred => TotalBytes > 0
-        ? $"{ByteSize.Format(TransferredBytes)} of {ByteSize.Format(TotalBytes)}"
+        ? ByteSize.Progress(TransferredBytes, TotalBytes)
         : null;
 
     /// <summary>How far through the game in front of the user, as text rather than a bar.</summary>
     public string? GameProgress => GameTotal > 0
-        ? $"{ByteSize.Format(GameTransferred)} of {ByteSize.Format(GameTotal)}"
+        ? ByteSize.Progress(GameTransferred, GameTotal)
         : null;
 
     /// <summary>Current transfer rate, or null before there is enough to average.</summary>
@@ -112,7 +117,7 @@ public sealed record SyncSnapshot(
 
     /// <summary>What the run took against what it may take, or null when no cap is set.</summary>
     public string? Budget => BudgetCap is { } cap && BudgetUsed is { } used
-        ? $"{ByteSize.Format(used)} of {ByteSize.Format(cap)}"
+        ? ByteSize.Progress(used, cap)
         : BudgetUsed is { } taken
             ? ByteSize.Format(taken)
             : null;
@@ -245,8 +250,51 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             new FooterHint(NavAction.Back, "Back"),
         ],
 
+        // Only once there are more than the screen shows. Offering it for two problems that are
+        // both already on screen is a press that appears to do nothing.
+        _ when _state.Problems.Count > ProblemsShown =>
+        [
+            new FooterHint(NavAction.Accept, $"See all {_state.Problems.Count} problems"),
+            new FooterHint(NavAction.Back, "Back"),
+        ],
+
         _ => [new FooterHint(NavAction.Back, "Back")],
     };
+
+    /// <summary>
+    /// How many problems the run screen itself shows.
+    /// </summary>
+    /// <remarks>
+    /// The renderer shows this many and the footer offers the rest, so the two have to agree:
+    /// a screen showing six while the footer stays silent about twenty-seven is what a hands-on
+    /// pass found, with no way to reach the other twenty-one.
+    /// </remarks>
+    public const int ProblemsShown = 6;
+
+    /// <summary>
+    /// Every problem the run reported, on a screen that scrolls.
+    /// </summary>
+    /// <remarks>
+    /// <b>A <c>ListScreen</c> rather than a longer panel</b>, because it already windows and
+    /// already carries 7b-2a's fix for the window that was shared across instances, and because
+    /// a run that fails four hundred games cannot be a wall of text either way. Rows are
+    /// unavailable: there is nothing to choose, and marking them so keeps Accept from promising
+    /// a press that does nothing.
+    /// <para>
+    /// Numbered oldest first, which is the order they happened. The run screen keeps the newest
+    /// few for the opposite reason, that the tail says what was going on most recently.
+    /// </para>
+    /// </remarks>
+    private static ListScreen AllProblems(IReadOnlyList<string> problems) =>
+        new ListScreen(
+            problems.Count == 1 ? "The problem" : $"{problems.Count} problems",
+            [.. problems.Select((problem, index) => new ListRow(
+                (index + 1).ToString(CultureInfo.CurrentCulture),
+                null,
+                problem,
+                false))],
+            _ => ScreenCommand.Stay,
+            acceptLabel: string.Empty);
 
     public ScreenCommand Handle(NavAction action)
     {
@@ -255,6 +303,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             case NavAction.Accept when _pair is not null
                 && _state.Stage is SyncStage.NotPaired or SyncStage.Rejected:
                 return ScreenCommand.Push(_pair());
+
+            case NavAction.Accept when _state.Problems.Count > ProblemsShown:
+                return ScreenCommand.Push(AllProblems(_state.Problems));
 
             case NavAction.Back when _state.Stage == SyncStage.Working:
                 // Stop and stay. The run removes the game it was in, and a screen that closed

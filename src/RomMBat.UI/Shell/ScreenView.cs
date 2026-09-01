@@ -729,13 +729,13 @@ internal static class ScreenView
                 Background = Panel,
                 CornerRadius = new CornerRadius(6),
                 Height = 18,
-                Width = 620,
+                Width = SyncColumn,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Child = new Border
                 {
                     Background = Accent,
                     CornerRadius = new CornerRadius(6),
-                    Width = Math.Max(6, 620 * fraction),
+                    Width = Math.Max(6, SyncColumn * fraction),
                     HorizontalAlignment = HorizontalAlignment.Left,
                 },
             });
@@ -758,6 +758,18 @@ internal static class ScreenView
     /// one moment beside a count from another.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// The fixed width every line of the sync screen is laid out in.
+    /// </summary>
+    /// <remarks>
+    /// <b>A centred <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
+    /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
+    /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
+    /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
+    /// and centring the text inside it makes the box still and lets only the glyphs change.
+    /// </remarks>
+    private const double SyncColumn = 620;
+
     private static StackPanel Sync(SyncViewModel sync)
     {
         var state = sync.State;
@@ -798,7 +810,8 @@ internal static class ScreenView
                 Text = game,
                 Foreground = Ink,
                 FontSize = 24,
-                MaxWidth = 860,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
@@ -814,6 +827,8 @@ internal static class ScreenView
                 Text = inGame,
                 Foreground = Muted,
                 FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
@@ -825,6 +840,8 @@ internal static class ScreenView
                 Text = counted,
                 Foreground = Muted,
                 FontSize = 21,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
@@ -853,15 +870,45 @@ internal static class ScreenView
 
         if (state.Transferred is { } transferred)
         {
-            var line = state.Speed is { } speed ? $"{transferred}          {speed}" : transferred;
-
-            stack.Children.Add(new TextBlock
+            // Two anchored halves rather than one centred line. The rate and the total change
+            // independently, and a single centred string moves both of them whenever either
+            // changes width. Here the transferred count grows leftwards from a fixed edge and
+            // the rate grows rightwards from another, so neither pushes the other.
+            var line = new Grid
             {
-                Text = line,
+                Width = SyncColumn,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ColumnDefinitions = new ColumnDefinitions("*,*"),
+            };
+
+            var moved = new TextBlock
+            {
+                Text = transferred,
                 Foreground = Muted,
                 FontSize = 15,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            });
+                TextAlignment = TextAlignment.Right,
+                Margin = new Thickness(0, 0, 18, 0),
+            };
+
+            Grid.SetColumn(moved, 0);
+            line.Children.Add(moved);
+
+            if (state.Speed is { } speed)
+            {
+                var rate = new TextBlock
+                {
+                    Text = speed,
+                    Foreground = Muted,
+                    FontSize = 15,
+                    TextAlignment = TextAlignment.Left,
+                    Margin = new Thickness(18, 0, 0, 0),
+                };
+
+                Grid.SetColumn(rate, 1);
+                line.Children.Add(rate);
+            }
+
+            stack.Children.Add(line);
         }
 
         // On this screen because this is where it is being spent.
@@ -872,6 +919,8 @@ internal static class ScreenView
                 Text = $"Disk used  {budget}",
                 Foreground = Muted,
                 FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
         }
@@ -889,14 +938,17 @@ internal static class ScreenView
     /// </summary>
     /// <remarks>
     /// <b>The newest are kept when there are too many.</b> A run that fails every game produces
-    /// one line each, and the first eight of forty identical sentences are the least useful
-    /// eight: the count says how many there were and the tail says what was happening most
-    /// recently.
+    /// one line each, and the first six of forty identical sentences are the least useful six:
+    /// the count says how many there were and the tail says what was happening most recently.
+    /// <para>
+    /// <b>The rest are reachable, which they were not.</b> A hands-on pass hit twenty-seven
+    /// problems and could read six, with no press that offered the other twenty-one. The count
+    /// is <see cref="SyncViewModel.ProblemsShown"/> so the footer's offer and this cut cannot
+    /// drift apart.
+    /// </para>
     /// </remarks>
     private static StackPanel Problems(IReadOnlyList<string> problems)
     {
-        const int Shown = 6;
-
         var stack = new StackPanel { Spacing = 6, MaxWidth = 860 };
 
         stack.Children.Add(new TextBlock
@@ -906,7 +958,7 @@ internal static class ScreenView
             FontSize = 13,
         });
 
-        foreach (var problem in problems.Skip(Math.Max(0, problems.Count - Shown)))
+        foreach (var problem in problems.Skip(Math.Max(0, problems.Count - SyncViewModel.ProblemsShown)))
         {
             stack.Children.Add(new TextBlock
             {

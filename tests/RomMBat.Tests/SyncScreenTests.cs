@@ -1,3 +1,4 @@
+using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomM.Client.Content;
@@ -396,6 +397,105 @@ public sealed class SyncScreenTests : IDisposable
                 Assert.DoesNotContain(forbidden, text, StringComparison.OrdinalIgnoreCase);
             }
         }
+    }
+
+    // ------------------------------------------------------------------ the screen holds still
+
+    [Fact]
+    public void A_progress_line_keeps_its_unit_and_its_width_as_it_fills()
+    {
+        // A hands-on pass on a set of small ROMs reported the text vibrating, which it called
+        // double vision. Two causes: Format rescales KB to MB to GB as the left side grows, and
+        // "0.#" drops the decimal at every round number, so a line rebuilt eight times a second
+        // is a different length almost every time. The destination is fixed for the run, so the
+        // unit comes from it and the decimal is forced.
+        const long Total = 275_900_000;
+
+        var widths = new HashSet<int>();
+        var units = new HashSet<string>();
+
+        for (var step = 0; step <= 100; step++)
+        {
+            var line = ByteSize.Progress(Total * step / 100, Total);
+
+            widths.Add(line.Length);
+            units.Add(line[(line.LastIndexOf(' ') + 1)..]);
+        }
+
+        Assert.Single(units);
+        Assert.Equal("MB", units.Single());
+
+        // Only the digits before the decimal grow, so 0.0 to 275.9 is three widths and not a
+        // hundred. What matters is that it does not change on almost every frame.
+        Assert.True(widths.Count <= 3, $"the line took {widths.Count} different widths as it filled");
+
+        // A tiny run stays in its own unit rather than being forced into the largest.
+        Assert.EndsWith("KB", ByteSize.Progress(0, 40_000), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Every_problem_is_reachable_when_more_arrive_than_the_screen_shows()
+    {
+        // A hands-on pass on a 594-game arcade set hit 27 problems, could read 6, and had no
+        // press that reached the other 21. Driven through the real path rather than by pushing
+        // a list in: every rom on this stub serves more bytes than its row declares, which is
+        // the size mismatch that produced those 27 on the live instance.
+        const int Games = 10;
+
+        using var stub = Library(Games);
+        Pair();
+        Seed("games", Games);
+
+        foreach (var rom in stub.Library)
+        {
+            stub.Content[rom.Id] = new byte[2048];
+        }
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.True(
+            sync.State.Problems.Count > SyncViewModel.ProblemsShown,
+            $"the fixture produced only {sync.State.Problems.Count} problems");
+
+        var offer = Assert.Single(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Contains(
+            sync.State.Problems.Count.ToString(CultureInfo.CurrentCulture),
+            offer.Label,
+            StringComparison.Ordinal);
+
+        var opened = sync.Handle(NavAction.Accept);
+        var all = Assert.IsType<ListScreen>(opened.Screen);
+
+        Assert.Equal(ScreenCommandKind.Push, opened.Kind);
+        Assert.Equal(sync.State.Problems.Count, all.Rows.Count);
+
+        // The first one too, which the run screen drops in favour of the newest few.
+        Assert.Equal(sync.State.Problems[0], all.Rows[0].Detail);
+
+        // Nothing to choose, so no row promises a press that does nothing.
+        Assert.All(all.Rows, row => Assert.False(row.Available));
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_with_no_problems_offers_no_press_to_go_and_read_them()
+    {
+        // Offering the press when everything already fits on screen is a press that appears to
+        // do nothing.
+        using var stub = Library(1);
+        Pair();
+        Seed("games", 1);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.True(sync.State.Problems.Count <= SyncViewModel.ProblemsShown);
+        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Stay, sync.Handle(NavAction.Accept).Kind);
+
+        sync.Dispose();
     }
 
     // ------------------------------------------------------------------ eviction is not offered

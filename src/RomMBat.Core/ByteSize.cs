@@ -22,16 +22,55 @@ public static class ByteSize
     /// <summary>Formats a byte count, to one decimal place where that adds anything.</summary>
     public static string Format(long bytes)
     {
-        double value = bytes;
+        var unit = UnitFor(bytes);
+        return string.Create(CultureInfo.InvariantCulture, $"{Scale(bytes, unit):0.#} {Units[unit]}");
+    }
+
+    /// <summary>
+    /// A running total against the total it is heading for, both in the larger one's unit.
+    /// </summary>
+    /// <remarks>
+    /// <b>The unit and the decimal place are fixed so the text does not change width.</b>
+    /// Formatting each side on its own rescales the left one as it grows, KB to MB to GB, and
+    /// <c>0.#</c> drops a decimal at every round number, so a progress line rebuilt eight times
+    /// a second is a different length almost every time. Centred, that reads as the text
+    /// vibrating: a hands-on pass on a set of small ROMs called it double vision. The
+    /// destination is fixed for the whole run, so taking the unit from it makes the left side
+    /// grow through a stable scale, and one forced decimal keeps the width constant within it.
+    /// </remarks>
+    public static string Progress(long soFar, long total)
+    {
+        var unit = UnitFor(total);
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{Scale(soFar, unit):0.0} of {Scale(total, unit):0.0} {Units[unit]}");
+    }
+
+    private static int UnitFor(long bytes)
+    {
+        double value = Math.Abs(bytes);
         var unit = 0;
 
-        while (Math.Abs(value) >= 1024 && unit < Units.Length - 1)
+        while (value >= 1024 && unit < Units.Length - 1)
         {
             value /= 1024;
             unit++;
         }
 
-        return string.Create(CultureInfo.InvariantCulture, $"{value:0.#} {Units[unit]}");
+        return unit;
+    }
+
+    private static double Scale(long bytes, int unit)
+    {
+        double value = bytes;
+
+        for (var step = 0; step < unit; step++)
+        {
+            value /= 1024;
+        }
+
+        return value;
     }
 
     /// <summary>
