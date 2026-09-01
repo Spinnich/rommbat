@@ -229,6 +229,77 @@ evict` works with the server off. What 7b-2b removed is the interface to it: Rom
   the lock; the same scenario on the fixed build left them alone and reclaimed them on the next
   pass.
 
+## Browsing and removing, offline
+
+- **Browse degrades, it does not refuse.** With a server it pages `GET /api/roms`; without one
+  it lists what the device holds, out of `local_file` joined to `sync_set_member`. That is M2's
+  own rule about the offline browsable set being the locally present subset, which is what
+  EmulationStation shows anyway. **It says which of the two it is showing, always**, not only
+  when it degraded: a person who never sees the online form cannot otherwise tell the offline
+  one apart from a library that has shrunk. `BrowseService` decides which; the screen words it.
+- **Nothing holds more than one page.** Moving past the bottom fetches the next offset and
+  **replaces** what is held. A screen that appended would look identical for the first few pages
+  and hold an 83k library by the end, which is why the assertion is a row count across several
+  pages rather than a look at one.
+- **50 rows a page, measured, not 250.** `RomPager.DefaultPageSize` is for a resolve, which
+  wants the fewest requests for a whole scope. Against the live 96,060-rom instance, warm: 50
+  rows 280 ms, 250 rows 611 ms. 250 is cheaper per row and more than twice the wait for the page
+  a person is looking at, and at `ListWindow.Capacity`'s eight rows it is 31 screens of scrolling
+  per fetch.
+- **A paged list stops at the end; it does not wrap.** Every other list in the UI wraps. Wrapping
+  to page one after nine thousand rows of paging silently undoes them and looks exactly like the
+  stall a failed fetch produces. Stopping *silently* is worse again, so there is a row saying so.
+  A library that fits one page still wraps: there is no paging to undo.
+
+### The claim rule: a game another enabled set still wants is held back
+
+**One method, `EvictionPlanner.Claims`, and both paths call it.** The budget path uses it so
+trimming one set cannot take a game another set wants near the top; the removal path uses it so
+deleting one set cannot silently take a game a set the user never touched still claims, **only
+for the next sync to fetch it again**. Written twice it would have been two rules with one name.
+
+- **The sets being removed from are released**, or their own membership would hold every game
+  back against the person removing it. Everything else enabled still counts, and the refusal
+  names the set: `still in '<name>'`.
+- **A disabled set makes no claim.** That is what "enabled" in the rule means, and it has a test.
+- **The order matters.** "Another set still wants this" is reported ahead of a `SaveGuard`
+  refusal when both are true, because the second is temporary and the first is the user's own
+  other set.
+
+### Removing content
+
+- **The flush runs first.** The commonest `SaveGuard` refusal is a save that has not reached the
+  server, and flushing resolves it rather than blocking the removal. **Offline it is skipped and
+  said so**, and the unsent save then keeps its game, which is the correct answer.
+- **`Plan(bytesToFree)` cannot serve a removal at all.** It returns early when nothing is over
+  budget, and its whole ordering answers "which games matter least", which is the question the
+  ruling that took eviction off the interface says RomMBat should not answer.
+  `PlanRemoval(romIds, releasing)` is the entry point.
+- **`local_file` has no save kind.** Its seven are `rom`, `image`, `thumbnail`, `marquee`,
+  `video`, `manual` and `firmware`, enforced by a `CHECK`; saves live in `local_save` and
+  `local_state`. Anything that removes content walks `local_file`, so it *cannot* delete a save.
+  That is schema-level rather than careful coding, and it belongs in what the confirmation says.
+
+### `local_file` rows outlive their bytes, and the budget counts them forever
+
+Measured on the live install: **5,512 of 5,932 rows pointed at files that were not there,
+claiming 18.22 GiB against 1.41 GiB of real content.** An 8 GB cap read as permanently 10 GB
+over, so every sync blocked every game with 334 problems and nothing pointing at the cause. It
+took a database diff to explain. `ContentPlanner` re-downloads a row whose file is gone, so it
+self-heals for a game somebody re-syncs and never for one nobody does.
+
+`InventorySweep` counts it and offers to forget the rows, which is safe by the rollback's own
+argument that a row must never outlive its bytes.
+
+**The guard that matters was found by a probe, after the first argument for it turned out to be
+wrong.** The claim was that an unplugged drive cannot reach the sweep, since a tree that does not
+open has no session. True, and not enough: **a tree carrying `retrobat.ini`,
+`system/version.info` and the database but no `roms/` opens perfectly and reports every row
+missing.** A copied install, a restored backup and a `roms/` on a second volume all reach it, and
+a repair there empties the whole inventory and costs a re-download of the entire library.
+`InventoryReport.NothingFound` refuses it, and one surviving file is enough to trust the tree,
+because the real state looks nothing like that: 420 rows were still there.
+
 ## Portable
 
 RetroBat runs from a USB drive and moves between machines.

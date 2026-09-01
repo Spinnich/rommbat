@@ -112,3 +112,26 @@ mapping resolves to a folder that exists in `systems_names.lst`, that multi-fold
 resolve deterministically against a fixture `es_systems.cfg`, and that an `arcade` slug
 whose `fs_slug` names no folder does not resolve on its own while one whose `fs_slug` does
 name a folder resolves there.
+
+## One ROM in two folders is legitimate, and it used to be fatal
+
+`folder_override` is per sync set and migration 002's header calls it "the only way an arcade
+set resolves". So a `mame`-overridden platform set and an `fbneo`-overridden collection set drawn
+from that same platform put **every shared game in both folders**, and **both sets are then
+correct in EmulationStation**: each folder's `gamelist.xml` names the file beside it. Remapping a
+platform between two syncs reaches the same state with no override at all.
+
+- **Two Rom-kind `local_file` rows for one `rom_id` is a representable, reachable state.**
+  `LocalFileStore.ForRom`'s remarks already said so and `ix_local_file_rom_kind` is not `UNIQUE`.
+  `EvictionPlanner.Candidates` keyed its lookup with `ToDictionary(file => file.RomId)`, which
+  throws on the second row and takes out `evict`, the budget screen and the eviction pass inside
+  every sync. The comment directly above it named that hazard and then fixed only the media half.
+- **Each copy is its own eviction candidate**, with the artwork in its own folder attached to it.
+  Attaching every copy's media to one candidate has the first removal delete the other folder's
+  cover.
+- **Refusing the second copy is the wrong fix, and it is the tidier-looking one.** It leaves the
+  second set's gamelist naming a file outside its own folder, which ES cannot follow, so it
+  breaks that set to tidy the inventory.
+- **The bytes genuinely double and the budget is right to count them twice.** What was wrong was
+  that nobody could see why. A browse row names every folder a game is in, and the game's detail
+  screen says the room is taken twice and that both sets are correct.

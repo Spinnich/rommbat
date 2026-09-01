@@ -202,9 +202,23 @@ interface: pairing behind an on-screen keyboard, and status. **Stage 7b-2a added
 surface**: listing, defining, editing and deleting a set, the scope, platform and folder
 pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added the sync run**:
 syncing every set or one set with live progress, a stop that leaves the tree correct, and the
-budget as it is spent. Freeing space is not on the interface.
-Browse and per-game install are 7b-2c; conflict resolution and acting on the queued-config
-surface are 7b-3.
+budget as it is spent. **Stage 7b-2c added browse, per-game install and removal**: finding one
+game a page at a time, installing it in one press, and taking a game or a whole set back off.
+Conflict resolution and acting on the queued-config surface are 7b-3.
+
+**Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
+`ListScreen`: everything else has all its rows the moment it opens. It degrades to what this
+device holds when there is no server and says which of the two it is showing, and its cursor
+**stops** at the end of the last page where every other list wraps, because a paged list that
+wraps to page one silently undoes the paging. Both draw through one body in `ScreenView`, so the
+windowing and the edge markers cannot be right in one and wrong in the other.
+
+**Freeing space is on the interface now, and the ruling that took eviction off it stands.**
+RomMBat still never chooses which games matter least. What a person can do is name one: delete a
+set and take its games, or take one game off from its detail screen. Both go through
+`EvictionService.PreviewRemoval`, behind a preview, and neither can reach a save: `local_file`
+has no save kind, enforced by a `CHECK`, so anything that removes content walks a table that
+holds no saves. `rommbat-agent evict` is unchanged.
 
 **Two screens run minutes-long work, and they answer Back the same way**: the first press stops
 and stays so the screen can say what happened, and a second leaves. The sync screen's stop
@@ -241,7 +255,7 @@ that machine's Windows Desktop stack.
 `Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.Themes.Fluent`, never `Avalonia.Desktop`,
 which drags in `Tmds.DBus.Protocol` for the X11 backend and raises `NU1903` for a known
 high-severity advisory that `-warnaserror` turns into a failed build, for a backend this
-win-x64 build cannot use. Published untrimmed at **96.6 MB across five files**, against the
+win-x64 build cannot use. Published untrimmed at **96.9 MB across five files**, against the
 console stub it replaces.
 
 **These numbers move with the toolchain, so compare them only against a build taken the same
@@ -257,6 +271,14 @@ after, both re-published and re-timed the same day, median of five with a warm-u
 12 ms sits inside a spread of 858 to 919 ms, so the claim is no measurable change rather than an
 improvement. Reading the branch against 7b-2a's recorded 934 ms instead would have shown a 62 ms
 gain that does not exist, which is the mistake 7b-2a's own ledger records making.
+
+Stage 7b-2c, which adds browse, per-game install, removal and four Core services, cost
+**+123 KB and nothing measurable in start time**: **96.7 MB and 932 ms** for its base commit
+against **96.9 MB and 917 ms** after, both published and timed the same day, median of five with
+the cold first run discarded. Five shipped files either way. The 15 ms sits inside spreads of
+902 to 953 ms and 903 to 935 ms, which overlap almost entirely. Note that both are slower than
+7b-2b's same-day 872/884 ms on the same machine, which is the reason this paragraph exists:
+only a same-day pair means anything.
 
 **Trimming is not switched on, and that is measured rather than lazy.** It takes the same
 build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
@@ -416,10 +438,13 @@ synchronous.
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Twelve migrations
-have been added since, whose headers state what shape could not carry the work, and 013 is the
+so each milestone has somewhere honest to write from the moment it starts. Thirteen migrations
+have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
-nothing read either back and computing them was most of the cost of verifying a download. The
+nothing read either back and computing them was most of the cost of verifying a download. 014
+widens `sync_set.scope_kind` to admit `'picked'`, so a hand-picked set is a set rather than an
+id list smuggled into another scope's column, and adds no column: for that scope the id list is
+the definition and lives in `scope_value` as a filter's JSON already does. The
 schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 

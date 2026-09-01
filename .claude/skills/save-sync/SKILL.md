@@ -196,6 +196,23 @@ Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. T
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.
 
+### Removing a game names a class D container rather than vouching for it
+
+**A shared container has no `rom_id` by definition, so `SaveGuard` cannot answer for it.** The
+same is true of a class C unit whose attribution failed and left a null one. When a person
+removes a game, the honest behaviour is to **name the container and let them decide**, never to
+claim safety.
+
+- **Nothing is deleted either way.** Removal walks `local_file`, whose seven kinds hold no
+  saves, so the container survives whatever the screen says. What it cannot survive is the
+  *attribution*: the ROM going takes with it the only thing that could ever say which game those
+  bytes belong to, and that is not recoverable.
+- **Scoped to the systems the removed games are in**, via `EvictionService.Unvouchable`. Naming
+  every unattributed save on the install would be noise on a screen a person is reading in order
+  to press a button.
+- This is the hole #110 said it could not close, and it is closed by saying so rather than by
+  pretending. A PS2 memory card is the case that exists.
+
 ## Somebody else may be writing to the same directory
 
 **`dolphin_sync_saves` is the one measured case, and the repository described it wrongly for
