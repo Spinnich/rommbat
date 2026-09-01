@@ -702,18 +702,27 @@ public sealed class SyncScreenTests : IDisposable
         // Asserted rather than trusted to the delete, because the entry points were two: the
         // budget screen's third press, and the offer a blocked sync made where the user found
         // out the budget had cut it short.
+        //
+        // The rule is about the offer, not about the button. This asserted that the budget
+        // screen answered Alternate with nothing at all, which was true when the only thing
+        // behind that press was the eviction screen and stopped being the rule the moment
+        // anything else wanted it. What must stay gone is RomMBat choosing which games matter
+        // least: #113's check removes records for files that are already gone, frees no space
+        // and deletes no game.
         Pair();
         Seed("games", 1);
 
         var budget = new BudgetViewModel(_session);
+        var behind = budget.Handle(NavAction.Alternate);
 
-        Assert.DoesNotContain(budget.Hints, hint => hint.Action == NavAction.Alternate);
-        Assert.Equal(ScreenCommandKind.Stay, budget.Handle(NavAction.Alternate).Kind);
-
-        foreach (var text in Strings(budget))
+        foreach (var text in Strings(budget).Concat(behind.Screen is { } pushed ? Strings(pushed) : []))
         {
             Assert.DoesNotContain("free up space", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("choose games to remove", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("evict", text, StringComparison.OrdinalIgnoreCase);
         }
+
+        (behind.Screen as IDisposable)?.Dispose();
     }
 
     [Fact]
