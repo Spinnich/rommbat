@@ -2929,6 +2929,13 @@ Whether it ran to the end, was stopped, or lost the server. `GameSync` is the ty
 that sentence: it groups a `ContentPlan` into games by `DiscSet`, fetches each game's ROMs and
 then its artwork, and takes back any game that did not land whole.
 
+**A stopped sync writes its gamelists, and getting that wrong is what the first hands-on pass
+found.** The pass was handed the run's cancellation token, so on a stop it threw before writing
+anything and every finished game sat on the drive invisible to EmulationStation. It runs on
+`CancellationToken.None`, which is bounded: two local file writes and one reload with a 400 ms
+connect timeout. The same defect existed a second time, on the path where a stop lands during a
+game's artwork rather than during its ROMs.
+
 **"With its artwork" cannot mean every configured kind, and the reason is not RomMBat's.**
 Nothing guarantees a server holds it: the administrator may not have scraped that kind, and the
 upstream source may never have had it for that game. `MediaSyncOutcome.Missing` counts exactly
@@ -2985,6 +2992,20 @@ one call per game sees the budget as it stands before most of the run's ROMs exi
 budget was measured finishing 703 KB over it. `GameSync` now passes the ROM bytes still ahead.
 That reservation is possible precisely where a media one is not: a ROM's size is on the member
 row and the plan already holds it, and RomM publishes no media size at all.
+
+**Which media kinds are fetched follows RetroBat's own scraper settings.** `es_settings.cfg`
+carries `ScrapeVideos` and `ScrapeManual`, and RomMBat was ignoring both: a hands-on pass turned
+video off in RetroBat and RomMBat kept downloading it. They set the default now, with an
+explicit `media.kinds` still winning. There is no upstream toggle for the cover, the thumbnail
+or the marquee, so those three keep RomMBat's default and no keys are invented for them. Same
+rule as the on-screen keyboard following `Language`: where RetroBat already has the setting,
+RomMBat asks it.
+
+**An advertised media path that answers 404 is forgotten rather than re-asked.** Measured on the
+live library: 39 of 40 games on one platform advertised a video the server does not serve, so
+every sync spent 39 requests and printed 39 problems, for ever. Forgetting the path turns it
+into the ordinary `Missing` case and needs no new state, because a resolve rewrites `metadata`
+from the server wholesale and puts it back the moment RomM starts serving it.
 
 **A stopped transfer's partial is truncated before its handle closes.** The cancellation is
 instant; closing a handle over a large part-written file waits for the drive's write cache, and

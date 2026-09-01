@@ -62,6 +62,24 @@ exceptional: keep the database and outbox, return to pairing, resume after re-pa
 
 CSRF does not apply when an `Authorization` header is present.
 
+## A rom row advertises media it does not serve
+
+**Measured on a live 5.2.0 library: 39 of 40 games on one platform advertised a video path that
+answered 404.** The rom row carries the path whether or not the asset is on disk, so a client
+that trusts the row asks for every one of them on every sync, gets a 404 each time, and reports
+it as a failure.
+
+**Treat a 404 on an advertised asset as a fact about the library, not about the request.** It is
+the one media refusal that will answer identically until the row itself changes, which makes it
+the same class of thing as a 416 on a resume. `RomMResponseStatus.NotFound` exists to keep it
+apart from `ServerError` for exactly that reason.
+
+RomMBat's answer is to forget the path, which turns the case from a failure into the ordinary
+`Missing` one and needs no new state: a resolve rewrites `metadata` from the server wholesale,
+so the path returns the moment RomM starts serving it.
+
+**Do not assume the whole kind is absent for the platform.** It was 39 of 40, not 40 of 40.
+
 ## Scopes
 
 **Two roles. Do not conflate them.**

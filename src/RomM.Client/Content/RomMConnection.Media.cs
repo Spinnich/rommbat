@@ -60,7 +60,7 @@ public sealed partial class RomMConnection
             return response.StatusCode switch
             {
                 HttpStatusCode.NotFound => RomMResponse.Failure<MediaResult>(
-                    RomMResponseStatus.ServerError,
+                    RomMResponseStatus.NotFound,
                     $"the server no longer has {DescribeKind(resource.Kind)} at that path."),
                 _ => RomMResponse.Failure<MediaResult>(
                     RomMResponseStatus.ServerError,

@@ -480,6 +480,27 @@ directory; it differs by hook form.
   `CreateNoWindow=true`, no wait. **`CreateNoWindow` is load-bearing**: the agent is a console
   app and ES is full screen, so without it a console flashes over the front end at every boot.
 
+## RetroBat's scraper settings are settings RomMBat should read
+
+**Measured on 8.2.1: `es_settings.cfg` carries exactly three scraper keys**, and only two of
+them map onto anything RomMBat fetches.
+
+| Key                | Type                   | Maps to                                                                                           |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `ScrapeVideos`     | bool                   | RomMBat's `MediaKind.Video`                                                                       |
+| `ScrapeManual`     | bool                   | RomMBat's `MediaKind.Manual`                                                                      |
+| `ScrapperImageSrc` | string, e.g. `sstitle` | **nothing.** It picks which ScreenScraper image ES uses as the cover, and RomM serves its own art |
+
+**There is no toggle for the cover, the thumbnail or the marquee.** Do not invent keys for them.
+An absent key means EmulationStation's own default, which for both booleans is on.
+
+**RomMBat honours the two that exist, as the default rather than as an override.** A hands-on
+pass turned video off in RetroBat's scraper and RomMBat carried on downloading it, which is two
+switches that look like they should agree and do not. `MediaPolicy.Read(settings, install)`
+reads them; an explicit `media.kinds` still wins, because that is what somebody typed. This is
+the same rule that makes the on-screen keyboard follow `Language`: **where RetroBat already has
+the setting, RomMBat asks it rather than inventing a second one.**
+
 ## gamelist.xml
 
 Merge, never clobber; write atomically via temp file plus rename; include only locally

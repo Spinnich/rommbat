@@ -25,6 +25,19 @@ public enum RomMResponseStatus
     /// </remarks>
     RangeNotSatisfiable,
 
+    /// <summary>
+    /// 404. The row advertises a path the server does not serve.
+    /// </summary>
+    /// <remarks>
+    /// Kept apart from <see cref="ServerError"/> because it says something about the library
+    /// rather than about the request, the same way
+    /// <see cref="RangeNotSatisfiable"/> says something about the local file: retrying is
+    /// pointless until the row itself changes. Measured on a live library, 39 of 40 games on one
+    /// platform advertised a video that answered 404, so a client that cannot tell this apart
+    /// re-asks for every one of them on every sync.
+    /// </remarks>
+    NotFound,
+
     /// <summary>Any other status the server returned.</summary>
     ServerError,
 }

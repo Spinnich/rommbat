@@ -184,7 +184,7 @@ public sealed class MediaSync
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
-        var kinds = MediaPolicy.Read(_store.Settings);
+        var kinds = MediaPolicy.Read(_store.Settings, _install);
         var downloaded = 0;
         var present = 0;
         var adopted = 0;
@@ -231,6 +231,7 @@ public sealed class MediaSync
             // query asked for roms.
             var rom = romFiles[0];
             var folder = rom.Folder!;
+            var forgotten = new List<MediaKind>();
 
             foreach (var kind in kinds)
             {
@@ -296,6 +297,20 @@ public sealed class MediaSync
 
                 if (result.Problem is { } problem)
                 {
+                    if (result.Absent)
+                    {
+                        // The server advertises a path it does not serve. Forgetting the path
+                        // turns this from a failure that is re-attempted on every sync into the
+                        // ordinary Missing case, and a re-resolve puts it back the moment RomM
+                        // starts serving it, because a resolve rewrites this row from the
+                        // server. Measured on a live library: 39 of 40 megadrive games
+                        // advertised a video that answered 404, so this was 39 wasted requests
+                        // and 39 lines of noise on every run, for ever.
+                        forgotten.Add(kind);
+                        missing++;
+                        continue;
+                    }
+
                     failed++;
                     problems.Add($"{metadata.Name}: {problem}");
                     continue;
@@ -306,6 +321,11 @@ public sealed class MediaSync
                 bytes += result.Bytes;
                 managed += result.Bytes;
                 freeRoom = Math.Max(0, freeRoom - result.Bytes);
+            }
+
+            if (forgotten.Count > 0)
+            {
+                Forget(metadata, forgotten);
             }
         }
 
@@ -366,7 +386,7 @@ public sealed class MediaSync
         return MediaState.Adopt;
     }
 
-    private async Task<(long Bytes, string? Problem)> FetchAsync(
+    private async Task<(long Bytes, string? Problem, bool Absent)> FetchAsync(
         MediaResource resource,
         RelativePath target,
         long room,
@@ -391,29 +411,51 @@ public sealed class MediaSync
             if (!response.IsSuccess)
             {
                 SafeDelete(partial);
-                return (0, response.Message);
+
+                // 404 only. Every other refusal is about this attempt rather than about the
+                // asset existing, and forgetting a path over a transient server error would
+                // silently stop fetching artwork that is there.
+                return (0, response.Message, response.Status == RomMResponseStatus.NotFound);
             }
 
             // Renamed only once the whole body has landed, so EmulationStation never sees a
             // half-written image and caches a broken texture for it.
             File.Move(partial, absolute, overwrite: true);
-            return (response.Value!.BytesWritten, null);
+            return (response.Value!.BytesWritten, null, false);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(partial);
-            return (0, ex.Message);
+            return (0, ex.Message, false);
         }
         catch (PathTooLongException)
         {
             SafeDelete(partial);
-            return (0, "the path to it is longer than this machine allows.");
+            return (0, "the path to it is longer than this machine allows.", false);
         }
         catch (IOException ex)
         {
             SafeDelete(partial);
-            return (0, $"it could not be written: {ex.Message}");
+            return (0, $"it could not be written: {ex.Message}", false);
         }
+    }
+
+    /// <summary>
+    /// Drops paths the server advertises but does not serve.
+    /// </summary>
+    /// <remarks>
+    /// <b>Forgetting rather than remembering, so nothing new has to be stored.</b> The
+    /// alternative is a table of known-absent assets and a rule for when to expire it. A
+    /// resolve rewrites <c>metadata</c> from the server wholesale, so dropping the path here
+    /// makes "retry when RomM's row changes" fall out of the refresh that already exists.
+    /// </remarks>
+    private void Forget(GameMetadata metadata, IReadOnlyList<MediaKind> kinds)
+    {
+        var kept = metadata.MediaPaths
+            .Where(pair => !kinds.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+
+        _store.Metadata.Record(metadata with { MediaPaths = kept });
     }
 
     private void Record(int romId, MediaKind kind, RelativePath target, string folder, long bytes)

@@ -346,6 +346,107 @@ public sealed class MediaSyncTests : IDisposable
     private sealed record SyncOutcome(ContentSyncOutcome Content, MediaSyncOutcome Media, GamelistSyncOutcome Gamelists);
 
     /// <summary>A stub library of <paramref name="count"/> SNES games, each with metadata and media.</summary>
+    // ------------------------------------------------------------------ what RetroBat already says
+
+    [Fact]
+    public void RetroBats_own_scraper_toggles_decide_whether_video_and_manuals_are_fetched()
+    {
+        // Found by a hands-on pass: video was turned off in RetroBat's scraper and RomMBat kept
+        // downloading it, which is two switches that look like they should agree and do not.
+        // Same reasoning that makes the on-screen keyboard follow ES's Language setting.
+        var install = _tree.Install();
+        using var store = LocalStore.Open(install);
+
+        WriteEsSettings(install, videos: true, manuals: true);
+        Assert.Contains(MediaKind.Video, MediaPolicy.Read(store.Settings, install));
+
+        WriteEsSettings(install, videos: false, manuals: true);
+        Assert.DoesNotContain(MediaKind.Video, MediaPolicy.Read(store.Settings, install));
+
+        // The three kinds ES has no toggle for are unaffected, because inventing keys for them
+        // would be guessing at settings upstream does not have.
+        var kinds = MediaPolicy.Read(store.Settings, install);
+        Assert.Contains(MediaKind.Image, kinds);
+        Assert.Contains(MediaKind.Thumbnail, kinds);
+        Assert.Contains(MediaKind.Marquee, kinds);
+    }
+
+    [Fact]
+    public void An_explicit_RomMBat_setting_still_wins_over_RetroBats()
+    {
+        // media.kinds is what somebody typed. A preference stated here is not overridden by one
+        // stated elsewhere; ES's toggles shape the default, which is what a fresh install gets.
+        var install = _tree.Install();
+        using var store = LocalStore.Open(install);
+
+        WriteEsSettings(install, videos: false, manuals: false);
+        store.Settings.Set(MediaPolicy.SettingKey, "image,video", DateTimeOffset.UtcNow);
+
+        var kinds = MediaPolicy.Read(store.Settings, install);
+
+        Assert.Contains(MediaKind.Video, kinds);
+        Assert.DoesNotContain(MediaKind.Marquee, kinds);
+    }
+
+    [Fact]
+    public void An_install_with_no_es_settings_gets_the_plain_default()
+    {
+        // An absent key means EmulationStation's own default, which for both of these is on.
+        var install = _tree.Install();
+        using var store = LocalStore.Open(install);
+
+        Assert.False(File.Exists(install.Resolve(EsSettingsFile.Location)));
+        Assert.Equal(MediaPolicy.Default, MediaPolicy.Read(store.Settings, install));
+    }
+
+    [Fact]
+    public async Task An_advertised_path_the_server_does_not_serve_is_forgotten_rather_than_re_asked()
+    {
+        // Measured on a live library: 39 of 40 games on one platform advertised a video that
+        // answered 404, so every sync spent 39 requests and printed 39 problems, for ever.
+        // Forgetting the path turns it into the ordinary Missing case, and a resolve rewrites
+        // metadata from the server, so it comes back the moment RomM starts serving it.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+
+        // Every kind is served except the video, whose path the row still advertises.
+        stub.Media.Remove("/assets/romm/resources/roms/1/1/video/video.mp4");
+
+        var first = await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, first.Media.Failed + first.Media.Missing);
+        Assert.DoesNotContain(MediaKind.Video, store.Metadata.Find(1)!.MediaPaths.Keys);
+
+        var asked = stub.AssetRequests.Count(path => path.Contains("/video/", StringComparison.Ordinal));
+
+        var second = await new MediaSync(_tree.Install(), store, Connect(stub))
+            .ApplyAsync([1], cancellationToken: TestContext.Current.CancellationToken);
+
+        // Not asked a second time, and not reported as a failure either.
+        Assert.Equal(asked, stub.AssetRequests.Count(path => path.Contains("/video/", StringComparison.Ordinal)));
+        Assert.Equal(0, second.Failed);
+    }
+
+    /// <summary>Writes the two scraper toggles ES actually has.</summary>
+    private static void WriteEsSettings(RetroBatInstall install, bool videos, bool manuals)
+    {
+        var path = install.Resolve(EsSettingsFile.Location);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        // Wrapped in <config>, as RetroBat writes it. A flat list of elements is not the shape
+        // on disk and would be testing a file EmulationStation never produces.
+        var lines = new[]
+        {
+            """<?xml version="1.0"?>""",
+            "<config>",
+            $"""	<bool name="ScrapeVideos" value="{(videos ? "true" : "false")}" />""",
+            $"""	<bool name="ScrapeManual" value="{(manuals ? "true" : "false")}" />""",
+            "</config>",
+        };
+
+        File.WriteAllLines(path, lines);
+    }
+
     private static StubRomMServer Library(int count)
     {
         var stub = new StubRomMServer();
