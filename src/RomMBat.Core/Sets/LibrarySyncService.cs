@@ -123,6 +123,30 @@ public enum SyncState
     Rejected,
 
     /// <summary>
+    /// The disk budget stopped it. Nothing failed and nothing more will fit.
+    /// </summary>
+    /// <remarks>
+    /// <b>A fourth state rather than reusing <see cref="Incomplete"/>, and it wants
+    /// justifying because this enum grew twice in 7b-2b.</b> A blocked ROM is not a failed one:
+    /// <c>ContentSyncOutcome</c> counts it separately and nothing about it would be different
+    /// next time, so a run the cap stopped dead was returning <see cref="Done"/> and a screen
+    /// rendered that as "Everything in these sync sets is on this device" over 386 games left
+    /// out. Met on a live install.
+    /// <para>
+    /// <b>Reusing <see cref="Incomplete"/> would be a different lie.</b> That is what
+    /// <c>SyncCommand</c> turns into its <c>Offline</c> exit code, and a full disk budget is not
+    /// being offline. So this changes an agent exit code rather than borrowing a wrong one, and
+    /// costs <c>SyncCommand</c> one arm.
+    /// </para>
+    /// <para>
+    /// <b>Ranked below <see cref="Incomplete"/>.</b> A run that both failed a transfer and hit
+    /// the cap has a fault in it, and the fault is the thing worth reporting; a run that only
+    /// hit the cap has no fault at all.
+    /// </para>
+    /// </remarks>
+    Blocked,
+
+    /// <summary>
     /// The user stopped it. The tree is correct, not postponed.
     /// </summary>
     /// <remarks>
@@ -356,6 +380,14 @@ public sealed class LibrarySyncService
             if (outcome.Content.Failed > 0)
             {
                 worst = SyncState.Incomplete;
+            }
+            else if (outcome.Content.Blocked > 0 && worst == SyncState.Done)
+            {
+                // Answered here rather than left to each caller. #109's hands-on pass met a run
+                // that fetched nothing because the cap was full and reported success, and the
+                // fix at the time was in the screen, which meant every future consumer had to
+                // remember to check Blocked for itself. The sync screen already forgot once.
+                worst = SyncState.Blocked;
             }
 
             if (outcome.Rejected)

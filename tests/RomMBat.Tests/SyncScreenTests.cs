@@ -756,8 +756,13 @@ public sealed class SyncScreenTests : IDisposable
         // those numbers was right and the sentence was the exact opposite of them.
         //
         // The cause is that a blocked ROM is not a failed one, so LibrarySyncService's worst
-        // state stays Done and this screen believed it. Telling somebody their library is on the
-        // device when none of it is, is worse than any of the counts being wrong.
+        // state stayed Done and this screen believed it. Telling somebody their library is on
+        // the device when none of it is, is worse than any of the counts being wrong.
+        //
+        // #109 fixed the screen and #114 moved the answer into the service, which is where the
+        // next caller will read it: a blocked run is SyncState.Blocked, its own state rather
+        // than Incomplete, because Incomplete is what the agent turns into its Offline exit
+        // code and a full disk budget is not being offline.
         using var stub = Library(3);
         Pair();
         Seed("games", 3);
@@ -768,8 +773,8 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(sync.State.Blocked > 0, "the fixture did not reproduce a blocked run");
-        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
-        Assert.Equal("Finished with problems", sync.State.Outcome);
+        Assert.Equal(SyncStage.Blocked, sync.State.Stage);
+        Assert.Equal("Stopped by the disk budget", sync.State.Outcome);
 
         Assert.DoesNotContain("on this device", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("budget", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
@@ -779,6 +784,37 @@ public sealed class SyncScreenTests : IDisposable
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
 
         sync.Dispose();
+    }
+
+    /// <summary>
+    /// The service answers it, which is the half #114 was actually about.
+    /// </summary>
+    /// <remarks>
+    /// Asserted at the service rather than only through the screen, because the whole point of
+    /// moving it is that the next caller reads it from here. A screen-only assertion would go
+    /// on passing if somebody put the derivation back into a view model.
+    /// </remarks>
+    [Fact]
+    public async Task A_run_the_budget_blocked_is_its_own_state_at_the_service()
+    {
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "1", DateTimeOffset.UtcNow);
+
+        using var connection = Connect(stub)(new Uri("https://romm.invalid/"));
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Not Done, which was the lie, and not Incomplete, which is what SyncCommand turns into
+        // its Offline exit code: the server was reachable throughout and the disk said no.
+        Assert.Equal(Core.Sets.SyncState.Blocked, report.State);
     }
 
     [Fact]

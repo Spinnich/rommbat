@@ -88,6 +88,12 @@ internal static class SyncCommand
             {
                 SyncState.Refused => ExitCode.Refused,
                 SyncState.Incomplete => ExitCode.Offline,
+
+                // Some of the library landed and the rest is waiting on room, which is what
+                // Partial already means everywhere else in this agent. Not Offline: the server
+                // was reachable throughout and the disk is what said no.
+                SyncState.Blocked => ExitCode.Partial,
+
                 _ => ExitCode.Ok,
             };
         }

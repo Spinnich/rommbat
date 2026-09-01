@@ -25,6 +25,9 @@ public enum SyncStage
     /// <summary>Something could not be fetched. The next run tries again.</summary>
     Incomplete,
 
+    /// <summary>The disk budget is full, so some games were left out.</summary>
+    Blocked,
+
     /// <summary>A set could not be resolved, so the run did not start.</summary>
     Refused,
 
@@ -92,6 +95,7 @@ public sealed record SyncSnapshot(
         SyncStage.Done => "Finished",
         SyncStage.Stopped => "Stopped",
         SyncStage.Incomplete => "Finished with problems",
+        SyncStage.Blocked => "Stopped by the disk budget",
         _ => "Did not finish",
     };
 
@@ -645,20 +649,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
     private void Settle(SyncReport report)
     {
-        var blocked = _state.Blocked;
-
         var (stage, detail) = report.State switch
         {
-            // A blocked ROM is not a failed one, so the service reports Done for a run the
-            // budget stopped dead: a hands-on pass met 386 games left out, 334 problems, nothing
-            // downloaded, and a screen reading FINISHED over "Everything in these sync sets is
-            // on this device". That is the opposite of what happened.
-            //
-            // Corrected here rather than in the service, because SyncState.Incomplete is what
-            // the agent turns into its Offline exit code, and a full disk budget is not being
-            // offline. What the run is at the service level is left as it was.
-            Core.Sets.SyncState.Done when blocked > 0 => (
-                SyncStage.Incomplete,
+            // Answered by the service now (#114), where it used to be re-derived here from the
+            // screen's own blocked count. A blocked ROM is not a failed one, so a run the cap
+            // stopped dead came back as Done and this screen rendered it as "Everything in
+            // these sync sets is on this device" over 386 games left out. Every future consumer
+            // would have had to remember the same check, and this one had already forgotten it.
+            Core.Sets.SyncState.Blocked => (
+                SyncStage.Blocked,
                 "The disk budget is full, so some games were left out. Raise the budget or make "
                     + "room, then sync again."),
 
