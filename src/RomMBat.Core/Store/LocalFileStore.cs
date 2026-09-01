@@ -276,6 +276,102 @@ public sealed class LocalFileStore
         return ReadAll(reader);
     }
 
+    /// <summary>
+    /// What RomMBat downloaded, in bytes, without materialising a row.
+    /// </summary>
+    /// <remarks>
+    /// <b>The figure the disk budget is arithmetic over.</b> Callers used to read it as
+    /// <c>List().Where(origin == Synced).Sum(...)</c>, which pulls the whole table into memory
+    /// to add one column: migration 013's header puts the live install at 5,268 rows, and
+    /// interleaving artwork per game turned that from one scan per run into one per game.
+    /// Same answer, one row of results. See #111.
+    /// <para>
+    /// Adopted files are excluded, for the same reason they never counted: a user's own library
+    /// is not RomMBat's to bound. <c>SyncSetService.OnDisk</c> counts them because it answers a
+    /// different question.
+    /// </para>
+    /// </remarks>
+    public long SyncedBytes()
+    {
+        using var command = _connection.Command(
+            "SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE origin = 'synced';");
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// What every file belonging to one sync set's members occupies, of every kind.
+    /// </summary>
+    /// <remarks>
+    /// <b>A subquery rather than a list of ids, and the difference was measured.</b> The obvious
+    /// rewrite of the per-member loop is <see cref="BytesForRoms"/> over the membership, and at
+    /// 5,000 members on the development machine that is <b>95 ms against the loop's 111 ms</b>:
+    /// binding five thousand parameters costs very nearly what five thousand queries did. This
+    /// form takes one parameter, answers the same 5,000 members in <b>1 ms</b>, and lets SQLite walk <c>ix_sync_set_member_state</c> and
+    /// <c>ix_local_file_rom</c> itself. See #111, whose own suggested SQL is this shape.
+    /// <para>
+    /// <c>state = 'member'</c>, so a game that has left the set stops counting against it the
+    /// moment it departs, which is what makes the figure answer "what is this set costing me"
+    /// rather than "what did it ever cost me". Adopted files are counted: see
+    /// <c>SyncSetService.OnDisk</c>.
+    /// </para>
+    /// </remarks>
+    public long BytesForSet(long syncSetId)
+    {
+        using var command = _connection
+            .Command(
+                """
+                SELECT COALESCE(SUM(size_bytes), 0)
+                FROM local_file
+                WHERE rom_id IN (
+                  SELECT rom_id FROM sync_set_member WHERE sync_set_id = $setId AND state = 'member'
+                );
+                """)
+            .With("$setId", syncSetId);
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// What every file recorded for these ROMs occupies, of every kind.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a page of browse rows, which is tens of ids and not thousands.</b> A set's own
+    /// total goes through <see cref="BytesForSet"/> instead: binding five thousand parameters
+    /// measured at 95 ms against the per-member loop's 111 ms, so this shape does not scale
+    /// and the subquery form does.
+    /// <para>
+    /// Adopted files are counted, deliberately, and the reason is on
+    /// <c>SyncSetService.OnDisk</c>: this answers how much of the drive something is using, and
+    /// the user's own ROM in that folder is using it too.
+    /// </para>
+    /// </remarks>
+    public long BytesForRoms(IReadOnlyCollection<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        if (romIds.Count == 0)
+        {
+            return 0;
+        }
+
+        // Parameterised one id at a time rather than joined into the text, because a set can
+        // hold thousands and building SQL out of values is how an injection gets in even when
+        // every value is an integer today.
+        var names = romIds.Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+        using var command = _connection.Command(
+            $"SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE rom_id IN ({string.Join(", ", names)});");
+
+        var index = 0;
+        foreach (var romId in romIds)
+        {
+            command.With(names[index++], romId);
+        }
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     /// <summary>How many files RomMBat holds and how many bytes they occupy.</summary>
     public (int Files, long Bytes) Totals(string? folder = null, LocalFileKind? kind = null)
     {

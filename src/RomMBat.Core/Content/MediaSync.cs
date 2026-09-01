@@ -216,13 +216,11 @@ public sealed class MediaSync
         var budget = _store.Settings.GetInt64(SettingStore.ContentMaxBytes);
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
-        // Recomputed from local_file on every call, and List() materialises the whole table
-        // rather than one row, so interleaving turned this from one scan per run into one per
-        // game: quadratic in library size, against a table migration 013 measured at 5,268 rows
-        // on a live install. Invisible at the 76 games this was measured on. An install syncing
-        // thousands wants it summed in SQL, or hoisted into the caller and carried across games.
-        // #111.
-        var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
+        // Summed in SQL rather than by materialising the table. Interleaving artwork per game
+        // turned this from one scan per run into one per game, which is quadratic in library
+        // size against a table migration 013 measured at 5,268 rows on a live install. The
+        // figure is unchanged; only what it costs to read is. #111.
+        var managed = _store.Files.SyncedBytes();
 
         // The ROMs still to come are spoken for, against both bounds. Without this the last
         // game in a plan finds its budget already spent on the first game's artwork.
