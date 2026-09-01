@@ -218,6 +218,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly List<string> _problems = [];
     private readonly Func<IScreen>? _pair;
 
+    /// <summary>The one game, when this screen is installing rather than syncing a set.</summary>
+    private readonly SyncSetMember? _installing;
+
     /// <summary>
     /// Orders the writers of <see cref="_state"/> and of <see cref="_problems"/>.
     /// </summary>
@@ -279,6 +282,40 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         ArgumentNullException.ThrowIfNull(set);
     }
 
+    /// <summary>
+    /// Installing one game, which is what a pick from browse asks for.
+    /// </summary>
+    /// <remarks>
+    /// <b>A second construction shape rather than a mode.</b> Everything this screen draws and
+    /// every rule it follows is the same: what it is doing now, how far through, what it spent,
+    /// what went wrong, Back stops and stays, a second Back leaves. A flag would have meant
+    /// every one of those reading "unless this is an install", where the only thing that
+    /// actually differs is which Core method the run calls.
+    /// <para>
+    /// <b>No flush.</b> 7b-2b put it first in a whole-library run for eviction's benefit, and
+    /// nothing here evicts. <see cref="LibrarySyncService.InstallAsync"/> owns which passes run
+    /// and says why for each of the six it leaves out.
+    /// </para>
+    /// </remarks>
+    public SyncViewModel(
+        InstallSession session,
+        SyncSetDefinition set,
+        SyncSetMember member,
+        Func<Uri, RomMConnection>? connect = null,
+        Func<IScreen>? pair = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(member);
+
+        _session = session;
+        _sets = [set];
+        _pair = pair;
+        _installing = member;
+
+        Start(connect);
+    }
+
     public event EventHandler? Invalidated;
 
     /// <summary>
@@ -289,13 +326,22 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// and a finished run under a full bar is otherwise indistinguishable from a stuck one.
     /// See <see cref="ResolveViewModel.Title"/>, where a hands-on pass found it.
     /// </remarks>
-    public string Title => _state.Stage == SyncStage.Working
-        ? _sets.Count == 1
-            ? $"Syncing '{_sets[0].Name}'"
-            : $"Syncing {_sets.Count} sync sets"
-        : _sets.Count == 1
-            ? $"Synced '{_sets[0].Name}'"
-            : $"Synced {_sets.Count} sync sets";
+    public string Title
+    {
+        get
+        {
+            var working = _state.Stage == SyncStage.Working;
+
+            if (_installing is { } game)
+            {
+                return working ? $"Installing '{game.DisplayName}'" : $"Installed '{game.DisplayName}'";
+            }
+
+            return _sets.Count == 1
+                ? working ? $"Syncing '{_sets[0].Name}'" : $"Synced '{_sets[0].Name}'"
+                : working ? $"Syncing {_sets.Count} sync sets" : $"Synced {_sets.Count} sync sets";
+        }
+    }
 
     /// <summary>Everything the renderer draws, read once so it cannot change mid-draw.</summary>
     public SyncSnapshot State => _state;
@@ -464,15 +510,21 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     {
         try
         {
-            var report = await new LibrarySyncService(_session)
-                .RunAsync(
-                    _sets,
-                    new SyncOptions(),
-                    connection,
-                    new Immediate<SyncEvent>(Observe),
-                    token => FlushAsync(connection, token),
-                    _run.Token)
-                .ConfigureAwait(false);
+            var service = new LibrarySyncService(_session);
+
+            var report = _installing is { } game
+                ? await service
+                    .InstallAsync(_sets[0], game, connection, new Immediate<SyncEvent>(Observe), _run.Token)
+                    .ConfigureAwait(false)
+                : await service
+                    .RunAsync(
+                        _sets,
+                        new SyncOptions(),
+                        connection,
+                        new Immediate<SyncEvent>(Observe),
+                        token => FlushAsync(connection, token),
+                        _run.Token)
+                    .ConfigureAwait(false);
 
             Settle(report);
         }
@@ -661,7 +713,11 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 "The disk budget is full, so some games were left out. Raise the budget or make "
                     + "room, then sync again."),
 
-            Core.Sets.SyncState.Done => (SyncStage.Done, "Everything in these sync sets is on this device."),
+            Core.Sets.SyncState.Done => (
+                SyncStage.Done,
+                _installing is { } game
+                    ? $"'{game.DisplayName}' is on this device and EmulationStation has been told."
+                    : "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,

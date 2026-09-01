@@ -262,6 +262,60 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Equal("not here", browse.Rows[1].Value);
     }
 
+    // ------------------------------------------------------------------ install, end to end
+
+    /// <summary>
+    /// Search, one press, and it lands: the sentence this branch is built around.
+    /// </summary>
+    /// <remarks>
+    /// Driven at the view-model level with no window, against the stub, which is what #105
+    /// unblocked by threading the connection factory through the sets screens.
+    /// </remarks>
+    [Fact]
+    public async Task A_game_found_in_browse_can_be_installed_in_one_press()
+    {
+        using var stub = Library(3);
+
+        foreach (var rom in stub.Library)
+        {
+            stub.Content[rom.Id] = new byte[1_024];
+        }
+
+        Pair();
+
+        var navigator = new Navigator(new BrowseViewModel(_session, Connect(stub)));
+        var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        var detail = Assert.IsType<ListScreen>(navigator.Current);
+
+        // One press on the detail screen, and the sync opens over the set the game just joined.
+        navigator.Handle(NavAction.Start);
+
+        var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+
+        Assert.Equal(SyncStage.Done, sync.State.Stage);
+
+        // The pick is a set, and it holds exactly the game that was picked.
+        var picked = new PickedSetService(_session);
+        var set = picked.Find();
+
+        Assert.NotNull(set);
+        Assert.Equal(CatalogScopeKind.Picked, set.Scope);
+        Assert.Single(picked.Picks());
+
+        // And the file is on the device, where EmulationStation reads it.
+        var member = Assert.Single(_session.Store.SyncSets.Members(set.Id));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", member.Folder!, member.FsName)));
+
+        sync.Dispose();
+        detail.Dispose();
+        browse.Dispose();
+    }
+
     // ------------------------------------------------------------------ the rules that bite here
 
     [Fact]

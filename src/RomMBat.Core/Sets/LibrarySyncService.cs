@@ -446,6 +446,127 @@ public sealed class LibrarySyncService
     }
 
     /// <summary>
+    /// Puts one game on the device, now, rather than waiting for a whole run.
+    /// </summary>
+    /// <remarks>
+    /// <b>Four of the ten passes, and the six that are missing are missing for a reason each.</b>
+    /// Content, Media, Gamelists and Budget run; Hooks and Menu are first-run installs a whole
+    /// sync has already done; Filesystem is inspected because the plan needs it, and reported
+    /// like any other pass; Resolve does not run because there is nothing to resolve, the member
+    /// row having been written from the browse row that was in hand; Flush does not run because
+    /// 7b-2b put it first for eviction's benefit and nothing here evicts; BIOS does not run,
+    /// which is the one worth arguing with and is stated in the paragraph below.
+    /// <para>
+    /// <b>It takes a member rather than a <c>PlannedGame</c>, and that is a change from the
+    /// brief.</b> <c>PlannedGame</c> is <see cref="GameSync"/>'s grouping type, so a caller
+    /// holding one has already run <see cref="ContentPlanner"/> and <c>GameSync.Group</c>, which
+    /// is planning done in whatever is calling: on this branch that is a screen. Given the
+    /// member, Core plans, groups, and picks up the other discs of a multi-disc title the member
+    /// belongs to, which a caller building its own single-step plan would have silently dropped.
+    /// </para>
+    /// <para>
+    /// <b>BIOS is not fetched, and a game that needs it will not launch.</b> Firmware is
+    /// per folder rather than per game and a whole sync of the set fetches it, so running the
+    /// BIOS pass for one game would fetch a platform's entire firmware on a press that promised
+    /// one download. The honest position is that this puts the game on the device and a sync of
+    /// the set it joined is what makes a platform complete, and it is stated here rather than
+    /// discovered.
+    /// </para>
+    /// <para>
+    /// <b><see cref="GameSync"/> is reused untouched</b>, so the whole-or-absent invariant, its
+    /// three rollback fences and the gamelist write on <see cref="CancellationToken.None"/> all
+    /// come along rather than being written a second time.
+    /// </para>
+    /// </remarks>
+    /// <param name="set">The set the member belongs to, which decides the folder and the policy.</param>
+    /// <param name="member">The one game, as its membership row records it.</param>
+    public async Task<SyncReport> InstallAsync(
+        SyncSetDefinition set,
+        SyncSetMember member,
+        RomMConnection connection,
+        IProgress<SyncEvent> progress,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(member);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(progress);
+
+        var ran = new List<SyncPass> { SyncPass.Filesystem };
+        var limits = FilesystemLimits.Inspect(_session.Install.RootPath);
+        progress.Report(new FilesystemNoted(limits));
+
+        // The whole set's membership, then narrowed to this game's discs. A multi-disc title is
+        // several member rows and one game, and DiscSet is what binds them; planning the one row
+        // would leave half a title on disk, which is the state the invariant exists to forbid.
+        var wanted = DiscSet.Parse(member.FsName)?.BaseTitle;
+
+        var members = _session.Store.SyncSets.Members(set.Id)
+            .Where(candidate => candidate.RomId == member.RomId
+                || (wanted is not null
+                    && string.Equals(candidate.Folder, member.Folder, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(DiscSet.Parse(candidate.FsName)?.BaseTitle, wanted, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (members.Count == 0)
+        {
+            members = [member];
+        }
+
+        ran.Add(SyncPass.Content);
+        var planner = new ContentPlanner(_session.Install, _session.Store, limits);
+        var plan = planner.Plan(set, members);
+
+        progress.Report(new SetPlanned(set, plan));
+
+        var outcome = await new GameSync(_session.Install, _session.Store, connection, limits)
+            .ApplyAsync(plan, progress, cancellationToken)
+            .ConfigureAwait(false);
+
+        progress.Report(new SetSynced(set, outcome.Content));
+
+        if (outcome.Media.Downloaded > 0 || outcome.Media.Problems.Count > 0)
+        {
+            ran.Add(SyncPass.Media);
+            progress.Report(new MediaApplied(outcome.Media));
+        }
+
+        var folders = plan.Steps
+            .Where(step => step.Action != ContentAction.Blocked)
+            .Select(step => step.Member.Folder!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (folders.Count > 0)
+        {
+            ran.Add(SyncPass.Gamelists);
+
+            using var emulationStation = new EmulationStationClient();
+
+            // Not on the run's token, exactly as the whole-library run does it: a stop that
+            // skipped this would leave a finished game on disk and invisible to EmulationStation,
+            // which is worse than not having fetched it. Found by a hands-on pass in 7b-2b.
+            progress.Report(new GamelistsWritten(await new GamelistSync(_session.Install, _session.Store)
+                .ApplyAsync(folders, emulationStation, CancellationToken.None)
+                .ConfigureAwait(false)));
+        }
+
+        if (_session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes) is { } cap)
+        {
+            ran.Add(SyncPass.Budget);
+            progress.Report(new BudgetReported(planner.ManagedBytes(), cap));
+        }
+
+        var state = outcome.Rejected ? SyncState.Rejected
+            : outcome.Stopped ? SyncState.Stopped
+            : outcome.Content.Failed > 0 ? SyncState.Incomplete
+            : outcome.Content.Blocked > 0 ? SyncState.Blocked
+            : SyncState.Done;
+
+        return new SyncReport(state, ran);
+    }
+
+    /// <summary>
     /// Fetches the firmware every folder in this sync needs, before any of its ROMs.
     /// </summary>
     /// <remarks>
