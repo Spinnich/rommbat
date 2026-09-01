@@ -953,6 +953,57 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public async Task A_transaction_holds_the_gate_for_the_whole_transaction()
+    {
+        // The gate above is taken per command, and a transaction is not a command. BeginTransaction
+        // and Commit issue their own BEGIN and COMMIT through the connection directly, so a
+        // transaction that relied on the store calls inside it to gate themselves would drop the
+        // gate between every statement.
+        //
+        // That is the path the gate was added for. ContentSync.Commit writes every ROM through
+        // InTransaction, on the sync thread, while the drawing thread reads the same connection to
+        // build the screen underneath, and a read landing inside an open transaction also sees
+        // rows that have not committed.
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var token = TestContext.Current.CancellationToken;
+        var connection = store.Connection;
+        using var inside = new SemaphoreSlim(0);
+        using var release = new ManualResetEventSlim(false);
+
+        // On its own thread, for the reason the test above records: a Monitor belongs to the
+        // thread that took it.
+        var holder = Task.Factory.StartNew(
+            () => store.InTransaction(() =>
+            {
+                inside.Release();
+                release.Wait(TimeSpan.FromSeconds(10), token);
+            }),
+            token,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+        Assert.True(await inside.WaitAsync(TimeSpan.FromSeconds(10), token), "the transaction never opened");
+
+        var second = Task.Run(
+            () =>
+            {
+                using var blocked = connection.Command("SELECT 1;");
+            },
+            token);
+
+        var raced = await Task.WhenAny(second, Task.Delay(TimeSpan.FromMilliseconds(500), token));
+
+        Assert.NotSame(second, raced);
+
+        release.Set();
+
+        await holder.WaitAsync(TimeSpan.FromSeconds(10), token);
+        await second.WaitAsync(TimeSpan.FromSeconds(10), token);
+    }
+
+    [Fact]
     public void The_store_takes_concurrent_use_without_falling_over()
     {
         // A smoke test rather than the guard above: it exercises the shape the sync screen
