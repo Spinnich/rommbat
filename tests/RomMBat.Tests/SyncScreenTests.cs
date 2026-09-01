@@ -738,6 +738,13 @@ public sealed class SyncScreenTests : IDisposable
             sync.State.Problems,
             problem => problem.Contains("budget", StringComparison.OrdinalIgnoreCase));
 
+        // The count, and against the screen's own text rather than the field behind it. Blocked
+        // accumulated and forced a redraw for a whole release without ScreenView ever reading
+        // it, so a run cut short reported the reason and never the size of it.
+        Assert.NotNull(sync.State.Held);
+        Assert.Contains(sync.State.Blocked.ToString(CultureInfo.InvariantCulture), sync.State.Held);
+        Assert.Contains("budget", sync.State.Held, StringComparison.OrdinalIgnoreCase);
+
         sync.Dispose();
     }
 

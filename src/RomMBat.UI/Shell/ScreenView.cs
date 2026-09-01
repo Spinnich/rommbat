@@ -768,6 +768,18 @@ internal static class ScreenView
     }
 
     /// <summary>
+    /// The fixed width every line of the sync screen is laid out in.
+    /// </summary>
+    /// <remarks>
+    /// <b>A centred <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
+    /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
+    /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
+    /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
+    /// and centring the text inside it makes the box still and lets only the glyphs change.
+    /// </remarks>
+    private const double SyncColumn = 620;
+
+    /// <summary>
     /// A sync, which is the busiest screen here and the only one that spends the user's disk.
     /// </summary>
     /// <remarks>
@@ -781,18 +793,6 @@ internal static class ScreenView
     /// one moment beside a count from another.
     /// </para>
     /// </remarks>
-    /// <summary>
-    /// The fixed width every line of the sync screen is laid out in.
-    /// </summary>
-    /// <remarks>
-    /// <b>A centred <c>TextBlock</c> is as wide as its text, so it re-centres whenever the text
-    /// changes width.</b> This screen rebuilds up to eight times a second and almost every line
-    /// on it is a number, so each redraw nudged the whole column sideways. A hands-on pass on a
-    /// set of small ROMs called it double vision. Giving every volatile line the bar's own width
-    /// and centring the text inside it makes the box still and lets only the glyphs change.
-    /// </remarks>
-    private const double SyncColumn = 620;
-
     private static StackPanel Sync(SyncViewModel sync)
     {
         var state = sync.State;
@@ -945,6 +945,20 @@ internal static class ScreenView
             stack.Children.Add(new TextBlock
             {
                 Text = $"Disk used  {budget}",
+                Foreground = Muted,
+                FontSize = 15,
+                Width = SyncColumn,
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
+        }
+
+        // Beside the budget, because that is what took them, and with no offer to fix it.
+        if (state.Held is { } held)
+        {
+            stack.Children.Add(new TextBlock
+            {
+                Text = held,
                 Foreground = Muted,
                 FontSize = 15,
                 Width = SyncColumn,

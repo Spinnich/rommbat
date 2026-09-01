@@ -139,6 +139,24 @@ public sealed record SyncSnapshot(
         : BudgetUsed is { } taken
             ? ByteSize.Format(taken)
             : null;
+
+    /// <summary>
+    /// What the budget cost this run, or null when it cost nothing.
+    /// </summary>
+    /// <remarks>
+    /// <b>Stated, and nothing is offered.</b> 7b-2b took eviction off the interface, and one of
+    /// the two entry points it removed was the offer this screen used to make in its own footer,
+    /// at the moment the user found out the budget had cut the run short. Removing the offer must
+    /// not remove the fact: freeing space is theirs to do, by raising the budget or dropping a
+    /// set, and they cannot decide either without being told a run ended early.
+    /// <para>
+    /// The reason arrives separately as a problem line, from <c>ContentPlanner</c>, which names
+    /// the cap. This is the count, which no problem line carries.
+    /// </para>
+    /// </remarks>
+    public string? Held => Blocked > 0
+        ? $"{Blocked} {(Blocked == 1 ? "ROM was" : "ROMs were")} left out, the disk budget is full"
+        : null;
 }
 
 /// <summary>
@@ -195,6 +213,16 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly CancellationTokenSource _run = new();
     private readonly List<string> _problems = [];
     private readonly Func<IScreen>? _pair;
+
+    /// <summary>
+    /// Orders the writers of <see cref="_state"/> and of <see cref="_problems"/>.
+    /// </summary>
+    /// <remarks>
+    /// One lock for both, so there is no order to get wrong: <c>Note</c> appends to the list and
+    /// publishes it in the same breath. Held only across a record copy and a list append, never
+    /// across a redraw or any I/O.
+    /// </remarks>
+    private readonly Lock _gate = new();
 
     private volatile SyncSnapshot _state =
         new(SyncStage.Working, "Working out what this device should hold.");
@@ -401,7 +429,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _stopping = true;
-        Publish(_state with { Detail = "Stopping, and putting back the game in progress." });
+        Publish(state => state with { Detail = "Stopping, and putting back the game in progress." });
         _run.Cancel();
     }
 
@@ -411,7 +439,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
         if (attempt.Connection is null)
         {
-            Publish(new SyncSnapshot(
+            Publish(_ => new SyncSnapshot(
                 attempt.NotPaired ? SyncStage.NotPaired : SyncStage.Refused,
                 attempt.Problem ?? "This install is not paired with a RomM server."));
             return;
@@ -448,7 +476,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         {
             // The service returns a stop rather than throwing one, so reaching here means the
             // token fired somewhere that does not, which is still a stop from here.
-            Publish(_state with
+            Publish(state => state with
             {
                 Stage = SyncStage.Stopped,
                 Detail = "Stopped. Everything that finished is on this device.",
@@ -461,7 +489,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         catch (RomMUnreachableException ex)
         {
             // Offline is a working state, so this is a sentence rather than an error screen.
-            Publish(_state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
+            Publish(state => state with { Stage = SyncStage.Incomplete, Detail = ex.Message, Game = null });
         }
         finally
         {
@@ -524,15 +552,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         switch (reported)
         {
             case FlushStarting:
-                Publish(_state with { Pass = "Sending saves and play time", Game = null });
+                Publish(state => state with { Pass = "Sending saves and play time", Game = null });
                 break;
 
             case SetResolved(var resolve):
-                Publish(_state with { Pass = $"Asking RomM what '{resolve.SetName}' contains", Game = null });
+                Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains", Game = null });
                 break;
 
             case BiosPlanned or BiosApplied:
-                Publish(_state with { Pass = "Firmware", Game = null });
+                Publish(state => state with { Pass = "Firmware", Game = null });
                 break;
 
             case BiosProblem(var message):
@@ -543,7 +571,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 _planned = plan.BytesToTransfer;
                 _sentBefore = _sent;
 
-                Publish(_state with
+                Publish(state => state with
                 {
                     Pass = _sets.Count == 1 ? "Downloading" : $"Downloading '{set.Name}'",
                     Total = plan.Steps.Count,
@@ -576,18 +604,18 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 // Counted from the outcome, never from the total. A stopped run reports this
                 // too, and setting it to the total told a person who had stopped after one game
                 // that all forty-one had finished.
-                Publish(_state with
+                Publish(state => state with
                 {
                     Done = outcome.Downloaded + outcome.Resumed + outcome.Adopted + outcome.AlreadyPresent,
                     Game = null,
                     GameTotal = 0,
                     GameTransferred = 0,
-                    Blocked = _state.Blocked + outcome.Blocked,
+                    Blocked = state.Blocked + outcome.Blocked,
                 });
                 break;
 
             case MediaProgressed(var what):
-                Publish(_state with { Pass = "Artwork", Game = what, GameTotal = 0, GameTransferred = 0 });
+                Publish(state => state with { Pass = "Artwork", Game = what, GameTotal = 0, GameTransferred = 0 });
                 break;
 
             case MediaApplied(var outcome):
@@ -603,11 +631,11 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 // issued while RomMBat is in front of EmulationStation is deferred rather than
                 // discarded, and that ES does not rescan on resume by itself, so the games
                 // appear the moment the user leaves. Nothing here tells them to restart it.
-                Publish(_state with { Pass = "Telling EmulationStation", Game = null });
+                Publish(state => state with { Pass = "Telling EmulationStation", Game = null });
                 break;
 
             case BudgetReported(var used, var cap):
-                Publish(_state with { BudgetUsed = used, BudgetCap = cap });
+                Publish(state => state with { BudgetUsed = used, BudgetCap = cap });
                 break;
 
             default:
@@ -640,7 +668,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         // Pass and the game go with the run. Leaving them set told a person the sync was still
         // "Telling EmulationStation" after it had finished, which reads as a screen that has
         // not noticed it is done.
-        Publish(_state with
+        Publish(state => state with
         {
             Stage = stage,
             Detail = detail,
@@ -699,7 +727,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             _rateBytes = moved;
         }
 
-        Publish(_state with
+        Publish(state => state with
         {
             Game = step.Step.Member.DisplayName,
 
@@ -711,7 +739,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             GameTransferred = _inFlight,
             GameTotal = total,
             TransferredBytes = moved,
-            TotalBytes = Math.Max(_state.TotalBytes, moved),
+            TotalBytes = Math.Max(state.TotalBytes, moved),
             BytesPerSecond = rate,
         });
     }
@@ -719,7 +747,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// <summary>Adds a problem, in arrival order, and never the same one twice in a row.</summary>
     private void Note(string problem)
     {
-        lock (_problems)
+        lock (_gate)
         {
             if (_problems.Count > 0 && string.Equals(_problems[^1], problem, StringComparison.Ordinal))
             {
@@ -727,23 +755,41 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             }
 
             _problems.Add(problem);
-            Publish(_state with { Problems = [.. _problems] });
+            Publish(state => state with { Problems = [.. _problems] });
         }
     }
 
     /// <summary>
-    /// Publishes the next value, and redraws unless the only change was more bytes.
+    /// Applies a change to the published value, and redraws unless the only change was more bytes.
     /// </summary>
     /// <remarks>
     /// One reference assignment, then a redraw the shell marshals off whatever thread the
     /// transfer is on. The value is always published; what is rate-limited is telling anybody
     /// about it, because the renderer rebuilds the whole panel and doing that on every buffer
     /// read left no time for the pad to be polled.
+    /// <para>
+    /// <b>A change rather than a finished value, because two threads write this field.</b>
+    /// <c>volatile</c> makes the publish atomic, which is what <see cref="SyncSnapshot"/>'s
+    /// remarks argue for and is what stops a torn read; it does nothing for the read-modify-write
+    /// a <c>with</c> expression performs at the call site. <see cref="Stop"/> runs on the drawing
+    /// thread and <c>Advance</c> on the transfer thread fires once per buffer read, so the window
+    /// between one of them reading the field and assigning to it is hit often: the press would
+    /// appear to do nothing until the stage changed, which is the exact symptom
+    /// <see cref="Stop"/>'s immediate publish exists to prevent. The change is applied under the
+    /// lock, so the last writer builds on the first one's value rather than on a stale copy.
+    /// </para>
     /// </remarks>
-    private void Publish(SyncSnapshot next)
+    private void Publish(Func<SyncSnapshot, SyncSnapshot> change)
     {
-        var previous = _state;
-        _state = next;
+        SyncSnapshot previous;
+        SyncSnapshot next;
+
+        lock (_gate)
+        {
+            previous = _state;
+            next = change(previous);
+            _state = next;
+        }
 
         if (Interesting(previous, next))
         {
