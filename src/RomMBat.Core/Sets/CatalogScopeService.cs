@@ -175,12 +175,29 @@ public sealed class CatalogScopeService
     public static bool CanList(CatalogScopeKind kind) =>
         kind is CatalogScopeKind.Collection or CatalogScopeKind.SmartCollection;
 
-    /// <summary>Why a kind cannot be listed, or null when it can.</summary>
+    /// <summary>
+    /// Why a kind cannot be listed, or null when it can.
+    /// </summary>
+    /// <remarks>
+    /// <b>The existing home for that sentence, and the reason the picked scope needs no second
+    /// one.</b> A scope with a reason here is offered by <c>SyncSetService.Scopes</c> and shown
+    /// disabled with the reason on the row, so the test that every pickable scope is
+    /// completable covers the new kind for free.
+    /// </remarks>
     public static string? WhyNotListable(CatalogScopeKind kind) => kind switch
     {
         CatalogScopeKind.VirtualCollection =>
             "RomM does not publish which kinds of virtual collection exist, so RomMBat cannot "
                 + "offer them without guessing.",
+
+        // Not a limitation of the server, unlike the one above: a picked set is made by picking
+        // games rather than by choosing a value, so there is nothing here for a value picker to
+        // list. It is offered and disabled rather than hidden, because a user who has one wants
+        // to know what kind of thing it is.
+        CatalogScopeKind.Picked =>
+            "A picked set is made by finding games and choosing them one at a time, so there is "
+                + "nothing to pick from here.",
+
         _ => null,
     };
 

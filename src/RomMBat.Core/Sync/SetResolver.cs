@@ -240,28 +240,18 @@ public sealed class SetResolver
         ArgumentNullException.ThrowIfNull(pager);
 
         var selector = new BoundedSelection(set);
-        var excluded = new List<SyncSetMember>();
-        var extensionCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        var unmappedCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var tally = new Tally();
+        var excluded = tally.Excluded;
+        var extensionCounts = tally.ExcludedExtensions;
+        var unmappedCounts = tally.UnmappedPlatforms;
         var scanned = 0;
         var multiFile = 0;
         var tooLarge = 0;
         RomMResponse<RomPage>? failure = null;
 
-        foreach (var row in carried ?? [])
-        {
-            switch (Carry(row, selector, excluded, extensionCounts, unmappedCounts))
-            {
-                case MemberState.ExcludedMultiFile:
-                    multiFile++;
-                    break;
-                case MemberState.ExcludedFilesystemLimit:
-                    tooLarge++;
-                    break;
-                default:
-                    break;
-            }
-        }
+        CarryAll(carried, selector, tally);
+        multiFile = tally.MultiFile;
+        tooLarge = tally.TooLarge;
 
         while (!pager.IsComplete)
         {
@@ -321,48 +311,14 @@ public sealed class SetResolver
             {
                 scanned++;
 
-                var resolution = ResolveFolder(set, row);
-
-                if (resolution.NeedsChoice)
+                if (Consider(set, row, resolvedAt, selector, tally) is { } stop)
                 {
-                    return NeedsChoice(set, row, resolution.Candidates);
+                    return stop;
                 }
-
-                if (resolution.Folder is null)
-                {
-                    Count(unmappedCounts, row.PlatformSlug);
-                    excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
-                    continue;
-                }
-
-                // Checked before the extension, because a multi-file ROM has no extension to
-                // judge and reporting it as an unsupported format would send someone to fix
-                // the wrong thing.
-                if (row.HasMultipleFiles)
-                {
-                    multiFile++;
-                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedMultiFile, resolvedAt));
-                    continue;
-                }
-
-                if (!Accepts(resolution.Folder, row.FsExtension))
-                {
-                    Count(extensionCounts, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
-                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, resolvedAt));
-                    continue;
-                }
-
-                if (!_limits.CanHold(row.SizeBytes))
-                {
-                    tooLarge++;
-                    excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFilesystemLimit, resolvedAt));
-                    continue;
-                }
-
-                selector.Offer(
-                    Member(row, resolution.Folder, MemberState.Member, resolvedAt),
-                    GameMetadata.From(row, resolution.Folder, resolvedAt));
             }
+
+            multiFile = tally.MultiFile;
+            tooLarge = tally.TooLarge;
 
             // Per page rather than per row. A row is a few microseconds and a page is seconds,
             // so this is the granularity a person can actually see change.
@@ -527,6 +483,242 @@ public sealed class SetResolver
         }
 
         return row.State;
+    }
+
+    /// <summary>
+    /// Resolves a picked set by fetching each of its ids, because it cannot be paged.
+    /// </summary>
+    /// <remarks>
+    /// <b>The only scope that resolves this way, and only on a device it roamed to.</b>
+    /// <c>GET /api/roms</c> takes no id-list parameter, so there is no query that selects
+    /// exactly these games. On the device that did the picking there is nothing to resolve at
+    /// all: the browse row carried every field the membership wants and
+    /// <c>PickedSetService</c> wrote it at the moment of the pick. This path exists for the
+    /// second device, where the ids arrive through <c>Device.sync_config</c> with no rows
+    /// behind them.
+    /// <para>
+    /// <b>About 0.15 s per ROM, measured in M4</b>, which is seconds at the tens of games this
+    /// scope is for and minutes at a thousand. That cost is the reason the picked scope is not
+    /// offered as a way to build a large set, and it is why the caps are still applied: an id
+    /// list that grew past them is still bounded by them.
+    /// </para>
+    /// <para>
+    /// <b>A ROM the server no longer has is dropped rather than failing the resolve.</b> An id
+    /// picked on another device and since deleted in RomM is exactly the drift a re-resolve
+    /// exists to notice, and one missing game must not cost the other forty. A 401 is different
+    /// and does stop it: every remaining fetch would send the same refused token.
+    /// </para>
+    /// </remarks>
+    public async Task<SetResolution> HydrateAsync(
+        SyncSetDefinition set,
+        RomMConnection connection,
+        IReadOnlyList<int> romIds,
+        DateTimeOffset resolvedAt,
+        IProgress<SetResolveProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var selector = new BoundedSelection(set);
+        var tally = new Tally();
+        var scanned = 0;
+        var missing = 0;
+        RomMResponse<RomRow>? failure = null;
+
+        foreach (var romId in romIds)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+
+            RomMResponse<RomRow> response;
+
+            try
+            {
+                response = await connection.GetRomAsync(romId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (RomMUnreachableException unreachable)
+            {
+                // Stopped rather than thrown, the same rule the page walk follows: everything
+                // already hydrated is real and is recorded.
+                failure = RomMResponse.Failure<RomRow>(RomMResponseStatus.ServerError, unreachable.Message);
+                break;
+            }
+
+            if (response.Status == RomMResponseStatus.Unauthorized)
+            {
+                failure = response;
+                break;
+            }
+
+            if (!response.IsSuccess || response.Value is null)
+            {
+                // Gone from the library, which is drift rather than failure.
+                missing++;
+                continue;
+            }
+
+            scanned++;
+
+            if (Consider(set, response.Value, resolvedAt, selector, tally) is { } stop)
+            {
+                return stop;
+            }
+
+            // Per ROM here rather than per page, because a fetch is the unit and there are no
+            // pages. At 0.15 s each this is a line that visibly moves.
+            progress?.Report(new SetResolveProgress(set.Name, scanned, romIds.Count, scanned));
+        }
+
+        var selected = selector.Drain();
+        var members = new List<SyncSetMember>(selected.Count);
+
+        for (var index = 0; index < selected.Count; index++)
+        {
+            members.Add(selected[index] with { Position = index + 1, ResolvedAt = resolvedAt });
+        }
+
+        var complete = failure is null && !cancellationToken.IsCancellationRequested;
+
+        return new SetResolution
+        {
+            Set = set,
+            Outcome = complete ? ResolutionOutcome.Resolved : ResolutionOutcome.Interrupted,
+            Rejected = failure?.Status == RomMResponseStatus.Unauthorized,
+            Members = members,
+            Excluded = tally.Excluded,
+            ScopeTotal = romIds.Count,
+            Scanned = scanned,
+            Bytes = members.Sum(member => member.SizeBytes),
+            OverCount = selector.OverCount,
+            OverBytes = selector.OverBytes,
+            ExcludedExtensions = tally.ExcludedExtensions,
+            UnmappedPlatforms = tally.UnmappedPlatforms,
+            MultiFile = tally.MultiFile,
+            TooLargeForFilesystem = tally.TooLarge,
+            Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
+            Metadata = selector.MetadataFor(members),
+            Problem = failure?.Message,
+            Summary = Describe(set, members.Count, missing),
+        };
+    }
+
+    /// <summary>The one line a hydrated picked set reports.</summary>
+    private static string Describe(SyncSetDefinition set, int members, int missing)
+    {
+        var text = $"{members} picked {(members == 1 ? "game" : "games")}";
+
+        return missing == 0
+            ? text
+            : $"{text}; {missing} no longer in RomM";
+    }
+
+    /// <summary>
+    /// What a walk has accumulated besides the members it selected.
+    /// </summary>
+    /// <remarks>
+    /// One value rather than five parameters, because two paths now fold rows in: the page walk
+    /// and the hydrate below it. Passed separately they were already five arguments threaded
+    /// through <see cref="Carry"/>, and a second caller would have made two places to keep in
+    /// step.
+    /// </remarks>
+    private sealed class Tally
+    {
+        public List<SyncSetMember> Excluded { get; } = [];
+
+        public Dictionary<string, int> ExcludedExtensions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, int> UnmappedPlatforms { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public int MultiFile { get; set; }
+
+        public int TooLarge { get; set; }
+    }
+
+    /// <summary>Folds what an earlier segment of this same walk already selected back in.</summary>
+    private static void CarryAll(IReadOnlyList<SyncSetMember>? carried, BoundedSelection selector, Tally tally)
+    {
+        foreach (var row in carried ?? [])
+        {
+            switch (Carry(row, selector, tally.Excluded, tally.ExcludedExtensions, tally.UnmappedPlatforms))
+            {
+                case MemberState.ExcludedMultiFile:
+                    tally.MultiFile++;
+                    break;
+                case MemberState.ExcludedFilesystemLimit:
+                    tally.TooLarge++;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Folds one server row into the walk, or returns the resolution that ends it.
+    /// </summary>
+    /// <remarks>
+    /// Extracted so the hydrate path applies exactly these rules rather than a second copy of
+    /// them. Two of the outcomes end the whole resolve rather than excluding one game: a
+    /// platform that cannot pick its own folder, and, for the page walk, a scope too large to
+    /// resolve uncapped.
+    /// </remarks>
+    private SetResolution? Consider(
+        SyncSetDefinition set,
+        RomRow row,
+        DateTimeOffset resolvedAt,
+        BoundedSelection selector,
+        Tally tally)
+    {
+        var resolution = ResolveFolder(set, row);
+
+        if (resolution.NeedsChoice)
+        {
+            return NeedsChoice(set, row, resolution.Candidates);
+        }
+
+        if (resolution.Folder is null)
+        {
+            Count(tally.UnmappedPlatforms, row.PlatformSlug);
+            tally.Excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
+            return null;
+        }
+
+        // Checked before the extension, because a multi-file ROM has no extension to judge and
+        // reporting it as an unsupported format would send someone to fix the wrong thing.
+        if (row.HasMultipleFiles)
+        {
+            tally.MultiFile++;
+            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedMultiFile, resolvedAt));
+            return null;
+        }
+
+        if (!Accepts(resolution.Folder, row.FsExtension))
+        {
+            Count(tally.ExcludedExtensions, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
+            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, resolvedAt));
+            return null;
+        }
+
+        if (!_limits.CanHold(row.SizeBytes))
+        {
+            tally.TooLarge++;
+            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFilesystemLimit, resolvedAt));
+            return null;
+        }
+
+        selector.Offer(
+            Member(row, resolution.Folder, MemberState.Member, resolvedAt),
+            GameMetadata.From(row, resolution.Folder, resolvedAt));
+
+        return null;
     }
 
     private static SyncSetMember Member(RomRow row, string? folder, MemberState state, DateTimeOffset resolvedAt) =>

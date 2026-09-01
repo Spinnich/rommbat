@@ -65,7 +65,10 @@ public sealed record SyncSetDefinition
 
     public required CatalogScopeKind Scope { get; init; }
 
-    /// <summary>A collection, smart-collection or platform id, a virtual collection's string id, or filter JSON.</summary>
+    /// <summary>
+    /// A collection, smart-collection or platform id, a virtual collection's string id, filter
+    /// JSON, or a JSON array of rom ids for a picked set.
+    /// </summary>
     public required string ScopeValue { get; init; }
 
     public int? MaxGames { get; init; }
@@ -345,6 +348,74 @@ public sealed class SyncSetStore
         command.ExecuteNonQuery();
     }
 
+    /// <summary>
+    /// Changes a picked set's id list.
+    /// </summary>
+    /// <remarks>
+    /// <b>A second narrowing of "scope is not updatable", and a smaller one than
+    /// <see cref="UpdateFilter"/>.</b> That rule's reason is that a changed scope makes the
+    /// recorded membership an answer to a different question. For a picked set the scope
+    /// <i>is</i> the membership, so the two never disagree and there is no re-resolve to owe:
+    /// the caller writes the member row in the same breath, from the browse row it has in hand.
+    /// <para>
+    /// <b>The resolution stamp is deliberately not cleared</b>, where <see cref="UpdateFilter"/>
+    /// clears it. Clearing it there makes the set read as needing a resolve, which is the
+    /// remedy; here a resolve on this device would fetch nothing this call did not already
+    /// write, so it would be a stamp asking for work that has no effect.
+    /// </para>
+    /// </remarks>
+    public void UpdatePicks(long id, string scopeValue, DateTimeOffset now)
+    {
+        using var command = _connection.Command(
+            """
+            UPDATE sync_set
+               SET scope_value = $scopeValue,
+                   updated_at = $now
+             WHERE id = $id AND scope_kind = 'picked';
+            """)
+            .With("$scopeValue", scopeValue)
+            .With("$now", SqliteValues.ToText(now))
+            .With("$id", id);
+
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Writes one member row, leaving every other row of the set alone.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a set whose membership arrives one game at a time.</b>
+    /// <see cref="ReplaceMembers"/> is a statement about what a whole walk found, and its sweep
+    /// would depart every game already picked, which is the opposite of adding one.
+    /// </remarks>
+    public void UpsertMember(long syncSetId, SyncSetMember member, DateTimeOffset resolvedAt)
+    {
+        ArgumentNullException.ThrowIfNull(member);
+
+        ReplaceMembers(syncSetId, [member], SummaryOf(syncSetId, member), resolvedAt, complete: false);
+    }
+
+    /// <summary>Removes one member row. Returns false when the set did not hold it.</summary>
+    public bool RemoveMember(long syncSetId, int romId)
+    {
+        using var command = _connection
+            .Command("DELETE FROM sync_set_member WHERE sync_set_id = $id AND rom_id = $romId;")
+            .With("$id", syncSetId)
+            .With("$romId", romId);
+
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    /// <summary>The one-line summary a picked set carries, counted after this row lands.</summary>
+    private string SummaryOf(long syncSetId, SyncSetMember member)
+    {
+        var (games, bytes) = MemberTotals(syncSetId);
+        var after = Members(syncSetId).Any(existing => existing.RomId == member.RomId) ? games : games + 1;
+
+        return $"{after} picked {(after == 1 ? "game" : "games")}, "
+            + $"{ByteSize.Format(bytes + (after == games ? 0 : member.SizeBytes))}";
+    }
+
     /// <summary>Sets the folder this set writes to, which is how an arcade set is answered.</summary>
     public void SetFolderOverride(long id, string? folder, DateTimeOffset now)
     {
@@ -576,6 +647,7 @@ public sealed class SyncSetStore
         CatalogScopeKind.VirtualCollection => "virtual_collection",
         CatalogScopeKind.Platform => "platform",
         CatalogScopeKind.Filter => "filter",
+        CatalogScopeKind.Picked => "picked",
         _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Unknown scope kind."),
     };
 
@@ -586,6 +658,7 @@ public sealed class SyncSetStore
         "virtual_collection" => CatalogScopeKind.VirtualCollection,
         "platform" => CatalogScopeKind.Platform,
         "filter" => CatalogScopeKind.Filter,
+        "picked" => CatalogScopeKind.Picked,
         _ => throw new ArgumentOutOfRangeException(nameof(text), text, "Unknown scope kind in the database."),
     };
 

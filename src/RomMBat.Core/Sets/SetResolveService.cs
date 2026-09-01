@@ -132,6 +132,30 @@ public sealed class SetResolveService
             var endpoint = EndpointFor(set);
             var cursor = _session.Store.Cursors.BeginWalk(endpoint, DateTimeOffset.UtcNow);
             var startOffset = cursor.ResumeOffset ?? 0;
+
+            // A picked set never reaches the pager. GET /api/roms takes no id-list parameter,
+            // so there is no query that selects exactly these games, and CatalogQuery refuses
+            // to build one rather than silently walking the library. The ids are fetched one at
+            // a time instead, which is only ever needed on a device the set roamed to: the
+            // device that did the picking wrote the membership at the moment of the pick.
+            if (set.Scope == CatalogScopeKind.Picked)
+            {
+                reports.Add(await HydrateAsync(resolver, set, endpoint, relay, cancellationToken)
+                    .ConfigureAwait(false));
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    throw new SetResolveCancelledException(reports);
+                }
+
+                if (reports[^1] is { State: ResolveState.Interrupted, Problem: not null })
+                {
+                    return reports;
+                }
+
+                continue;
+            }
+
             var pager = new RomPager(_connection, SetResolver.QueryFor(set), startOffset: startOffset);
 
             // Every row this walk writes is stamped with the walk's start, so a segment can
@@ -176,6 +200,57 @@ public sealed class SetResolveService
         }
 
         return reports;
+    }
+
+    /// <summary>
+    /// Resolves a picked set by fetching its ids, and records it exactly as a walk is recorded.
+    /// </summary>
+    /// <remarks>
+    /// The cursor is abandoned rather than advanced: an offset into a page walk means nothing
+    /// for a scope with no pages, and leaving a stale one would make the next resolve of the
+    /// same set look like a resumption of a walk that never happened.
+    /// </remarks>
+    private async Task<ResolveReport> HydrateAsync(
+        SetResolver resolver,
+        SyncSetDefinition set,
+        string endpoint,
+        IProgress<SetResolveProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+        var romIds = PickedScopeJson.Parse(set.ScopeValue);
+        var resolvedAt = DateTimeOffset.UtcNow;
+
+        var resolution = await resolver
+            .HydrateAsync(set, _connection, romIds, resolvedAt, progress, cancellationToken)
+            .ConfigureAwait(false);
+
+        var complete = resolution.Outcome == ResolutionOutcome.Resolved;
+
+        _session.Store.SyncSets.ReplaceMembers(
+            set.Id,
+            [.. resolution.Members, .. resolution.Excluded],
+            resolution.Summary,
+            resolvedAt,
+            complete);
+
+        foreach (var metadata in resolution.Metadata)
+        {
+            _session.Store.Metadata.Record(metadata);
+        }
+
+        _session.Store.Cursors.AbandonWalk(endpoint, DateTimeOffset.UtcNow);
+
+        return new ResolveReport(
+            set.Name,
+            complete ? ResolveState.Resolved : ResolveState.Interrupted,
+            resolution.Summary,
+            resolution.Problem,
+            resolution.Scanned,
+            romIds.Count,
+            _session.Store.SyncSets.Exclusions(set.Id))
+        {
+            Rejected = resolution.Rejected,
+        };
     }
 
     /// <summary>Writes one resolution down and says what it was.</summary>

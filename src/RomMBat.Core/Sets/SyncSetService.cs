@@ -230,6 +230,9 @@ public sealed class SyncSetService
     {
         ArgumentNullException.ThrowIfNull(set);
 
+        // Verified rather than assumed for the picked kind: its scope_value is an id array,
+        // which would parse as an empty filter anyway, but "an empty filter" and "this scope
+        // has no filter" have to be the same answer on purpose rather than by luck.
         return set.Scope == CatalogScopeKind.Filter
             ? CatalogFilterJson.Parse(set.ScopeValue)
             : new CatalogFilter();

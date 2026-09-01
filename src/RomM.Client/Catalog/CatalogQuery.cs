@@ -5,10 +5,18 @@ namespace RomM.Client.Catalog;
 
 /// <summary>What a sync set is scoped to.</summary>
 /// <remarks>
-/// All five resolve the same way, by paging <c>GET /api/roms</c> with the scope as a query
-/// parameter. None of them reads membership off a collection payload: <c>rom_ids</c> is a
-/// full set on every collection response, and M0 probe 5 measured one collection at 715 KB
+/// <b>Five of the six resolve the same way</b>, by paging <c>GET /api/roms</c> with the scope
+/// as a query parameter. None of them reads membership off a collection payload: <c>rom_ids</c>
+/// is a full set on every collection response, and M0 probe 5 measured one collection at 715 KB
 /// with no pagination available.
+/// <para>
+/// <b><see cref="Picked"/> is the exception and cannot be paged at all.</b> The endpoint has no
+/// id-list parameter: its scoping parameters are <c>platform_ids</c>, <c>collection_id</c>,
+/// <c>virtual_collection_id</c> and <c>smart_collection_id</c>, verified against the pinned
+/// 5.2.0 schema. That is a property of the scope rather than something to work around, so
+/// <see cref="CatalogQuery.ToQueryString"/> refuses it rather than quietly walking the whole
+/// library, which is what an unscoped query would do.
+/// </para>
 /// </remarks>
 public enum CatalogScopeKind
 {
@@ -26,6 +34,23 @@ public enum CatalogScopeKind
 
     /// <summary>A filter this client saved. Needs no collection scope.</summary>
     Filter,
+
+    /// <summary>
+    /// Games a person picked one at a time. The id list is the definition.
+    /// </summary>
+    /// <remarks>
+    /// <b>A set rather than a list of loose downloads</b>, so it lists, syncs, roams, evicts and
+    /// deletes like any other and <c>EvictionPlanner</c> never calls its games orphaned.
+    /// <para>
+    /// <b>It cannot be resolved by a page walk</b>, for the reason on this enum. On the device
+    /// that did the picking there is nothing to resolve: the browse page already carries every
+    /// field the membership row wants, so a pick writes its row from the row in hand. On a
+    /// device it roams to, the ids are hydrated one at a time through
+    /// <c>GET /api/roms/{id}</c>, measured at about 0.15 s each, which is seconds at the tens
+    /// of games this scope is for and is why it is not offered for anything larger.
+    /// </para>
+    /// </remarks>
+    Picked,
 }
 
 /// <summary>How a resolved set is ordered before the caps are applied.</summary>
@@ -304,7 +329,8 @@ public sealed record CatalogQuery
 
     /// <summary>
     /// The scope's identifier: a collection, smart-collection or platform id, or a virtual
-    /// collection's string id. Ignored for <see cref="CatalogScopeKind.Filter"/>.
+    /// collection's string id. Ignored for <see cref="CatalogScopeKind.Filter"/>, and never
+    /// reached for <see cref="CatalogScopeKind.Picked"/>, which cannot be paged.
     /// </summary>
     public string? ScopeId { get; init; }
 
@@ -342,8 +368,22 @@ public sealed record CatalogQuery
     /// never while paging: M0 probe 5 measured the sidecars at a flat 841 KB resent on every
     /// request, 65% of the body at the default page size.
     /// </param>
+    /// <exception cref="InvalidOperationException">
+    /// The scope is <see cref="CatalogScopeKind.Picked"/>, which the endpoint cannot express.
+    /// <b>Refused rather than paged.</b> Every scoping parameter this method can send is
+    /// omitted for an unknown scope, so falling through would build a query that walks the
+    /// entire library and reads as a picked set resolving to everything. A picked scope
+    /// reaching the pager is a bug rather than a filter, and it fails where it happened.
+    /// </exception>
     public string ToQueryString(int limit, int offset, bool withFilterValues = false)
     {
+        if (Scope == CatalogScopeKind.Picked)
+        {
+            throw new InvalidOperationException(
+                "A picked scope has no query: GET /api/roms takes no id-list parameter, so its "
+                    + "games are fetched one at a time instead of paged.");
+        }
+
         var parameters = new List<KeyValuePair<string, string>>
         {
             // Off on every page. Whole-library index and filter metadata, not per-page data,
