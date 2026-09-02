@@ -259,9 +259,21 @@ public sealed class PickedSetService
 
                 // Appended rather than ranked. A picked set has no ordering to apply, because
                 // the user's own order is the order they picked in, and a position that
-                // reshuffled on every pick would move what eviction takes first.
-                Position = _session.Store.SyncSets.Members(set.Id).Count + 1,
+                // reshuffled on every pick would move what eviction takes first. A game already
+                // in the set keeps the position it has: recounting gave it the count plus one
+                // without growing the count, so the next new pick collided with it and two
+                // members shared the number eviction ranks on.
+                Position = PositionFor(set, row.Id),
                 ResolvedAt = now,
             });
+    }
+
+    /// <summary>Where this game sits in the pick order: its own, or the end of the list.</summary>
+    private int PositionFor(SyncSetDefinition set, int romId)
+    {
+        var members = _session.Store.SyncSets.Members(set.Id);
+
+        return members.FirstOrDefault(member => member.RomId == romId)?.Position
+            ?? members.Count + 1;
     }
 }
