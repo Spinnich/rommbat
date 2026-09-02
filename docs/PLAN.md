@@ -2962,8 +2962,8 @@ sync ends with a correct tree rather than with work postponed.
 **Eviction is deliberately not on the interface, and that is a reversal.** The stage was briefed
 to give `EvictionService` a face, the screens were built, and they were cut after a hands-on
 round. Ruled by Spinnich: RomMBat guessing which games matter least is a bad policy even when a
-person starts it, and freeing space belongs to the user, by dropping a sync set or (once 7b-2c
-lands) a single game. `EvictionService` stays in Core and `rommbat-agent evict` stays, previewing
+person starts it, and freeing space belongs to the user, by dropping a sync set or a single
+game, both of which 7b-2c built. `EvictionService` stays in Core and `rommbat-agent evict` stays, previewing
 by default and writing on `--apply`. **A sync the budget cut short still says so** and simply
 offers nothing: the count and the reason come from `MediaSync` and `ContentSync`, and removing
 the offer must not remove the fact. Two tests hold that line, one per entry point the screens
@@ -3104,17 +3104,115 @@ workaround is owed, nothing tells the user to restart the front end, and the cal
 skipped on the theory that ES will notice by itself. Built that way: the sync screen runs the
 same `GamelistSync` pass the agent does, through `LibrarySyncService`, including after a stop.
 
-###### 7b-2c: browse
+###### 7b-2c: browse, per-game install and removal (done)
 
-Online paged browse with search, offline browse of the local subset, per-game install and
-evict.
+Online paged browse with search, offline browse of the local subset, per-game install, and
+removal per game and per set.
 
-**Per-game install needs a schema decision, taken in 7b-2a and not built there.** A hand-picked
-set is a set: it has caps, an ordering and it evicts like any other, so the shape to leave room
-for is a sixth `CatalogScopeKind` with its own migration, not an id list smuggled inside a
-`Filter` scope and not an unmanaged download that `EvictionPlanner` has to be taught to ignore.
-The second overloads one column with two meanings; the third means storing "this orphan is
-deliberate", which is a set by another name.
+**The sixth `CatalogScopeKind` was built, as 7b-2a ruled and deliberately deferred.** A
+hand-picked set is a set: it lists, syncs, roams, evicts and deletes like the other five, so it
+is a scope kind with **migration 014** rather than an id list smuggled inside a `Filter` scope,
+which overloads one column with two meanings, or an unmanaged download `EvictionPlanner` has to
+be taught to ignore, which means storing "this orphan is deliberate" and is a set by another
+name with none of a set's machinery.
+
+**`GET /api/roms` has no id-list parameter**, verified against the pinned `romm-5.2.0.json`:
+its scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
+`smart_collection_id`. That is a property of the scope rather than a defect, so
+`CatalogQuery.ToQueryString` **refuses** a picked scope instead of falling through to a query
+that walks the whole library. On the device that did the picking there is nothing to resolve:
+the browse page already carries every field `sync_set_member` wants, so a pick writes its member
+row from the `RomRow` in hand. On a device it roams to, the ids hydrate one at a time through
+`GET /api/roms/{id}`, measured at ~0.15 s each in M4, which is why the scope is meant for tens of
+games. It roams with no change to `RoamingSyncConfig`, which carries `scope_value` verbatim.
+
+**The picked set's name is fixed and per device**, `Picked on <device>`. Fixed keeps the
+commonest path to one press; per device is what stops two devices picking into one RomM account
+from colliding on `sync_set.name`, which is UNIQUE.
+
+**Browse starts on the platform list**, not on the library. A live instance holds 96,060 games,
+so opening on all of them is 1,922 pages and a person after a Mega Drive title is shown Windows
+games first. Every platform is still one press away. Found on the second hands-on pass.
+
+**It asks for name order.** `CatalogQuery` defaults to ascending id, which is right for a resolve
+and wrong for a person scrolling: a library imported in name order carries ids in roughly that
+order, so the list reads as sorted until it is not. Measured on the live instance, an id-ordered
+snes page put "3 Ninjas Kick Back" before "3-jigen Kakutou Ballz" and then dropped the latter out
+of sequence. `order_by` is named explicitly rather than left empty, which the schema documents as
+ordering by search relevance on MySQL and by name elsewhere.
+
+**Every row carries the title and the whole file name**, because neither alone is enough and both
+halves were measured at 750 rows a platform: every arcade file name is a romset code carrying no
+tags at all and 87.3% differ from the display name, so the title has to be the label; and 69
+megadrive and 67 psx titles are shared by two or more rows, so the file name has to be under it.
+
+**Browse holds one page and moves by page**, at **50 rows** rather than `RomPager`'s 250.
+Measured on the live 96,060-rom instance: 50 rows in 280 ms warm, 250 in 611 ms. 250 is cheaper
+per row and more than twice the wait for the page a person is looking at, and at
+`ListWindow.Capacity`'s eight rows it is 31 screens of scrolling per fetch against six. Marking
+a page costs about 5 ms on top.
+
+**It degrades rather than refusing and says which of the two it is showing.** With a server it
+pages `GET /api/roms`; without one it lists what this device holds, out of `local_file` joined
+to `sync_set_member`, which is what EmulationStation shows anyway and is M2's own rule about the
+offline browsable set.
+
+**The cursor stops at the end of the last page, with a row saying so.** Every other list here
+wraps; a paged one that wrapped to page one would silently undo nine thousand rows of paging and
+look exactly like the stall a failed fetch produces. A library that fits one page still wraps.
+
+**Per-game install is one press.** `LibrarySyncService.InstallAsync` takes the set and the
+member and runs six of the ten passes: Filesystem, BIOS, Content, Media, Gamelists and
+Budget, the last two when the plan touched a folder and when a cap is set. Hooks and
+Menu are first-run installs; Resolve does not run because there is nothing to resolve; Flush
+does not, because 7b-2b put it first for eviction's benefit and nothing here evicts. Measured
+live before BIOS was added: a 2.6 GB title in 25.8 s.
+
+**BIOS was left out first and that was wrong**, on the reasoning that firmware is per folder so
+one game would drag in a platform's whole firmware. That is what it fetches and it is not a
+cost: it is the firmware for the one system that game runs on, which is what makes the game
+launch. A press promising to put a game on the device and producing one that dies on start has
+not kept the promise, and the person pressing it has no way to know which of their games needed
+something extra. Raised by Spinnich on the first hands-on pass and reversed.
+
+**Removal is the first thing RomMBat does that takes away content a user asked for.** One Core
+entry point, `EvictionService.PreviewRemoval`, with two callers: browse's per-game removal and
+#110's set delete. The order is flush, then plan against the given ids, then refuse per game on
+`SaveGuard`, then hold back a game another enabled set still claims, then name what cannot be
+vouched for. **`local_file` has no save kind**, so anything that removes content cannot reach a
+save; that is schema-level rather than careful coding and it is in the confirmation's words.
+Deleting a set and keeping its games stays possible, as a choice on the confirmation.
+
+**A screen of facts is a pane, not a menu.** Every row on a reading list is a fact rather than a
+choice, so the list has no cursor at all, scrolls by an offset, and draws its rows as plain lines
+rather than as filled panels. Reported twice on the same pass, once as a highlight walking rows
+that do nothing and once, with the highlight gone, as the rows still being drawn as buttons.
+Confirm screens answer Accept rather than Start, which is the first half of the button-model
+change; the rest, where every verb becomes a selectable row, is 7b-3's.
+
+**One ROM in two folders is legitimate and used to crash the planner.** `folder_override` is the
+only way an arcade set resolves, so a `mame`-overridden platform set and an `fbneo`-overridden
+collection set drawn from the same platform put every shared game in both, and both sets are
+correct in EmulationStation. Each copy is now its own eviction candidate with its own folder's
+artwork. **Refusing the second copy is the wrong fix**: the second set's gamelist would name a
+file outside its own folder.
+
+**Four hands-on rounds, and every one found something.** Round one: a held d-pad rubberbanding
+across a page boundary (thirteen fetches where one was wanted), two dumps of a game
+indistinguishable, the BIOS reversal above, and three screens that each got one footer rule wrong
+a different way. Round two: the file name shown on only one platform, a doubled loading message,
+no progress on the repair, a delete that stranded you three screens deep, browse opening on the
+whole library, and the missing ellipses. Round three: an empty set that could not be deleted, id
+ordering that only looked alphabetical, a platform picker that was a second Back button, a
+redundant platform column, and facts drawn as buttons. Round four: the same facts-as-buttons
+finding again, because the first fix had been too narrow. **The rate did not fall off**, which is
+the same pattern 7b-1, 7b-2a and 7b-2b all recorded.
+
+Rode along: **#110** (set delete removes games), **#111** (two per-game store reads),
+**#113** (`local_file` rows whose files are gone, measured at 5,512 of 5,932 and 18.22 GiB on
+the live install), **#114** (a budget-blocked sync is now `SyncState.Blocked`, which **changes
+an agent exit code** to `Partial`). #105, #106 and #107 were already fixed in 7b-2b and are
+closed here.
 
 ##### 7b-3: conflicts and settings
 
@@ -3125,6 +3223,18 @@ whatever the two stages before it turn up.
 carries every open conflict as rows, so displaying them needs no new Core surface and only the
 screen and the choice remain. And a refused token now ends a run as `SyncState.Rejected` with
 pairing offered on the spot, so re-pairing is not a thing 7b-3 has to invent a route to.
+
+**Re-checked again after 7b-2c, which paid a third and made the mapping screen more urgent
+rather than less.** Paid: a screen that runs slow work and reports it is now three files with
+one shape, since browse's preview and apply screens are `ListScreen`s with loaders and no
+renderer arm of their own, so a conflict screen needs no fourth kind. More urgent: browse's
+platform filter reads `platform_map` through `SyncSetService.PlatformsKnownHere`, so an unmapped
+platform is now visible in a second place, on a row that says the games cannot be installed, and
+the only repair is still a per-set folder override. That is the wrong shape and the mapping is
+install-wide, which is the argument below.
+
+Also inherited: `LibrarySyncService.InstallAsync` is what a per-game verb calls, and 7b-3 owns
+whatever else wants one.
 
 **The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
 for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
@@ -3173,10 +3283,14 @@ command until 7b-2b. The earliest the gate can open is when 7b-2b lands.
 **With 7b-2b landed the gate is open for the first two of the three, and not yet the third.** A
 person can now say what to sync and sync it from the couch, both measured against a live
 instance. Launching a game has never needed RomMBat and does not now, so what 7c actually waits
-on from here is nothing in this stage: 7b-2c adds browse and per-game install, which a
-certification pass does not require. The honest statement is that the gate opens when a hands-on
-pass has driven the sync screen with a controller, which is the one thing this branch could not
-do for itself.
+on is not a feature: it is a hands-on pass driving the interface with a controller.
+
+**Re-checked after 7b-2c, and the gate is unchanged by it.** That stage adds browse, per-game
+install and removal, none of which a certification pass requires: it needs a person to say what
+to sync, sync it, and launch a game, and all three were reachable at 7b-2b. What 7b-2c changes
+is how pleasant the first of those is, since a certifier can now install one game rather than a
+whole platform, which is the shape a `(system, emulator, core)` pass actually wants. The gate
+opens on a hands-on pass, and 7b-2c's own is the one still owed.
 
 ### M8: packaging, docs, release
 

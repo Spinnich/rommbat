@@ -81,6 +81,29 @@ public sealed partial class RomMConnection
     }
 
     /// <summary>
+    /// Fetches one ROM by id.
+    /// </summary>
+    /// <remarks>
+    /// <b>The one read that exists because a scope cannot be paged.</b>
+    /// <c>GET /api/roms</c> takes no id-list parameter, so a picked set arriving on a second
+    /// device has ids and no rows behind them, and this is the only way to turn one into the
+    /// other. M4 measured it at about 0.15 s per ROM, which is why <c>RomRow</c>'s own remarks
+    /// rule it out for metadata on a resolved set and why the picked scope is meant for tens of
+    /// games rather than thousands.
+    /// <para>
+    /// Read as a <see cref="RomRow"/> rather than through the generated detail schema, for the
+    /// reason that type exists: the pinned schema declares <c>fs_size_bytes</c> a bare
+    /// <c>integer</c>, so a generated DTO fails outright on any ROM at or above 2 GiB, which is
+    /// most disc images. The extra fields the detail route carries are user arrays this client
+    /// never reads.
+    /// </para>
+    /// </remarks>
+    public Task<RomMResponse<RomRow>> GetRomAsync(int romId, CancellationToken cancellationToken = default) =>
+        GetAuthenticatedAsync<RomRow>(
+            "api/roms/" + romId.ToString(CultureInfo.InvariantCulture),
+            cancellationToken);
+
+    /// <summary>
     /// Fetches the filter-value sidecar once, for a filter picker.
     /// </summary>
     /// <remarks>

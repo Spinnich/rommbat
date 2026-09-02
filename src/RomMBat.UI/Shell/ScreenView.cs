@@ -41,6 +41,17 @@ internal static class ScreenView
         BudgetViewModel budget => Editor(budget.Rows, budget.Cursor, budget.Window, null),
         ResolveViewModel resolve => Resolve(resolve),
         SyncViewModel sync => Sync(sync),
+
+        // The same body a ListScreen draws, given the same things. Browse is a list with a pager
+        // behind it rather than a different picture, and a second copy of this would be the file
+        // 7b-1 already named as the one most likely to grow worst.
+        BrowseViewModel browse => List(
+            browse,
+            note: browse.Note,
+            isLoading: browse.IsLoading,
+            loadingMessage: browse.LoadingMessage,
+            empty: "Nothing matched. Search for something else, or widen the platform."),
+
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },
     };
 
@@ -368,8 +379,34 @@ internal static class ScreenView
     /// granted, which is fixable by pairing again, and a row that is simply absent says none
     /// of that.
     /// </remarks>
-    private static StackPanel List(ListScreen list)
+    private static StackPanel List(ListScreen list) => List(
+        list,
+        list.Note?.Invoke(),
+        list.IsLoading,
+        list.LoadingMessage,
+        list.LoadProblem ?? list.EmptyMessage,
+        list.Progress);
+
+    /// <summary>
+    /// The list body, given only what it draws.
+    /// </summary>
+    /// <remarks>
+    /// Split out when browse arrived, because browse is a list with a pager behind it rather
+    /// than a different picture, and it is not a <see cref="ListScreen"/>: it holds one page and
+    /// moves by fetching, where a <c>ListScreen</c> has all its rows the moment it opens. Both
+    /// arms draw through here, so the windowing, the two edge markers and the fixed width cannot
+    /// be got right in one and wrong in the other, which is the failure shape this file has
+    /// produced three times.
+    /// </remarks>
+    private static StackPanel List(
+        IWindowedScreen screen,
+        string? note,
+        bool isLoading,
+        string? loadingMessage,
+        string? empty,
+        LoadProgress? progress = null)
     {
+        var rows = screen.Rows;
         var stack = new StackPanel
         {
             Spacing = ListWindow.RowSpacing,
@@ -382,7 +419,7 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        if (list.Note?.Invoke() is { } note)
+        if (!string.IsNullOrEmpty(note))
         {
             stack.Children.Add(new TextBlock
             {
@@ -395,11 +432,11 @@ internal static class ScreenView
             });
         }
 
-        if (list.IsLoading)
+        if (isLoading)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = list.LoadingMessage,
+                Text = loadingMessage ?? "Working...",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -408,14 +445,47 @@ internal static class ScreenView
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
 
+            // Only when the work can count itself. A bar over a single request would be a
+            // fiction; a bar over five thousand filesystem checks is the difference between a
+            // screen that is working and one that has hung, which is what a hands-on pass said
+            // of this one.
+            if (progress is { } far)
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = Panel,
+                    CornerRadius = new CornerRadius(6),
+                    Height = 18,
+                    Width = SyncColumn,
+                    Margin = new Thickness(0, 14, 0, 6),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Child = new Border
+                    {
+                        Background = Accent,
+                        CornerRadius = new CornerRadius(6),
+                        Width = Math.Max(6, SyncColumn * far.Fraction),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                    },
+                });
+
+                stack.Children.Add(new TextBlock
+                {
+                    Text = far.Counted,
+                    Foreground = Muted,
+                    FontSize = 17,
+                    TextAlignment = TextAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                });
+            }
+
             return stack;
         }
 
-        if (list.Rows.Count == 0)
+        if (rows.Count == 0)
         {
             stack.Children.Add(new TextBlock
             {
-                Text = list.LoadProblem ?? list.EmptyMessage ?? "Nothing here.",
+                Text = empty ?? "Nothing here.",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -430,8 +500,8 @@ internal static class ScreenView
         // Windowed, because drawing every row does not scroll: the folder picker is about a
         // hundred systems on a real install and everything past the height of the display was
         // being drawn off it, with the cursor moving somewhere invisible. The screen decides
-        // the window; this only draws it.
-        var window = list.Window;
+        // the window and the row height together; this only draws what it is told.
+        var window = screen.Window;
 
         // Both markers always, empty when there is nothing to say. Adding and removing them as
         // the cursor reaches an end changed the height of the whole block, and the block is
@@ -440,7 +510,7 @@ internal static class ScreenView
 
         for (var index = window.Start; index < window.Start + window.Count; index++)
         {
-            stack.Children.Add(ListItem(list.Rows[index], index == list.Cursor, list.Reading));
+            stack.Children.Add(ListItem(rows[index], index == screen.Cursor, screen.Reading));
         }
 
         stack.Children.Add(More(window.Below, "below"));
@@ -492,7 +562,7 @@ internal static class ScreenView
         var label = new TextBlock
         {
             Text = row.Label,
-            Foreground = selected ? Brushes.Black : ink,
+            Foreground = !reading && selected ? Brushes.Black : reading ? Ink : ink,
             FontSize = 21,
 
             // A name longer than the row is trimmed rather than allowed to widen it. The live
@@ -510,7 +580,7 @@ internal static class ScreenView
             var right = new TextBlock
             {
                 Text = value,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = !reading && selected ? Brushes.Black : Muted,
                 FontSize = 19,
                 Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -527,30 +597,43 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = !reading && selected ? Brushes.Black : Muted,
                 FontSize = 16,
                 MaxWidth = 860,
-                TextWrapping = TextWrapping.Wrap,
 
                 // On a reading list the detail is the row, and it is a whole sentence rather
-                // than a label, so it is given room for three wrapped lines and clipped past
-                // them. Left to wrap freely it decides the row's height, and rows of differing
-                // height inside a fixed window make the block grow and shrink while it is
-                // being scrolled, which is the thing the fixed row height exists to stop.
+                // than a label, so it wraps into room for three lines and is clipped past them.
+                // On an ordinary list it is a subtitle under a choice and stays on one line,
+                // trimmed: left to wrap it decides the row's height, and rows of differing
+                // height inside a fixed window make the block grow and shrink while it is being
+                // scrolled, which is the thing the fixed row height exists to stop and which
+                // hands-on rounds 3 and 13 of stage 7b-2a both found.
+                //
+                // Latent until browse put a release line here. A psx file name runs past a
+                // hundred characters, so the first list with a long subtitle would have brought
+                // that defect back on every row that had one.
+                TextWrapping = reading ? TextWrapping.Wrap : TextWrapping.NoWrap,
                 Height = reading ? ReadingDetailHeight : double.NaN,
-                TextTrimming = reading ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             });
         }
 
         return new Border
         {
-            // Fill and ring only. A row is the same size selected or not, so a held d-pad never
-            // makes the list shift under the cursor.
-            Background = selected ? Accent : Panel,
-            BorderBrush = selected ? Ink : Panel,
+            // A reading row is text, not a button, and it is drawn as text. Every row on such a
+            // list is a fact rather than a choice, so a filled panel with a ring round it says
+            // "press me" about something that cannot be pressed. A hands-on pass called it out
+            // twice: first as a highlight walking rows that do nothing, and then, with the
+            // highlight gone, as the rows still being drawn as buttons. Both were the same
+            // mistake, which is dressing a pane of text as a menu.
+            //
+            // Fill and ring only on a list of choices. A row is the same size selected or not,
+            // so a held d-pad never makes the list shift under the cursor.
+            Background = reading ? Brushes.Transparent : selected ? Accent : Panel,
+            BorderBrush = reading ? Brushes.Transparent : selected ? Ink : Panel,
             BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(18, 12, 18, 12),
+            CornerRadius = new CornerRadius(reading ? 0 : 8),
+            Padding = new Thickness(reading ? 0 : 18, 12, reading ? 0 : 18, 12),
 
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the

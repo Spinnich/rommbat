@@ -349,17 +349,49 @@ etrobat-test
 The game that was in progress should be wholly gone, ROM and rows together, and every game that
 finished before it should still be there with its artwork and a gamelist entry.
 
-#### Freeing space is not on the interface, and that is deliberate
+#### Freeing space is the user naming what goes, never RomMBat choosing
 
-There is no eviction screen. `EvictionService` is in Core and `rommbat-agent evict` still
-previews by default and writes on `--apply`, but nothing in the gamepad UI offers to choose
-games to delete. Ruled with Spinnich: RomMBat guessing which games matter least is a bad policy
-even when a person starts it, and freeing space belongs to the user, by dropping a sync set or
-(once 7b-2c lands) a single game.
+There is no eviction screen and there is not going to be one. `EvictionService` is in Core and
+`rommbat-agent evict` still previews by default and writes on `--apply`, but nothing in the
+gamepad UI offers to pick games to delete for you. Ruled with Spinnich: RomMBat guessing which
+games matter least is a bad policy even when a person starts it.
+
+What 7b-2c added is the other half, which is the user saying which games they no longer want.
+Deleting a sync set offers to take its games; a game's detail screen in browse offers to take
+that one. Both go through `EvictionService.PreviewRemoval` behind a preview that says what goes
+and what is kept before the press, and neither can reach a save: `local_file`'s seven kinds are
+`rom`, `image`, `thumbnail`, `marquee`, `video`, `manual` and `firmware`, enforced by a `CHECK`,
+so anything that removes content walks a table that holds no saves.
 
 A sync the budget cut short still **says so**, in the words `MediaSync` and `ContentSync`
-already use. What it no longer does is offer to fix it. Two tests hold that line, one on each
-entry point the screen used to have.
+already use, and reports `SyncState.Blocked`, which `rommbat-agent sync` exits as `Partial`.
+What it does not do is offer to fix it. Two tests hold that line.
+
+#### Driving browse, install and removal with no RetroBat in front of you
+
+Every screen is walked with the gamepad map alone and no window, which is what
+`BrowseScreenTests` does end to end against `StubRomMServer`:
+
+```csharp
+// BrowseViewModel.Start(session) opens the platform list; this is the list itself.
+using var browse = new BrowseViewModel(session, connect);   // connect stands a stub in
+await Settled(browse);                                      // poll IsLoading
+
+var navigator = new Navigator(browse);
+navigator.Handle(NavAction.Accept);                         // open the game
+navigator.Handle(NavAction.Start);                          // install it
+```
+
+A confirm screen answers **Accept**, not Start: the removal previews and the file check all take
+the confirm button. A screen of facts has no cursor at all and scrolls by an offset, so assert on
+`Window.Start` rather than on `Cursor`, which is always `-1` there.
+
+With no `connect` factory and no pairing, browse lists what the tree holds rather than
+refusing, so the offline half needs no server at all: seed `local_file` rows, open the screen,
+and read `BrowseViewModel.Note` for which of the two it is showing.
+
+For the inventory check behind the disk screen, `rommbat-agent status --check-files` prints the
+same count, and `--repair-files` applies it.
 
 **A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
 identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.

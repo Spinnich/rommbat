@@ -169,6 +169,8 @@ internal static class Program
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
         Console.Error.WriteLine("  --no-reload       gamelist: write the files without telling EmulationStation");
         Console.Error.WriteLine("  --no-scan         saves: report what is recorded without rescanning the tree");
+        Console.Error.WriteLine("  --check-files     status: report recorded files whose copy is gone from the tree");
+        Console.Error.WriteLine("  --repair-files    status: drop those rows, so the budget stops counting them");
         Console.Error.WriteLine("  --keep-local      saves resolve: send this device's copy over the server's");
         Console.Error.WriteLine("  --keep-server     saves resolve: take the server's copy over this device's");
     }

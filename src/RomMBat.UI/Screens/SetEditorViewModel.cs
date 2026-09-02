@@ -614,7 +614,7 @@ public sealed class SetEditorViewModel : IScreen
             // works the values out across every game in the library, and this is measured in
             // minutes on an 88,000-rom instance rather than seconds.
             LoadingMessage = "Asking RomM what this library can be filtered by. On a large "
-                + "library this takes a while: the values are worked out across every game.",
+                + "library this takes a while: the values are worked out across every game...",
             EmptyMessage = $"This library reports no {facet.ToLowerInvariant()} to filter by.",
 
             // Fetched once for the whole editor. Opening a second facet is instant.
@@ -724,7 +724,7 @@ public sealed class SetEditorViewModel : IScreen
             },
             acceptLabel: "Use this")
         {
-            LoadingMessage = "Asking RomM which collections it has.",
+            LoadingMessage = "Asking RomM which collections it has...",
             EmptyMessage = $"This RomM has no {SyncSetStore.ScopeText(scope)} to choose from.",
             Load = async token =>
             {

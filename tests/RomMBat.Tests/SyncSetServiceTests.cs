@@ -245,11 +245,15 @@ public sealed class SyncSetServiceTests : IDisposable
     {
         PairWith([.. RomMScopes.Requested]);
 
-        // Every scope except the one RomMBat cannot list the values of. A grant is not the only
-        // reason a scope may be unpickable, and conflating the two would make a permanent gap
-        // look like something re-pairing would fix.
+        // Every scope RomMBat can list the values of. A grant is not the only reason a scope may
+        // be unpickable, and conflating the two would make a permanent gap look like something
+        // re-pairing would fix.
+        //
+        // Derived from WhyNotListable rather than excluding a kind by name, which is what makes
+        // this cover a scope kind added later: naming the exception here would have left the
+        // sixth kind asserting the opposite of what it means.
         Assert.All(
-            Service.Scopes().Where(option => option.Kind != CatalogScopeKind.VirtualCollection),
+            Service.Scopes().Where(option => CatalogScopeService.WhyNotListable(option.Kind) is null),
             option => Assert.True(option.Available, $"{option.Kind} should be pickable"));
     }
 
@@ -293,13 +297,24 @@ public sealed class SyncSetServiceTests : IDisposable
 
         // The one that matters. A picker deciding availability for itself would be a second
         // copy of the rule inside Add, and the two would drift the first time either moved.
+        //
+        // Two reasons a scope is unavailable, and they are not interchangeable: the pairing's
+        // grant, which Add enforces and which re-pairing fixes, and RomMBat being unable to
+        // list what the scope could point at, which Add has no opinion about because it is not
+        // a fact about the request. Written as one equality it read as though Add answered
+        // both, and the sixth scope kind is the first that is unavailable for only the second
+        // reason.
         foreach (var option in Service.Scopes())
         {
             var refusal = Service
                 .Add(new SetDraft { Name = $"s-{option.Kind}", Scope = option.Kind, ScopeValue = "3" }, Now)
                 .Refusal;
 
-            Assert.Equal(option.Available, refusal != SetRefusal.MissingScope);
+            var grantMissing = refusal == SetRefusal.MissingScope;
+            var cannotList = CatalogScopeService.WhyNotListable(option.Kind) is not null;
+
+            Assert.Equal(option.Available, !grantMissing && !cannotList);
+            Assert.Equal(grantMissing, SyncSetService.RequiresCollections(option.Kind));
         }
     }
 

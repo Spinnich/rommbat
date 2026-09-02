@@ -15,6 +15,17 @@ namespace RomMBat.UI.Screens;
 /// </param>
 public sealed record ListRow(string Label, string? Value = null, string? Detail = null, bool Available = true);
 
+/// <summary>How far a screen's loader has got.</summary>
+public sealed record LoadProgress(int Done, int Total)
+{
+    public double Fraction => Total > 0 ? Math.Clamp((double)Done / Total, 0, 1) : 0;
+
+    /// <summary>The count as a person reads it.</summary>
+    public string Counted => string.Create(
+        System.Globalization.CultureInfo.CurrentCulture,
+        $"{Done:N0} of {Total:N0}");
+}
+
 /// <summary>
 /// A list of rows with a cursor and one action per row.
 /// </summary>
@@ -33,7 +44,7 @@ public sealed record ListRow(string Label, string? Value = null, string? Detail 
 /// broken, and the alternative is a user paging back up through forty systems.
 /// </para>
 /// </remarks>
-public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
+public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveScreen, IDisposable
 {
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
@@ -104,8 +115,21 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
     public string BackLabel { get; }
 
-    /// <summary>Which row is selected. Always in range; -1 only when the list is empty.</summary>
-    public int Cursor => _state.Cursor;
+    /// <summary>
+    /// Which row is selected, and <b>never any of them on a reading list</b>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Every row on a reading list is a fact rather than a choice, so nothing on it is
+    /// selected.</b> A hands-on pass read a game's detail screen as its information shown as
+    /// navigable buttons, twice: first because a highlight walked rows that cannot be picked,
+    /// and then because the rows are drawn as filled panels whether or not one is highlighted.
+    /// Both halves were the same mistake, which is treating a pane of text as a menu.
+    /// <para>
+    /// So a reading list scrolls by an offset instead. <see cref="ListWindow.Scrolled"/> is the
+    /// arithmetic and the renderer draws its rows as plain lines.
+    /// </para>
+    /// </remarks>
+    public int Cursor => Reading ? -1 : _state.Cursor;
 
     /// <summary>
     /// Which slice of the rows is on screen.
@@ -126,10 +150,13 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
             // Fewer rows when each one is taller, or the block runs off the bottom of the
             // window and Avalonia draws a scroll bar no gamepad can reach.
-            return ListWindow.Compute(
-                state.Cursor,
-                state.Rows.Count,
-                Reading ? ListWindow.ReadingCapacity : ListWindow.Capacity);
+            //
+            // A reading list scrolls by an offset, which is what the stored cursor holds there:
+            // every press moves the view, where a cursor kept off the edge would leave it still
+            // for the first few and read as a screen ignoring the pad.
+            return Reading
+                ? ListWindow.Scrolled(state.Cursor, state.Rows.Count, ListWindow.ReadingCapacity)
+                : ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.Capacity);
         }
     }
 
@@ -146,6 +173,27 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
     /// <summary>What is shown instead of rows when there are none.</summary>
     public string? EmptyMessage { get; init; }
+
+    /// <summary>
+    /// The footer's extra hints, when which of them apply depends on what the screen loaded.
+    /// </summary>
+    /// <remarks>
+    /// <b>A function rather than the fixed array, for the reason <see cref="Note"/> became
+    /// one</b>: it states a fact the rows can change. A screen whose verb only works once a
+    /// preview has come back cannot say so with a hint chosen at construction, and three screens
+    /// got the same rule wrong three different ways because of it. The repair screen and the
+    /// set-removal screen answered <see cref="NavAction.Start"/> and never offered it, so from
+    /// the couch the only thing the footer named was Back; the per-game removal screen offered
+    /// it always, including when the preview had just said nothing would go, so the press walked
+    /// through two screens and removed nothing.
+    /// <para>
+    /// Both halves are one rule: <b>offer it exactly when it works</b>. A footer promising an
+    /// action that does nothing and a footer silent about one that does are the same defect
+    /// pointed two ways, and round 8 of stage 7b-1 found the first while
+    /// <see cref="AlwaysOfferAccept"/> exists for the second.
+    /// </para>
+    /// </remarks>
+    public Func<IReadOnlyList<FooterHint>>? ExtraHints { get; init; }
 
     /// <summary>
     /// The screen's own verbs, for the actions a list does not define.
@@ -168,6 +216,31 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     /// failure as promising an action that does not exist, pointed the other way.
     /// </remarks>
     public bool AlwaysOfferAccept { get; init; }
+
+    /// <summary>
+    /// Offers the accept hint only while this says so, on a screen of facts.
+    /// </summary>
+    /// <remarks>
+    /// <b>The conditional form of <see cref="AlwaysOfferAccept"/>, for a confirm screen whose
+    /// answer is not known until its preview lands.</b> A removal preview has no choosable row,
+    /// so the cursor cannot decide the hint, and the verb only becomes real once the plan says
+    /// something can go. Offering it before that is a press that walks through a second screen
+    /// and does nothing, which is what a hands-on pass met; never offering it is a screen whose
+    /// only named answer is the one that changes nothing, which is what the same pass met twice
+    /// more.
+    /// </remarks>
+    public Func<bool>? OfferAcceptWhen { get; init; }
+
+    /// <summary>
+    /// What Back does, when leaving means closing more than this screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a screen that invalidated the ones under it.</b> Deleting a set leaves its
+    /// confirmation, its preview and its own detail screen all describing something that does
+    /// not exist, so backing out of the last of them has to close all four rather than walk a
+    /// person through three stale screens to reach the list.
+    /// </remarks>
+    public Func<ScreenCommand>? OnBack { get; init; }
 
     /// <summary>
     /// Every row is text to read rather than a choice, so the cursor walks all of them.
@@ -224,7 +297,30 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
     public Func<CancellationToken, Task<string?>>? Load { get; init; }
 
     /// <summary>What to say while <see cref="Load"/> runs.</summary>
-    public string LoadingMessage { get; init; } = "Asking RomM.";
+    public string LoadingMessage { get; init; } = "Asking RomM...";
+
+    /// <summary>
+    /// How far through the load is, when it can say, as a fraction and a count.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because a sentence that does not change is a hung screen.</b> The file check and its
+    /// repair are one filesystem check per row and a live install measured 5,932 of them off a
+    /// USB stick, so both sat on a fixed line for seconds with nothing to say they were still
+    /// going. Found on a hands-on pass, and it is the same finding stage 7b-2b recorded about a
+    /// resolve that showed no movement.
+    /// <para>
+    /// Null while a load has nothing countable to report, which is most of them: a request to a
+    /// server has one step and a bar over it would be a fiction.
+    /// </para>
+    /// </remarks>
+    public LoadProgress? Progress { get; private set; }
+
+    /// <summary>Records how far a load has got, and asks for a redraw.</summary>
+    /// <remarks>
+    /// Handed to <see cref="Load"/> as an <see cref="IProgress{T}"/> so the work reports rather
+    /// than the screen polling, which is the shape every other progress on this surface uses.
+    /// </remarks>
+    public IProgress<(int Done, int Total)> Reporter => new Immediate(this);
 
     /// <summary>True until the loader has finished, or immediately when there is none.</summary>
     public bool IsLoading { get; private set; }
@@ -321,12 +417,16 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
 
             var state = _state;
 
-            if (AlwaysOfferAccept || (state.Cursor >= 0 && state.Rows[state.Cursor].Available))
+            var offerAccept = OfferAcceptWhen is { } when
+                ? when()
+                : AlwaysOfferAccept || (state.Cursor >= 0 && state.Rows[state.Cursor].Available);
+
+            if (offerAccept)
             {
                 hints.Add(new FooterHint(NavAction.Accept, _acceptLabel));
             }
 
-            hints.AddRange(_extra);
+            hints.AddRange(ExtraHints is { } dynamic ? dynamic() : _extra);
             hints.Add(new FooterHint(NavAction.Back, BackLabel));
 
             return hints;
@@ -392,17 +492,24 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
             }
 
             case NavAction.Back:
-                return ScreenCommand.Pop;
+                return OnBack is { } leave ? leave() : ScreenCommand.Pop;
 
             default:
                 return ScreenCommand.Stay;
         }
     }
 
-    /// <summary>Where the cursor lands next, which on a reading list is simply the next row.</summary>
+    /// <summary>
+    /// Where the cursor lands next, which on a reading list is where the view scrolls to.
+    /// </summary>
+    /// <remarks>
+    /// Clamped rather than wrapped there. A pane of text that jumps back to the top when you
+    /// press past the bottom has lost your place, and the edge markers already say there is
+    /// nothing further.
+    /// </remarks>
     private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
         Reading
-            ? rows.Count == 0 ? -1 : ((from % rows.Count) + rows.Count) % rows.Count
+            ? Math.Clamp(from, 0, Math.Max(0, rows.Count - ListWindow.ReadingCapacity))
             : FirstAvailable(rows, from, step);
 
     /// <summary>
@@ -433,6 +540,23 @@ public sealed class ListScreen : IScreen, IReturnAware, ILiveScreen, IDisposable
         }
 
         return -1;
+    }
+
+    /// <summary>Reports a load's progress on whatever thread the work is on.</summary>
+    private sealed class Immediate : IProgress<(int Done, int Total)>
+    {
+        private readonly ListScreen _screen;
+
+        public Immediate(ListScreen screen) => _screen = screen;
+
+        public void Report((int Done, int Total) value)
+        {
+            _screen.Progress = value.Total > 0
+                ? new LoadProgress(value.Done, value.Total)
+                : null;
+
+            _screen.Invalidated?.Invoke(_screen, EventArgs.Empty);
+        }
     }
 
     /// <summary>

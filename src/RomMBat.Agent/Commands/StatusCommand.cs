@@ -1,4 +1,6 @@
 using RomM.Client;
+using RomMBat.Core;
+using RomMBat.Core.Content;
 using RomMBat.Core.Server;
 using RomMBat.Core.Store;
 
@@ -40,6 +42,42 @@ internal static class StatusCommand
         Console.WriteLine($"  journal mode:    {store.JournalMode}");
         Console.WriteLine($"  local sequence:  {store.CurrentSequence()}");
         Console.WriteLine($"  outbox pending:  {store.Outbox.PendingCount()}");
+
+        // Off unless asked for, because it is one File.Exists per row where every other line
+        // here is answered from the database alone. Worth having at all because the budget is
+        // arithmetic over this table: a row whose file is gone inflates it forever, and nothing
+        // else in RomMBat can see the state. Measured on a live install at 5,512 of 5,932 rows
+        // and 18.22 GiB. See #113.
+        if (command.Has("check-files") || command.Has("repair-files"))
+        {
+            var sweep = new InventorySweep(install, store);
+            var inventory = sweep.Plan();
+
+            Console.WriteLine($"  local files:     {inventory.Summary}");
+
+            foreach (var (folder, count, bytes) in inventory.Folders.Take(5))
+            {
+                Console.WriteLine($"    {folder,-14} {count,6:N0} missing, {ByteSize.Format(bytes)}");
+            }
+
+            if (command.Has("repair-files") && !inventory.NothingFound)
+            {
+                // Safe by the rollback's own argument: a row must never outlive its bytes, and
+                // the row is the claim that is wrong. The next sync re-downloads, which is what
+                // would have happened anyway.
+                Console.WriteLine($"  repaired:        {sweep.Apply(inventory).Summary}");
+            }
+            else if (inventory.NothingFound)
+            {
+                Console.WriteLine("  nothing will be forgotten: not one recorded file is on this drive, so this");
+                Console.WriteLine("  does not look like the tree they were written to.");
+            }
+            else if (!inventory.IsClean)
+            {
+                Console.WriteLine("  the disk budget is counting those bytes. Run 'status --repair-files' to drop the rows.");
+            }
+        }
+
         Console.WriteLine();
 
         Console.WriteLine("Identity");

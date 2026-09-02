@@ -3,6 +3,7 @@ using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
+using RomMBat.Core.Content;
 using RomMBat.Core.Identity;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Sets;
@@ -165,19 +166,37 @@ public sealed class SetsScreenTests : IDisposable
 
 
     [Fact]
-    public void Deleting_a_set_says_that_nothing_on_disk_was_touched_before_it_happens()
+    public void Deleting_a_set_says_what_each_answer_does_before_it_happens()
     {
         Seed("doomed");
 
         var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
 
-        // sets remove has always said this, and a person deleting from a couch has no other way
-        // to learn that their games are still there. It is on the confirmation rather than on a
-        // screen afterwards, because a warning after the act is not a warning.
+        // Two answers, because deleting a set and keeping its games is a legitimate thing to
+        // want, and removal is a choice rather than a consequence. Both sentences are on the
+        // confirmation rather than on a screen afterwards, because a warning after the act is
+        // not a warning.
+        Assert.Equal(2, confirm.Rows.Count);
         Assert.Contains(
             confirm.Rows,
             row => row.Detail is { } detail
                 && detail.Contains("Nothing on disk is touched", StringComparison.Ordinal));
+        Assert.Contains(
+            confirm.Rows,
+            row => row.Detail is { } detail
+                && detail.Contains("Saves and save states are never removed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Keeping_the_games_deletes_the_set_and_touches_no_file()
+    {
+        Seed("doomed");
+
+        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "doomed"));
+
+        // The second row, which is the one that keeps them. Reached by moving rather than by
+        // index, so a row added above it does not silently retarget this press.
+        confirm.Handle(NavAction.Down);
 
         Assert.Equal(ScreenCommandKind.Pop, confirm.Handle(NavAction.Accept).Kind);
         Assert.Empty(new SyncSetService(_session).List());
@@ -195,6 +214,10 @@ public sealed class SetsScreenTests : IDisposable
 
         navigator.Handle(NavAction.Accept);
         navigator.Handle(NavAction.Alternate);
+
+        // Down to "leave the games where they are", which is the answer that does not open a
+        // preview. The removal half has its own tests, because it is minutes of work.
+        navigator.Handle(NavAction.Down);
         navigator.Handle(NavAction.Accept);
 
         // Back on the list, with the deleted set gone from it. It used to land on a message
@@ -204,6 +227,201 @@ public sealed class SetsScreenTests : IDisposable
         Assert.Equal(2, navigator.Depth);
         Assert.Single(list.Rows);
         Assert.Equal("survivor", list.Rows[0].Label);
+    }
+
+    [Fact]
+    public async Task The_removal_preview_names_what_goes_and_what_is_kept()
+    {
+        var doomed = Seed("doomed");
+        var wanted = Seed("wanted");
+
+        SeedFile(1, "snes", "shared.sfc", 2_048);
+        SeedFile(2, "snes", "only.sfc", 1_024);
+
+        Members(doomed, 1, 2);
+        Members(wanted, 1);
+
+        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        await Wait(() => !preview.IsLoading);
+
+        var shown = Render(preview);
+
+        // The game the other set still wants is kept and the reason names that set, beside
+        // whatever SaveGuard would have said. Without it, deleting one set silently removes a
+        // game a set the user never touched still wants, and the next sync fetches it again.
+        Assert.Contains(shown, text => text.Contains("still in 'wanted'", StringComparison.Ordinal));
+        Assert.Contains(shown, text => text.Contains("only.sfc", StringComparison.Ordinal));
+
+        // Stated before the press, because it is the thing a person on a sofa cannot otherwise
+        // find out, and because it is a schema guarantee rather than an intention.
+        Assert.Contains(
+            shown,
+            text => text.Contains("Saves and save states are never removed", StringComparison.Ordinal));
+
+        // Nothing has happened yet. The preview is the screen, and the footer is what commits.
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
+        Assert.Equal(2, new SyncSetService(_session).List().Count);
+    }
+
+    [Fact]
+    public async Task Removing_takes_the_games_it_named_and_leaves_the_one_it_kept()
+    {
+        var doomed = Seed("doomed");
+        var wanted = Seed("wanted");
+
+        SeedFile(1, "snes", "shared.sfc", 2_048);
+        SeedFile(2, "snes", "only.sfc", 1_024);
+
+        Members(doomed, 1, 2);
+        Members(wanted, 1);
+
+        var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
+        await Wait(() => !preview.IsLoading);
+
+        // Accept, not Start: a yes-or-no screen is answered with the confirm button now.
+        var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Accept).Screen);
+        await Wait(() => !applying.IsLoading);
+
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "shared.sfc")));
+
+        // The set goes last, after its files. Either order self-heals; this one never claims to
+        // have removed something that is still on the disk.
+        Assert.Equal(["wanted"], new SyncSetService(_session).List().Select(summary => summary.Set.Name));
+    }
+
+    /// <summary>
+    /// Removing a set's games lands back on the sets list, not on three stale screens.
+    /// </summary>
+    /// <remarks>
+    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so the
+    /// preview, the confirmation and the set's own detail all describe something that no longer
+    /// exists, and leaving them on the stack was four presses through three of them to get to
+    /// the list. 7b-2a fixed exactly this on the keep-the-games path and adding two screens
+    /// above it brought it back.
+    /// </remarks>
+    [Fact]
+    public async Task Removing_a_sets_games_lands_back_on_the_sets_list()
+    {
+        var doomed = Seed("doomed");
+        Seed("survivor");
+
+        SeedFile(1, "snes", "only.sfc", 1_024);
+        Members(doomed, 1);
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+        var list = Assert.IsType<ListScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Alternate);
+        navigator.Handle(NavAction.Accept);
+
+        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !preview.IsLoading);
+
+        navigator.Handle(NavAction.Accept);
+        var applying = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !applying.IsLoading);
+
+        navigator.Handle(NavAction.Back);
+
+        Assert.Same(list, navigator.Current);
+        Assert.Equal(2, navigator.Depth);
+        Assert.Equal(["survivor"], list.Rows.Select(row => row.Label));
+    }
+
+    /// <summary>
+    /// Anything that says it is working ends in an ellipsis.
+    /// </summary>
+    /// <remarks>
+    /// A screen that states an ongoing action without one reads as a finished sentence, so a
+    /// person cannot tell a screen that is working from a screen that has stopped. Asked for on
+    /// a hands-on pass, swept rather than checked at one site because every screen that loads
+    /// has one of these and a new one is the easy thing to forget.
+    /// </remarks>
+    [Fact]
+    public void Every_loading_message_says_it_is_still_going()
+    {
+        using var built = AllScreens();
+
+        foreach (var screen in built)
+        {
+            if (screen is ListScreen { Load: not null } loading)
+            {
+                Assert.EndsWith("...", loading.LoadingMessage, StringComparison.Ordinal);
+            }
+        }
+
+        // Browse is deliberately not a ListScreen, so it escaped the loop above and its message
+        // sat in the renderer as a literal with no ellipsis on it. Asserted here rather than
+        // widened into the loop, because it is the only screen on this surface with a loader and
+        // no ListScreen under it.
+        using var browse = new BrowseViewModel(_session, null);
+
+        Assert.EndsWith("...", browse.LoadingMessage, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A screen of facts never selects anything, whether it fits or scrolls.
+    /// </summary>
+    /// <remarks>
+    /// A hands-on pass called this out twice, and both times the words were "its information
+    /// shown as navigable buttons even though they're not". The first report was a highlight
+    /// walking rows that cannot be picked; with the highlight gone for a short list, the second
+    /// was that the rows were still drawn as filled panels with a ring round them, on a screen
+    /// long enough to scroll. Both are the same mistake, which is dressing a pane of text as a
+    /// menu, and the fix is that a reading list has no cursor at all and scrolls by an offset.
+    /// <para>
+    /// The renderer half cannot be asserted here, because nothing in this project draws. What
+    /// this pins is that no row is ever selected, which is what the renderer keys its fill on.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void A_screen_of_facts_never_selects_a_row()
+    {
+        foreach (var count in new[] { 4, 30 })
+        {
+            var screen = new ListScreen(
+                $"{count} facts",
+                [.. Enumerable.Range(1, count).Select(n =>
+                    new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
+                _ => ScreenCommand.Stay)
+            {
+                Reading = true,
+            };
+
+            Assert.Equal(-1, screen.Cursor);
+
+            screen.Handle(NavAction.Down);
+            screen.Handle(NavAction.Down);
+
+            Assert.Equal(-1, screen.Cursor);
+
+            // A list that fits has nothing to scroll; one that does not scrolls by the press.
+            Assert.Equal(count <= ListWindow.ReadingCapacity ? 0 : 2, screen.Window.Start);
+        }
+    }
+
+    /// <summary>An empty set can be deleted, which a hands-on pass said it could not.</summary>
+    [Fact]
+    public async Task An_empty_set_can_be_deleted()
+    {
+        Seed("empty");
+
+        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
+
+        // The removal answer first, which is where a person lands.
+        var preview = confirm.Handle(NavAction.Accept).Screen;
+
+        if (preview is ListScreen loaded)
+        {
+            await Wait(() => !loaded.IsLoading);
+            Assert.NotEqual(ScreenCommandKind.Stay, loaded.Handle(NavAction.Accept).Kind);
+        }
+
+        Assert.Empty(new SyncSetService(_session).List());
     }
 
     [Fact]
@@ -245,7 +463,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         var bound = NavRepeat.Bound;
 
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             Assert.All(screen.Hints, hint => Assert.Contains(hint.Action, bound));
         }
@@ -253,27 +473,67 @@ public sealed class SetsScreenTests : IDisposable
 
     // ---- what the hands-on pass found ----
 
+    /// <summary>
+    /// Every screen offers a verb exactly when that verb works, for every action, both ways.
+    /// </summary>
+    /// <remarks>
+    /// <b>This replaces an Accept-only sweep rather than sitting beside it.</b> That one asserted
+    /// half of one action's half of the rule and could not settle a screen first, so it started
+    /// failing the moment a verb became conditional on a preview landing. Two tests where one
+    /// states the rule is how a rule comes to be enforced in one place and broken in the place
+    /// beside it, which is this repository's recurring shape.
+    /// <b>The sweep above only ever looked at Accept, and three screens got the same rule wrong
+    /// on Start.</b> A hands-on pass found all three in one sitting: the file-check screen and
+    /// the set-removal screen answered Start and never offered it, so the footer named nothing
+    /// but Back while the verb quietly worked; the per-game removal screen offered it always,
+    /// including when the preview had just said the game would stay, so the press walked through
+    /// a second screen and removed nothing.
+    /// <para>
+    /// Both halves are one rule and this asserts both. A footer promising an action that does
+    /// nothing and a footer silent about one that does are the same defect pointed two ways.
+    /// </para>
+    /// <para>
+    /// Loaded screens are settled first, because the verb these three got wrong is the one that
+    /// only becomes possible once a preview has come back, and a screen asked while still
+    /// loading would be asked the easy question.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public void Any_screen_that_answers_accept_also_offers_the_hint_for_it()
+    public async Task Every_screen_offers_a_verb_exactly_when_that_verb_works()
     {
         Seed("hinted");
         SeedPlatform(4, "snes");
 
-        // The generalising form of a hands-on finding. The set detail screen answered Accept by
-        // opening the editor and never offered the hint, because the hint was derived from
-        // whether the cursor sat on a choosable row and every row there is a fact. The action
-        // worked and the footer never said so, which is the round-8 failure pointed the other
-        // way: a rule enforced in one place and broken in the place beside it.
-        //
-        // Each screen is a fresh instance, so pressing Accept here cannot disturb the next one.
-        foreach (var screen in AllScreens())
-        {
-            var offered = screen.Hints.Any(hint => hint.Action == NavAction.Accept);
-            var answered = screen.Handle(NavAction.Accept).Kind != ScreenCommandKind.Stay;
+        using var built = AllScreens();
 
-            Assert.False(
-                answered && !offered,
-                $"{screen.GetType().Name} acts on Accept but its footer never says so");
+        foreach (var screen in built)
+        {
+            if (screen is ListScreen loaded)
+            {
+                await Wait(() => !loaded.IsLoading);
+            }
+
+            foreach (var action in new[] { NavAction.Accept, NavAction.Start, NavAction.Alternate, NavAction.Extra })
+            {
+                var offered = screen.Hints.Any(hint => hint.Action == action);
+
+                var before = Render(screen);
+                var navigated = screen.Handle(action).Kind != ScreenCommandKind.Stay;
+
+                // "Did something" is navigating **or** changing what the screen shows. The set
+                // editor answers Start on an invalid draft by staying put and saying why, which
+                // is a press that plainly did something, and a test reading only the command
+                // kind would call that a broken promise.
+                var answered = navigated || !Render(screen).SequenceEqual(before, StringComparer.Ordinal);
+
+                Assert.False(
+                    answered && !offered,
+                    $"{screen.GetType().Name} acts on {action} and its footer never says so");
+
+                Assert.False(
+                    offered && !answered,
+                    $"{screen.GetType().Name} offers {action} and the press does nothing at all");
+            }
         }
     }
 
@@ -1069,7 +1329,9 @@ public sealed class SetsScreenTests : IDisposable
         // Nothing in this install has an origin or a token. Listing, opening, editing and the
         // budget are all local, and the 2 s budget is the same one stage 7b-1 measured an
         // unreachable server against.
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             var clock = Stopwatch.StartNew();
             _ = screen.Title;
@@ -1160,7 +1422,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         var shown = new List<string>();
 
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             shown.Add(screen.Title);
             shown.AddRange(screen.Hints.Select(hint => hint.Label));
@@ -1234,19 +1498,95 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     /// <summary>One of each sets screen, in whatever state a person first meets it.</summary>
-    private List<IScreen> AllScreens()
+    /// <summary>
+    /// Every screen on this surface, built fresh, and disposed once the caller is done.
+    /// </summary>
+    /// <remarks>
+    /// <b>Disposed, because several of these start work on construction.</b> The file check
+    /// walks <c>local_file</c> with one filesystem call per row on the thread pool, and four
+    /// sweeps call this helper. Left running they outlived the assertion, contended on
+    /// <c>StoreGate</c> with the next one, and were still going when the fixture disposed its
+    /// store: two intermittent failures in unrelated tests before it was tracked down.
+    /// <para>
+    /// A helper that starts work owes its cleanup, which is what an <c>IDisposable</c> wrapper
+    /// makes impossible to forget at one of four call sites.
+    /// </para>
+    /// </remarks>
+    private ScreenSet AllScreens() => new(BuildScreens());
+
+    /// <summary>Holds a sweep's screens and cancels whatever they started.</summary>
+    private sealed class ScreenSet : IDisposable, IEnumerable<IScreen>
+    {
+        private readonly List<IScreen> _screens;
+
+        public ScreenSet(List<IScreen> screens) => _screens = screens;
+
+        public IEnumerator<IScreen> GetEnumerator() => _screens.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void Dispose()
+        {
+            foreach (var screen in _screens)
+            {
+                (screen as IDisposable)?.Dispose();
+            }
+        }
+    }
+
+    private List<IScreen> BuildScreens()
     {
         var existing = new SyncSetService(_session).List();
         var set = existing.Count > 0 ? existing[0].Set : Seed("sample");
+
+        // Built before the list, because constructing a screen in it is not side-effect free:
+        // ApplyRemoval starts its loader on construction and that loader deletes the set, so a
+        // row written for that set afterwards fails its foreign key. Worth knowing rather than
+        // worked around silently, since the same is true of every screen here that loads.
+        var browsed = Browsed(set);
 
         var screens = new List<IScreen>
         {
             SetsScreens.List(_session),
             SetsScreens.Detail(_session, set.Name, null),
             SetsScreens.ConfirmDelete(_session, set.Name),
+            SetsScreens.ConfirmRemoval(_session, set.Name),
+
+            // Reachable only by driving a preview to completion, so it is constructed directly
+            // rather than left as the one screen on this surface no sweep looks at.
+            //
+            // Named for a set that does not exist, because this screen's loader **deletes the
+            // set** as its last act and it starts on construction. Given a real name it raced
+            // every assertion made after this list was built, which showed up as one sweep
+            // failing in a full run and passing alone. A helper four sweeps share must not
+            // mutate.
+            SetsScreens.ApplyRemoval(
+                _session,
+                "a set no test made",
+                new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false)),
             SetEditorViewModel.ForNew(_session),
             SetEditorViewModel.ForExisting(_session, set),
             new BudgetViewModel(_session),
+
+            // The screens 7b-2c added, listed here rather than left to their own file's tests,
+            // because the sweeps this list feeds are the whole-surface ones: no face button
+            // named, no unbound action promised, no verb offered that does nothing, and nothing
+            // slower than two seconds with the server off. A hands-on pass found three verb
+            // defects across these in one sitting, and every one of them was on a screen no
+            // sweep looked at.
+            InventoryScreens.Check(_session),
+            BrowseScreens.Detail(_session, browsed),
+
+            // Both reached only by driving a preview to completion, and both were the browse
+            // half of the pair the set side had already made internal for this. The footer
+            // defect a hands-on pass found was on the first of them.
+            BrowseScreens.ConfirmRemoval(_session, browsed, null, null),
+            BrowseScreens.ApplyRemoval(
+                _session,
+                new PickedSetService(_session),
+                browsed,
+                new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false),
+                null),
         };
 
         // The pickers, which are reached from the editor rather than constructed directly.
@@ -1309,6 +1649,46 @@ public sealed class SetsScreenTests : IDisposable
             ResolvedAt = Now,
         };
 
+    private void Members(SyncSetDefinition set, params int[] romIds) =>
+        _session.Store.SyncSets.ReplaceMembers(
+            set.Id,
+            [
+                .. romIds.Select((romId, index) => new SyncSetMember
+                {
+                    RomId = romId,
+                    State = MemberState.Member,
+                    Folder = "snes",
+                    PlatformSlug = "snes",
+                    FsName = $"rom{romId}.sfc",
+                    FsExtension = "sfc",
+                    SizeBytes = 1_024,
+                    DisplayName = $"Game {romId}",
+                    SortKey = $"game {romId}",
+                    Position = index + 1,
+                    ResolvedAt = Now,
+                }),
+            ],
+            $"{romIds.Length} games",
+            Now);
+
+    private void SeedFile(int romId, string folder, string fileName, long bytes)
+    {
+        var absolute = Path.Combine(_tree.Root, "roms", folder, fileName);
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        File.WriteAllBytes(absolute, new byte[bytes]);
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RomMBat.Core.Paths.RelativePath.Create($"roms/{folder}/{fileName}"),
+            Folder = folder,
+            RomId = romId,
+            Kind = LocalFileKind.Rom,
+            FileName = fileName,
+            SizeBytes = bytes,
+            Origin = FileOrigin.Synced,
+        });
+    }
+
     private SyncSetDefinition Seed(string name) =>
         _session.Store.SyncSets.Add(
             new SyncSetDefinition
@@ -1319,6 +1699,25 @@ public sealed class SetsScreenTests : IDisposable
                 MaxGames = 40,
             },
             Now);
+
+    /// <summary>A browse row for a game this device holds, so the detail screen has both verbs.</summary>
+    private BrowseGame Browsed(SyncSetDefinition set)
+    {
+        _session.Store.SyncSets.ReplaceMembers(set.Id, [Member(set)], "1 game", Now);
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RomMBat.Core.Paths.RelativePath.Create("roms/snes/g.sfc"),
+            Folder = "snes",
+            RomId = 1,
+            Kind = LocalFileKind.Rom,
+            FileName = "g.sfc",
+            SizeBytes = 2048,
+            Origin = FileOrigin.Synced,
+        });
+
+        return new BrowseGame(1, "Game", "snes", 2048, ["snes"], 2048, [set.Name], Row: null);
+    }
 
     private StatusViewModel Status() =>
         new(_session, new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))

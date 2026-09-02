@@ -260,6 +260,13 @@ public sealed partial class RomMConnection : IDisposable
             HttpStatusCode.Forbidden => RomMResponse.Failure<T>(
                 RomMResponseStatus.Forbidden,
                 detail ?? "The stored token was not granted the scope this needs."),
+
+            // 404 is about the library, not the request, which is what the status exists to
+            // say. Folded into ServerError here, a caller that wanted to treat one absent row
+            // as drift had to treat a 500 as drift too, and a picked set's hydrate did.
+            HttpStatusCode.NotFound => RomMResponse.Failure<T>(
+                RomMResponseStatus.NotFound,
+                detail ?? "The server does not have it."),
             _ => RomMResponse.Failure<T>(
                 RomMResponseStatus.ServerError,
                 detail ?? $"The server answered {(int)response.StatusCode}."),

@@ -78,6 +78,29 @@ public enum VerifiedBy
     Sha1,
 }
 
+/// <summary>Where one ROM's files are on this device, and what they weigh together.</summary>
+/// <param name="Folders">
+/// Every <c>roms/</c> folder holding a copy of the game itself. More than one is legitimate:
+/// <c>folder_override</c> is the only way an arcade set resolves, so a <c>mame</c>-overridden
+/// platform set and an <c>fbneo</c>-overridden collection set drawn from the same platform put
+/// every shared game in both, and both sets are then correct in EmulationStation.
+/// </param>
+/// <param name="Bytes">
+/// Every file of every kind, so two folders genuinely count twice. They do occupy twice the
+/// room, and making that visible is the point.
+/// </param>
+public sealed record RomPlacement(IReadOnlyList<string> Folders, long Bytes)
+{
+    public bool IsHere => Folders.Count > 0;
+}
+
+/// <summary>One game this device holds, as an offline browse lists it.</summary>
+/// <param name="FsName">
+/// The file name, which is what carries the release tags that tell two dumps of one game apart.
+/// A display name cannot: a USA and a Japan cut share it.
+/// </param>
+public sealed record InstalledGame(int RomId, string DisplayName, string PlatformSlug, string FsName);
+
 /// <summary>One file RomMBat knows about inside the RetroBat tree.</summary>
 public sealed record LocalFile
 {
@@ -275,6 +298,272 @@ public sealed class LocalFileStore
         using var reader = command.ExecuteReader();
         return ReadAll(reader);
     }
+
+    /// <summary>
+    /// What RomMBat downloaded, in bytes, without materialising a row.
+    /// </summary>
+    /// <remarks>
+    /// <b>The figure the disk budget is arithmetic over.</b> Callers used to read it as
+    /// <c>List().Where(origin == Synced).Sum(...)</c>, which pulls the whole table into memory
+    /// to add one column: migration 013's header puts the live install at 5,268 rows, and
+    /// interleaving artwork per game turned that from one scan per run into one per game.
+    /// Same answer, one row of results. See #111.
+    /// <para>
+    /// Adopted files are excluded, for the same reason they never counted: a user's own library
+    /// is not RomMBat's to bound. <c>SyncSetService.OnDisk</c> counts them because it answers a
+    /// different question.
+    /// </para>
+    /// </remarks>
+    public long SyncedBytes()
+    {
+        using var command = _connection.Command(
+            "SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE origin = 'synced';");
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// What every file belonging to one sync set's members occupies, of every kind.
+    /// </summary>
+    /// <remarks>
+    /// <b>A subquery rather than a list of ids, and the difference was measured.</b> The obvious
+    /// rewrite of the per-member loop is <see cref="BytesForRoms"/> over the membership, and at
+    /// 5,000 members on the development machine that is <b>95 ms against the loop's 111 ms</b>:
+    /// binding five thousand parameters costs very nearly what five thousand queries did. This
+    /// form takes one parameter, answers the same 5,000 members in <b>1 ms</b>, and lets SQLite walk <c>ix_sync_set_member_state</c> and
+    /// <c>ix_local_file_rom</c> itself. See #111, whose own suggested SQL is this shape.
+    /// <para>
+    /// <c>state = 'member'</c>, so a game that has left the set stops counting against it the
+    /// moment it departs, which is what makes the figure answer "what is this set costing me"
+    /// rather than "what did it ever cost me". Adopted files are counted: see
+    /// <c>SyncSetService.OnDisk</c>.
+    /// </para>
+    /// </remarks>
+    public long BytesForSet(long syncSetId)
+    {
+        using var command = _connection
+            .Command(
+                """
+                SELECT COALESCE(SUM(size_bytes), 0)
+                FROM local_file
+                WHERE rom_id IN (
+                  SELECT rom_id FROM sync_set_member WHERE sync_set_id = $setId AND state = 'member'
+                );
+                """)
+            .With("$setId", syncSetId);
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// What every file recorded for these ROMs occupies, of every kind.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a page of browse rows, which is tens of ids and not thousands.</b> A set's own
+    /// total goes through <see cref="BytesForSet"/> instead: binding five thousand parameters
+    /// measured at 95 ms against the per-member loop's 111 ms, so this shape does not scale
+    /// and the subquery form does.
+    /// <para>
+    /// Adopted files are counted, deliberately, and the reason is on
+    /// <c>SyncSetService.OnDisk</c>: this answers how much of the drive something is using, and
+    /// the user's own ROM in that folder is using it too.
+    /// </para>
+    /// </remarks>
+    public long BytesForRoms(IReadOnlyCollection<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        if (romIds.Count == 0)
+        {
+            return 0;
+        }
+
+        // Parameterised one id at a time rather than joined into the text, because a set can
+        // hold thousands and building SQL out of values is how an injection gets in even when
+        // every value is an integer today.
+        var names = romIds.Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
+
+        using var command = _connection.Command(
+            $"SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE rom_id IN ({string.Join(", ", names)});");
+
+        var index = 0;
+        foreach (var romId in romIds)
+        {
+            command.With(names[index++], romId);
+        }
+
+        return Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Where a ROM's files are on this device, and what they weigh, for a page of rows at once.
+    /// </summary>
+    /// <remarks>
+    /// <b>One query for a page, because a browse row has to say whether the game is here and a
+    /// page is fifty of them.</b> Asked per row it is the shape #111 was filed about, on the
+    /// drawing thread, while somebody scrolls.
+    /// <para>
+    /// Only the game's own rows name a folder. Its artwork lives under that folder too, and
+    /// listing that again would read as another copy of the game.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<int, RomPlacement> PlacementFor(IReadOnlyCollection<int> romIds)
+    {
+        ArgumentNullException.ThrowIfNull(romIds);
+
+        var placements = new Dictionary<int, RomPlacement>();
+
+        if (romIds.Count == 0)
+        {
+            return placements;
+        }
+
+        var names = romIds
+            .Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture))
+            .ToList();
+
+        using var command = _connection.Command(
+            $"""
+            SELECT rom_id, folder, size_bytes, kind
+            FROM local_file
+            WHERE rom_id IN ({string.Join(", ", names)})
+            ORDER BY folder, relative_path;
+            """);
+
+        var bound = 0;
+        foreach (var romId in romIds)
+        {
+            command.With(names[bound++], romId);
+        }
+
+        using var reader = command.ExecuteReader();
+
+        var folders = new Dictionary<int, List<string>>();
+        var bytes = new Dictionary<int, long>();
+
+        while (reader.Read())
+        {
+            var romId = (int)reader.GetInt64(0);
+            var folder = reader.GetStringOrNull(1);
+
+            bytes[romId] = bytes.GetValueOrDefault(romId) + reader.GetInt64(2);
+
+            if (!string.Equals(reader.GetString(3), "rom", StringComparison.Ordinal) || folder is null)
+            {
+                continue;
+            }
+
+            var known = folders.TryGetValue(romId, out var existing) ? existing : folders[romId] = [];
+
+            if (!known.Contains(folder, StringComparer.OrdinalIgnoreCase))
+            {
+                known.Add(folder);
+            }
+        }
+
+        foreach (var (romId, total) in bytes)
+        {
+            placements[romId] = new RomPlacement(folders.GetValueOrDefault(romId, []), total);
+        }
+
+        return placements;
+    }
+
+    /// <summary>
+    /// The games this device actually holds, as a browsable page.
+    /// </summary>
+    /// <remarks>
+    /// <b>What browse falls back to with no server, and it is not a lesser view of the same
+    /// thing.</b> M2's rule is that the catalog is never mirrored wholesale, so the offline
+    /// browsable set is the locally present subset, which is what EmulationStation shows anyway.
+    /// <para>
+    /// Keyed on the Rom-kind rows rather than on membership, because the question is what is on
+    /// the drive: a game whose set was deleted is still here, and so is a file the user put
+    /// there themselves. The name comes from the membership when there is one, which is why it
+    /// is a left join.
+    /// </para>
+    /// </remarks>
+    public (int Total, IReadOnlyList<InstalledGame> Games) InstalledGames(
+        string? folder,
+        string? search,
+        int limit,
+        int offset)
+    {
+        var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL" };
+
+        if (!string.IsNullOrWhiteSpace(folder))
+        {
+            clauses.Add("f.folder = $folder COLLATE NOCASE");
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            clauses.Add("COALESCE(m.display_name, f.file_name) LIKE $search ESCAPE '~'");
+        }
+
+        var where = "WHERE " + string.Join(" AND ", clauses);
+        const string From = "FROM local_file f LEFT JOIN sync_set_member m ON m.rom_id = f.rom_id";
+
+        using var counting = _connection.Command($"SELECT COUNT(DISTINCT f.rom_id) {From} {where};");
+        Bind(counting);
+
+        var total = Convert.ToInt32(counting.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+
+        // Grouped by rom, so one ROM in two folders is one row that names both, which is the
+        // reading browse gives an online row too.
+        using var command = _connection.Command(
+            $"""
+            SELECT f.rom_id,
+                   MIN(COALESCE(m.display_name, f.file_name)),
+                   MIN(COALESCE(m.platform_slug, f.folder)),
+                   MIN(COALESCE(m.sort_key, f.file_name)),
+                   MIN(COALESCE(m.fs_name, f.file_name))
+            {From}
+            {where}
+            GROUP BY f.rom_id
+            ORDER BY 4 COLLATE NOCASE, f.rom_id
+            LIMIT $limit OFFSET $offset;
+            """);
+
+        Bind(command);
+        command.With("$limit", limit).With("$offset", offset);
+
+        using var reader = command.ExecuteReader();
+        var games = new List<InstalledGame>();
+
+        while (reader.Read())
+        {
+            games.Add(new InstalledGame(
+                (int)reader.GetInt64(0),
+                reader.GetString(1),
+                reader.GetStringOrNull(2) ?? string.Empty,
+                reader.GetStringOrNull(4) ?? string.Empty));
+        }
+
+        return (total, games);
+
+        void Bind(SqliteCommand command)
+        {
+            if (!string.IsNullOrWhiteSpace(folder))
+            {
+                command.With("$folder", folder);
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                // Escaped with a character no path or title carries, because a name holding %
+                // or _ would otherwise widen the search rather than narrow it, and a real
+                // library is full of both.
+                command.With("$search", "%" + Escape(search) + "%");
+            }
+        }
+    }
+
+    /// <summary>Escapes LIKE's two wildcards, and the escape character itself first.</summary>
+    private static string Escape(string term) => term
+        .Replace("~", "~~", StringComparison.Ordinal)
+        .Replace("%", "~%", StringComparison.Ordinal)
+        .Replace("_", "~_", StringComparison.Ordinal);
 
     /// <summary>How many files RomMBat holds and how many bytes they occupy.</summary>
     public (int Files, long Bytes) Totals(string? folder = null, LocalFileKind? kind = null)

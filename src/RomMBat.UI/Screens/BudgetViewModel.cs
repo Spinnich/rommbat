@@ -143,7 +143,11 @@ public sealed class BudgetViewModel : IScreen
                 return [new FooterHint(NavAction.Start, "Save"), new FooterHint(NavAction.Back, "Discard")];
             }
 
-            return [new FooterHint(NavAction.Back, "Back")];
+            return
+            [
+                new FooterHint(NavAction.Alternate, "Check the files behind these numbers"),
+                new FooterHint(NavAction.Back, "Back"),
+            ];
         }
     }
 
@@ -170,6 +174,14 @@ public sealed class BudgetViewModel : IScreen
             case NavAction.Start when IsDirty:
                 Save();
                 return ScreenCommand.Pop;
+
+            // Offered here because this is the screen where a person meets the wrong number.
+            // The limit is arithmetic over local_file, so a row whose file is gone makes it
+            // permanently smaller than it looks, and nothing else in RomMBat could see that.
+            // Not while dirty: the footer then says only what the two presses do to the unsaved
+            // changes, and navigating away would discard them without saying so. See #113.
+            case NavAction.Alternate when !IsDirty:
+                return ScreenCommand.Push(InventoryScreens.Check(_session));
 
             case NavAction.Back:
                 return ScreenCommand.Pop;

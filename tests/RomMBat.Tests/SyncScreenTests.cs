@@ -576,31 +576,38 @@ public sealed class SyncScreenTests : IDisposable
             Reading = true,
         };
 
-        Assert.Equal(0, screen.Cursor);
+        // Nothing is selected, ever: these are facts and none of them can be chosen. What
+        // scrolls is the window, and asserting on that rather than on a cursor is the honest
+        // form of the original finding, which was that the screen would not scroll at all.
+        Assert.Equal(-1, screen.Cursor);
+        Assert.Equal(0, screen.Window.Start);
 
         screen.Handle(NavAction.Down);
         screen.Handle(NavAction.Down);
-        Assert.Equal(2, screen.Cursor);
-
-        // The window follows, or scrolling moves a cursor nobody can see. That was the defect
-        // twice before, on two other screens.
-        var start = screen.Window.Start;
+        Assert.Equal(2, screen.Window.Start);
 
         for (var press = 0; press < 20; press++)
         {
             screen.Handle(NavAction.Down);
         }
 
-        Assert.Equal(22, screen.Cursor);
-        Assert.True(screen.Window.Start > start, "the window did not follow the cursor down");
-        Assert.InRange(screen.Cursor, screen.Window.Start, screen.Window.Start + screen.Window.Count - 1);
-
-        // Up walks back, and the ends wrap rather than sticking.
-        screen.Handle(NavAction.Up);
-        Assert.Equal(21, screen.Cursor);
+        // Every press moved the view, rather than a cursor kept off the edge leaving it still
+        // for the first few, which would read as a screen ignoring the pad.
+        Assert.Equal(22, screen.Window.Start);
+        Assert.Equal(ListWindow.ReadingCapacity, screen.Window.Count);
 
         screen.Handle(NavAction.Up);
-        Assert.Equal(20, screen.Cursor);
+        Assert.Equal(21, screen.Window.Start);
+
+        // The bottom sticks rather than wrapping: a pane of text that jumps back to the top has
+        // lost the reader's place, and the edge markers already say nothing follows.
+        for (var press = 0; press < 40; press++)
+        {
+            screen.Handle(NavAction.Down);
+        }
+
+        Assert.Equal(30 - ListWindow.ReadingCapacity, screen.Window.Start);
+        Assert.Equal(0, screen.Window.Below);
 
         // Still nothing to press, which is the whole reason the rows are unavailable.
         Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
@@ -626,6 +633,72 @@ public sealed class SyncScreenTests : IDisposable
         var oneMore = ListWindow.BlockHeight(ListWindow.ReadingCapacity + 1, ListWindow.ReadingRowHeight);
 
         Assert.True(oneMore > ordinary, $"{ListWindow.ReadingCapacity + 1} reading rows would also have fitted");
+    }
+
+    /// <summary>
+    /// Every windowing screen fits, at the height it is actually drawn at.
+    /// </summary>
+    /// <remarks>
+    /// <b>The test the previous one could not be.</b> That one proves five reading rows fit and
+    /// eight do not, which is a fact about two constants; it cannot see a screen that computes a
+    /// window of eight and is drawn at the reading height, because the count lived in a view
+    /// model and the height in the renderer. Browse did exactly that, one stage after the same
+    /// defect was found from the couch on the problems list and fixed at that one instance.
+    /// <para>
+    /// <b>The sweep below cannot fail while the pairing holds, and that is deliberate rather
+    /// than an oversight.</b> Both numbers now come from one answer per screen, so the mismatch
+    /// is unrepresentable, which is better than catching it. What keeps this from blessing
+    /// nothing is the last assertion: it states that the combination the pairing prevents really
+    /// would overflow, so a later change that made the two heights equal would take this test
+    /// down with it rather than leaving it quietly passing.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void No_screen_computes_a_window_taller_than_the_display_holds()
+    {
+        var fits = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.RowHeight);
+
+        Seed("windowed", 30);
+
+        var reading = new ListScreen(
+            "30 problems",
+            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "why", false))],
+            _ => ScreenCommand.Stay)
+        {
+            Reading = true,
+        };
+
+        var ordinary = new ListScreen(
+            "30 things",
+            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture)))],
+            _ => ScreenCommand.Stay);
+
+        using var browse = new BrowseViewModel(_session);
+
+        // Walked as IWindowedScreen, which is the type that pairs the two, so a screen added
+        // later is covered by implementing it rather than by being remembered here.
+        foreach (IWindowedScreen screen in new IWindowedScreen[] { reading, ordinary, browse })
+        {
+            var rows = Math.Max(screen.Window.Count, ListWindow.CapacityFor(screen.Reading));
+            var drawn = ListWindow.BlockHeight(rows, ListWindow.RowHeightFor(screen.Reading));
+
+            Assert.True(
+                drawn <= fits,
+                $"{screen.GetType().Name} draws {rows} rows at "
+                    + $"{ListWindow.RowHeightFor(screen.Reading)}px, which is {drawn}px against "
+                    + $"the {fits}px known to fit");
+        }
+
+        // The anti-vacuity half. The sweep above is safe because the count and the height are
+        // one decision; this says the decision is load-bearing, by measuring the pair that used
+        // to be reachable. Without it the sweep would go on passing if the two row heights ever
+        // became the same, and nobody would know it had stopped meaning anything.
+        var mismatched = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.ReadingRowHeight);
+
+        Assert.True(
+            mismatched > fits,
+            $"an ordinary capacity at the reading height is {mismatched}px, which fits, so "
+                + "pairing them is guarding nothing and this test has stopped meaning anything");
     }
 
     [Fact]
@@ -702,18 +775,27 @@ public sealed class SyncScreenTests : IDisposable
         // Asserted rather than trusted to the delete, because the entry points were two: the
         // budget screen's third press, and the offer a blocked sync made where the user found
         // out the budget had cut it short.
+        //
+        // The rule is about the offer, not about the button. This asserted that the budget
+        // screen answered Alternate with nothing at all, which was true when the only thing
+        // behind that press was the eviction screen and stopped being the rule the moment
+        // anything else wanted it. What must stay gone is RomMBat choosing which games matter
+        // least: #113's check removes records for files that are already gone, frees no space
+        // and deletes no game.
         Pair();
         Seed("games", 1);
 
         var budget = new BudgetViewModel(_session);
+        var behind = budget.Handle(NavAction.Alternate);
 
-        Assert.DoesNotContain(budget.Hints, hint => hint.Action == NavAction.Alternate);
-        Assert.Equal(ScreenCommandKind.Stay, budget.Handle(NavAction.Alternate).Kind);
-
-        foreach (var text in Strings(budget))
+        foreach (var text in Strings(budget).Concat(behind.Screen is { } pushed ? Strings(pushed) : []))
         {
             Assert.DoesNotContain("free up space", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("choose games to remove", text, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("evict", text, StringComparison.OrdinalIgnoreCase);
         }
+
+        (behind.Screen as IDisposable)?.Dispose();
     }
 
     [Fact]
@@ -756,8 +838,13 @@ public sealed class SyncScreenTests : IDisposable
         // those numbers was right and the sentence was the exact opposite of them.
         //
         // The cause is that a blocked ROM is not a failed one, so LibrarySyncService's worst
-        // state stays Done and this screen believed it. Telling somebody their library is on the
-        // device when none of it is, is worse than any of the counts being wrong.
+        // state stayed Done and this screen believed it. Telling somebody their library is on
+        // the device when none of it is, is worse than any of the counts being wrong.
+        //
+        // #109 fixed the screen and #114 moved the answer into the service, which is where the
+        // next caller will read it: a blocked run is SyncState.Blocked, its own state rather
+        // than Incomplete, because Incomplete is what the agent turns into its Offline exit
+        // code and a full disk budget is not being offline.
         using var stub = Library(3);
         Pair();
         Seed("games", 3);
@@ -768,8 +855,8 @@ public sealed class SyncScreenTests : IDisposable
         await SettledAsync(sync);
 
         Assert.True(sync.State.Blocked > 0, "the fixture did not reproduce a blocked run");
-        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
-        Assert.Equal("Finished with problems", sync.State.Outcome);
+        Assert.Equal(SyncStage.Blocked, sync.State.Stage);
+        Assert.Equal("Stopped by the disk budget", sync.State.Outcome);
 
         Assert.DoesNotContain("on this device", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("budget", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
@@ -779,6 +866,37 @@ public sealed class SyncScreenTests : IDisposable
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
 
         sync.Dispose();
+    }
+
+    /// <summary>
+    /// The service answers it, which is the half #114 was actually about.
+    /// </summary>
+    /// <remarks>
+    /// Asserted at the service rather than only through the screen, because the whole point of
+    /// moving it is that the next caller reads it from here. A screen-only assertion would go
+    /// on passing if somebody put the derivation back into a view model.
+    /// </remarks>
+    [Fact]
+    public async Task A_run_the_budget_blocked_is_its_own_state_at_the_service()
+    {
+        using var stub = Library(3);
+        Pair();
+        Seed("games", 3);
+
+        _session.Store.Settings.Set(SettingStore.ContentMaxBytes, "1", DateTimeOffset.UtcNow);
+
+        using var connection = Connect(stub)(new Uri("https://romm.invalid/"));
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Not Done, which was the lie, and not Incomplete, which is what SyncCommand turns into
+        // its Offline exit code: the server was reachable throughout and the disk said no.
+        Assert.Equal(Core.Sets.SyncState.Blocked, report.State);
     }
 
     [Fact]

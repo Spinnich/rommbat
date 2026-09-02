@@ -230,6 +230,9 @@ public sealed class SyncSetService
     {
         ArgumentNullException.ThrowIfNull(set);
 
+        // Verified rather than assumed for the picked kind: its scope_value is an id array,
+        // which would parse as an empty filter anyway, but "an empty filter" and "this scope
+        // has no filter" have to be the same answer on purpose rather than by luck.
         return set.Scope == CatalogScopeKind.Filter
             ? CatalogFilterJson.Parse(set.ScopeValue)
             : new CatalogFilter();
@@ -313,22 +316,19 @@ public sealed class SyncSetService
     /// permanently over its cap. This figure answers a different question, which is how much of
     /// the drive the set is using, and the user's own ROM in that folder is using it too.
     /// </para>
+    /// <para>
+    /// <b>One aggregate query, where this was one per member per set.</b> <see cref="List"/>
+    /// calls it for every set and a list screen re-runs its rows on every back-press, so
+    /// returning to the sets list from a sync re-issued the lot. Both rules above survive the
+    /// rewrite; only the loop went. See #111.
+    /// </para>
+    /// <para>
+    /// <b>A subquery rather than an id list, because the obvious rewrite was measured and
+    /// barely helped.</b> Passing the membership to a parameterised <c>IN</c> is 95 ms at
+    /// 5,000 members against the loop's 111 ms, where the subquery is 1 ms.
+    /// </para>
     /// </remarks>
-    private long OnDisk(long setId)
-    {
-        var files = _session.Store.Files;
-        var total = 0L;
-
-        foreach (var member in _session.Store.SyncSets.Members(setId))
-        {
-            foreach (var file in files.ForRom(member.RomId))
-            {
-                total += file.SizeBytes;
-            }
-        }
-
-        return total;
-    }
+    private long OnDisk(long setId) => _session.Store.Files.BytesForSet(setId);
 
     /// <summary>
     /// The scopes a set can be given here, and why any of them cannot.

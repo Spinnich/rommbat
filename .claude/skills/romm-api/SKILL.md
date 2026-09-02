@@ -277,6 +277,33 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
+
+  **Re-verified against the pinned `romm-5.2.0.json`, because a whole scope kind turns on it.**
+  The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
+  `smart_collection_id`, and there is nothing else. So a hand-picked set **cannot be resolved by
+  a page walk at all**, and that is a property of the scope rather than a defect to work around:
+  `CatalogQuery.ToQueryString` throws for it rather than falling through, because every scoping
+  parameter would be omitted and the query would match the entire library, which reads as a
+  picked set resolving to everything.
+
+  The way round it is per-id fetches, at the ~0.15 s each M4 measured, and only on a device the
+  set roamed to: the device that did the picking already has every field the membership needs on
+  the browse row it was looking at. Fetch one at a time, drop a 404 as ordinary drift, and stop
+  on a 401 because every remaining fetch would send the same refused token. **Drop the 404 and
+  nothing else.** A 500, a reverse proxy's 502 and a 403 answer every remaining id the same way,
+  so counting them as deletions departs the whole set on one bad minute, and the resolution comes
+  out complete while it does it.
+
+  **`GetAuthenticatedAsync` folded 404 into `ServerError` until 7b-2c**, so for any read going
+  through it that instruction could not be followed: `RomMResponseStatus.NotFound` existed and
+  only the download and media paths, which classify their own responses, ever produced it. If a
+  new caller wants to tell drift from failure, check the arm is there before writing the branch
+  that depends on it.
+
+  **Read one ROM as a `RomRow`, not through the generated detail schema.** Same trap as the
+  paged read: the pinned schema declares `fs_size_bytes` a bare `integer`, so a generated DTO
+  fails outright on any ROM at or above 2 GiB, which is most disc images.
+
 - **`metadatum` units and scales agree with nothing.** `first_release_date` is **milliseconds**
   (read as seconds, every value lands in year 0); `average_rating` is **0-100**;
   `player_count` is a **string** already in EmulationStation's `1-2` form; `companies` is one

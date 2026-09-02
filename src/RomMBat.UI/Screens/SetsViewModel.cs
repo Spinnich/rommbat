@@ -2,8 +2,10 @@ using System.Globalization;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
+using RomMBat.Core.Content;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.UI.Input;
 using RomMBat.UI.Shell;
 
@@ -163,7 +165,7 @@ public static class SetsScreens
                     ScreenCommand.Push(SetEditorViewModel.ForExisting(session, detail!.Set, connect)),
                 NavAction.Start => ScreenCommand.Push(Sync(session, [detail!.Set], connect, pair)),
                 NavAction.Extra => ScreenCommand.Push(Resolve(session, [detail!.Set], connect)),
-                NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name)),
+                NavAction.Alternate => ScreenCommand.Push(ConfirmDelete(session, detail!.Set.Name, connect)),
                 _ => null,
             },
         };
@@ -216,35 +218,320 @@ public static class SetsScreens
     }
 
     /// <summary>
-    /// Deleting, behind one confirmation, saying what it does and does not touch.
+    /// Deleting, behind one confirmation, saying what each answer does before the press.
     /// </summary>
     /// <remarks>
-    /// The sentence matters more than the confirmation. <c>sets remove</c> has always said
-    /// "nothing on disk was touched", and a person deleting a set from a couch has no other way
-    /// to find out that their games are still there.
+    /// <b>Two answers, because deleting a set and keeping its games is a legitimate thing to
+    /// want.</b> Removing is a choice here rather than an automatic consequence, which is #110's
+    /// own rule.
+    /// <para>
+    /// <b>This row used to say "Nothing on disk is touched and no game is removed", and that
+    /// stopped being true in this branch.</b> It was the right answer while eviction was the
+    /// thing that removed content; 7b-2b took eviction off the interface on the ruling that
+    /// freeing space belongs to the user, and dropping a set is the user saying which games they
+    /// no longer want.
+    /// </para>
+    /// <para>
+    /// The sentence matters more than the confirmation, and it belongs before the press. A
+    /// person on a sofa has no other way to find out what they are about to lose, and moving it
+    /// after the press was a defect fixed in 7b-2a.
+    /// </para>
     /// </remarks>
-    public static IScreen ConfirmDelete(InstallSession session, string name) =>
-        new ListScreen(
+    public static IScreen ConfirmDelete(
+        InstallSession session,
+        string name,
+        Func<Uri, RomMConnection>? connect = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        return new ListScreen(
             $"Delete '{name}'?",
             [
                 new ListRow(
-                    "Delete this set",
+                    "Delete it and take its games off this device",
+                    null,
+                    "Shows what would go before anything goes. Saves and save states are never "
+                        + "removed, and a game another set still wants is kept."),
+                new ListRow(
+                    "Delete it and leave the games where they are",
                     null,
                     "The set is forgotten. Nothing on disk is touched and no game is removed."),
             ],
-            _ =>
+            index =>
             {
+                if (index == 0)
+                {
+                    return ScreenCommand.Push(ConfirmRemoval(session, name, connect));
+                }
+
                 new SyncSetService(session).Remove(name);
 
                 // Back to the list, closing the detail screen underneath, whose set no longer
                 // exists. It used to land on a message screen instead, which said the right
                 // sentence at the wrong moment and left the only way onward being to quit
-                // RomMBat entirely. The sentence belongs on the confirmation below, before the
-                // press rather than after it, which is where a warning is any use.
+                // RomMBat entirely.
                 return ScreenCommand.PopMany(2);
             },
-            acceptLabel: "Delete",
+            acceptLabel: "Choose",
             backLabel: "Keep it");
+    }
+
+    /// <summary>
+    /// What deleting a set would take off the device, before it takes anything.
+    /// </summary>
+    /// <remarks>
+    /// <b>The preview is the screen rather than a flag.</b> <c>sync</c>'s <c>--dry-run</c> names
+    /// one command's flag; here the preview is simply what the user is looking at, and the
+    /// footer is what commits.
+    /// <para>
+    /// <b>The flush runs first, inside the load.</b> The commonest <see cref="SaveGuard"/>
+    /// refusal is a save that has not reached the server, and flushing resolves it rather than
+    /// blocking the removal. Offline it is skipped and said so, because offline is a working
+    /// state: an unsent save then holds its game back, which is the correct answer.
+    /// </para>
+    /// <para>
+    /// A <c>ListScreen</c> with a loader rather than a screen kind of its own. The work is two
+    /// scans and a plan, measured in seconds on a real install, and doing it on the drawing
+    /// thread is what made an earlier eviction preview freeze for four seconds with nothing on
+    /// screen saying why.
+    /// </para>
+    /// </remarks>
+    public static IScreen ConfirmRemoval(
+        InstallSession session,
+        string name,
+        Func<Uri, RomMConnection>? connect = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var service = new SyncSetService(session);
+        var set = service.Show(name);
+
+        if (set is null)
+        {
+            return new MessageScreen("Sync sets", $"There is no set named '{name}' any more.");
+        }
+
+        var eviction = new EvictionService(session);
+        var romIds = set.Members.Select(member => member.RomId).ToList();
+
+        EvictionReport? report = null;
+        IReadOnlyList<string> unvouchable = [];
+        string? flushNote = null;
+
+        return new ListScreen(
+            $"Remove the games in '{name}'?",
+            () => RemovalRows(report, unvouchable, flushNote),
+            _ => ScreenCommand.Stay,
+            acceptLabel: "Delete the set",
+            backLabel: "Keep them")
+        {
+            Reading = true,
+            LoadingMessage = "Sending saves, then working out what can go...",
+
+            // Offered exactly when it works, and there was no hint here at all: the footer read
+            // "Keep them" and nothing else, so from the couch the only answer this screen
+            // appeared to have was the one that changes nothing.
+            // Accept, not Start. A screen that asks a yes-or-no question is answered with the
+            // confirm button, which is the model EmulationStation itself uses and the one a
+            // hands-on pass asked for. AlwaysOfferAccept is what lets a screen of facts offer
+            // it, since every row here is a fact and the cursor has nowhere choosable to sit.
+            //
+            // Offered as soon as the preview lands, whatever it says, because **the set goes
+            // either way**. Gating it on there being a game to remove made an empty set
+            // undeletable: a person picked "take its games off", got a screen with nothing to
+            // press, and had to know to back out and choose the other answer. The same dead end
+            // met a set whose every game another set still claimed. What the user asked for is
+            // granted as far as it can be, and the rows say what stayed and why.
+            OfferAcceptWhen = () => report is not null,
+            Load = async token =>
+            {
+                flushNote = await FlushBeforeRemovalAsync(session, connect, token).ConfigureAwait(false);
+
+                report = eviction.PreviewRemoval(romIds, releasing: [set.Set.Id]);
+                unvouchable = eviction.Unvouchable(romIds);
+
+                return null;
+            },
+            Verbs = (action, _) => action switch
+            {
+                NavAction.Accept when report is { } ready =>
+                    ScreenCommand.Push(ApplyRemoval(session, name, ready)),
+                _ => null,
+            },
+        }.Started();
+    }
+
+    /// <summary>Carrying out a removal, and deleting the set once its files have gone.</summary>
+    /// <remarks>
+    /// <b>Internal so the string sweeps can reach it.</b> Every other screen on this surface is
+    /// constructible from a name, and one that is only reachable by driving a preview to
+    /// completion would be the one screen no sweep covers, which is how "a rule enforced in one
+    /// place and broken in the place beside it" keeps happening here.
+    /// <para>
+    /// <b>Files first, then the definition.</b> Either order self-heals and this one is the
+    /// honest half: a definition removed ahead of a delete that then failed would leave games on
+    /// disk that no set claims, where a file removed ahead of a definition that survived leaves
+    /// a set the next sync simply fetches again. Nothing ever claims to have removed something
+    /// still on the disk.
+    /// </para>
+    /// </remarks>
+    internal static IScreen ApplyRemoval(InstallSession session, string name, EvictionReport report)
+    {
+        EvictionApplied? applied = null;
+
+        return new ListScreen(
+            $"Removing the games in '{name}'",
+            () => applied is { } done ? AppliedRows(done) : [],
+            _ => ScreenCommand.Stay,
+            acceptLabel: string.Empty,
+            backLabel: "Done")
+        {
+            Reading = true,
+            LoadingMessage = "Removing games and rewriting the lists EmulationStation reads...",
+            Load = async token =>
+            {
+                applied = await new EvictionService(session).ApplyAsync(report, token).ConfigureAwait(false);
+                new SyncSetService(session).Remove(name);
+                return null;
+            },
+
+            // Back lands on the sets list, closing this screen, the preview, the confirmation
+            // and the set's own detail. The set is gone, so all four describe something that no
+            // longer exists, and leaving them on the stack meant four presses through three
+            // stale screens to reach the list. That is the same defect 7b-2a fixed on the
+            // keep-the-games path and this one reintroduced by adding two screens above it.
+            OnBack = () => ScreenCommand.PopMany(4),
+        }.Started();
+    }
+
+    /// <summary>
+    /// Flushes saves before a removal, or says why it could not.
+    /// </summary>
+    /// <remarks>
+    /// A refusal to take the tree lock and an unreachable server are both ordinary outcomes and
+    /// come back as a sentence, which is what keeps this file from ever naming <c>TreeLock</c>.
+    /// </remarks>
+    private static async Task<string?> FlushBeforeRemovalAsync(
+        InstallSession session,
+        Func<Uri, RomMConnection>? connect,
+        CancellationToken cancellationToken)
+    {
+        var attempt = session.Authenticate();
+
+        if (attempt.Connection is null)
+        {
+            return "Saves were not sent, because this device is not signed in to RomM. A game "
+                + "whose save has not reached the server is kept.";
+        }
+
+        var origin = session.Store.Device.Read()?.ServerOrigin;
+        var connection = connect is not null && origin is not null ? connect(origin) : attempt.Connection;
+
+        if (!ReferenceEquals(connection, attempt.Connection))
+        {
+            attempt.Connection.Dispose();
+        }
+
+        try
+        {
+            var flushed = await new SaveFlushService(session)
+                .RunAsync(new FlushOptions(), connection, cancellationToken)
+                .ConfigureAwait(false);
+
+            return flushed.State == FlushState.Skipped
+                ? "Saves were left to the pass already running, so a game whose save has not "
+                    + "reached the server is kept."
+                : null;
+        }
+        catch (RomMUnreachableException ex)
+        {
+            return $"Saves were not sent ({ex.Message}). A game whose save has not reached the "
+                + "server is kept.";
+        }
+        finally
+        {
+            connection.Dispose();
+        }
+    }
+
+    /// <summary>What the preview shows: what goes, what stays, and what cannot be vouched for.</summary>
+    private static List<ListRow> RemovalRows(
+        EvictionReport? report,
+        IReadOnlyList<string> unvouchable,
+        string? flushNote)
+    {
+        if (report is not { } ready)
+        {
+            return [];
+        }
+
+        var rows = new List<ListRow>
+        {
+            new(
+                "The set goes",
+                null,
+                "Deleting it is what you asked for, and it happens whatever the games below do.",
+                false),
+            new(
+                ready.Plan.Selected.Count == 0
+                    ? "No game is removed"
+                    : $"{ready.Plan.Selected.Count} "
+                        + $"{(ready.Plan.Selected.Count == 1 ? "game goes" : "games go")}",
+                ready.Plan.Selected.Count == 0 ? null : ByteSize.Format(ready.Plan.BytesFreed),
+                "Saves and save states are never removed. They are not files this can reach.",
+                false),
+        };
+
+        if (flushNote is { } note)
+        {
+            rows.Add(new ListRow("Saves", null, note, false));
+        }
+
+        // Quoted from Core rather than reworded here, so the console and the couch give the
+        // same reason for the same candidate.
+        rows.AddRange(ready.Plan.Selected.Select(candidate => new ListRow(
+            candidate.File.FileName,
+            ByteSize.Format(candidate.Bytes),
+            $"goes, {EvictionService.Describe(candidate)}",
+            false)));
+
+        rows.AddRange(ready.Plan.Refused.Select(candidate => new ListRow(
+            candidate.File.FileName,
+            null,
+            $"kept, because {candidate.Refusal}",
+            false)));
+
+        // Named, and no safety claimed. A shared container has no rom_id, so nothing can say
+        // which game its bytes belong to once the ROM is gone.
+        rows.AddRange(unvouchable.Select(container => new ListRow(
+            container,
+            null,
+            "This save belongs to no one game, so RomMBat cannot say whether removing these "
+                + "games costs anything in it. It is left where it is.",
+            false)));
+
+        return rows;
+    }
+
+    private static List<ListRow> AppliedRows(EvictionApplied applied)
+    {
+        var rows = new List<ListRow>
+        {
+            new(
+                "Removed",
+                applied.Evicted is { } evicted
+                    ? $"{evicted.Removed} {(evicted.Removed == 1 ? "game" : "games")}, "
+                        + ByteSize.Format(evicted.BytesFreed)
+                    : "nothing",
+                "The set is gone. Saves and save states were not touched.",
+                false),
+        };
+
+        rows.AddRange((applied.Evicted?.Problems ?? []).Select(problem =>
+            new ListRow("Problem", null, problem, false)));
+
+        return rows;
+    }
 
     /// <summary>Syncing one or more sets, which is what puts games on the device.</summary>
     public static IScreen Sync(

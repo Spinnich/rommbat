@@ -25,6 +25,9 @@ public enum SyncStage
     /// <summary>Something could not be fetched. The next run tries again.</summary>
     Incomplete,
 
+    /// <summary>The disk budget is full, so some games were left out.</summary>
+    Blocked,
+
     /// <summary>A set could not be resolved, so the run did not start.</summary>
     Refused,
 
@@ -92,6 +95,7 @@ public sealed record SyncSnapshot(
         SyncStage.Done => "Finished",
         SyncStage.Stopped => "Stopped",
         SyncStage.Incomplete => "Finished with problems",
+        SyncStage.Blocked => "Stopped by the disk budget",
         _ => "Did not finish",
     };
 
@@ -214,6 +218,9 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly List<string> _problems = [];
     private readonly Func<IScreen>? _pair;
 
+    /// <summary>The one game, when this screen is installing rather than syncing a set.</summary>
+    private readonly SyncSetMember? _installing;
+
     /// <summary>
     /// Orders the writers of <see cref="_state"/> and of <see cref="_problems"/>.
     /// </summary>
@@ -225,7 +232,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly Lock _gate = new();
 
     private volatile SyncSnapshot _state =
-        new(SyncStage.Working, "Working out what this device should hold.");
+        new(SyncStage.Working, "Working out what this device should hold...");
 
     private Task? _work;
     private bool _disposed;
@@ -275,6 +282,40 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         ArgumentNullException.ThrowIfNull(set);
     }
 
+    /// <summary>
+    /// Installing one game, which is what a pick from browse asks for.
+    /// </summary>
+    /// <remarks>
+    /// <b>A second construction shape rather than a mode.</b> Everything this screen draws and
+    /// every rule it follows is the same: what it is doing now, how far through, what it spent,
+    /// what went wrong, Back stops and stays, a second Back leaves. A flag would have meant
+    /// every one of those reading "unless this is an install", where the only thing that
+    /// actually differs is which Core method the run calls.
+    /// <para>
+    /// <b>No flush.</b> 7b-2b put it first in a whole-library run for eviction's benefit, and
+    /// nothing here evicts. <see cref="LibrarySyncService.InstallAsync"/> owns which passes run
+    /// and says why for each of the six it leaves out.
+    /// </para>
+    /// </remarks>
+    public SyncViewModel(
+        InstallSession session,
+        SyncSetDefinition set,
+        SyncSetMember member,
+        Func<Uri, RomMConnection>? connect = null,
+        Func<IScreen>? pair = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(member);
+
+        _session = session;
+        _sets = [set];
+        _pair = pair;
+        _installing = member;
+
+        Start(connect);
+    }
+
     public event EventHandler? Invalidated;
 
     /// <summary>
@@ -285,13 +326,22 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// and a finished run under a full bar is otherwise indistinguishable from a stuck one.
     /// See <see cref="ResolveViewModel.Title"/>, where a hands-on pass found it.
     /// </remarks>
-    public string Title => _state.Stage == SyncStage.Working
-        ? _sets.Count == 1
-            ? $"Syncing '{_sets[0].Name}'"
-            : $"Syncing {_sets.Count} sync sets"
-        : _sets.Count == 1
-            ? $"Synced '{_sets[0].Name}'"
-            : $"Synced {_sets.Count} sync sets";
+    public string Title
+    {
+        get
+        {
+            var working = _state.Stage == SyncStage.Working;
+
+            if (_installing is { } game)
+            {
+                return working ? $"Installing '{game.DisplayName}'" : $"Installed '{game.DisplayName}'";
+            }
+
+            return _sets.Count == 1
+                ? working ? $"Syncing '{_sets[0].Name}'" : $"Synced '{_sets[0].Name}'"
+                : working ? $"Syncing {_sets.Count} sync sets" : $"Synced {_sets.Count} sync sets";
+        }
+    }
 
     /// <summary>Everything the renderer draws, read once so it cannot change mid-draw.</summary>
     public SyncSnapshot State => _state;
@@ -429,7 +479,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _stopping = true;
-        Publish(state => state with { Detail = "Stopping, and putting back the game in progress." });
+        Publish(state => state with { Detail = "Stopping, and putting back the game in progress..." });
         _run.Cancel();
     }
 
@@ -460,15 +510,21 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     {
         try
         {
-            var report = await new LibrarySyncService(_session)
-                .RunAsync(
-                    _sets,
-                    new SyncOptions(),
-                    connection,
-                    new Immediate<SyncEvent>(Observe),
-                    token => FlushAsync(connection, token),
-                    _run.Token)
-                .ConfigureAwait(false);
+            var service = new LibrarySyncService(_session);
+
+            var report = _installing is { } game
+                ? await service
+                    .InstallAsync(_sets[0], game, connection, new Immediate<SyncEvent>(Observe), _run.Token)
+                    .ConfigureAwait(false)
+                : await service
+                    .RunAsync(
+                        _sets,
+                        new SyncOptions(),
+                        connection,
+                        new Immediate<SyncEvent>(Observe),
+                        token => FlushAsync(connection, token),
+                        _run.Token)
+                    .ConfigureAwait(false);
 
             Settle(report);
         }
@@ -552,15 +608,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         switch (reported)
         {
             case FlushStarting:
-                Publish(state => state with { Pass = "Sending saves and play time", Game = null });
+                Publish(state => state with { Pass = "Sending saves and play time...", Game = null });
                 break;
 
             case SetResolved(var resolve):
-                Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains", Game = null });
+                Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains...", Game = null });
                 break;
 
             case BiosPlanned or BiosApplied:
-                Publish(state => state with { Pass = "Firmware", Game = null });
+                Publish(state => state with { Pass = "Fetching firmware...", Game = null });
                 break;
 
             case BiosProblem(var message):
@@ -573,7 +629,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
                 Publish(state => state with
                 {
-                    Pass = _sets.Count == 1 ? "Downloading" : $"Downloading '{set.Name}'",
+                    Pass = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...",
                     Total = plan.Steps.Count,
                     Done = 0,
                     TotalBytes = _sent + _planned,
@@ -615,7 +671,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 break;
 
             case MediaProgressed(var what):
-                Publish(state => state with { Pass = "Artwork", Game = what, GameTotal = 0, GameTransferred = 0 });
+                Publish(state => state with { Pass = "Fetching artwork...", Game = what, GameTotal = 0, GameTransferred = 0 });
                 break;
 
             case MediaApplied(var outcome):
@@ -631,7 +687,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 // issued while RomMBat is in front of EmulationStation is deferred rather than
                 // discarded, and that ES does not rescan on resume by itself, so the games
                 // appear the moment the user leaves. Nothing here tells them to restart it.
-                Publish(state => state with { Pass = "Telling EmulationStation", Game = null });
+                Publish(state => state with { Pass = "Telling EmulationStation...", Game = null });
                 break;
 
             case BudgetReported(var used, var cap):
@@ -645,24 +701,23 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
     private void Settle(SyncReport report)
     {
-        var blocked = _state.Blocked;
-
         var (stage, detail) = report.State switch
         {
-            // A blocked ROM is not a failed one, so the service reports Done for a run the
-            // budget stopped dead: a hands-on pass met 386 games left out, 334 problems, nothing
-            // downloaded, and a screen reading FINISHED over "Everything in these sync sets is
-            // on this device". That is the opposite of what happened.
-            //
-            // Corrected here rather than in the service, because SyncState.Incomplete is what
-            // the agent turns into its Offline exit code, and a full disk budget is not being
-            // offline. What the run is at the service level is left as it was.
-            Core.Sets.SyncState.Done when blocked > 0 => (
-                SyncStage.Incomplete,
+            // Answered by the service now (#114), where it used to be re-derived here from the
+            // screen's own blocked count. A blocked ROM is not a failed one, so a run the cap
+            // stopped dead came back as Done and this screen rendered it as "Everything in
+            // these sync sets is on this device" over 386 games left out. Every future consumer
+            // would have had to remember the same check, and this one had already forgotten it.
+            Core.Sets.SyncState.Blocked => (
+                SyncStage.Blocked,
                 "The disk budget is full, so some games were left out. Raise the budget or make "
                     + "room, then sync again."),
 
-            Core.Sets.SyncState.Done => (SyncStage.Done, "Everything in these sync sets is on this device."),
+            Core.Sets.SyncState.Done => (
+                SyncStage.Done,
+                _installing is { } game
+                    ? $"'{game.DisplayName}' is on this device and EmulationStation has been told."
+                    : "Everything in these sync sets is on this device."),
 
             Core.Sets.SyncState.Stopped => (
                 SyncStage.Stopped,

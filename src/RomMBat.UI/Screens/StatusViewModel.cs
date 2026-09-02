@@ -83,6 +83,7 @@ public sealed class StatusViewModel : IScreen
         // paired, because defining a set and setting a budget both work with the server off
         // and a screen that hid them would be claiming otherwise.
         new FooterHint(NavAction.Start, "Sync sets"),
+        new FooterHint(NavAction.Extra, "Find a game"),
         new FooterHint(NavAction.Alternate, "Disk space"),
         // EmulationStation rather than RetroBat, and deliberately. RetroBat is the install, which
         // is why the first row above names it; EmulationStation is the front end this returns to,
@@ -108,11 +109,23 @@ public sealed class StatusViewModel : IScreen
     /// <summary>Where the disk budget is set. Null until the shell wires it.</summary>
     public Func<IScreen>? OpenBudget { get; init; }
 
+    /// <summary>
+    /// Where browsing starts. Null until the shell wires it.
+    /// </summary>
+    /// <remarks>
+    /// Offered whether or not this install is paired, for the reason the other two are: browse
+    /// degrades to what this device holds rather than refusing, so it works with the server off
+    /// and a screen that hid it would be claiming otherwise.
+    /// </remarks>
+    public Func<IScreen>? OpenBrowse { get; init; }
+
     public ScreenCommand Handle(NavAction action) => action switch
     {
         NavAction.Accept when StartPairing is { } start => ScreenCommand.Push(start()),
 
         NavAction.Start when OpenSets is { } sets => ScreenCommand.Push(sets()),
+
+        NavAction.Extra when OpenBrowse is { } browse => ScreenCommand.Push(browse()),
 
         NavAction.Alternate when OpenBudget is { } budget => ScreenCommand.Push(budget()),
 

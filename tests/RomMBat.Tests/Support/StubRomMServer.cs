@@ -245,6 +245,18 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// </remarks>
     public int? TotalOverride { get; set; }
 
+    /// <summary>
+    /// Serves this many single-ROM fetches and then answers every later one with this status.
+    /// </summary>
+    /// <remarks>
+    /// Not once, unlike the paged knobs: a hydrate that meets a 500 must stop on it, and a
+    /// stub that recovered on the next id would pass whether it stopped or not.
+    /// </remarks>
+    public (int After, HttpStatusCode Status)? FailRomByIdAfter { get; set; }
+
+    /// <summary>How many single-ROM fetches were served, which is a picked set's only route.</summary>
+    public int RomsById { get; private set; }
+
     /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
     public int RomPagesServed { get; private set; }
 
@@ -451,6 +463,13 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         if (path.EndsWith("/api/roms", StringComparison.Ordinal))
         {
             return Roms(request.RequestUri);
+        }
+
+        // One ROM by id, which is the only way a picked set resolves: the paged route takes no
+        // id-list parameter, so a set that is a list of ids has no query behind it.
+        if (RomById(path) is { } byId)
+        {
+            return byId;
         }
 
         return Detail(HttpStatusCode.NotFound, "Not Found");
@@ -716,6 +735,39 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             limit,
             offset,
         });
+    }
+
+    /// <summary>Serves <c>GET /api/roms/{id}</c>, or null when the path is not one.</summary>
+    /// <remarks>
+    /// Matched last, after every other <c>/api/roms/</c> route, because <c>identifiers</c> and
+    /// <c>by-hash</c> sit under the same prefix and a looser match would swallow them.
+    /// </remarks>
+    private HttpResponseMessage? RomById(string path)
+    {
+        var marker = path.LastIndexOf("/api/roms/", StringComparison.Ordinal);
+
+        if (marker < 0)
+        {
+            return null;
+        }
+
+        var tail = path[(marker + "/api/roms/".Length)..];
+
+        if (!int.TryParse(tail, NumberStyles.Integer, CultureInfo.InvariantCulture, out var romId))
+        {
+            return null;
+        }
+
+        if (FailRomByIdAfter is { } refusal && RomsById >= refusal.After)
+        {
+            return Detail(refusal.Status, "rom refused");
+        }
+
+        RomsById++;
+
+        return Library.FirstOrDefault(rom => rom.Id == romId) is { } found
+            ? Json(HttpStatusCode.OK, Project(found))
+            : Detail(HttpStatusCode.NotFound, "Rom not found");
     }
 
     private static object Project(StubRom rom)
