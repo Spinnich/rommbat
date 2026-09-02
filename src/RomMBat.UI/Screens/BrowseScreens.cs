@@ -148,18 +148,17 @@ public static class BrowseScreens
             $"Take '{game.DisplayName}' off?",
             () => RemovalRows(report, unvouchable),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Take it off this device",
             backLabel: "Keep it")
         {
             Reading = true,
-            LoadingMessage = "Working out what can go.",
+            LoadingMessage = "Working out what can go...",
 
-            // Offered exactly when it works. This one had the hint and no gate, which is the
-            // same rule broken the other way: the press walked through a second screen and
-            // removed nothing, where the preview had already said the game would stay.
-            ExtraHints = () => report is { } ready && ready.Plan.Selected.Count > 0
-                ? [new FooterHint(NavAction.Start, "Take it off")]
-                : [],
+            // Accept, and only once the preview says something can go. A yes-or-no screen is
+            // answered with the confirm button, and this one had the hint on Start with no gate:
+            // the press walked through a second screen and removed nothing, where the preview
+            // had already said the game would stay.
+            OfferAcceptWhen = () => report is { } ready && ready.Plan.Selected.Count > 0,
             Load = token =>
             {
                 var releasing = picked.Find() is { } set ? new[] { set.Id } : [];
@@ -172,7 +171,7 @@ public static class BrowseScreens
             },
             Verbs = (action, _) => action switch
             {
-                NavAction.Start when report is { } ready && ready.Plan.Selected.Count > 0 =>
+                NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
                     ScreenCommand.Push(ApplyRemoval(session, picked, game, ready, changed)),
                 _ => null,
             },
@@ -210,7 +209,7 @@ public static class BrowseScreens
             backLabel: "Done")
         {
             Reading = true,
-            LoadingMessage = "Removing the game and rewriting the list EmulationStation reads.",
+            LoadingMessage = "Removing the game and rewriting the list EmulationStation reads...",
             Load = async token =>
             {
                 applied = await new EvictionService(session)

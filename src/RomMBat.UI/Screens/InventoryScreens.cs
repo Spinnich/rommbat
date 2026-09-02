@@ -29,43 +29,45 @@ public static class InventoryScreens
 
         var sweep = new InventorySweep(session.Install, session.Store);
         InventoryReport? report = null;
+        ListScreen? screen = null;
 
-        return new ListScreen(
+        screen = new ListScreen(
             "Files RomMBat has recorded",
             () => CheckRows(report),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Forget the files that are not there",
             backLabel: "Back")
         {
             Reading = true,
-            LoadingMessage = "Checking every recorded file against the drive.",
+            LoadingMessage = "Checking every recorded file against the drive...",
 
-            // Offered exactly when it works. There was no hint at all here, so from the couch
-            // this screen counted the problem and named no way to fix it: the footer said Back
-            // and nothing else, while Start quietly did the repair.
-            ExtraHints = () => report is { IsClean: false, NothingFound: false }
-                ? [new FooterHint(NavAction.Start, "Forget the files that are not there")]
-                : [],
+            // Accept, and only once the check says there is something to forget. There was no
+            // hint at all here, so from the couch this screen counted the problem and named no
+            // way to fix it: the footer said Back and nothing else while Start quietly worked.
+            OfferAcceptWhen = () => report is { IsClean: false, NothingFound: false },
             Load = token =>
             {
-                report = sweep.Plan();
+                report = sweep.Plan(screen!.Reporter);
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);
             },
             Verbs = (action, _) => action switch
             {
-                NavAction.Start when report is { IsClean: false, NothingFound: false } found =>
+                NavAction.Accept when report is { IsClean: false, NothingFound: false } found =>
                     ScreenCommand.Push(Repair(session, found)),
                 _ => null,
             },
-        }.Started();
+        };
+
+        return screen.Started();
     }
 
     private static ListScreen Repair(InstallSession session, InventoryReport report)
     {
         InventoryRepair? repaired = null;
+        ListScreen? screen = null;
 
-        return new ListScreen(
+        screen = new ListScreen(
             "Forgetting files that are not there",
             () => repaired is { } done
                 ?
@@ -85,14 +87,18 @@ public static class InventoryScreens
             backLabel: "Done")
         {
             Reading = true,
-            LoadingMessage = "Removing records for files that are gone.",
+            LoadingMessage = "Removing records for files that are gone...",
             Load = token =>
             {
-                repaired = new InventorySweep(session.Install, session.Store).Apply(report);
+                repaired = new InventorySweep(session.Install, session.Store)
+                    .Apply(report, screen!.Reporter);
+
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);
             },
-        }.Started();
+        };
+
+        return screen.Started();
     }
 
     private static List<ListRow> CheckRows(InventoryReport? report)

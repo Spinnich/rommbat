@@ -322,18 +322,20 @@ public static class SetsScreens
             $"Remove the games in '{name}'?",
             () => RemovalRows(report, unvouchable, flushNote),
             _ => ScreenCommand.Stay,
-            acceptLabel: string.Empty,
+            acceptLabel: "Take them off this device",
             backLabel: "Keep them")
         {
             Reading = true,
-            LoadingMessage = "Sending saves, then working out what can go.",
+            LoadingMessage = "Sending saves, then working out what can go...",
 
             // Offered exactly when it works, and there was no hint here at all: the footer read
             // "Keep them" and nothing else, so from the couch the only answer this screen
             // appeared to have was the one that changes nothing.
-            ExtraHints = () => report is { } ready && ready.Plan.Selected.Count > 0
-                ? [new FooterHint(NavAction.Start, "Take them off this device")]
-                : [],
+            // Accept, not Start. A screen that asks a yes-or-no question is answered with the
+            // confirm button, which is the model EmulationStation itself uses and the one a
+            // hands-on pass asked for. AlwaysOfferAccept is what lets a screen of facts offer
+            // it, since every row here is a fact and the cursor has nowhere choosable to sit.
+            OfferAcceptWhen = () => report is { } ready && ready.Plan.Selected.Count > 0,
             Load = async token =>
             {
                 flushNote = await FlushBeforeRemovalAsync(session, connect, token).ConfigureAwait(false);
@@ -345,7 +347,7 @@ public static class SetsScreens
             },
             Verbs = (action, _) => action switch
             {
-                NavAction.Start when report is { } ready && ready.Plan.Selected.Count > 0 =>
+                NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
                     ScreenCommand.Push(ApplyRemoval(session, name, ready)),
                 _ => null,
             },
@@ -378,13 +380,20 @@ public static class SetsScreens
             backLabel: "Done")
         {
             Reading = true,
-            LoadingMessage = "Removing games and rewriting the lists EmulationStation reads.",
+            LoadingMessage = "Removing games and rewriting the lists EmulationStation reads...",
             Load = async token =>
             {
                 applied = await new EvictionService(session).ApplyAsync(report, token).ConfigureAwait(false);
                 new SyncSetService(session).Remove(name);
                 return null;
             },
+
+            // Back lands on the sets list, closing this screen, the preview, the confirmation
+            // and the set's own detail. The set is gone, so all four describe something that no
+            // longer exists, and leaving them on the stack meant four presses through three
+            // stale screens to reach the list. That is the same defect 7b-2a fixed on the
+            // keep-the-games path and this one reintroduced by adding two screens above it.
+            OnBack = () => ScreenCommand.PopMany(4),
         }.Started();
     }
 

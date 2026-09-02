@@ -317,8 +317,10 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Equal(browse.Rows[0].Label, browse.Rows[1].Label);
         Assert.NotEqual(browse.Rows[0].Detail, browse.Rows[1].Detail);
 
-        Assert.StartsWith("USA", browse.Rows[0].Detail, StringComparison.Ordinal);
-        Assert.StartsWith("Japan, Rev 1", browse.Rows[1].Detail, StringComparison.Ordinal);
+        // The whole file name, on every row and every platform. Showing parsed tags on some
+        // platforms and the file name on others made the rule change under a person's feet.
+        Assert.StartsWith("Chrono Trigger (USA).sfc", browse.Rows[0].Detail, StringComparison.Ordinal);
+        Assert.StartsWith("Chrono Trigger (Japan) (Rev 1).sfc", browse.Rows[1].Detail, StringComparison.Ordinal);
     }
 
     /// <summary>

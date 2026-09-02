@@ -51,7 +51,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     private readonly CancellationTokenSource _load = new();
     private readonly Lock _gate = new();
 
-    private volatile BrowseState _state = new(null, true, null, null, null, 0);
+    private volatile BrowseState _state = new(null, true, null, null, null, null, 0);
     private RomMConnection? _connection;
     private bool _disposed;
 
@@ -59,7 +59,10 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the way
     /// every other screen that talks to RomM already does.
     /// </param>
-    public BrowseViewModel(InstallSession session, Func<Uri, RomMConnection>? connect = null)
+    public BrowseViewModel(
+        InstallSession session,
+        Func<Uri, RomMConnection>? connect = null,
+        PlatformOption? platform = null)
     {
         ArgumentNullException.ThrowIfNull(session);
 
@@ -67,7 +70,53 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
         _connect = connect;
         _service = new BrowseService(session);
 
+        _state = _state with
+        {
+            PlatformId = platform?.PlatformId.ToString(CultureInfo.InvariantCulture),
+            Folder = platform?.Folder,
+            PlatformLabel = platform?.Label,
+        };
+
         Fetch(0);
+    }
+
+    /// <summary>
+    /// Where finding a game starts: which platform, then the games in it.
+    /// </summary>
+    /// <remarks>
+    /// <b>The library is the wrong first screen.</b> A live instance holds 96,060 games, so
+    /// opening on all of them is 1,922 pages of scrolling and a person looking for a Mega Drive
+    /// title has no reason to be shown Windows games first. Narrowing is the first thing anyone
+    /// does, so it is the first thing offered. Found on the first hands-on pass.
+    /// <para>
+    /// Every platform is still an option on that screen, so nothing is taken away; it is one
+    /// press rather than the default.
+    /// </para>
+    /// </remarks>
+    public static IScreen Start(InstallSession session, Func<Uri, RomMConnection>? connect = null)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+
+        var platforms = new SyncSetService(session).PlatformsKnownHere();
+
+        return new ListScreen(
+            "Find a game",
+            [
+                new ListRow("Every platform", $"{platforms.Count} known here", "Everything RomM holds."),
+                .. platforms.Select(platform => new ListRow(
+                    platform.Label,
+                    platform.Folder ?? "no folder",
+                    platform.Folder is null
+                        ? "This platform has no RetroBat folder, so its games cannot be installed."
+                        : null)),
+            ],
+            index => ScreenCommand.Push(
+                new BrowseViewModel(session, connect, index == 0 ? null : platforms[index - 1])),
+            acceptLabel: "Show these games",
+            backLabel: "Back")
+        {
+            EmptyMessage = "No platforms known yet. Sync or query a set once and they appear.",
+        };
     }
 
     public event EventHandler? Invalidated;
@@ -89,7 +138,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
             var what = state.Page?.Source == BrowseSource.ThisDevice
                 ? "Games on this device"
-                : "Browse RomM";
+                : state.PlatformLabel ?? "Every platform";
 
             return state.Search is { } term ? $"{what}: '{term}'" : what;
         }
@@ -133,9 +182,12 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
         {
             var state = _state;
 
+            // Nothing while a page is on its way. The renderer draws the loading message in the
+            // body, so saying it here as well put "Asking RomM" on screen twice, once centred
+            // and once left, which reads as a screen that has drawn itself wrong.
             if (state.IsLoading)
             {
-                return "Asking RomM.";
+                return string.Empty;
             }
 
             if (state.Page is not { } page)
@@ -328,6 +380,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 {
                     PlatformId = chosen?.PlatformId.ToString(CultureInfo.InvariantCulture),
                     Folder = chosen?.Folder,
+                    PlatformLabel = chosen?.Label,
                 });
 
                 Fetch(0);
@@ -443,21 +496,22 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// state somebody could see. The bytes are on the detail screen, where there is room to say
     /// why there are two of them.
     /// <para>
-    /// <b>The name is the label and the release is the line under it, and both are needed.</b>
-    /// Measured on the live library, 750 rows a platform: every arcade file name is a romset
-    /// code carrying no tags at all, so a list labelled by file name is unreadable there; and 69
-    /// megadrive and 67 psx display names are shared by two or more rows, so the name alone
-    /// picks the wrong dump about one time in eleven. Suggested by Spinnich on the first
-    /// hands-on pass. <see cref="BrowseGame.Release"/> holds the argument and the numbers.
+    /// <b>The title is the label and the file name is the line under it, on every row.</b> Both
+    /// are needed and both were measured: every arcade file name is a romset code, so the title
+    /// has to be the label, and 69 megadrive and 67 psx titles are shared by two or more rows,
+    /// so the file name has to be under it. Showing the file name only where there were no tags
+    /// to parse made the rule change platform to platform and read as arbitrary.
+    /// <see cref="BrowseGame.Release"/> holds the argument and the numbers.
     /// </para>
     /// </remarks>
     private static ListRow ToRow(BrowseGame game) => new(
         game.DisplayName,
         game.IsHere ? "here: " + string.Join(", ", game.Folders) : "not here",
 
-        // The release leads, because it is the half that tells two rows with one title apart
-        // and a trimmed line loses its end. Platform and size follow, and both are recoverable
-        // a press away on the game's own screen.
+        // The file name leads, because it is the half that tells two rows with one title apart
+        // and a trimmed line loses its end: what goes is a translation credit rather than the
+        // region and revision, which sit early. Platform and size follow and are both a press
+        // away on the game's own screen.
         $"{game.Release}  ·  {game.PlatformSlug}  ·  {ByteSize.Format(game.SizeBytes)}"
             + (game.Sets.Count > 0 ? $"  ·  in {string.Join(", ", game.Sets)}" : string.Empty),
         false);
@@ -504,4 +558,5 @@ public sealed record BrowseState(
     string? Search,
     string? PlatformId,
     string? Folder,
+    string? PlatformLabel,
     int Cursor);

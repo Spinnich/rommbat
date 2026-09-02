@@ -108,16 +108,32 @@ public sealed class InventorySweep
     /// stick, it is a fraction of a second; it is offered rather than run on every invocation
     /// so that a command that answers from the database alone goes on doing so.
     /// </remarks>
-    public InventoryReport Plan()
+    /// <param name="progress">
+    /// How many rows have been checked, out of how many. Reported because this is one filesystem
+    /// check per row and a live install measured 5,932 of them off a USB stick: a screen with
+    /// nothing moving on it is indistinguishable from a hung one, which is what a hands-on pass
+    /// said of it.
+    /// </param>
+    public InventoryReport Plan(IProgress<(int Done, int Total)>? progress = null)
     {
         var rows = _store.Files.List();
         var missing = new List<LocalFile>();
 
-        foreach (var file in rows)
+        for (var index = 0; index < rows.Count; index++)
         {
+            var file = rows[index];
+
             if (!Exists(file.Path))
             {
                 missing.Add(file);
+            }
+
+            // Every hundredth, not every row. The screen redraws its whole panel on each report
+            // and five thousand of those is what starves the pad, which is the same reason the
+            // sync screen rate-limits its own progress.
+            if (progress is not null && (index % 100 == 99 || index == rows.Count - 1))
+            {
+                progress.Report((index + 1, rows.Count));
             }
         }
 
@@ -143,7 +159,9 @@ public sealed class InventorySweep
     /// sat on, and applied later, and a sync in between may have put the file back. Removing
     /// its row then would cost a re-download of a file that is already correct.
     /// </remarks>
-    public InventoryRepair Apply(InventoryReport report)
+    public InventoryRepair Apply(
+        InventoryReport report,
+        IProgress<(int Done, int Total)>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(report);
 
@@ -159,17 +177,25 @@ public sealed class InventorySweep
         var bytes = 0L;
         var returned = 0;
 
-        foreach (var file in report.Missing)
+        for (var index = 0; index < report.Missing.Count; index++)
         {
+            var file = report.Missing[index];
+
             if (Exists(file.Path))
             {
                 returned++;
-                continue;
+            }
+            else
+            {
+                _store.Files.Remove(file.Path);
+                removed++;
+                bytes += file.SizeBytes;
             }
 
-            _store.Files.Remove(file.Path);
-            removed++;
-            bytes += file.SizeBytes;
+            if (progress is not null && (index % 100 == 99 || index == report.Missing.Count - 1))
+            {
+                progress.Report((index + 1, report.Missing.Count));
+            }
         }
 
         return new InventoryRepair(removed, bytes, returned);

@@ -232,7 +232,7 @@ public sealed class ResolveViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _stopping = true;
-        Detail = "Stopping. What has been found so far is kept.";
+        Detail = "Stopping... What has been found so far is kept.";
         Raise();
         _run.Cancel();
     }

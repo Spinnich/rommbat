@@ -384,7 +384,8 @@ internal static class ScreenView
         list.Note?.Invoke(),
         list.IsLoading,
         list.LoadingMessage,
-        list.LoadProblem ?? list.EmptyMessage);
+        list.LoadProblem ?? list.EmptyMessage,
+        list.Progress);
 
     /// <summary>
     /// The list body, given only what it draws.
@@ -402,7 +403,8 @@ internal static class ScreenView
         string? note,
         bool isLoading,
         string? loadingMessage,
-        string? empty)
+        string? empty,
+        LoadProgress? progress = null)
     {
         var rows = screen.Rows;
         var stack = new StackPanel
@@ -417,7 +419,7 @@ internal static class ScreenView
             Width = ListWidth,
         };
 
-        if (note is not null)
+        if (!string.IsNullOrEmpty(note))
         {
             stack.Children.Add(new TextBlock
             {
@@ -434,7 +436,7 @@ internal static class ScreenView
         {
             stack.Children.Add(new TextBlock
             {
-                Text = loadingMessage ?? "Working.",
+                Text = loadingMessage ?? "Working...",
                 Foreground = Muted,
                 FontSize = 20,
                 MaxWidth = 760,
@@ -442,6 +444,39 @@ internal static class ScreenView
                 TextAlignment = TextAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
+
+            // Only when the work can count itself. A bar over a single request would be a
+            // fiction; a bar over five thousand filesystem checks is the difference between a
+            // screen that is working and one that has hung, which is what a hands-on pass said
+            // of this one.
+            if (progress is { } far)
+            {
+                stack.Children.Add(new Border
+                {
+                    Background = Panel,
+                    CornerRadius = new CornerRadius(6),
+                    Height = 18,
+                    Width = SyncColumn,
+                    Margin = new Thickness(0, 14, 0, 6),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Child = new Border
+                    {
+                        Background = Accent,
+                        CornerRadius = new CornerRadius(6),
+                        Width = Math.Max(6, SyncColumn * far.Fraction),
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                    },
+                });
+
+                stack.Children.Add(new TextBlock
+                {
+                    Text = far.Counted,
+                    Foreground = Muted,
+                    FontSize = 17,
+                    TextAlignment = TextAlignment.Center,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                });
+            }
 
             return stack;
         }

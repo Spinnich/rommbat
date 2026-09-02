@@ -36,70 +36,30 @@ public sealed record BrowseGame(
     string FsName = "")
 {
     /// <summary>
-    /// What tells this release apart from another of the same game.
+    /// The file name, which is what tells one release of a game from another.
     /// </summary>
     /// <remarks>
-    /// <b>A display name cannot do it and a file name cannot replace it, and both halves were
-    /// measured on a real library rather than argued.</b> 750 rows sampled per platform:
-    /// <list type="bullet">
-    /// <item><b>arcade: 100% of file names carry no tags at all</b>, because they are romset
-    /// codes. <c>10yard.zip</c>, <c>1942.zip</c>, <c>1943kai.zip</c>. A list labelled by file
-    /// name is unreadable there, and 87.3% of those rows have a display name that differs.</item>
-    /// <item><b>megadrive 69 and psx 67 display names are shared by two or more rows</b>, about
-    /// one in eleven, so the name alone picks the wrong dump often enough to matter. snes 1,
-    /// arcade 8.</item>
-    /// </list>
-    /// So the name is the label and this is the line under it. Suggested by Spinnich after the
-    /// first hands-on pass, whose point was that the file name is cheaper than parsing; the
-    /// parse survives because it is what makes the psx case readable, and the file name is the
-    /// fallback because it is what makes the arcade case readable.
+    /// <b>Shown whole and on every row, which took two goes to get right.</b> The first version
+    /// put parsed-out tags on arcade rows and the file name only where there were none to parse,
+    /// so the rule changed platform to platform and read as arbitrary: only arcade appeared to
+    /// show both halves. A person cannot see a rule that fires on 100% of one platform and 0% of
+    /// the next, and a list they cannot predict is worse than a long line.
     /// <para>
-    /// <b>The tags, or the whole file name when there are none.</b> On a tagged library that is
-    /// <c>(USA)</c> or <c>(Japan), Rev 2, T-En by Devil Hackers v1.0</c>, which is the
-    /// distinguishing part with the title stripped off; on arcade it is <c>mslug.zip</c>, which
-    /// is the romset a person recognises and what lands on disk. Either way it is short, and
-    /// short matters: this line is drawn at a fixed row height and a long one is trimmed.
+    /// <b>Both halves are needed and both were measured</b>, 750 rows a platform on the live
+    /// library. Every arcade file name is a romset code with no tags at all, <c>10yard.zip</c>
+    /// and <c>1943kai.zip</c>, and 87.3% differ from the display name, so a list labelled by file
+    /// name is unreadable there and the title has to be the label. And 69 megadrive and 67 psx
+    /// display names are shared by two or more rows, about one in eleven, so the title alone
+    /// picks the wrong dump often enough to matter and the file name has to be under it.
     /// </para>
     /// <para>
-    /// Taken from <c>fs_name</c> rather than <c>regions</c> and <c>languages</c>, which are
-    /// sparse: languages are present on 18.3% of a real library, and neither carries a revision,
-    /// a translation or a dump flag.
+    /// <b>Trimmed rather than shortened.</b> A psx name runs past a hundred characters, and the
+    /// part that goes is the tail: a translation credit rather than the region and revision,
+    /// which sit early. Taken over <c>regions</c> and <c>languages</c>, which are sparse and
+    /// carry no revision, translation or dump flag: languages are on 18.3% of a real library.
     /// </para>
     /// </remarks>
-    public string Release
-    {
-        get
-        {
-            var name = Row?.FsName ?? FsName;
-            var tags = new List<string>();
-            var depth = 0;
-            var start = 0;
-
-            for (var index = 0; index < name.Length; index++)
-            {
-                if (name[index] is '(' or '[')
-                {
-                    if (depth++ == 0)
-                    {
-                        start = index + 1;
-                    }
-                }
-                else if (name[index] is ')' or ']' && depth > 0 && --depth == 0)
-                {
-                    var inner = name[start..index].Trim();
-
-                    if (inner.Length > 0)
-                    {
-                        tags.Add(inner);
-                    }
-                }
-            }
-
-            // The whole file name when it carries nothing to strip down to, which is every
-            // arcade row: a romset code is the identity there.
-            return tags.Count > 0 ? string.Join(", ", tags) : name;
-        }
-    }
+    public string Release => Row?.FsName ?? FsName;
 
     /// <summary>True when this device holds it.</summary>
     public bool IsHere => Folders.Count > 0;

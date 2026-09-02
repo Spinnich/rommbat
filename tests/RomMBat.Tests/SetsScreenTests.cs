@@ -279,7 +279,8 @@ public sealed class SetsScreenTests : IDisposable
         var preview = Assert.IsType<ListScreen>(SetsScreens.ConfirmRemoval(_session, "doomed"));
         await Wait(() => !preview.IsLoading);
 
-        var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Start).Screen);
+        // Accept, not Start: a yes-or-no screen is answered with the confirm button now.
+        var applying = Assert.IsType<ListScreen>(preview.Handle(NavAction.Accept).Screen);
         await Wait(() => !applying.IsLoading);
 
         Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "only.sfc")));
@@ -288,6 +289,75 @@ public sealed class SetsScreenTests : IDisposable
         // The set goes last, after its files. Either order self-heals; this one never claims to
         // have removed something that is still on the disk.
         Assert.Equal(["wanted"], new SyncSetService(_session).List().Select(summary => summary.Set.Name));
+    }
+
+    /// <summary>
+    /// Removing a set's games lands back on the sets list, not on three stale screens.
+    /// </summary>
+    /// <remarks>
+    /// Found on a hands-on pass. The set is gone by the time this screen is reached, so the
+    /// preview, the confirmation and the set's own detail all describe something that no longer
+    /// exists, and leaving them on the stack was four presses through three of them to get to
+    /// the list. 7b-2a fixed exactly this on the keep-the-games path and adding two screens
+    /// above it brought it back.
+    /// </remarks>
+    [Fact]
+    public async Task Removing_a_sets_games_lands_back_on_the_sets_list()
+    {
+        var doomed = Seed("doomed");
+        Seed("survivor");
+
+        SeedFile(1, "snes", "only.sfc", 1_024);
+        Members(doomed, 1);
+
+        var navigator = new Navigator(Status());
+        navigator.Handle(NavAction.Start);
+        var list = Assert.IsType<ListScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Alternate);
+        navigator.Handle(NavAction.Accept);
+
+        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !preview.IsLoading);
+
+        navigator.Handle(NavAction.Accept);
+        var applying = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !applying.IsLoading);
+
+        navigator.Handle(NavAction.Back);
+
+        Assert.Same(list, navigator.Current);
+        Assert.Equal(2, navigator.Depth);
+        Assert.Equal(["survivor"], list.Rows.Select(row => row.Label));
+    }
+
+    /// <summary>
+    /// Anything that says it is working ends in an ellipsis.
+    /// </summary>
+    /// <remarks>
+    /// A screen that states an ongoing action without one reads as a finished sentence, so a
+    /// person cannot tell a screen that is working from a screen that has stopped. Asked for on
+    /// a hands-on pass, swept rather than checked at one site because every screen that loads
+    /// has one of these and a new one is the easy thing to forget.
+    /// </remarks>
+    [Fact]
+    public void Every_loading_message_says_it_is_still_going()
+    {
+        using var built = AllScreens();
+
+        foreach (var screen in built)
+        {
+            if (screen is not ListScreen { Load: not null } loading)
+            {
+                continue;
+            }
+
+            Assert.EndsWith(
+                "...",
+                loading.LoadingMessage,
+                StringComparison.Ordinal);
+        }
     }
 
     [Fact]
@@ -329,7 +399,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         var bound = NavRepeat.Bound;
 
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             Assert.All(screen.Hints, hint => Assert.Contains(hint.Action, bound));
         }
@@ -337,34 +409,15 @@ public sealed class SetsScreenTests : IDisposable
 
     // ---- what the hands-on pass found ----
 
-    [Fact]
-    public void Any_screen_that_answers_accept_also_offers_the_hint_for_it()
-    {
-        Seed("hinted");
-        SeedPlatform(4, "snes");
-
-        // The generalising form of a hands-on finding. The set detail screen answered Accept by
-        // opening the editor and never offered the hint, because the hint was derived from
-        // whether the cursor sat on a choosable row and every row there is a fact. The action
-        // worked and the footer never said so, which is the round-8 failure pointed the other
-        // way: a rule enforced in one place and broken in the place beside it.
-        //
-        // Each screen is a fresh instance, so pressing Accept here cannot disturb the next one.
-        foreach (var screen in AllScreens())
-        {
-            var offered = screen.Hints.Any(hint => hint.Action == NavAction.Accept);
-            var answered = screen.Handle(NavAction.Accept).Kind != ScreenCommandKind.Stay;
-
-            Assert.False(
-                answered && !offered,
-                $"{screen.GetType().Name} acts on Accept but its footer never says so");
-        }
-    }
-
     /// <summary>
     /// Every screen offers a verb exactly when that verb works, for every action, both ways.
     /// </summary>
     /// <remarks>
+    /// <b>This replaces an Accept-only sweep rather than sitting beside it.</b> That one asserted
+    /// half of one action's half of the rule and could not settle a screen first, so it started
+    /// failing the moment a verb became conditional on a preview landing. Two tests where one
+    /// states the rule is how a rule comes to be enforced in one place and broken in the place
+    /// beside it, which is this repository's recurring shape.
     /// <b>The sweep above only ever looked at Accept, and three screens got the same rule wrong
     /// on Start.</b> A hands-on pass found all three in one sitting: the file-check screen and
     /// the set-removal screen answered Start and never offered it, so the footer named nothing
@@ -387,7 +440,9 @@ public sealed class SetsScreenTests : IDisposable
         Seed("hinted");
         SeedPlatform(4, "snes");
 
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             if (screen is ListScreen loaded)
             {
@@ -1210,7 +1265,9 @@ public sealed class SetsScreenTests : IDisposable
         // Nothing in this install has an origin or a token. Listing, opening, editing and the
         // budget are all local, and the 2 s budget is the same one stage 7b-1 measured an
         // unreachable server against.
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             var clock = Stopwatch.StartNew();
             _ = screen.Title;
@@ -1301,7 +1358,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         var shown = new List<string>();
 
-        foreach (var screen in AllScreens())
+        using var built = AllScreens();
+
+        foreach (var screen in built)
         {
             shown.Add(screen.Title);
             shown.AddRange(screen.Hints.Select(hint => hint.Label));
@@ -1375,7 +1434,43 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     /// <summary>One of each sets screen, in whatever state a person first meets it.</summary>
-    private List<IScreen> AllScreens()
+    /// <summary>
+    /// Every screen on this surface, built fresh, and disposed once the caller is done.
+    /// </summary>
+    /// <remarks>
+    /// <b>Disposed, because several of these start work on construction.</b> The file check
+    /// walks <c>local_file</c> with one filesystem call per row on the thread pool, and four
+    /// sweeps call this helper. Left running they outlived the assertion, contended on
+    /// <c>StoreGate</c> with the next one, and were still going when the fixture disposed its
+    /// store: two intermittent failures in unrelated tests before it was tracked down.
+    /// <para>
+    /// A helper that starts work owes its cleanup, which is what an <c>IDisposable</c> wrapper
+    /// makes impossible to forget at one of four call sites.
+    /// </para>
+    /// </remarks>
+    private ScreenSet AllScreens() => new(BuildScreens());
+
+    /// <summary>Holds a sweep's screens and cancels whatever they started.</summary>
+    private sealed class ScreenSet : IDisposable, IEnumerable<IScreen>
+    {
+        private readonly List<IScreen> _screens;
+
+        public ScreenSet(List<IScreen> screens) => _screens = screens;
+
+        public IEnumerator<IScreen> GetEnumerator() => _screens.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void Dispose()
+        {
+            foreach (var screen in _screens)
+            {
+                (screen as IDisposable)?.Dispose();
+            }
+        }
+    }
+
+    private List<IScreen> BuildScreens()
     {
         var existing = new SyncSetService(_session).List();
         var set = existing.Count > 0 ? existing[0].Set : Seed("sample");

@@ -15,6 +15,17 @@ namespace RomMBat.UI.Screens;
 /// </param>
 public sealed record ListRow(string Label, string? Value = null, string? Detail = null, bool Available = true);
 
+/// <summary>How far a screen's loader has got.</summary>
+public sealed record LoadProgress(int Done, int Total)
+{
+    public double Fraction => Total > 0 ? Math.Clamp((double)Done / Total, 0, 1) : 0;
+
+    /// <summary>The count as a person reads it.</summary>
+    public string Counted => string.Create(
+        System.Globalization.CultureInfo.CurrentCulture,
+        $"{Done:N0} of {Total:N0}");
+}
+
 /// <summary>
 /// A list of rows with a cursor and one action per row.
 /// </summary>
@@ -188,6 +199,31 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     public bool AlwaysOfferAccept { get; init; }
 
     /// <summary>
+    /// Offers the accept hint only while this says so, on a screen of facts.
+    /// </summary>
+    /// <remarks>
+    /// <b>The conditional form of <see cref="AlwaysOfferAccept"/>, for a confirm screen whose
+    /// answer is not known until its preview lands.</b> A removal preview has no choosable row,
+    /// so the cursor cannot decide the hint, and the verb only becomes real once the plan says
+    /// something can go. Offering it before that is a press that walks through a second screen
+    /// and does nothing, which is what a hands-on pass met; never offering it is a screen whose
+    /// only named answer is the one that changes nothing, which is what the same pass met twice
+    /// more.
+    /// </remarks>
+    public Func<bool>? OfferAcceptWhen { get; init; }
+
+    /// <summary>
+    /// What Back does, when leaving means closing more than this screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a screen that invalidated the ones under it.</b> Deleting a set leaves its
+    /// confirmation, its preview and its own detail screen all describing something that does
+    /// not exist, so backing out of the last of them has to close all four rather than walk a
+    /// person through three stale screens to reach the list.
+    /// </remarks>
+    public Func<ScreenCommand>? OnBack { get; init; }
+
+    /// <summary>
     /// Every row is text to read rather than a choice, so the cursor walks all of them.
     /// </summary>
     /// <remarks>
@@ -242,7 +278,30 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     public Func<CancellationToken, Task<string?>>? Load { get; init; }
 
     /// <summary>What to say while <see cref="Load"/> runs.</summary>
-    public string LoadingMessage { get; init; } = "Asking RomM.";
+    public string LoadingMessage { get; init; } = "Asking RomM...";
+
+    /// <summary>
+    /// How far through the load is, when it can say, as a fraction and a count.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because a sentence that does not change is a hung screen.</b> The file check and its
+    /// repair are one filesystem check per row and a live install measured 5,932 of them off a
+    /// USB stick, so both sat on a fixed line for seconds with nothing to say they were still
+    /// going. Found on a hands-on pass, and it is the same finding stage 7b-2b recorded about a
+    /// resolve that showed no movement.
+    /// <para>
+    /// Null while a load has nothing countable to report, which is most of them: a request to a
+    /// server has one step and a bar over it would be a fiction.
+    /// </para>
+    /// </remarks>
+    public LoadProgress? Progress { get; private set; }
+
+    /// <summary>Records how far a load has got, and asks for a redraw.</summary>
+    /// <remarks>
+    /// Handed to <see cref="Load"/> as an <see cref="IProgress{T}"/> so the work reports rather
+    /// than the screen polling, which is the shape every other progress on this surface uses.
+    /// </remarks>
+    public IProgress<(int Done, int Total)> Reporter => new Immediate(this);
 
     /// <summary>True until the loader has finished, or immediately when there is none.</summary>
     public bool IsLoading { get; private set; }
@@ -339,7 +398,11 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
             var state = _state;
 
-            if (AlwaysOfferAccept || (state.Cursor >= 0 && state.Rows[state.Cursor].Available))
+            var offerAccept = OfferAcceptWhen is { } when
+                ? when()
+                : AlwaysOfferAccept || (state.Cursor >= 0 && state.Rows[state.Cursor].Available);
+
+            if (offerAccept)
             {
                 hints.Add(new FooterHint(NavAction.Accept, _acceptLabel));
             }
@@ -410,7 +473,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             }
 
             case NavAction.Back:
-                return ScreenCommand.Pop;
+                return OnBack is { } leave ? leave() : ScreenCommand.Pop;
 
             default:
                 return ScreenCommand.Stay;
@@ -451,6 +514,23 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         }
 
         return -1;
+    }
+
+    /// <summary>Reports a load's progress on whatever thread the work is on.</summary>
+    private sealed class Immediate : IProgress<(int Done, int Total)>
+    {
+        private readonly ListScreen _screen;
+
+        public Immediate(ListScreen screen) => _screen = screen;
+
+        public void Report((int Done, int Total) value)
+        {
+            _screen.Progress = value.Total > 0
+                ? new LoadProgress(value.Done, value.Total)
+                : null;
+
+            _screen.Invalidated?.Invoke(_screen, EventArgs.Empty);
+        }
     }
 
     /// <summary>

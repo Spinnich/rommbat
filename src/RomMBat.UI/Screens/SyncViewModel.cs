@@ -232,7 +232,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     private readonly Lock _gate = new();
 
     private volatile SyncSnapshot _state =
-        new(SyncStage.Working, "Working out what this device should hold.");
+        new(SyncStage.Working, "Working out what this device should hold...");
 
     private Task? _work;
     private bool _disposed;
@@ -479,7 +479,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         }
 
         _stopping = true;
-        Publish(state => state with { Detail = "Stopping, and putting back the game in progress." });
+        Publish(state => state with { Detail = "Stopping, and putting back the game in progress..." });
         _run.Cancel();
     }
 
@@ -608,15 +608,15 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         switch (reported)
         {
             case FlushStarting:
-                Publish(state => state with { Pass = "Sending saves and play time", Game = null });
+                Publish(state => state with { Pass = "Sending saves and play time...", Game = null });
                 break;
 
             case SetResolved(var resolve):
-                Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains", Game = null });
+                Publish(state => state with { Pass = $"Asking RomM what '{resolve.SetName}' contains...", Game = null });
                 break;
 
             case BiosPlanned or BiosApplied:
-                Publish(state => state with { Pass = "Firmware", Game = null });
+                Publish(state => state with { Pass = "Fetching firmware...", Game = null });
                 break;
 
             case BiosProblem(var message):
@@ -629,7 +629,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
 
                 Publish(state => state with
                 {
-                    Pass = _sets.Count == 1 ? "Downloading" : $"Downloading '{set.Name}'",
+                    Pass = _sets.Count == 1 ? "Downloading..." : $"Downloading '{set.Name}'...",
                     Total = plan.Steps.Count,
                     Done = 0,
                     TotalBytes = _sent + _planned,
@@ -671,7 +671,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 break;
 
             case MediaProgressed(var what):
-                Publish(state => state with { Pass = "Artwork", Game = what, GameTotal = 0, GameTransferred = 0 });
+                Publish(state => state with { Pass = "Fetching artwork...", Game = what, GameTotal = 0, GameTransferred = 0 });
                 break;
 
             case MediaApplied(var outcome):
@@ -687,7 +687,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 // issued while RomMBat is in front of EmulationStation is deferred rather than
                 // discarded, and that ES does not rescan on resume by itself, so the games
                 // appear the moment the user leaves. Nothing here tells them to restart it.
-                Publish(state => state with { Pass = "Telling EmulationStation", Game = null });
+                Publish(state => state with { Pass = "Telling EmulationStation...", Game = null });
                 break;
 
             case BudgetReported(var used, var cap):
