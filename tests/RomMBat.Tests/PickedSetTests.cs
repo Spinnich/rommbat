@@ -1,3 +1,4 @@
+using System.Net;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Core;
@@ -101,6 +102,36 @@ public sealed class PickedSetTests : IDisposable
         Assert.True(second.AlreadyPicked);
         Assert.Equal([11], picked.Picks());
         Assert.Single(_session.Store.SyncSets.Members(second.Set.Id));
+    }
+
+    /// <summary>
+    /// Re-picking a game keeps its place in the pick order, and does not take the next one's.
+    /// </summary>
+    /// <remarks>
+    /// Position is what <c>Rank</c> orders eviction by, so two members sharing a number is two
+    /// games whose removal order is undefined. Recounting the membership for a row already in
+    /// it gave that row the count plus one without growing the count, so the next new pick
+    /// collided with it.
+    /// </remarks>
+    [Fact]
+    public void Re_picking_a_game_does_not_move_it_or_the_next_pick()
+    {
+        var picked = new PickedSetService(_session);
+
+        var first = picked.Pick(Row(11, "Chrono Trigger"), Now);
+        picked.Pick(Row(12, "Super Metroid"), Now);
+        var again = picked.Pick(Row(11, "Chrono Trigger"), Now);
+        picked.Pick(Row(13, "Earthbound"), Now);
+
+        Assert.Equal(1, first.Member!.Position);
+        Assert.Equal(1, again.Member!.Position);
+
+        var positions = _session.Store.SyncSets.Members(again.Set.Id)
+            .ToDictionary(member => member.RomId, member => member.Position);
+
+        Assert.Equal(1, positions[11]);
+        Assert.Equal(2, positions[12]);
+        Assert.Equal(3, positions[13]);
     }
 
     [Fact]
@@ -283,6 +314,61 @@ public sealed class PickedSetTests : IDisposable
         // is drift a re-resolve exists to notice, and one missing game must not cost the others.
         Assert.Contains("no longer in RomM", report.Summary, StringComparison.Ordinal);
         Assert.Equal([11, 12], _session.Store.SyncSets.Members(set.Id).Select(member => member.RomId).Order());
+    }
+
+    /// <summary>
+    /// A server error part way through a hydrate stops it, and departs nobody.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only a 404 is drift.</b> A 500 or a reverse proxy's 502 answers every remaining id
+    /// the same way, so reading them as deletions empties the set: the resolution would come
+    /// out complete with no members, the completion sweep would depart all of them, and the
+    /// next eviction would rank the lot ahead of every orphan. It self-heals on the next
+    /// successful resolve; an eviction taken in between does not.
+    /// </remarks>
+    [Fact]
+    public async Task A_server_error_part_way_through_a_hydrate_departs_nobody()
+    {
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(11, 1, "snes", "snes", "Chrono Trigger", "chrono.sfc", "sfc", 2_048));
+        stub.Library.Add(new StubRom(12, 1, "snes", "snes", "Super Metroid", "metroid.sfc", "sfc", 4_096));
+        stub.Library.Add(new StubRom(13, 1, "snes", "snes", "Earthbound", "earthbound.sfc", "sfc", 8_192));
+
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "Picked on somewhere else",
+                Scope = CatalogScopeKind.Picked,
+                ScopeValue = PickedScopeJson.Write([11, 12, 13]),
+            },
+            Now);
+
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("https://romm.invalid/"), AccessToken = "rmm_test" },
+            stub);
+
+        var service = new SetResolveService(_session, connection);
+
+        var first = Assert.Single(
+            await service.ResolveAsync([set], progress: null, TestContext.Current.CancellationToken));
+
+        Assert.Equal(ResolveState.Resolved, first.State);
+        Assert.Equal(3, _session.Store.SyncSets.Members(set.Id).Count);
+
+        // One id answered, then the server falls over for the rest of the walk.
+        stub.FailRomByIdAfter = (stub.RomsById + 1, HttpStatusCode.InternalServerError);
+
+        var second = Assert.Single(
+            await service.ResolveAsync([set], progress: null, TestContext.Current.CancellationToken));
+
+        Assert.Equal(ResolveState.Interrupted, second.State);
+        Assert.DoesNotContain("no longer in RomM", second.Summary, StringComparison.Ordinal);
+
+        // The membership the first walk wrote is untouched, because an interrupted resolution
+        // never runs the completion sweep.
+        Assert.Equal(
+            [11, 12, 13],
+            _session.Store.SyncSets.Members(set.Id).Select(member => member.RomId).Order());
     }
 
     // ------------------------------------------------------------------ seeding

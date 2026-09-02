@@ -289,7 +289,16 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   The way round it is per-id fetches, at the ~0.15 s each M4 measured, and only on a device the
   set roamed to: the device that did the picking already has every field the membership needs on
   the browse row it was looking at. Fetch one at a time, drop a 404 as ordinary drift, and stop
-  on a 401 because every remaining fetch would send the same refused token.
+  on a 401 because every remaining fetch would send the same refused token. **Drop the 404 and
+  nothing else.** A 500, a reverse proxy's 502 and a 403 answer every remaining id the same way,
+  so counting them as deletions departs the whole set on one bad minute, and the resolution comes
+  out complete while it does it.
+
+  **`GetAuthenticatedAsync` folded 404 into `ServerError` until 7b-2c**, so for any read going
+  through it that instruction could not be followed: `RomMResponseStatus.NotFound` existed and
+  only the download and media paths, which classify their own responses, ever produced it. If a
+  new caller wants to tell drift from failure, check the arm is there before writing the branch
+  that depends on it.
 
   **Read one ROM as a `RomRow`, not through the generated detail schema.** Same trap as the
   paged read: the pinned schema declares `fs_size_bytes` a bare `integer`, so a generated DTO

@@ -503,10 +503,12 @@ public sealed class SetResolver
     /// list that grew past them is still bounded by them.
     /// </para>
     /// <para>
-    /// <b>A ROM the server no longer has is dropped rather than failing the resolve.</b> An id
+    /// <b>A 404 is dropped rather than failing the resolve, and nothing else is.</b> An id
     /// picked on another device and since deleted in RomM is exactly the drift a re-resolve
-    /// exists to notice, and one missing game must not cost the other forty. A 401 is different
-    /// and does stop it: every remaining fetch would send the same refused token.
+    /// exists to notice, and one missing game must not cost the other forty. Every other
+    /// refusal stops the walk: a 500 or a 502 from a reverse proxy answers every id in the
+    /// list the same way, so reading them as deletions departs the whole set on one bad
+    /// minute, and a 401 would send the same refused token on every remaining fetch.
     /// </para>
     /// </remarks>
     public async Task<SetResolution> HydrateAsync(
@@ -552,17 +554,19 @@ public sealed class SetResolver
                 break;
             }
 
-            if (response.Status == RomMResponseStatus.Unauthorized)
+            if (response.Status == RomMResponseStatus.NotFound)
             {
-                failure = response;
-                break;
+                // Gone from the library, which is drift rather than failure. Only a 404 says
+                // that: every other refusal is about the request or the server, and counting
+                // one as a deletion departs a member on the strength of a bad gateway.
+                missing++;
+                continue;
             }
 
             if (!response.IsSuccess || response.Value is null)
             {
-                // Gone from the library, which is drift rather than failure.
-                missing++;
-                continue;
+                failure = response;
+                break;
             }
 
             scanned++;
