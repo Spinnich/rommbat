@@ -322,7 +322,7 @@ public static class SetsScreens
             $"Remove the games in '{name}'?",
             () => RemovalRows(report, unvouchable, flushNote),
             _ => ScreenCommand.Stay,
-            acceptLabel: "Take them off this device",
+            acceptLabel: "Delete the set",
             backLabel: "Keep them")
         {
             Reading = true,
@@ -335,7 +335,14 @@ public static class SetsScreens
             // confirm button, which is the model EmulationStation itself uses and the one a
             // hands-on pass asked for. AlwaysOfferAccept is what lets a screen of facts offer
             // it, since every row here is a fact and the cursor has nowhere choosable to sit.
-            OfferAcceptWhen = () => report is { } ready && ready.Plan.Selected.Count > 0,
+            //
+            // Offered as soon as the preview lands, whatever it says, because **the set goes
+            // either way**. Gating it on there being a game to remove made an empty set
+            // undeletable: a person picked "take its games off", got a screen with nothing to
+            // press, and had to know to back out and choose the other answer. The same dead end
+            // met a set whose every game another set still claimed. What the user asked for is
+            // granted as far as it can be, and the rows say what stayed and why.
+            OfferAcceptWhen = () => report is not null,
             Load = async token =>
             {
                 flushNote = await FlushBeforeRemovalAsync(session, connect, token).ConfigureAwait(false);
@@ -347,7 +354,7 @@ public static class SetsScreens
             },
             Verbs = (action, _) => action switch
             {
-                NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
+                NavAction.Accept when report is { } ready =>
                     ScreenCommand.Push(ApplyRemoval(session, name, ready)),
                 _ => null,
             },
@@ -461,11 +468,16 @@ public static class SetsScreens
         var rows = new List<ListRow>
         {
             new(
+                "The set goes",
+                null,
+                "Deleting it is what you asked for, and it happens whatever the games below do.",
+                false),
+            new(
                 ready.Plan.Selected.Count == 0
-                    ? "Nothing would be removed"
+                    ? "No game is removed"
                     : $"{ready.Plan.Selected.Count} "
                         + $"{(ready.Plan.Selected.Count == 1 ? "game goes" : "games go")}",
-                ByteSize.Format(ready.Plan.BytesFreed),
+                ready.Plan.Selected.Count == 0 ? null : ByteSize.Format(ready.Plan.BytesFreed),
                 "Saves and save states are never removed. They are not files this can reach.",
                 false),
         };

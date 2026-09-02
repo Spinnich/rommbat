@@ -147,7 +147,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// <summary>The rows, which are never more than one page of them.</summary>
     public IReadOnlyList<ListRow> Rows =>
     [
-        .. (_state.Page?.Games ?? []).Select(ToRow),
+        .. (_state.Page?.Games ?? []).Select(game => ToRow(game, _state.PlatformLabel is not null)),
         .. EndRow(_state),
     ];
 
@@ -228,12 +228,10 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
             hints.Add(new FooterHint(NavAction.Start, "Search"));
 
-            if (_session.Store.PlatformMap.List().Count > 0)
-            {
-                hints.Add(new FooterHint(NavAction.Extra, "Narrow to one platform"));
-            }
-
-            hints.Add(new FooterHint(NavAction.Back, "Back"));
+            // No platform verb. Choosing one is how this screen is reached now, so a picker
+            // here pops back to the screen already underneath and is a second Back button
+            // wearing a different label. Found from the couch.
+            hints.Add(new FooterHint(NavAction.Back, _state.PlatformLabel is null ? "Back" : "Another platform"));
 
             return hints;
         }
@@ -298,9 +296,6 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
             case NavAction.Start:
                 return ScreenCommand.Push(SearchKeyboard());
 
-            case NavAction.Extra when _session.Store.PlatformMap.List().Count > 0:
-                return ScreenCommand.Push(PlatformPicker());
-
             case NavAction.Back:
                 return ScreenCommand.Pop;
 
@@ -348,47 +343,6 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                 return new TypedResult(null);
             },
             _session.EmulationStationLanguage());
-
-    /// <summary>
-    /// Narrowing to one platform, from the mapping table rather than from the server.
-    /// </summary>
-    /// <remarks>
-    /// <c>SyncSetService.PlatformsKnownHere</c>, which is what the set editor's picker already
-    /// uses, so the two offer the same platforms and a platform absent from one is absent from
-    /// both. It also works offline, which the online-only alternative would not.
-    /// </remarks>
-    private ListScreen PlatformPicker()
-    {
-        var platforms = new SyncSetService(_session).PlatformsKnownHere();
-
-        return new ListScreen(
-            "Which platform?",
-            [
-                new ListRow("Every platform", null, "Everything RomM holds."),
-                .. platforms.Select(platform => new ListRow(
-                    platform.Label,
-                    platform.Folder ?? "no folder",
-                    platform.Folder is null
-                        ? "This platform has no RetroBat folder, so its games cannot be installed."
-                        : null)),
-            ],
-            index =>
-            {
-                var chosen = index == 0 ? null : platforms[index - 1];
-
-                Publish(current => current with
-                {
-                    PlatformId = chosen?.PlatformId.ToString(CultureInfo.InvariantCulture),
-                    Folder = chosen?.Folder,
-                    PlatformLabel = chosen?.Label,
-                });
-
-                Fetch(0);
-                return ScreenCommand.Pop;
-            },
-            acceptLabel: "Show these",
-            backLabel: "Back");
-    }
 
     /// <summary>
     /// Fetches one page and replaces what is held.
@@ -504,15 +458,19 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// <see cref="BrowseGame.Release"/> holds the argument and the numbers.
     /// </para>
     /// </remarks>
-    private static ListRow ToRow(BrowseGame game) => new(
+    /// <param name="scoped">
+    /// True when the whole list is one platform, which is when naming it on every row is a
+    /// column of the same word. The header already says which platform it is.
+    /// </param>
+    private static ListRow ToRow(BrowseGame game, bool scoped) => new(
         game.DisplayName,
         game.IsHere ? "here: " + string.Join(", ", game.Folders) : "not here",
 
         // The file name leads, because it is the half that tells two rows with one title apart
         // and a trimmed line loses its end: what goes is a translation credit rather than the
-        // region and revision, which sit early. Platform and size follow and are both a press
-        // away on the game's own screen.
-        $"{game.Release}  ·  {game.PlatformSlug}  ·  {ByteSize.Format(game.SizeBytes)}"
+        // region and revision, which sit early. Size follows and is a press away besides.
+        $"{game.Release}  ·  {ByteSize.Format(game.SizeBytes)}"
+            + (scoped ? string.Empty : $"  ·  {game.PlatformSlug}")
             + (game.Sets.Count > 0 ? $"  ·  in {string.Join(", ", game.Sets)}" : string.Empty),
         false);
 

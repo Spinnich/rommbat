@@ -115,8 +115,24 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
     public string BackLabel { get; }
 
-    /// <summary>Which row is selected. Always in range; -1 only when the list is empty.</summary>
-    public int Cursor => _state.Cursor;
+    /// <summary>
+    /// Which row is selected, or -1 when nothing is.
+    /// </summary>
+    /// <remarks>
+    /// <b>A reading list that fits on screen has no cursor, and that is a fix rather than an
+    /// omission.</b> Every row on one is a fact rather than a choice, so a highlight moving
+    /// through them says they can be chosen when they cannot: a hands-on pass read a game's
+    /// detail screen as "all its information as navigable selections even though they're not".
+    /// <para>
+    /// It appears the moment the list is longer than the window, because then the highlight is
+    /// no longer a claim about choosing but the only way to say where scrolling has got to.
+    /// That is the case <see cref="Reading"/> was invented for, on a run's problems list that
+    /// would not scroll at all.
+    /// </para>
+    /// </remarks>
+    public int Cursor => Reading && _state.Rows.Count <= ListWindow.CapacityFor(true)
+        ? -1
+        : _state.Cursor;
 
     /// <summary>
     /// Which slice of the rows is on screen.
@@ -135,6 +151,9 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         {
             var state = _state;
 
+            // The stored cursor, not the published one: a reading list that fits hides its
+            // cursor and still has to draw every row it holds.
+            //
             // Fewer rows when each one is taller, or the block runs off the bottom of the
             // window and Avalonia draws a scroll bar no gamepad can reach.
             return ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.CapacityFor(Reading));

@@ -213,6 +213,77 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Equal(0, browse.Cursor);
     }
 
+    /// <summary>
+    /// The list is alphabetical, which id order only looked like.
+    /// </summary>
+    /// <remarks>
+    /// <c>CatalogQuery</c> defaults to ascending id, which is right for a resolve and wrong
+    /// here. A library imported in name order carries ids in roughly that order, so the list
+    /// reads as sorted until it is not: on the live instance an id-ordered snes page put
+    /// "3 Ninjas Kick Back" before "3-jigen Kakutou Ballz" and dropped the latter out of
+    /// sequence. Found from the couch as "there's something else sorting the list on top of
+    /// that", which is exactly what an almost-sorted list looks like.
+    /// </remarks>
+    [Fact]
+    public async Task Browse_asks_for_the_library_in_name_order()
+    {
+        using var stub = Library(4);
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+
+        await Settled(browse);
+
+        Assert.Contains(stub.QueryLog, query => query.Contains("order_by=name", StringComparison.Ordinal));
+        Assert.DoesNotContain(stub.QueryLog, query => query.Contains("order_by=id", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A list of one platform does not repeat that platform on every row.
+    /// </summary>
+    /// <remarks>
+    /// The header already says which platform it is, so naming it per row is a column of the
+    /// same word. Found from the couch once browse started on the platform list.
+    /// </remarks>
+    [Fact]
+    public async Task A_platform_scoped_list_does_not_name_that_platform_on_every_row()
+    {
+        using var stub = Library(3);
+        Pair();
+
+        var platform = new PlatformOption(1, "snes", "Super Nintendo", "snes", null);
+        using var scoped = new BrowseViewModel(_session, Connect(stub), platform);
+        await Settled(scoped);
+
+        Assert.Equal("Super Nintendo", scoped.Title);
+        Assert.All(scoped.Rows, row => Assert.DoesNotContain("snes", row.Detail, StringComparison.Ordinal));
+
+        // Unscoped it is worth saying, because the rows are then from anywhere.
+        using var everything = new BrowseViewModel(_session, Connect(stub));
+        await Settled(everything);
+
+        Assert.All(everything.Rows, row => Assert.Contains("snes", row.Detail, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// Browse offers no platform picker, because choosing one is how it is reached.
+    /// </summary>
+    /// <remarks>
+    /// A picker here pops back to the screen already underneath, so it was a second Back button
+    /// wearing a different label. Found from the couch.
+    /// </remarks>
+    [Fact]
+    public async Task Browse_offers_no_second_way_back_to_the_platform_list()
+    {
+        using var stub = Library(3);
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+
+        await Settled(browse);
+
+        Assert.DoesNotContain(browse.Hints, hint => hint.Action == NavAction.Extra);
+        Assert.Equal(ScreenCommandKind.Stay, browse.Handle(NavAction.Extra).Kind);
+    }
+
     // ------------------------------------------------------------------ it degrades
 
     /// <summary>

@@ -164,6 +164,23 @@ public sealed class BrowseService
             Scope = platformId is null ? CatalogScopeKind.Filter : CatalogScopeKind.Platform,
             ScopeId = platformId,
             SearchTerm = search,
+
+            // By name, not by id. `CatalogQuery`'s default is ascending id, and that is right
+            // for a resolve: RomM hands out ascending ids, so a ROM added mid-walk lands past
+            // the cursor instead of shifting every later page. Browse is not resumable and
+            // nobody scrolls a library by id.
+            //
+            // It looked alphabetical and was not, which is worse than being obviously unsorted.
+            // A library imported in name order carries ids in roughly that order, so the list
+            // reads as sorted until it is not: measured on the live instance, an id-ordered snes
+            // page put '3 Ninjas Kick Back' before '3-jigen Kakutou Ballz' and then dropped the
+            // latter out of sequence entirely. Found from the couch as "there's something else
+            // sorting the list on top of that".
+            //
+            // Named rather than left empty, which the schema documents as ordering by search
+            // relevance on MySQL and by name everywhere else. A list whose order depends on
+            // which database the server runs is not one a person can learn.
+            OrderBy = "name",
         };
 
         RomMResponse<RomPage> response;

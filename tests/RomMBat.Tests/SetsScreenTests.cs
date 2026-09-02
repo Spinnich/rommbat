@@ -360,6 +360,66 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// A screen of facts that fits shows no cursor, because nothing on it can be chosen.
+    /// </summary>
+    /// <remarks>
+    /// A hands-on pass read a game's detail screen as "all its information as navigable
+    /// selections even though they're not". A highlight moving through facts claims they can be
+    /// picked. It comes back the moment the list outgrows the window, because there the
+    /// highlight is the only way to say where scrolling has got to, which is the case reading
+    /// mode was invented for.
+    /// </remarks>
+    [Fact]
+    public void A_reading_list_that_fits_shows_no_cursor()
+    {
+        var fits = new ListScreen(
+            "four facts",
+            [.. Enumerable.Range(1, 4).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
+            _ => ScreenCommand.Stay)
+        {
+            Reading = true,
+        };
+
+        Assert.Equal(-1, fits.Cursor);
+
+        fits.Handle(NavAction.Down);
+        Assert.Equal(-1, fits.Cursor);
+
+        var scrolls = new ListScreen(
+            "thirty facts",
+            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
+            _ => ScreenCommand.Stay)
+        {
+            Reading = true,
+        };
+
+        Assert.Equal(0, scrolls.Cursor);
+
+        scrolls.Handle(NavAction.Down);
+        Assert.Equal(1, scrolls.Cursor);
+    }
+
+    /// <summary>An empty set can be deleted, which a hands-on pass said it could not.</summary>
+    [Fact]
+    public async Task An_empty_set_can_be_deleted()
+    {
+        Seed("empty");
+
+        var confirm = Assert.IsType<ListScreen>(SetsScreens.ConfirmDelete(_session, "empty"));
+
+        // The removal answer first, which is where a person lands.
+        var preview = confirm.Handle(NavAction.Accept).Screen;
+
+        if (preview is ListScreen loaded)
+        {
+            await Wait(() => !loaded.IsLoading);
+            Assert.NotEqual(ScreenCommandKind.Stay, loaded.Handle(NavAction.Accept).Kind);
+        }
+
+        Assert.Empty(new SyncSetService(_session).List());
+    }
+
     [Fact]
     public void Backing_out_of_the_delete_confirmation_keeps_the_set()
     {
