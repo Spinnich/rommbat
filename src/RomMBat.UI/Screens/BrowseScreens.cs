@@ -132,7 +132,7 @@ public static class BrowseScreens
     /// set is released so its own claim does not hold the game back against the person
     /// un-picking it; every other enabled set's claim still does, and says so.
     /// </remarks>
-    private static ListScreen ConfirmRemoval(
+    internal static ListScreen ConfirmRemoval(
         InstallSession session,
         BrowseGame game,
         Func<Uri, RomMConnection>? connect,
@@ -178,7 +178,7 @@ public static class BrowseScreens
         }.Started();
     }
 
-    private static ListScreen ApplyRemoval(
+    internal static ListScreen ApplyRemoval(
         InstallSession session,
         PickedSetService picked,
         BrowseGame game,
@@ -225,6 +225,13 @@ public static class BrowseScreens
                 changed?.Invoke();
                 return null;
             },
+
+            // Back closes this screen and the preview under it, landing on the game's detail,
+            // which re-reads its rows. Popping one left the preview on the stack holding the
+            // report from before the removal, still offering to take off a game that is
+            // already gone. Same defect the set-side path fixed and this one reintroduced by
+            // adding a screen above it.
+            OnBack = () => ScreenCommand.PopMany(2),
         }.Started();
     }
 
@@ -269,7 +276,7 @@ public static class BrowseScreens
         }
 
         rows.Add(new ListRow(
-            game.Sets.Count == 1 ? "Wanted by" : "Wanted by",
+            "Wanted by",
             game.Sets.Count == 0 ? "no sync set" : string.Join(", ", game.Sets),
             game.Sets.Count == 0
                 ? "Nothing is keeping this game here, so the next eviction may take it."

@@ -486,9 +486,8 @@ public sealed class BrowseScreenTests : IDisposable
 
         Assert.Equal(SyncStage.Done, sync.State.Stage);
 
-        // Four passes, and the six that are missing are missing for a reason each. Asserted
-        // here because a person watching this screen is the only witness to which ran, and a
-        // live install of a 2.6 GB title reported exactly these four.
+        // Asserted here because a person watching this screen is the only witness to which
+        // passes ran.
         Assert.Contains("is on this device", sync.State.Detail, StringComparison.Ordinal);
 
         // The pick is a set, and it holds exactly the game that was picked.
@@ -506,6 +505,58 @@ public sealed class BrowseScreenTests : IDisposable
         sync.Dispose();
         detail.Dispose();
         browse.Dispose();
+    }
+
+    /// <summary>
+    /// Taking a game off lands back on its detail screen, not on the preview of the removal.
+    /// </summary>
+    /// <remarks>
+    /// The preview holds the report it took before the removal, and it goes on offering to take
+    /// the game off because that report still names something to remove. Same defect the set
+    /// side fixed, reintroduced here by adding a screen above the preview.
+    /// </remarks>
+    [Fact]
+    public async Task Taking_a_game_off_lands_back_on_its_detail_screen()
+    {
+        Installed(1, "snes", "Chrono Trigger.sfc", 2_048);
+
+        using var browse = new BrowseViewModel(_session);
+        var navigator = new Navigator(browse);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        var detail = Assert.IsType<ListScreen>(navigator.Current);
+        var depth = navigator.Depth;
+
+        navigator.Handle(NavAction.Alternate);
+        var preview = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !preview.IsLoading);
+
+        navigator.Handle(NavAction.Accept);
+        var applying = Assert.IsType<ListScreen>(navigator.Current);
+        await Wait(() => !applying.IsLoading);
+
+        navigator.Handle(NavAction.Back);
+
+        Assert.Same(detail, navigator.Current);
+        Assert.Equal(depth, navigator.Depth);
+        Assert.False(File.Exists(Path.Combine(_tree.Root, "roms", "snes", "Chrono Trigger.sfc")));
+    }
+
+    private static async Task Wait(Func<bool> settled)
+    {
+        for (var attempt = 0; attempt < 300; attempt++)
+        {
+            if (settled())
+            {
+                return;
+            }
+
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Fail("The screen never settled.");
     }
 
     // ------------------------------------------------------------------ the rules that bite here
