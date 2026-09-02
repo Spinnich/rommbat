@@ -3162,7 +3162,8 @@ wraps; a paged one that wrapped to page one would silently undo nine thousand ro
 look exactly like the stall a failed fetch produces. A library that fits one page still wraps.
 
 **Per-game install is one press.** `LibrarySyncService.InstallAsync` takes the set and the
-member and runs five of the ten passes: BIOS, Content, Media, Gamelists and Budget. Hooks and
+member and runs six of the ten passes: Filesystem, BIOS, Content, Media, Gamelists and
+Budget, the last two when the plan touched a folder and when a cap is set. Hooks and
 Menu are first-run installs; Resolve does not run because there is nothing to resolve; Flush
 does not, because 7b-2b put it first for eviction's benefit and nothing here evicts. Measured
 live before BIOS was added: a 2.6 GB title in 25.8 s.

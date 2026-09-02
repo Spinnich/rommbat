@@ -116,21 +116,6 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     public string BackLabel { get; }
 
     /// <summary>
-    /// Which row is selected, or -1 when nothing is.
-    /// </summary>
-    /// <remarks>
-    /// <b>A reading list that fits on screen has no cursor, and that is a fix rather than an
-    /// omission.</b> Every row on one is a fact rather than a choice, so a highlight moving
-    /// through them says they can be chosen when they cannot: a hands-on pass read a game's
-    /// detail screen as "all its information as navigable selections even though they're not".
-    /// <para>
-    /// It appears the moment the list is longer than the window, because then the highlight is
-    /// no longer a claim about choosing but the only way to say where scrolling has got to.
-    /// That is the case <see cref="Reading"/> was invented for, on a run's problems list that
-    /// would not scroll at all.
-    /// </para>
-    /// </remarks>
-    /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
     /// </summary>
     /// <remarks>

@@ -449,13 +449,12 @@ public sealed class LibrarySyncService
     /// Puts one game on the device, now, rather than waiting for a whole run.
     /// </summary>
     /// <remarks>
-    /// <b>Four of the ten passes, and the six that are missing are missing for a reason each.</b>
-    /// Content, Media, Gamelists and Budget run; Hooks and Menu are first-run installs a whole
-    /// sync has already done; Filesystem is inspected because the plan needs it, and reported
-    /// like any other pass; Resolve does not run because there is nothing to resolve, the member
-    /// row having been written from the browse row that was in hand; Flush does not run because
-    /// 7b-2b put it first for eviction's benefit and nothing here evicts; BIOS does not run,
-    /// which is the one worth arguing with and is stated in the paragraph below.
+    /// <b>Six of the ten passes can be reported, and the four that never run are missing for a
+    /// reason each.</b> Filesystem, BIOS, Content and Media always run; Gamelists runs when the
+    /// plan touched a folder and Budget when a cap is set. Hooks and Menu are first-run installs
+    /// a whole sync has already done; Resolve does not run because there is nothing to resolve,
+    /// the member row having been written from the browse row that was in hand; Flush does not
+    /// run because 7b-2b put it first for eviction's benefit and nothing here evicts.
     /// <para>
     /// <b>It takes a member rather than a <c>PlannedGame</c>, and that is a change from the
     /// brief.</b> <c>PlannedGame</c> is <see cref="GameSync"/>'s grouping type, so a caller

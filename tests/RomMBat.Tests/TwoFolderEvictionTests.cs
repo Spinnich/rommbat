@@ -12,8 +12,8 @@ namespace RomMBat.Tests;
 /// </summary>
 /// <remarks>
 /// Its own file because it is a claim about the planner rather than about removal: the same
-/// state takes out <c>evict</c>, the budget screen and the eviction pass inside every sync,
-/// none of which this stage otherwise touches.
+/// state takes out every caller of <c>EvictionPlanner</c>: <c>evict</c>, the budget screen
+/// and both removal previews, none of which this stage otherwise touches.
 /// </remarks>
 public sealed class TwoFolderEvictionTests : IDisposable
 {

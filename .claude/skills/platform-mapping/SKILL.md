@@ -124,8 +124,9 @@ platform between two syncs reaches the same state with no override at all.
 - **Two Rom-kind `local_file` rows for one `rom_id` is a representable, reachable state.**
   `LocalFileStore.ForRom`'s remarks already said so and `ix_local_file_rom_kind` is not `UNIQUE`.
   `EvictionPlanner.Candidates` keyed its lookup with `ToDictionary(file => file.RomId)`, which
-  throws on the second row and takes out `evict`, the budget screen and the eviction pass inside
-  every sync. The comment directly above it named that hazard and then fixed only the media half.
+  throws on the second row and takes out every caller of `EvictionPlanner`: `evict`, the budget
+  screen and both removal previews. No sync pass evicts, so a sync is not among them. The comment
+  directly above it named that hazard and then fixed only the media half.
 - **Each copy is its own eviction candidate**, with the artwork in its own folder attached to it.
   Attaching every copy's media to one candidate has the first removal delete the other folder's
   cover.
