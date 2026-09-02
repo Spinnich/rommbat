@@ -562,7 +562,7 @@ internal static class ScreenView
         var label = new TextBlock
         {
             Text = row.Label,
-            Foreground = selected ? Brushes.Black : ink,
+            Foreground = !reading && selected ? Brushes.Black : reading ? Ink : ink,
             FontSize = 21,
 
             // A name longer than the row is trimmed rather than allowed to widen it. The live
@@ -580,7 +580,7 @@ internal static class ScreenView
             var right = new TextBlock
             {
                 Text = value,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = !reading && selected ? Brushes.Black : Muted,
                 FontSize = 19,
                 Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -597,7 +597,7 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = selected ? Brushes.Black : Muted,
+                Foreground = !reading && selected ? Brushes.Black : Muted,
                 FontSize = 16,
                 MaxWidth = 860,
 
@@ -620,13 +620,20 @@ internal static class ScreenView
 
         return new Border
         {
-            // Fill and ring only. A row is the same size selected or not, so a held d-pad never
-            // makes the list shift under the cursor.
-            Background = selected ? Accent : Panel,
-            BorderBrush = selected ? Ink : Panel,
+            // A reading row is text, not a button, and it is drawn as text. Every row on such a
+            // list is a fact rather than a choice, so a filled panel with a ring round it says
+            // "press me" about something that cannot be pressed. A hands-on pass called it out
+            // twice: first as a highlight walking rows that do nothing, and then, with the
+            // highlight gone, as the rows still being drawn as buttons. Both were the same
+            // mistake, which is dressing a pane of text as a menu.
+            //
+            // Fill and ring only on a list of choices. A row is the same size selected or not,
+            // so a held d-pad never makes the list shift under the cursor.
+            Background = reading ? Brushes.Transparent : selected ? Accent : Panel,
+            BorderBrush = reading ? Brushes.Transparent : selected ? Ink : Panel,
             BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(18, 12, 18, 12),
+            CornerRadius = new CornerRadius(reading ? 0 : 8),
+            Padding = new Thickness(reading ? 0 : 18, 12, reading ? 0 : 18, 12),
 
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the

@@ -576,31 +576,38 @@ public sealed class SyncScreenTests : IDisposable
             Reading = true,
         };
 
-        Assert.Equal(0, screen.Cursor);
+        // Nothing is selected, ever: these are facts and none of them can be chosen. What
+        // scrolls is the window, and asserting on that rather than on a cursor is the honest
+        // form of the original finding, which was that the screen would not scroll at all.
+        Assert.Equal(-1, screen.Cursor);
+        Assert.Equal(0, screen.Window.Start);
 
         screen.Handle(NavAction.Down);
         screen.Handle(NavAction.Down);
-        Assert.Equal(2, screen.Cursor);
-
-        // The window follows, or scrolling moves a cursor nobody can see. That was the defect
-        // twice before, on two other screens.
-        var start = screen.Window.Start;
+        Assert.Equal(2, screen.Window.Start);
 
         for (var press = 0; press < 20; press++)
         {
             screen.Handle(NavAction.Down);
         }
 
-        Assert.Equal(22, screen.Cursor);
-        Assert.True(screen.Window.Start > start, "the window did not follow the cursor down");
-        Assert.InRange(screen.Cursor, screen.Window.Start, screen.Window.Start + screen.Window.Count - 1);
-
-        // Up walks back, and the ends wrap rather than sticking.
-        screen.Handle(NavAction.Up);
-        Assert.Equal(21, screen.Cursor);
+        // Every press moved the view, rather than a cursor kept off the edge leaving it still
+        // for the first few, which would read as a screen ignoring the pad.
+        Assert.Equal(22, screen.Window.Start);
+        Assert.Equal(ListWindow.ReadingCapacity, screen.Window.Count);
 
         screen.Handle(NavAction.Up);
-        Assert.Equal(20, screen.Cursor);
+        Assert.Equal(21, screen.Window.Start);
+
+        // The bottom sticks rather than wrapping: a pane of text that jumps back to the top has
+        // lost the reader's place, and the edge markers already say nothing follows.
+        for (var press = 0; press < 40; press++)
+        {
+            screen.Handle(NavAction.Down);
+        }
+
+        Assert.Equal(30 - ListWindow.ReadingCapacity, screen.Window.Start);
+        Assert.Equal(0, screen.Window.Below);
 
         // Still nothing to press, which is the whole reason the rows are unavailable.
         Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);

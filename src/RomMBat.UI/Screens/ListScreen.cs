@@ -130,9 +130,21 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// would not scroll at all.
     /// </para>
     /// </remarks>
-    public int Cursor => Reading && _state.Rows.Count <= ListWindow.CapacityFor(true)
-        ? -1
-        : _state.Cursor;
+    /// <summary>
+    /// Which row is selected, and <b>never any of them on a reading list</b>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Every row on a reading list is a fact rather than a choice, so nothing on it is
+    /// selected.</b> A hands-on pass read a game's detail screen as its information shown as
+    /// navigable buttons, twice: first because a highlight walked rows that cannot be picked,
+    /// and then because the rows are drawn as filled panels whether or not one is highlighted.
+    /// Both halves were the same mistake, which is treating a pane of text as a menu.
+    /// <para>
+    /// So a reading list scrolls by an offset instead. <see cref="ListWindow.Scrolled"/> is the
+    /// arithmetic and the renderer draws its rows as plain lines.
+    /// </para>
+    /// </remarks>
+    public int Cursor => Reading ? -1 : _state.Cursor;
 
     /// <summary>
     /// Which slice of the rows is on screen.
@@ -151,12 +163,15 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         {
             var state = _state;
 
-            // The stored cursor, not the published one: a reading list that fits hides its
-            // cursor and still has to draw every row it holds.
-            //
             // Fewer rows when each one is taller, or the block runs off the bottom of the
             // window and Avalonia draws a scroll bar no gamepad can reach.
-            return ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.CapacityFor(Reading));
+            //
+            // A reading list scrolls by an offset, which is what the stored cursor holds there:
+            // every press moves the view, where a cursor kept off the edge would leave it still
+            // for the first few and read as a screen ignoring the pad.
+            return Reading
+                ? ListWindow.Scrolled(state.Cursor, state.Rows.Count, ListWindow.ReadingCapacity)
+                : ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.Capacity);
         }
     }
 
@@ -499,10 +514,17 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         }
     }
 
-    /// <summary>Where the cursor lands next, which on a reading list is simply the next row.</summary>
+    /// <summary>
+    /// Where the cursor lands next, which on a reading list is where the view scrolls to.
+    /// </summary>
+    /// <remarks>
+    /// Clamped rather than wrapped there. A pane of text that jumps back to the top when you
+    /// press past the bottom has lost your place, and the edge markers already say there is
+    /// nothing further.
+    /// </remarks>
     private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
         Reading
-            ? rows.Count == 0 ? -1 : ((from % rows.Count) + rows.Count) % rows.Count
+            ? Math.Clamp(from, 0, Math.Max(0, rows.Count - ListWindow.ReadingCapacity))
             : FirstAvailable(rows, from, step);
 
     /// <summary>

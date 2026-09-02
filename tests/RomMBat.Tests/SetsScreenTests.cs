@@ -361,43 +361,44 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     /// <summary>
-    /// A screen of facts that fits shows no cursor, because nothing on it can be chosen.
+    /// A screen of facts never selects anything, whether it fits or scrolls.
     /// </summary>
     /// <remarks>
-    /// A hands-on pass read a game's detail screen as "all its information as navigable
-    /// selections even though they're not". A highlight moving through facts claims they can be
-    /// picked. It comes back the moment the list outgrows the window, because there the
-    /// highlight is the only way to say where scrolling has got to, which is the case reading
-    /// mode was invented for.
+    /// A hands-on pass called this out twice, and both times the words were "its information
+    /// shown as navigable buttons even though they're not". The first report was a highlight
+    /// walking rows that cannot be picked; with the highlight gone for a short list, the second
+    /// was that the rows were still drawn as filled panels with a ring round them, on a screen
+    /// long enough to scroll. Both are the same mistake, which is dressing a pane of text as a
+    /// menu, and the fix is that a reading list has no cursor at all and scrolls by an offset.
+    /// <para>
+    /// The renderer half cannot be asserted here, because nothing in this project draws. What
+    /// this pins is that no row is ever selected, which is what the renderer keys its fill on.
+    /// </para>
     /// </remarks>
     [Fact]
-    public void A_reading_list_that_fits_shows_no_cursor()
+    public void A_screen_of_facts_never_selects_a_row()
     {
-        var fits = new ListScreen(
-            "four facts",
-            [.. Enumerable.Range(1, 4).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
-            _ => ScreenCommand.Stay)
+        foreach (var count in new[] { 4, 30 })
         {
-            Reading = true,
-        };
+            var screen = new ListScreen(
+                $"{count} facts",
+                [.. Enumerable.Range(1, count).Select(n =>
+                    new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
+                _ => ScreenCommand.Stay)
+            {
+                Reading = true,
+            };
 
-        Assert.Equal(-1, fits.Cursor);
+            Assert.Equal(-1, screen.Cursor);
 
-        fits.Handle(NavAction.Down);
-        Assert.Equal(-1, fits.Cursor);
+            screen.Handle(NavAction.Down);
+            screen.Handle(NavAction.Down);
 
-        var scrolls = new ListScreen(
-            "thirty facts",
-            [.. Enumerable.Range(1, 30).Select(n => new ListRow(n.ToString(CultureInfo.CurrentCulture), null, "a fact", false))],
-            _ => ScreenCommand.Stay)
-        {
-            Reading = true,
-        };
+            Assert.Equal(-1, screen.Cursor);
 
-        Assert.Equal(0, scrolls.Cursor);
-
-        scrolls.Handle(NavAction.Down);
-        Assert.Equal(1, scrolls.Cursor);
+            // A list that fits has nothing to scroll; one that does not scrolls by the press.
+            Assert.Equal(count <= ListWindow.ReadingCapacity ? 0 : 2, screen.Window.Start);
+        }
     }
 
     /// <summary>An empty set can be deleted, which a hands-on pass said it could not.</summary>
