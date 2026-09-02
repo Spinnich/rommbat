@@ -49,7 +49,7 @@ internal static class ScreenView
             browse,
             note: browse.Note,
             isLoading: browse.IsLoading,
-            loadingMessage: "Asking RomM.",
+            loadingMessage: browse.LoadingMessage,
             empty: "Nothing matched. Search for something else, or widen the platform."),
 
         _ => new TextBlock { Text = screen.Title, Foreground = Ink },

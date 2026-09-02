@@ -51,7 +51,7 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     private readonly CancellationTokenSource _load = new();
     private readonly Lock _gate = new();
 
-    private volatile BrowseState _state = new(null, true, null, null, null, null, 0);
+    private volatile BrowseState _state = new(null, true, null, null, null, null, 0, false);
     private RomMConnection? _connection;
     private bool _disposed;
 
@@ -174,6 +174,16 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     public ListView Window => ListWindow.Compute(_state.Cursor, Rows.Count, ListWindow.CapacityFor(Reading));
 
     public bool IsLoading => _state.IsLoading;
+
+    /// <summary>What the body says while a page is on its way.</summary>
+    /// <remarks>
+    /// Here rather than on the renderer, because whether there is a server to ask is this
+    /// screen's answer and a hardcoded string in <c>ScreenView</c> is outside every sweep that
+    /// checks these. The ellipsis is the rule <c>ListScreen</c> defaults to.
+    /// </remarks>
+    public string LoadingMessage => _state.Offline
+        ? "Reading what is on this device..."
+        : "Asking RomM...";
 
     /// <summary>What is being shown and where it came from, in one line above the rows.</summary>
     public string Note
@@ -364,9 +374,16 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
             {
                 try
                 {
+                    var connection = Connection();
+
+                    // Published before the await so the loading line names where the rows are
+                    // coming from. Saying "Asking RomM" over a read of the local store is the
+                    // one thing the Note line goes out of its way to get right.
+                    Publish(current => current with { Offline = connection is null });
+
                     var page = await _service
                         .PageAsync(
-                            Connection(),
+                            connection,
                             offset,
                             _state.PlatformId,
                             _state.Folder,
@@ -510,6 +527,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
 /// <summary>Everything a browse screen draws, as one value.</summary>
 /// <param name="Page">The one page held. Null only before the first fetch lands.</param>
+/// <param name="Offline">
+/// True once a fetch found nothing to connect with, which is what the loading line words.
+/// </param>
 public sealed record BrowseState(
     BrowsePage? Page,
     bool IsLoading,
@@ -517,4 +537,5 @@ public sealed record BrowseState(
     string? PlatformId,
     string? Folder,
     string? PlatformLabel,
-    int Cursor);
+    int Cursor,
+    bool Offline);

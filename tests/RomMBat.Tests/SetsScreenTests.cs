@@ -348,16 +348,19 @@ public sealed class SetsScreenTests : IDisposable
 
         foreach (var screen in built)
         {
-            if (screen is not ListScreen { Load: not null } loading)
+            if (screen is ListScreen { Load: not null } loading)
             {
-                continue;
+                Assert.EndsWith("...", loading.LoadingMessage, StringComparison.Ordinal);
             }
-
-            Assert.EndsWith(
-                "...",
-                loading.LoadingMessage,
-                StringComparison.Ordinal);
         }
+
+        // Browse is deliberately not a ListScreen, so it escaped the loop above and its message
+        // sat in the renderer as a literal with no ellipsis on it. Asserted here rather than
+        // widened into the loop, because it is the only screen on this surface with a loader and
+        // no ListScreen under it.
+        using var browse = new BrowseViewModel(_session, null);
+
+        Assert.EndsWith("...", browse.LoadingMessage, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -1573,6 +1576,17 @@ public sealed class SetsScreenTests : IDisposable
             // sweep looked at.
             InventoryScreens.Check(_session),
             BrowseScreens.Detail(_session, browsed),
+
+            // Both reached only by driving a preview to completion, and both were the browse
+            // half of the pair the set side had already made internal for this. The footer
+            // defect a hands-on pass found was on the first of them.
+            BrowseScreens.ConfirmRemoval(_session, browsed, null, null),
+            BrowseScreens.ApplyRemoval(
+                _session,
+                new PickedSetService(_session),
+                browsed,
+                new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false),
+                null),
         };
 
         // The pickers, which are reached from the editor rather than constructed directly.
