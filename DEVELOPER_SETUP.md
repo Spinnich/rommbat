@@ -373,6 +373,7 @@ Every screen is walked with the gamepad map alone and no window, which is what
 `BrowseScreenTests` does end to end against `StubRomMServer`:
 
 ```csharp
+// BrowseViewModel.Start(session) opens the platform list; this is the list itself.
 using var browse = new BrowseViewModel(session, connect);   // connect stands a stub in
 await Settled(browse);                                      // poll IsLoading
 
@@ -380,6 +381,10 @@ var navigator = new Navigator(browse);
 navigator.Handle(NavAction.Accept);                         // open the game
 navigator.Handle(NavAction.Start);                          // install it
 ```
+
+A confirm screen answers **Accept**, not Start: the removal previews and the file check all take
+the confirm button. A screen of facts has no cursor at all and scrolls by an offset, so assert on
+`Window.Start` rather than on `Cursor`, which is always `-1` there.
 
 With no `connect` factory and no pairing, browse lists what the tree holds rather than
 refusing, so the offline half needs no server at all: seed `local_file` rows, open the screen,

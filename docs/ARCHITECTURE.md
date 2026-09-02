@@ -207,11 +207,22 @@ game a page at a time, installing it in one press, and taking a game or a whole 
 Conflict resolution and acting on the queued-config surface are 7b-3.
 
 **Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
-`ListScreen`: everything else has all its rows the moment it opens. It degrades to what this
-device holds when there is no server and says which of the two it is showing, and its cursor
-**stops** at the end of the last page where every other list wraps, because a paged list that
-wraps to page one silently undoes the paging. Both draw through one body in `ScreenView`, so the
-windowing and the edge markers cannot be right in one and wrong in the other.
+`ListScreen`: everything else has all its rows the moment it opens. It starts on the platform
+list rather than the library, asks for name order, degrades to what this device holds when there
+is no server and says which of the two it is showing, and its cursor **stops** at the end of the
+last page where every other list wraps, because a paged list that wraps to page one silently
+undoes the paging. Both draw through one body in `ScreenView`, so the windowing and the edge
+markers cannot be right in one and wrong in the other.
+
+**A list of choices and a pane of facts are drawn differently, and `ListScreen.Reading` is which
+one a screen is.** A list of choices has a cursor, wraps, and draws each row as a filled panel
+that fills accent when selected. A pane of facts has **no cursor at all**, scrolls by an offset
+so every press moves the view, clamps at both ends, and draws its rows as plain lines. Dressing
+the second as the first is what a hands-on pass reported twice, as information shown as buttons
+that do nothing. `IWindowedScreen` pairs the row count with the row height, so a screen answers
+"am I reading" once and `ListWindow.CapacityFor` and `RowHeightFor` both follow: told separately,
+a screen computed a window of eight and was drawn at the 122 px reading height, which overflows
+the display by exactly the margin the reading capacity exists to avoid.
 
 **Freeing space is on the interface now, and the ruling that took eviction off it stands.**
 RomMBat still never chooses which games matter least. What a person can do is name one: delete a
@@ -273,12 +284,10 @@ improvement. Reading the branch against 7b-2a's recorded 934 ms instead would ha
 gain that does not exist, which is the mistake 7b-2a's own ledger records making.
 
 Stage 7b-2c, which adds browse, per-game install, removal and four Core services, cost
-**+123 KB and nothing measurable in start time**: **96.7 MB and 932 ms** for its base commit
-against **96.9 MB and 917 ms** after, both published and timed the same day, median of five with
-the cold first run discarded. Five shipped files either way. The 15 ms sits inside spreads of
-902 to 953 ms and 903 to 935 ms, which overlap almost entirely. Note that both are slower than
-7b-2b's same-day 872/884 ms on the same machine, which is the reason this paragraph exists:
-only a same-day pair means anything.
+**+132 KB and nothing measurable in start time**: **96.7 MB and 884 ms** for its base commit
+against **96.9 MB and 883 ms** after, both published and timed the same day, median of five with
+the cold run discarded. Five shipped files either way. One millisecond apart, inside spreads of
+868 to 931 ms and 868 to 899 ms.
 
 **Trimming is not switched on, and that is measured rather than lazy.** It takes the same
 build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based

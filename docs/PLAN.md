@@ -3130,6 +3130,22 @@ games. It roams with no change to `RoamingSyncConfig`, which carries `scope_valu
 commonest path to one press; per device is what stops two devices picking into one RomM account
 from colliding on `sync_set.name`, which is UNIQUE.
 
+**Browse starts on the platform list**, not on the library. A live instance holds 96,060 games,
+so opening on all of them is 1,922 pages and a person after a Mega Drive title is shown Windows
+games first. Every platform is still one press away. Found on the second hands-on pass.
+
+**It asks for name order.** `CatalogQuery` defaults to ascending id, which is right for a resolve
+and wrong for a person scrolling: a library imported in name order carries ids in roughly that
+order, so the list reads as sorted until it is not. Measured on the live instance, an id-ordered
+snes page put "3 Ninjas Kick Back" before "3-jigen Kakutou Ballz" and then dropped the latter out
+of sequence. `order_by` is named explicitly rather than left empty, which the schema documents as
+ordering by search relevance on MySQL and by name elsewhere.
+
+**Every row carries the title and the whole file name**, because neither alone is enough and both
+halves were measured at 750 rows a platform: every arcade file name is a romset code carrying no
+tags at all and 87.3% differ from the display name, so the title has to be the label; and 69
+megadrive and 67 psx titles are shared by two or more rows, so the file name has to be under it.
+
 **Browse holds one page and moves by page**, at **50 rows** rather than `RomPager`'s 250.
 Measured on the live 96,060-rom instance: 50 rows in 280 ms warm, 250 in 611 ms. 250 is cheaper
 per row and more than twice the wait for the page a person is looking at, and at
@@ -3146,12 +3162,17 @@ wraps; a paged one that wrapped to page one would silently undo nine thousand ro
 look exactly like the stall a failed fetch produces. A library that fits one page still wraps.
 
 **Per-game install is one press.** `LibrarySyncService.InstallAsync` takes the set and the
-member and runs four of the ten passes: Content, Media, Gamelists and Budget. Hooks and Menu are
-first-run installs; Resolve does not run because there is nothing to resolve; Flush does not,
-because 7b-2b put it first for eviction's benefit and nothing here evicts; **BIOS does not, and
-a game needing firmware will not launch until the set it joined is synced**, because firmware is
-per folder and running that pass would fetch a platform's whole firmware on a press that
-promised one download. Measured live: a 2.6 GB title, 25.8 s, exactly those four passes.
+member and runs five of the ten passes: BIOS, Content, Media, Gamelists and Budget. Hooks and
+Menu are first-run installs; Resolve does not run because there is nothing to resolve; Flush
+does not, because 7b-2b put it first for eviction's benefit and nothing here evicts. Measured
+live before BIOS was added: a 2.6 GB title in 25.8 s.
+
+**BIOS was left out first and that was wrong**, on the reasoning that firmware is per folder so
+one game would drag in a platform's whole firmware. That is what it fetches and it is not a
+cost: it is the firmware for the one system that game runs on, which is what makes the game
+launch. A press promising to put a game on the device and producing one that dies on start has
+not kept the promise, and the person pressing it has no way to know which of their games needed
+something extra. Raised by Spinnich on the first hands-on pass and reversed.
 
 **Removal is the first thing RomMBat does that takes away content a user asked for.** One Core
 entry point, `EvictionService.PreviewRemoval`, with two callers: browse's per-game removal and
@@ -3161,12 +3182,30 @@ vouched for. **`local_file` has no save kind**, so anything that removes content
 save; that is schema-level rather than careful coding and it is in the confirmation's words.
 Deleting a set and keeping its games stays possible, as a choice on the confirmation.
 
+**A screen of facts is a pane, not a menu.** Every row on a reading list is a fact rather than a
+choice, so the list has no cursor at all, scrolls by an offset, and draws its rows as plain lines
+rather than as filled panels. Reported twice on the same pass, once as a highlight walking rows
+that do nothing and once, with the highlight gone, as the rows still being drawn as buttons.
+Confirm screens answer Accept rather than Start, which is the first half of the button-model
+change; the rest, where every verb becomes a selectable row, is 7b-3's.
+
 **One ROM in two folders is legitimate and used to crash the planner.** `folder_override` is the
 only way an arcade set resolves, so a `mame`-overridden platform set and an `fbneo`-overridden
 collection set drawn from the same platform put every shared game in both, and both sets are
 correct in EmulationStation. Each copy is now its own eviction candidate with its own folder's
 artwork. **Refusing the second copy is the wrong fix**: the second set's gamelist would name a
 file outside its own folder.
+
+**Four hands-on rounds, and every one found something.** Round one: a held d-pad rubberbanding
+across a page boundary (thirteen fetches where one was wanted), two dumps of a game
+indistinguishable, the BIOS reversal above, and three screens that each got one footer rule wrong
+a different way. Round two: the file name shown on only one platform, a doubled loading message,
+no progress on the repair, a delete that stranded you three screens deep, browse opening on the
+whole library, and the missing ellipses. Round three: an empty set that could not be deleted, id
+ordering that only looked alphabetical, a platform picker that was a second Back button, a
+redundant platform column, and facts drawn as buttons. Round four: the same facts-as-buttons
+finding again, because the first fix had been too narrow. **The rate did not fall off**, which is
+the same pattern 7b-1, 7b-2a and 7b-2b all recorded.
 
 Rode along: **#110** (set delete removes games), **#111** (two per-game store reads),
 **#113** (`local_file` rows whose files are gone, measured at 5,512 of 5,932 and 18.22 GiB on

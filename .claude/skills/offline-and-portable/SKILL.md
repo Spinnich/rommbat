@@ -246,10 +246,57 @@ evict` works with the server off. What 7b-2b removed is the interface to it: Rom
   rows 280 ms, 250 rows 611 ms. 250 is cheaper per row and more than twice the wait for the page
   a person is looking at, and at `ListWindow.Capacity`'s eight rows it is 31 screens of scrolling
   per fetch.
+- **It starts on the platform list, not on the library.** A live instance holds 96,060 games, so
+  opening on all of them is 1,922 pages and somebody after one console is shown another's games
+  first. Narrowing is the first thing anyone does, so it is the first thing offered.
+- **Ask for name order explicitly.** `CatalogQuery` defaults to ascending id because that is what
+  makes a resumable walk survive a library changing underneath it. A person scrolling wants
+  alphabetical, and id order is the worst kind of wrong here: a library imported in name order
+  carries ids in roughly that order, so the list reads as sorted until it is not. Measured, an
+  id-ordered snes page put "3 Ninjas Kick Back" before "3-jigen Kakutou Ballz" and then dropped
+  the latter out of sequence. Name it rather than leaving `order_by` empty, which the schema
+  documents as relevance ordering on MySQL and name ordering elsewhere: an order that depends on
+  the server's database is not one a person can learn.
+- **A row needs the title and the whole file name, and both were measured.** 750 rows a platform:
+  every arcade file name is a romset code with no tags at all (`10yard.zip`) and 87.3% differ
+  from the display name, so the title has to be the label; 69 megadrive and 67 psx titles are
+  shared by two or more rows, so the file name has to be under it. Showing tags on some platforms
+  and the file name on others makes the rule change under a person's feet.
 - **A paged list stops at the end; it does not wrap.** Every other list in the UI wraps. Wrapping
   to page one after nine thousand rows of paging silently undoes them and looks exactly like the
   stall a failed fetch produces. Stopping _silently_ is worse again, so there is a row saying so.
   A library that fits one page still wraps: there is no paging to undo.
+
+### Two kinds of list, and drawing one as the other
+
+- **A list of choices** has a cursor, wraps, and draws each row as a panel that fills when
+  selected. **A pane of facts has no cursor at all**, scrolls by an offset, clamps at both ends,
+  and draws its rows as plain lines. `ListScreen.Reading` is which one a screen is.
+- **Dressing the second as the first was reported twice on one pass**, first as a highlight
+  walking rows that do nothing and then, with the highlight gone, as the rows still being drawn
+  as buttons. Both are the same mistake and the fix is at the class, not the screen.
+- **The offset matters rather than being a detail.** A cursor is kept off the edge where there is
+  room, which is right for choices and wrong with nothing highlighted: the first presses would
+  move something invisible and leave the view still, so the screen reads as ignoring the pad.
+- **Pair the row count with the row height.** They were chosen in two files, so a screen could
+  compute a window of eight and be drawn at the taller reading height, overflowing by exactly the
+  margin the reading capacity exists to avoid. A screen answers "am I reading" once and both
+  follow from it.
+
+### A footer offers a verb exactly when that verb works
+
+Both halves are one rule, and three screens got it wrong three different ways in a single
+hands-on pass: two answered a press and never offered it, so the footer named nothing but Back
+while the verb quietly worked, and one offered it always, including when the preview had just
+said nothing would happen. A footer promising an action that does nothing and a footer silent
+about one that does are the same defect pointed two ways.
+
+- **A verb that depends on loaded state needs a hint that does too.** `ListScreen.ExtraHints` and
+  `OfferAcceptWhen` are functions for the reason `Note` became one.
+- **Sweep every action in both directions, not just Accept.** The sweep that existed checked one
+  action and one direction, which is why all three shipped.
+- **"Did something" means navigated or changed what the screen shows.** A form that answers a
+  press by staying put and saying why has plainly done something.
 
 ### The claim rule: a game another enabled set still wants is held back
 
