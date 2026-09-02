@@ -49,11 +49,23 @@ public static class BrowseScreens
             Rows,
             _ => ScreenCommand.Stay,
             acceptLabel: string.Empty,
-            backLabel: "Back",
-            new FooterHint(NavAction.Start, "Put this game on the device"),
-            new FooterHint(NavAction.Alternate, "Take it off this device"))
+            backLabel: "Back")
         {
             Reading = true,
+
+            // Each verb offered exactly when it works, which the fixed pair got wrong offline:
+            // the note said the game could not be installed from here and the footer went on
+            // promising it, because there is no server row behind an offline page to pick from.
+            // Found by the sweep, one screen over from the three a hands-on pass had just met.
+            ExtraHints = () =>
+            [
+                .. game.Row is not null
+                    ? new[] { new FooterHint(NavAction.Start, "Put this game on the device") }
+                    : [],
+                .. game.IsHere
+                    ? new[] { new FooterHint(NavAction.Alternate, "Take it off this device") }
+                    : [],
+            ],
             Note = () => game.Row is null
                 ? "This game is on the device. RomM is not reachable, so it cannot be installed "
                     + "again from here."
@@ -137,11 +149,17 @@ public static class BrowseScreens
             () => RemovalRows(report, unvouchable),
             _ => ScreenCommand.Stay,
             acceptLabel: string.Empty,
-            backLabel: "Keep it",
-            new FooterHint(NavAction.Start, "Take it off"))
+            backLabel: "Keep it")
         {
             Reading = true,
             LoadingMessage = "Working out what can go.",
+
+            // Offered exactly when it works. This one had the hint and no gate, which is the
+            // same rule broken the other way: the press walked through a second screen and
+            // removed nothing, where the preview had already said the game would stay.
+            ExtraHints = () => report is { } ready && ready.Plan.Selected.Count > 0
+                ? [new FooterHint(NavAction.Start, "Take it off")]
+                : [],
             Load = token =>
             {
                 var releasing = picked.Find() is { } set ? new[] { set.Id } : [];
@@ -154,8 +172,8 @@ public static class BrowseScreens
             },
             Verbs = (action, _) => action switch
             {
-                NavAction.Start when report is { } ready => ScreenCommand.Push(
-                    ApplyRemoval(session, picked, game, ready, changed)),
+                NavAction.Start when report is { } ready && ready.Plan.Selected.Count > 0 =>
+                    ScreenCommand.Push(ApplyRemoval(session, picked, game, ready, changed)),
                 _ => null,
             },
         }.Started();

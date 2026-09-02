@@ -171,6 +171,48 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Equal(0, browse.State.Page!.Offset);
     }
 
+    /// <summary>
+    /// A held d-pad crossing a page boundary starts one fetch, not a dozen.
+    /// </summary>
+    /// <remarks>
+    /// <b>Found from the couch on the first hands-on pass, as the selection rubberbanding.</b> A
+    /// held pad repeats several times a second and a page takes about 280 ms against the live
+    /// instance, so every press between the request and its answer started another one. Half a
+    /// dozen landed out of order, each resetting the cursor to the top of whatever arrived last.
+    /// <para>
+    /// Driven here by pressing without waiting, which is exactly what the repeat does, and
+    /// counted at the stub rather than inferred from the cursor: the symptom is the cursor and
+    /// the cause is the request count.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task A_held_dpad_across_a_page_boundary_fetches_one_page()
+    {
+        using var stub = Library(200);
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+
+        await Settled(browse);
+
+        var before = stub.RomPagesServed;
+
+        // To the bottom of the page, then a dozen more presses with no wait, which is a held
+        // pad. Only the first of them may start anything.
+        for (var press = 0; press < BrowseService.PageSize + 12; press++)
+        {
+            browse.Handle(NavAction.Down);
+        }
+
+        await Settled(browse);
+
+        Assert.Equal(before + 1, stub.RomPagesServed);
+        Assert.Equal(BrowseService.PageSize, browse.State.Page!.Offset);
+
+        // And the cursor is where the landing page put it, rather than wherever the last of a
+        // dozen races happened to leave it.
+        Assert.Equal(0, browse.Cursor);
+    }
+
     // ------------------------------------------------------------------ it degrades
 
     /// <summary>
@@ -246,6 +288,50 @@ public sealed class BrowseScreenTests : IDisposable
 
         Assert.Contains("fbneo", row.Value, StringComparison.Ordinal);
         Assert.Contains("mame", row.Value, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Two dumps of one game are told apart on the row, which a display name cannot do.
+    /// </summary>
+    /// <remarks>
+    /// Found on the first hands-on pass of browse. A library holds a USA and a Japan cut, two
+    /// revisions and a translation under one title, and picking the wrong one is a download and
+    /// a removal to undo. The tags come from <c>fs_name</c>, which is where the No-Intro and
+    /// Redump groups live and which is complete where <c>regions</c> and <c>languages</c> are
+    /// sparse: languages are on 18.3% of a real library.
+    /// </remarks>
+    [Fact]
+    public async Task Two_releases_of_one_game_are_told_apart_on_the_row()
+    {
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Chrono Trigger", "Chrono Trigger (USA).sfc", "sfc", 1_024));
+        stub.Library.Add(new StubRom(2, 1, "snes", "snes", "Chrono Trigger", "Chrono Trigger (Japan) (Rev 1).sfc", "sfc", 1_024));
+
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        await Settled(browse);
+
+        Assert.Equal(2, browse.Rows.Count);
+        Assert.NotEqual(browse.Rows[0].Label, browse.Rows[1].Label);
+
+        Assert.Contains("USA", browse.Rows[0].Label, StringComparison.Ordinal);
+        Assert.Contains("Japan", browse.Rows[1].Label, StringComparison.Ordinal);
+        Assert.Contains("Rev 1", browse.Rows[1].Label, StringComparison.Ordinal);
+    }
+
+    /// <summary>The offline page tells them apart too, from the recorded file name.</summary>
+    [Fact]
+    public async Task The_offline_page_tells_two_releases_apart_as_well()
+    {
+        Installed(1, "snes", "Chrono Trigger (USA).sfc", 1_024);
+        Installed(2, "snes", "Chrono Trigger (Japan) (Rev 1).sfc", 1_024);
+
+        using var browse = new BrowseViewModel(_session);
+        await Settled(browse);
+
+        Assert.Equal(2, browse.Rows.Count);
+        Assert.NotEqual(browse.Rows[0].Label, browse.Rows[1].Label);
+        Assert.Contains(browse.Rows, row => row.Label.Contains("Rev 1", StringComparison.Ordinal));
     }
 
     [Fact]

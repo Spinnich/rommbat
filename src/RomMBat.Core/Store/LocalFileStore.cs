@@ -95,7 +95,11 @@ public sealed record RomPlacement(IReadOnlyList<string> Folders, long Bytes)
 }
 
 /// <summary>One game this device holds, as an offline browse lists it.</summary>
-public sealed record InstalledGame(int RomId, string DisplayName, string PlatformSlug);
+/// <param name="FsName">
+/// The file name, which is what carries the release tags that tell two dumps of one game apart.
+/// A display name cannot: a USA and a Japan cut share it.
+/// </param>
+public sealed record InstalledGame(int RomId, string DisplayName, string PlatformSlug, string FsName);
 
 /// <summary>One file RomMBat knows about inside the RetroBat tree.</summary>
 public sealed record LocalFile
@@ -512,7 +516,8 @@ public sealed class LocalFileStore
             SELECT f.rom_id,
                    MIN(COALESCE(m.display_name, f.file_name)),
                    MIN(COALESCE(m.platform_slug, f.folder)),
-                   MIN(COALESCE(m.sort_key, f.file_name))
+                   MIN(COALESCE(m.sort_key, f.file_name)),
+                   MIN(COALESCE(m.fs_name, f.file_name))
             {From}
             {where}
             GROUP BY f.rom_id
@@ -531,7 +536,8 @@ public sealed class LocalFileStore
             games.Add(new InstalledGame(
                 (int)reader.GetInt64(0),
                 reader.GetString(1),
-                reader.GetStringOrNull(2) ?? string.Empty));
+                reader.GetStringOrNull(2) ?? string.Empty,
+                reader.GetStringOrNull(4) ?? string.Empty));
         }
 
         return (total, games);

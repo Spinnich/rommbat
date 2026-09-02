@@ -32,8 +32,58 @@ public sealed record BrowseGame(
     IReadOnlyList<string> Folders,
     long BytesOnDevice,
     IReadOnlyList<string> Sets,
-    RomRow? Row)
+    RomRow? Row,
+    string FsName = "")
 {
+    /// <summary>
+    /// What tells this release apart from another of the same game.
+    /// </summary>
+    /// <remarks>
+    /// <b>A display name cannot do it, and a library is full of the cases where it matters.</b>
+    /// Two rows both reading "Chrono Trigger" may be a USA and a Japan dump, revision 1 and
+    /// revision 2, or a translation patch, and picking the wrong one is a download and a
+    /// removal to undo. Found on the first hands-on pass of browse.
+    /// <para>
+    /// Built from <c>fs_name</c> rather than from <c>regions</c> and <c>languages</c>, because
+    /// the file name is what actually carries the No-Intro and Redump tags a person recognises,
+    /// it is complete where the metadata fields are sparse (languages are present on 18.3% of a
+    /// real library), and it is what lands on disk. The parenthesised groups only: the stem
+    /// repeats the display name and the extension is already its own column.
+    /// </para>
+    /// </remarks>
+    public string Tags
+    {
+        get
+        {
+            var name = Row?.FsName ?? FsName;
+            var tags = new List<string>();
+            var depth = 0;
+            var start = 0;
+
+            for (var index = 0; index < name.Length; index++)
+            {
+                if (name[index] == '(' || name[index] == '[')
+                {
+                    if (depth++ == 0)
+                    {
+                        start = index + 1;
+                    }
+                }
+                else if ((name[index] == ')' || name[index] == ']') && depth > 0 && --depth == 0)
+                {
+                    var inner = name[start..index].Trim();
+
+                    if (inner.Length > 0)
+                    {
+                        tags.Add(inner);
+                    }
+                }
+            }
+
+            return string.Join(", ", tags);
+        }
+    }
+
     /// <summary>True when this device holds it.</summary>
     public bool IsHere => Folders.Count > 0;
 
@@ -221,7 +271,11 @@ public sealed class BrowseService
                         placement.Folders,
                         placement.Bytes,
                         claims.GetValueOrDefault(game.RomId, []),
-                        Row: null);
+                        Row: null,
+
+                        // The offline page has no server row, and it still has to tell two dumps
+                        // of one game apart: the file name is where the tags live either way.
+                        FsName: game.FsName);
                 }),
             ],
             offset,

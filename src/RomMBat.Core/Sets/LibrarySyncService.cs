@@ -465,12 +465,13 @@ public sealed class LibrarySyncService
     /// belongs to, which a caller building its own single-step plan would have silently dropped.
     /// </para>
     /// <para>
-    /// <b>BIOS is not fetched, and a game that needs it will not launch.</b> Firmware is
-    /// per folder rather than per game and a whole sync of the set fetches it, so running the
-    /// BIOS pass for one game would fetch a platform's entire firmware on a press that promised
-    /// one download. The honest position is that this puts the game on the device and a sync of
-    /// the set it joined is what makes a platform complete, and it is stated here rather than
-    /// discovered.
+    /// <b>BIOS runs, and the argument for leaving it out was wrong.</b> It was left out on the
+    /// reasoning that firmware is per folder, so one game would drag in a platform's whole
+    /// firmware. That is what it fetches and it is not a cost: it is the firmware for the one
+    /// system this game runs on, which is exactly what makes the game launch. A press that
+    /// promises to put a game on the device and produces one that dies on start has not kept
+    /// the promise, and the person pressing it has no way to know which of their games needed
+    /// something extra. Raised by Spinnich on the first hands-on pass.
     /// </para>
     /// <para>
     /// <b><see cref="GameSync"/> is reused untouched</b>, so the whole-or-absent invariant, its
@@ -496,6 +497,8 @@ public sealed class LibrarySyncService
         var limits = FilesystemLimits.Inspect(_session.Install.RootPath);
         progress.Report(new FilesystemNoted(limits));
 
+        ran.Add(SyncPass.Bios);
+
         // The whole set's membership, then narrowed to this game's discs. A multi-disc title is
         // several member rows and one game, and DiscSet is what binds them; planning the one row
         // would leave half a title on disk, which is the state the invariant exists to forbid.
@@ -512,6 +515,13 @@ public sealed class LibrarySyncService
         {
             members = [member];
         }
+
+        // Ahead of the ROM, exactly as a whole run orders it, and for the same reason: a game
+        // that lands without its firmware appears in EmulationStation, looks right, and dies on
+        // launch. Never fatal, so a firmware RomM does not have is reported and the game still
+        // arrives.
+        await FetchBiosForAsync(set, members, connection, limits, progress, cancellationToken)
+            .ConfigureAwait(false);
 
         ran.Add(SyncPass.Content);
         var planner = new ContentPlanner(_session.Install, _session.Store, limits);
@@ -567,6 +577,60 @@ public sealed class LibrarySyncService
             : SyncState.Done;
 
         return new SyncReport(state, ran);
+    }
+
+    /// <summary>
+    /// Fetches the firmware one game's folder needs, before the game itself.
+    /// </summary>
+    /// <remarks>
+    /// The same planner and the same sync a whole run uses, given one folder instead of every
+    /// folder. Never fatal, for the reason the whole-run pass is not: a firmware RomM does not
+    /// have is the ordinary case and it must not stop the game it was ordered in front of.
+    /// </remarks>
+    private async Task FetchBiosForAsync(
+        SyncSetDefinition set,
+        IReadOnlyList<SyncSetMember> members,
+        RomMConnection connection,
+        FilesystemLimits limits,
+        IProgress<SyncEvent> progress,
+        CancellationToken cancellationToken)
+    {
+        var wanted = members
+            .Select(member => member.Folder)
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        var (index, problem) = await BiosCandidates.ReadAsync(connection, cancellationToken).ConfigureAwait(false);
+
+        if (problem is not null)
+        {
+            progress.Report(new BiosProblem(problem));
+        }
+
+        var plan = new BiosPlanner(_session.Install, _session.Store, limits: limits).Plan(wanted, index);
+
+        if (plan.Steps.Count == 0)
+        {
+            return;
+        }
+
+        progress.Report(new BiosPlanned(plan));
+
+        // IsNoOp rather than DownloadCount: a plan that only adopts still has rows to write.
+        if (plan.IsNoOp)
+        {
+            return;
+        }
+
+        progress.Report(new BiosApplied(await new BiosSync(_session.Install, _session.Store, connection)
+            .ApplyAsync(plan, cancellationToken: cancellationToken)
+            .ConfigureAwait(false)));
     }
 
     /// <summary>

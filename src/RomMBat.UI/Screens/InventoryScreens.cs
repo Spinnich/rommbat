@@ -39,6 +39,13 @@ public static class InventoryScreens
         {
             Reading = true,
             LoadingMessage = "Checking every recorded file against the drive.",
+
+            // Offered exactly when it works. There was no hint at all here, so from the couch
+            // this screen counted the problem and named no way to fix it: the footer said Back
+            // and nothing else, while Start quietly did the repair.
+            ExtraHints = () => report is { IsClean: false, NothingFound: false }
+                ? [new FooterHint(NavAction.Start, "Forget the files that are not there")]
+                : [],
             Load = token =>
             {
                 report = sweep.Plan();

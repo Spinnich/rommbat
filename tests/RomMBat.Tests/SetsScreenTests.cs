@@ -361,6 +361,63 @@ public sealed class SetsScreenTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// Every screen offers a verb exactly when that verb works, for every action, both ways.
+    /// </summary>
+    /// <remarks>
+    /// <b>The sweep above only ever looked at Accept, and three screens got the same rule wrong
+    /// on Start.</b> A hands-on pass found all three in one sitting: the file-check screen and
+    /// the set-removal screen answered Start and never offered it, so the footer named nothing
+    /// but Back while the verb quietly worked; the per-game removal screen offered it always,
+    /// including when the preview had just said the game would stay, so the press walked through
+    /// a second screen and removed nothing.
+    /// <para>
+    /// Both halves are one rule and this asserts both. A footer promising an action that does
+    /// nothing and a footer silent about one that does are the same defect pointed two ways.
+    /// </para>
+    /// <para>
+    /// Loaded screens are settled first, because the verb these three got wrong is the one that
+    /// only becomes possible once a preview has come back, and a screen asked while still
+    /// loading would be asked the easy question.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task Every_screen_offers_a_verb_exactly_when_that_verb_works()
+    {
+        Seed("hinted");
+        SeedPlatform(4, "snes");
+
+        foreach (var screen in AllScreens())
+        {
+            if (screen is ListScreen loaded)
+            {
+                await Wait(() => !loaded.IsLoading);
+            }
+
+            foreach (var action in new[] { NavAction.Accept, NavAction.Start, NavAction.Alternate, NavAction.Extra })
+            {
+                var offered = screen.Hints.Any(hint => hint.Action == action);
+
+                var before = Render(screen);
+                var navigated = screen.Handle(action).Kind != ScreenCommandKind.Stay;
+
+                // "Did something" is navigating **or** changing what the screen shows. The set
+                // editor answers Start on an invalid draft by staying put and saying why, which
+                // is a press that plainly did something, and a test reading only the command
+                // kind would call that a broken promise.
+                var answered = navigated || !Render(screen).SequenceEqual(before, StringComparer.Ordinal);
+
+                Assert.False(
+                    answered && !offered,
+                    $"{screen.GetType().Name} acts on {action} and its footer never says so");
+
+                Assert.False(
+                    offered && !answered,
+                    $"{screen.GetType().Name} offers {action} and the press does nothing at all");
+            }
+        }
+    }
+
     [Fact]
     public void The_set_detail_screen_offers_its_edit_hint()
     {
@@ -1323,6 +1380,12 @@ public sealed class SetsScreenTests : IDisposable
         var existing = new SyncSetService(_session).List();
         var set = existing.Count > 0 ? existing[0].Set : Seed("sample");
 
+        // Built before the list, because constructing a screen in it is not side-effect free:
+        // ApplyRemoval starts its loader on construction and that loader deletes the set, so a
+        // row written for that set afterwards fails its foreign key. Worth knowing rather than
+        // worked around silently, since the same is true of every screen here that loads.
+        var browsed = Browsed(set);
+
         var screens = new List<IScreen>
         {
             SetsScreens.List(_session),
@@ -1332,13 +1395,28 @@ public sealed class SetsScreenTests : IDisposable
 
             // Reachable only by driving a preview to completion, so it is constructed directly
             // rather than left as the one screen on this surface no sweep looks at.
+            //
+            // Named for a set that does not exist, because this screen's loader **deletes the
+            // set** as its last act and it starts on construction. Given a real name it raced
+            // every assertion made after this list was built, which showed up as one sweep
+            // failing in a full run and passing alone. A helper four sweeps share must not
+            // mutate.
             SetsScreens.ApplyRemoval(
                 _session,
-                set.Name,
+                "a set no test made",
                 new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false)),
             SetEditorViewModel.ForNew(_session),
             SetEditorViewModel.ForExisting(_session, set),
             new BudgetViewModel(_session),
+
+            // The screens 7b-2c added, listed here rather than left to their own file's tests,
+            // because the sweeps this list feeds are the whole-surface ones: no face button
+            // named, no unbound action promised, no verb offered that does nothing, and nothing
+            // slower than two seconds with the server off. A hands-on pass found three verb
+            // defects across these in one sitting, and every one of them was on a screen no
+            // sweep looked at.
+            InventoryScreens.Check(_session),
+            BrowseScreens.Detail(_session, browsed),
         };
 
         // The pickers, which are reached from the editor rather than constructed directly.
@@ -1451,6 +1529,25 @@ public sealed class SetsScreenTests : IDisposable
                 MaxGames = 40,
             },
             Now);
+
+    /// <summary>A browse row for a game this device holds, so the detail screen has both verbs.</summary>
+    private BrowseGame Browsed(SyncSetDefinition set)
+    {
+        _session.Store.SyncSets.ReplaceMembers(set.Id, [Member(set)], "1 game", Now);
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = RomMBat.Core.Paths.RelativePath.Create("roms/snes/g.sfc"),
+            Folder = "snes",
+            RomId = 1,
+            Kind = LocalFileKind.Rom,
+            FileName = "g.sfc",
+            SizeBytes = 2048,
+            Origin = FileOrigin.Synced,
+        });
+
+        return new BrowseGame(1, "Game", "snes", 2048, ["snes"], 2048, [set.Name], Row: null);
+    }
 
     private StatusViewModel Status() =>
         new(_session, new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))

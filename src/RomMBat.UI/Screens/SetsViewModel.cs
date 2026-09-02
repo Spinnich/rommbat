@@ -327,6 +327,13 @@ public static class SetsScreens
         {
             Reading = true,
             LoadingMessage = "Sending saves, then working out what can go.",
+
+            // Offered exactly when it works, and there was no hint here at all: the footer read
+            // "Keep them" and nothing else, so from the couch the only answer this screen
+            // appeared to have was the one that changes nothing.
+            ExtraHints = () => report is { } ready && ready.Plan.Selected.Count > 0
+                ? [new FooterHint(NavAction.Start, "Take them off this device")]
+                : [],
             Load = async token =>
             {
                 flushNote = await FlushBeforeRemovalAsync(session, connect, token).ConfigureAwait(false);

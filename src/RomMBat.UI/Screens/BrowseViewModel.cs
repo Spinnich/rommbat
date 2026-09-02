@@ -191,6 +191,20 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     {
         var state = _state;
 
+        // Nothing moves while a page is on its way. A held d-pad repeats several times a second
+        // and a page takes about 280 ms, so every press between the request and its answer used
+        // to start another one: half a dozen fetches in flight, landing out of order, each
+        // resetting the cursor to the top of whatever arrived last. From the couch that is the
+        // selection snapping backwards, which is what a hands-on pass called rubberbanding.
+        //
+        // Swallowed rather than queued. A person holding the pad wants the list to keep moving,
+        // not to replay six presses into a page they are no longer looking at, and the fetch
+        // they are waiting for is already running.
+        if (state.IsLoading && action is NavAction.Up or NavAction.Down or NavAction.Accept)
+        {
+            return ScreenCommand.Stay;
+        }
+
         switch (action)
         {
             case NavAction.Up when state.Cursor > 0:
@@ -333,6 +347,9 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// </remarks>
     private void Fetch(int offset, bool landOnLast = false)
     {
+        // Marked before the work starts and under the lock, so a second press cannot see a
+        // screen that is not loading yet while its fetch is already on the way. Handle refuses
+        // to move at all while this is set.
         Publish(current => current with { IsLoading = true });
 
         _ = Task.Run(
@@ -425,9 +442,16 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// doubling invisible, which is what made it a crash nobody could explain rather than a
     /// state somebody could see. The bytes are on the detail screen, where there is room to say
     /// why there are two of them.
+    /// <para>
+    /// <b>The label carries the release tags, because a display name cannot tell two dumps of
+    /// one game apart.</b> A library holds a USA and a Japan cut, revision 1 and revision 2, and
+    /// a translation patch under one title, and picking the wrong one is a download and a
+    /// removal to undo. Found on the first hands-on pass. The label is trimmed rather than
+    /// wrapped, so a long tag list costs the end of the line and never the row's height.
+    /// </para>
     /// </remarks>
     private static ListRow ToRow(BrowseGame game) => new(
-        game.DisplayName,
+        game.Tags is { Length: > 0 } tags ? $"{game.DisplayName}  ({tags})" : game.DisplayName,
         game.IsHere ? "here: " + string.Join(", ", game.Folders) : "not here",
         $"{game.PlatformSlug}  {ByteSize.Format(game.SizeBytes)}"
             + (game.Sets.Count > 0 ? $"  in {string.Join(", ", game.Sets)}" : string.Empty),

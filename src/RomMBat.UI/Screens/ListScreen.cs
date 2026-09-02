@@ -145,6 +145,27 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     public string? EmptyMessage { get; init; }
 
     /// <summary>
+    /// The footer's extra hints, when which of them apply depends on what the screen loaded.
+    /// </summary>
+    /// <remarks>
+    /// <b>A function rather than the fixed array, for the reason <see cref="Note"/> became
+    /// one</b>: it states a fact the rows can change. A screen whose verb only works once a
+    /// preview has come back cannot say so with a hint chosen at construction, and three screens
+    /// got the same rule wrong three different ways because of it. The repair screen and the
+    /// set-removal screen answered <see cref="NavAction.Start"/> and never offered it, so from
+    /// the couch the only thing the footer named was Back; the per-game removal screen offered
+    /// it always, including when the preview had just said nothing would go, so the press walked
+    /// through two screens and removed nothing.
+    /// <para>
+    /// Both halves are one rule: <b>offer it exactly when it works</b>. A footer promising an
+    /// action that does nothing and a footer silent about one that does are the same defect
+    /// pointed two ways, and round 8 of stage 7b-1 found the first while
+    /// <see cref="AlwaysOfferAccept"/> exists for the second.
+    /// </para>
+    /// </remarks>
+    public Func<IReadOnlyList<FooterHint>>? ExtraHints { get; init; }
+
+    /// <summary>
     /// The screen's own verbs, for the actions a list does not define.
     /// </summary>
     /// <remarks>
@@ -323,7 +344,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
                 hints.Add(new FooterHint(NavAction.Accept, _acceptLabel));
             }
 
-            hints.AddRange(_extra);
+            hints.AddRange(ExtraHints is { } dynamic ? dynamic() : _extra);
             hints.Add(new FooterHint(NavAction.Back, BackLabel));
 
             return hints;
