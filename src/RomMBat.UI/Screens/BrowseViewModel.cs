@@ -443,18 +443,23 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// state somebody could see. The bytes are on the detail screen, where there is room to say
     /// why there are two of them.
     /// <para>
-    /// <b>The label carries the release tags, because a display name cannot tell two dumps of
-    /// one game apart.</b> A library holds a USA and a Japan cut, revision 1 and revision 2, and
-    /// a translation patch under one title, and picking the wrong one is a download and a
-    /// removal to undo. Found on the first hands-on pass. The label is trimmed rather than
-    /// wrapped, so a long tag list costs the end of the line and never the row's height.
+    /// <b>The name is the label and the release is the line under it, and both are needed.</b>
+    /// Measured on the live library, 750 rows a platform: every arcade file name is a romset
+    /// code carrying no tags at all, so a list labelled by file name is unreadable there; and 69
+    /// megadrive and 67 psx display names are shared by two or more rows, so the name alone
+    /// picks the wrong dump about one time in eleven. Suggested by Spinnich on the first
+    /// hands-on pass. <see cref="BrowseGame.Release"/> holds the argument and the numbers.
     /// </para>
     /// </remarks>
     private static ListRow ToRow(BrowseGame game) => new(
-        game.Tags is { Length: > 0 } tags ? $"{game.DisplayName}  ({tags})" : game.DisplayName,
+        game.DisplayName,
         game.IsHere ? "here: " + string.Join(", ", game.Folders) : "not here",
-        $"{game.PlatformSlug}  {ByteSize.Format(game.SizeBytes)}"
-            + (game.Sets.Count > 0 ? $"  in {string.Join(", ", game.Sets)}" : string.Empty),
+
+        // The release leads, because it is the half that tells two rows with one title apart
+        // and a trimmed line loses its end. Platform and size follow, and both are recoverable
+        // a press away on the game's own screen.
+        $"{game.Release}  ·  {game.PlatformSlug}  ·  {ByteSize.Format(game.SizeBytes)}"
+            + (game.Sets.Count > 0 ? $"  ·  in {string.Join(", ", game.Sets)}" : string.Empty),
         false);
 
     /// <summary>

@@ -565,15 +565,21 @@ internal static class ScreenView
                 Foreground = selected ? Brushes.Black : Muted,
                 FontSize = 16,
                 MaxWidth = 860,
-                TextWrapping = TextWrapping.Wrap,
 
                 // On a reading list the detail is the row, and it is a whole sentence rather
-                // than a label, so it is given room for three wrapped lines and clipped past
-                // them. Left to wrap freely it decides the row's height, and rows of differing
-                // height inside a fixed window make the block grow and shrink while it is
-                // being scrolled, which is the thing the fixed row height exists to stop.
+                // than a label, so it wraps into room for three lines and is clipped past them.
+                // On an ordinary list it is a subtitle under a choice and stays on one line,
+                // trimmed: left to wrap it decides the row's height, and rows of differing
+                // height inside a fixed window make the block grow and shrink while it is being
+                // scrolled, which is the thing the fixed row height exists to stop and which
+                // hands-on rounds 3 and 13 of stage 7b-2a both found.
+                //
+                // Latent until browse put a release line here. A psx file name runs past a
+                // hundred characters, so the first list with a long subtitle would have brought
+                // that defect back on every row that had one.
+                TextWrapping = reading ? TextWrapping.Wrap : TextWrapping.NoWrap,
                 Height = reading ? ReadingDetailHeight : double.NaN,
-                TextTrimming = reading ? TextTrimming.CharacterEllipsis : TextTrimming.None,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             });
         }
 

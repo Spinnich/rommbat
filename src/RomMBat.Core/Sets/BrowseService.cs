@@ -39,19 +39,34 @@ public sealed record BrowseGame(
     /// What tells this release apart from another of the same game.
     /// </summary>
     /// <remarks>
-    /// <b>A display name cannot do it, and a library is full of the cases where it matters.</b>
-    /// Two rows both reading "Chrono Trigger" may be a USA and a Japan dump, revision 1 and
-    /// revision 2, or a translation patch, and picking the wrong one is a download and a
-    /// removal to undo. Found on the first hands-on pass of browse.
+    /// <b>A display name cannot do it and a file name cannot replace it, and both halves were
+    /// measured on a real library rather than argued.</b> 750 rows sampled per platform:
+    /// <list type="bullet">
+    /// <item><b>arcade: 100% of file names carry no tags at all</b>, because they are romset
+    /// codes. <c>10yard.zip</c>, <c>1942.zip</c>, <c>1943kai.zip</c>. A list labelled by file
+    /// name is unreadable there, and 87.3% of those rows have a display name that differs.</item>
+    /// <item><b>megadrive 69 and psx 67 display names are shared by two or more rows</b>, about
+    /// one in eleven, so the name alone picks the wrong dump often enough to matter. snes 1,
+    /// arcade 8.</item>
+    /// </list>
+    /// So the name is the label and this is the line under it. Suggested by Spinnich after the
+    /// first hands-on pass, whose point was that the file name is cheaper than parsing; the
+    /// parse survives because it is what makes the psx case readable, and the file name is the
+    /// fallback because it is what makes the arcade case readable.
     /// <para>
-    /// Built from <c>fs_name</c> rather than from <c>regions</c> and <c>languages</c>, because
-    /// the file name is what actually carries the No-Intro and Redump tags a person recognises,
-    /// it is complete where the metadata fields are sparse (languages are present on 18.3% of a
-    /// real library), and it is what lands on disk. The parenthesised groups only: the stem
-    /// repeats the display name and the extension is already its own column.
+    /// <b>The tags, or the whole file name when there are none.</b> On a tagged library that is
+    /// <c>(USA)</c> or <c>(Japan), Rev 2, T-En by Devil Hackers v1.0</c>, which is the
+    /// distinguishing part with the title stripped off; on arcade it is <c>mslug.zip</c>, which
+    /// is the romset a person recognises and what lands on disk. Either way it is short, and
+    /// short matters: this line is drawn at a fixed row height and a long one is trimmed.
+    /// </para>
+    /// <para>
+    /// Taken from <c>fs_name</c> rather than <c>regions</c> and <c>languages</c>, which are
+    /// sparse: languages are present on 18.3% of a real library, and neither carries a revision,
+    /// a translation or a dump flag.
     /// </para>
     /// </remarks>
-    public string Tags
+    public string Release
     {
         get
         {
@@ -62,14 +77,14 @@ public sealed record BrowseGame(
 
             for (var index = 0; index < name.Length; index++)
             {
-                if (name[index] == '(' || name[index] == '[')
+                if (name[index] is '(' or '[')
                 {
                     if (depth++ == 0)
                     {
                         start = index + 1;
                     }
                 }
-                else if ((name[index] == ')' || name[index] == ']') && depth > 0 && --depth == 0)
+                else if (name[index] is ')' or ']' && depth > 0 && --depth == 0)
                 {
                     var inner = name[start..index].Trim();
 
@@ -80,7 +95,9 @@ public sealed record BrowseGame(
                 }
             }
 
-            return string.Join(", ", tags);
+            // The whole file name when it carries nothing to strip down to, which is every
+            // arcade row: a romset code is the identity there.
+            return tags.Count > 0 ? string.Join(", ", tags) : name;
         }
     }
 

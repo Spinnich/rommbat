@@ -311,12 +311,40 @@ public sealed class BrowseScreenTests : IDisposable
         using var browse = new BrowseViewModel(_session, Connect(stub));
         await Settled(browse);
 
+        // The name is the label on both, because that is what a person recognises, and the
+        // release under it is what tells them apart.
         Assert.Equal(2, browse.Rows.Count);
-        Assert.NotEqual(browse.Rows[0].Label, browse.Rows[1].Label);
+        Assert.Equal(browse.Rows[0].Label, browse.Rows[1].Label);
+        Assert.NotEqual(browse.Rows[0].Detail, browse.Rows[1].Detail);
 
-        Assert.Contains("USA", browse.Rows[0].Label, StringComparison.Ordinal);
-        Assert.Contains("Japan", browse.Rows[1].Label, StringComparison.Ordinal);
-        Assert.Contains("Rev 1", browse.Rows[1].Label, StringComparison.Ordinal);
+        Assert.StartsWith("USA", browse.Rows[0].Detail, StringComparison.Ordinal);
+        Assert.StartsWith("Japan, Rev 1", browse.Rows[1].Detail, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An arcade row keeps the name it is recognised by, and shows the romset underneath.
+    /// </summary>
+    /// <remarks>
+    /// <b>The half that stops the file name being the label.</b> Measured on the live library:
+    /// 750 of 750 arcade file names carry no tags at all, because they are romset codes, and
+    /// 87.3% differ from the display name. A list of <c>10yard.zip</c> and <c>1943kai.zip</c> is
+    /// not something a person can read across a room, and there is nothing to parse out of one,
+    /// so the whole file name is what goes on the second line.
+    /// </remarks>
+    [Fact]
+    public async Task An_arcade_row_shows_the_title_and_the_romset_underneath()
+    {
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 1, "arcade", "fbneo", "1943: The Battle Of Midway", "1943.zip", "zip", 1_024));
+
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+        await Settled(browse);
+
+        var row = Assert.Single(browse.Rows);
+
+        Assert.Equal("1943: The Battle Of Midway", row.Label);
+        Assert.StartsWith("1943.zip", row.Detail, StringComparison.Ordinal);
     }
 
     /// <summary>The offline page tells them apart too, from the recorded file name.</summary>
@@ -330,8 +358,8 @@ public sealed class BrowseScreenTests : IDisposable
         await Settled(browse);
 
         Assert.Equal(2, browse.Rows.Count);
-        Assert.NotEqual(browse.Rows[0].Label, browse.Rows[1].Label);
-        Assert.Contains(browse.Rows, row => row.Label.Contains("Rev 1", StringComparison.Ordinal));
+        Assert.NotEqual(browse.Rows[0].Detail, browse.Rows[1].Detail);
+        Assert.Contains(browse.Rows, row => row.Detail!.Contains("Rev 1", StringComparison.Ordinal));
     }
 
     [Fact]
