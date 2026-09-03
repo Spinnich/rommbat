@@ -3360,11 +3360,34 @@ press refusing to re-run a pass that would fetch nothing. And a **3.47 GB transf
 flight leaving no partial, no file, no gamelist entry and no bytes**, which is 7b-2b's whole-or-
 absent guarantee driven at a size it had never been driven at.
 
-**Not proven, and named rather than implied.** No game was launched through EmulationStation in
-this pass, so §7c's gate does not open on it. Reverting a conversion has no verb on the interface,
-so the revert this pass cancelled was queued from the console; the screen and the cancellation are
-the same either way, but the UI has never queued a revert. And keep-server was never taken, since
-the one live conflict was spent on keep-local.
+**A game was launched, and it closed the loop and found an eighth thing.** _AI Igo 2003_ ran under
+PCSX2 from EmulationStation: `game-start` and `game-end` correlated into a play session that
+flushed to RomM, and **PCSX2 created `saves/ps2/pcsx2/memcards/AI Igo 2003 (Japan).ps2`** while
+`Mcd001.ps2` stayed untouched. That is the per-game memory card proven from queue in the interface
+through `background quit` to the emulator honouring it, which nothing before had driven for a game
+converted from the couch. Console slot 2 stays shared, matching what `save_shapes.json` records.
+
+**Finding 8: RomMBat left every game it had ever launched marked as being played.** RomM sets
+`rom_user.now_playing` when it ingests a play session and nothing else clears it. Measured: ten
+roms RomMBat had reported were all true, one played two days earlier, against a rom it had never
+reported reading false. Every session RomMBat sends carries an `end_time`, so it is over by
+construction and the flag is wrong the moment it is set.
+
+**The heartbeat is the wrong answer and looks like the right one.**
+`DELETE /api/activity/heartbeat` answers 204 and leaves the flag alone: it clears the presence
+feed at `GET /api/activity`, which RomMBat never posts to and which is empty. **§7a's claim that
+RomMBat is invisible in that feed is confirmed rather than falsified**, and this is a second
+mechanism wearing a similar name. `PUT /api/roms/{id}/props` carrying only `now_playing` is what
+clears it, and that a partial write leaves the other seven properties alone is **measured, not
+read off the schema**: the schema declares all eight nullable with none required, which is equally
+consistent with "omit means null it", and a live write carrying one field left a rating of 7, the
+difficulty, the status, the backlog flag and `last_played` untouched. Verified end to end
+afterwards: a fresh session flushed and `now_playing` went back to false on its own.
+
+**Not proven, and named rather than implied.** Reverting a conversion has no verb on the
+interface, so the revert this pass cancelled was queued from the console; the screen and the
+cancellation are the same either way, but the UI has never queued a revert. And keep-server was
+never taken, since the one live conflict was spent on keep-local.
 
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
@@ -3420,11 +3443,11 @@ conflict resolved against the live server, a platform remapped, and a setting qu
 cancelled. Seven findings came out of it, one of them a verb that had never appeared on any
 install.
 
-**The gate still does not open, and the reason is precise: nobody launched a game.** §7c needs a
-person to say what to sync, sync it, **and launch a game**, and only the first two were driven.
-Launching has never needed RomMBat, which is why this is a scheduling fact rather than a missing
-feature, but a certification pass is exactly the thing that proves the loop closes, and no pass
-has yet gone from the interface into a running emulator and back out through the hooks.
+**The gate opens.** A game was launched from EmulationStation and came back out through the
+hooks: the loop closes, and all three of §7c's requirements have now been driven by a person on
+the live install. What that does **not** mean is that ps2 is certified. The unit is
+`(system, emulator, core)` and `platform-certification` is nine points; one launch is one of them.
+The rollout can start, and it starts with a checklist rather than with this pass.
 
 ### M8: packaging, docs, release
 
