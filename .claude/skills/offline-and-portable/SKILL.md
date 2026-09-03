@@ -135,6 +135,26 @@ the source of truth; the network is optional, probed with a short-timeout
   released by the disposing thread. Removing the guard to make the release diagnosable was tried
   on the strength of a review finding and two tests caught it.
 
+  **Closing the connection is gated too, and for a long time it was the one path that was not.**
+  `LocalStore.Dispose` called `_connection.Dispose()` with no gate at all, so `Close` enumerated
+  the prepared-statement list while a background reader mutated it and threw the same "Collection
+  was modified" out of `Dispose` itself. It surfaced as the screen sweeps failing **only when
+  both test projects ran together**: a screen's loader is cancelled when the screen is disposed
+  and never waited for, so under load it is still running when the session closes. Measured on
+  main at `a7b103a`, one and then two of 1177 failing across two runs, while
+  `tests/RomMBat.Tests` alone passed 1145 of 1145, which is exactly how a race of this shape
+  looks when you only run one project.
+
+  So `Dispose` takes the gate through `StoreGate.EnterForClose`, which also sets a `Closing` flag
+  that makes `Leave` inert. **That flag is not belt-and-braces.** Without it the first abandoned
+  command's `Disposed` handler runs on the closing thread, finds the gate entered because the
+  closing thread is the one holding it, and releases it half way through the close, letting
+  another thread back onto a connection being torn down. The gate is **released** after the
+  close rather than held, so a thread arriving afterwards is answered by the disposed connection
+  with an ordinary exception instead of blocking on a gate nothing will ever open.
+  `Disposing_the_store_under_a_running_reader_does_not_throw` is what pins it, and it reproduces
+  the failure on the first pass without the fix.
+
   **This orders threads inside one process and nothing else.** The database is WAL and the hooks
   write to it from their own processes; `TreeLock` and the busy timeout are what order those.
 

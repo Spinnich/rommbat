@@ -1044,4 +1044,57 @@ public class LocalStoreTests
         Assert.Equal(8 * 60, store.Files.List().Count);
     }
 
+    /// <summary>
+    /// Closing the connection waits for a reader on another thread instead of racing it.
+    /// </summary>
+    /// <remarks>
+    /// Every command serialises through <c>StoreGate</c> and disposal did not, so
+    /// <c>SqliteConnection.Close</c> walked its prepared-statement list while a background reader
+    /// was still mutating it and threw "Collection was modified" out of <c>Dispose</c>. It
+    /// surfaced as the screen sweeps failing only when both test projects ran together, because a
+    /// screen's loader is cancelled on dispose and not waited for, so under load it is still
+    /// running when the session closes.
+    /// </remarks>
+    [Fact]
+    public async Task Disposing_the_store_under_a_running_reader_does_not_throw()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // Repeated because it is a race: one pass proves nothing, and pre-fix this reproduced
+        // well inside this count.
+        for (var attempt = 0; attempt < 40; attempt++)
+        {
+            using var tree = TempRetroBatTree.Create();
+            var store = LocalStore.Open(tree.Install());
+
+            using var reading = new CancellationTokenSource();
+
+            var reader = Task.Run(
+                () =>
+                {
+                    while (!reading.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            _ = store.Metadata.Count();
+                        }
+                        catch (Exception)
+                        {
+                            // A closed connection is the ordinary end of this loop. What must
+                            // not happen is the close itself throwing, which is what fails here.
+                            return;
+                        }
+                    }
+                },
+                token);
+
+            // Long enough for the reader to be inside a command rather than starting one.
+            await Task.Delay(2, token);
+
+            store.Dispose();
+
+            await reading.CancelAsync();
+            await reader.WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+    }
 }

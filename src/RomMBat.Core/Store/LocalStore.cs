@@ -224,7 +224,27 @@ public sealed class LocalStore : IDisposable
         }
     }
 
-    public void Dispose() => _connection.Dispose();
+    /// <summary>Closes the connection, once no other thread is inside it.</summary>
+    /// <remarks>
+    /// <b>Disposal is ordered by <see cref="StoreGate"/> like every other use of the connection,
+    /// and for a while it was the one path that was not.</b> A screen's loader is cancelled when
+    /// the screen is disposed and is not waited for, so it can still be mid-read when the session
+    /// closes; <c>SqliteConnection.Close</c> then enumerated its prepared-statement list while
+    /// that reader mutated it and threw "Collection was modified" out of here.
+    /// </remarks>
+    public void Dispose()
+    {
+        StoreGate.EnterForClose(_connection);
+
+        try
+        {
+            _connection.Dispose();
+        }
+        finally
+        {
+            StoreGate.LeaveAfterClose(_connection);
+        }
+    }
 
     /// <summary>For tests that need to reach past the typed API to prove a CHECK fires.</summary>
     internal SqliteConnection Connection => _connection;
