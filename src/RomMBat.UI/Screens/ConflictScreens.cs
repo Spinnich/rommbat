@@ -48,7 +48,7 @@ public static class ConflictScreens
 
         // Re-read rather than captured, because resolving one above this screen leaves it
         // showing the list from before. Same shape as the sets list in 7b-2a.
-        IReadOnlyList<SaveConflictRecord> open = service.Open();
+        IReadOnlyList<OpenConflict> open = service.Open();
 
         IReadOnlyList<ListRow> Rows()
         {
@@ -71,15 +71,26 @@ public static class ConflictScreens
 
     /// <summary>One conflict as the list shows it.</summary>
     /// <remarks>
-    /// The slot is in the label because a game with four save slots produces four rows that are
-    /// otherwise identical, and the two dates are the value because "which is newer" is the
-    /// question a person actually arrives with.
+    /// <b>The game's name is the label, and the file name goes under it.</b> Both, for the
+    /// reason browse measured in 7b-2c: a title alone cannot be matched against what is on disk
+    /// and a file name alone is a romset code on some platforms. The first version of this
+    /// screen showed neither and drew "Game 295079".
+    /// <para>
+    /// The slot is on the row too, because a game with four save slots produces four rows that
+    /// are otherwise identical.
+    /// </para>
     /// </remarks>
-    private static ListRow ToRow(SaveConflictRecord conflict) =>
-        new(
-            $"Game {conflict.RomId}, slot {conflict.Slot}",
+    private static ListRow ToRow(OpenConflict open)
+    {
+        var conflict = open.Conflict;
+
+        return new ListRow(
+            open.Title ?? $"Game {conflict.RomId}",
             Moment(conflict.FirstSeenAtUtc),
-            conflict.Reason);
+            open.FileName is { } file
+                ? $"{file} ({conflict.Slot}). {conflict.Reason}"
+                : $"Slot {conflict.Slot}. {conflict.Reason}");
+    }
 
     /// <summary>
     /// One conflict: what each side is, and the two verbs.
@@ -93,16 +104,18 @@ public static class ConflictScreens
     /// </remarks>
     public static IScreen Detail(
         InstallSession session,
-        SaveConflictRecord conflict,
+        OpenConflict open,
         Func<Uri, RomMConnection>? connect = null,
         Func<IScreen>? pair = null)
     {
         ArgumentNullException.ThrowIfNull(session);
-        ArgumentNullException.ThrowIfNull(conflict);
+        ArgumentNullException.ThrowIfNull(open);
+
+        var conflict = open.Conflict;
 
         return new ListScreen(
-            $"Game {conflict.RomId}, slot {conflict.Slot}",
-            () => DetailRows(conflict),
+            open.Title ?? $"Game {conflict.RomId}",
+            () => DetailRows(open),
             _ => ScreenCommand.Stay,
             acceptLabel: string.Empty,
             backLabel: "Back",
@@ -124,13 +137,18 @@ public static class ConflictScreens
     }
 
     /// <summary>What the detail screen shows about the two sides.</summary>
-    private static List<ListRow> DetailRows(SaveConflictRecord conflict)
+    private static List<ListRow> DetailRows(OpenConflict open)
     {
+        var conflict = open.Conflict;
         // Every row unavailable, because every row is a fact. An available row on a reading
         // pane makes the footer promise an Accept that does nothing, which is the same defect
         // as an action with no hint, pointed the other way.
         var rows = new List<ListRow>
         {
+            // The file name here rather than only on the list, because this is the screen a
+            // decision is made on and "which game is this" must not need a press to answer.
+            new("Game", open.FileName ?? $"id {conflict.RomId}", null, false),
+            new("Slot", conflict.Slot, null, false),
             new("Why", conflict.Reason, null, false),
             new("First seen", Moment(conflict.FirstSeenAtUtc), null, false),
             new(

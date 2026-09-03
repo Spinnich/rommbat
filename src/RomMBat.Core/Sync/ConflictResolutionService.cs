@@ -15,6 +15,24 @@ public sealed record ConflictOutcome(ConflictOutcomeState State, string Message)
     public bool Resolved => State == ConflictOutcomeState.Resolved;
 }
 
+/// <summary>
+/// One open conflict, with enough to name the game it belongs to.
+/// </summary>
+/// <param name="Title">
+/// What to call the game. Null only when nothing on this device has ever recorded a name for
+/// it, which is a real state: a save can outlive every trace of its ROM.
+/// </param>
+/// <param name="FileName">
+/// The ROM's file name, or null with <paramref name="Title"/>.
+/// </param>
+/// <remarks>
+/// <b>The name is looked up here rather than on the screen.</b> A conflict row carries a rom id
+/// and nothing else, so the first version of the conflict screen drew "Game 295079", which from
+/// the couch is close to meaningless. Which store answers, and in what order, is a decision with
+/// a fallback chain and it is not presentation's to make.
+/// </remarks>
+public sealed record OpenConflict(SaveConflictRecord Conflict, string? Title, string? FileName);
+
 /// <summary>Why a resolution did or did not happen.</summary>
 /// <remarks>
 /// <b>Busy is its own state rather than a failure.</b> The agent maps it to
@@ -77,15 +95,43 @@ public sealed class ConflictResolutionService
         _time = timeProvider ?? TimeProvider.System;
     }
 
-    /// <summary>Every conflict still waiting on a decision, oldest first.</summary>
+    /// <summary>Every conflict still waiting on a decision, oldest first, and what to call it.</summary>
     /// <remarks>
     /// Oldest first because that is the order they happened in, and because a conflict that has
     /// been open longest is the one whose local copy a person is least likely to still recognise.
+    /// <para>
+    /// <b>Named from <c>rom_metadata</c>, which is the store that outlives the file.</b> A
+    /// conflicted save frequently belongs to a ROM that is no longer on the device, since
+    /// removing a game never touches its saves, so a lookup through <c>local_file</c> would
+    /// answer nothing in exactly the case that matters. <c>GameMetadata.Name</c> is never empty
+    /// and already falls back to the file name, so one read covers both halves of what a row
+    /// wants to show.
+    /// </para>
+    /// <para>
+    /// One batched read rather than one per conflict, which is #111's lesson applied before it
+    /// is a defect: a list is drawn on the thread that draws.
+    /// </para>
     /// </remarks>
-    public IReadOnlyList<SaveConflictRecord> Open() =>
-    [
-        .. _store.SaveConflicts.ListOpen().OrderBy(conflict => conflict.FirstSeenAtUtc),
-    ];
+    public IReadOnlyList<OpenConflict> Open()
+    {
+        var open = _store.SaveConflicts.ListOpen()
+            .OrderBy(conflict => conflict.FirstSeenAtUtc)
+            .ToList();
+
+        if (open.Count == 0)
+        {
+            return [];
+        }
+
+        var named = _store.Metadata.ForRoms(open.Select(conflict => (int)conflict.RomId));
+
+        return
+        [
+            .. open.Select(conflict => named.TryGetValue((int)conflict.RomId, out var meta)
+                ? new OpenConflict(conflict, meta.Name, meta.FsName)
+                : new OpenConflict(conflict, null, null)),
+        ];
+    }
 
     /// <summary>
     /// Carries out one decision, holding the tree for the whole of it.

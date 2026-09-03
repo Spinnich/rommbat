@@ -1,6 +1,7 @@
 using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Identity;
+using RomMBat.Core.Metadata;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -60,11 +61,20 @@ public class ConflictScreenTests : IDisposable
     public void An_open_conflict_is_listed_and_its_detail_names_both_sides()
     {
         Seed();
+        Name(7, "Chrono Trigger", "Chrono Trigger (USA).sfc");
 
         var list = Assert.IsType<ListScreen>(ConflictScreens.List(_session));
         var row = Assert.Single(list.Rows);
 
-        Assert.Contains("battery", row.Label, StringComparison.Ordinal);
+        // The game's name, not its id. The first version of this screen drew "Game 7", which a
+        // hands-on pass called close to meaningless from the couch.
+        Assert.Equal("Chrono Trigger", row.Label);
+
+        // And the file name under it, for the reason browse measured in 7b-2c: a title alone
+        // cannot be matched against what is on disk. The slot is there too, because four slots
+        // on one game make four otherwise identical rows.
+        Assert.Contains("Chrono Trigger (USA).sfc", row.Detail!, StringComparison.Ordinal);
+        Assert.Contains("battery", row.Detail!, StringComparison.Ordinal);
 
         var navigator = new Navigator(list);
         navigator.Handle(NavAction.Accept);
@@ -76,10 +86,19 @@ public class ConflictScreenTests : IDisposable
         Assert.True(detail.Reading);
         Assert.Equal(-1, detail.Cursor);
 
+        Assert.Equal("Chrono Trigger", detail.Title);
+
         var labels = detail.Rows.Select(r => r.Label).ToList();
 
+        Assert.Contains("Game", labels);
+        Assert.Contains("Slot", labels);
         Assert.Contains("This device", labels);
         Assert.Contains("The server", labels);
+
+        // Which game, on the screen the decision is made on, without needing a press.
+        Assert.Equal(
+            "Chrono Trigger (USA).sfc",
+            detail.Rows.Single(r => r.Label == "Game").Value);
 
         // The thing a person most needs to know before choosing, said rather than left to be
         // inferred from the absence of a warning.
@@ -93,6 +112,21 @@ public class ConflictScreenTests : IDisposable
         Assert.Contains(NavAction.Start, hints);
         Assert.Contains(NavAction.Alternate, hints);
         Assert.DoesNotContain(NavAction.Accept, hints);
+    }
+
+    [Fact]
+    public void A_conflict_whose_game_was_never_recorded_falls_back_to_its_id()
+    {
+        // A real state rather than a defensive branch: a save outlives its ROM, because removing
+        // a game never touches saves, and a device that has never synced that platform has no
+        // metadata for it either. Showing the id is honest; showing nothing is not.
+        Seed();
+
+        var list = Assert.IsType<ListScreen>(ConflictScreens.List(_session));
+        var row = Assert.Single(list.Rows);
+
+        Assert.Equal("Game 7", row.Label);
+        Assert.Contains("battery", row.Detail!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -148,6 +182,7 @@ public class ConflictScreenTests : IDisposable
     public void The_conflict_screens_name_no_face_button()
     {
         Seed();
+        Name(7, "Chrono Trigger", "Chrono Trigger (USA).sfc");
 
         var list = Assert.IsType<ListScreen>(ConflictScreens.List(_session));
         var navigator = new Navigator(list);
@@ -197,6 +232,16 @@ public class ConflictScreenTests : IDisposable
                 null,
                 null),
             DateTimeOffset.UtcNow);
+
+    /// <summary>What the metadata pass would have recorded for this game.</summary>
+    private void Name(int romId, string name, string fsName) =>
+        _session.Store.Metadata.Record(new GameMetadata
+        {
+            RomId = romId,
+            Folder = "snes",
+            FsName = fsName,
+            Name = name,
+        });
 
     private void Pair()
     {
