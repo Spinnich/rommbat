@@ -49,6 +49,8 @@ public static class RootScreens
         public Func<IScreen>? OpenConflicts { get; init; }
 
         public Func<IScreen>? OpenPlatforms { get; init; }
+
+        public Func<IScreen>? OpenQueued { get; init; }
     }
 
     /// <summary>The root menu.</summary>
@@ -84,6 +86,7 @@ public static class RootScreens
             var device = store.Device.Read();
             var conflicts = store.SaveConflicts.ListOpen().Count;
             var unmapped = store.PlatformMap.List().Count(row => row.Folder is null);
+            var queued = store.PendingConfig.ListOutstanding().Count;
             var outbox = store.Outbox.PendingCount();
 
             Add(
@@ -111,6 +114,15 @@ public static class RootScreens
                         ? "Where each RomM platform's games land in RetroBat."
                         : "Games on an unmapped platform have nowhere to go, so a sync skips them."),
                 routes.OpenPlatforms);
+
+            Add(
+                new ListRow(
+                    "Queued changes",
+                    queued == 0 ? "none" : Plural(queued, "waiting"),
+                    queued == 0
+                        ? "Settings RomMBat is holding until EmulationStation closes."
+                        : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
+                routes.OpenQueued);
 
             Add(
                 new ListRow("Disk space", Cap(session), "How much room the sync sets may use together."),

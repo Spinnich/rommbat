@@ -65,6 +65,13 @@ public static class BrowseScreens
                 .. game.IsHere
                     ? new[] { new FooterHint(NavAction.Alternate, "Take it off this device") }
                     : [],
+
+                // The third verb, and the only screen with a game in hand, which is what
+                // queueing a per-game memory card needs. Offered only where the shape allows
+                // it, which SaveConverter answers and this does not work out for itself.
+                .. QueuedChangeScreens.CanConvert(session, game.RomId)
+                    ? new[] { new FooterHint(NavAction.Extra, "Give it its own memory card") }
+                    : [],
             ],
             Note = () => game.Row is null
                 ? "This game is on the device. RomM is not reachable, so it cannot be installed "
@@ -80,6 +87,9 @@ public static class BrowseScreens
 
                 NavAction.Alternate when game.IsHere =>
                     ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed)),
+
+                NavAction.Extra when QueuedChangeScreens.CanConvert(session, game.RomId) =>
+                    ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName)),
 
                 _ => null,
             },
