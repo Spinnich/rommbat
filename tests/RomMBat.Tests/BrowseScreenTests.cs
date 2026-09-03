@@ -601,21 +601,19 @@ public sealed class BrowseScreenTests : IDisposable
     {
         Installed(1, "snes", "Chrono Trigger.sfc", 2_048);
 
-        var status = new StatusViewModel(
+        var root = RootScreens.Menu(
             _session,
-            new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))
-        {
-            OpenBrowse = () => new BrowseViewModel(_session),
-        };
+            () => new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."),
+            new RootScreens.RootRoutes { OpenBrowse = () => new BrowseViewModel(_session) });
 
-        var navigator = new Navigator(status);
+        var navigator = new Navigator(root);
 
-        navigator.Handle(NavAction.Extra);
+        RootMenuDriver.Open(navigator, "Find a game");
         var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
         await Settled(browse);
 
         Assert.True(navigator.Handle(NavAction.Back));
-        Assert.Same(status, navigator.Current);
+        Assert.Same(root, navigator.Current);
     }
 
     // ------------------------------------------------------------------ helpers

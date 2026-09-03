@@ -68,15 +68,15 @@ internal sealed class App : Application
                 Typed,
                 _session.EmulationStationLanguage());
 
-        var status = new StatusViewModel(_session, () => _gamepad.Status)
+        var root = RootScreens.Menu(_session, () => _gamepad.Status, new RootScreens.RootRoutes
         {
             StartPairing = StartPairing,
             OpenSets = () => SetsScreens.List(_session, connect: null, pair: StartPairing),
             OpenBrowse = () => BrowseViewModel.Start(_session),
             OpenBudget = () => new BudgetViewModel(_session),
-        };
+        });
 
-        return new ShellWindow(new Navigator(status), _gamepad, () => desktop.Shutdown());
+        return new ShellWindow(new Navigator(root), _gamepad, () => desktop.Shutdown());
     }
 
     /// <summary>

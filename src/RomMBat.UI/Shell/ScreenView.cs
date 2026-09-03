@@ -138,25 +138,40 @@ internal static class ScreenView
             MaxWidth = 900,
         };
 
+        // Flattened before it is windowed, because a section title takes up a line and a window
+        // computed over the rows alone scrolls short by one line per section. The screen counts
+        // lines the same way, in StatusViewModel.LineCount.
+        var lines = new List<(string? Title, StatusRow? Row)>();
+
         foreach (var section in status.Sections())
         {
-            var panel = new StackPanel { Spacing = 6 };
-
-            panel.Children.Add(new TextBlock
-            {
-                Text = section.Title.ToUpperInvariant(),
-                Foreground = Accent,
-                FontSize = 15,
-                Margin = new Thickness(0, 0, 0, 4),
-            });
-
-            foreach (var row in section.Rows)
-            {
-                panel.Children.Add(Row(row));
-            }
-
-            stack.Children.Add(panel);
+            lines.Add((section.Title, null));
+            lines.AddRange(section.Rows.Select(row => ((string?)null, (StatusRow?)row)));
         }
+
+        var window = status.Window;
+
+        stack.Children.Add(More(window.Above, "above"));
+
+        var block = new StackPanel { Spacing = 6 };
+
+        for (var index = window.Start; index < window.Start + window.Count; index++)
+        {
+            var (title, row) = lines[index];
+
+            block.Children.Add(title is not null
+                ? new TextBlock
+                {
+                    Text = title.ToUpperInvariant(),
+                    Foreground = Accent,
+                    FontSize = 15,
+                    Margin = new Thickness(0, index == window.Start ? 0 : 12, 0, 4),
+                }
+                : Row(row!));
+        }
+
+        stack.Children.Add(block);
+        stack.Children.Add(More(window.Below, "below"));
 
         return stack;
     }

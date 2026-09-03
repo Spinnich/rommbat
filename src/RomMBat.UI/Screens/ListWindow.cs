@@ -73,9 +73,39 @@ public static class ListWindow
     /// </remarks>
     public const int ReadingCapacity = 5;
 
+    /// <summary>
+    /// The tallest a status line is drawn: a label, a value, and a sentence under them.
+    /// </summary>
+    /// <remarks>
+    /// Shorter than <see cref="ReadingRowHeight"/> because a status pane draws plain lines
+    /// rather than blocks: no panel, no padding, and the detail is one wrapped sentence rather
+    /// than three. A section title is shorter still, so sizing every line at this is the
+    /// pessimistic count and that is the one a capacity wants.
+    /// </remarks>
+    public const double StatusLineHeight = 50;
+
+    public const double StatusLineSpacing = 6;
+
+    /// <summary>
+    /// How many status lines fit.
+    /// </summary>
+    /// <remarks>
+    /// <b>The status pane drew every line it had until stage 7b-3.</b> Four sections is the
+    /// shortest form and fits, which is why nobody saw it while this was the root screen; a
+    /// paired install with two degraded features, a suspicious clock and three queued changes
+    /// runs to twenty-two lines, and everything past the height of the display was drawn off it
+    /// with nothing able to scroll. Same defect as the folder picker, in the one screen that
+    /// predates the fix.
+    /// <para>
+    /// Chosen so a drawn block of these is never taller than an ordinary one, which is a height
+    /// the smallest supported display is already known to hold. A test compares the two.
+    /// </para>
+    /// </remarks>
+    public const int StatusCapacity = 12;
+
     /// <summary>How tall a drawn window of rows is, rows and the gaps between them.</summary>
-    public static double BlockHeight(int rows, double rowHeight) =>
-        rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * RowSpacing);
+    public static double BlockHeight(int rows, double rowHeight, double spacing = RowSpacing) =>
+        rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * spacing);
 
     /// <summary>How many rows fit, given how tall this screen draws them.</summary>
     /// <remarks>

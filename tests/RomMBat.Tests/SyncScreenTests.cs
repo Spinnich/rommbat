@@ -63,10 +63,10 @@ public sealed class SyncScreenTests : IDisposable
         Pair();
         Seed("games", 2);
 
-        var navigator = new Navigator(Status(stub));
+        var navigator = new Navigator(Root(stub));
 
-        // Start on the status screen opens the sets list; Alternate there syncs everything.
-        navigator.Handle(NavAction.Start);
+        // The sets row on the root opens the list; Alternate there syncs everything.
+        RootMenuDriver.Open(navigator, "Sync sets");
         Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Alternate);
@@ -82,7 +82,7 @@ public sealed class SyncScreenTests : IDisposable
 
         // And out, without ever needing a second way to leave.
         navigator.Handle(NavAction.Back);
-        Assert.IsType<StatusViewModel>(navigator.Current);
+        Assert.Equal(1, navigator.Depth);
     }
 
     [Fact]
@@ -94,8 +94,8 @@ public sealed class SyncScreenTests : IDisposable
         Pair();
         Seed("games", 1);
 
-        var navigator = new Navigator(Status(stub));
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root(stub));
+        RootMenuDriver.Open(navigator, "Sync sets");
 
         var list = Assert.IsType<ListScreen>(navigator.Current);
         navigator.Handle(NavAction.Accept);
@@ -1035,12 +1035,15 @@ public sealed class SyncScreenTests : IDisposable
             new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" },
             stub);
 
-    private StatusViewModel Status(StubRomMServer stub) =>
-        new(_session, new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))
-        {
-            OpenSets = () => SetsScreens.List(_session, Connect(stub)),
-            OpenBudget = () => new BudgetViewModel(_session),
-        };
+    private IScreen Root(StubRomMServer stub) =>
+        RootScreens.Menu(
+            _session,
+            () => new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."),
+            new RootScreens.RootRoutes
+            {
+                OpenSets = () => SetsScreens.List(_session, Connect(stub)),
+                OpenBudget = () => new BudgetViewModel(_session),
+            });
 
     private void Pair()
     {
