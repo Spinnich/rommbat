@@ -3310,6 +3310,62 @@ and `OnScreenKeyboard.Commit` refuses an empty string, so pressing straight thro
 the search path at all. The version that landed holds the page open and counts arrivals rather
 than answers.
 
+**The hands-on pass found seven things, and one of them meant a verb had never once appeared.**
+`QueuedChangeScreens.CanConvert` gated on `SaveConverter.Preview`, and `Preview` refuses while
+EmulationStation is running, because it describes writing `es_settings.cfg` now and a write made
+now is discarded. RomMBat is launched from the ES menu, so ES is running every single time it
+runs: **the per-game memory card verb could never be offered, on any game, on any install.** It is
+self-defeating rather than merely wrong, since queueing exists precisely because ES is up, and the
+check carries the comment saying so. `ConversionMode.QueuePreview` answers the question a front
+end that can only queue is actually asking.
+
+**No test could have caught it, and that is the part worth keeping.**
+`EmulationStationProcess.Check` reads the machine's process list, so every branch behind it was
+invisible to a suite running on a host with no EmulationStation. The check is injectable now and
+four tests cover both sides. **A desk-driven probe could not catch it either**: run with ES
+closed, `Preview` and `PreviewQueue` both answer `Ready`, which is exactly what the probe written
+to diagnose it reported.
+
+**Two renderers for one idea, and the pane had the worse one.** A pane of facts reserved three
+wrapped lines of detail under every row whether or not it had one, and flung its value to the
+right edge of a 980px block, so the platform detail screen drew four short facts across 530px
+that need 256 with nine hundred pixels between a label and its value. Both halves are the same
+mistake, and the fix is that a pane row is now drawn by the body that draws a status row. The
+uniform row height existed to stop the block growing as it scrolled; that is the budget's job
+now, which bounds the whole block rather than every row in it.
+
+**A flat capacity has to assume the tallest line.** The status pane's first fix counted twelve,
+computed from a row carrying a sentence, and most of its rows do not carry one, so it left a third
+of the display empty and scrolled anyway. Measured rather than counted, the live install's status
+now fits without scrolling at all.
+
+**Two adjectives went through the pluraliser** and reached a real screen as "5 unmappeds" and
+"3 waitings".
+
+**A conflict named a row id.** `save_conflict` carries a rom id and nothing else, so the screen
+drew "Game 295079". The name comes from `rom_metadata`, which is the store that outlives the file:
+a conflicted save very often belongs to a ROM no longer on the device, since removing a game never
+touches its saves, so `local_file` answers nothing in exactly the case that matters.
+
+**`overwrite=true` supersedes, it does not replace in place**, and this remark used to claim both
+in the same paragraph. Measured: a keep-local created save 193 and left 187 standing.
+
+**Proven live, and these are the claims the branch could not previously make.** A conflict
+resolved against the live instance from the couch, keep-local, closing the largest gap the PR
+named. The queued-config surface end to end in both directions: queued from the interface, applied
+by `background quit` once ES was confirmed gone, the per-game key written to `es_settings.cfg` in
+its escaped form, and separately a queued change cancelled from the interface, which deletes the
+row while an applied one keeps its outcome. A platform override written and dropped. #116's second
+press refusing to re-run a pass that would fetch nothing. And a **3.47 GB transfer stopped mid
+flight leaving no partial, no file, no gamelist entry and no bytes**, which is 7b-2b's whole-or-
+absent guarantee driven at a size it had never been driven at.
+
+**Not proven, and named rather than implied.** No game was launched through EmulationStation in
+this pass, so §7c's gate does not open on it. Reverting a conversion has no verb on the interface,
+so the revert this pass cancelled was queued from the console; the screen and the cancellation are
+the same either way, but the UI has never queued a revert. And keep-server was never taken, since
+the one live conflict was spent on keep-local.
+
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
 - No primary flow may require a mouse.
@@ -3357,12 +3413,18 @@ is how pleasant the first of those is, since a certifier can now install one gam
 whole platform, which is the shape a `(system, emulator, core)` pass actually wants. The gate
 opens on a hands-on pass, and 7b-2c's own is the one still owed.
 
-**Re-checked after 7b-3, which completes 7b and does not open the gate.** Every feature 7b was
-cut to deliver has landed, so the gate is no longer waiting on code at all. What it waits on is
-the thing it has waited on since 7b-2b: **a person driving the interface with a controller.**
-7b-3 adds a second owed pass rather than paying the first, and it moved every screen's way in,
-so the root menu is the part of it a pass should start on. Naming what is unproven is in the
-stage's ledger; the gate opens when somebody presses the buttons.
+**Re-checked after 7b-3, which completes 7b, and after the pass it owed.** Every feature 7b was
+cut to deliver has landed and the interface has now been driven end to end on the live install:
+sets defined and synced, a game found and installed, a 3.47 GB one stopped mid transfer, a
+conflict resolved against the live server, a platform remapped, and a setting queued, applied and
+cancelled. Seven findings came out of it, one of them a verb that had never appeared on any
+install.
+
+**The gate still does not open, and the reason is precise: nobody launched a game.** §7c needs a
+person to say what to sync, sync it, **and launch a game**, and only the first two were driven.
+Launching has never needed RomMBat, which is why this is a scheduling fact rather than a missing
+feature, but a certification pass is exactly the thing that proves the loop closes, and no pass
+has yet gone from the interface into a running emulator and back out through the hooks.
 
 ### M8: packaging, docs, release
 

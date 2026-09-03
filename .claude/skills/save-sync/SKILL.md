@@ -462,6 +462,7 @@ hash, folded into one digest. The archive is transport only.
   one standing, one second apart. The flag is what gets past the 409 an ordinary upload earns
   when this device's sync record is stale; it is not an instruction to the server to reuse the
   row. Anything reasoning about how many rows a slot has after a resolution has to expect two.
+
 - **`ConflictResolutionService` takes `TreeLock`, and refuses rather than treating a held lock
   as done.** It runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or
   one racing `evict`'s sweep of `partial/`, leaves a shared container half swapped. Unlike a
