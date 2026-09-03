@@ -1044,4 +1044,66 @@ public class LocalStoreTests
         Assert.Equal(8 * 60, store.Files.List().Count);
     }
 
+    /// <summary>
+    /// Closing the connection waits for a reader on another thread instead of racing it.
+    /// </summary>
+    /// <remarks>
+    /// Every command serialises through <c>StoreGate</c> and disposal did not, so
+    /// <c>SqliteConnection.Close</c> walked its prepared-statement list while a background reader
+    /// was still mutating it and threw out of <c>Dispose</c>, as either "Collection was modified"
+    /// or an <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>. This asserts
+    /// only that the close does not throw, because which of the two lands is a coin toss. It
+    /// surfaced as the screen sweeps failing only when both test projects ran together, because a
+    /// screen's loader is cancelled on dispose and not waited for, so under load it is still
+    /// running when the session closes.
+    /// </remarks>
+    [Fact]
+    public async Task Disposing_the_store_under_a_running_reader_does_not_throw()
+    {
+        var token = TestContext.Current.CancellationToken;
+
+        // One tree for every attempt, because building one per attempt was the whole cost:
+        // 40 of those took 2m 32s on CI against 3.4s here, and reopening the same database
+        // skips the migrations it has already applied.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        // Repeated because it is a race, and the count is measured rather than picked. Pre-fix,
+        // the attempt that threw reached 46 across twelve runs, so this leaves the same margin
+        // over the worst case that 40 left when each attempt built its own tree. A warm database
+        // narrows the window, which is why the count went up as the cost per attempt came down.
+        for (var attempt = 0; attempt < 150; attempt++)
+        {
+            var store = LocalStore.Open(install);
+
+            using var reading = new CancellationTokenSource();
+
+            var reader = Task.Run(
+                () =>
+                {
+                    while (!reading.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            _ = store.Metadata.Count();
+                        }
+                        catch (Exception)
+                        {
+                            // A closed connection is the ordinary end of this loop. What must
+                            // not happen is the close itself throwing, which is what fails here.
+                            return;
+                        }
+                    }
+                },
+                token);
+
+            // Long enough for the reader to be inside a command rather than starting one.
+            await Task.Delay(2, token);
+
+            store.Dispose();
+
+            await reading.CancelAsync();
+            await reader.WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+    }
 }

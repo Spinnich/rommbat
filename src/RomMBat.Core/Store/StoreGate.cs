@@ -36,9 +36,74 @@ namespace RomMBat.Core.Store;
 /// </remarks>
 internal static class StoreGate
 {
-    private static readonly ConditionalWeakTable<SqliteConnection, object> Gates = [];
+    /// <summary>One connection's gate, plus whether that connection is being closed.</summary>
+    private sealed class Gate
+    {
+        /// <summary>
+        /// Set while the owning thread is closing the connection, which makes
+        /// <see cref="Leave"/> inert.
+        /// </summary>
+        /// <remarks>
+        /// Closing disposes the commands the connection still tracks, on the closing thread, and
+        /// each fires the <c>Disposed</c> handler <c>SqliteValues.Command</c> attached. That
+        /// handler would find the gate entered, because the closing thread is the one holding it,
+        /// and release it half way through the close, letting another thread back onto a
+        /// connection that is being torn down. Only the closing thread can be inside while this
+        /// is set, since it is set after the gate is taken.
+        /// <para>
+        /// <b>Nothing reaches that today, and it is the ordering rather than this flag that
+        /// stops it.</b> A command still tracked when the close begins is one its creating
+        /// thread has not disposed, so that thread holds the gate and
+        /// <see cref="EnterForClose"/> has not returned; a command disposed beforehand is no
+        /// longer tracked, so <c>Close</c> never re-fires its <c>Disposed</c>. Counting entries
+        /// to <see cref="Leave"/> taken while this is set found none across the whole suite, and
+        /// removing the flag and the guard in <see cref="Leave"/> fails nothing. Keep it as the
+        /// assumption written down, not as something a test covers: it starts earning its place
+        /// the moment a second path closes the connection, or disposes a command, without
+        /// holding the gate.
+        /// </para>
+        /// </remarks>
+        internal bool Closing;
+    }
+
+    private static readonly ConditionalWeakTable<SqliteConnection, Gate> Gates = [];
 
     internal static void Enter(SqliteConnection connection) => Monitor.Enter(GateFor(connection));
+
+    /// <summary>Takes the gate for a close, and stops the close releasing it from underneath.</summary>
+    /// <remarks>
+    /// Disposal has to be ordered against readers like everything else. It used to close the
+    /// connection with no gate at all, so <c>SqliteConnection.Close</c> enumerated its
+    /// prepared-statement list while a background reader was still mutating it. That throws out
+    /// of <c>Dispose</c> as either "Collection was modified" or an
+    /// <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>, depending on which
+    /// of the two the close reaches first, so neither string alone identifies it.
+    /// </remarks>
+    internal static void EnterForClose(SqliteConnection connection)
+    {
+        var gate = GateFor(connection);
+
+        Monitor.Enter(gate);
+        gate.Closing = true;
+    }
+
+    /// <summary>Releases the gate a close took, whether or not the close succeeded.</summary>
+    /// <remarks>
+    /// The gate is released rather than held for ever, so a thread that arrives afterwards is
+    /// answered by the disposed connection with an ordinary exception instead of blocking on a
+    /// gate nothing will ever open.
+    /// </remarks>
+    internal static void LeaveAfterClose(SqliteConnection connection)
+    {
+        var gate = GateFor(connection);
+
+        gate.Closing = false;
+
+        if (Monitor.IsEntered(gate))
+        {
+            Monitor.Exit(gate);
+        }
+    }
 
     /// <summary>
     /// Releases the gate, unless this thread is not the one holding it.
@@ -64,12 +129,15 @@ internal static class StoreGate
     {
         var gate = GateFor(connection);
 
-        if (Monitor.IsEntered(gate))
+        // A close owns the gate for its whole duration and releases it itself.
+        if (gate.Closing || !Monitor.IsEntered(gate))
         {
-            Monitor.Exit(gate);
+            return;
         }
+
+        Monitor.Exit(gate);
     }
 
-    private static object GateFor(SqliteConnection connection) =>
-        Gates.GetValue(connection, _ => new object());
+    private static Gate GateFor(SqliteConnection connection) =>
+        Gates.GetValue(connection, _ => new Gate());
 }
