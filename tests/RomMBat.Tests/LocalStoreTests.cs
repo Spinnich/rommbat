@@ -1050,7 +1050,9 @@ public class LocalStoreTests
     /// <remarks>
     /// Every command serialises through <c>StoreGate</c> and disposal did not, so
     /// <c>SqliteConnection.Close</c> walked its prepared-statement list while a background reader
-    /// was still mutating it and threw "Collection was modified" out of <c>Dispose</c>. It
+    /// was still mutating it and threw out of <c>Dispose</c>, as either "Collection was modified"
+    /// or an <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>. This asserts
+    /// only that the close does not throw, because which of the two lands is a coin toss. It
     /// surfaced as the screen sweeps failing only when both test projects ran together, because a
     /// screen's loader is cancelled on dispose and not waited for, so under load it is still
     /// running when the session closes.

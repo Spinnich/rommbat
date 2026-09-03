@@ -137,8 +137,13 @@ the source of truth; the network is optional, probed with a short-timeout
 
   **Closing the connection is gated too, and for a long time it was the one path that was not.**
   `LocalStore.Dispose` called `_connection.Dispose()` with no gate at all, so `Close` enumerated
-  the prepared-statement list while a background reader mutated it and threw the same "Collection
-  was modified" out of `Dispose` itself. It surfaced as the screen sweeps failing **only when
+  the prepared-statement list while a background reader mutated it and threw out of `Dispose`
+  itself. **Do not match on one exception string**: the same race lands as either the
+  `InvalidOperationException` "Collection was modified" from the enumeration, or an
+  `ObjectDisposedException` naming `SQLitePCL.sqlite3_stmt` under
+  `SqliteDataRecord.AddChanges`, when the reader's statement is torn down first. Reproducing it
+  six times on `a7b103a` gave four of the first and two of the second. It surfaced as the screen
+  sweeps failing **only when
   both test projects ran together**: a screen's loader is cancelled when the screen is disposed
   and never waited for, so under load it is still running when the session closes. Measured on
   main at `a7b103a`, one and then two of 1177 failing across two runs, while
@@ -146,14 +151,24 @@ the source of truth; the network is optional, probed with a short-timeout
   looks when you only run one project.
 
   So `Dispose` takes the gate through `StoreGate.EnterForClose`, which also sets a `Closing` flag
-  that makes `Leave` inert. **That flag is not belt-and-braces.** Without it the first abandoned
-  command's `Disposed` handler runs on the closing thread, finds the gate entered because the
-  closing thread is the one holding it, and releases it half way through the close, letting
-  another thread back onto a connection being torn down. The gate is **released** after the
-  close rather than held, so a thread arriving afterwards is answered by the disposed connection
-  with an ordinary exception instead of blocking on a gate nothing will ever open.
-  `Disposing_the_store_under_a_running_reader_does_not_throw` is what pins it, and it reproduces
-  the failure on the first pass without the fix.
+  that makes `Leave` inert. Without the flag the first abandoned command's `Disposed` handler
+  would run on the closing thread, find the gate entered because the closing thread is the one
+  holding it, and release it half way through the close, letting another thread back onto a
+  connection being torn down. The gate is **released** after the close rather than held, so a
+  thread arriving afterwards is answered by the disposed connection with an ordinary exception
+  instead of blocking on a gate nothing will ever open.
+  `Disposing_the_store_under_a_running_reader_does_not_throw` is what pins the ordering, and it
+  reproduces the failure on the first pass without the fix.
+
+  **The `Closing` flag itself is unreached, and that is worth knowing before you spend a day on
+  it.** Taking the gate for the close is what excludes the case, not the flag: a command still
+  tracked when the close begins has not been disposed, so its thread holds the gate and
+  `EnterForClose` has not returned, and a command disposed beforehand is no longer tracked by
+  the connection, so `Close` never re-fires its `Disposed`. Instrumenting `Leave` to count
+  entries taken while `Closing` is set found **none across all 1178 tests**, and removing the
+  flag and its guard fails nothing. It is the assumption written down rather than a tested path,
+  and it starts mattering the moment a second path closes the connection, or disposes a command,
+  without holding the gate.
 
   **This orders threads inside one process and nothing else.** The database is WAL and the hooks
   write to it from their own processes; `TreeLock` and the busy timeout are what order those.

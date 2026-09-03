@@ -50,6 +50,18 @@ internal static class StoreGate
         /// and release it half way through the close, letting another thread back onto a
         /// connection that is being torn down. Only the closing thread can be inside while this
         /// is set, since it is set after the gate is taken.
+        /// <para>
+        /// <b>Nothing reaches that today, and it is the ordering rather than this flag that
+        /// stops it.</b> A command still tracked when the close begins is one its creating
+        /// thread has not disposed, so that thread holds the gate and
+        /// <see cref="EnterForClose"/> has not returned; a command disposed beforehand is no
+        /// longer tracked, so <c>Close</c> never re-fires its <c>Disposed</c>. Counting entries
+        /// to <see cref="Leave"/> taken while this is set found none across the whole suite, and
+        /// removing the flag and the guard in <see cref="Leave"/> fails nothing. Keep it as the
+        /// assumption written down, not as something a test covers: it starts earning its place
+        /// the moment a second path closes the connection, or disposes a command, without
+        /// holding the gate.
+        /// </para>
         /// </remarks>
         internal bool Closing;
     }
@@ -62,8 +74,10 @@ internal static class StoreGate
     /// <remarks>
     /// Disposal has to be ordered against readers like everything else. It used to close the
     /// connection with no gate at all, so <c>SqliteConnection.Close</c> enumerated its
-    /// prepared-statement list while a background reader was still mutating it, which throws
-    /// "Collection was modified" out of <c>Dispose</c>.
+    /// prepared-statement list while a background reader was still mutating it. That throws out
+    /// of <c>Dispose</c> as either "Collection was modified" or an
+    /// <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c>, depending on which
+    /// of the two the close reaches first, so neither string alone identifies it.
     /// </remarks>
     internal static void EnterForClose(SqliteConnection connection)
     {

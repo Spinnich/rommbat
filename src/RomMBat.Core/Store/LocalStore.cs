@@ -224,13 +224,24 @@ public sealed class LocalStore : IDisposable
         }
     }
 
-    /// <summary>Closes the connection, once no other thread is inside it.</summary>
+    /// <summary>Closes the connection, blocking until no other thread is inside it.</summary>
     /// <remarks>
     /// <b>Disposal is ordered by <see cref="StoreGate"/> like every other use of the connection,
     /// and for a while it was the one path that was not.</b> A screen's loader is cancelled when
     /// the screen is disposed and is not waited for, so it can still be mid-read when the session
     /// closes; <c>SqliteConnection.Close</c> then enumerated its prepared-statement list while
-    /// that reader mutated it and threw "Collection was modified" out of here.
+    /// that reader mutated it and threw out of here. <b>The symptom varies</b>, so do not match
+    /// on one string: "Collection was modified" from the enumeration itself, or an
+    /// <c>ObjectDisposedException</c> naming <c>SQLitePCL.sqlite3_stmt</c> when the reader's
+    /// statement is torn down first. Reproducing this six times gave four of the first and two
+    /// of the second.
+    /// <para>
+    /// <b>The wait is bounded by the longest gated hold, and no I/O happens inside one.</b> That
+    /// hold is the transaction in <c>ContentSync.Commit</c>, which moves the file before it
+    /// opens the transaction, so the bound is a few statements plus the five-second busy timeout
+    /// a single command can sit on under hook contention. This runs on the UI thread at
+    /// shutdown, so the worst case is a stall of that order in place of a crash.
+    /// </para>
     /// </remarks>
     public void Dispose()
     {
