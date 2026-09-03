@@ -3188,7 +3188,7 @@ choice, so the list has no cursor at all, scrolls by an offset, and draws its ro
 rather than as filled panels. Reported twice on the same pass, once as a highlight walking rows
 that do nothing and once, with the highlight gone, as the rows still being drawn as buttons.
 Confirm screens answer Accept rather than Start, which is the first half of the button-model
-change; the rest, where every verb becomes a selectable row, is 7b-3's.
+change; the rest, where every verb becomes a selectable row, was 7b-3's and is done.
 
 **One ROM in two folders is legitimate and used to crash the planner.** `folder_override` is the
 only way an arcade set resolves, so a `mame`-overridden platform set and an `fbneo`-overridden
@@ -3214,36 +3214,101 @@ the live install), **#114** (a budget-blocked sync is now `SyncState.Blocked`, w
 an agent exit code** to `Partial`). #105, #106 and #107 were already fixed in 7b-2b and are
 closed here.
 
-##### 7b-3: conflicts and settings
+##### 7b-3: conflicts and settings (done)
 
 Conflict resolution, acting on the queued-config surface 7b-1 only reads, platform mapping, and
-whatever the two stages before it turn up.
+the button-model change the two stages before it left owing.
 
-**Re-checked after 7b-2b, and two things it was going to owe are already paid.** `FlushReport`
-carries every open conflict as rows, so displaying them needs no new Core surface and only the
-screen and the choice remain. And a refused token now ends a run as `SyncState.Rejected` with
-pairing offered on the spot, so re-pairing is not a thing 7b-3 has to invent a route to.
+**The root is a list of verbs, because the buttons ran out.** Until this stage it put one action
+on each of Accept, Start, Extra and Alternate, which is every button a screen has, and this stage
+needed three more entry points than that. A list grows by a row where a footer cannot grow by a
+button, and a row says what it is for in words rather than in a glyph a person has to have
+learned. `StatusViewModel` kept the facts and lost the verbs, one press behind the row naming it.
+That is the second half of the button-model change 7b-2c began by making confirm screens answer
+Accept.
 
-**Re-checked again after 7b-2c, which paid a third and made the mapping screen more urgent
-rather than less.** Paid: a screen that runs slow work and reports it is now three files with
-one shape, since browse's preview and apply screens are `ListScreen`s with loaders and no
-renderer arm of their own, so a conflict screen needs no fourth kind. More urgent: browse's
-platform filter reads `platform_map` through `SyncSetService.PlatformsKnownHere`, so an unmapped
-platform is now visible in a second place, on a row that says the games cannot be installed, and
-the only repair is still a per-set folder override. That is the wrong shape and the mapping is
-install-wide, which is the argument below.
+**The count that motivates a verb is on its own row.** Conflicts, unmapped platforms and queued
+changes are each a number a person has to know before they would think to press anything, and
+burying them one screen deep would mean the interface knew about a stalled sync and did not say
+so.
 
-Also inherited: `LibrarySyncService.InstallAsync` is what a per-game verb calls, and 7b-3 owns
-whatever else wants one.
+**Moving the status screen exposed a defect in it.** It drew every line it had, which is the
+folder picker's bug in the one screen predating `ListWindow`. Four sections is the short form and
+fits, so nobody saw it while status was the root; a paired install with two degraded features, a
+suspicious clock and three queued changes runs to twenty-eight lines drawn into a space that
+holds twelve, with nothing able to scroll. It is a scrolled pane now with its own capacity, and
+the renderer flattens sections to lines before windowing, since a section title costs a line the
+window has to count.
 
-**The mapping screen is reached after pairing, not discovered mid-resolve.** M2 already calls
-for it as core UI; what 7b-2a's hands-on pass added is where it belongs in the flow. An
-unmapped platform is currently found out by a resolve stopping partway through a collection
-that happened to contain one of its games, and the only repair from the interface is a per-set
-folder override, which is the wrong shape: the mapping is install-wide and `platform_map`
-already holds it. So the status screen should say how many platforms are unmapped, and the
-mapping screen should be reachable from there, before a sync is attempted rather than after one
-fails.
+**The conflict rule moved into Core, because the UI can never take the tree lock.** Resolving a
+class C conflict runs the same restore a flush does, and two at once leave a shared container
+half swapped. `saves resolve` took `TreeLock` itself; the interface never referencing it is
+asserted structurally against the built assembly and is a data-loss guard rather than tidiness,
+since a flush treats a failed acquire as success. So `ConflictResolutionService` owns the lock,
+the refusal to treat a failed acquire as done, and the words of every outcome, and `saves resolve`
+is a shell over it. **The connection arrives as a factory rather than a connection**, which is
+what preserves the agent's ordering: the lock comes first, because a resolution that cannot run
+is not worth a round trip.
+
+**Two verbs, on Start and Alternate, and no resolve-all.** A screen that put one side on the
+button that also confirms would make the commonest mispress the destructive one. Either default
+is the guess the conflict exists to avoid, so a button resolving twelve at once would be that
+guess made twelve times. Every screen states that neither side is discarded, which is true and
+was previously only inferable from the absence of a warning.
+
+**The mapping screen is reached from the root, not discovered mid-resolve.** M2 called for it as
+core UI and nothing had built one, so an unmapped platform was found out by a resolve stopping
+partway through a collection that happened to hold one of its games, and the only repair from the
+couch was a per-set folder override. That is the wrong shape: the mapping is install-wide,
+`platform_map` already holds it install-wide, and a per-set override mends one set while leaving
+every other set and every future set with the same hole. 7b-2c made it worse by showing unmapped
+platforms in a second place with still no repair.
+
+**Unmapped sorts first**, because alphabetical order buries the three rows a person came to fix
+among a hundred and twenty. Choosing a folder writes a user override, which is what stops a later
+re-resolve overwriting it, and dropping one is offered only where there is one to drop. **No
+connection anywhere in it, and that is not a degradation**: `platform_map` is written by every
+resolve and every browse, so the rows are already local, and waiting on an unreachable LAN host
+to show them would trade the working state for nothing.
+
+**The queue got its write half.** Reading and cancelling are a screen of their own; queueing is on
+browse's game detail screen, which is the one place with a game in hand. Cancelling deletes,
+because nothing happened and there is nothing to report; a finished row keeps its outcome and is
+shown unchoosable, since a refusal is the outcome that produces no other sign and the console
+output explaining it is long gone by the time anyone looks. **Whether a game can be converted is
+`SaveConverter`'s answer through a preview**, never a rule worked out in a screen, so the gate
+cannot drift from the refusals the converter applies.
+
+**There is no apply path from the interface and there cannot be one.** EmulationStation
+serialises its own model over anything written to `es_settings.cfg` while it is running, and this
+interface only ever runs while it is. A test asserts that nothing on the convert screen offers to
+write the setting now.
+
+Rode along: **#116** (`AlreadyPicked` set and never read, so a second install press re-ran a pass
+that fetched nothing and still said "Installed"), **#117** (a linear membership scan), **#118**
+(browse's in-flight guard missing the search path, and `Connection()` writing off the lock),
+**#101** (an unreachable `Refused` arm) and **#96** (`IOException`-only catch where a read-only
+file gives `UnauthorizedAccessException`).
+
+**#78's ruling is reversed and that is worth stating.** It was preserved and asserted through
+7b-2a and 7b-2c on the argument that fixing it while passing would change agent behaviour inside
+a refactor claiming to change none. Nothing in this stage is a refactor, so it is fixed here, at
+the agent's argument parsing where the issue's own suggested fix put it. `SyncSetService` is
+deliberately unchanged: a filter is built from fields, so a draft carrying a value has nothing to
+do with it and a front end assembling one has no value to supply.
+
+**Two defects the tests found while being written, both worth recording because the first
+attempt at each looked finished.** Reading-pane rows left available make the footer promise an
+Accept that does nothing, which is the rule 7b-2c fixed at the class and this stage reintroduced
+at three new instances. And `ListScreen.ExtraHints` **replaces** the constructor's hints rather
+than adding to them, so a screen passing one there and answering `ExtraHints` as well loses the
+first from the footer while it goes on working.
+
+**A race test that passes against the unfixed code is worth less than no test.** #118's first two
+versions both did: the stub answers in microseconds, so two fetches are never in flight together,
+and `OnScreenKeyboard.Commit` refuses an empty string, so pressing straight through never reached
+the search path at all. The version that landed holds the page open and counts arrivals rather
+than answers.
 
 - **Anything the UI wants to change in `es_settings.cfg` goes through the queue**, without
   exception. It cannot write that file itself and there is no arrangement under which it can.
@@ -3291,6 +3356,13 @@ to sync, sync it, and launch a game, and all three were reachable at 7b-2b. What
 is how pleasant the first of those is, since a certifier can now install one game rather than a
 whole platform, which is the shape a `(system, emulator, core)` pass actually wants. The gate
 opens on a hands-on pass, and 7b-2c's own is the one still owed.
+
+**Re-checked after 7b-3, which completes 7b and does not open the gate.** Every feature 7b was
+cut to deliver has landed, so the gate is no longer waiting on code at all. What it waits on is
+the thing it has waited on since 7b-2b: **a person driving the interface with a controller.**
+7b-3 adds a second owed pass rather than paying the first, and it moved every screen's way in,
+so the root menu is the part of it a pass should start on. Naming what is unproven is in the
+stage's ledger; the gate opens when somebody presses the buttons.
 
 ### M8: packaging, docs, release
 

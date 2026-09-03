@@ -204,7 +204,21 @@ pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added t
 syncing every set or one set with live progress, a stop that leaves the tree correct, and the
 budget as it is spent. **Stage 7b-2c added browse, per-game install and removal**: finding one
 game a page at a time, installing it in one press, and taking a game or a whole set back off.
-Conflict resolution and acting on the queued-config surface are 7b-3.
+**Stage 7b-3 added conflicts, the platform mapping and the queue's write half**, and turned the
+root into a list of verbs.
+
+**The root is a list because the buttons ran out.** It put one action on each of Accept, Start,
+Extra and Alternate, which is every button a screen has, and 7b-3 needed three more entry points
+than that. `RootScreens.Menu` is that list; `StatusViewModel` kept the facts and lost the verbs,
+one press behind the row naming it. The counts that motivate a verb (conflicts, unmapped
+platforms, queued changes) are on the rows themselves, because burying a number a person has to
+act on would mean the interface knew about a stalled sync and did not say so.
+
+**Resolving a conflict is Core's, because the UI can never take `TreeLock`.** It runs the same
+class C restore a flush does, and two at once leave a shared container half swapped.
+`ConflictResolutionService` holds the lock, refuses rather than treating a failed acquire as
+done, and words every outcome; `saves resolve` is a shell over it. It takes a connection factory
+rather than a connection, so the lock is still taken before anything is asked of the server.
 
 **Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
 `ListScreen`: everything else has all its rows the moment it opens. It starts on the platform

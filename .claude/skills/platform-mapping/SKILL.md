@@ -71,6 +71,16 @@ that is the seed's `segacd`/`megacd` divergence showing up in a second place.
 
 1. **User override** from the mapping screen, keyed by `fs_slug` and persisted in
    `Device.sync_config`. Always wins.
+
+   **The screen exists as of M7 stage 7b-3**, reached from a row on the root menu carrying the
+   unmapped count, so an unmapped platform is found before a sync is attempted rather than by a
+   resolve stopping partway through a collection that happened to hold one of its games. It
+   takes no connection: `platform_map` is written by every resolve and every browse, so every
+   row it shows and the override that fixes one are already local. Unmapped rows sort first,
+   because alphabetical order buries the three a person came to fix among a hundred and twenty.
+   Writing an override records `MappingSource.User`, which is what stops a later re-resolve
+   overwriting it, and clearing one leaves the row unmapped for the chain to answer again.
+
 2. **`platform.fs_slug`** matched against the live `es_systems.cfg`. When the server is
    already Batocera-shaped, `fs_slug` _is_ the folder name.
 3. **Bundled `data/retrobat/platforms.json`**, slug to an **ordered list** of folders. First
