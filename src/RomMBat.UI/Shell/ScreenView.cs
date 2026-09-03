@@ -424,7 +424,9 @@ internal static class ScreenView
         var rows = screen.Rows;
         var stack = new StackPanel
         {
-            Spacing = ListWindow.RowSpacing,
+            // Tight on a pane of facts and airy on a list of choices. A choice is a target and
+            // wants room around it; a fact is a line of a paragraph and does not.
+            Spacing = screen.Reading ? ListWindow.StatusLineSpacing : ListWindow.RowSpacing,
             HorizontalAlignment = HorizontalAlignment.Center,
 
             // Fixed, not a maximum. A stack that sizes to its content is as wide as the widest
@@ -555,33 +557,39 @@ internal static class ScreenView
 
     private static Border ListItem(ListRow row, bool selected, bool reading = false)
     {
+        // A pane of facts is drawn by the same body that draws the status screen, which is the
+        // screen a hands-on pass held up as showing data correctly. Two renderers for one idea
+        // is how they drift, and they had: the pane reserved three wrapped lines under every
+        // row and flung its value to the right edge, so four short facts filled a display and
+        // the eye had to cross it to join a label to its value.
+        if (reading)
+        {
+            return new Border
+            {
+                Background = Brushes.Transparent,
+                BorderBrush = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(0),
+
+                // No fixed height. The block is bounded by ListWindow.ContentBudget instead, so
+                // it cannot grow past the display, which is what the uniform height was for.
+                Child = Row(new StatusRow(row.Label, row.Value ?? string.Empty, row.Detail)),
+            };
+        }
+
         var lines = new StackPanel { Spacing = 3 };
 
-        // Two column shapes, because a menu and a pane of facts are asking different questions.
-        //
-        // On a list of choices the value is a property of the row (a size, a count, a folder)
-        // and belongs at the right edge, so the values line up one under another and can be
-        // scanned down the list from across a room.
-        //
-        // On a pane of facts the label names a field and the value is its content, so they are
-        // one phrase and belong next to each other. Right-aligning them put nine hundred pixels
-        // between "Folder" and "odyssey2" on a real display, which a hands-on pass called the
-        // display being terrible, and it is: the eye has to travel the width of the screen to
-        // join two halves of one statement. The status screen never had this because it always
-        // pinned its label column, and it is the screen the same pass said read well.
+        // A grid rather than a horizontal stack, so the value sits at the right edge of every
+        // row instead of wherever its label happens to end. With a fixed row width that puts
+        // the second column on one line down the list, which is what makes it readable across
+        // a room. A pane of facts wants the opposite and is drawn above.
         var head = new Grid
         {
-            ColumnDefinitions = reading
-                ?
-                [
-                    new ColumnDefinition(new GridLength(LabelColumn, GridUnitType.Pixel)),
-                    new ColumnDefinition(GridLength.Star),
-                ]
-                :
-                [
-                    new ColumnDefinition(GridLength.Star),
-                    new ColumnDefinition(GridLength.Auto),
-                ],
+            ColumnDefinitions =
+            [
+                new ColumnDefinition(GridLength.Star),
+                new ColumnDefinition(GridLength.Auto),
+            ],
         };
 
         // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
@@ -591,7 +599,7 @@ internal static class ScreenView
         var label = new TextBlock
         {
             Text = row.Label,
-            Foreground = !reading && selected ? Brushes.Black : reading ? Ink : ink,
+            Foreground = selected ? Brushes.Black : ink,
             FontSize = 21,
 
             // A name longer than the row is trimmed rather than allowed to widen it. The live
@@ -609,21 +617,11 @@ internal static class ScreenView
             var right = new TextBlock
             {
                 Text = value,
-                Foreground = !reading && selected ? Brushes.Black : Muted,
+                Foreground = selected ? Brushes.Black : Muted,
                 FontSize = 19,
                 Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-
-                // On a pane of facts the value is the answer, so it is drawn in the same ink as
-                // the label rather than dimmed like a menu row's trailing detail, and it wraps
-                // rather than running off the end of a fixed column.
-                TextWrapping = reading ? TextWrapping.Wrap : TextWrapping.NoWrap,
             };
-
-            if (reading)
-            {
-                right.Foreground = Ink;
-            }
 
             Grid.SetColumn(right, 1);
             head.Children.Add(right);
@@ -636,57 +634,34 @@ internal static class ScreenView
             lines.Children.Add(new TextBlock
             {
                 Text = detail,
-                Foreground = !reading && selected ? Brushes.Black : Muted,
+                Foreground = selected ? Brushes.Black : Muted,
                 FontSize = 16,
                 MaxWidth = 860,
 
-                // Indented under the value on a pane of facts, so the label column stays a
-                // clean edge and the detail reads as belonging to the value it explains.
-                Margin = reading ? new Thickness(LabelColumn, 0, 0, 0) : default,
-
-                // On a reading list the detail is the row, and it is a whole sentence rather
-                // than a label, so it wraps into room for three lines and is clipped past them.
-                // On an ordinary list it is a subtitle under a choice and stays on one line,
-                // trimmed: left to wrap it decides the row's height, and rows of differing
+                // On a list of choices the detail is a subtitle under a choice and stays on one
+                // line, trimmed: left to wrap it decides the row's height, and rows of differing
                 // height inside a fixed window make the block grow and shrink while it is being
-                // scrolled, which is the thing the fixed row height exists to stop and which
-                // hands-on rounds 3 and 13 of stage 7b-2a both found.
-                //
-                // Latent until browse put a release line here. A psx file name runs past a
-                // hundred characters, so the first list with a long subtitle would have brought
-                // that defect back on every row that had one.
-                TextWrapping = reading ? TextWrapping.Wrap : TextWrapping.NoWrap,
-                Height = reading ? ReadingDetailHeight : double.NaN,
+                // scrolled, which hands-on rounds 3 and 13 of stage 7b-2a both found.
+                TextWrapping = TextWrapping.NoWrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
         }
 
         return new Border
         {
-            // A reading row is text, not a button, and it is drawn as text. Every row on such a
-            // list is a fact rather than a choice, so a filled panel with a ring round it says
-            // "press me" about something that cannot be pressed. A hands-on pass called it out
-            // twice: first as a highlight walking rows that do nothing, and then, with the
-            // highlight gone, as the rows still being drawn as buttons. Both were the same
-            // mistake, which is dressing a pane of text as a menu.
-            //
             // Fill and ring only on a list of choices. A row is the same size selected or not,
             // so a held d-pad never makes the list shift under the cursor.
-            Background = reading ? Brushes.Transparent : selected ? Accent : Panel,
-            BorderBrush = reading ? Brushes.Transparent : selected ? Ink : Panel,
+            Background = selected ? Accent : Panel,
+            BorderBrush = selected ? Ink : Panel,
             BorderThickness = new Thickness(2),
-            CornerRadius = new CornerRadius(reading ? 0 : 8),
-            Padding = new Thickness(reading ? 0 : 18, 12, reading ? 0 : 18, 12),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(18, 12, 18, 12),
 
             // Every row the same height whether or not it carries a second line. A window of a
             // fixed number of rows whose heights differ is a block whose height changes as the
             // cursor moves through it, which is what made scrolling feel like zooming.
-            //
-            // Fixed rather than a minimum on a reading list, where the detail is a sentence
-            // that wraps: a minimum is only a floor, so a two-line row and a three-line one are
-            // still different heights.
-            MinHeight = reading ? ReadingRowHeight : RowHeight,
-            Height = reading ? ReadingRowHeight : double.NaN,
+            MinHeight = RowHeight,
+            Height = double.NaN,
             Child = lines,
         };
     }

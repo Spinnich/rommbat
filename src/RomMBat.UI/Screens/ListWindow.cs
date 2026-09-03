@@ -73,6 +73,52 @@ public static class ListWindow
     /// </remarks>
     public const int ReadingCapacity = 5;
 
+    /// <summary>
+    /// How wide the detail column is on a pane of facts, in characters.
+    /// </summary>
+    /// <remarks>
+    /// The detail sits beside a 220px label column inside a 980px block at 16px, which is about
+    /// ninety characters a line. Estimated from the string rather than measured, because a view
+    /// model has no text engine and <c>ARCHITECTURE.md</c>'s rule is that anything in this
+    /// project that cannot be tested without a window is in the wrong project. Being a line out
+    /// costs a few pixels of a bounded block; measuring would cost the testability of every
+    /// screen.
+    /// </remarks>
+    public const int FactDetailColumns = 90;
+
+    /// <summary>The most lines of detail a fact row is given before it is clipped.</summary>
+    public const int FactDetailMaxLines = 3;
+
+    /// <summary>One wrapped line of detail at 16px.</summary>
+    public const double FactDetailLineHeight = 22;
+
+    /// <summary>
+    /// How tall one row of a pane of facts is drawn.
+    /// </summary>
+    /// <remarks>
+    /// <b>Natural, not uniform, which is a reversal.</b> A pane used to reserve three wrapped
+    /// lines under every row whether or not it had one, so a screen of four short facts drew
+    /// them 122px apart and a hands-on pass twice called the result too spread out. The uniform
+    /// height was there to stop the block growing and shrinking as it scrolled; that is now the
+    /// job of the budget in <see cref="ScrolledByHeight"/>, which bounds the whole block instead
+    /// of every row in it. The status pane has worked this way since 7b-1 and is the screen the
+    /// same pass held up as showing data correctly.
+    /// </remarks>
+    public static double FactHeight(string? detail)
+    {
+        if (string.IsNullOrEmpty(detail))
+        {
+            return StatusRowHeight;
+        }
+
+        var lines = Math.Clamp(
+            (detail.Length + FactDetailColumns - 1) / FactDetailColumns,
+            1,
+            FactDetailMaxLines);
+
+        return StatusRowHeight + (lines * FactDetailLineHeight);
+    }
+
     /// <summary>A section heading on the status pane, with the gap above it.</summary>
     public const double StatusTitleHeight = 36;
 

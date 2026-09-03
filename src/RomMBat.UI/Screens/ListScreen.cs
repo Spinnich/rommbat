@@ -154,12 +154,20 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             // A reading list scrolls by an offset, which is what the stored cursor holds there:
             // every press moves the view, where a cursor kept off the edge would leave it still
             // for the first few and read as a screen ignoring the pad.
+            //
+            // Measured rather than counted on a pane, because its rows are not the same height:
+            // one carrying a sentence is three times one that does not, and a fixed count had to
+            // assume the tallest, which is what made four short facts fill a screen.
             return Reading
-                ? ListWindow.Scrolled(state.Cursor, state.Rows.Count, ListWindow.ReadingCapacity)
+                ? ListWindow.ScrolledByHeight(state.Cursor, Heights(state.Rows), ListWindow.ContentBudget)
                 : ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.Capacity);
         }
     }
 
+
+    /// <summary>How tall each row of a pane is drawn, in the order they are drawn.</summary>
+    private static IReadOnlyList<double> Heights(IReadOnlyList<ListRow> rows) =>
+        [.. rows.Select(row => ListWindow.FactHeight(row.Detail))];
 
     /// <summary>
     /// A line above the rows, or null.
@@ -509,7 +517,12 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
         Reading
-            ? Math.Clamp(from, 0, Math.Max(0, rows.Count - ListWindow.ReadingCapacity))
+            // Clamped against what the window will actually accept, which depends on how tall
+            // the rows are rather than on a fixed count of them.
+            ? Math.Clamp(
+                from,
+                0,
+                ListWindow.ScrolledByHeight(int.MaxValue, Heights(rows), ListWindow.ContentBudget).Start)
             : FirstAvailable(rows, from, step);
 
     /// <summary>

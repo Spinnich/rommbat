@@ -584,55 +584,78 @@ public sealed class SyncScreenTests : IDisposable
 
         screen.Handle(NavAction.Down);
         screen.Handle(NavAction.Down);
-        Assert.Equal(2, screen.Window.Start);
-
-        for (var press = 0; press < 20; press++)
-        {
-            screen.Handle(NavAction.Down);
-        }
 
         // Every press moved the view, rather than a cursor kept off the edge leaving it still
         // for the first few, which would read as a screen ignoring the pad.
-        Assert.Equal(22, screen.Window.Start);
-        Assert.Equal(ListWindow.ReadingCapacity, screen.Window.Count);
+        Assert.Equal(2, screen.Window.Start);
 
         screen.Handle(NavAction.Up);
-        Assert.Equal(21, screen.Window.Start);
+        Assert.Equal(1, screen.Window.Start);
 
         // The bottom sticks rather than wrapping: a pane of text that jumps back to the top has
         // lost the reader's place, and the edge markers already say nothing follows.
-        for (var press = 0; press < 40; press++)
+        for (var press = 0; press < 60; press++)
         {
             screen.Handle(NavAction.Down);
         }
 
-        Assert.Equal(30 - ListWindow.ReadingCapacity, screen.Window.Start);
+        var settled = screen.Window.Start;
+
         Assert.Equal(0, screen.Window.Below);
+        Assert.True(settled > 0, "the pane never scrolled at all");
+
+        screen.Handle(NavAction.Down);
+        Assert.Equal(settled, screen.Window.Start);
+
+        // How many rows that is depends on how tall they are, which is the point of measuring
+        // rather than counting: these rows carry a one-line sentence, so more of them fit than
+        // the three-line reserve used to allow.
+        Assert.Equal(30, settled + screen.Window.Count);
 
         // Still nothing to press, which is the whole reason the rows are unavailable.
         Assert.DoesNotContain(screen.Hints, hint => hint.Action == NavAction.Accept);
         Assert.Equal(ScreenCommandKind.Stay, screen.Handle(NavAction.Accept).Kind);
     }
 
-    [Fact]
-    public void A_window_of_reading_rows_is_no_taller_than_a_window_of_ordinary_ones()
+    [Theory]
+    [InlineData("why")]
+    [InlineData("a sentence long enough to wrap once at the width a pane of facts draws its detail at, and no further")]
+    public void A_window_of_pane_rows_is_no_taller_than_a_window_of_ordinary_ones(string detail)
     {
-        // The capacity was written for a 78px row and the reading row is 122, so eight of them
-        // ran off the bottom of the window and Avalonia drew a scroll bar on it. A gamepad
-        // cannot drive that bar, and it is not how this interface scrolls: the window is.
-        // Found from the couch one round after the taller row was introduced.
+        // The capacity was written for a 78px row and the pane row was 122, so eight of them ran
+        // off the bottom of the window and Avalonia drew a scroll bar on it. A gamepad cannot
+        // drive that bar, and it is not how this interface scrolls: the window is. Found from
+        // the couch one round after the taller row was introduced.
+        //
+        // Two shapes, because the height is now the row's own rather than one number: a bare
+        // fact and one carrying a wrapped sentence have to fit on the same terms.
         var ordinary = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.RowHeight);
-        var reading = ListWindow.BlockHeight(ListWindow.ReadingCapacity, ListWindow.ReadingRowHeight);
+
+        IReadOnlyList<double> heights =
+            [.. Enumerable.Range(0, 40).Select(_ => ListWindow.FactHeight(detail))];
+
+        var window = ListWindow.ScrolledByHeight(0, heights, ListWindow.ContentBudget);
+        var drawn = Drawn(heights, window);
 
         Assert.True(
-            reading <= ordinary,
-            $"a reading window is {reading}px against the {ordinary}px already known to fit");
+            drawn <= ordinary,
+            $"a pane window is {drawn}px against the {ordinary}px already known to fit");
 
-        // And not so few that the list is a porthole. One more would overflow, which is the
+        // And not so few that the pane is a porthole. One more row would overflow, which is the
         // other half of the claim and the half that goes stale if a row grows.
-        var oneMore = ListWindow.BlockHeight(ListWindow.ReadingCapacity + 1, ListWindow.ReadingRowHeight);
+        var oneMore = drawn + ListWindow.StatusLineSpacing + ListWindow.FactHeight(detail);
 
-        Assert.True(oneMore > ordinary, $"{ListWindow.ReadingCapacity + 1} reading rows would also have fitted");
+        Assert.True(
+            oneMore > ordinary,
+            $"{window.Count + 1} pane rows at this shape would also have fitted");
+    }
+
+    /// <summary>How tall the slice a window names actually draws.</summary>
+    private static double Drawn(IReadOnlyList<double> heights, ListView window)
+    {
+        var slice = heights.Skip(window.Start).Take(window.Count).ToList();
+
+        return slice.Sum() + ((slice.Count - 1) * ListWindow.StatusLineSpacing);
     }
 
     /// <summary>
@@ -679,20 +702,29 @@ public sealed class SyncScreenTests : IDisposable
         // later is covered by implementing it rather than by being remembered here.
         foreach (IWindowedScreen screen in new IWindowedScreen[] { reading, ordinary, browse })
         {
-            var rows = Math.Max(screen.Window.Count, ListWindow.CapacityFor(screen.Reading));
-            var drawn = ListWindow.BlockHeight(rows, ListWindow.RowHeightFor(screen.Reading));
+            var window = screen.Window;
+
+            // A pane's rows are each their own height, so the drawn block is summed rather than
+            // multiplied. A list of choices is uniform and still is.
+            var drawn = screen.Reading
+                ? Drawn(
+                    [.. screen.Rows.Select(row => ListWindow.FactHeight(row.Detail))],
+                    window)
+                : ListWindow.BlockHeight(
+                    Math.Max(window.Count, ListWindow.Capacity),
+                    ListWindow.RowHeight);
 
             Assert.True(
                 drawn <= fits,
-                $"{screen.GetType().Name} draws {rows} rows at "
-                    + $"{ListWindow.RowHeightFor(screen.Reading)}px, which is {drawn}px against "
+                $"{screen.GetType().Name} draws {window.Count} rows totalling {drawn}px against "
                     + $"the {fits}px known to fit");
         }
 
-        // The anti-vacuity half. The sweep above is safe because the count and the height are
-        // one decision; this says the decision is load-bearing, by measuring the pair that used
-        // to be reachable. Without it the sweep would go on passing if the two row heights ever
-        // became the same, and nobody would know it had stopped meaning anything.
+        // The anti-vacuity half. The sweep above is safe because a pane's window is measured
+        // against the same budget it is drawn into; this says the budget is load-bearing, by
+        // measuring the shape that used to be reachable. Without it the sweep would go on
+        // passing if the budget ever grew past what a display holds, and nobody would know it
+        // had stopped meaning anything.
         var mismatched = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.ReadingRowHeight);
 
         Assert.True(
@@ -712,7 +744,16 @@ public sealed class SyncScreenTests : IDisposable
             Reading = true,
         };
 
-        Assert.Equal(ListWindow.ReadingCapacity, screen.Window.Count);
+        // A pane windows to what its rows actually take, not to a fixed count: these carry a
+        // one-word detail, so many more of them fit than the old three-line reserve allowed.
+        var expected = ListWindow.ScrolledByHeight(
+            0,
+            [.. screen.Rows.Select(row => ListWindow.FactHeight(row.Detail))],
+            ListWindow.ContentBudget);
+
+        Assert.Equal(expected.Count, screen.Window.Count);
+        Assert.True(screen.Window.Count > ListWindow.ReadingCapacity,
+            "a pane of short facts should now hold more than the old fixed reserve allowed");
 
         var picker = new ListScreen(
             "30 things",
