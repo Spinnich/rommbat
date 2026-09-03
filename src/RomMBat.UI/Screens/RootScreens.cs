@@ -47,6 +47,8 @@ public static class RootScreens
         public Func<IScreen>? OpenBudget { get; init; }
 
         public Func<IScreen>? OpenConflicts { get; init; }
+
+        public Func<IScreen>? OpenPlatforms { get; init; }
     }
 
     /// <summary>The root menu.</summary>
@@ -81,6 +83,7 @@ public static class RootScreens
             var store = session.Store;
             var device = store.Device.Read();
             var conflicts = store.SaveConflicts.ListOpen().Count;
+            var unmapped = store.PlatformMap.List().Count(row => row.Folder is null);
             var outbox = store.Outbox.PendingCount();
 
             Add(
@@ -99,6 +102,15 @@ public static class RootScreens
                         ? "Nothing is waiting on a decision."
                         : "Both sides were kept. Nothing was overwritten, and nothing syncs until you choose."),
                 routes.OpenConflicts);
+
+            Add(
+                new ListRow(
+                    "Platforms",
+                    unmapped == 0 ? "all mapped" : Plural(unmapped, "unmapped"),
+                    unmapped == 0
+                        ? "Where each RomM platform's games land in RetroBat."
+                        : "Games on an unmapped platform have nowhere to go, so a sync skips them."),
+                routes.OpenPlatforms);
 
             Add(
                 new ListRow("Disk space", Cap(session), "How much room the sync sets may use together."),

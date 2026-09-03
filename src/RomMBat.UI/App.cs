@@ -75,6 +75,7 @@ internal sealed class App : Application
             OpenBrowse = () => BrowseViewModel.Start(_session),
             OpenBudget = () => new BudgetViewModel(_session),
             OpenConflicts = () => ConflictScreens.List(_session, connect: null, pair: StartPairing),
+            OpenPlatforms = () => PlatformScreens.List(_session),
         });
 
         return new ShellWindow(new Navigator(root), _gamepad, () => desktop.Shutdown());
