@@ -397,15 +397,18 @@ public sealed class SyncSetServiceTests : IDisposable
         Assert.Equal(SetRefusal.NotFound, Service.Remove("ghost").Refusal);
     }
 
-    // ---- #78, preserved rather than fixed ----
+    // ---- #78, fixed at the agent, unchanged here ----
 
     [Fact]
     public void A_filter_draft_is_built_from_its_fields_and_ignores_a_scope_value()
     {
-        // This is #78, still open. A picker builds a filter from fields and has no value to
-        // supply, so it cannot trip it; the agent still maps --value here and it is still
-        // ignored. Asserted so that fixing it later is a deliberate change to a stated
-        // behaviour rather than a silent one.
+        // #78 was the agent accepting --value on a filter scope, never reading it and never
+        // complaining, which produced the widest possible scope from a command naming three
+        // games. Fixed there, in stage 7b-3, by refusing it.
+        //
+        // This behaviour is unchanged and is correct: a filter is built from fields, so a
+        // draft carrying a value has nothing to do with it, and a front end assembling one has
+        // no value to supply. Asserted so that a later change here is a deliberate one.
         var outcome = Service.Add(
             new SetDraft
             {

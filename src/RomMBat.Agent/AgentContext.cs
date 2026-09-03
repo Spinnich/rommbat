@@ -86,7 +86,11 @@ internal sealed class AgentContext : IDisposable
         if (attempt.Connection is null)
         {
             error.WriteLine(attempt.Problem);
-            exitCode = attempt.NotPaired ? ExitCode.NotPaired : ExitCode.Refused;
+            // Not a ternary. InstallSession.Authenticate has three returns and every one that
+            // carries a null connection also carries NotPaired, so the second arm was
+            // unreachable and read as though there were a second class of failure here. If one
+            // is ever added, this is the line that has to change with it. #101.
+            exitCode = ExitCode.NotPaired;
             return null;
         }
 
