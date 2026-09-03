@@ -185,7 +185,11 @@ public static class QueuedChangeScreens
             return false;
         }
 
-        return new SaveConverter(session.Install, session.Store).Preview(romId).Status
+        // PreviewQueue, never Preview. Preview describes writing the setting now and so refuses
+        // while EmulationStation is running, and this interface is launched from the ES menu, so
+        // ES is running every single time it runs. Asking the wrong one made this verb invisible
+        // on every game on every install until a hands-on pass went looking for it.
+        return new SaveConverter(session.Install, session.Store).PreviewQueue(romId).Status
             == ConversionStatus.Ready;
     }
 
@@ -208,7 +212,10 @@ public static class QueuedChangeScreens
         ArgumentNullException.ThrowIfNull(session);
 
         var converter = new SaveConverter(session.Install, session.Store);
-        var preview = converter.Preview(romId);
+
+        // The same question the footer's gate asked, for the same reason: this screen can only
+        // queue, so previewing an apply would describe a refusal about something it never does.
+        var preview = converter.PreviewQueue(romId);
 
         ConversionResult? queued = null;
 
