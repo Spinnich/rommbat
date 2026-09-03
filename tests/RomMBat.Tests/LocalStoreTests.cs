@@ -1062,12 +1062,19 @@ public class LocalStoreTests
     {
         var token = TestContext.Current.CancellationToken;
 
-        // Repeated because it is a race: one pass proves nothing, and pre-fix this reproduced
-        // well inside this count.
-        for (var attempt = 0; attempt < 40; attempt++)
+        // One tree for every attempt, because building one per attempt was the whole cost:
+        // 40 of those took 2m 32s on CI against 3.4s here, and reopening the same database
+        // skips the migrations it has already applied.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        // Repeated because it is a race, and the count is measured rather than picked. Pre-fix,
+        // the attempt that threw reached 46 across twelve runs, so this leaves the same margin
+        // over the worst case that 40 left when each attempt built its own tree. A warm database
+        // narrows the window, which is why the count went up as the cost per attempt came down.
+        for (var attempt = 0; attempt < 150; attempt++)
         {
-            using var tree = TempRetroBatTree.Create();
-            var store = LocalStore.Open(tree.Install());
+            var store = LocalStore.Open(install);
 
             using var reading = new CancellationTokenSource();
 
