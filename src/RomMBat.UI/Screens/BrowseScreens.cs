@@ -125,6 +125,27 @@ public static class BrowseScreens
                 outcome.Problem ?? "This game cannot be put on this device."));
         }
 
+        // A game the picked set already held and that is already on disk needs no pass. Running
+        // one fetched nothing and still reported "Installed", which is a screen claiming to have
+        // done something it did not. AlreadyPicked was computed for exactly this and nothing had
+        // ever read it. #116.
+        //
+        // Already picked but not on disk is a different case and still syncs: that is the state
+        // a stopped or budget-blocked run leaves behind, and it is the one a second press is
+        // meant to finish.
+        // Asked of the store rather than of the row in hand. BrowseGame.IsHere is a fact about
+        // the page this screen was opened from, and the install that has just run is exactly
+        // what makes it stale.
+        var here = session.Store.Files.ForRom(game.RomId, LocalFileKind.Rom).Count > 0;
+
+        if (outcome.AlreadyPicked && here)
+        {
+            return ScreenCommand.Push(new MessageScreen(
+                game.DisplayName,
+                "This game is already on the device, and this set already claims it. Nothing "
+                    + "was fetched."));
+        }
+
         changed?.Invoke();
 
         // Replaces this screen with the set it joined and opens the install over it, so backing

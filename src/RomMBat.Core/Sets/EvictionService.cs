@@ -163,9 +163,17 @@ public sealed class EvictionService
             return [];
         }
 
+        // Hashed once rather than scanned per member row. romIds arrives as a list, so the
+        // membership of every set was tested against it linearly: 386 ids against 5,900 rows is
+        // a couple of million comparisons on the live install today, and a 5,000-member set
+        // delete is 5,000 x 5,000. It is dominated by the two filesystem scans a removal
+        // preview already runs, which is why this was filed rather than held against #115, but
+        // it gets worse in the direction the project is going. #117.
+        var wanted = romIds.ToHashSet();
+
         var systems = _session.Store.SyncSets.List()
             .SelectMany(set => _session.Store.SyncSets.Members(set.Id, state: null))
-            .Where(member => romIds.Contains(member.RomId))
+            .Where(member => wanted.Contains(member.RomId))
             .Select(member => member.Folder)
             .OfType<string>()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
