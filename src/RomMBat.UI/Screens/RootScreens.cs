@@ -45,6 +45,8 @@ public static class RootScreens
         public Func<IScreen>? OpenBrowse { get; init; }
 
         public Func<IScreen>? OpenBudget { get; init; }
+
+        public Func<IScreen>? OpenConflicts { get; init; }
     }
 
     /// <summary>The root menu.</summary>
@@ -78,6 +80,7 @@ public static class RootScreens
 
             var store = session.Store;
             var device = store.Device.Read();
+            var conflicts = store.SaveConflicts.ListOpen().Count;
             var outbox = store.Outbox.PendingCount();
 
             Add(
@@ -87,6 +90,15 @@ public static class RootScreens
             Add(
                 new ListRow("Find a game", null, "Search the library, or read what is already here."),
                 routes.OpenBrowse);
+
+            Add(
+                new ListRow(
+                    "Conflicts",
+                    conflicts == 0 ? "none" : Plural(conflicts, "save"),
+                    conflicts == 0
+                        ? "Nothing is waiting on a decision."
+                        : "Both sides were kept. Nothing was overwritten, and nothing syncs until you choose."),
+                routes.OpenConflicts);
 
             Add(
                 new ListRow("Disk space", Cap(session), "How much room the sync sets may use together."),

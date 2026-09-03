@@ -49,6 +49,7 @@ public class RootMenuTests
                 OpenSets = Stub,
                 OpenBrowse = Stub,
                 OpenBudget = Stub,
+                OpenConflicts = Stub,
             }));
 
         var navigator = new Navigator(menu);
