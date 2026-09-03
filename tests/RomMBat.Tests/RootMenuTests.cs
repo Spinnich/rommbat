@@ -137,8 +137,104 @@ public class RootMenuTests
         // The shape that overflows: paired, with a queue behind it. Four sections is the short
         // form and fits, which is why this went unseen while status was the root screen.
         Pair(session, DateTimeOffset.UtcNow.AddDays(90));
+        Queue(session, 12);
 
-        for (var index = 0; index < 12; index++)
+        var status = new StatusViewModel(session, NoPad);
+
+        Assert.True(
+            Height(status) > ListWindow.ContentBudget,
+            "this fixture no longer produces a status too tall for the display");
+
+        // Never taller than the budget, whatever it holds. Before stage 7b-3 this screen drew
+        // every line it had and everything past the display was drawn off it with nothing able
+        // to scroll.
+        Assert.True(Drawn(status) <= ListWindow.ContentBudget);
+        Assert.Equal(0, status.Window.Above);
+        Assert.True(status.Window.Below > 0);
+
+        // A pane scrolls by an offset and has no cursor at all, so every press moves the view.
+        status.Handle(NavAction.Down);
+        Assert.Equal(1, status.Window.Above);
+        Assert.True(Drawn(status) <= ListWindow.ContentBudget);
+
+        // And clamps at both ends rather than scrolling past into a blank pane.
+        for (var press = 0; press < status.LineCount + 5; press++)
+        {
+            status.Handle(NavAction.Down);
+        }
+
+        Assert.Equal(0, status.Window.Below);
+        Assert.True(status.Window.Count > 0);
+
+        for (var press = 0; press < status.LineCount + 5; press++)
+        {
+            status.Handle(NavAction.Up);
+        }
+
+        Assert.Equal(0, status.Window.Above);
+    }
+
+    [Fact]
+    public void The_pane_uses_the_room_it_has_rather_than_assuming_every_line_is_the_tallest()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        Pair(session, DateTimeOffset.UtcNow.AddDays(90));
+        Queue(session, 12);
+
+        var status = new StatusViewModel(session, NoPad);
+
+        // A flat capacity has to assume the tallest line, and on this pane most lines are a
+        // label and a value with nothing under them. A hands-on pass reported the consequence:
+        // half the display empty, and it scrolled anyway. Measured, the window has to hold more
+        // lines than the pessimistic count would have allowed.
+        var pessimistic = (int)(ListWindow.ContentBudget
+            / (ListWindow.StatusRowHeight + ListWindow.StatusDetailHeight + ListWindow.StatusLineSpacing));
+
+        Assert.True(
+            status.Window.Count > pessimistic,
+            $"the window shows {status.Window.Count} lines where assuming the tallest allowed {pessimistic}");
+
+        // And it still fits, which is the half that must not be traded away for the other.
+        Assert.True(Drawn(status) <= ListWindow.ContentBudget);
+    }
+
+    [Fact]
+    public void A_pane_shorter_than_the_display_does_not_scroll_at_all()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(tree.Root).Session!;
+
+        // Unpaired is the short form: four sections and no queue.
+        var status = new StatusViewModel(session, NoPad);
+
+        Assert.True(Height(status) <= ListWindow.ContentBudget);
+        Assert.Equal(status.LineCount, status.Window.Count);
+        Assert.Equal(0, status.Window.Above);
+        Assert.Equal(0, status.Window.Below);
+
+        // And pressing down does nothing, rather than moving a view that has nowhere to go.
+        status.Handle(NavAction.Down);
+        Assert.Equal(0, status.Window.Above);
+    }
+
+    /// <summary>How tall the whole pane would be if it were all drawn.</summary>
+    private static double Height(StatusViewModel status) =>
+        status.LineHeights.Sum() + ((status.LineHeights.Count - 1) * ListWindow.StatusLineSpacing);
+
+    /// <summary>How tall the slice actually on screen is.</summary>
+    private static double Drawn(StatusViewModel status)
+    {
+        var window = status.Window;
+        var slice = status.LineHeights.Skip(window.Start).Take(window.Count).ToList();
+
+        return slice.Sum() + ((slice.Count - 1) * ListWindow.StatusLineSpacing);
+    }
+
+    private static void Queue(InstallSession session, int count)
+    {
+        for (var index = 0; index < count; index++)
         {
             session.Store.PendingConfig.Queue(new PendingConfigRequest
             {
@@ -152,58 +248,6 @@ public class RootMenuTests
                 QueuedAtUtc = DateTimeOffset.UtcNow,
             });
         }
-
-        var status = new StatusViewModel(session, NoPad);
-
-        Assert.True(
-            status.LineCount > ListWindow.StatusCapacity,
-            "this fixture no longer produces a status long enough to need scrolling");
-
-        // Never more than fits, whatever it holds. Before stage 7b-3 this screen drew every line
-        // it had and everything past the display was drawn off it with nothing able to scroll.
-        Assert.Equal(ListWindow.StatusCapacity, status.Window.Count);
-        Assert.Equal(0, status.Window.Above);
-        Assert.True(status.Window.Below > 0);
-
-        // A pane scrolls by an offset and has no cursor at all, so every press moves the view.
-        status.Handle(NavAction.Down);
-        Assert.Equal(1, status.Window.Above);
-        Assert.Equal(ListWindow.StatusCapacity, status.Window.Count);
-
-        // And clamps at both ends rather than scrolling past into a blank pane.
-        for (var press = 0; press < status.LineCount + 5; press++)
-        {
-            status.Handle(NavAction.Down);
-        }
-
-        Assert.Equal(0, status.Window.Below);
-        Assert.Equal(ListWindow.StatusCapacity, status.Window.Count);
-
-        for (var press = 0; press < status.LineCount + 5; press++)
-        {
-            status.Handle(NavAction.Up);
-        }
-
-        Assert.Equal(0, status.Window.Above);
-    }
-
-    [Fact]
-    public void A_window_of_status_lines_is_never_taller_than_an_ordinary_list()
-    {
-        // The capacity is a claim about heights, and this is the arithmetic that says so. Same
-        // shape as the reading-row check, which exists because eight taller rows overflowed the
-        // window and Avalonia drew a scroll bar no gamepad can reach.
-        var status = ListWindow.BlockHeight(
-            ListWindow.StatusCapacity,
-            ListWindow.StatusLineHeight,
-            ListWindow.StatusLineSpacing);
-
-        var ordinary = ListWindow.BlockHeight(ListWindow.Capacity, ListWindow.RowHeight);
-
-        Assert.True(
-            status <= ordinary,
-            $"{ListWindow.StatusCapacity} status lines draw {status}px against an ordinary "
-                + $"list's {ordinary}px, which the smallest supported display is known to hold");
     }
 
     private static void Pair(InstallSession session, DateTimeOffset expiresAt)

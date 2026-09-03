@@ -109,7 +109,9 @@ public static class RootScreens
             Add(
                 new ListRow(
                     "Platforms",
-                    unmapped == 0 ? "all mapped" : Plural(unmapped, "unmapped"),
+                    // Not Plural: "unmapped" is an adjective, and pluralising it produced
+                    // "5 unmappeds" on the live install. Only count nouns go through Plural.
+                    unmapped == 0 ? "all mapped" : Counted(unmapped, "unmapped"),
                     unmapped == 0
                         ? "Where each RomM platform's games land in RetroBat."
                         : "Games on an unmapped platform have nowhere to go, so a sync skips them."),
@@ -118,7 +120,8 @@ public static class RootScreens
             Add(
                 new ListRow(
                     "Queued changes",
-                    queued == 0 ? "none" : Plural(queued, "waiting"),
+                    // "3 waitings" for the same reason.
+                    queued == 0 ? "none" : Counted(queued, "waiting"),
                     queued == 0
                         ? "Settings RomMBat is holding until EmulationStation closes."
                         : "Applied when you next quit EmulationStation, which cannot happen while it is running."),
@@ -184,6 +187,19 @@ public static class RootScreens
             ? ByteSize.Format(bytes)
             : "no cap";
 
+    /// <summary>A count of a thing, where the thing is a noun that takes an "s".</summary>
     private static string Plural(int count, string noun) =>
         string.Create(CultureInfo.InvariantCulture, $"{count} {noun}{(count == 1 ? string.Empty : "s")}");
+
+    /// <summary>
+    /// A count followed by a word that does not inflect.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because "unmapped" and "waiting" are not nouns.</b> Both went through
+    /// <see cref="Plural"/> and reached a real screen as "5 unmappeds" and "3 waitings". An
+    /// adjective describing the counted things does not take the plural the things do, and the
+    /// only way to tell the two cases apart is at the call site.
+    /// </remarks>
+    private static string Counted(int count, string word) =>
+        string.Create(CultureInfo.InvariantCulture, $"{count} {word}");
 }

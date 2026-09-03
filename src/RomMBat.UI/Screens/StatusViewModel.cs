@@ -99,7 +99,24 @@ public sealed class StatusViewModel : IScreen
     /// is what takes up room.
     /// </para>
     /// </remarks>
-    public ListView Window => ListWindow.Scrolled(Offset, LineCount, ListWindow.StatusCapacity);
+    public ListView Window => ListWindow.ScrolledByHeight(Offset, LineHeights, ListWindow.ContentBudget);
+
+    /// <summary>
+    /// How tall each drawn line is, in the order they are drawn.
+    /// </summary>
+    /// <remarks>
+    /// <b>Measured rather than counted, because these lines are three different heights.</b> A
+    /// section heading, a bare label and value, and one carrying a wrapped sentence are 36, 32
+    /// and 58 pixels, and a window that assumed the tallest left a third of the display empty
+    /// and scrolled anyway.
+    /// </remarks>
+    public IReadOnlyList<double> LineHeights =>
+    [
+        .. Sections().SelectMany(section => new[] { ListWindow.StatusTitleHeight }
+            .Concat(section.Rows.Select(row => row.Detail is null
+                ? ListWindow.StatusRowHeight
+                : ListWindow.StatusRowHeight + ListWindow.StatusDetailHeight))),
+    ];
 
     /// <summary>Which line the pane has been scrolled to. Never a selection.</summary>
     public int Offset { get; private set; }
@@ -123,9 +140,14 @@ public sealed class StatusViewModel : IScreen
                 return ScreenCommand.Stay;
 
             case NavAction.Down:
-                // Clamped against the last full window rather than against the line count, or
-                // the last few presses scroll past the end and leave the pane blank.
-                Offset = Math.Max(0, Math.Min(Offset + 1, LineCount - ListWindow.StatusCapacity));
+                // Asked of the window rather than computed, since how many lines fit depends on
+                // which lines they are. Without the guard the offset runs past the end and the
+                // first few presses back up move nothing, which reads as the pad being ignored.
+                if (Window.Below > 0)
+                {
+                    Offset++;
+                }
+
                 return ScreenCommand.Stay;
 
             case NavAction.Back:

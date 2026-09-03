@@ -557,17 +557,31 @@ internal static class ScreenView
     {
         var lines = new StackPanel { Spacing = 3 };
 
-        // A grid rather than a horizontal stack, so the value sits at the right edge of every
-        // row instead of wherever its label happens to end. With a fixed row width that puts
-        // the second column on one line down the list, which is what makes it readable across
-        // a room, and it is the same reason the status screen pins its label column.
+        // Two column shapes, because a menu and a pane of facts are asking different questions.
+        //
+        // On a list of choices the value is a property of the row (a size, a count, a folder)
+        // and belongs at the right edge, so the values line up one under another and can be
+        // scanned down the list from across a room.
+        //
+        // On a pane of facts the label names a field and the value is its content, so they are
+        // one phrase and belong next to each other. Right-aligning them put nine hundred pixels
+        // between "Folder" and "odyssey2" on a real display, which a hands-on pass called the
+        // display being terrible, and it is: the eye has to travel the width of the screen to
+        // join two halves of one statement. The status screen never had this because it always
+        // pinned its label column, and it is the screen the same pass said read well.
         var head = new Grid
         {
-            ColumnDefinitions =
-            [
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Auto),
-            ],
+            ColumnDefinitions = reading
+                ?
+                [
+                    new ColumnDefinition(new GridLength(LabelColumn, GridUnitType.Pixel)),
+                    new ColumnDefinition(GridLength.Star),
+                ]
+                :
+                [
+                    new ColumnDefinition(GridLength.Star),
+                    new ColumnDefinition(GridLength.Auto),
+                ],
         };
 
         // Dimmed rather than removed, and both halves the same, so it reads as one unavailable
@@ -599,7 +613,17 @@ internal static class ScreenView
                 FontSize = 19,
                 Margin = new Thickness(18, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
+
+                // On a pane of facts the value is the answer, so it is drawn in the same ink as
+                // the label rather than dimmed like a menu row's trailing detail, and it wraps
+                // rather than running off the end of a fixed column.
+                TextWrapping = reading ? TextWrapping.Wrap : TextWrapping.NoWrap,
             };
+
+            if (reading)
+            {
+                right.Foreground = Ink;
+            }
 
             Grid.SetColumn(right, 1);
             head.Children.Add(right);
@@ -615,6 +639,10 @@ internal static class ScreenView
                 Foreground = !reading && selected ? Brushes.Black : Muted,
                 FontSize = 16,
                 MaxWidth = 860,
+
+                // Indented under the value on a pane of facts, so the label column stays a
+                // clean edge and the detail reads as belonging to the value it explains.
+                Margin = reading ? new Thickness(LabelColumn, 0, 0, 0) : default,
 
                 // On a reading list the detail is the row, and it is a whole sentence rather
                 // than a label, so it wraps into room for three lines and is clipped past them.
@@ -673,6 +701,16 @@ internal static class ScreenView
     private const double RowHeight = ListWindow.RowHeight;
 
     private const double ReadingRowHeight = ListWindow.ReadingRowHeight;
+
+    /// <summary>
+    /// How wide the label column is on a pane of facts.
+    /// </summary>
+    /// <remarks>
+    /// Wide enough for the longest label these screens use ("RomM calls it", "Also possible",
+    /// "Queued changes") at 21px, and narrow enough to leave the value close to it. The status
+    /// screen pins its own at 220 for the same reason and has read well since 7b-1.
+    /// </remarks>
+    private const double LabelColumn = 240;
 
     /// <summary>Three wrapped lines of detail, which is what makes a reading row its height.</summary>
     private const double ReadingDetailHeight = 66;
