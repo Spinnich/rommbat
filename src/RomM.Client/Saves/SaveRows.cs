@@ -140,6 +140,21 @@ public sealed record PlaySessionEntry(
     [property: JsonPropertyName("end_time")] DateTimeOffset EndTime,
     [property: JsonPropertyName("duration_ms")] long DurationMs);
 
+/// <summary>
+/// The one rom-user property RomMBat writes, and it writes it to put it back.
+/// </summary>
+/// <remarks>
+/// <b>Every field of <c>RomUserData</c> is optional and omitting one leaves it alone</b>, which
+/// is measured rather than read off the schema: the schema declares all eight nullable with none
+/// required, which is equally consistent with "omit means null it". Driven against the live
+/// instance, a <c>PUT</c> carrying only <c>now_playing</c> left a rating of 7, the difficulty,
+/// the status, the backlog flag and <c>last_played</c> all untouched. That is what makes writing
+/// this one field safe; sending the whole record would need RomMBat to know values it has no
+/// business holding.
+/// </remarks>
+public sealed record RomUserNowPlaying(
+    [property: JsonPropertyName("now_playing")] bool NowPlaying);
+
 /// <summary>The play-session request body, whose shape is an envelope.</summary>
 public sealed record PlaySessionBatch(
     [property: JsonPropertyName("device_id")] string DeviceId,
