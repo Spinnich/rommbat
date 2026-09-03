@@ -1147,8 +1147,15 @@ public sealed class SaveSync
                     _store.SaveConflicts.RecordCopy(operation.RomId, slot, aside.Value);
                 }
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                // Windows refuses a file operation two ways and only one is an IOException: a
+                // read-only file, or a still-mapped native library, raises ERROR_ACCESS_DENIED,
+                // which arrives as UnauthorizedAccessException and derives from SystemException
+                // rather than from IOException. A save marked read-only is ordinary on a shared
+                // drive, and the escape took down the whole flush rather than skipping one
+                // courtesy copy. #96.
+                //
                 // The copy is a courtesy here rather than a precondition: nothing is being
                 // overwritten, because a conflict is never resolved automatically.
             }

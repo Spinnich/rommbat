@@ -18,10 +18,18 @@ public sealed record StatusSection(string Title, IReadOnlyList<StatusRow> Rows);
 /// What this device is, what it is paired to, and what is waiting to happen.
 /// </summary>
 /// <remarks>
+/// <b>A pane of facts, and as of stage 7b-3 not the root.</b> It was both until the buttons ran
+/// out: the root carried four verbs on four buttons and this stage adds three more entry points
+/// than there are buttons, so the verbs became rows on <see cref="RootScreens"/> and the facts
+/// stayed here, one press behind the row that names them. Nothing here answers Accept, Start,
+/// Alternate or Extra any more, and the counts a person has to act on (conflicts, unmapped
+/// platforms, queued changes) are on the menu's own rows rather than only in here.
+/// <para>
 /// <b>Read-only, and it computes nothing.</b> Every value here already exists behind a Core
 /// API that the <c>status</c> and <c>saves</c> subcommands read: this arranges them for a
 /// screen and formats them, and that is the whole of its job. If a row ever needs a decision
 /// Core cannot answer, the fix is an API on Core with a test, not a method here.
+/// </para>
 /// <para>
 /// <b>The network is not touched.</b> Reachability is its own screen concern with its own
 /// timeout, because an unreachable LAN host must never be something the status screen waits
@@ -73,68 +81,82 @@ public sealed class StatusViewModel : IScreen
         _session.Store.Device.Read() is { IsPaired: true } device
         && device.IsTokenExpired(DateTimeOffset.UtcNow);
 
-    public IReadOnlyList<FooterHint> Hints =>
+    public IReadOnlyList<FooterHint> Hints => [new FooterHint(NavAction.Back, "Back")];
+
+    /// <summary>
+    /// Which slice of the sections is on screen.
+    /// </summary>
+    /// <remarks>
+    /// <b>This screen drew every row it had until stage 7b-3, which is the defect the folder
+    /// picker had and the reason <see cref="ListWindow"/> exists.</b> It went unnoticed while
+    /// this was the root, where the shortest form is four sections and fits; a paired install
+    /// with two degraded features, a suspicious clock and three queued changes is nine rows
+    /// longer, and every one of those was drawn off the bottom of a 720p display with nothing
+    /// to scroll it.
+    /// <para>
+    /// A pane of facts scrolls by an offset rather than by a cursor, so <see cref="Offset"/> is
+    /// what the pad moves. The window counts drawn lines, section titles included, because that
+    /// is what takes up room.
+    /// </para>
+    /// </remarks>
+    public ListView Window => ListWindow.ScrolledByHeight(Offset, LineHeights, ListWindow.ContentBudget);
+
+    /// <summary>
+    /// How tall each drawn line is, in the order they are drawn.
+    /// </summary>
+    /// <remarks>
+    /// <b>Measured rather than counted, because these lines are three different heights.</b> A
+    /// section heading, a bare label and value, and one carrying a wrapped sentence are 36, 32
+    /// and 58 pixels, and a window that assumed the tallest left a third of the display empty
+    /// and scrolled anyway.
+    /// </remarks>
+    public IReadOnlyList<double> LineHeights =>
     [
-        // Pairing is reachable whether or not this install is paired. Re-pairing is how a user
-        // moves to a different server, and how they recover an expired or rejected token: M1
-        // makes it deliberately cheap, and a screen that hides it strands them.
-        new FooterHint(NavAction.Accept, NeedsPairing ? "Pair with RomM" : "Pair again"),
-        // The way in to everything stage 7b-2 added. Offered whether or not this install is
-        // paired, because defining a set and setting a budget both work with the server off
-        // and a screen that hid them would be claiming otherwise.
-        new FooterHint(NavAction.Start, "Sync sets"),
-        new FooterHint(NavAction.Extra, "Find a game"),
-        new FooterHint(NavAction.Alternate, "Disk space"),
-        // EmulationStation rather than RetroBat, and deliberately. RetroBat is the install, which
-        // is why the first row above names it; EmulationStation is the front end this returns to,
-        // and its own menu for the same action reads "QUIT EMULATIONSTATION". "RetroBat" appears
-        // nowhere in its user-facing strings. You also never left RetroBat: RomMBat runs inside
-        // the tree.
-        new FooterHint(NavAction.Back, "Back to EmulationStation"),
+        .. Sections().SelectMany(section => new[] { ListWindow.StatusTitleHeight }
+            .Concat(section.Rows.Select(row => row.Detail is null
+                ? ListWindow.StatusRowHeight
+                : ListWindow.StatusRowHeight + ListWindow.StatusDetailHeight))),
     ];
 
-    /// <summary>
-    /// Where the pairing flow starts, once there is one.
-    /// </summary>
-    /// <remarks>
-    /// Set by the shell rather than constructed here, because pairing needs a connection and a
-    /// cancellation token that this screen has no business owning. Null until 7b-1's pairing
-    /// screen is wired, and accept does nothing rather than opening a blank screen.
-    /// </remarks>
-    public Func<IScreen>? StartPairing { get; init; }
-
-    /// <summary>Where the sets flow starts. Null until the shell wires it.</summary>
-    public Func<IScreen>? OpenSets { get; init; }
-
-    /// <summary>Where the disk budget is set. Null until the shell wires it.</summary>
-    public Func<IScreen>? OpenBudget { get; init; }
+    /// <summary>Which line the pane has been scrolled to. Never a selection.</summary>
+    public int Offset { get; private set; }
 
     /// <summary>
-    /// Where browsing starts. Null until the shell wires it.
+    /// How many drawn lines this screen has, which is what the window is computed over.
     /// </summary>
     /// <remarks>
-    /// Offered whether or not this install is paired, for the reason the other two are: browse
-    /// degrades to what this device holds rather than refusing, so it works with the server off
-    /// and a screen that hid it would be claiming otherwise.
+    /// A section costs its title plus its rows, since the renderer draws the title as a line of
+    /// its own and a window that counted only the rows would scroll past the bottom by one line
+    /// per section.
     /// </remarks>
-    public Func<IScreen>? OpenBrowse { get; init; }
+    public int LineCount => Sections().Sum(section => section.Rows.Count + 1);
 
-    public ScreenCommand Handle(NavAction action) => action switch
+    public ScreenCommand Handle(NavAction action)
     {
-        NavAction.Accept when StartPairing is { } start => ScreenCommand.Push(start()),
+        switch (action)
+        {
+            case NavAction.Up:
+                Offset = Math.Max(0, Offset - 1);
+                return ScreenCommand.Stay;
 
-        NavAction.Start when OpenSets is { } sets => ScreenCommand.Push(sets()),
+            case NavAction.Down:
+                // Asked of the window rather than computed, since how many lines fit depends on
+                // which lines they are. Without the guard the offset runs past the end and the
+                // first few presses back up move nothing, which reads as the pad being ignored.
+                if (Window.Below > 0)
+                {
+                    Offset++;
+                }
 
-        NavAction.Extra when OpenBrowse is { } browse => ScreenCommand.Push(browse()),
+                return ScreenCommand.Stay;
 
-        NavAction.Alternate when OpenBudget is { } budget => ScreenCommand.Push(budget()),
+            case NavAction.Back:
+                return ScreenCommand.Pop;
 
-        // Back on the root screen leaves RomMBat, which the navigator turns into an exit. The
-        // user came from the EmulationStation menu and that is where they go.
-        NavAction.Back => ScreenCommand.Pop,
-
-        _ => ScreenCommand.Stay,
-    };
+            default:
+                return ScreenCommand.Stay;
+        }
+    }
 
     /// <summary>Everything the screen shows, rebuilt on demand rather than cached.</summary>
     public IReadOnlyList<StatusSection> Sections() =>

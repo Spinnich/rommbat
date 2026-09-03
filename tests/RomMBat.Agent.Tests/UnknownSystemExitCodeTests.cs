@@ -60,6 +60,40 @@ public sealed class UnknownSystemExitCodeTests
     }
 
     [Fact]
+    public async Task Sets_add_refuses_a_filter_scope_given_a_value_rather_than_ignoring_it()
+    {
+        // #78. --value was accepted, never read and never complained about, so this command
+        // produced an empty filter, which is the widest possible scope rather than the three
+        // games the search term names. The only thing that caught it was an unrelated refusal
+        // to resolve arcade without --folder, and adding --folder is an ordinary thing to do.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(
+            tree, "sets", "add", "mine", "--scope", "filter", "--value", "Armored Core 3");
+
+        Assert.Equal(Usage, run.ExitCode);
+        Assert.True(run.Complained("--search"), run.Error);
+
+        // And the refusal is the whole of it: nothing was written.
+        Assert.False(run.Wrote("mine"), run.Out);
+    }
+
+    [Fact]
+    public async Task Sets_add_still_accepts_a_filter_scope_built_from_its_own_flags()
+    {
+        // The other side of the same gate, so a refusal that turned every filter away would
+        // fail here rather than passing as a fix.
+        using var tree = TempRetroBatTree.Create();
+        AgentRunner.WriteEsSystems(tree);
+
+        var run = await AgentRunner.RunAsync(
+            tree, "sets", "add", "mine", "--scope", "filter", "--search", "Armored Core 3");
+
+        Assert.NotEqual(Usage, run.ExitCode);
+    }
+
+    [Fact]
     public async Task A_folder_this_install_does_declare_is_not_refused_by_the_gate()
     {
         // The other side of the same gate, so a test that passes because everything answers

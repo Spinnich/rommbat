@@ -59,7 +59,19 @@ public class OfflineSimulationTests
 
         var clock = store.Clock.Read();
         Assert.NotNull(clock.LastContactUtc);
-        Assert.InRange(clock.Skew!.Value.TotalSeconds, 179, 181);
+        Assert.NotNull(clock.RoundTrip);
+
+        // Skew is localNow - (serverDate + roundTrip / 2), so a fixed window around 180 is a
+        // latency budget wearing a tolerance's clothing: it silently requires the round trip to
+        // stay under two seconds, and a cold CI runner spent longer than that on the first call
+        // and read 178.75. Asserted against the round trip this run actually measured, which is
+        // the arithmetic the test is about, rather than against how fast the machine was.
+        var expected = TimeSpan.FromMinutes(3) - (clock.RoundTrip!.Value / 2);
+
+        Assert.Equal(expected.TotalSeconds, clock.Skew!.Value.TotalSeconds, precision: 3);
+
+        // And still suspicious, which is the claim that does not depend on the timing at all.
+        Assert.True(clock.IsSkewSuspicious);
     }
 
     [Fact]

@@ -55,6 +55,17 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     private RomMConnection? _connection;
     private bool _disposed;
 
+    /// <summary>
+    /// True while a fetch is on the way, which is not the same as the screen saying so.
+    /// </summary>
+    /// <remarks>
+    /// <c>BrowseState.IsLoading</c> is what the screen draws and it starts true, because the
+    /// constructor fetches immediately and a screen that opened claiming to be idle would flash
+    /// an empty library. Reusing it as the in-flight guard therefore refuses the first fetch of
+    /// every screen. They are two facts and this is the second one.
+    /// </remarks>
+    private bool _fetching;
+
     /// <param name="connect">
     /// How the screen reaches the server. Taken so a test can stand a stub in its place, the way
     /// every other screen that talks to RomM already does.
@@ -260,6 +271,12 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
         // Swallowed rather than queued. A person holding the pad wants the list to keep moving,
         // not to replay six presses into a page they are no longer looking at, and the fetch
         // they are waiting for is already running.
+        //
+        // This is the cursor half only. Refusing to start a second fetch is Fetch's own job,
+        // because listing the actions here left the search path out: Start opens the keyboard,
+        // whose typed callback fetches with no check at all, so a search submitted while a page
+        // was still in flight raced it and the later answer won regardless of which was asked
+        // for second. #118.
         if (state.IsLoading && action is NavAction.Up or NavAction.Down or NavAction.Accept)
         {
             return ScreenCommand.Stay;
@@ -325,7 +342,14 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
         // Cancelled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
-        _connection?.Dispose();
+
+        // Under the same lock the fetch opens it under. This runs on the thread that draws and
+        // a fetch still unwinding reads the same field from the pool.
+        lock (_gate)
+        {
+            _connection?.Dispose();
+            _connection = null;
+        }
     }
 
     /// <summary>Re-reads the current page, because a screen above this one installed or removed.</summary>
@@ -362,11 +386,28 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// one page", and it is the thing an accumulating list would break silently: a screen that
     /// concatenated would look identical for the first few pages and hold a library by the end.
     /// </remarks>
+    /// <remarks>
+    /// <b>One fetch at a time, refused here rather than at the presses that start one.</b> The
+    /// guard used to name three navigation actions in <c>Handle</c>, which the search path went
+    /// around entirely, and two fetches racing meant the later answer won whichever was asked
+    /// for second: on a slow library a stale page overwrote a search result, leaving the
+    /// previous list under a title naming the search term. Refusing at the one place that
+    /// starts the work covers every route into it, including the ones not yet written. #118.
+    /// </remarks>
     private void Fetch(int offset, bool landOnLast = false)
     {
-        // Marked before the work starts and under the lock, so a second press cannot see a
-        // screen that is not loading yet while its fetch is already on the way. Handle refuses
-        // to move at all while this is set.
+        // Tested and set together under the lock, so two callers cannot both read "not running"
+        // and both start. Marked before the work rather than inside it, for the same reason.
+        lock (_gate)
+        {
+            if (_fetching)
+            {
+                return;
+            }
+
+            _fetching = true;
+        }
+
         Publish(current => current with { IsLoading = true });
 
         _ = Task.Run(
@@ -416,6 +457,16 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
                         Cursor = -1,
                     });
                 }
+                finally
+                {
+                    // Every exit, the cancelled one included. A guard left set by a path that
+                    // did not clear it is a screen that never fetches again, which from the
+                    // couch is indistinguishable from a hang.
+                    lock (_gate)
+                    {
+                        _fetching = false;
+                    }
+                }
             },
             CancellationToken.None);
     }
@@ -430,31 +481,14 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// </remarks>
     private RomMConnection? Connection()
     {
-        if (_connection is not null)
+        // Under the lock, because this runs on the thread pool and Dispose reads the same field
+        // from the thread that draws. Two fetches with no connection yet could both open one
+        // and one RomMConnection was dropped unclosed, holding a handler and its sockets. #118.
+        lock (_gate)
         {
+            _connection ??= UiConnection.Open(_session, _connect);
             return _connection;
         }
-
-        var attempt = _session.Authenticate();
-
-        if (attempt.Connection is null)
-        {
-            return null;
-        }
-
-        var origin = _session.Store.Device.Read()?.ServerOrigin;
-
-        if (_connect is not null && origin is not null)
-        {
-            attempt.Connection.Dispose();
-            _connection = _connect(origin);
-        }
-        else
-        {
-            _connection = attempt.Connection;
-        }
-
-        return _connection;
     }
 
     /// <summary>

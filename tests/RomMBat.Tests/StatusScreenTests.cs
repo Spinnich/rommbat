@@ -45,13 +45,18 @@ public class StatusScreenTests
 
         Assert.Equal("no", paired.Value);
 
-        // No primary flow may require a mouse, so the way forward has to be on screen. It is
-        // named by the footer's own label, which the renderer draws beside a position glyph,
-        // rather than by a letter. This assertion used to require "Press A" and so recorded
-        // the wrong rule as correct behaviour.
-        var hint = model.Hints.Single(h => h.Action == NavAction.Accept);
+        // No primary flow may require a mouse, so the way forward has to be on screen, named in
+        // words rather than by a letter. This assertion used to require "Press A" and so
+        // recorded the wrong rule as correct behaviour; it then named this screen's own Accept
+        // hint, which stage 7b-3 moved onto a row of the root menu. The rule is unchanged and
+        // the thing it points at is now that row, so the row is what it checks.
+        using var pairless = InstallSession.Open(tree.Root).Session!;
+        var root = Assert.IsType<ListScreen>(
+            RootScreens.Menu(pairless, () => NoPad, new RootScreens.RootRoutes()));
 
-        Assert.Contains(hint.Label, paired.Detail, StringComparison.Ordinal);
+        var route = root.Rows.Single(row => row.Label.StartsWith("Pair", StringComparison.Ordinal));
+
+        Assert.Contains(route.Label, paired.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -155,24 +160,49 @@ public class StatusScreenTests
         using var session = InstallSession.Open(tree.Root).Session!;
 
         var opened = 0;
-        var status = new StatusViewModel(session, NoPad) { StartPairing = () => { opened++; return new MessageScreen("x", "y"); } };
+        var root = Assert.IsType<ListScreen>(RootScreens.Menu(
+            session,
+            () => NoPad,
+            new RootScreens.RootRoutes
+            {
+                // Not a MessageScreen: that one answers Back by leaving RomMBat, which is right
+                // for a refusal with nothing under it and wrong as a stand-in for pairing, which
+                // pops back to the menu.
+                StartPairing = () => { opened++; return Stub(); },
+            }));
 
-        // Unpaired, which is the obvious case.
-        Assert.True(status.NeedsPairing);
-        Assert.Equal(ScreenCommandKind.Push, status.Handle(NavAction.Accept).Kind);
+        // The verb moved from Accept on the status screen to a row of its own in stage 7b-3.
+        // What it promises has not moved, and this is the assertion that says so.
+        var navigator = new Navigator(root);
+
+        Assert.True(new StatusViewModel(session, NoPad).NeedsPairing);
+        Assert.Equal("not paired", root.Rows.Single(row => row.Label == "Pair with RomM").Value);
+
+        RootMenuDriver.Open(navigator, "Pair with RomM");
         Assert.Equal(1, opened);
-        Assert.Equal("Pair with RomM", status.Hints.Single(h => h.Action == NavAction.Accept).Label);
+        Assert.Equal(2, navigator.Depth);
 
+        // Paired while the pairing screen is open, which is when it really happens, and backed
+        // out of. The menu re-reads on the way back, so the row it draws is the one a person
+        // returning from a successful pairing actually sees.
         Pair(session, expiresAt: DateTimeOffset.UtcNow.AddDays(90));
-        Assert.False(status.NeedsPairing);
+        navigator.Handle(NavAction.Back);
+
+        Assert.False(new StatusViewModel(session, NoPad).NeedsPairing);
 
         // And the case that was missing: once paired, accept used to do nothing at all, so there
         // was no way to move to another server or to recover a token the server had stopped
         // accepting. M1 makes re-pairing cheap on purpose; a screen that hides it strands you.
-        Assert.Equal(ScreenCommandKind.Push, status.Handle(NavAction.Accept).Kind);
+        Assert.Equal("paired", root.Rows.Single(row => row.Label == "Pair again").Value);
+
+        RootMenuDriver.Open(navigator, "Pair again");
         Assert.Equal(2, opened);
-        Assert.Equal("Pair again", status.Hints.Single(h => h.Action == NavAction.Accept).Label);
+        Assert.Equal(2, navigator.Depth);
     }
+
+    /// <summary>A screen that stands where pairing goes and answers Back the way it does.</summary>
+    private static ListScreen Stub() =>
+        new("Pairing", [new ListRow("stub")], _ => ScreenCommand.Stay);
 
     [Fact]
     public void An_expired_token_says_so_and_says_what_is_kept()

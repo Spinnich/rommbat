@@ -260,6 +260,30 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>How many pages of <c>/api/roms</c> were served.</summary>
     public int RomPagesServed { get; private set; }
 
+    /// <summary>
+    /// Holds every <c>/api/roms</c> page open until it is completed.
+    /// </summary>
+    /// <remarks>
+    /// <b>For a test about two requests racing, which otherwise cannot be written.</b> This stub
+    /// answers in microseconds, so a fetch started and a second press issued on the same thread
+    /// are never actually in flight together and an assertion about the guard between them
+    /// passes with the guard deleted. Setting this makes the first page wait, so the second
+    /// caller is genuinely racing it.
+    /// </remarks>
+    public TaskCompletionSource? HoldRomPages { get; set; }
+
+    /// <summary>
+    /// How many <c>/api/roms</c> requests have arrived, counted before the hold rather than
+    /// after it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RomPagesServed"/> counts answers, so two requests released together race each
+    /// other to increment it and a test asserting on it while they unwind is not deterministic.
+    /// This counts arrivals, which is the question "did a second fetch start" actually asks, and
+    /// it can be read while the hold is still on.
+    /// </remarks>
+    public int RomPagesRequested { get; private set; }
+
     /// <summary>The bytes each ROM's content endpoint serves, by ROM id.</summary>
     public IDictionary<int, byte[]> Content { get; } = new Dictionary<int, byte[]>();
 
@@ -462,6 +486,13 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
         if (path.EndsWith("/api/roms", StringComparison.Ordinal))
         {
+            RomPagesRequested++;
+
+            if (HoldRomPages is { } held)
+            {
+                await held.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+
             return Roms(request.RequestUri);
         }
 

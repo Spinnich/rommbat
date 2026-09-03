@@ -213,6 +213,73 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Equal(0, browse.Cursor);
     }
 
+    [Fact]
+    public async Task A_search_submitted_while_a_page_is_in_flight_does_not_race_it()
+    {
+        // The guard that fixed the held d-pad named three navigation actions in Handle, and the
+        // search path went around all of them: Start opens the keyboard, whose typed callback
+        // fetches with no check at all. Two fetches then raced and the later answer won
+        // regardless of which was asked for second, so on a slow library a stale page could
+        // overwrite the search result and leave the previous list under a title naming the
+        // search term. The guard is Fetch's own now, which covers every route into it. #118.
+        using var stub = Library(200);
+        Pair();
+        using var browse = new BrowseViewModel(_session, Connect(stub));
+
+        await Settled(browse);
+
+        // Held open, or the two are never in flight together: this stub answers in microseconds
+        // and an assertion made after they unwind passes with the guard deleted.
+        var held = new TaskCompletionSource();
+        stub.HoldRomPages = held;
+
+        var before = stub.RomPagesRequested;
+
+        // Past the bottom, which starts a page fetch that now blocks on the hold.
+        for (var press = 0; press < BrowseService.PageSize; press++)
+        {
+            browse.Handle(NavAction.Down);
+        }
+
+        await WaitFor(() => stub.RomPagesRequested == before + 1);
+
+        // And a search submitted without waiting for it, which is the path that had no guard.
+        var keyboard = Assert.IsType<OnScreenKeyboard>(browse.Handle(NavAction.Start).Screen);
+
+        // A character first: Commit refuses an empty string, so a test that pressed straight
+        // through never reached the search path at all and passed against the unfixed code.
+        keyboard.Handle(NavAction.Accept);
+        Assert.NotEmpty(keyboard.Text);
+
+        keyboard.Handle(NavAction.Start);
+
+        // Asserted while the first is still held, so this is "did a second one start" rather
+        // than a race between two answers unwinding.
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+        Assert.Equal(before + 1, stub.RomPagesRequested);
+
+        stub.HoldRomPages = null;
+        held.SetResult();
+
+        await Settled(browse);
+    }
+
+    /// <summary>Waits for a condition the thread pool will make true, or fails the test.</summary>
+    private static async Task WaitFor(Func<bool> condition)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Fail("the condition never became true");
+    }
+
     /// <summary>
     /// The list is alphabetical, which id order only looked like.
     /// </summary>
@@ -507,6 +574,60 @@ public sealed class BrowseScreenTests : IDisposable
         browse.Dispose();
     }
 
+    [Fact]
+    public async Task A_second_install_press_says_the_game_is_already_here_rather_than_running_a_pass()
+    {
+        // PickOutcome.AlreadyPicked was computed for exactly this and nothing had ever read it,
+        // so a second press ran a full install pass that fetched nothing and still reported
+        // "Installed", which is a screen claiming to have done something it did not. #116.
+        using var stub = Library(1);
+        stub.Content[stub.Library[0].Id] = new byte[1_024];
+
+        Pair();
+
+        var navigator = new Navigator(new BrowseViewModel(_session, Connect(stub)));
+        var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
+
+        await Settled(browse);
+
+        navigator.Handle(NavAction.Accept);
+        navigator.Handle(NavAction.Start);
+
+        var sync = Assert.IsType<SyncViewModel>(navigator.Current);
+        await SyncSettled(sync);
+
+        Assert.Equal(SyncStage.Done, sync.State.Stage);
+
+        var served = stub.ContentRequests.Count;
+        Assert.True(served > 0, "the first press fetched nothing, so this proves nothing");
+
+        // Back out to browse. Installing replaces the game detail screen with the set the game
+        // joined and opens the sync over that, so one press back lands on the set, not the game.
+        navigator.Handle(NavAction.Back);
+        navigator.Handle(NavAction.Back);
+
+        var reopened = Assert.IsType<BrowseViewModel>(navigator.Current);
+        await Settled(reopened);
+
+        // And in again, on a page taken after the install.
+        navigator.Handle(NavAction.Accept);
+        var detail = Assert.IsType<ListScreen>(navigator.Current);
+
+        navigator.Handle(NavAction.Start);
+
+        // A sentence, not a pass. The message names what did not happen rather than leaving a
+        // person to work out why a progress screen finished instantly.
+        var message = Assert.IsType<MessageScreen>(navigator.Current);
+        Assert.Contains("already on the device", message.Message, StringComparison.Ordinal);
+
+        // And nothing was fetched.
+        Assert.Equal(served, stub.ContentRequests.Count);
+
+        sync.Dispose();
+        detail.Dispose();
+        browse.Dispose();
+    }
+
     /// <summary>
     /// Taking a game off lands back on its detail screen, not on the preview of the removal.
     /// </summary>
@@ -601,21 +722,19 @@ public sealed class BrowseScreenTests : IDisposable
     {
         Installed(1, "snes", "Chrono Trigger.sfc", 2_048);
 
-        var status = new StatusViewModel(
+        var root = RootScreens.Menu(
             _session,
-            new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))
-        {
-            OpenBrowse = () => new BrowseViewModel(_session),
-        };
+            () => new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."),
+            new RootScreens.RootRoutes { OpenBrowse = () => new BrowseViewModel(_session) });
 
-        var navigator = new Navigator(status);
+        var navigator = new Navigator(root);
 
-        navigator.Handle(NavAction.Extra);
+        RootMenuDriver.Open(navigator, "Find a game");
         var browse = Assert.IsType<BrowseViewModel>(navigator.Current);
         await Settled(browse);
 
         Assert.True(navigator.Handle(NavAction.Back));
-        Assert.Same(status, navigator.Current);
+        Assert.Same(root, navigator.Current);
     }
 
     // ------------------------------------------------------------------ helpers

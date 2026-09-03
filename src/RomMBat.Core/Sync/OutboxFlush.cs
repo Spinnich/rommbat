@@ -133,6 +133,8 @@ public sealed class OutboxFlush
             duplicates += batchDuplicates;
             failed += batchFailed;
 
+            await ClearNowPlayingAsync(entries, cancellationToken).ConfigureAwait(false);
+
             if (batchFailed == indexed.Count)
             {
                 // Nothing moved, so another pass would ask the same question and get the same
@@ -142,6 +144,48 @@ public sealed class OutboxFlush
         }
 
         return new OutboxFlushOutcome(sent, duplicates, failed, problems);
+    }
+
+    /// <summary>
+    /// Tells the server this device has stopped playing what it just reported.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because ingesting a session sets <c>now_playing</c> and nothing else clears it.</b>
+    /// Every session in this batch carries an <c>end_time</c>: it is over by construction, and
+    /// leaving the flag set makes the user's library claim they are playing every game they have
+    /// ever launched. Measured on the live instance during M7 stage 7b-3's hands-on pass: ten
+    /// roms all reading <c>now_playing=true</c>, one of them played two days earlier, against a
+    /// rom RomMBat had never reported reading false.
+    /// <para>
+    /// <b>Best effort, and it never fails the flush.</b> The sessions are already accepted and
+    /// recorded by the time this runs; a tidy-up that could undo that would be worse than the
+    /// untidiness. Offline is the ordinary case and is silent, for the same reason.
+    /// </para>
+    /// <para>
+    /// <b>Once per distinct rom, not once per session.</b> A person who played the same game
+    /// four times has four entries in one batch, and the flag is per rom.
+    /// </para>
+    /// </remarks>
+    private async Task ClearNowPlayingAsync(
+        List<PlaySessionEntry> entries,
+        CancellationToken cancellationToken)
+    {
+        foreach (var romId in entries
+            .Select(entry => entry.RomId)
+            .OfType<int>()
+            .Distinct())
+        {
+            try
+            {
+                await _connection.ClearNowPlayingAsync(romId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (RomMUnreachableException)
+            {
+                // The server went away between the batch and the tidy-up. The sessions are
+                // sent, which is what mattered; the flag is corrected by the next flush.
+                return;
+            }
+        }
     }
 
     /// <summary>

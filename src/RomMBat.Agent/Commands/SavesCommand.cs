@@ -600,12 +600,11 @@ internal static class SavesCommand
     /// somebody's progress and the whole reason a conflict exists is that RomMBat cannot tell
     /// which side matters.
     /// <para>
-    /// <b>Under <see cref="TreeLock"/>, like a flush.</b> Resolving a class C conflict runs the
-    /// same <c>SaveUnitTransfer.Restore</c> a flush does, extracting into
-    /// <c>partial/unit-&lt;guid&gt;/</c> and swapping members into a shared container one at a
-    /// time. Two of those at once, or one racing <c>PartialSweep</c>, leaves the container half
-    /// swapped. Unlike a flush, failing to acquire is refused rather than treated as done: a
-    /// person asked for this and silently doing nothing would read as having resolved it.
+    /// <b>A shell over <see cref="ConflictResolutionService"/>, which holds every rule.</b> The
+    /// lock, the refusal to treat a failed acquire as done, and the words of every outcome are
+    /// all Core's, because the M7 interface drives the same decision and a sentence that differs
+    /// between the console and the couch is two answers to one question. What is left here is
+    /// the argument parsing and the mapping onto an exit code.
     /// </para>
     /// </remarks>
     private static async Task<int> ResolveAsync(
@@ -637,49 +636,37 @@ internal static class SavesCommand
             return ExitCode.Usage;
         }
 
-        // Before authenticating, because a resolution that cannot run is not worth a round trip
-        // to the server first.
-        using var held = TreeLock.TryAcquire(context.Install);
+        // Authenticating is inside the factory, not before the call, because the service takes
+        // the tree lock first: a resolution that cannot run is not worth a round trip.
+        var authenticated = ExitCode.Ok;
 
-        if (held is null)
+        var outcome = await new ConflictResolutionService(context.Install, context.Store)
+            .ResolveAsync(
+                romId,
+                slot,
+                keepLocal ? ConflictResolution.KeepLocal : ConflictResolution.KeepServer,
+                () => context.Authenticate(command, Console.Error, out authenticated),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        switch (outcome.State)
         {
-            Console.Error.WriteLine(
-                "A flush is running, and resolving a conflict writes the same save files it does. "
-                    + "Nothing was changed. Try again once it has finished.");
-            return ExitCode.Refused;
-        }
+            case ConflictOutcomeState.Resolved:
+                Console.WriteLine(outcome.Message);
+                return ExitCode.Ok;
 
-        var connection = context.Authenticate(command, Console.Error, out var exitCode);
+            case ConflictOutcomeState.Busy:
+                Console.Error.WriteLine(outcome.Message);
+                return ExitCode.Refused;
 
-        if (connection is null)
-        {
-            return exitCode;
-        }
+            // Authenticate has already said why on stderr and its exit code distinguishes not
+            // paired from unreachable, which one state cannot.
+            case ConflictOutcomeState.Offline:
+                return authenticated;
 
-        using (connection)
-        {
-            if (context.Store.Device.Read()?.RomMDeviceId is not { } deviceId)
-            {
-                Console.Error.WriteLine("This install is paired but has no RomM device id. Pair again.");
-                return ExitCode.NotPaired;
-            }
-
-            var outcome = await new SaveConflictResolver(context.Install, context.Store, connection, deviceId)
-                .ResolveAsync(
-                    romId,
-                    slot,
-                    keepLocal ? ConflictResolution.KeepLocal : ConflictResolution.KeepServer,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            if (!outcome.Resolved)
-            {
+            default:
                 Console.Error.WriteLine(outcome.Message);
                 return ExitCode.Partial;
-            }
-
-            Console.WriteLine(outcome.Message);
-            return ExitCode.Ok;
         }
     }
 

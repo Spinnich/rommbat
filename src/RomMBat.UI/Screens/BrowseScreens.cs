@@ -65,6 +65,13 @@ public static class BrowseScreens
                 .. game.IsHere
                     ? new[] { new FooterHint(NavAction.Alternate, "Take it off this device") }
                     : [],
+
+                // The third verb, and the only screen with a game in hand, which is what
+                // queueing a per-game memory card needs. Offered only where the shape allows
+                // it, which SaveConverter answers and this does not work out for itself.
+                .. QueuedChangeScreens.CanConvert(session, game.RomId)
+                    ? new[] { new FooterHint(NavAction.Extra, "Give it its own memory card") }
+                    : [],
             ],
             Note = () => game.Row is null
                 ? "This game is on the device. RomM is not reachable, so it cannot be installed "
@@ -80,6 +87,9 @@ public static class BrowseScreens
 
                 NavAction.Alternate when game.IsHere =>
                     ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed)),
+
+                NavAction.Extra when QueuedChangeScreens.CanConvert(session, game.RomId) =>
+                    ScreenCommand.Push(QueuedChangeScreens.Convert(session, game.RomId, game.DisplayName)),
 
                 _ => null,
             },
@@ -113,6 +123,27 @@ public static class BrowseScreens
             return ScreenCommand.Push(new MessageScreen(
                 game.DisplayName,
                 outcome.Problem ?? "This game cannot be put on this device."));
+        }
+
+        // A game the picked set already held and that is already on disk needs no pass. Running
+        // one fetched nothing and still reported "Installed", which is a screen claiming to have
+        // done something it did not. AlreadyPicked was computed for exactly this and nothing had
+        // ever read it. #116.
+        //
+        // Already picked but not on disk is a different case and still syncs: that is the state
+        // a stopped or budget-blocked run leaves behind, and it is the one a second press is
+        // meant to finish.
+        // Asked of the store rather than of the row in hand. BrowseGame.IsHere is a fact about
+        // the page this screen was opened from, and the install that has just run is exactly
+        // what makes it stale.
+        var here = session.Store.Files.ForRom(game.RomId, LocalFileKind.Rom).Count > 0;
+
+        if (outcome.AlreadyPicked && here)
+        {
+            return ScreenCommand.Push(new MessageScreen(
+                game.DisplayName,
+                "This game is already on the device, and this set already claims it. Nothing "
+                    + "was fetched."));
         }
 
         changed?.Invoke();

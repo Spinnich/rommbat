@@ -102,10 +102,19 @@ internal static class SetsCommand
                 $"'{scopeText}' is not a scope. Use collection, smart_collection, virtual_collection, platform or filter.");
         }
 
-        // --value is carried through for every scope, including filter, which ignores it. That
-        // is #78, still open and deliberately not fixed while passing: the seam makes it a
-        // one-line change in SyncSetService, and changing behaviour inside a refactor whose
-        // claim is that it changed none would hide it.
+        // A filter scope is built from its own flags, so --value has nothing to be. It used to
+        // be accepted, never read and never complained about, which produced the widest possible
+        // scope from a command that named three games: the empty filter matches the entire
+        // library, and the only thing that caught it was an unrelated refusal to resolve arcade
+        // without --folder. Refused rather than ignored. #78.
+        if (scope == CatalogScopeKind.Filter && command.Value("value") is { Length: > 0 })
+        {
+            return Usage(
+                "a filter scope is built from --search, --favourite, --genres, --regions, "
+                    + "--languages and --tags, so --value has nothing to name. Without this "
+                    + "refusal the filter would be empty, which matches the whole library.");
+        }
+
         var draft = new SetDraft
         {
             Name = name,
