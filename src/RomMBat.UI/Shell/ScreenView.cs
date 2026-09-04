@@ -675,21 +675,6 @@ internal static class ScreenView
     /// </remarks>
     private const double RowHeight = ListWindow.RowHeight;
 
-    private const double ReadingRowHeight = ListWindow.ReadingRowHeight;
-
-    /// <summary>
-    /// How wide the label column is on a pane of facts.
-    /// </summary>
-    /// <remarks>
-    /// Wide enough for the longest label these screens use ("RomM calls it", "Also possible",
-    /// "Queued changes") at 21px, and narrow enough to leave the value close to it. The status
-    /// screen pins its own at 220 for the same reason and has read well since 7b-1.
-    /// </remarks>
-    private const double LabelColumn = 240;
-
-    /// <summary>Three wrapped lines of detail, which is what makes a reading row its height.</summary>
-    private const double ReadingDetailHeight = 66;
-
     /// <summary>
     /// How wide a list is, fixed so it cannot breathe as the window scrolls.
     /// </summary>

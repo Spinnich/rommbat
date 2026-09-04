@@ -233,10 +233,12 @@ one a screen is.** A list of choices has a cursor, wraps, and draws each row as 
 that fills accent when selected. A pane of facts has **no cursor at all**, scrolls by an offset
 so every press moves the view, clamps at both ends, and draws its rows as plain lines. Dressing
 the second as the first is what a hands-on pass reported twice, as information shown as buttons
-that do nothing. `IWindowedScreen` pairs the row count with the row height, so a screen answers
-"am I reading" once and `ListWindow.CapacityFor` and `RowHeightFor` both follow: told separately,
-a screen computed a window of eight and was drawn at the 122 px reading height, which overflows
-the display by exactly the margin the reading capacity exists to avoid.
+that do nothing. `IWindowedScreen` makes the row count follow from the same answer, so a screen
+says "am I reading" once and `ListWindow.CapacityFor` follows: told separately, a screen computed
+a window of eight and was drawn at the 122 px reading height, which overflows the display by
+exactly the margin the reading capacity exists to avoid. **There is no reading row height any
+more.** A pane of facts is drawn by the body that draws a status row and its block is bounded by
+`ListWindow.ContentBudget`, so there is no second number left to disagree with the first.
 
 **Freeing space is on the interface now, and the ruling that took eviction off it stands.**
 RomMBat still never chooses which games matter least. What a person can do is name one: delete a

@@ -153,8 +153,15 @@ public static class ListWindow
     /// bare row 32 and a row with a sentence under it 58, and pretending they are all 58 throws
     /// away a third of the screen.
     /// <para>
-    /// So the window is measured rather than counted. Same contract as
-    /// <see cref="Scrolled"/>: an offset, no cursor, clamped at both ends.
+    /// So the window is measured rather than counted: an offset, no cursor, clamped at both
+    /// ends.
+    /// </para>
+    /// <para>
+    /// <b>An offset rather than a cursor, because a reading list is a pane you scroll and not a
+    /// list you navigate.</b> <see cref="Compute"/> keeps a cursor off the edge where there is
+    /// room, which is right for a list of choices and wrong here: with nothing highlighted, the
+    /// first two or three presses would move a cursor nobody can see and leave the view where it
+    /// was, so the screen would read as ignoring the pad.
     /// </para>
     /// </remarks>
     public static ListView ScrolledByHeight(int offset, IReadOnlyList<double> heights, double budget)
@@ -222,40 +229,13 @@ public static class ListWindow
     /// the problems list, fixed there by changing one screen; browse then reintroduced it, which
     /// is what a rule enforced at an instance rather than at its class does.
     /// <para>
-    /// Pair this with <see cref="RowHeightFor"/>: a screen says whether it is reading once, and
-    /// both the count and the height follow from that answer.
+    /// <b>The height half of that pairing is gone.</b> A pane of facts is no longer drawn at a
+    /// uniform reading height at all: its rows are the status screen's rows and the block is
+    /// bounded by <see cref="ContentBudget"/> through <see cref="ScrolledByHeight"/>. So a
+    /// reading screen answers this for its capacity and the renderer decides no height.
     /// </para>
     /// </remarks>
     public static int CapacityFor(bool reading) => reading ? ReadingCapacity : Capacity;
-
-    /// <summary>How tall this screen's rows are drawn, paired with <see cref="CapacityFor"/>.</summary>
-    public static double RowHeightFor(bool reading) => reading ? ReadingRowHeight : RowHeight;
-
-    /// <summary>
-    /// The window a scrolled pane of text shows, from a scroll offset rather than a cursor.
-    /// </summary>
-    /// <remarks>
-    /// <b>A reading list is a pane you scroll, not a list you navigate</b>, so it has an offset
-    /// and no cursor at all. <see cref="Compute"/> keeps a cursor off the edge where there is
-    /// room, which is right for a list of choices and wrong here: with nothing highlighted, the
-    /// first two or three presses would move a cursor nobody can see and leave the view where it
-    /// was, so the screen would read as ignoring the pad. Moving the offset means every press
-    /// shifts what is on screen.
-    /// </remarks>
-    public static ListView Scrolled(int offset, int total, int capacity = ReadingCapacity)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
-
-        if (total <= 0)
-        {
-            return new ListView(0, 0, 0, 0);
-        }
-
-        var count = Math.Min(capacity, total);
-        var start = Math.Clamp(offset, 0, total - count);
-
-        return new ListView(start, count, start, total - start - count);
-    }
 
     /// <summary>Picks the window that keeps the cursor visible with context around it.</summary>
     /// <remarks>
