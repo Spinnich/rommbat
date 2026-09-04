@@ -127,13 +127,16 @@ public sealed class OutboxFlush
                     [.. problems, response.Message ?? "the server refused the batch."]);
             }
 
-            var (batchSent, batchDuplicates, batchFailed) = Reconcile(indexed, outcome, problems);
+            var (batchSent, batchDuplicates, batchFailed, accepted) = Reconcile(indexed, outcome, problems);
 
             sent += batchSent;
             duplicates += batchDuplicates;
             failed += batchFailed;
 
-            await ClearNowPlayingAsync(entries, cancellationToken).ConfigureAwait(false);
+            await ClearNowPlayingAsync(
+                    accepted.Select(index => entries[index]).ToList(),
+                    cancellationToken)
+                .ConfigureAwait(false);
 
             if (batchFailed == indexed.Count)
             {
@@ -159,7 +162,15 @@ public sealed class OutboxFlush
     /// <para>
     /// <b>Best effort, and it never fails the flush.</b> The sessions are already accepted and
     /// recorded by the time this runs; a tidy-up that could undo that would be worse than the
-    /// untidiness. Offline is the ordinary case and is silent, for the same reason.
+    /// untidiness. Offline is the ordinary case and is silent, and a refusal is swallowed with
+    /// it: the request is a <c>PUT</c> whose body is never read, so the only ways out are a
+    /// transport failure and a status code, and neither is worth a session.
+    /// </para>
+    /// <para>
+    /// <b>Only the sessions the server took.</b> A rejected entry never reached the ingest, so
+    /// it never set the flag, and writing for it spends one request per rom on a batch that
+    /// changed nothing. A duplicate is included: the server has that session, from an earlier
+    /// ingest that did set it.
     /// </para>
     /// <para>
     /// <b>Once per distinct rom, not once per session.</b> A person who played the same game
@@ -182,7 +193,8 @@ public sealed class OutboxFlush
             catch (RomMUnreachableException)
             {
                 // The server went away between the batch and the tidy-up. The sessions are
-                // sent, which is what mattered; the flag is corrected by the next flush.
+                // sent, which is what mattered; the flag is corrected the next time this game
+                // is played and reported.
                 return;
             }
         }
@@ -196,7 +208,7 @@ public sealed class OutboxFlush
     /// were duplicates and 3 genuinely failed would either be marked wholly sent, losing three,
     /// or wholly pending, re-sending 97 forever.
     /// </remarks>
-    private (int Sent, int Duplicates, int Failed) Reconcile(
+    private (int Sent, int Duplicates, int Failed, List<int> Accepted) Reconcile(
         List<OutboxEntry> entries,
         PlaySessionOutcome outcome,
         List<string> problems)
@@ -205,6 +217,11 @@ public sealed class OutboxFlush
         var sent = 0;
         var duplicates = 0;
         var failed = 0;
+
+        // Which entries the server took, so the now_playing tidy-up writes for those and no
+        // others. Indices rather than rom ids, because the caller holds the parallel list of
+        // sessions and an OutboxEntry does not carry one.
+        var accepted = new List<int>();
 
         var byIndex = outcome.Results.ToDictionary(result => result.Index);
 
@@ -224,6 +241,7 @@ public sealed class OutboxFlush
             if (result.IsAccepted)
             {
                 _store.Outbox.MarkSent(entry.Id, now);
+                accepted.Add(index);
 
                 if (result.IsDuplicate)
                 {
@@ -242,7 +260,7 @@ public sealed class OutboxFlush
             failed++;
         }
 
-        return (sent, duplicates, failed);
+        return (sent, duplicates, failed, accepted);
     }
 
     private void RecordFailure(List<OutboxEntry> entries, string reason)

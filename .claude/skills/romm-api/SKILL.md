@@ -171,6 +171,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 | Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                            |
 | Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`    |
 | Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}` |
+| Stop "now playing"       | `PUT /api/roms/{id}/props`, body `{"now_playing": false}`. **Not** the heartbeat  |
 | Save negotiation         | `POST /api/sync/negotiate`                                                        |
 | Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`     |
 | Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                         |
@@ -372,6 +373,21 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   with `created_count`/`skipped_count` and reports a replay as `"status": "duplicate"`. Cap
   100 per call (101 entries answers 400), `end_time` strictly after `start_time`, `rom_id`
   optional. It needs **no** open sync session, so playtime can flush on its own.
+- **Ingesting a play session sets `rom_user.now_playing`, and nothing clears it.** Every
+  session RomMBat sends is finished by construction, so a client that only posts sessions
+  leaves the user's library claiming they are playing every game they have ever launched.
+  Measured on the live instance during M7 stage 7b-3: ten roms RomMBat had reported a session
+  for were all `now_playing=true`, one of them played two days earlier, against a rom it had
+  never reported reading false. **Clear it with `PUT /api/roms/{id}/props`**, per rom rather
+  than per session, and only for the entries the batch's result array says were accepted.
+  See the Presence section for why the heartbeat is not the answer.
+- **`PUT /api/roms/{id}/props` with a partial body leaves the other seven properties alone.**
+  Measured, not read off the schema: the schema declares all eight nullable with none
+  required, which is equally consistent with "an omitted field is set to null", and a wrong
+  guess would silently wipe a user's rating, difficulty, completion and notes. A write
+  carrying only `now_playing` left a rating of 7 in place. It answers a body; a client that
+  wants only "it worked" should not read it, since a 2xx with an empty or non-JSON body
+  otherwise throws out of whatever tidy-up made the call.
 - **`POST /api/sync/negotiate` requires `device_id`** unless the client token is device-bound,
   in which case the server infers it. Measured both ways: a pairing-minted token negotiates
   with the field absent, an ordinary client token answers 400 naming the condition. RomMBat's
@@ -444,6 +460,14 @@ answers 200 with a full presence record: user, rom name, cover and title-screen 
 platform, `device_type` (already `RomMBat`, carried from pairing) and `started_at`.
 `GET /api/activity` lists every current entry and `GET /api/activity/rom/{id}` filters to one,
 both under 0.1 s.
+
+**This is not the mechanism behind the "playing now" flag on a rom, and the two wear similar
+names.** The heartbeat is the presence feed at `GET /api/activity`, which RomMBat never posts
+to and which is empty on an install that only syncs. The flag a library actually shows is
+`rom_user.now_playing`, set by ingesting a play session and cleared only by
+`PUT /api/roms/{id}/props`. **`DELETE /api/activity/heartbeat` answers 204 and does not touch
+it**, measured during M7 stage 7b-3, so a session that reaches for the heartbeat to stop a
+game reading as in progress has reached for the wrong one.
 
 - **The `DELETE` takes `device_id` as a query parameter**, not in the body the `POST` takes.
   Sent as a body it answers **422** naming the missing query field, which reads like a

@@ -299,14 +299,20 @@ public sealed partial class RomMConnection
     /// A partial <c>PUT</c> leaves every other property alone, which is measured and recorded on
     /// <see cref="RomUserNowPlaying"/>.
     /// </para>
+    /// <para>
+    /// <b>The body is never read.</b> The caller wants "it worked" and nothing else, and reading
+    /// it would let a 2xx carrying an empty or non-JSON body throw <c>RomMApiException</c> out
+    /// of a tidy-up whose whole contract is that it cannot fail the flush that runs it.
+    /// </para>
     /// </remarks>
-    public Task<RomMResponse<object>> ClearNowPlayingAsync(
+    public Task<RomMResponse<bool>> ClearNowPlayingAsync(
         int romId,
         CancellationToken cancellationToken = default) =>
-        PutAuthenticatedAsync<RomUserNowPlaying, object>(
+        PutAuthenticatedAsync<RomUserNowPlaying, bool>(
             $"api/roms/{romId}/props",
             new RomUserNowPlaying(false),
-            cancellationToken);
+            cancellationToken,
+            emptyBodyValue: true);
 
     private Task<RomMResponse<TResult>> PostAuthenticatedAsync<TBody, TResult>(
         string path,

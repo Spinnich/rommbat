@@ -1127,6 +1127,50 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_session_the_server_refuses_leaves_its_now_playing_flag_alone()
+    {
+        // The tidy-up follows the ingest. A refused entry never reached one, so it never set
+        // the flag, and writing for it spends one request per rom on a batch that changed
+        // nothing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        fixture.Stub.RefusePlaySessionsFor.Add(10);
+
+        var outcome = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Sent);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Empty(fixture.Stub.NowPlayingCleared);
+
+        // Still queued, because a refusal is not a reason to drop a session.
+        Assert.Equal(1, fixture.Store.Outbox.PendingCount());
+    }
+
+    [Fact]
+    public async Task A_half_refused_batch_clears_only_the_half_the_server_took()
+    {
+        // Per entry rather than per batch, which is the same reason the result array is read by
+        // index: a batch with one refusal in it is not a batch that did nothing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.AddGame(11, "snes", "Other", ".zip", ".srm", "y");
+
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+        fixture.PlaySession(11, "Other");
+        fixture.Correlate();
+
+        fixture.Stub.RefusePlaySessionsFor.Add(11);
+
+        await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, Assert.Single(fixture.Stub.NowPlayingCleared));
+    }
+
+    [Fact]
     public async Task A_refused_tidy_up_never_costs_a_session()
     {
         // The sessions are accepted and recorded before this runs. A tidy-up that could undo

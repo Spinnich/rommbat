@@ -117,6 +117,17 @@ internal sealed partial class StubRomMServer
     /// <summary>Makes the props write fail, so a tidy-up cannot be allowed to lose a session.</summary>
     public HttpStatusCode? PropsStatus { get; set; }
 
+    /// <summary>
+    /// Roms whose sessions the batch route refuses one by one, inside an accepted batch.
+    /// </summary>
+    /// <remarks>
+    /// <b>The shape the per-index result array exists for, and nothing else reached it.</b> The
+    /// batch answers 200 and some entries in it are refused, which is what separates "left
+    /// pending" from "marked sent" and what decides which roms the now_playing tidy-up writes
+    /// for.
+    /// </remarks>
+    public ISet<int> RefusePlaySessionsFor { get; } = new HashSet<int>();
+
     /// <summary>How many negotiate sessions were closed.</summary>
     public int CompletedSessions { get; private set; }
 
@@ -465,6 +476,15 @@ internal sealed partial class StubRomMServer
             // Truncated to the second, which is how the server dedups and therefore what makes
             // a replayed flush idempotent rather than a second session.
             var romId = session.TryGetProperty("rom_id", out var rom) ? rom.ToString() : "none";
+
+            if (int.TryParse(romId, NumberStyles.None, CultureInfo.InvariantCulture, out var refusable)
+                && RefusePlaySessionsFor.Contains(refusable))
+            {
+                results.Add(new { index, status = "failed", id = (int?)null, detail = "refused by the stub" });
+                index++;
+                continue;
+            }
+
             var key = $"{romId}|{Second(start)}|{Second(end)}";
 
             if (SeenPlaySessions.Add(key))
