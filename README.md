@@ -183,9 +183,10 @@ rommbat-agent.exe gamelist                   # rewrite gamelist.xml from local s
 rommbat-agent.exe gamelist --media all       # every kind, whatever RetroBat's scraper says
 ```
 
-All of that is on the gamepad interface too, as of M7 stage 7b-2b: define a set, resolve it,
-sync it with live progress, and watch the budget as it is spent.
-The terminal is no longer the only way in.
+All of that is on the gamepad interface too, as of M7 stage 7b: define a set, resolve it, sync
+it with live progress, watch the budget as it is spent, find one game and install or remove it
+on its own, choose a side on a save conflict, and fix where a platform's games land when the
+automatic mapping gets one wrong. The terminal is no longer the only way in.
 
 ### Saves and playtime
 
