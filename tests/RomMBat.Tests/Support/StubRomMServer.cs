@@ -281,8 +281,16 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// other to increment it and a test asserting on it while they unwind is not deterministic.
     /// This counts arrivals, which is the question "did a second fetch start" actually asks, and
     /// it can be read while the hold is still on.
+    /// <para>
+    /// <b>Interlocked, because this is the one counter whose whole subject is concurrency.</b>
+    /// It is incremented on whichever thread-pool thread is serving the request, and a lost
+    /// update here would make a real regression pass, which is the failure mode the remark
+    /// above exists to close.
+    /// </para>
     /// </remarks>
-    public int RomPagesRequested { get; private set; }
+    public int RomPagesRequested => Volatile.Read(ref _romPagesRequested);
+
+    private int _romPagesRequested;
 
     /// <summary>The bytes each ROM's content endpoint serves, by ROM id.</summary>
     public IDictionary<int, byte[]> Content { get; } = new Dictionary<int, byte[]>();
@@ -486,7 +494,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
         if (path.EndsWith("/api/roms", StringComparison.Ordinal))
         {
-            RomPagesRequested++;
+            Interlocked.Increment(ref _romPagesRequested);
 
             if (HoldRomPages is { } held)
             {
