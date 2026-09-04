@@ -140,10 +140,13 @@ public static class QueuedChangeScreens
             ],
             _ => ScreenCommand.Stay,
             acceptLabel: "Cancel it",
-            backLabel: cancelled ? "Done" : "Keep it queued")
+            backLabel: "Keep it queued")
         {
             Reading = true,
             OfferAcceptWhen = () => !cancelled,
+
+            // Once it is cancelled there is nothing left to keep, and Back is the only way out.
+            BackLabelWhen = () => cancelled ? "Done" : "Keep it queued",
 
             Verbs = (action, _) =>
             {
@@ -249,9 +252,13 @@ public static class QueuedChangeScreens
             ],
             _ => ScreenCommand.Stay,
             acceptLabel: "Queue it",
-            backLabel: queued is null ? "Leave it alone" : "Done")
+            backLabel: "Leave it alone")
         {
             Reading = true,
+
+            // The offer is gone once the change is queued, so leaving is finishing rather than
+            // declining.
+            BackLabelWhen = () => queued is null ? "Leave it alone" : "Done",
 
             // Offered once, and only while the converter still says it would work. A second
             // press would replace the row it just wrote, which reads as nothing happening.

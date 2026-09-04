@@ -80,6 +80,12 @@ public class QueuedChangeScreenTests : IDisposable
         // Answered once: a second press must not re-run a change that has already happened.
         Assert.DoesNotContain(confirm.Hints, hint => hint.Action == NavAction.Accept);
 
+        // And the footer follows the screen. The label was a ternary in the constructor's
+        // argument, which is evaluated once with the flag still false, so the row read
+        // "Cancelled" while Back went on offering to keep it queued.
+        var back = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back);
+        Assert.Equal("Done", back.Label);
+
         navigator.Handle(NavAction.Back);
         Assert.Empty(Assert.IsType<ListScreen>(navigator.Current).Rows);
     }

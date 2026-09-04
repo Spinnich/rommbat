@@ -288,7 +288,9 @@ public static class PlatformScreens
                         false),
             ],
             _ => ScreenCommand.Stay,
-            acceptLabel: cleared ? string.Empty : "Drop it",
+            // Constant, not a ternary over cleared: the constructor's labels are read once,
+            // with the flag still false. OfferAcceptWhen is what withdraws the hint.
+            acceptLabel: "Drop it",
             backLabel: "Back")
         {
             Reading = true,
