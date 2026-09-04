@@ -418,7 +418,15 @@ public sealed class SetsScreenTests : IDisposable
         if (preview is ListScreen loaded)
         {
             await Wait(() => !loaded.IsLoading);
-            Assert.NotEqual(ScreenCommandKind.Stay, loaded.Handle(NavAction.Accept).Kind);
+
+            var applying = loaded.Handle(NavAction.Accept);
+            Assert.NotEqual(ScreenCommandKind.Stay, applying.Kind);
+
+            // The removal happens in ApplyRemoval's loader, not in the press that pushes it, so
+            // this waits for the screen rather than for the runner: asserting straight after
+            // the press passed only while the load beat the next line, and a busier suite lost
+            // that race.
+            await Wait(() => applying.Screen is ListScreen apply && !apply.IsLoading);
         }
 
         Assert.Empty(new SyncSetService(_session).List());
