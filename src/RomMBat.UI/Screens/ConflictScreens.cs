@@ -290,20 +290,31 @@ public static class ConflictScreens
             // person is most likely to want the other side, which is one press back.
             OnBack = () => outcome?.Resolved == true ? ScreenCommand.PopMany(3) : ScreenCommand.Pop,
 
-            // Pairing is the only thing a person can do about a token the server has stopped
-            // accepting, and a screen that reported the refusal without a route to it strands
-            // them. Offered only when that is what happened.
-            ExtraHints = () => outcome?.State == ConflictOutcomeState.Failed && pair is not null
+            // Pairing is the only thing a person can do about a token that will not unlock or
+            // one the server has stopped accepting, and a screen that reported the refusal
+            // without a route to it strands them. Offered only when that is what happened.
+            ExtraHints = () => Pairable(outcome) && pair is not null
                 ? [new FooterHint(NavAction.Start, "Pair with RomM")]
                 : [],
 
-            Verbs = (action, _) => action == NavAction.Start
-                && outcome?.State == ConflictOutcomeState.Failed
-                && pair is { } start
-                    ? ScreenCommand.Push(start())
-                    : null,
+            Verbs = (action, _) => action == NavAction.Start && Pairable(outcome) && pair is { } start
+                ? ScreenCommand.Push(start())
+                : null,
         }.Started();
     }
+
+    /// <summary>Whether pairing is the route out of what just happened.</summary>
+    /// <remarks>
+    /// <b>Three states, not one.</b> Gating on <see cref="ConflictOutcomeState.Failed"/> alone
+    /// withheld the offer from the two cases that are nothing but a pairing problem: a store
+    /// with no token or one that will not unlock, and a paired install missing its RomM device
+    /// id. Failed stays in because a 401 during the transfer itself is the same repair, and
+    /// Offline and Busy stay out because pairing does nothing about either.
+    /// </remarks>
+    private static bool Pairable(ConflictOutcome? outcome) => outcome?.State is
+        ConflictOutcomeState.Failed
+        or ConflictOutcomeState.NotPaired
+        or ConflictOutcomeState.NoDeviceId;
 
     private static string Short(string? hash) =>
         hash is null ? "no hash" : hash[..Math.Min(8, hash.Length)];

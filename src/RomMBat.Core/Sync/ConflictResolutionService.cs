@@ -5,7 +5,7 @@ using RomMBat.Core.Store;
 namespace RomMBat.Core.Sync;
 
 /// <summary>How a resolution attempt ended, in words a front end quotes rather than rewords.</summary>
-/// <param name="State">Which of the four things happened.</param>
+/// <param name="State">Which of the things in <see cref="ConflictOutcomeState"/> happened.</param>
 /// <param name="Message">
 /// The whole answer, ready to print or draw. Never null: a refusal that said nothing would leave
 /// a screen inventing its own sentence, which is how the two front ends drift.
@@ -39,6 +39,15 @@ public sealed record OpenConflict(SaveConflictRecord Conflict, string? Title, st
 /// <c>ExitCode.Refused</c> and a screen offers the press again; folding it into
 /// <see cref="Failed"/> would make both of them say the conflict could not be resolved when
 /// what happened is that nothing was tried.
+/// <para>
+/// <b><see cref="NotPaired"/> and <see cref="Offline"/> are two states because they were one
+/// and the one was wrong.</b> A null connection means the store had nothing to sign in with,
+/// which <c>InstallSession.Authenticate</c> decides without touching the wire, so calling it
+/// offline told a person with a token that would not unlock to try again when they were back
+/// on the network. Nothing would ever change, and the screen withheld the pairing route on
+/// top of it. Being unreachable is a separate answer and only a caller that catches
+/// <c>RomMUnreachableException</c> can give it.
+/// </para>
 /// </remarks>
 public enum ConflictOutcomeState
 {
@@ -48,7 +57,23 @@ public enum ConflictOutcomeState
     /// <summary>A flush or a sweep holds the tree. Nothing was changed.</summary>
     Busy,
 
-    /// <summary>There is no server to resolve against.</summary>
+    /// <summary>
+    /// There is nothing to sign in with: no pairing row, or a token that would not unlock.
+    /// Pairing is the route out, and a front end owes one.
+    /// </summary>
+    NotPaired,
+
+    /// <summary>
+    /// Paired, but no RomM device id was recorded. Pairing again is the route out, so this is
+    /// closer to <see cref="NotPaired"/> than to <see cref="Failed"/>.
+    /// </summary>
+    NoDeviceId,
+
+    /// <summary>
+    /// The server could not be reached. <b>Never returned by the service</b>, which never
+    /// reaches the wire before one of the states above: it is here for the caller that wraps
+    /// the call and catches an unreachable host.
+    /// </summary>
     Offline,
 
     /// <summary>A rule said no, or the transfer did not complete.</summary>
@@ -140,9 +165,10 @@ public sealed class ConflictResolutionService
     /// <b>A factory rather than a connection, and the order is the point.</b> The lock is taken
     /// first, because a resolution that cannot run is not worth a round trip to the server, and
     /// a caller handed in an already-open connection would have paid for it before finding out.
-    /// Returning null is <see cref="ConflictOutcomeState.Offline"/> rather than an argument
-    /// error, because being unable to reach the server is the ordinary state this design is
-    /// built for.
+    /// Returning null is <see cref="ConflictOutcomeState.NotPaired"/> rather than an argument
+    /// error, because a handheld whose store holds no usable token is an ordinary state this
+    /// design is built for. It is not an unreachable server: nothing on that path has gone
+    /// near the wire yet.
     /// <para>
     /// What it returns is disposed here, since deferring its creation is the whole reason it is
     /// a factory.
@@ -177,15 +203,16 @@ public sealed class ConflictResolutionService
         if (connection is null)
         {
             return new ConflictOutcome(
-                ConflictOutcomeState.Offline,
-                "Choosing a side sends or fetches a save, so this needs the server. Nothing was "
-                    + "changed, and the conflict is still here when you are back on the network.");
+                ConflictOutcomeState.NotPaired,
+                "There is nothing here to sign in to RomM with: this install is either not "
+                    + "paired, or its stored token could not be unlocked. Nothing was changed, "
+                    + "and the conflict is still here. Pairing again is what fixes it.");
         }
 
         if (_store.Device.Read()?.RomMDeviceId is not { } deviceId)
         {
             return new ConflictOutcome(
-                ConflictOutcomeState.Failed,
+                ConflictOutcomeState.NoDeviceId,
                 "This install is paired but has no RomM device id. Pair again.");
         }
 

@@ -659,10 +659,25 @@ internal static class SavesCommand
                 Console.Error.WriteLine(outcome.Message);
                 return ExitCode.Refused;
 
-            // Authenticate has already said why on stderr and its exit code distinguishes not
-            // paired from unreachable, which one state cannot.
-            case ConflictOutcomeState.Offline:
+            // Authenticate has already written the reason to stderr, and it is more specific
+            // than the service's one sentence for both causes. Its exit code is always
+            // NotPaired, which #101 is the note on.
+            case ConflictOutcomeState.NotPaired:
                 return authenticated;
+
+            // Nothing was said on the way in, because the connection opened. Pairing is still
+            // the instruction, so the exit code has to be the one that names it: dropping this
+            // through to Partial told a script "some of the work landed" about a message whose
+            // whole content is "pair again".
+            case ConflictOutcomeState.NoDeviceId:
+                Console.Error.WriteLine(outcome.Message);
+                return ExitCode.NotPaired;
+
+            // The service never returns this and an unreachable host thrown from inside it
+            // unwinds to Program, which answers the same code. Here so the mapping is total.
+            case ConflictOutcomeState.Offline:
+                Console.Error.WriteLine(outcome.Message);
+                return ExitCode.Offline;
 
             default:
                 Console.Error.WriteLine(outcome.Message);

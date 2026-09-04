@@ -482,6 +482,17 @@ hash, folded into one digest. The archive is transport only.
   caller handed in an already-open connection would have paid for it before finding out.
   `ConflictOutcomeState` separates `Busy` from `Failed` for the same reason: nothing was tried.
 
+  **A null connection is `NotPaired`, never `Offline`, and the difference is a real install's
+  only way out.** `InstallSession.Authenticate` decides it without touching the wire: the two
+  returns carrying a null connection are a missing pairing row and a token that will not unlock.
+  Calling that offline tells a person whose passphrase-protected store will not open to try
+  again when they are back on the network, which will never be true, and it withheld the screen's
+  pairing offer at the same time, since that offer was gated on `Failed`. A paired install with
+  no `RomMDeviceId` is `NoDeviceId` for the same reason: its message is "Pair again", so it owes
+  `ExitCode.NotPaired` rather than the `Partial` a default arm gave it. `Offline` is left for the
+  front end that catches `RomMUnreachableException` round the call, which the service itself
+  never raises.
+
 - **`partial/unit-<guid>/` is live state for the length of a class C restore, and nothing holds
   a handle on it.** `SaveArchive.Extract` closes each entry's writer inside its own loop, so the
   staging directory sits unprotected across the hash, the copy aside, the `Remove` and the whole

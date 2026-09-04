@@ -3250,6 +3250,14 @@ is a shell over it. **The connection arrives as a factory rather than a connecti
 what preserves the agent's ordering: the lock comes first, because a resolution that cannot run
 is not worth a round trip.
 
+**Nothing to sign in with is a pairing problem, and saying "offline" made it unfixable.** The
+service reaches the wire only after `InstallSession.Authenticate` has handed back a connection,
+and the two returns that hand back null are a missing pairing row and a token that will not
+unlock. So a null connection is `ConflictOutcomeState.NotPaired` and a paired install with no
+`RomMDeviceId` is `NoDeviceId`, both of them offering the screen's pairing route and both mapping
+to `ExitCode.NotPaired`. `Offline` stays for the front end that catches `RomMUnreachableException`
+round the call, which is the only place it can honestly be decided.
+
 **Two verbs, on Start and Alternate, and no resolve-all.** A screen that put one side on the
 button that also confirms would make the commonest mispress the destructive one. Either default
 is the guess the conflict exists to avoid, so a button resolving twelve at once would be that
@@ -3383,6 +3391,14 @@ read off the schema**: the schema declares all eight nullable with none required
 consistent with "omit means null it", and a live write carrying one field left a rating of 7, the
 difficulty, the status, the backlog flag and `last_played` untouched. Verified end to end
 afterwards: a fresh session flushed and `now_playing` went back to false on its own.
+
+**The tidy-up follows the ingest entry by entry, not the batch.** The result array already says
+which sessions the server took, and a refused entry never reached an ingest, so it never set the
+flag; writing for it spends one request per rom on a batch that changed nothing. A duplicate is
+included, since the server holds that session from an earlier ingest that did set it. The write
+also never reads its response body: the caller wants "it worked" and nothing else, and a 2xx
+carrying an empty or non-JSON body would otherwise throw `RomMApiException` out of a tidy-up
+whose whole contract is that it cannot fail the flush that runs it.
 
 **Not proven, and named rather than implied.** Reverting a conversion has no verb on the
 interface, so the revert this pass cancelled was queued from the console; the screen and the

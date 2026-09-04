@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Identity;
@@ -158,24 +159,127 @@ public class ConflictScreenTests : IDisposable
     }
 
     [Fact]
-    public async Task With_no_server_the_conflict_is_left_alone_and_said_to_be_left_alone()
+    public async Task Nothing_to_sign_in_with_is_a_pairing_problem_and_is_said_to_be_one()
     {
+        // Driven through the factory the screens actually pass rather than a bare () => null,
+        // because the state under test is produced by an unpaired store and nothing else: this
+        // is the review finding that a test handing in null asserted a message no install could
+        // ever be shown.
+        using var unpaired = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(unpaired.Root).Session!;
+
+        Seed(session);
+
+        var outcome = await new ConflictResolutionService(session.Install, session.Store)
+            .ResolveAsync(
+                7,
+                "libretro:battery",
+                ConflictResolution.KeepServer,
+                () => UiConnection.Open(session, null),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(ConflictOutcomeState.NotPaired, outcome.State);
+
+        // Nothing was tried, so this says what did not happen and that the conflict is still
+        // there, rather than reading as a failure.
+        Assert.Contains("still here", outcome.Message, StringComparison.Ordinal);
+
+        // And it does not send them off to find a network. InstallSession.Authenticate has not
+        // gone near the wire at this point: every null-connection return it makes is a missing
+        // pairing row or a token that would not unlock.
+        Assert.DoesNotContain("network", outcome.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Pairing", outcome.Message, StringComparison.Ordinal);
+
+        Assert.Single(session.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task A_paired_install_with_no_device_id_is_told_to_pair_rather_than_told_it_failed()
+    {
+        // Paired, so the connection opens, and then there is no RomM device id to attribute an
+        // upload to. Its own state because the agent's exit code turns on it: dropping it into
+        // Failed made "Pair again." exit Partial, which tells a script some of the work landed.
         Seed();
+        ClearDeviceId(_session.Install.DatabasePath);
 
         var outcome = await new ConflictResolutionService(_session.Install, _session.Store)
             .ResolveAsync(
                 7,
                 "libretro:battery",
                 ConflictResolution.KeepServer,
-                () => null,
+                () => InstallSession.ConnectAuthenticated(Origin, "rmm_token"),
                 TestContext.Current.CancellationToken);
 
-        Assert.Equal(ConflictOutcomeState.Offline, outcome.State);
-
-        // Offline is a working state, so this says what did not happen and that the conflict is
-        // still there, rather than reading as a failure.
-        Assert.Contains("still here", outcome.Message, StringComparison.Ordinal);
+        // Nothing was sent: the device id is read before the resolver is built, so the
+        // connection this handed back is opened and disposed without a request on it.
+        Assert.Equal(ConflictOutcomeState.NoDeviceId, outcome.State);
+        Assert.Contains("Pair again", outcome.Message, StringComparison.Ordinal);
         Assert.Single(_session.Store.SaveConflicts.ListOpen());
+    }
+
+    /// <summary>
+    /// A pairing row whose <c>romm_device_id</c> never landed.
+    /// </summary>
+    /// <remarks>
+    /// Written round <c>SavePairing</c>, which takes the id as a non-null string and so cannot
+    /// produce this. It is a half-written pairing rather than a shape the API allows, which is
+    /// why the check exists at all.
+    /// </remarks>
+    private static void ClearDeviceId(string databasePath)
+    {
+        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE device SET romm_device_id = NULL WHERE id = 1;";
+        command.ExecuteNonQuery();
+    }
+
+    [Fact]
+    public async Task The_pairing_route_is_offered_when_pairing_is_what_is_missing()
+    {
+        // The other half of the same finding. The hint was gated on Failed, and an install with
+        // no usable token lands on NotPaired, so the offer was withheld in exactly the case it
+        // was written for and the screen reported a refusal with no route out of it.
+        using var unpaired = TempRetroBatTree.Create();
+        using var session = InstallSession.Open(unpaired.Root).Session!;
+
+        Seed(session);
+
+        var opened = Assert.Single(new ConflictResolutionService(session.Install, session.Store).Open());
+        var pairing = new ListScreen("Pair", () => [], _ => ScreenCommand.Stay);
+
+        var navigator = new Navigator(ConflictScreens.Detail(session, opened, null, () => pairing));
+
+        // Keep this device's save, then confirm it.
+        navigator.Handle(NavAction.Start);
+        navigator.Handle(NavAction.Accept);
+
+        var applying = Assert.IsType<ListScreen>(navigator.Current);
+
+        await WaitFor(() => applying.Rows.Count > 0);
+
+        var hint = Assert.Single(applying.Hints, h => h.Action == NavAction.Start);
+        Assert.Equal("Pair with RomM", hint.Label);
+
+        // And it goes somewhere, rather than naming a verb that does nothing.
+        navigator.Handle(NavAction.Start);
+        Assert.Same(pairing, navigator.Current);
+    }
+
+    private static async Task WaitFor(Func<bool> condition)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        }
+
+        Assert.Fail("the condition never became true");
     }
 
     [Fact]
@@ -214,8 +318,10 @@ public class ConflictScreenTests : IDisposable
     /// Not through a sync. What these tests are about is the screen and the lock, and a
     /// negotiated conflict is <see cref="SaveConflictTests"/>'s subject with its own fixture.
     /// </remarks>
-    private void Seed() =>
-        _session.Store.SaveConflicts.Record(
+    private void Seed() => Seed(_session);
+
+    private static void Seed(InstallSession session) =>
+        session.Store.SaveConflicts.Record(
             new SaveConflictRecord(
                 7,
                 "libretro:battery",
