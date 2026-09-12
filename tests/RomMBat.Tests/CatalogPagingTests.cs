@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using RomM.Client;
 using RomM.Client.Catalog;
 using RomMBat.Tests.Support;
@@ -19,6 +20,29 @@ namespace RomMBat.Tests;
 public class CatalogPagingTests
 {
     private static readonly Uri Origin = new("https://romm.invalid/");
+
+    [Fact]
+    public void A_hash_the_server_left_blank_arrives_as_absent_rather_than_as_an_empty_value()
+    {
+        // Measured on a live 5.1.x instance, GET /api/roms/191723: an absent hash is an empty
+        // string, not null, and the two are the same fact. Settled at the boundary because every
+        // consumer asks whether there is a hash to compare against, and a blank that survives it
+        // is a value that can never match.
+        var row = JsonSerializer.Deserialize<RomRow>(
+            """
+            {
+              "id": 191723,
+              "md5_hash": "",
+              "sha1_hash": "a5d460d39f5f9097a42e2d4907505fdd36eb7834",
+              "crc_hash": "   "
+            }
+            """);
+
+        Assert.NotNull(row);
+        Assert.Null(row.Md5Hash);
+        Assert.Null(row.CrcHash);
+        Assert.Equal("a5d460d39f5f9097a42e2d4907505fdd36eb7834", row.Sha1Hash);
+    }
 
     [Fact]
     public void Every_page_request_turns_the_costly_sidecars_off()

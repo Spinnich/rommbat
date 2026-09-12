@@ -19,6 +19,10 @@ namespace RomM.Client.Catalog;
 /// </remarks>
 public sealed record FirmwareRow
 {
+    private readonly string? _md5Hash;
+    private readonly string? _sha1Hash;
+    private readonly string? _crcHash;
+
     [JsonPropertyName("id")]
     public int Id { get; init; }
 
@@ -30,14 +34,29 @@ public sealed record FirmwareRow
     public long SizeBytes { get; init; }
 
     /// <summary>The only thing the join reads.</summary>
+    /// <remarks>
+    /// Null covers both shapes the server uses to say it has none, per <see cref="ServerHash"/>.
+    /// </remarks>
     [JsonPropertyName("md5_hash")]
-    public string? Md5Hash { get; init; }
+    public string? Md5Hash
+    {
+        get => _md5Hash;
+        init => _md5Hash = ServerHash.OrNull(value);
+    }
 
     [JsonPropertyName("sha1_hash")]
-    public string? Sha1Hash { get; init; }
+    public string? Sha1Hash
+    {
+        get => _sha1Hash;
+        init => _sha1Hash = ServerHash.OrNull(value);
+    }
 
     [JsonPropertyName("crc_hash")]
-    public string? CrcHash { get; init; }
+    public string? CrcHash
+    {
+        get => _crcHash;
+        init => _crcHash = ServerHash.OrNull(value);
+    }
 
     /// <summary>
     /// RomM's own verdict on the file, which RomMBat never filters on.

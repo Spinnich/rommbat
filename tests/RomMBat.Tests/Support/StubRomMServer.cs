@@ -824,8 +824,11 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             fs_name = rom.FsName,
             fs_extension = rom.Extension,
             fs_size_bytes = rom.SizeBytes,
-            md5_hash = rom.Md5Hash,
-            sha1_hash = rom.Sha1Hash,
+            // Empty rather than null on purpose: a live 5.1.x instance answers "md5_hash": ""
+            // for a rom it holds no hash for, and a stub that answers null instead hides the
+            // one shape the client has to survive.
+            md5_hash = rom.Md5Hash ?? string.Empty,
+            sha1_hash = rom.Sha1Hash ?? string.Empty,
             has_multiple_files = rom.HasMultipleFiles,
             name = rom.Name,
             name_sort_key = rom.Name,

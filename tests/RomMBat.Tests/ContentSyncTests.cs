@@ -390,6 +390,79 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_rom_the_server_publishes_no_hash_for_is_adopted_on_size_and_stays_adopted()
+    {
+        // 9% of a real library carries no md5 and the server says so with an empty string, so
+        // this is the end to end shape of the size-only adoption path: nothing to compare
+        // against, a file of exactly the right length, and a second run that fetches nothing.
+        var content = Encoding.UTF8.GetBytes(new string('H', 4096));
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Game", "Game.sfc", "sfc", content.Length));
+        stub.Content[1] = content;
+
+        using var store = LocalStore.Open(_tree.Install());
+        var install = _tree.Install();
+
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+        var member = Members(store).Single();
+        Assert.Null(member.Md5Hash);
+        Assert.Null(member.Sha1Hash);
+
+        var target = install.Resolve(ContentPlanner.TargetFor(member));
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllBytes(target, content);
+
+        var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
+        var step = Assert.Single(plan.Steps);
+
+        Assert.Equal(ContentAction.Adopt, step.Action);
+        Assert.Contains("no hash", step.Reason, StringComparison.Ordinal);
+
+        using var connection = Connect(stub);
+        var outcome = await new ContentSync(install, store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Adopted);
+        Assert.Empty(stub.ContentRequests);
+
+        // And it stays adopted, which is the half the bug never reached.
+        var second = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(second.IsNoOp);
+        Assert.Empty(stub.ContentRequests);
+    }
+
+    [Fact]
+    public async Task A_member_carrying_a_blank_hash_is_adopted_on_size_rather_than_re_downloaded()
+    {
+        // The permanent-failure shape: a member whose hash is blank rather than null reaches the
+        // planner, an empty string is not null, and the size-only adoption path is unreachable.
+        // The file is re-planned as a download on every sync and refused again by verification
+        // afterwards, forever. A member arrives this way from the per-game install path, which
+        // plans the row it was picked from rather than one read back out of SQLite.
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+        var install = _tree.Install();
+
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+        var member = Members(store).Single() with { Md5Hash = string.Empty, Sha1Hash = string.Empty };
+        var target = install.Resolve(ContentPlanner.TargetFor(member));
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllBytes(target, stub.Content[member.RomId]);
+
+        var plan = new ContentPlanner(install, store).Plan(Set(store), [member]);
+        var step = Assert.Single(plan.Steps);
+
+        Assert.Equal(ContentAction.Adopt, step.Action);
+        Assert.Contains("no hash", step.Reason, StringComparison.Ordinal);
+        Assert.Equal(0, step.BytesToTransfer);
+    }
+
+    [Fact]
     public async Task A_rom_the_filesystem_cannot_hold_is_refused_before_anything_is_written()
     {
         using var stub = new StubRomMServer();

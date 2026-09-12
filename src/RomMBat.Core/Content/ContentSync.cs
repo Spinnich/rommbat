@@ -464,7 +464,7 @@ public sealed class ContentSync
         // check that remains. VerificationOf still records a hash that happens to agree.
         if (fingerprint.DescribesLibraryContent)
         {
-            if (member.Md5Hash is not null && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
+            if (!string.IsNullOrWhiteSpace(member.Md5Hash) && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
             {
                 return (null, "the downloaded file does not match the md5 the server reported.");
             }

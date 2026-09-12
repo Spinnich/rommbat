@@ -343,7 +343,10 @@ public sealed class ContentPlanner
         // sample migration 013 was written from and finding 85 disagree, by about a hundred rows
         // in 1,895. Either way the answer here is recorded as VerifiedBy.Size rather than passed
         // off as a hash check.
-        var nothingToCompare = member.Md5Hash is null;
+        // Blank rather than null, because a member can be read back from a store or built by a
+        // caller that never passed through the client's boundary, and a blank hash is absence
+        // wearing a value.
+        var nothingToCompare = string.IsNullOrWhiteSpace(member.Md5Hash);
 
         if (info.Length == member.SizeBytes && (nothingToCompare || !fingerprint.DescribesLibraryContent))
         {
