@@ -336,8 +336,13 @@ libHarfBuzzSharp.dll    1.7 MB
 `IncludeNativeLibrariesForSelfExtract=true` does produce one file, and it was measured at
 61 MB trimmed. It is not used, because self-extraction unpacks the natives into the **host's**
 temp directory rather than the tree, which is the thing core principle 4 forbids and would
-happen afresh on every machine a portable drive is carried to. M8's installer therefore places
-five files, and losing one of them breaks the app.
+happen afresh on every machine a portable drive is carried to.
+
+**An install is seven files, not five.** These five are the UI's publish; the agent adds
+`rommbat-agent.exe` and the hook adds `rommbat-hook.exe`, and the agent's own `e_sqlite3.dll`
+is byte-identical to the UI's, so one copy in the shared directory serves both. `tools/publish.ps1`
+assembles exactly those seven and refuses to package a set missing any, because losing one
+breaks the app at launch with nothing a user can read.
 
 **Input is read, never detected.** The controller map comes from the live `es_input.cfg`,
 which records which physical input is `a` on that pad rather than what kind of pad it is, and

@@ -1,8 +1,8 @@
 name: Build
 
-# Compiles the solution and runs the unit suite. Windows is the target platform and
-# the only one the tree is guaranteed to build on, since RomMBat publishes win-x64
-# self-contained. The publish step is not run here; see release.yml.
+# Compiles the solution and runs the unit suite, then packages the portable artefact.
+# Windows is the target platform and the only one the tree is guaranteed to build on,
+# since RomMBat publishes win-x64 self-contained.
 
 on:
   push:
@@ -50,8 +50,9 @@ jobs:
         run: dotnet test --configuration Release --no-build --output Detailed
 
   # The self-contained publish is the shipped artefact, so a compile that succeeds but cannot
-  # be published is not a green build. One file for the agent and the hook; the UI is the exe
-  # plus its native libraries, because bundling those unpacks them outside the tree.
+  # be published is not a green build. Only the hook is one file: the agent is two and the UI
+  # five, because bundling the natives unpacks them outside the tree, and deduplicating the
+  # sqlite native the agent and the UI share leaves the seven an install needs.
   publish-check:
     runs-on: windows-latest
 
@@ -63,33 +64,18 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Publish agent
-        run: >
-          dotnet publish src/RomMBat.Agent
-          -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true
-          -o publish/agent
-
-      - name: Publish UI
-        run: >
-          dotnet publish src/RomMBat.UI
-          -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true
-          -o publish/ui
-
-      # The only project in the tree that is trimmed, and a trimming regression compiles
-      # cleanly and fails here. Four copies of this are installed, one per ES event folder,
-      # so its size is the reason it is trimmed and this is what keeps that honest.
-      - name: Publish hook
-        run: >
-          dotnet publish src/RomMBat.Hook
-          -c Release -r win-x64 --self-contained
-          -p:PublishSingleFile=true
-          -o publish/hook
+      # One script rather than three publish steps, so CI and a developer's machine cannot
+      # disagree about what an install needs. It refuses to package a set missing any of the
+      # seven files, which is what a trimming or native-asset regression looks like: the hook
+      # is the only trimmed project in the tree, and a UI short one native library installs
+      # cleanly and fails at launch.
+      - name: Publish and package
+        shell: pwsh
+        run: ./tools/publish.ps1
 
       - name: Upload artefacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rommbat-win-x64
-          path: publish/
+          path: publish/rommbat-win-x64.zip
           retention-days: 7
