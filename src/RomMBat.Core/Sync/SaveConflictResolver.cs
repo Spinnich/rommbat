@@ -22,16 +22,25 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// <para>
 /// <b><c>overwrite=true</c> is used here and nowhere else.</b> A conflict means this device's
 /// sync record is stale for the slot, so an ordinary upload is refused with a 409. Retrying with
-/// overwrite replaces the server's row in place rather than appending, which is correct only
-/// once a person has chosen to discard what was there, and is exactly why stage 1 declined to
-/// do it automatically: appending would have made the local side newest and told every other
-/// device to take it, resolving the conflict silently in favour of whoever synced last.
+/// overwrite is what gets past that refusal, and it is correct only once a person has chosen
+/// which side to keep. That is exactly why stage 1 declined to do it automatically: uploading
+/// unasked would have made the local side newest and told every other device to take it,
+/// resolving the conflict silently in favour of whoever synced last.
+/// </para>
+/// <para>
+/// <b>What it does not do is replace the server's row in place, and this remark used to say it
+/// did.</b> Measured on the live instance during M7 stage 7b-3's hands-on pass: a keep-local on
+/// a psp class C unit left save id 187 standing and created id 193 beside it, one second after
+/// the local record was written. So <c>overwrite</c> means "supersede", not "overwrite", and the
+/// server keeps the previous row as history. The paragraph below always said so, which made the
+/// two halves of this remark contradict each other until the pass settled which was true.
 /// </para>
 /// <para>
 /// <b>Nothing is discarded either way.</b> Keeping the server's copy runs the same verified
 /// restore an ordinary download does, and the local file it replaces was already copied aside
 /// when the conflict was first seen. Keeping the local copy leaves the server's previous
-/// row in the slot's history, which <c>autocleanup_limit=10</c> bounds.
+/// row in the slot's history, which <c>autocleanup_limit=10</c> bounds. Confirmed against the
+/// live instance rather than assumed: two rows for the slot afterwards, the older untouched.
 /// </para>
 /// </remarks>
 public sealed class SaveConflictResolver

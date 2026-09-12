@@ -204,7 +204,21 @@ pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added t
 syncing every set or one set with live progress, a stop that leaves the tree correct, and the
 budget as it is spent. **Stage 7b-2c added browse, per-game install and removal**: finding one
 game a page at a time, installing it in one press, and taking a game or a whole set back off.
-Conflict resolution and acting on the queued-config surface are 7b-3.
+**Stage 7b-3 added conflicts, the platform mapping and the queue's write half**, and turned the
+root into a list of verbs.
+
+**The root is a list because the buttons ran out.** It put one action on each of Accept, Start,
+Extra and Alternate, which is every button a screen has, and 7b-3 needed three more entry points
+than that. `RootScreens.Menu` is that list; `StatusViewModel` kept the facts and lost the verbs,
+one press behind the row naming it. The counts that motivate a verb (conflicts, unmapped
+platforms, queued changes) are on the rows themselves, because burying a number a person has to
+act on would mean the interface knew about a stalled sync and did not say so.
+
+**Resolving a conflict is Core's, because the UI can never take `TreeLock`.** It runs the same
+class C restore a flush does, and two at once leave a shared container half swapped.
+`ConflictResolutionService` holds the lock, refuses rather than treating a failed acquire as
+done, and words every outcome; `saves resolve` is a shell over it. It takes a connection factory
+rather than a connection, so the lock is still taken before anything is asked of the server.
 
 **Browse holds one page and moves by page**, 50 rows, and it is the only screen that is not a
 `ListScreen`: everything else has all its rows the moment it opens. It starts on the platform
@@ -219,10 +233,12 @@ one a screen is.** A list of choices has a cursor, wraps, and draws each row as 
 that fills accent when selected. A pane of facts has **no cursor at all**, scrolls by an offset
 so every press moves the view, clamps at both ends, and draws its rows as plain lines. Dressing
 the second as the first is what a hands-on pass reported twice, as information shown as buttons
-that do nothing. `IWindowedScreen` pairs the row count with the row height, so a screen answers
-"am I reading" once and `ListWindow.CapacityFor` and `RowHeightFor` both follow: told separately,
-a screen computed a window of eight and was drawn at the 122 px reading height, which overflows
-the display by exactly the margin the reading capacity exists to avoid.
+that do nothing. `IWindowedScreen` makes the row count follow from the same answer, so a screen
+says "am I reading" once and `ListWindow.CapacityFor` follows: told separately, a screen computed
+a window of eight and was drawn at the 122 px reading height, which overflows the display by
+exactly the margin the reading capacity exists to avoid. **There is no reading row height any
+more.** A pane of facts is drawn by the body that draws a status row and its block is bounded by
+`ListWindow.ContentBudget`, so there is no second number left to disagree with the first.
 
 **Freeing space is on the interface now, and the ruling that took eviction off it stands.**
 RomMBat still never chooses which games matter least. What a person can do is name one: delete a

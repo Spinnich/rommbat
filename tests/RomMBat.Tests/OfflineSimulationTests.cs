@@ -59,7 +59,43 @@ public class OfflineSimulationTests
 
         var clock = store.Clock.Read();
         Assert.NotNull(clock.LastContactUtc);
-        Assert.InRange(clock.Skew!.Value.TotalSeconds, 179, 181);
+        Assert.NotNull(clock.RoundTrip);
+
+        // Skew is localNow - (serverDate + roundTrip / 2), so a fixed window around 180 is a
+        // latency budget wearing a tolerance's clothing: it silently requires the round trip to
+        // stay under two seconds, and a cold CI runner spent longer than that on the first call
+        // and read 178.75. Asserted against the round trip this run actually measured, rather
+        // than against how fast the machine was.
+        //
+        // A bound rather than an equality, because the two sides carry different precision:
+        // skew_seconds is stored as a double and round_trip_ms as (long)TotalMilliseconds, so
+        // the round trip read back has lost up to 1 ms of what the skew was computed from,
+        // which is up to 0.5 ms of skew. Comparing them to three decimal places is therefore a
+        // coin toss on the fractional millisecond, and CI lost it by 0.37 ms.
+        var reconstructed = TimeSpan.FromMinutes(3) - (clock.RoundTrip!.Value / 2);
+        var drift = (clock.Skew!.Value - reconstructed).Duration();
+
+        Assert.True(
+            drift <= TimeSpan.FromMilliseconds(1),
+            $"skew {clock.Skew.Value.TotalSeconds}s is {drift.TotalMilliseconds}ms from the "
+                + $"{reconstructed.TotalSeconds}s the stored round trip reconstructs, which is "
+                + "further than truncating the round trip to whole milliseconds can account for.");
+
+        // And still suspicious, which is the claim that does not depend on the timing at all.
+        Assert.True(clock.IsSkewSuspicious);
+    }
+
+    [Fact]
+    public void Skew_is_corrected_for_half_the_round_trip()
+    {
+        // The halving is what the contact test above can only approximate: a stub answers in
+        // under two milliseconds and the stored round trip is truncated to whole ones, so the
+        // correction there is smaller than the precision the comparison survives. Here the round
+        // trip is chosen rather than measured, nothing is persisted, and a version that dropped
+        // the halving fails by a whole second.
+        Assert.Equal(
+            TimeSpan.FromMinutes(3) - TimeSpan.FromSeconds(1),
+            ClockSkew.Measure(Start, Start.AddMinutes(3), TimeSpan.FromSeconds(2)));
     }
 
     [Fact]

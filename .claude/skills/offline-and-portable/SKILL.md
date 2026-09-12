@@ -217,6 +217,17 @@ the source of truth; the network is optional, probed with a short-timeout
   is wrong: the whole point of defining a set on a handheld away from its server is that it can
   be done.
 
+  **The platform mapping is offline too, and its repair is install-wide.** `platform_map` is
+  written by every resolve and every browse, so every row the mapping screen shows, and the
+  override that fixes one, are local. A screen that waited on an unreachable LAN host to show
+  them would trade the working state for nothing, which is why 7b-3's screen takes no connection
+  at all. The agent's `platforms list` refreshes first because it can; the interface does not,
+  and that is a decision rather than a gap.
+
+  **A per-set folder override is not the repair for an unmapped platform**, and reaching for it
+  is the mistake this screen exists to stop. The mapping is install-wide and an override mends
+  one set while leaving every other set and every future set with the same hole.
+
   **Eviction is offline too and has no screen**, which are two separate facts and 7b-2b settled
   both. `EvictionService` in Core is a preview from two local scans and a walk of `local_file`,
   and carrying it out deletes files and rewrites gamelists from local state, so `rommbat-agent

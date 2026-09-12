@@ -281,7 +281,56 @@ public sealed partial class RomMConnection
     /// <summary>The server's own cap, measured: 101 entries answer 400.</summary>
     public const int PlaySessionBatchLimit = 100;
 
-    private async Task<RomMResponse<TResult>> PostAuthenticatedAsync<TBody, TResult>(
+    /// <summary>
+    /// Says this device is no longer playing a game.
+    /// </summary>
+    /// <remarks>
+    /// <b>Because ingesting a finished session sets <c>now_playing</c> and nothing clears it.</b>
+    /// Measured on the live instance: ten roms RomMBat had reported a session for were all
+    /// <c>now_playing=true</c>, one of them played two days earlier, while a rom it had never
+    /// reported was false. So a library accumulates a permanent claim that the user is playing
+    /// everything they have ever launched.
+    /// <para>
+    /// <b>Not the heartbeat.</b> <c>DELETE /api/activity/heartbeat</c> answers 204 and does not
+    /// touch this: it clears the presence feed at <c>GET /api/activity</c>, which RomMBat never
+    /// posts to and which is empty. Two mechanisms that look alike, and this is the other one.
+    /// </para>
+    /// <para>
+    /// A partial <c>PUT</c> leaves every other property alone, which is measured and recorded on
+    /// <see cref="RomUserNowPlaying"/>.
+    /// </para>
+    /// <para>
+    /// <b>The body is never read.</b> The caller wants "it worked" and nothing else, and reading
+    /// it would let a 2xx carrying an empty or non-JSON body throw <c>RomMApiException</c> out
+    /// of a tidy-up whose whole contract is that it cannot fail the flush that runs it.
+    /// </para>
+    /// </remarks>
+    public Task<RomMResponse<bool>> ClearNowPlayingAsync(
+        int romId,
+        CancellationToken cancellationToken = default) =>
+        PutAuthenticatedAsync<RomUserNowPlaying, bool>(
+            $"api/roms/{romId}/props",
+            new RomUserNowPlaying(false),
+            cancellationToken,
+            emptyBodyValue: true);
+
+    private Task<RomMResponse<TResult>> PostAuthenticatedAsync<TBody, TResult>(
+        string path,
+        TBody body,
+        CancellationToken cancellationToken,
+        TResult? emptyBodyValue = default) =>
+        SendAuthenticatedAsync<TBody, TResult>(HttpMethod.Post, path, body, cancellationToken, emptyBodyValue);
+
+    private Task<RomMResponse<TResult>> PutAuthenticatedAsync<TBody, TResult>(
+        string path,
+        TBody body,
+        CancellationToken cancellationToken,
+        TResult? emptyBodyValue = default) =>
+        SendAuthenticatedAsync<TBody, TResult>(HttpMethod.Put, path, body, cancellationToken, emptyBodyValue);
+
+    /// <summary>One body for both, because they differ only in the verb.</summary>
+    private async Task<RomMResponse<TResult>> SendAuthenticatedAsync<TBody, TResult>(
+        HttpMethod method,
         string path,
         TBody body,
         CancellationToken cancellationToken,
@@ -294,7 +343,7 @@ public sealed partial class RomMConnection
                 "No access token is stored. Pair first.");
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, Resolve(path))
+        using var request = new HttpRequestMessage(method, Resolve(path))
         {
             Content = JsonContent.Create(body, options: SerializerOptions),
         };
