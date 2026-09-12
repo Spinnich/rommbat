@@ -40,8 +40,8 @@
     generated output is committed, so nothing generates at build time.
   -->
   <ItemGroup Label="UI">
-    <PackageVersion Include="Avalonia" Version="11.3.20" />
-    <PackageVersion Include="Avalonia.Win32" Version="11.3.20" />
+    <PackageVersion Include="Avalonia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Win32" Version="12.1.2" />
     <PackageVersion Include="Avalonia.Skia" Version="11.3.20" />
     <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.20" />
   </ItemGroup>
