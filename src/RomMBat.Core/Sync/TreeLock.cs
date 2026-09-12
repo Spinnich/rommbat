@@ -24,11 +24,13 @@ namespace RomMBat.Core.Sync;
 /// hook that blocks is a hook running inside the game-launch path.
 /// </para>
 /// <para>
-/// <b>The other two holders cannot say that, because nobody is doing their work.</b>
+/// <b>The other three holders cannot say that, because nobody is doing their work.</b>
 /// <c>saves resolve</c> runs the same class C restore a flush does, and refuses with an exit
-/// code rather than returning as though it had resolved anything. <c>evict</c>'s sweep of
-/// <c>partial/</c> reclaims nothing and says the next pass will, because one of the things it
-/// would delete is a restore's staging directory and no handle protects it.
+/// code rather than returning as though it had resolved anything. <c>saves restore --apply</c>
+/// writes into <c>saves/</c> the way a download does and refuses for the same reason.
+/// <c>evict</c>'s sweep of <c>partial/</c> reclaims nothing and says the next pass will, because
+/// one of the things it would delete is a restore's staging directory and no handle protects
+/// it.
 /// </para>
 /// </remarks>
 public sealed class TreeLock : IDisposable

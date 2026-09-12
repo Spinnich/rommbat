@@ -449,6 +449,59 @@ hash, folded into one digest. The archive is transport only.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
   sync record is stale, not when the save is newest overall.
+- **Restore cannot be built on `negotiate`, and this is measured.** The server answers negotiate
+  from its own per-device sync record, not from what the client claims. A save this device
+  uploaded and acknowledged comes back `no_op`, "No changes since last sync", **even with the
+  file deleted from the tree and even when the slot is claimed with `content_hash: null`**. So
+  the one save a restore exists for is precisely the one negotiate will never offer.
+
+  Two things that are easy to get backwards here. An **empty** negotiate does return work: 21
+  operations on the measured install, each reading "Save exists on server but not on client".
+  Every one of them was for a ROM **not** installed, which is the ordinary
+  `skipped, for games not synced here` line and is correct. And enumerating absent slots into
+  the request adds nothing, because the server was already volunteering everything it believed
+  the device lacked.
+
+  `saves restore` therefore walks `GET /api/saves` and filters locally. Unfiltered on purpose:
+  the parameters are `rom_id`, `platform_id`, `device_id` and `slot`, none of which takes a
+  list, and a save exists only where someone played, so one request returned 55 rows against a
+  96,000-ROM library.
+
+  **It is never automatic.** A save that reappears because a flush decided it should is
+  indistinguishable from a bug to whoever deleted it deliberately, so finding is separate from
+  restoring and `--apply` is required for either.
+
+  **The find applies every guard the flush's download applies, at the same decision point.** A
+  restore reaches `DownloadAsync` with a null local save, which is the same state an unsolicited
+  negotiate download arrives in, so a rule written into the flush and not into the find is a rule
+  the restore path does not have. The class C guard is the one that bites: with the ROM installed
+  and no local unit, a `ppsspp:savedata` row resolves a target, passes `File.Exists` and takes the
+  **class A** path, where a null `content_hash` skips verification entirely and the archive lands
+  as `saves/psp/<stem>.zip`. Listing it in a preview is already a claim that it can be brought
+  back, so it is named with a reason instead, the same reason the flush gives.
+
+  **The write half holds `TreeLock` and refuses rather than skipping.** `saves restore --apply` is
+  a third holder beside `saves resolve` and `evict`'s sweep, and for the same reason: it does
+  `MoveAside`, `File.Move` and `Saves.Record` over the files a flush is concurrently hashing and
+  uploading, and the ES `quit` hook spawns a detached `background quit` flush that nobody sees. A
+  flush treats a held lock as success because somebody else is doing its work; nobody is doing a
+  restore's, so a failed acquire is `Refused` with an exit code. The `partial/save-<id>.part`
+  write is **not** the part that needs it: it is opened `FileShare.None`, which is what producers
+  outside the lock rely on. The tree write is.
+
+- **A server save can carry no slot at all**, written by a client that sets none, and
+  `local_save.slot` is `CHECK`ed non-empty. Keying that as the empty string threw SQLite error
+  19 **after the bytes were on disk**, leaving a save in the tree with no row behind it and
+  aborting the rest of the batch. Derive a slot instead. **Null is not the only value that does
+  this**: the CHECK refuses the empty string and whitespace the same way, `local_save.emulator`
+  has its own, and `SaveScanner.SlotFor` throws on a blank emulator before a CHECK is reached, so
+  the test is blankness rather than nullness on both columns. It reaches further than it looks:
+  a restore covers **any** installed ROM, not only this device's own uploads, so the values
+  arriving are other clients' free text. The derived value is provisional: the
+  next scan re-keys a loose save to the loose emulator, measured as `fceumm:battery` becoming
+  `libretro:battery`, which is the scanner being authoritative and costs one correction with no
+  duplicate row.
+
 - **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
   that found it, the local file is copied aside **once per conflict rather than once per
   flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no

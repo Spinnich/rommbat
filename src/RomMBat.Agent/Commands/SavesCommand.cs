@@ -1,3 +1,4 @@
+using System.Globalization;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Store;
@@ -32,6 +33,11 @@ internal static class SavesCommand
         if (command.Positional is ["resolve", ..])
         {
             return await ResolveAsync(context, command, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (command.Positional is ["restore", ..])
+        {
+            return await RestoreAsync(context, command, cancellationToken).ConfigureAwait(false);
         }
 
         if (command.Positional is ["bind", ..])
@@ -683,6 +689,132 @@ internal static class SavesCommand
                 Console.Error.WriteLine(outcome.Message);
                 return ExitCode.Partial;
         }
+    }
+
+    /// <summary>
+    /// <c>saves restore</c>: puts back a save the server holds and this device does not.
+    /// </summary>
+    /// <remarks>
+    /// <b>A preview by default, in the shape of <c>bios</c> and <c>evict</c>.</b> Nothing is
+    /// written without <c>--apply</c>.
+    /// <para>
+    /// <b>Nothing calls this from a sync, and that is the design rather than an omission.</b> A
+    /// save that comes back because a flush decided it should is indistinguishable from a bug to
+    /// whoever deleted it deliberately, so a restore is always asked for.
+    /// </para>
+    /// </remarks>
+    private static async Task<int> RestoreAsync(
+        AgentContext context,
+        CommandLine command,
+        CancellationToken cancellationToken)
+    {
+        var exitCode = ExitCode.Ok;
+        var connection = context.Authenticate(command, Console.Error, out exitCode);
+
+        if (connection is null)
+        {
+            return exitCode;
+        }
+
+        if (context.Store.Device.Read()?.RomMDeviceId is not { } deviceId)
+        {
+            Console.Error.WriteLine("This install is paired but has no RomM device id. Pair again.");
+            return ExitCode.NotPaired;
+        }
+
+        var sync = new SaveSync(context.Install, context.Store, connection, deviceId);
+        var found = await sync.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!found.IsSuccess || found.Value is not { } findings)
+        {
+            Console.Error.WriteLine(found.Message ?? "The save list could not be read.");
+            return ExitCode.Offline;
+        }
+
+        var restorable = findings.Restorable;
+        var unrestorable = findings.Unrestorable;
+
+        // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
+        // is not made to take every save back.
+        if (command.Positional is [_, var romText, ..])
+        {
+            if (!int.TryParse(romText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var romId))
+            {
+                Console.Error.WriteLine($"'{romText}' is not a rom id.");
+                return ExitCode.Usage;
+            }
+
+            var slot = command.Positional.Count > 2 ? command.Positional[2] : null;
+
+            restorable = [.. restorable.Where(save =>
+                save.RomId == romId
+                && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+
+            unrestorable = [.. unrestorable.Where(save =>
+                save.RomId == romId
+                && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+        }
+
+        // Ahead of the "nothing to restore" line, because a save the server holds and this device
+        // cannot place is not nothing, and saying nothing about it is what would send somebody
+        // looking for a bug in the server.
+        foreach (var save in unrestorable)
+        {
+            Console.Error.WriteLine(
+                $"  rom {save.RomId} slot {(save.Slot.Length == 0 ? "(none)" : save.Slot)}: {save.Reason}");
+        }
+
+        // Only --apply can end Partial. A preview was not asked to change anything, so a save it
+        // named as unplaceable is an advisory rather than a failed attempt.
+        var applying = command.Has("apply");
+
+        if (restorable.Count == 0)
+        {
+            Console.WriteLine(
+                unrestorable.Count > 0
+                    ? "Nothing to restore: the saves above are the only ones missing here, and none can be placed."
+                    : "Nothing to restore: every save the server holds for a game on this device is already here.");
+
+            return applying && unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
+        }
+
+        foreach (var save in restorable)
+        {
+            var when = save.ServerUpdatedAt is { } stamp
+                ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                : "unknown";
+
+            Console.WriteLine(
+                $"  rom {save.RomId}  slot {(save.Slot.Length == 0 ? "(none)" : save.Slot),-20} "
+                    + $"{ByteSize.Format(save.SizeBytes),9}  {when}  {save.Destination}");
+        }
+
+        Console.WriteLine();
+
+        if (!applying)
+        {
+            Console.WriteLine(
+                $"{restorable.Count} to restore. Nothing was written. Run 'saves restore --apply' to bring these in.");
+            return ExitCode.Ok;
+        }
+
+        var outcome = await sync.RestoreAsync(restorable, cancellationToken).ConfigureAwait(false);
+
+        foreach (var problem in outcome.Problems)
+        {
+            Console.Error.WriteLine("  " + problem);
+        }
+
+        // Nothing was attempted, so there is no count to print and it is not a partial run.
+        if (outcome.Refused)
+        {
+            return ExitCode.Refused;
+        }
+
+        Console.WriteLine(
+            $"restored {outcome.Restored}, failed {outcome.Failed}, {ByteSize.Format(outcome.BytesTransferred)}");
+
+        return outcome.Failed > 0 || unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
     }
 
     private static string Short(string? hash) =>

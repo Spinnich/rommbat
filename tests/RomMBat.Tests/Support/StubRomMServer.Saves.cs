@@ -71,6 +71,16 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> UnsolicitedDownloads { get; } = [];
 
     /// <summary>
+    /// Rom ids to offer as a download whose <c>slot</c> is null.
+    /// </summary>
+    /// <remarks>
+    /// A real shape, not a synthetic one: a save uploaded by a client that sets no slot comes
+    /// back from <c>GET /api/saves</c> with <c>"slot": null</c>, measured on 5.2.0. The client
+    /// used to key that as the empty string, which <c>local_save.slot</c> refuses with a CHECK.
+    /// </remarks>
+    public HashSet<int> SlotlessDownloads { get; } = [];
+
+    /// <summary>
     /// Slots negotiate offers a <c>conflict</c> for that the client did not submit.
     /// </summary>
     /// <remarks>
@@ -195,7 +205,13 @@ internal sealed partial class StubRomMServer
 
         if (path.EndsWith("/api/saves", StringComparison.Ordinal))
         {
-            return await UploadSaveAsync(request, cancellationToken).ConfigureAwait(false);
+            // Both halves of the save API live on this one path and AbsolutePath has already
+            // dropped the query string, so the method is the only thing that tells them apart.
+            // Routing unconditionally to the upload handler answered a restore's GET with the
+            // multipart parser.
+            return request.Method == HttpMethod.Get
+                ? ListSaves()
+                : await UploadSaveAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         if (path.EndsWith("/downloaded", StringComparison.Ordinal))
@@ -263,6 +279,24 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = existing?.Emulator,
                 reason = "held on the server and not on this device",
+                server_updated_at = existing?.UpdatedAt,
+                server_content_hash = HashLie ?? existing?.ContentHash,
+            });
+        }
+
+        foreach (var romId in SlotlessDownloads)
+        {
+            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId);
+
+            operations.Add(new
+            {
+                action = "download",
+                rom_id = romId,
+                save_id = existing?.Id,
+                file_name = existing?.FileName,
+                slot = (string?)null,
+                emulator = existing?.Emulator,
+                reason = "held on the server with no slot",
                 server_updated_at = existing?.UpdatedAt,
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });
@@ -509,7 +543,23 @@ internal sealed partial class StubRomMServer
         });
     }
 
-    private static object Describe(StubSave save) => new
+    /// <summary>
+    /// <c>GET /api/saves</c>: every save the account holds, which is what a restore walks.
+    /// </summary>
+    /// <remarks>
+    /// Unfiltered, because none of the endpoint's parameters takes a list and the client
+    /// therefore asks for all of them and filters locally.
+    /// </remarks>
+    private HttpResponseMessage ListSaves() =>
+        Json(
+            HttpStatusCode.OK,
+            Saves.Values
+                .Select(save => Describe(save, SlotlessDownloads.Contains(save.RomId)))
+                .ToArray());
+
+    // slotless lists the row with "slot": null, the shape a client that sets none leaves
+    // behind. Both endpoints have to describe such a row, so the one knob drives both.
+    private static object Describe(StubSave save, bool slotless = false) => new
     {
         id = save.Id,
         rom_id = save.RomId,
@@ -521,7 +571,7 @@ internal sealed partial class StubRomMServer
         file_extension = save.FileExtension,
         file_size_bytes = save.Bytes.Length,
         content_hash = save.ContentHash,
-        slot = save.Slot,
+        slot = slotless ? null : save.Slot,
         emulator = save.Emulator,
         origin_device_id = save.OriginDeviceId,
         updated_at = save.UpdatedAt,
