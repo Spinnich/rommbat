@@ -205,6 +205,14 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   count is free with the index on (1 ms) and costs 124 ms with it off. Keep it on; do not
   pair it with an index opt-out on a scoped walk, which is the one combination that pays for
   both. See [argosy-findings.md](../../../docs/argosy-findings.md), A1 and A2.
+- **An absent hash is an empty string, not null.** `GET /api/roms/191723` on a live 5.1.x
+  instance answers `"md5_hash": ""` and `"crc_hash": ""` beside a populated sha1. Null is the
+  ordinary case rather than the exception, since only 91% of a real library carries an md5, so
+  every consumer asks whether there is a hash to compare against at all. **`RomRow` and
+  `FirmwareRow` settle it at the boundary** and a blank never reaches a consumer, because a
+  blank that survives is worse than no hash: it is a value that can never match, and the row it
+  belongs to re-downloads on every sync and is refused again by verification afterwards. Anything
+  reading a hash off the wire by another route owes the same treatment.
 - **`fs_size_bytes` is an `int32` in the generated DTOs.** The pinned schema declares a bare
   `integer`, so `SimpleRomSchema`, `PlatformSchema` and `RomFileSchema` all overflow.
   `GET /api/platforms` fails to deserialize on the **first** platform of a real library. Use

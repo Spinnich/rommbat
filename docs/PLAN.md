@@ -3070,7 +3070,8 @@ numbers.
 so in both places now.** A sample of 1,616 rom rows from three platforms found no row carrying a
 sha1 without an md5; finding 85, above, measured 91.0% md5 against 96.3% sha1 on the same
 library, which puts about a hundred rows in 1,895 in exactly that state. Finding 181 shows how
-both could have been seen, since a missing md5 arrives as `''` rather than null. **#112 is the
+both could have been seen, since a missing md5 arrives as `''` rather than null, which the
+client now reads as absent at the boundary. **#112 is the
 measurement and it needs the live instance.** What the comparison is worth does not depend on
 that count: sha1 is a second number the same server published rather than an independent check,
 and finding 180 measured two ps2 rows served byte-correct against sha1 values describing some

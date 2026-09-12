@@ -33,6 +33,10 @@ namespace RomM.Client.Catalog;
 /// </remarks>
 public sealed record RomRow
 {
+    private readonly string? _md5Hash;
+    private readonly string? _sha1Hash;
+    private readonly string? _crcHash;
+
     [JsonPropertyName("id")]
     public int Id { get; init; }
 
@@ -74,15 +78,31 @@ public sealed record RomRow
     /// an md5 and 96.3% a sha1, so verification has to degrade to size for the rest.
     /// </para>
     /// </remarks>
+    /// <remarks>
+    /// Null covers both shapes the server uses to say it has none: the field absent, and the
+    /// field present and empty. See <see cref="ServerHash"/> for why that is settled here.
+    /// </remarks>
     [JsonPropertyName("md5_hash")]
-    public string? Md5Hash { get; init; }
+    public string? Md5Hash
+    {
+        get => _md5Hash;
+        init => _md5Hash = ServerHash.OrNull(value);
+    }
 
     [JsonPropertyName("sha1_hash")]
-    public string? Sha1Hash { get; init; }
+    public string? Sha1Hash
+    {
+        get => _sha1Hash;
+        init => _sha1Hash = ServerHash.OrNull(value);
+    }
 
     /// <summary>The CRC-32 of the uncompressed content, as lower-case hex.</summary>
     [JsonPropertyName("crc_hash")]
-    public string? CrcHash { get; init; }
+    public string? CrcHash
+    {
+        get => _crcHash;
+        init => _crcHash = ServerHash.OrNull(value);
+    }
 
     /// <summary>
     /// True when RomM holds this ROM as several files and would serve it as a zip.
