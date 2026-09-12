@@ -45,7 +45,9 @@ internal sealed partial class StubRomMServer
     /// <summary>True when the path is one this half of the stub serves.</summary>
     public static bool IsStateRoute(string path) =>
         path.EndsWith("/api/states", StringComparison.Ordinal)
-        || path.EndsWith("/api/states/delete", StringComparison.Ordinal);
+        || path.EndsWith("/api/states/delete", StringComparison.Ordinal)
+        || (path.Contains("/api/states/", StringComparison.Ordinal)
+            && path.EndsWith("/content", StringComparison.Ordinal));
 
     private async Task<HttpResponseMessage> StateRouteAsync(
         HttpRequestMessage request,
@@ -57,15 +59,30 @@ internal sealed partial class StubRomMServer
             return Json(HttpStatusCode.OK, new { ok = true });
         }
 
+        // GET /api/states/{id}/content, which is what a restore reads. States carry no hash, so
+        // there is nothing for the caller to verify and the stub simply serves the bytes.
+        if (path.EndsWith("/content", StringComparison.Ordinal))
+        {
+            var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var stateId = int.Parse(segments[^2], CultureInfo.InvariantCulture);
+
+            return States.TryGetValue(stateId, out var held)
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(held.Bytes) }
+                : Detail(HttpStatusCode.NotFound, "no such state");
+        }
+
         if (request.Method == HttpMethod.Get)
         {
-            var romId = int.Parse(
-                ParseQuery(request.RequestUri).GetValueOrDefault("rom_id", "0"),
-                CultureInfo.InvariantCulture);
+            // An absent rom_id means every state, which is how a restore discovers them. Filtering
+            // on a defaulted 0 returned nothing and made the unfiltered call look empty.
+            var wanted = ParseQuery(request.RequestUri).GetValueOrDefault("rom_id");
 
-            return Json(
-                HttpStatusCode.OK,
-                States.Values.Where(state => state.RomId == romId).Select(Describe).ToArray());
+            var rows = string.IsNullOrEmpty(wanted)
+                ? States.Values
+                : States.Values.Where(state =>
+                    state.RomId == int.Parse(wanted, CultureInfo.InvariantCulture));
+
+            return Json(HttpStatusCode.OK, rows.Select(Describe).ToArray());
         }
 
         if (FailNextStateUpload is { } status)
@@ -113,7 +130,11 @@ internal sealed partial class StubRomMServer
 
         // Not renamed. A save at this point would be "<name> [timestamp]<ext>".
         file_name = state.FileName,
-        file_name_no_tags = Path.GetFileNameWithoutExtension(state.FileName),
+        // <b>RomM strips parenthesised groups as tags, not only bracketed ones.</b> Measured
+        // live: "Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1" comes back as
+        // "Legend of Zelda, The", losing the region and revision. A stub that echoed the stem
+        // would let a caller build a destination the emulator never looks at and still pass.
+        file_name_no_tags = StripTags(Path.GetFileNameWithoutExtension(state.FileName)),
         file_extension = Path.GetExtension(state.FileName).TrimStart('.'),
         file_size_bytes = state.Bytes.Length,
         emulator = state.Emulator,
@@ -160,6 +181,12 @@ internal sealed partial class StubRomMServer
     }
 
     /// <summary>A save state as the stub holds it.</summary>
+    /// <summary>How RomM derives <c>file_name_no_tags</c>, measured rather than guessed.</summary>
+    private static string StripTags(string stem) =>
+        System.Text.RegularExpressions.Regex
+            .Replace(stem, @"\s*[\(\[][^\)\]]*[\)\]]", string.Empty)
+            .Trim();
+
     public sealed record StubState
     {
         public required int Id { get; init; }

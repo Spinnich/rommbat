@@ -2,6 +2,7 @@ using System.Net;
 using RomM.Client;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -67,6 +68,39 @@ public class StateSyncTests
             fixture.Stub.States.Values
                 .Select(state => System.Text.Encoding.UTF8.GetString(state.Bytes))
                 .Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_restored_state_is_named_after_the_rom_on_disk_and_not_after_the_server_row()
+    {
+        // RomM strips anything parenthesised into its tags, so file_name_no_tags for
+        // "ActRaiser (USA) [libretro.snes9x].state1" comes back as "ActRaiser". Writing that
+        // puts the state where the emulator will never look and it reads as simply absent.
+        // es_savestates.cfg declares {{romfilename}}.state{{slot}}, so the ROM names it.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        // The file goes, which is the case a restore exists for.
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!);
+
+        Assert.Equal(
+            "saves/snes/libretro.snes9x/ActRaiser (USA).state1",
+            candidate.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal("progress", File.ReadAllText(onDisk));
     }
 
     [Fact]
@@ -296,6 +330,13 @@ public class StateSyncTests
             var tree = TempRetroBatTree.Create();
             var install = tree.Install();
 
+            // The real es_savestates.cfg, in the tree rather than only loaded beside it. A
+            // restore reads the schema from the install to work out where a state belongs, so a
+            // tree without it has nowhere to put one and reports nothing to restore.
+            var config = install.Resolve(SaveStateSchema.ConfigPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(config)!);
+            File.Copy(Fixtures.EsSaveStatesTemplate, config, overwrite: true);
+
             return new StateFixture(tree, install, LocalStore.Open(install), new StubRomMServer
             {
                 ServerDate = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero),
@@ -332,6 +373,15 @@ public class StateSyncTests
 
         public Task<StateSyncOutcome> PushAsync(CancellationToken cancellationToken = default) =>
             new StateSync(Install, Store, _connection).RunAsync(cancellationToken);
+
+        public Task<RomMResponse<IReadOnlyList<RestorableState>>> FindRestorableAsync(
+            CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).FindRestorableAsync(cancellationToken);
+
+        public Task<StateRestoreOutcome> RestoreAsync(
+            IReadOnlyList<RestorableState> picks,
+            CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).RestoreAsync(picks, cancellationToken);
 
         public void Dispose()
         {

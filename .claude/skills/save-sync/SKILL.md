@@ -479,6 +479,18 @@ hash, folded into one digest. The archive is transport only.
   `libretro:battery`, which is the scanner being authoritative and costs one correction with no
   duplicate row.
 
+- **States download too now, and nothing verifies them.** `StateSchema` carries no hash field of
+  any kind, where a save carries `content_hash`, and states have no `/track`, no `/downloaded`
+  and no negotiate participation. So a state arrives unverified and the command says so on the
+  preview as well as after; that is the ceiling of the API rather than a shortcut. Finding 246.
+
+  **A restored state is named after the ROM on disk, never after the server row.** RomM strips
+  parenthesised groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
+  reads back as `Legend of Zelda, The`. `es_savestates.cfg` declares `{{romfilename}}.state{{slot}}`,
+  so only the extension comes from the server, and it is the extension that carries the slot.
+  Writing the server's name puts a state where the emulator never looks, and it then reads as
+  absent rather than as an error. Finding 247.
+
 - **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
   that found it, the local file is copied aside **once per conflict rather than once per
   flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no

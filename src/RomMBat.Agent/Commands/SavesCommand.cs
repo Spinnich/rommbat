@@ -731,6 +731,15 @@ internal static class SavesCommand
             return ExitCode.Offline;
         }
 
+        var states = new StateSync(context.Install, context.Store, connection);
+        var foundStates = await states.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!foundStates.IsSuccess || foundStates.Value is not { } restorableStates)
+        {
+            Console.Error.WriteLine(foundStates.Message ?? "The state list could not be read.");
+            return ExitCode.Offline;
+        }
+
         // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
         // is not made to take every save back.
         if (command.Positional is [_, var romText, ..])
@@ -746,45 +755,70 @@ internal static class SavesCommand
             restorable = [.. restorable.Where(save =>
                 save.RomId == romId
                 && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+
+            restorableStates = [.. restorableStates.Where(state => state.RomId == romId)];
         }
 
-        if (restorable.Count == 0)
+        if (restorable.Count == 0 && restorableStates.Count == 0)
         {
-            Console.WriteLine("Nothing to restore: every save the server holds for a game on this device is already here.");
+            Console.WriteLine(
+                "Nothing to restore: every save and state the server holds for a game on this device is already here.");
             return ExitCode.Ok;
         }
 
+        static string When(DateTimeOffset? stamp) => stamp is { } value
+            ? value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+            : "unknown";
+
         foreach (var save in restorable)
         {
-            var when = save.ServerUpdatedAt is { } stamp
-                ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
-                : "unknown";
-
             Console.WriteLine(
-                $"  rom {save.RomId}  slot {(save.Slot.Length == 0 ? "(none)" : save.Slot),-20} "
-                    + $"{ByteSize.Format(save.SizeBytes),9}  {when}  {save.Destination}");
+                $"  save   rom {save.RomId}  {(save.Slot.Length == 0 ? "(no slot)" : save.Slot),-20} "
+                    + $"{ByteSize.Format(save.SizeBytes),9}  {When(save.ServerUpdatedAt)}  {save.Destination}");
+        }
+
+        foreach (var state in restorableStates)
+        {
+            Console.WriteLine(
+                $"  state  rom {state.RomId}  {state.Scope,-20} "
+                    + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
         }
 
         Console.WriteLine();
 
+        // Said on the preview as well as after, because it is a property of the thing being
+        // offered rather than a caveat on the result. RomM publishes no hash for a state, so
+        // there is nothing to check what arrives against; a save is checked because the server
+        // offers something to check it with.
+        if (restorableStates.Count > 0)
+        {
+            Console.WriteLine(
+                "States arrive unverified: RomM publishes no hash for one, so nothing can be checked.");
+            Console.WriteLine();
+        }
+
         if (!command.Has("apply"))
         {
             Console.WriteLine(
-                $"{restorable.Count} to restore. Nothing was written. Run 'saves restore --apply' to bring these in.");
+                $"{restorable.Count} save(s) and {restorableStates.Count} state(s) to restore. Nothing was "
+                    + "written. Run 'saves restore --apply' to bring these in.");
             return ExitCode.Ok;
         }
 
         var outcome = await sync.RestoreAsync(restorable, cancellationToken).ConfigureAwait(false);
+        var stateOutcome = await states.RestoreAsync(restorableStates, cancellationToken).ConfigureAwait(false);
 
-        foreach (var problem in outcome.Problems)
+        foreach (var problem in outcome.Problems.Concat(stateOutcome.Problems))
         {
             Console.Error.WriteLine("  " + problem);
         }
 
         Console.WriteLine(
-            $"restored {outcome.Restored}, failed {outcome.Failed}, {ByteSize.Format(outcome.BytesTransferred)}");
+            $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
+                + $"failed {outcome.Failed + stateOutcome.Failed}, "
+                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}");
 
-        return outcome.Failed > 0 ? ExitCode.Partial : ExitCode.Ok;
+        return outcome.Failed + stateOutcome.Failed > 0 ? ExitCode.Partial : ExitCode.Ok;
     }
 
     private static string Short(string? hash) =>

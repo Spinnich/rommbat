@@ -1,5 +1,7 @@
 using RomM.Client;
+using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Sync;
@@ -69,6 +71,35 @@ public sealed record StateSyncOutcome
             return "states: " + string.Join(", ", parts);
         }
     }
+}
+
+/// <summary>A state the server holds that this device could put back.</summary>
+/// <param name="Scope">The emulator, or emulator and core, as <c>ScopeOf</c> wrote it.</param>
+public sealed record RestorableState(
+    int RomId,
+    int StateId,
+    RelativePath Destination,
+    long SizeBytes,
+    string Scope,
+    DateTimeOffset? ServerUpdatedAt);
+
+/// <summary>What a state restore did.</summary>
+/// <remarks>
+/// No verified count, deliberately. Nothing is verified: RomM publishes no hash for a state.
+/// </remarks>
+public sealed record StateRestoreOutcome
+{
+    /// <summary>States written into the tree.</summary>
+    public int Restored { get; init; }
+
+    /// <summary>States that could not be written, each with a line in <see cref="Problems"/>.</summary>
+    public int Failed { get; init; }
+
+    /// <summary>Bytes fetched.</summary>
+    public long BytesTransferred { get; init; }
+
+    /// <summary>One line per failure.</summary>
+    public IReadOnlyList<string> Problems { get; init; } = [];
 }
 
 /// <summary>
@@ -149,6 +180,197 @@ public sealed class StateSync
         var extension = Path.GetExtension(onDiskName);
 
         return $"{stem} [{ScopeOf(emulator, core)}]{extension}";
+    }
+
+    /// <summary>
+    /// States the server holds for a ROM on this device that are not in the tree.
+    /// </summary>
+    /// <remarks>
+    /// <b>States are outside the negotiate protocol entirely</b>, so there is nothing to ask
+    /// and this walks <c>GET /api/states</c> instead. They have no <c>slot</c>, no
+    /// <c>/track</c>, no <c>/downloaded</c> and no per-device sync record, which is why
+    /// <see cref="RunAsync"/> only ever uploaded.
+    /// <para>
+    /// <b>Nothing verifies what arrives, and that is the API rather than a shortcut.</b>
+    /// <c>StateSchema</c> and <c>UserStateSchema</c> carry no hash field of any kind in the
+    /// pinned 5.2.0 schema, where a save carries <c>content_hash</c>. A save is verified on
+    /// download because the server offers something to verify against; a state has nothing.
+    /// Callers say so rather than implying a check happened.
+    /// </para>
+    /// <para>
+    /// <b>Never automatic</b>, for the reason <c>saves restore</c> is not: a state reappearing
+    /// because a sync decided it should is indistinguishable from a bug to whoever deleted it.
+    /// </para>
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyList<RestorableState>>> FindRestorableAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var schema = StateScanner.LoadSchema(_install);
+
+        if (schema is null)
+        {
+            return RomMResponse.Success<IReadOnlyList<RestorableState>>([]);
+        }
+
+        var listed = await _connection.ListAllStatesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!listed.IsSuccess || listed.Value is not { } rows)
+        {
+            return RomMResponse.Failure<IReadOnlyList<RestorableState>>(
+                listed.Status,
+                listed.Message ?? "The state list could not be read.");
+        }
+
+        var found = new List<RestorableState>();
+
+        foreach (var row in rows)
+        {
+            if (row.OnDiskFileName is not { } onDisk || row.Emulator is not { } scope)
+            {
+                continue;
+            }
+
+            // The scope is what ScopeOf wrote: emulator, or emulator.core. Split on the first
+            // separator, because a core name can carry more of them than an emulator name can.
+            var dot = scope.IndexOf('.', StringComparison.Ordinal);
+            var emulatorName = dot < 0 ? scope : scope[..dot];
+            var core = dot < 0 ? null : scope[(dot + 1)..];
+
+            if (schema.For(emulatorName) is not { } emulator)
+            {
+                continue;
+            }
+
+            // The ROM decides the system, and its absence is what makes this not a candidate.
+            // Ordinary on a device holding a subset, so it is skipped rather than reported.
+            var roms = _store.Files.ForRom(row.RomId, LocalFileKind.Rom);
+
+            if (roms.Count == 0 || roms[0].Folder is not { } system)
+            {
+                continue;
+            }
+
+            if (SaveStateTemplate.Create(emulator, system, core) is not { } template)
+            {
+                continue;
+            }
+
+            // <b>Built from the ROM on disk, never from the server's name.</b> `es_savestates.cfg`
+            // declares `{{romfilename}}.state{{slot}}`, and RomM's `file_name_no_tags` strips
+            // anything parenthesised as a tag: measured, "Legend of Zelda, The (USA) (Rev 1)"
+            // comes back as "Legend of Zelda, The". Writing that name puts a state where the
+            // emulator will never look for it, and the file would read as simply absent. Only
+            // the extension is taken from the server, because that is what carries the slot.
+            var stem = Path.GetFileNameWithoutExtension(roms[0].FileName);
+            var extension = Path.GetExtension(onDisk);
+
+            if (string.IsNullOrEmpty(stem) || string.IsNullOrEmpty(extension))
+            {
+                continue;
+            }
+
+            var destination = template.Directory.Combine(stem + extension);
+
+            if (File.Exists(_install.Resolve(destination)))
+            {
+                continue;
+            }
+
+            found.Add(new RestorableState(
+                row.RomId,
+                row.Id,
+                destination,
+                row.FileSizeBytes,
+                scope,
+                row.UpdatedAt ?? row.CreatedAt));
+        }
+
+        return RomMResponse.Success<IReadOnlyList<RestorableState>>(found);
+    }
+
+    /// <summary>Fetches the given states into the tree.</summary>
+    /// <remarks>
+    /// Written through the partial directory and moved into place, so a failure part way leaves
+    /// no half state where an emulator would find one. Not verified, for the reason on
+    /// <see cref="FindRestorableAsync"/>.
+    /// </remarks>
+    public async Task<StateRestoreOutcome> RestoreAsync(
+        IReadOnlyList<RestorableState> picks,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(picks);
+
+        var restored = 0;
+        var failed = 0;
+        var bytes = 0L;
+        var problems = new List<string>();
+
+        var partialDirectory = _install.Resolve(RetroBatInstall.PartialDirectory);
+
+        foreach (var pick in picks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var part = Path.Combine(partialDirectory, $"state-{pick.StateId}.part");
+
+            try
+            {
+                Directory.CreateDirectory(partialDirectory);
+
+                long written;
+
+                await using (var stream = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    var response = await _connection
+                        .DownloadStateAsync(pick.StateId, stream, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    if (!response.IsSuccess)
+                    {
+                        failed++;
+                        problems.Add($"{pick.Destination}: {response.Message}");
+                        continue;
+                    }
+
+                    written = response.Value;
+                }
+
+                var absolute = _install.Resolve(pick.Destination);
+                Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+                File.Move(part, absolute, overwrite: true);
+
+                restored++;
+                bytes += written;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failed++;
+                problems.Add($"{pick.Destination}: {ex.Message}");
+            }
+            finally
+            {
+                if (File.Exists(part))
+                {
+                    try
+                    {
+                        File.Delete(part);
+                    }
+                    catch (IOException)
+                    {
+                        // A partial nobody can remove is the eviction sweep's problem, not this
+                        // pass's, and failing the restore over it would be worse.
+                    }
+                }
+            }
+        }
+
+        return new StateRestoreOutcome
+        {
+            Restored = restored,
+            Failed = failed,
+            BytesTransferred = bytes,
+            Problems = problems,
+        };
     }
 
     /// <summary>Sends every state that has changed since it was last sent.</summary>
