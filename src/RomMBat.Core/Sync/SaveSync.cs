@@ -86,6 +86,35 @@ public sealed record SaveSyncOutcome
     }
 }
 
+/// <summary>A save the server holds that this device could put back.</summary>
+/// <param name="Slot">The empty string where the server names no slot, matching every other key here.</param>
+/// <param name="Destination">Where it would land, resolved the same way a downloaded save is.</param>
+public sealed record RestorableSave(
+    int RomId,
+    string Slot,
+    int SaveId,
+    RelativePath Destination,
+    long SizeBytes,
+    string? ContentHash,
+    string? Emulator,
+    DateTimeOffset? ServerUpdatedAt);
+
+/// <summary>What a restore did.</summary>
+public sealed record SaveRestoreOutcome
+{
+    /// <summary>Saves written into the tree.</summary>
+    public int Restored { get; init; }
+
+    /// <summary>Saves that could not be written, each with a line in <see cref="Problems"/>.</summary>
+    public int Failed { get; init; }
+
+    /// <summary>Bytes fetched.</summary>
+    public long BytesTransferred { get; init; }
+
+    /// <summary>One line per failure.</summary>
+    public IReadOnlyList<string> Problems { get; init; } = [];
+}
+
 /// <summary>Both sides of a slot moved, and neither is thrown away.</summary>
 /// <param name="LocalCopy">
 /// Where the local file was copied before anything else happened. Principle 1's "always copy
@@ -533,6 +562,179 @@ public sealed class SaveSync
         save.ShapeClass == SaveShapeClass.C ? $"{save.UnitKey}.zip" : save.Path.Name;
 
     /// <summary>
+    /// Saves the server holds for a ROM on this device that are not in the tree.
+    /// </summary>
+    /// <remarks>
+    /// <b>Restore cannot come from <c>negotiate</c>, which is why this walks the save list
+    /// instead.</b> Negotiate answers from the server's per-device sync record: a save this
+    /// device uploaded and acknowledged reads <c>no_op</c>, "No changes since last sync", even
+    /// with the file deleted and even when the slot is claimed with a null hash. Measured
+    /// against 5.2.0. So the one save a restore exists for is the one negotiate will not offer.
+    /// <para>
+    /// <b>Never automatic.</b> Nothing calls this from a flush. A save that reappears because a
+    /// sync decided it should is indistinguishable from a bug to whoever deleted it on purpose,
+    /// so finding is separate from restoring and both are reached only through
+    /// <c>saves restore</c>.
+    /// </para>
+    /// <para>
+    /// Covers any installed ROM rather than only this device's own uploads, so a save made on
+    /// another device reaches a game both hold. A row already in the tree is not a candidate,
+    /// which is what keeps this from re-fetching the library.
+    /// </para>
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyList<RestorableSave>>> FindRestorableAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!listed.IsSuccess || listed.Value is not { } rows)
+        {
+            return RomMResponse.Failure<IReadOnlyList<RestorableSave>>(
+                listed.Status,
+                listed.Message ?? "The save list could not be read.");
+        }
+
+        var held = _store.Saves.List()
+            .Where(save => save.RomId is not null)
+            .Select(save => (save.RomId!.Value, save.Slot))
+            .ToHashSet();
+
+        var found = new List<RestorableSave>();
+
+        foreach (var row in rows)
+        {
+            // A null slot is the server's own shape for the older rows, and the empty string is
+            // what every key in this class already uses for one.
+            var slot = row.Slot ?? string.Empty;
+
+            if (held.Contains((row.RomId, slot)))
+            {
+                continue;
+            }
+
+            var operation = new SyncOperation(
+                "download",
+                row.RomId,
+                row.Id,
+                row.OnDiskFileName ?? row.FileName,
+                row.Slot,
+                row.Emulator,
+                "restore",
+                row.UpdatedAt,
+                row.ContentHash);
+
+            var (target, problem) = ResolveTarget(operation, local: null);
+
+            // Not an error and not reported: a device holding a subset of the library is the
+            // ordinary case, and every save for a game it does not have lands here.
+            if (problem == TargetProblem.RomNotHere || target is not { } destination)
+            {
+                continue;
+            }
+
+            // The store is rebuilt from the tree, so a row missing above should mean a file
+            // missing here. Checked anyway, because restoring over a file nobody asked about
+            // is the one outcome this feature must never produce.
+            if (File.Exists(_install.Resolve(destination)))
+            {
+                continue;
+            }
+
+            found.Add(new RestorableSave(
+                row.RomId,
+                slot,
+                row.Id,
+                destination,
+                row.FileSizeBytes,
+                row.ContentHash,
+                row.Emulator,
+                row.UpdatedAt));
+        }
+
+        return RomMResponse.Success<IReadOnlyList<RestorableSave>>(found);
+    }
+
+    /// <summary>
+    /// Fetches the given saves into the tree.
+    /// </summary>
+    /// <remarks>
+    /// Reuses the ordinary download path, so a restored save is verified against the server's
+    /// hash, written through the partial directory, and recorded exactly as one that arrived
+    /// through a negotiate. No session is opened: <c>session_id</c> is optional on the content
+    /// endpoint and a restore is not a sync run.
+    /// </remarks>
+    public async Task<SaveRestoreOutcome> RestoreAsync(
+        IReadOnlyList<RestorableSave> picks,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(picks);
+
+        var restored = 0;
+        var failed = 0;
+        var bytes = 0L;
+        var problems = new List<string>();
+
+        foreach (var pick in picks)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var operation = new SyncOperation(
+                "download",
+                pick.RomId,
+                pick.SaveId,
+                pick.Destination.Name,
+                pick.Slot.Length == 0 ? null : pick.Slot,
+                pick.Emulator,
+                "restore",
+                pick.ServerUpdatedAt,
+                pick.ContentHash);
+
+            // <b>One save's failure must not take the rest of the batch.</b> Driven: a slot the
+            // server left null threw out of the store partway through, after the first file was
+            // already written, so the process died with one save on disk, no row behind it and
+            // the second never attempted. A restore is reached by hand and reports per line, so
+            // it carries on and says what did not land.
+            (long Bytes, string? Problem) outcome;
+
+            try
+            {
+                outcome = await DownloadAsync(
+                        operation,
+                        pick.SaveId,
+                        local: null,
+                        pick.Destination,
+                        sessionId: null,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                failed++;
+                problems.Add($"{pick.Destination}: {ex.Message}");
+                continue;
+            }
+
+            if (outcome.Problem is { } problem)
+            {
+                failed++;
+                problems.Add(problem);
+                continue;
+            }
+
+            restored++;
+            bytes += outcome.Bytes;
+        }
+
+        return new SaveRestoreOutcome
+        {
+            Restored = restored,
+            Failed = failed,
+            BytesTransferred = bytes,
+            Problems = problems,
+        };
+    }
+
+    /// <summary>
     /// Sends one save, and says whether a refusal was a conflict or an ordinary failure.
     /// </summary>
     /// <remarks>
@@ -717,7 +919,7 @@ public sealed class SaveSync
         int saveId,
         LocalSave? local,
         RelativePath destination,
-        int sessionId,
+        int? sessionId,
         CancellationToken cancellationToken)
     {
         var partialDirectory = _install.Resolve(PartialDirectory);
@@ -823,7 +1025,7 @@ public sealed class SaveSync
         SyncOperation operation,
         int saveId,
         LocalSave local,
-        int sessionId,
+        int? sessionId,
         string part,
         CancellationToken cancellationToken)
     {
@@ -1190,14 +1392,30 @@ public sealed class SaveSync
         // saves/<system>/..., which the schema's CHECK already guarantees is the shape.
         var segments = destination.Value.Split('/');
 
+        var emulator = previous?.Emulator ?? operation.Emulator ?? SaveShapes.Bundled.LooseEmulator;
+        var shapeClass = previous?.ShapeClass ?? SaveShapeClass.A;
+
         _store.Saves.Record(
             new LocalSave
             {
                 Path = destination,
                 System = previous?.System ?? (segments.Length > 1 ? segments[1] : "unknown"),
-                Emulator = previous?.Emulator ?? operation.Emulator ?? SaveShapes.Bundled.LooseEmulator,
-                ShapeClass = previous?.ShapeClass ?? SaveShapeClass.A,
-                Slot = operation.Slot ?? previous?.Slot ?? string.Empty,
+                Emulator = emulator,
+                ShapeClass = shapeClass,
+
+                // <b>Derived, never empty.</b> The server can hold a save with no slot, written
+                // by a client that does not set one, and `local_save.slot` is CHECKed non-empty.
+                // Falling through to the empty string threw SQLite error 19 partway through a
+                // batch, after the file was already on disk.
+                //
+                // The derived value is provisional, not final: it uses the emulator the server
+                // named, and the next scan re-keys a loose save to the loose emulator, measured
+                // as fceumm:battery becoming libretro:battery. That is the scanner being
+                // authoritative about local state, and it costs one correction with no duplicate
+                // row. What matters here is only that a row can be written at all.
+                Slot = operation.Slot
+                    ?? previous?.Slot
+                    ?? SaveScanner.SlotFor(emulator, shapeClass, Path.GetExtension(destination.Value)),
                 RomId = operation.RomId,
                 RomPath = previous?.RomPath,
                 ContentHash = hash,

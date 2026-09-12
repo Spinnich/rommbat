@@ -449,6 +449,36 @@ hash, folded into one digest. The archive is transport only.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
   sync record is stale, not when the save is newest overall.
+- **Restore cannot be built on `negotiate`, and this is measured.** The server answers negotiate
+  from its own per-device sync record, not from what the client claims. A save this device
+  uploaded and acknowledged comes back `no_op`, "No changes since last sync", **even with the
+  file deleted from the tree and even when the slot is claimed with `content_hash: null`**. So
+  the one save a restore exists for is precisely the one negotiate will never offer.
+
+  Two things that are easy to get backwards here. An **empty** negotiate does return work: 21
+  operations on the measured install, each reading "Save exists on server but not on client".
+  Every one of them was for a ROM **not** installed, which is the ordinary
+  `skipped, for games not synced here` line and is correct. And enumerating absent slots into
+  the request adds nothing, because the server was already volunteering everything it believed
+  the device lacked.
+
+  `saves restore` therefore walks `GET /api/saves` and filters locally. Unfiltered on purpose:
+  the parameters are `rom_id`, `platform_id`, `device_id` and `slot`, none of which takes a
+  list, and a save exists only where someone played, so one request returned 55 rows against a
+  96,000-ROM library.
+
+  **It is never automatic.** A save that reappears because a flush decided it should is
+  indistinguishable from a bug to whoever deleted it deliberately, so finding is separate from
+  restoring and `--apply` is required for either.
+
+- **A server save can carry no slot at all**, written by a client that sets none, and
+  `local_save.slot` is `CHECK`ed non-empty. Keying that as the empty string threw SQLite error
+  19 **after the bytes were on disk**, leaving a save in the tree with no row behind it and
+  aborting the rest of the batch. Derive a slot instead. The derived value is provisional: the
+  next scan re-keys a loose save to the loose emulator, measured as `fceumm:battery` becoming
+  `libretro:battery`, which is the scanner being authoritative and costs one correction with no
+  duplicate row.
+
 - **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
   that found it, the local file is copied aside **once per conflict rather than once per
   flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no

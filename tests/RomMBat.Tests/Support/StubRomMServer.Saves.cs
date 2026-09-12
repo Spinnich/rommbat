@@ -71,6 +71,16 @@ internal sealed partial class StubRomMServer
     public HashSet<(int RomId, string Slot)> UnsolicitedDownloads { get; } = [];
 
     /// <summary>
+    /// Rom ids to offer as a download whose <c>slot</c> is null.
+    /// </summary>
+    /// <remarks>
+    /// A real shape, not a synthetic one: a save uploaded by a client that sets no slot comes
+    /// back from <c>GET /api/saves</c> with <c>"slot": null</c>, measured on 5.2.0. The client
+    /// used to key that as the empty string, which <c>local_save.slot</c> refuses with a CHECK.
+    /// </remarks>
+    public HashSet<int> SlotlessDownloads { get; } = [];
+
+    /// <summary>
     /// Slots negotiate offers a <c>conflict</c> for that the client did not submit.
     /// </summary>
     /// <remarks>
@@ -263,6 +273,24 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = existing?.Emulator,
                 reason = "held on the server and not on this device",
+                server_updated_at = existing?.UpdatedAt,
+                server_content_hash = HashLie ?? existing?.ContentHash,
+            });
+        }
+
+        foreach (var romId in SlotlessDownloads)
+        {
+            var existing = Saves.Values.FirstOrDefault(row => row.RomId == romId);
+
+            operations.Add(new
+            {
+                action = "download",
+                rom_id = romId,
+                save_id = existing?.Id,
+                file_name = existing?.FileName,
+                slot = (string?)null,
+                emulator = existing?.Emulator,
+                reason = "held on the server with no slot",
                 server_updated_at = existing?.UpdatedAt,
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });

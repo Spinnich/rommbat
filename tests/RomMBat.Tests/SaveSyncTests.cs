@@ -153,6 +153,40 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_download_the_server_gives_no_slot_for_lands_with_a_derived_slot_rather_than_throwing()
+    {
+        // A save uploaded by a client that sets no slot comes back with "slot": null, which the
+        // client keyed as the empty string. local_save.slot is CHECKed non-empty, so the write
+        // threw SQLite error 19 after the bytes were already on disk: one save in the tree with
+        // no row behind it, and anything later in the same batch never attempted. Found by
+        // restoring two real saves on a live install, not by reading the schema.
+        using var fixture = SyncFixture.Create();
+
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from a slotless client");
+        fixture.Stub.SlotlessDownloads.Add(7);
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Downloaded);
+
+        Assert.Equal(
+            "from a slotless client",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        // The row exists and its slot is a real one. Which emulator names it is the scanner's
+        // to decide on the next pass; what this asserts is that a row could be written at all.
+        var recorded = Assert.Single(fixture.Store.Saves.List());
+        Assert.False(string.IsNullOrWhiteSpace(recorded.Slot));
+        Assert.EndsWith(":battery", recorded.Slot, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_device_with_no_local_saves_negotiates_anyway_and_pulls_what_the_server_holds()
     {
         // RunAsync returned before negotiating when the device held no attributed saves, so the
