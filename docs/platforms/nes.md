@@ -3,9 +3,10 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified.** Steps 1, 3, 8 and 9 hold and step 6 is N/A. **Four remain open**: step 2's
-exclusion is unexercised, step 4 is proven upward only, step 5's screenshot does not link, and
-nobody has confirmed the art renders on screen for step 7. A pass is not done at eight of nine.
+**Not certified.** Steps 1, 3, 7, 8 and 9 hold and step 6 is N/A. **Three remain open**: step 2's
+exclusion cannot be exercised on this platform, step 4 works upward and is measured broken
+downward, and step 5's screenshot does not link. A pass is not done at eight of nine, and two of
+the three open ones are defects rather than unrun work.
 
 ## The row
 
@@ -49,17 +50,17 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 
 ## Checklist
 
-| #   | Step                                                           | Result                                                                                  |
-| --- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                 |
-| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial.** List captured and `.zip` observed launching; the exclusion is unexercised  |
-| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                           |
-| 4   | Save shape classified, battery save round-trips                | **Up only.** Class A confirmed and the upload hash matches; the download is unexercised |
-| 5   | Save state round-trips with its screenshot                     | **State yes, screenshot no.** A finding 138 recurrence                                  |
-| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                      |
-| 7   | Launches from EmulationStation with art and metadata           | **Partial.** A game launched from ES; art on screen unconfirmed                         |
-| 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                      |
-| 9   | Re-sync is a clean no-op                                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                        |
+| #   | Step                                                           | Result                                                                                    |
+| --- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                   |
+| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial, and not exercisable here.** The library is `.zip` throughout for this platform |
+| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                             |
+| 4   | Save shape classified, battery save round-trips                | **Up only, and down is now measured as broken.** See #84 below                            |
+| 5   | Save state round-trips with its screenshot                     | **State yes, screenshot no.** A finding 138 recurrence                                    |
+| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                        |
+| 7   | Launches from EmulationStation with art and metadata           | **Pass.** Box art confirmed rendering in the game list, metadata present                  |
+| 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                        |
+| 9   | Re-sync is a clean no-op                                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                          |
 
 ### 1. Mapping
 
@@ -100,9 +101,14 @@ are and what the one logged launch used. `.nes`, `.fds`, `.wad` and `.7z` are de
 system and unproven for this row.
 
 The other half of the step, that a file this folder cannot launch is excluded from the sync set
-and reported, has not been exercised. It will be driven through the shipped path, by attempting
-to pick a rom whose `fs_extension` the folder refuses and recording the sentence `MemberFor`
-produces, rather than by putting a file into `roms/nes/` by hand.
+and reported, **cannot be exercised on this platform.** Every NES ROM in this library is `.zip`,
+which is the sensible choice for the platform, so there is no unsupported file to offer and no
+refusal to record. Manufacturing one by dropping a file into `roms/nes/` would test nothing
+RomMBat does.
+
+**This is recorded as a gap rather than a pass**, and it carries to a platform whose library
+holds mixed formats. Wave 2's disc systems are the natural place, since `psx` and the CD systems
+mix `.chd`, `.cue`, `.bin` and `.m3u` and a folder's `<extension>` refuses some of them.
 
 ### 3. BIOS
 
@@ -167,10 +173,31 @@ Zelda's own character encoding. So this is a player save rather than a file the 
 boot, which is the trap `save_shapes.json` records for `mastersystem` and which a size check
 alone would not catch.
 
-**The download half is not exercised and the step is not fully passed.** A save this device
-uploaded is never fetched back (#84), so a one-device round trip cannot demonstrate it. What is
-proven is that the emulator wrote a real save, RomMBat attributed it to the right ROM, and the
-bytes reached the server intact.
+**The download half was then driven, and it does not work.** The local `.srm` was backed up and
+deleted from the tree, leaving the server copy intact and hash-matched. Neither `flush` nor
+`sync` brought it back, which is **#84 reproduced deliberately** rather than inferred.
+
+Two things this adds to #84 as written.
+
+**Nothing in the tool surfaces the loss.** `status --check-files` answered
+`1,316 recorded, all present`, which is exactly 228 ROMs plus 1,088 media. That sweep covers
+downloaded content and never looks at saves, so a save missing from the tree is not merely
+unrecoverable, it is invisible.
+
+**The store still holds everything needed to recover it.** After the delete, `local_save` had
+no row, because that table is rebuilt from what is on disk, but `save_slot` still read:
+
+```text
+rom_id 158633, slot libretro:battery, save_id 196, server_content_hash 0dda7bfc...
+```
+
+So RomMBat knew the server had save 196 for an installed ROM, and knew its hash, and still did
+not fetch it. **The mechanism is that save sync is scan-driven**: candidates come from saves
+found on disk, so a save with no local file is never considered. That is a sharper statement
+than "never fetched back" and it names where a fix would go.
+
+The save was restored from the backup afterwards, re-attributed, and the server still holds
+exactly one row for it. Nothing was duplicated by the exercise.
 
 ### 5. Save state and screenshot
 
@@ -242,11 +269,31 @@ settings. Video at 94.7% here is well above the 72.1% finding 92 measured librar
 administrator is actively removing videos, so this number is expected to fall. An absent kind is
 the ordinary `Missing` case.
 
-Still open for step 7: **nobody has confirmed the art actually renders in the EmulationStation
-game list.** Files on disk and a correct `gamelist.xml` are necessary and not sufficient.
+**Box art renders correctly in the EmulationStation game list**, confirmed on screen rather than
+inferred from files on disk, so step 7 passes.
 
-Also unexercised: `ScrapperImageSrc` is `sstitle` on this install and RomMBat does not honour the
-three source pickers (#108), so `<image>` is not the title screen. An observation, not a failure.
+**But the art is the wrong source, and that is a defect rather than an observation.** This
+install has RetroBat's default `ScrapperImageSrc = sstitle`, meaning Title Screenshot.
+`GameMetadata.cs:183-185` hardwires the three tags instead:
+
+```csharp
+Add(MediaKind.Image, row.CoverLargePath);
+Add(MediaKind.Thumbnail, row.CoverSmallPath);
+Add(MediaKind.Marquee, row.ScreenScraper?.LogoPath);
+```
+
+`path_cover_large` is RomM's cover, which it sources from ScreenScraper's 2D box: this library's
+`url_cover` for a NES game ends `media=box-2D%28us%29` outright. So `<image>` is the box, the
+user asked for the title screen, and `ss_metadata.title_screen_path` is populated and unread.
+
+**RomMBat silently ignores a setting the user changed**, which is why this belongs above the
+"observation" line. #108 files it as an enhancement to honour the three pickers; the symptom is a
+bug. The other half, unfiled, is that **changing the source after a sync has to re-fetch the
+affected files**, and nothing does that today.
+
+RomM exposes fourteen `ss_metadata` paths against the nine values the pickers offer, so the fix
+is a mapping rather than new plumbing. Whether a given library actually holds a given kind is the
+ordinary `Missing` case, per finding 239.
 
 ### 8. Play session
 
