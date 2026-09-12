@@ -50,6 +50,7 @@ internal static class Program
         AppBuilder.Configure<ProbeApp>()
             .UseWin32()
             .UseSkia()
+            .UseHarfBuzz()
             .StartWithClassicDesktopLifetime(args);
     }
 

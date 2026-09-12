@@ -279,11 +279,17 @@ needs the Windows Desktop runtime inside a self-contained publish on top of the 
 that machine's Windows Desktop stack.
 
 **What that decision actually cost, now it has been paid.** Referenced as `Avalonia`,
-`Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.Themes.Fluent`, never `Avalonia.Desktop`,
-which drags in `Tmds.DBus.Protocol` for the X11 backend and raises `NU1903` for a known
-high-severity advisory that `-warnaserror` turns into a failed build, for a backend this
-win-x64 build cannot use. Published untrimmed at **96.9 MB across five files**, against the
-console stub it replaces.
+`Avalonia.Win32`, `Avalonia.Skia`, `Avalonia.Themes.Fluent` and `Avalonia.HarfBuzz`, never
+`Avalonia.Desktop`, which drags in `Tmds.DBus.Protocol` for the X11 backend and raises
+`NU1903` for a known high-severity advisory that `-warnaserror` turns into a failed build,
+for a backend this win-x64 build cannot use. Published untrimmed at **99.7 MB across five
+files**, against the console stub it replaces.
+
+**`Avalonia.HarfBuzz` is in that list because Avalonia 12 split text shaping out of
+`Avalonia.Skia`.** It is the one dependency here whose absence the compiler cannot see:
+`UseSkia` alone builds clean, passes the suite, and throws `No text shaping system
+configured` at `AppBuilder.Setup`, before a window is shown. `TextShapingTests` asserts the
+`UseHarfBuzz` call structurally for that reason.
 
 **These numbers move with the toolchain, so compare them only against a build taken the same
 day on the same machine.** Stage 7b-1 recorded 101.1 MB and 1041 ms; stage 7b-2a measured
@@ -316,9 +322,9 @@ that is not a risk to carry for a size win. Tracked as #98.
 `e_sqlite3.dll` already does for the agent:
 
 ```text
-RomMBat.exe            78.8 MB
-libSkiaSharp.dll        9.0 MB
-av_libglesv2.dll        5.2 MB
+RomMBat.exe            79.9 MB
+libSkiaSharp.dll       11.1 MB
+av_libglesv2.dll        5.1 MB
 e_sqlite3.dll           1.9 MB
 libHarfBuzzSharp.dll    1.7 MB
 ```

@@ -52,7 +52,7 @@ internal sealed class ShellWindow : Window
 
         Title = "RomMBat";
         WindowState = WindowState.FullScreen;
-        SystemDecorations = SystemDecorations.None;
+        WindowDecorations = WindowDecorations.None;
         Background = new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x18));
 
         Content = BuildChrome();

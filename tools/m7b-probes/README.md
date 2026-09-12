@@ -7,17 +7,20 @@ drop the files in, and reference `src/RomMBat.Core` so the probe measures the **
 `EsInputMap` rather than a second copy of it.
 
 ```xml
-<PackageReference Include="Avalonia" Version="11.3.7" />
-<PackageReference Include="Avalonia.Win32" Version="11.3.7" />
-<PackageReference Include="Avalonia.Skia" Version="11.3.7" />
-<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.7" />
+<PackageReference Include="Avalonia" Version="12.1.2" />
+<PackageReference Include="Avalonia.Win32" Version="12.1.2" />
+<PackageReference Include="Avalonia.Skia" Version="12.1.2" />
+<PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+<PackageReference Include="Avalonia.HarfBuzz" Version="12.1.2" />
 <ProjectReference Include="<repo>/src/RomMBat.Core/RomMBat.Core.csproj" />
 ```
 
 **Reference `Avalonia.Win32` and `Avalonia.Skia`, never `Avalonia.Desktop`.** The latter drags
 in `Tmds.DBus.Protocol` for the X11 backend, which raises `NU1903` for a known high-severity
 advisory, and CI builds `-warnaserror`. RomMBat ships win-x64 and has no use for the X11 or
-macOS backends. Build the app with `.UseWin32().UseSkia()` rather than `.UsePlatformDetect()`.
+macOS backends. Build the app with `.UseWin32().UseSkia().UseHarfBuzz()` rather than
+`.UsePlatformDetect()`. `UseHarfBuzz` is what registers the text shaper: Avalonia 12 split it
+out of `Avalonia.Skia`, and a probe without it compiles and then throws at the first frame.
 
 | File                           | What it is                                                                        |
 | ------------------------------ | --------------------------------------------------------------------------------- |

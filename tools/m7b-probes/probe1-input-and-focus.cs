@@ -88,7 +88,7 @@ internal static class Program
     }
 
     public static AppBuilder BuildAvaloniaApp() =>
-        AppBuilder.Configure<App>().UseWin32().UseSkia().LogToTrace();
+        AppBuilder.Configure<App>().UseWin32().UseSkia().UseHarfBuzz().LogToTrace();
 
     private static readonly Lock LogGate = new();
 
@@ -165,7 +165,7 @@ internal sealed partial class App : Application
         {
             Title = "RomMBat M7b probe 1",
             WindowState = WindowState.FullScreen,
-            SystemDecorations = SystemDecorations.None,
+            WindowDecorations = WindowDecorations.None,
             Topmost = false,
             Background = new SolidColorBrush(Color.FromRgb(0x10, 0x12, 0x18)),
             Content = new ScrollViewer { Content = _screen },
