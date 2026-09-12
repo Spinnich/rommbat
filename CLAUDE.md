@@ -32,12 +32,14 @@ is only its index.
 | `RomMBat.UI`    | Gamepad-navigable front end                                                                                      |
 | `*.Tests`       | xUnit                                                                                                            |
 
-**"Self-contained" is not "one file", and the difference is the UI.** The agent and the hook
-publish as a single file. `RomMBat.exe` publishes as **five**: the exe plus Avalonia's three
-native libraries and `e_sqlite3.dll`, because `IncludeNativeLibrariesForSelfExtract` unpacks
-natives into the **host's** temp directory rather than the tree, which core principle 4 forbids.
-M8's installer places five files and losing one breaks the app. `docs/ARCHITECTURE.md` has the
-sizes.
+**"Self-contained" is not "one file", and an install is seven of them.** Only the hook is a
+true single file. The agent publishes as two, the exe plus `e_sqlite3.dll`, and `RomMBat.exe`
+publishes as **five**: the exe plus Avalonia's three native libraries and its own identical
+`e_sqlite3.dll`, because `IncludeNativeLibrariesForSelfExtract` unpacks natives into the
+**host's** temp directory rather than the tree, which core principle 4 forbids. Deduplicating
+the shared sqlite native leaves seven, and losing one breaks the app at launch.
+`tools/publish.ps1` assembles them and refuses to package an incomplete set.
+`docs/ARCHITECTURE.md` has the sizes.
 
 ---
 
@@ -167,7 +169,8 @@ config file committed to git.
 ```bash
 dotnet build
 dotnet test
-dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
+./tools/publish.ps1                     # publish, assemble the seven files, zip
+./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 trunk fmt && trunk check        # lint
