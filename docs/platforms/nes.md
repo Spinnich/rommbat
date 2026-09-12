@@ -3,25 +3,34 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified. Steps 1, 2 and 3 hold; 4 through 9 have not been run.** A pass is not done at
-eight of nine, and this one is at three.
+**Not certified.** Steps 1 and 3 hold and step 6 is N/A. Steps 2, 7 and 8 are part done. Steps
+4, 5 and 9, which are the ones that cost a save when they are wrong, have not been run at all.
+A pass is not done at eight of nine.
 
 ## The row
 
-|             |                                                                                                                                                                                                        |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| System      | `nes`                                                                                                                                                                                                  |
-| Emulator    | `libretro`                                                                                                                                                                                             |
-| Core        | `fceumm`                                                                                                                                                                                               |
-| Selected by | **RetroBat's own default.** No `nes.emulator` or `nes.core` key exists in `es_settings.cfg`, so the choice falls through to the first-listed emulator and core in `es_systems.cfg`. Nothing was forced |
-| Save class  | A, `provenance: observed` in `save_shapes.json`                                                                                                                                                        |
+|              |                                                                                                                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| System       | `nes`                                                                                                                                |
+| Emulator     | `libretro`                                                                                                                           |
+| Core         | `nestopia`                                                                                                                           |
+| Selected by  | **Explicit configuration, not RetroBat's default.** `nes.emulator = libretro` and `nes.core = nestopia` are set in `es_settings.cfg` |
+| Confirmed by | `emulatorLauncher.log`, which logged `-system nes -emulator libretro -core nestopia` and ran `nestopia_libretro.dll`                 |
+| Save class   | A, `provenance: observed` in `save_shapes.json`                                                                                      |
 
-`libretro` and `bizhawk` are core-scoped, so this row says nothing about `nes` under
-`libretro`/`nestopia`, `libretro`/`mesen`, `bizhawk`/`NesHawk`, `bizhawk`/`quickerNES`,
-`mednafen`, `mesen`, `ares` or `jgenesis`. Those are separate rows.
+**This row is not the one a user gets out of the box.** With those two keys absent the choice
+falls through to the first-listed emulator and core in `es_systems.cfg`, which is
+`libretro`/`fceumm`. That is a different row and it is uncertified. Certifying under a forced
+setting says nothing about the default, which is why the record names how the row was selected.
 
-**The core has not been confirmed from `emulatorLauncher.log` yet**, because no game has been
-launched. Until it is, "fceumm" is what the configuration implies, not what ran.
+`libretro` and `bizhawk` are core-scoped, so this says nothing about `nes` under `fceumm`,
+`mesen`, `bizhawk`/`NesHawk`, `bizhawk`/`quickerNES`, `mednafen`, `ares` or `jgenesis` either.
+
+Three further `nes.*` keys were set at the same time and are recorded because they are part of
+the configuration this row was measured under: `nes.nestopia_nospritelimit = 1`,
+`nes.video_driver = vulkan`, `nes.xbox_layout = 1`. `nes.ungroup` was **removed** rather than set
+to false, which is EmulationStation pruning a switch turned off, the behaviour finding 238
+describes.
 
 ## The install this was measured on
 
@@ -40,17 +49,17 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 
 ## Checklist
 
-| #   | Step                                                           | Result                                                           |
-| --- | -------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                          |
-| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial.** List captured; the exclusion has not been exercised |
-| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                    |
-| 4   | Save shape classified, battery save round-trips                | Not run                                                          |
-| 5   | Save state round-trips with its screenshot                     | Not run                                                          |
-| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                               |
-| 7   | Launches from EmulationStation with art and metadata           | Not run                                                          |
-| 8   | Play session recorded and reaches RomM                         | Not run                                                          |
-| 9   | Re-sync is a clean no-op                                       | Not run                                                          |
+| #   | Step                                                           | Result                                                                                 |
+| --- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                |
+| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial.** List captured and `.zip` observed launching; the exclusion is unexercised |
+| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                          |
+| 4   | Save shape classified, battery save round-trips                | **Not run.** No `.srm` exists on this device                                           |
+| 5   | Save state round-trips with its screenshot                     | **Not run.** The state directory exists and is empty                                   |
+| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                     |
+| 7   | Launches from EmulationStation with art and metadata           | **Partial.** A game launched from ES; art on screen unconfirmed                        |
+| 8   | Play session recorded and reaches RomM                         | **Partial.** The hook chain fired; nothing confirmed server-side                       |
+| 9   | Re-sync is a clean no-op                                       | Not run                                                                                |
 
 ### 1. Mapping
 
@@ -80,13 +89,15 @@ From the **live** `es_systems.cfg` on this install, not the vendored copy:
 .fds .nes .wad .zip .7z
 ```
 
-**This list is a union across every emulator the system declares, and `fceumm` does not promise
+**This list is a union across every emulator the system declares, and `nestopia` does not promise
 all of it.** RetroBat publishes no per-`(emulator, core)` extension data anywhere: `es_features.cfg`
 mentions "extension" 28 times and every one is an N64 controller pak. `.fds` is Famicom Disk
 System and `.wad` is not a NES container at all, so neither is a claim about this row until a
 launch proves it.
 
-Observed to launch under `libretro`/`fceumm`: **nothing yet.** To be filled in by step 7.
+Observed to launch under `libretro`/`nestopia`: **`.zip`**, which is what all 228 synced games
+are and what the one logged launch used. `.nes`, `.fds`, `.wad` and `.7z` are declared by the
+system and unproven for this row.
 
 The other half of the step, that a file this folder cannot launch is excluded from the sync set
 and reported, has not been exercised. It will be driven through the shipped path, by attempting
@@ -125,6 +136,100 @@ firmware.
 **N/A, and recorded rather than left blank.** `save_shapes.json` gives `nes` no
 `DependsOnEmulator` flag and no `per_game_conversion` block, so there is no shared container to
 opt a game out of. This holds for every wave 1 system.
+
+## The set
+
+Not a hand-picked set. A smart collection, which is an ordinary scope:
+
+|          |                                                    |
+| -------- | -------------------------------------------------- |
+| Name     | Spinnich's Nintendo Entertainment System Favorites |
+| Scope    | `smart_collection 9`                               |
+| Policy   | no game cap, no size cap, ordered by recent        |
+| Resolves | 228 games, 30.2 MB, into `nes`                     |
+
+### 7. Launch, art and metadata
+
+A game launched from EmulationStation after the sync, and `emulatorLauncher.log` records the
+emulator and core, which is what makes the row's claim checkable rather than assumed.
+
+`gamelist.xml` carries **228 `<game>` elements** with names and descriptions. On disk:
+
+| Kind       | Files | Size   | Coverage of 228    |
+| ---------- | ----- | ------ | ------------------ |
+| ROMs       | 228   | 31 MB  | -                  |
+| `images/`  | 665   | 166 MB | about 2.9 per game |
+| `videos/`  | 216   | 362 MB | 94.7%              |
+| `manuals/` | 207   | 404 MB | 90.8%              |
+
+**Media is 30 times the ROM bytes here**, 932 MB against 31 MB, which is the ratio the rollout
+warns a budget has to be sized for. This wave ran with the budget off, so nothing was truncated.
+
+**Those coverage figures are a dated observation about this RomM library, not a platform result
+and not a RomMBat capability.** They say when this platform was last scraped and with what
+settings. Video at 94.7% here is well above the 72.1% finding 92 measured library-wide, and the
+administrator is actively removing videos, so this number is expected to fall. An absent kind is
+the ordinary `Missing` case.
+
+Still open for step 7: **nobody has confirmed the art actually renders in the EmulationStation
+game list.** Files on disk and a correct `gamelist.xml` are necessary and not sufficient.
+
+Also unexercised: `ScrapperImageSrc` is `sstitle` on this install and RomMBat does not honour the
+three source pickers (#108), so `<image>` is not the title screen. An observation, not a failure.
+
+### 8. Play session
+
+The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working:
+
+```text
+2026-09-12 18:01:34Z  start  background start started
+2026-09-12 18:01:45Z  start  background start finished, flush exit 0
+2026-09-12 18:13:46Z  quit   background quit started
+2026-09-12 18:13:51Z  quit   background quit finished, flush exit 7
+```
+
+`start` and `quit` each spawned a detached pass; `game-start` and `game-end` journalled and
+started nothing. **The step is not passed**, because the one launch was accidental and lasted
+about ten seconds, and no play session has been confirmed on the server.
+
+## What the pass turned up
+
+**Two server save records that cannot verify, and refusing them is correct.** A flush reported
+`2 failed, 21 skipped` for `River City Ransom (USA)`:
+
+```text
+saves/nes/River City Ransom (USA).srm: what arrived hashes to 8a7f1ea8506132daf84235d79f1430c8
+and the server said 387fab0e16d9b314e6fa4c95addf8f38. Nothing was written and the server was
+not told it arrived.
+```
+
+Investigated rather than assumed. The server holds three saves for this ROM:
+
+| id  | declared | served   | md5 of bytes  | `content_hash` |
+| --- | -------- | -------- | ------------- | -------------- |
+| 101 | `.srm`   | a ZIP    | `8a7f1ea8...` | `387fab0e...`  |
+| 100 | `.zip`   | a ZIP    | `8a7f1ea8...` | `387fab0e...`  |
+| 82  | `.srm`   | raw, 4 B | `37a6259c...` | `37a6259c...`  |
+
+Both zips hold one 4-byte member, `River City Ransom (USA).srm`, whose content is literally
+`null` and whose md5 is `37a6259c...`. So the declared `387fab0e...` is **neither the archive
+bytes nor the member**, and it is not the member-wise fold either, which was computed and
+checked. Record 82, older, has a `content_hash` that matches its bytes exactly.
+
+**So these are two stale records left by another client**, their stored paths naming `freegosy`
+and `fceumm`, and RomMBat did the right thing: refused, named both hashes, wrote nothing, and did
+not acknowledge. Incidentally this shows #81 is fixed, since the message names both sides.
+
+**One latent defect it exposed, which is RomMBat's.** Record 101 declares `ext=srm` and the
+server serves ZIP bytes for it. `SaveSync.DownloadAsync` byte-hashes the download for class A and
+moves it to the destination with no unwrapping, so had the hash matched it would have written a
+ZIP to `saves/nes/River City Ransom (USA).srm`, which nestopia cannot read. The mismatch masked
+it. The trigger here is bad data rather than ordinary operation, so this wants filing and
+measuring against a save RomMBat itself uploaded, not a fix written from this record alone.
+
+**A stock 8.2.1 install ships 1,231 MAME nvram directories**, and `saves` reports every one as a
+directory save that is not sent, with 1,531 files unsyncable for `no matching ROM`. Nothing here
+is the user's, and no MAME ROM is on the device. Same class as #83.
 
 ## What this file will not claim
 
