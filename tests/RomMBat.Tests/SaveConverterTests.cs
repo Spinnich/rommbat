@@ -632,4 +632,122 @@ public class SaveConverterTests
             _tree.Dispose();
         }
     }
+
+    // ---- the gate a running EmulationStation applies, and the one it must not ----
+
+    [Fact]
+    public void Preview_refuses_while_EmulationStation_is_running()
+    {
+        // The check reads the machine's process list, so until it could be handed in, every
+        // branch behind it was untestable and one of them was wrong for the whole life of the
+        // M7 interface. This is the half that is correct: Preview describes writing the setting
+        // now, and a write made now is discarded by ES's next write.
+        using var fixture = ConverterFixture.Create(running: true);
+
+        var result = fixture.Converter.Preview(fixture.RomId);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.Contains("EmulationStation", result.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreviewQueue_does_not_refuse_while_EmulationStation_is_running()
+    {
+        // The half that was wrong. Queueing exists because ES is up, so asking what queueing
+        // would do must not refuse on the grounds that ES is up. RomMBat's interface is launched
+        // from the ES menu, so it runs with ES up every single time: gating its per-game memory
+        // card verb on Preview made that verb invisible on every game on every install.
+        using var fixture = ConverterFixture.Create(running: true);
+
+        var result = fixture.Converter.PreviewQueue(fixture.RomId);
+
+        Assert.Equal(ConversionStatus.Ready, result.Status);
+
+        // And it queued nothing, which is what makes it a preview.
+        Assert.Empty(fixture.Store.PendingConfig.ListOutstanding());
+    }
+
+    [Fact]
+    public void PreviewQueue_still_applies_every_refusal_that_is_not_about_EmulationStation()
+    {
+        // The fix must not have turned the gate off wholesale. A shape that declares no per-game
+        // option is refused whether ES is up or not, and whether the caller means to queue.
+        using var fixture = ConverterFixture.Create(running: true, folder: "snes");
+
+        var result = fixture.Converter.PreviewQueue(fixture.RomId);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.DoesNotContain("EmulationStation", result.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Queueing_and_previewing_the_queue_agree_on_what_would_happen()
+    {
+        // Two entry points to one decision, so they cannot be allowed to disagree about whether
+        // a game can be converted: the footer asks one and the press runs the other.
+        using var fixture = ConverterFixture.Create(running: true);
+
+        Assert.Equal(ConversionStatus.Ready, fixture.Converter.PreviewQueue(fixture.RomId).Status);
+        Assert.Equal(ConversionStatus.Queued, fixture.Converter.Queue(fixture.RomId).Status);
+
+        Assert.Single(fixture.Store.PendingConfig.ListOutstanding());
+    }
+
+    /// <summary>One ps2 game on disk, with EmulationStation's state handed in.</summary>
+    private sealed class ConverterFixture : IDisposable
+    {
+        private readonly TempRetroBatTree _tree;
+
+        private ConverterFixture(TempRetroBatTree tree, LocalStore store, SaveConverter converter, int romId)
+        {
+            _tree = tree;
+            Store = store;
+            Converter = converter;
+            RomId = romId;
+        }
+
+        public LocalStore Store { get; }
+
+        public SaveConverter Converter { get; }
+
+        public int RomId { get; }
+
+        public static ConverterFixture Create(bool running, string folder = "ps2")
+        {
+            var tree = TempRetroBatTree.Create();
+            var install = tree.Install();
+            var store = LocalStore.Open(install);
+
+            const int romId = 4242;
+            var fsName = folder == "ps2" ? "Armored Core 3 (USA).chd" : "Chrono Trigger (USA).sfc";
+
+            var rom = Path.Combine(tree.Root, "roms", folder, fsName);
+            Directory.CreateDirectory(Path.GetDirectoryName(rom)!);
+            File.WriteAllBytes(rom, new byte[64]);
+
+            store.Files.Record(new LocalFile
+            {
+                Path = RelativePath.Create($"roms/{folder}/{fsName}"),
+                Folder = folder,
+                RomId = romId,
+                Kind = LocalFileKind.Rom,
+                FileName = fsName,
+                SizeBytes = 64,
+            });
+
+            var verdict = running
+                ? EsRunningVerdict.Running("EmulationStation is running from this install (process 1234).")
+                : EsRunningVerdict.NotRunning;
+
+            var converter = new SaveConverter(install, store, emulationStation: () => verdict);
+
+            return new ConverterFixture(tree, store, converter, romId);
+        }
+
+        public void Dispose()
+        {
+            Store.Dispose();
+            _tree.Dispose();
+        }
+    }
 }

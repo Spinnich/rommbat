@@ -57,10 +57,10 @@ public sealed class SetsScreenTests : IDisposable
         // none, and that empty state is covered separately.
         SeedPlatform(4, "snes");
 
-        var navigator = new Navigator(Status());
+        var navigator = new Navigator(Root());
 
-        // Start on the status screen opens the sets list, Start again opens the editor.
-        navigator.Handle(NavAction.Start);
+        // The sets row on the root opens the list, and Start there opens the editor.
+        RootMenuDriver.Open(navigator, "Sync sets");
         Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Start);
@@ -100,9 +100,9 @@ public sealed class SetsScreenTests : IDisposable
     {
         Seed("leavable");
 
-        var navigator = new Navigator(Status());
+        var navigator = new Navigator(Root());
 
-        navigator.Handle(NavAction.Start);
+        RootMenuDriver.Open(navigator, "Sync sets");
         navigator.Handle(NavAction.Accept);
         Assert.IsType<ListScreen>(navigator.Current);
 
@@ -121,9 +121,9 @@ public sealed class SetsScreenTests : IDisposable
     [Fact]
     public void The_budget_screen_is_reachable_and_saves_both_settings()
     {
-        var navigator = new Navigator(Status());
+        var navigator = new Navigator(Root());
 
-        navigator.Handle(NavAction.Alternate);
+        RootMenuDriver.Open(navigator, "Disk space");
         var budget = Assert.IsType<BudgetViewModel>(navigator.Current);
 
         // The floor leads, because it is the one that is always on. The budget is an extra cap
@@ -151,8 +151,8 @@ public sealed class SetsScreenTests : IDisposable
     [Fact]
     public void The_budget_can_be_set_and_then_it_is_written()
     {
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Alternate);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Disk space");
 
         navigator.Handle(NavAction.Down);
         navigator.Handle(NavAction.Right);
@@ -208,8 +208,8 @@ public sealed class SetsScreenTests : IDisposable
         Seed("doomed");
         Seed("survivor");
 
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Sync sets");
         var list = Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Accept);
@@ -310,8 +310,8 @@ public sealed class SetsScreenTests : IDisposable
         SeedFile(1, "snes", "only.sfc", 1_024);
         Members(doomed, 1);
 
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Sync sets");
         var list = Assert.IsType<ListScreen>(navigator.Current);
 
         navigator.Handle(NavAction.Accept);
@@ -418,7 +418,15 @@ public sealed class SetsScreenTests : IDisposable
         if (preview is ListScreen loaded)
         {
             await Wait(() => !loaded.IsLoading);
-            Assert.NotEqual(ScreenCommandKind.Stay, loaded.Handle(NavAction.Accept).Kind);
+
+            var applying = loaded.Handle(NavAction.Accept);
+            Assert.NotEqual(ScreenCommandKind.Stay, applying.Kind);
+
+            // The removal happens in ApplyRemoval's loader, not in the press that pushes it, so
+            // this waits for the screen rather than for the runner: asserting straight after
+            // the press passed only while the load beat the next line, and a busier suite lost
+            // that race.
+            await Wait(() => applying.Screen is ListScreen apply && !apply.IsLoading);
         }
 
         Assert.Empty(new SyncSetService(_session).List());
@@ -556,8 +564,8 @@ public sealed class SetsScreenTests : IDisposable
     {
         SeedPlatform(4, "snes");
 
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Sync sets");
 
         var list = Assert.IsType<ListScreen>(navigator.Current);
         Assert.Empty(list.Rows);
@@ -821,8 +829,8 @@ public sealed class SetsScreenTests : IDisposable
         Seed("one");
         Seed("two");
 
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Sync sets");
 
         // Doing them one at a time is the hassle a person notices first, and the service
         // already walks a list.
@@ -843,8 +851,8 @@ public sealed class SetsScreenTests : IDisposable
         Seed("one");
         Seed("two");
 
-        var navigator = new Navigator(Status());
-        navigator.Handle(NavAction.Start);
+        var navigator = new Navigator(Root());
+        RootMenuDriver.Open(navigator, "Sync sets");
 
         using var sync = Assert.IsType<SyncViewModel>(
             navigator.Current.Handle(NavAction.Alternate).Screen);
@@ -1719,10 +1727,13 @@ public sealed class SetsScreenTests : IDisposable
         return new BrowseGame(1, "Game", "snes", 2048, ["snes"], 2048, [set.Name], Row: null);
     }
 
-    private StatusViewModel Status() =>
-        new(_session, new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."))
-        {
-            OpenSets = () => SetsScreens.List(_session),
-            OpenBudget = () => new BudgetViewModel(_session),
-        };
+    private IScreen Root() =>
+        RootScreens.Menu(
+            _session,
+            () => new GamepadStatus(GamepadAvailability.NoDevice, null, null, "No controller."),
+            new RootScreens.RootRoutes
+            {
+                OpenSets = () => SetsScreens.List(_session),
+                OpenBudget = () => new BudgetViewModel(_session),
+            });
 }

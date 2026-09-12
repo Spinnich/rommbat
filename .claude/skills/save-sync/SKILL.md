@@ -456,11 +456,43 @@ hash, folded into one digest. The archive is transport only.
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced. Both
   outcomes prune the copy aside.
-- **`saves resolve` takes `TreeLock`, and refuses rather than treating a held lock as done.** It
-  runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or one racing
-  `evict`'s sweep of `partial/`, leaves a shared container half swapped. Unlike a flush, where
-  failing to acquire means another agent is already doing the work, a person asked for this one
-  and silently returning `Ok` would read as having resolved it: it exits `Refused` and says why.
+
+  **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance in
+  M7 stage 7b-3: a keep-local on a psp class C unit created a new save row and left the previous
+  one standing, one second apart. The flag is what gets past the 409 an ordinary upload earns
+  when this device's sync record is stale; it is not an instruction to the server to reuse the
+  row. Anything reasoning about how many rows a slot has after a resolution has to expect two.
+
+- **`ConflictResolutionService` takes `TreeLock`, and refuses rather than treating a held lock
+  as done.** It runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or
+  one racing `evict`'s sweep of `partial/`, leaves a shared container half swapped. Unlike a
+  flush, where failing to acquire means another agent is already doing the work, a person asked
+  for this one and silently returning `Ok` would read as having resolved it: it exits `Refused`
+  and says why.
+
+  **The rule is Core's, not `saves resolve`'s, and that is a boundary rather than tidiness.** M7
+  stage 7b-3 gave the interface a conflict screen, and the UI never referencing `TreeLock` is
+  asserted structurally against the built assembly: a flush treats a failed acquire as success,
+  so a second caller taking the lock would make a concurrent `background quit` flush skip its
+  upload and call it success. `saves resolve` is a shell over the service and keeps only its
+  argument parsing and its exit-code mapping.
+
+  **It takes a connection factory, not a connection, and the order is the point.** The lock is
+  taken first, because a resolution that cannot run is not worth a round trip to the server. A
+  caller handed in an already-open connection would have paid for it before finding out.
+  `ConflictOutcomeState` separates `Busy` from `Failed` for the same reason: nothing was tried.
+
+  **A null connection is `NotPaired`, never `Offline`, and the difference is a real install's
+  only way out.** `InstallSession.Authenticate` decides it without touching the wire: the two
+  returns carrying a null connection are a missing pairing row and a token that will not unlock.
+  Calling that offline tells a person whose passphrase-protected store will not open to try
+  again when they are back on the network, which will never be true, and it withheld the screen's
+  pairing offer at the same time, since that offer was gated on `Failed`. A paired install with
+  no `RomMDeviceId` is `NoDeviceId` for the same reason: its message is "Pair again", so it owes
+  `ExitCode.NotPaired` rather than the `Partial` a default arm gave it. `Offline` is left for the
+  front end that catches `RomMUnreachableException` round the call, which the service itself
+  never raises.
+
 - **`partial/unit-<guid>/` is live state for the length of a class C restore, and nothing holds
   a handle on it.** `SaveArchive.Extract` closes each entry's writer inside its own loop, so the
   staging directory sits unprotected across the hash, the copy aside, the `Remove` and the whole

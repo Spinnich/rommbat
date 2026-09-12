@@ -138,9 +138,10 @@ public interface IScreen
 /// on the problems list and it was fixed at that one instance; browse then reintroduced it,
 /// which is what a rule enforced at an instance rather than at its class does.
 /// <para>
-/// A screen answers <see cref="Reading"/> once. <c>ListWindow.CapacityFor</c> and
-/// <c>ListWindow.RowHeightFor</c> both follow from it, and the renderer asks rather than
-/// deciding, so the mismatch is no longer representable.
+/// A screen answers <see cref="Reading"/> once and <c>ListWindow.CapacityFor</c> follows from
+/// it, so the renderer asks rather than deciding. A pane of facts is no longer drawn at a
+/// uniform height either: its block is bounded by <c>ListWindow.ContentBudget</c>, so there is
+/// no second number left to disagree with the first.
 /// </para>
 /// <para>
 /// No Avalonia here either. <see cref="Window"/> is arithmetic a test can assert on, which is

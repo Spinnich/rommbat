@@ -62,6 +62,25 @@ public enum ConversionMode
 
     /// <summary>Record the revert to be applied when EmulationStation next closes.</summary>
     QueueRevert,
+
+    /// <summary>
+    /// Say what queueing would do, writing nothing and queueing nothing.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not the same question as <see cref="Preview"/>, and the difference is the whole
+    /// reason this exists.</b> <c>Preview</c> refuses while EmulationStation is running, because
+    /// it describes writing the setting now and a write made now is discarded. Queueing is what
+    /// you do instead, so it does not consult that check at all.
+    /// <para>
+    /// A caller that intends to queue therefore has to ask this rather than <c>Preview</c>, or
+    /// it gets a refusal about a thing it was never going to do. The M7 interface asked the
+    /// wrong one and the consequence was total: RomMBat is launched from the ES menu, so ES is
+    /// running every single time it runs, so the per-game memory card verb never appeared on
+    /// any game on any install. Found by a hands-on pass; no unit test could see it, because
+    /// the check reads the real process list and a test host has no EmulationStation.
+    /// </para>
+    /// </remarks>
+    QueuePreview,
 }
 
 /// <summary>
@@ -91,12 +110,19 @@ public sealed class SaveConverter
     private readonly LocalStore _store;
     private readonly SaveShapes _shapes;
     private readonly TimeProvider _time;
+    private readonly Func<EsRunningVerdict> _emulationStation;
 
+    /// <param name="emulationStation">
+    /// Whether EmulationStation is up. Injectable because the real one reads the machine's
+    /// process list, so every branch that depends on it was untestable, and one of them was
+    /// wrong for the entire life of the M7 interface without a single test being able to say so.
+    /// </param>
     public SaveConverter(
         RetroBatInstall install,
         LocalStore store,
         SaveShapes? shapes = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        Func<EsRunningVerdict>? emulationStation = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(store);
@@ -105,10 +131,24 @@ public sealed class SaveConverter
         _store = store;
         _shapes = shapes ?? SaveShapes.Bundled;
         _time = timeProvider ?? TimeProvider.System;
+        _emulationStation = emulationStation ?? (() => EmulationStationProcess.Check(install));
     }
 
     /// <summary>Describes what converting this ROM would do, writing nothing.</summary>
+    /// <remarks>
+    /// Describes writing the setting <b>now</b>, so it refuses while EmulationStation is
+    /// running. A caller that means to queue wants <see cref="PreviewQueue"/>.
+    /// </remarks>
     public ConversionResult Preview(int romId) => Run(romId, ConversionMode.Preview);
+
+    /// <summary>Describes what queueing this ROM's conversion would do, queueing nothing.</summary>
+    /// <remarks>
+    /// <b>What a front end that can only queue has to ask.</b> Every refusal that does not
+    /// depend on EmulationStation still applies, so a shape that cannot convert or a disc of a
+    /// set is still turned down; what it does not do is refuse because ES is up, which is the
+    /// condition queueing exists for.
+    /// </remarks>
+    public ConversionResult PreviewQueue(int romId) => Run(romId, ConversionMode.QueuePreview);
 
     /// <summary>Converts, after every refusal has been checked.</summary>
     public ConversionResult Convert(int romId) => Run(romId, ConversionMode.Apply);
@@ -129,8 +169,17 @@ public sealed class SaveConverter
     private ConversionResult Run(int romId, ConversionMode mode)
     {
         var revert = mode is ConversionMode.Revert or ConversionMode.QueueRevert;
-        var queueing = mode is ConversionMode.QueueApply or ConversionMode.QueueRevert;
         var apply = mode is ConversionMode.Apply or ConversionMode.Revert;
+
+        // Two different questions that used to be one. "Is this caller queueing" decides whether
+        // the EmulationStation check applies, and QueuePreview is queueing for that purpose
+        // because it is describing a queue. "Does this caller write" decides whether a row is
+        // recorded, and QueuePreview does not.
+        var queueing = mode is ConversionMode.QueueApply
+            or ConversionMode.QueueRevert
+            or ConversionMode.QueuePreview;
+
+        var writesQueue = mode is ConversionMode.QueueApply or ConversionMode.QueueRevert;
 
         if (Locate(romId) is not { } rom)
         {
@@ -209,7 +258,7 @@ public sealed class SaveConverter
 
         // Not checked when queueing, because ES being up is the whole reason to queue. It is
         // checked again by the pass that drains the queue, which is the one that writes.
-        if (!queueing && EmulationStationProcess.Check(_install) is { IsRunning: true } running)
+        if (!queueing && _emulationStation() is { IsRunning: true } running)
         {
             return Refuse(
                 $"{running.Detail} It rewrites es_settings.cfg from the copy it loaded at startup, so a "
@@ -219,7 +268,7 @@ public sealed class SaveConverter
 
         var warning = Warn(rom, conversion);
 
-        if (queueing)
+        if (writesQueue)
         {
             return QueueRequest(
                 rom,
@@ -314,7 +363,7 @@ public sealed class SaveConverter
                 RevertWarning(rom));
         }
 
-        if (EmulationStationProcess.Check(_install) is { IsRunning: true } running)
+        if (_emulationStation() is { IsRunning: true } running)
         {
             return Refuse($"{running.Detail} Quit EmulationStation and run this again, or queue it with --at-quit.");
         }

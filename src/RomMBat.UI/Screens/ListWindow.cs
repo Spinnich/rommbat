@@ -73,9 +73,152 @@ public static class ListWindow
     /// </remarks>
     public const int ReadingCapacity = 5;
 
+    /// <summary>
+    /// How wide the detail column is on a pane of facts, in characters.
+    /// </summary>
+    /// <remarks>
+    /// The detail sits beside a 220px label column inside a 980px block at 16px, which is about
+    /// ninety characters a line. Estimated from the string rather than measured, because a view
+    /// model has no text engine and <c>ARCHITECTURE.md</c>'s rule is that anything in this
+    /// project that cannot be tested without a window is in the wrong project. Being a line out
+    /// costs a few pixels of a bounded block; measuring would cost the testability of every
+    /// screen.
+    /// </remarks>
+    public const int FactDetailColumns = 90;
+
+    /// <summary>The most lines of detail a fact row is given before it is clipped.</summary>
+    public const int FactDetailMaxLines = 3;
+
+    /// <summary>One wrapped line of detail at 16px.</summary>
+    public const double FactDetailLineHeight = 22;
+
+    /// <summary>
+    /// How tall one row of a pane of facts is drawn.
+    /// </summary>
+    /// <remarks>
+    /// <b>Natural, not uniform, which is a reversal.</b> A pane used to reserve three wrapped
+    /// lines under every row whether or not it had one, so a screen of four short facts drew
+    /// them 122px apart and a hands-on pass twice called the result too spread out. The uniform
+    /// height was there to stop the block growing and shrinking as it scrolled; that is now the
+    /// job of the budget in <see cref="ScrolledByHeight"/>, which bounds the whole block instead
+    /// of every row in it. The status pane has worked this way since 7b-1 and is the screen the
+    /// same pass held up as showing data correctly.
+    /// </remarks>
+    public static double FactHeight(string? detail)
+    {
+        if (string.IsNullOrEmpty(detail))
+        {
+            return StatusRowHeight;
+        }
+
+        var lines = Math.Clamp(
+            (detail.Length + FactDetailColumns - 1) / FactDetailColumns,
+            1,
+            FactDetailMaxLines);
+
+        return StatusRowHeight + (lines * FactDetailLineHeight);
+    }
+
+    /// <summary>A section heading on the status pane, with the gap above it.</summary>
+    public const double StatusTitleHeight = 36;
+
+    /// <summary>A status line that is a label and a value, and nothing else.</summary>
+    public const double StatusRowHeight = 32;
+
+    /// <summary>What a wrapped sentence under one adds to it.</summary>
+    public const double StatusDetailHeight = 26;
+
+    public const double StatusLineSpacing = 6;
+
+    /// <summary>
+    /// How much room a screen has for its rows.
+    /// </summary>
+    /// <remarks>
+    /// Expressed as the height of a full ordinary list rather than as a number of pixels,
+    /// because that block is the one already known to fit the smallest supported display: eight
+    /// rows at <see cref="RowHeight"/> is what <see cref="Capacity"/> means, and every other
+    /// windowed screen is bounded by the same thing.
+    /// </remarks>
+    public static double ContentBudget => BlockHeight(Capacity, RowHeight);
+
+    /// <summary>
+    /// The window a pane of mixed-height lines shows.
+    /// </summary>
+    /// <remarks>
+    /// <b>A flat capacity has to assume every line is the tallest kind, and on the status pane
+    /// most of them are not.</b> Stage 7b-3 first fixed that screen's overflow with a count of
+    /// twelve, computed from the tallest line it can draw. A hands-on pass then reported the
+    /// obvious consequence: a pane whose lines are mostly a label and a value left half the
+    /// display empty and scrolled anyway, so the scrolling felt gratuitous. A title is 36px, a
+    /// bare row 32 and a row with a sentence under it 58, and pretending they are all 58 throws
+    /// away a third of the screen.
+    /// <para>
+    /// So the window is measured rather than counted: an offset, no cursor, clamped at both
+    /// ends.
+    /// </para>
+    /// <para>
+    /// <b>An offset rather than a cursor, because a reading list is a pane you scroll and not a
+    /// list you navigate.</b> <see cref="Compute"/> keeps a cursor off the edge where there is
+    /// room, which is right for a list of choices and wrong here: with nothing highlighted, the
+    /// first two or three presses would move a cursor nobody can see and leave the view where it
+    /// was, so the screen would read as ignoring the pad.
+    /// </para>
+    /// </remarks>
+    public static ListView ScrolledByHeight(int offset, IReadOnlyList<double> heights, double budget)
+    {
+        ArgumentNullException.ThrowIfNull(heights);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(budget);
+
+        if (heights.Count == 0)
+        {
+            return new ListView(0, 0, 0, 0);
+        }
+
+        // The furthest the pane can scroll is the first line whose tail still fills the budget,
+        // so the last screenful is full rather than a few lines stranded at the bottom.
+        var maxStart = heights.Count - 1;
+        var tail = 0.0;
+
+        for (var index = heights.Count - 1; index >= 0; index--)
+        {
+            var added = tail == 0 ? heights[index] : heights[index] + StatusLineSpacing;
+
+            if (tail + added > budget)
+            {
+                break;
+            }
+
+            tail += added;
+            maxStart = index;
+        }
+
+        var start = Math.Clamp(offset, 0, maxStart);
+
+        var count = 0;
+        var used = 0.0;
+
+        for (var index = start; index < heights.Count; index++)
+        {
+            var added = count == 0 ? heights[index] : heights[index] + StatusLineSpacing;
+
+            if (used + added > budget)
+            {
+                break;
+            }
+
+            used += added;
+            count++;
+        }
+
+        // At least one, or a single line taller than the budget draws nothing at all.
+        count = Math.Max(1, count);
+
+        return new ListView(start, count, start, Math.Max(0, heights.Count - start - count));
+    }
+
     /// <summary>How tall a drawn window of rows is, rows and the gaps between them.</summary>
-    public static double BlockHeight(int rows, double rowHeight) =>
-        rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * RowSpacing);
+    public static double BlockHeight(int rows, double rowHeight, double spacing = RowSpacing) =>
+        rows <= 0 ? 0 : (rows * rowHeight) + ((rows - 1) * spacing);
 
     /// <summary>How many rows fit, given how tall this screen draws them.</summary>
     /// <remarks>
@@ -86,40 +229,13 @@ public static class ListWindow
     /// the problems list, fixed there by changing one screen; browse then reintroduced it, which
     /// is what a rule enforced at an instance rather than at its class does.
     /// <para>
-    /// Pair this with <see cref="RowHeightFor"/>: a screen says whether it is reading once, and
-    /// both the count and the height follow from that answer.
+    /// <b>The height half of that pairing is gone.</b> A pane of facts is no longer drawn at a
+    /// uniform reading height at all: its rows are the status screen's rows and the block is
+    /// bounded by <see cref="ContentBudget"/> through <see cref="ScrolledByHeight"/>. So a
+    /// reading screen answers this for its capacity and the renderer decides no height.
     /// </para>
     /// </remarks>
     public static int CapacityFor(bool reading) => reading ? ReadingCapacity : Capacity;
-
-    /// <summary>How tall this screen's rows are drawn, paired with <see cref="CapacityFor"/>.</summary>
-    public static double RowHeightFor(bool reading) => reading ? ReadingRowHeight : RowHeight;
-
-    /// <summary>
-    /// The window a scrolled pane of text shows, from a scroll offset rather than a cursor.
-    /// </summary>
-    /// <remarks>
-    /// <b>A reading list is a pane you scroll, not a list you navigate</b>, so it has an offset
-    /// and no cursor at all. <see cref="Compute"/> keeps a cursor off the edge where there is
-    /// room, which is right for a list of choices and wrong here: with nothing highlighted, the
-    /// first two or three presses would move a cursor nobody can see and leave the view where it
-    /// was, so the screen would read as ignoring the pad. Moving the offset means every press
-    /// shifts what is on screen.
-    /// </remarks>
-    public static ListView Scrolled(int offset, int total, int capacity = ReadingCapacity)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(capacity);
-
-        if (total <= 0)
-        {
-            return new ListView(0, 0, 0, 0);
-        }
-
-        var count = Math.Min(capacity, total);
-        var start = Math.Clamp(offset, 0, total - count);
-
-        return new ListView(start, count, start, total - start - count);
-    }
 
     /// <summary>Picks the window that keeps the cursor visible with context around it.</summary>
     /// <remarks>

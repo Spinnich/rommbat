@@ -104,6 +104,30 @@ internal sealed partial class StubRomMServer
     /// <summary>The size of each play-session batch received, in order.</summary>
     public IList<int> PlaySessionBatchSizes { get; } = [];
 
+    /// <summary>
+    /// Roms this device has told the server it is no longer playing, in order.
+    /// </summary>
+    /// <remarks>
+    /// The server sets <c>now_playing</c> when it ingests a session and nothing else clears it,
+    /// so a client that never says otherwise leaves a library claiming the user is playing
+    /// everything they have ever launched. Measured on the live instance, ten roms deep.
+    /// </remarks>
+    public IList<int> NowPlayingCleared { get; } = [];
+
+    /// <summary>Makes the props write fail, so a tidy-up cannot be allowed to lose a session.</summary>
+    public HttpStatusCode? PropsStatus { get; set; }
+
+    /// <summary>
+    /// Roms whose sessions the batch route refuses one by one, inside an accepted batch.
+    /// </summary>
+    /// <remarks>
+    /// <b>The shape the per-index result array exists for, and nothing else reached it.</b> The
+    /// batch answers 200 and some entries in it are refused, which is what separates "left
+    /// pending" from "marked sent" and what decides which roms the now_playing tidy-up writes
+    /// for.
+    /// </remarks>
+    public ISet<int> RefusePlaySessionsFor { get; } = new HashSet<int>();
+
     /// <summary>How many negotiate sessions were closed.</summary>
     public int CompletedSessions { get; private set; }
 
@@ -137,6 +161,7 @@ internal sealed partial class StubRomMServer
         path.EndsWith("/api/sync/negotiate", StringComparison.Ordinal)
         || path.Contains("/api/sync/sessions/", StringComparison.Ordinal)
         || path.EndsWith("/api/play-sessions", StringComparison.Ordinal)
+        || path.EndsWith("/props", StringComparison.Ordinal)
         || path.EndsWith("/api/saves", StringComparison.Ordinal)
         || (path.Contains("/api/saves/", StringComparison.Ordinal)
             && (path.EndsWith("/downloaded", StringComparison.Ordinal)
@@ -161,6 +186,11 @@ internal sealed partial class StubRomMServer
         if (path.EndsWith("/api/play-sessions", StringComparison.Ordinal))
         {
             return await PlaySessionsAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (path.EndsWith("/props", StringComparison.Ordinal))
+        {
+            return await RomPropsAsync(request, path, cancellationToken).ConfigureAwait(false);
         }
 
         if (path.EndsWith("/api/saves", StringComparison.Ordinal))
@@ -371,6 +401,43 @@ internal sealed partial class StubRomMServer
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(body) };
     }
 
+    /// <summary>
+    /// <c>PUT /api/roms/{id}/props</c>, which RomMBat uses for exactly one field.
+    /// </summary>
+    /// <remarks>
+    /// A partial body leaves every other property alone, measured against the live instance: a
+    /// rating of 7 survived a write carrying only <c>now_playing</c>. So this records the one
+    /// field rather than pretending to hold a whole record.
+    /// </remarks>
+    private async Task<HttpResponseMessage> RomPropsAsync(
+        HttpRequestMessage request,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        if (PropsStatus is { } forced)
+        {
+            return Json(forced, new { detail = "props refused" });
+        }
+
+        var body = request.Content is null
+            ? "{}"
+            : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+        using var parsed = JsonDocument.Parse(body);
+
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var romSegment = segments.Length >= 2 ? segments[^2] : string.Empty;
+
+        if (int.TryParse(romSegment, NumberStyles.None, CultureInfo.InvariantCulture, out var romId)
+            && parsed.RootElement.TryGetProperty("now_playing", out var flag)
+            && !flag.GetBoolean())
+        {
+            NowPlayingCleared.Add(romId);
+        }
+
+        return Json(HttpStatusCode.OK, new { ok = true });
+    }
+
     private async Task<HttpResponseMessage> PlaySessionsAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
@@ -409,6 +476,15 @@ internal sealed partial class StubRomMServer
             // Truncated to the second, which is how the server dedups and therefore what makes
             // a replayed flush idempotent rather than a second session.
             var romId = session.TryGetProperty("rom_id", out var rom) ? rom.ToString() : "none";
+
+            if (int.TryParse(romId, NumberStyles.None, CultureInfo.InvariantCulture, out var refusable)
+                && RefusePlaySessionsFor.Contains(refusable))
+            {
+                results.Add(new { index, status = "failed", id = (int?)null, detail = "refused by the stub" });
+                index++;
+                continue;
+            }
+
             var key = $"{romId}|{Second(start)}|{Second(end)}";
 
             if (SeenPlaySessions.Add(key))

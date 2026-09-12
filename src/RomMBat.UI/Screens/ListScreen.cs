@@ -49,6 +49,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     private readonly Func<IReadOnlyList<ListRow>> _rows;
     private readonly Func<int, ScreenCommand> _choose;
     private readonly string _acceptLabel;
+    private readonly string _backLabel;
     private readonly FooterHint[] _extra;
 
     private readonly CancellationTokenSource _load = new();
@@ -97,7 +98,7 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
         ArgumentNullException.ThrowIfNull(choose);
 
         Title = title;
-        BackLabel = backLabel;
+        _backLabel = backLabel;
         _rows = rows;
         _choose = choose;
         _acceptLabel = acceptLabel;
@@ -113,7 +114,27 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
 
     public IReadOnlyList<ListRow> Rows => _state.Rows;
 
-    public string BackLabel { get; }
+    /// <summary>
+    /// What the Back hint says.
+    /// </summary>
+    /// <remarks>
+    /// <b>Read on every draw, because the constructor's argument is not.</b> Three screens
+    /// passed a ternary over a flag their own verb sets, which is evaluated once with the flag
+    /// still false: after cancelling a queued change the row read "Cancelled" and the footer
+    /// still offered to keep it queued. A label that changes with what the screen has done says
+    /// so through <see cref="BackLabelWhen"/>.
+    /// </remarks>
+    public string BackLabel => BackLabelWhen is { } when ? when() : _backLabel;
+
+    /// <summary>
+    /// The Back hint's words, when they change with what the screen has already done.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as <see cref="ExtraHints"/> and <see cref="OfferAcceptWhen"/>, and for
+    /// the same reason: a screen that acts in place and stays put has a footer that has to
+    /// follow it. Leave it unset and the constructor's label stands.
+    /// </remarks>
+    public Func<string>? BackLabelWhen { get; init; }
 
     /// <summary>
     /// Which row is selected, and <b>never any of them on a reading list</b>.
@@ -125,8 +146,9 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// and then because the rows are drawn as filled panels whether or not one is highlighted.
     /// Both halves were the same mistake, which is treating a pane of text as a menu.
     /// <para>
-    /// So a reading list scrolls by an offset instead. <see cref="ListWindow.Scrolled"/> is the
-    /// arithmetic and the renderer draws its rows as plain lines.
+    /// So a reading list scrolls by an offset instead. <see cref="ListWindow.ScrolledByHeight"/>
+    /// is the arithmetic, over the heights of the rows rather than a count of them, and the
+    /// renderer draws its rows as plain lines.
     /// </para>
     /// </remarks>
     public int Cursor => Reading ? -1 : _state.Cursor;
@@ -154,12 +176,20 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
             // A reading list scrolls by an offset, which is what the stored cursor holds there:
             // every press moves the view, where a cursor kept off the edge would leave it still
             // for the first few and read as a screen ignoring the pad.
+            //
+            // Measured rather than counted on a pane, because its rows are not the same height:
+            // one carrying a sentence is three times one that does not, and a fixed count had to
+            // assume the tallest, which is what made four short facts fill a screen.
             return Reading
-                ? ListWindow.Scrolled(state.Cursor, state.Rows.Count, ListWindow.ReadingCapacity)
+                ? ListWindow.ScrolledByHeight(state.Cursor, Heights(state.Rows), ListWindow.ContentBudget)
                 : ListWindow.Compute(state.Cursor, state.Rows.Count, ListWindow.Capacity);
         }
     }
 
+
+    /// <summary>How tall each row of a pane is drawn, in the order they are drawn.</summary>
+    private static IReadOnlyList<double> Heights(IReadOnlyList<ListRow> rows) =>
+        [.. rows.Select(row => ListWindow.FactHeight(row.Detail))];
 
     /// <summary>
     /// A line above the rows, or null.
@@ -509,7 +539,12 @@ public sealed class ListScreen : IScreen, IWindowedScreen, IReturnAware, ILiveSc
     /// </remarks>
     private int Step(IReadOnlyList<ListRow> rows, int from, int step) =>
         Reading
-            ? Math.Clamp(from, 0, Math.Max(0, rows.Count - ListWindow.ReadingCapacity))
+            // Clamped against what the window will actually accept, which depends on how tall
+            // the rows are rather than on a fixed count of them.
+            ? Math.Clamp(
+                from,
+                0,
+                ListWindow.ScrolledByHeight(int.MaxValue, Heights(rows), ListWindow.ContentBudget).Start)
             : FirstAvailable(rows, from, step);
 
     /// <summary>

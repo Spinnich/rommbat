@@ -36,13 +36,44 @@ public class NavigationTests
         return running;
     }
 
+    /// <summary>The root as the shell builds it, with only the routes a test needs wired.</summary>
+    private static IScreen Root(InstallSession session, RootScreens.RootRoutes? routes = null) =>
+        RootScreens.Menu(session, () => NoPad, routes ?? new RootScreens.RootRoutes());
+
+    /// <summary>
+    /// Walks the root menu to a named row and opens it, using nothing but the pad.
+    /// </summary>
+    /// <remarks>
+    /// By label rather than by a count of presses, so the assertion still means something when
+    /// the rows are reordered. Stage 7b-3 turned four button-verbs into eight rows and a test
+    /// that pressed down a fixed number of times would have gone on passing while opening the
+    /// wrong screen.
+    /// </remarks>
+    private static void OpenRow(Navigator navigator, string label, ref DateTimeOffset clock)
+    {
+        var menu = Assert.IsType<ListScreen>(navigator.Current);
+
+        for (var step = 0; step < menu.Rows.Count; step++)
+        {
+            if (menu.Rows[menu.Cursor].Label == label)
+            {
+                Press(navigator, "a", ref clock);
+                return;
+            }
+
+            Press(navigator, "down", ref clock);
+        }
+
+        Assert.Fail($"The root menu has no row labelled '{label}'.");
+    }
+
     [Fact]
     public void Back_on_the_first_screen_leaves_RomMBat_rather_than_stranding_the_user()
     {
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
 
-        var navigator = new Navigator(new StatusViewModel(session, NoPad));
+        var navigator = new Navigator(Root(session));
         var clock = T0;
 
         // There is nothing under the first screen. The user came from the EmulationStation
@@ -58,24 +89,24 @@ public class NavigationTests
         using var session = InstallSession.Open(tree.Root).Session!;
 
         var typed = string.Empty;
-        var status = new StatusViewModel(session, NoPad)
+        var root = Root(session, new RootScreens.RootRoutes
         {
             StartPairing = () => new OnScreenKeyboard(
                 "Pair with RomM", "Where is your RomM server?", string.Empty, text => { typed = text; return new TypedResult(null); }),
-        };
+        });
 
-        var navigator = new Navigator(status);
+        var navigator = new Navigator(root);
         var clock = T0;
 
         Assert.Equal(1, navigator.Depth);
 
-        Press(navigator, "a", ref clock);
+        OpenRow(navigator, "Pair with RomM", ref clock);
         Assert.Equal(2, navigator.Depth);
         Assert.IsType<OnScreenKeyboard>(navigator.Current);
 
         Press(navigator, "b", ref clock);
         Assert.Equal(1, navigator.Depth);
-        Assert.IsType<StatusViewModel>(navigator.Current);
+        Assert.Same(root, navigator.Current);
         Assert.False(navigator.HasExited);
         Assert.Empty(typed);
     }
@@ -108,19 +139,19 @@ public class NavigationTests
         using var tree = TempRetroBatTree.Create();
         using var session = InstallSession.Open(tree.Root).Session!;
 
-        var status = new StatusViewModel(session, NoPad)
+        var root = Root(session, new RootScreens.RootRoutes
         {
             StartPairing = () => new OnScreenKeyboard(
                 "Pair with RomM",
                 "Where is your RomM server?",
                 "nonsense",
                 text => new TypedResult(null, session.ResolveOrigin(text).Problem)),
-        };
+        });
 
-        var navigator = new Navigator(status);
+        var navigator = new Navigator(root);
         var clock = T0;
 
-        Press(navigator, "a", ref clock);
+        OpenRow(navigator, "Pair with RomM", ref clock);
         Assert.Equal(2, navigator.Depth);
 
         // Submit something Core refuses. The keyboard stays open with the reason.
@@ -133,7 +164,7 @@ public class NavigationTests
 
         Assert.False(navigator.HasExited);
         Assert.Equal(1, navigator.Depth);
-        Assert.IsType<StatusViewModel>(navigator.Current);
+        Assert.Same(root, navigator.Current);
     }
 
     [Fact]
@@ -539,6 +570,7 @@ public class NavigationTests
 
         var screens = new IScreen[]
         {
+            Root(session),
             new StatusViewModel(session, NoPad),
             new OnScreenKeyboard("t", "p", "abc", _ => new TypedResult(null)),
             new MessageScreen("title", "body"),

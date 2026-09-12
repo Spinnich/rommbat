@@ -1090,6 +1090,107 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_flushed_session_tells_the_server_the_game_is_no_longer_being_played()
+    {
+        // Ingesting a session sets now_playing and nothing else clears it, so a client that
+        // never says otherwise leaves a library claiming the user is playing everything they
+        // have ever launched. Measured on the live instance during M7 stage 7b-3's hands-on
+        // pass: ten roms all true, one played two days earlier, against a rom RomMBat had never
+        // reported reading false.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        var outcome = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Sent);
+        Assert.Equal(10, Assert.Single(fixture.Stub.NowPlayingCleared));
+    }
+
+    [Fact]
+    public async Task Two_sessions_of_one_game_clear_it_once()
+    {
+        // The flag is per rom and the batch is per session, so a person who played the same
+        // game twice before a flush must not produce two writes.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, Assert.Single(fixture.Stub.NowPlayingCleared));
+    }
+
+    [Fact]
+    public async Task A_session_the_server_refuses_leaves_its_now_playing_flag_alone()
+    {
+        // The tidy-up follows the ingest. A refused entry never reached one, so it never set
+        // the flag, and writing for it spends one request per rom on a batch that changed
+        // nothing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        fixture.Stub.RefusePlaySessionsFor.Add(10);
+
+        var outcome = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Sent);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Empty(fixture.Stub.NowPlayingCleared);
+
+        // Still queued, because a refusal is not a reason to drop a session.
+        Assert.Equal(1, fixture.Store.Outbox.PendingCount());
+    }
+
+    [Fact]
+    public async Task A_half_refused_batch_clears_only_the_half_the_server_took()
+    {
+        // Per entry rather than per batch, which is the same reason the result array is read by
+        // index: a batch with one refusal in it is not a batch that did nothing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.AddGame(11, "snes", "Other", ".zip", ".srm", "y");
+
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+        fixture.PlaySession(11, "Other");
+        fixture.Correlate();
+
+        fixture.Stub.RefusePlaySessionsFor.Add(11);
+
+        await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, Assert.Single(fixture.Stub.NowPlayingCleared));
+    }
+
+    [Fact]
+    public async Task A_refused_tidy_up_never_costs_a_session()
+    {
+        // The sessions are accepted and recorded before this runs. A tidy-up that could undo
+        // that would be worse than the untidiness it fixes, so it is best effort and silent.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        fixture.Stub.PropsStatus = System.Net.HttpStatusCode.InternalServerError;
+
+        var outcome = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Sent);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(0, fixture.Store.Outbox.PendingCount());
+        Assert.Empty(fixture.Stub.NowPlayingCleared);
+    }
+
+    [Fact]
     public async Task A_batch_the_server_refuses_stays_queued_for_the_next_flush()
     {
         using var fixture = SyncFixture.Create();
