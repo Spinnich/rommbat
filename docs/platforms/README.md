@@ -13,7 +13,8 @@ sets. So "snes is certified" is not a claim; "`snes` under `libretro`/`snes9x` i
 is, and it says nothing about `snes` under `bizhawk`.
 
 A pass is certified when all nine of these hold against a real install. **A pass is not done at
-eight of nine**, and none of it can be desk-checked: step 7 requires actually launching a game.
+eight of nine**, and it cannot be finished from a desk: step 7 requires actually launching a
+game. Three of the nine can be staged ahead of time, which is a different claim and is below.
 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
 2. `<extension>` list captured; a known-unsupported file is correctly excluded.
@@ -35,30 +36,94 @@ what passed; a record that only lists successes is not evidence.
 
 ## Rollout order
 
-Second through sixth generation consoles first, which is where the usage is and where the
-save shapes stay tractable. Arcade is deliberately last: it is the only wave needing the
-explicit folder-choice decision from M2, and it carries romset-version coupling nothing
-else does.
+Ordered by what each wave introduces, not by generation. Novelty first while the machinery is
+still unproven, then the long tails that repeat a shape already established. Arcade is
+deliberately last: it is the only wave needing the explicit folder-choice decision from M2, and
+it carries romset-version coupling nothing else does.
 
-| Wave | Systems                                                                                      | Why here                                                         |
-| ---- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Class A saves, no BIOS, single files. Proves the spine           |
-| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Introduces BIOS and disc formats                                 |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | The hard save shapes: memory cards, GCI folders, VMU             |
-| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Arcade: romset-versioned naming, the ten-folder mapping question |
-| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Long tail, mostly class A                                        |
+**The systems are named in `es_systems.cfg`'s vocabulary**, which is the one record files are
+named in. It is not RomM's and it is not the name on the box: Mega CD is `megacd`, WonderSwan
+is `wswan`, WonderSwan Color is `wswanc`. Nintendo's DSi has a RomM slug (`nintendo-dsi`) and no
+RetroBat folder, because melonDS runs DSi titles under `nds`, so it is out of scope here rather
+than merely unscheduled.
 
-The order is derivable rather than hand-maintained: `es_systems.cfg` carries
-`<manufacturer>`, `<hardware>` and `<release>` per system, so filtering to
-`hardware=console` and sorting by release year reproduces roughly this list and stays
-correct as RetroBat adds systems.
+| Wave | Systems                                                                                                  | n   | Why here                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | 7   | Class A saves observed, little or no BIOS, single files. Proves the spine         |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | 6   | BIOS resolved by md5 and disc formats, plus class B (`saturn`) and BD (`megacd`)  |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
+| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
+| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: they share a parent system's tree, which nothing has tested |
+| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
+| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the ten-folder mapping question, 12 BIOS files   |
 
-## Nothing is certified yet, and the rollout starts after M7
+**The order is not derivable from `hardware=console`, and an earlier revision of this file said
+it was.** That filter drops eleven systems the table already carried, because `gb`, `gbc`, `gba`,
+`lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and `psp` are `hardware=portable` and
+`fds`, `satellaview`, `sufami`, `sega32x`, `megacd` and `n64dd` are `hardware=extension`. A
+manufacturer allowlist of Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony drops the whole of
+generation 2 on top of that, since RetroBat attributes those to Coleco, Emerson, Fairchild,
+Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth
+reading when a new system appears, but the wave a system belongs in is a judgement about what it
+introduces, and it is hand-maintained.
 
-The framework has to work end to end on a single platform first, which is M1 through M6. Beyond
-that, every pass needs a person at the machine launching real games, and doing that through a
-terminal rather than the gamepad UI makes a long job longer, so the waves above start after M7
-and finish against an M8 package.
+### One recommended row per system first
+
+The first pass through a wave certifies one `(system, emulator, core)` per system, using the
+emulator and core that system's record names as its recommended pick. Alternates are a named
+second pass, so the 51 systems here are 51 first-pass rows rather than the two to four per
+system the full triple implies. The exception is a system whose shape is emulator-dependent,
+where the alternate is the point: `psx` is the worked case, and `save_shapes.json`'s
+`DependsOnEmulator` flag names the rest.
+
+### What a wave can be staged before anyone sits down
+
+Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wave ahead of
+time: the mapping layer, the `<extension>` list from the live `es_systems.cfg`, and
+`rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
+of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
+up. Steps 4 through 9 cannot be staged and are the reason the rollout waited for M7.
+
+### What the bundled data already answers, and what it does not
+
+Read before planning a wave, because it decides which steps are formalities and which are the
+work. All three counts are against the 51 systems above.
+
+- **Mapping is a formality.** Every one of the 51 has a bundled slug, so step 1 resolves at
+  layer 3 unless the install overrides it. `arcade` is the exception that fans out to `fbneo`
+  and `mame`, and it is why wave 8 needs the explicit folder choice.
+- **`save_shapes.json` covers 22 of the 51.** For the other 29 there is no entry, and
+  `SaveScanner` falls back to treating a loose file under `saves/<system>/` as class A. That
+  fallback is probably right for the generation 2 to 4 tail and it has never been measured, so
+  step 4 in waves 4 through 7 either confirms it or finds the exception. A confirmation is worth
+  recording: the file is generated, so a new entry comes from re-running the probe against an
+  install that has the system populated, not from hand-editing.
+- **BIOS is smaller than the system count suggests.** Sixteen of the 51 require nothing at all.
+  Five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) have a requirement RetroBat names no
+  hash for, in whole, so step 3 records that in those words and the pass certifies on the other
+  eight. `neogeocd` is the outlier at 12 files, 10 of them hashless.
+- **Artwork outweighs the ROMs on a retro platform, by a lot.** Measured across two whole
+  platforms with three kinds each and no video: `atari2600` is 296.6 KB of ROM against 28 MB of
+  artwork over 53 games, and `atari5200` is 757.5 KB against 46.8 MB over 76. A set whose budget
+  was sized from the ROMs fills with ROMs, every game lands with no cover, and no later run
+  repairs it. Step 7 checks for art, so a wave's sets need headroom or the step fails for a
+  reason that is nothing to do with the platform.
+- **Only 13 emulators declare a save-state directory**, so step 5 is bounded by
+  `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
+  (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
+  can still be certified, but step 5 records that it declares no entry and state sync is outside
+  what RomMBat offers for that row.
+
+## Nothing is certified yet, and the gate is now open
+
+The framework had to work end to end on a single platform first, which is M1 through M6, and
+every pass then needs a person at the machine launching real games, which is what M7's gamepad
+UI is for. Both conditions are met: 7b landed, and a game was launched from EmulationStation
+and came back out through the hooks. The waves finish against an M8 package.
+
+**That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
+`(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

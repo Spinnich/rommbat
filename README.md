@@ -21,7 +21,8 @@ is a wombat.
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
 > No platform has been certified against a real emulator; see
-> [Platform certification](#platform-certification) for what that means and when it starts.
+> [Platform certification](#platform-certification) for what that means and where the rollout
+> stands.
 > The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
@@ -391,24 +392,32 @@ a plain `.srm` and is class A, while `psx` under DuckStation writes a memory car
 internal database title and needs Game-ID attribution. Save-state directories and filenames are
 per emulator, and `libretro` and `bizhawk` are core-scoped on top of that, so one game under
 two cores has independent state sets. So "snes is certified" is not a claim; "`snes` under
-`libretro`/`snes9x` is certified" is, and it says nothing about `snes` under `bizhawk`. Expect
-the table below to be two to four passes per row rather than one.
+`libretro`/`snes9x` is certified" is, and it says nothing about `snes` under `bizhawk`. The
+table below names 51 systems and not 51 passes: the first pass through a wave certifies one
+recommended `(emulator, core)` per system, and alternates are a second pass.
 
-**Certification starts after M7 stage 7b.** Every pass needs a person at the machine launching real
+**The gate opened with M7 stage 7b.** Every pass needs a person at the machine launching real
 games, and doing that through a terminal rather than the gamepad UI makes a long job longer.
-The waves then finish against an M8 package, which is what a user would actually install.
+The waves finish against an M8 package, which is what a user would actually install.
 
-Two things do not wait for that. Each M6 stage owes one hands-on check of the save shape it
+Two things did not wait for that. Each M6 stage owed one hands-on check of the save shape it
 added, because that is where being wrong destroys data rather than costing a re-download; and
 the automated suite already drives the whole protocol, offline included, against a stub server.
 
-| Wave | Systems                                                                                      | Status                |
-| ---- | -------------------------------------------------------------------------------------------- | --------------------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Not started, after M7 |
-| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Not started, after M7 |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | Not started, after M7 |
-| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Not started, after M7 |
-| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Not started, after M7 |
+Every system named here is a folder in RetroBat's `es_systems.cfg`, which is the vocabulary the
+record files are named in. Nintendo's DSi is the one platform RomM carries that RetroBat has no
+folder for, so it is out of scope rather than unscheduled.
+
+| Wave | Systems                                                                                                  | Status      |
+| ---- | -------------------------------------------------------------------------------------------------------- | ----------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Not started |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started |
+| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started |
+| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started |
+| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
+| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
 
 ### Compatibility
 
