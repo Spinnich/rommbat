@@ -36,17 +36,23 @@ internal static class Program
     }
 
     /// <summary>
-    /// Win32 and Skia by name, never <c>UsePlatformDetect</c>.
+    /// Win32 and Skia by name, never <c>UsePlatformDetect</c>, and HarfBuzz explicitly.
     /// </summary>
     /// <remarks>
     /// RomMBat ships win-x64 only. Detecting the platform would pull in backends this build can
     /// never use, and the package that carries them raises a vulnerability warning that
     /// <c>-warnaserror</c> turns into a failed build. Skia is what makes what a handheld shows
     /// independent of that machine's Windows Desktop stack.
+    /// <para>
+    /// <b><c>UseHarfBuzz</c> is not optional.</b> Avalonia 12 moved text shaping out of
+    /// <c>Avalonia.Skia</c> into its own package, so a build without it compiles clean and
+    /// dies at startup on "No text shaping system configured" before a window is shown.
+    /// </para>
     /// </remarks>
     public static AppBuilder BuildAvaloniaApp() =>
         AppBuilder.Configure<App>()
             .UseWin32()
             .UseSkia()
+            .UseHarfBuzz()
             .LogToTrace();
 }

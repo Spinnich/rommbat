@@ -36,14 +36,18 @@
     a known high-severity advisory and so fails the -warnaserror build for a backend nothing
     here can use.
 
+    Avalonia.HarfBuzz is what registers the text shaper. Avalonia 12 split shaping out of
+    Avalonia.Skia, so without it UseSkia alone builds clean and throws at the first frame.
+
     NSwag is a local dotnet tool (.config/dotnet-tools.json), not a package reference:
     generated output is committed, so nothing generates at build time.
   -->
   <ItemGroup Label="UI">
-    <PackageVersion Include="Avalonia" Version="11.3.20" />
-    <PackageVersion Include="Avalonia.Win32" Version="11.3.20" />
-    <PackageVersion Include="Avalonia.Skia" Version="11.3.20" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="11.3.20" />
+    <PackageVersion Include="Avalonia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Win32" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Skia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.HarfBuzz" Version="12.1.2" />
   </ItemGroup>
 
   <!--
