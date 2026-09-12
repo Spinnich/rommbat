@@ -3,9 +3,9 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified.** Steps 1 and 3 hold and step 6 is N/A. Steps 2, 7 and 8 are part done. Steps
-4, 5 and 9, which are the ones that cost a save when they are wrong, have not been run at all.
-A pass is not done at eight of nine.
+**Not certified.** Steps 1, 3, 8 and 9 hold and step 6 is N/A. **Four remain open**: step 2's
+exclusion is unexercised, step 4 is proven upward only, step 5's screenshot does not link, and
+nobody has confirmed the art renders on screen for step 7. A pass is not done at eight of nine.
 
 ## The row
 
@@ -49,17 +49,17 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 
 ## Checklist
 
-| #   | Step                                                           | Result                                                                                 |
-| --- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                |
-| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial.** List captured and `.zip` observed launching; the exclusion is unexercised |
-| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                          |
-| 4   | Save shape classified, battery save round-trips                | **Not run.** No `.srm` exists on this device                                           |
-| 5   | Save state round-trips with its screenshot                     | **Not run.** The state directory exists and is empty                                   |
-| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                     |
-| 7   | Launches from EmulationStation with art and metadata           | **Partial.** A game launched from ES; art on screen unconfirmed                        |
-| 8   | Play session recorded and reaches RomM                         | **Partial.** The hook chain fired; nothing confirmed server-side                       |
-| 9   | Re-sync is a clean no-op                                       | Not run                                                                                |
+| #   | Step                                                           | Result                                                                                  |
+| --- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                 |
+| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial.** List captured and `.zip` observed launching; the exclusion is unexercised  |
+| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                           |
+| 4   | Save shape classified, battery save round-trips                | **Up only.** Class A confirmed and the upload hash matches; the download is unexercised |
+| 5   | Save state round-trips with its screenshot                     | **State yes, screenshot no.** A finding 138 recurrence                                  |
+| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                      |
+| 7   | Launches from EmulationStation with art and metadata           | **Partial.** A game launched from ES; art on screen unconfirmed                         |
+| 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                      |
+| 9   | Re-sync is a clean no-op                                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                        |
 
 ### 1. Mapping
 
@@ -147,6 +147,77 @@ Not a hand-picked set. A smart collection, which is an ordinary scope:
 | Scope    | `smart_collection 9`                               |
 | Policy   | no game cap, no size cap, ordered by recent        |
 | Resolves | 228 games, 30.2 MB, into `nes`                     |
+
+### 4. Battery save
+
+Driven on **The Legend of Zelda (USA) (Rev 1)**, played for about two minutes from
+EmulationStation, with an in-game save made on the save screen.
+
+|             |                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------ |
+| On disk     | `saves/nes/Legend of Zelda, The (USA) (Rev 1).srm`, 8,192 B                          |
+| Shape       | **Class A confirmed**: a loose `.srm` under `saves/<system>/`, keyed by ROM filename |
+| Local md5   | `0dda7bfc92305642b6120324911e0362`                                                   |
+| Uploaded as | save **196**, `... [2026-09-12_18-27-13].srm`, 8,192 B                               |
+| Server hash | `0dda7bfc92305642b6120324911e0362`, **equal to the local one**                       |
+
+**Checked as content, not as existence.** No `.srm` existed for this system before the session,
+and the file is 6,311 non-zero bytes of 8,192 carrying the save-slot name `LINK` at offset 2 in
+Zelda's own character encoding. So this is a player save rather than a file the core wrote at
+boot, which is the trap `save_shapes.json` records for `mastersystem` and which a size check
+alone would not catch.
+
+**The download half is not exercised and the step is not fully passed.** A save this device
+uploaded is never fetched back (#84), so a one-device round trip cannot demonstrate it. What is
+proven is that the emulator wrote a real save, RomMBat attributed it to the right ROM, and the
+bytes reached the server intact.
+
+### 5. Save state and screenshot
+
+Made in the same session, slot 1.
+
+|            | On disk                                                                           | On the server               |
+| ---------- | --------------------------------------------------------------------------------- | --------------------------- |
+| State      | `saves/nes/libretro.nestopia/Legend of Zelda, The (USA) (Rev 1).state1`, 10,459 B | state **176**, 10,459 B     |
+| Screenshot | `... .state1.png`, 3,367 B                                                        | screenshot **193**, 3,367 B |
+
+**The declared `<directory>` is confirmed to be where nestopia really writes.**
+`es_savestates.cfg` declares `{{system}}/libretro.{{core}}` for `libretro`, and
+`saves/nes/libretro.nestopia/` is where the files appeared, created at first launch. The
+filenames match `{{romfilename}}.state{{slot}}` and its `.png` sibling exactly.
+
+**The uploaded name carries the core scope**, `Legend of Zelda, The (USA) (Rev 1)
+[libretro.nestopia].state1`, which is what stops two cores writing one filename from becoming one
+overwritten server row. Finding 134 proved that collision; this is the fix holding on a second
+platform.
+
+**The screenshot did not link, which is finding 138 recurring.** It uploaded, stored against the
+ROM at the right name and size, and the state still reads `screenshot: null`. Finding 138
+measured this at roughly a third of thirty-five attempts on `mastersystem` under
+`genesis_plus_gx`; seeing it on `nes` under `nestopia` shows it is **not specific to a platform or
+a core**. Nothing here suggests a RomMBat fault: the asset is on the server, correctly named.
+
+**States carry no `content_hash` at all.** The state object has no such field, where the save has
+one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
+nothing to compare against. That is a property of RomM's model rather than of this platform, and
+it is worth knowing before state download is designed.
+
+### 9. Re-sync
+
+```text
+plan:      nothing to do: all 228 games are already present and verified
+done:      228 games already present, 0 downloaded, 0 written
+media:     1088 already present
+gamelists: all 1 unchanged
+```
+
+`gamelist.xml` was compared byte for byte before and after and is **identical**, rather than
+taken from the command's own report. A second `flush` exited 0, re-attributed the same one save
+and one state, and created **no duplicate server rows**: still save 196 and state 176 alone.
+
+Two junk save records for `River City Ransom (USA)` failed every flush until they were deleted
+server-side, which is what the earlier exit 7 was. Their removal is why this run is clean, and
+that was confirmed against the server rather than assumed from the quieter output.
 
 ### 7. Launch, art and metadata
 
