@@ -50,8 +50,9 @@ jobs:
         run: dotnet test --configuration Release --no-build --output Detailed
 
   # The self-contained publish is the shipped artefact, so a compile that succeeds but cannot
-  # be published is not a green build. One file for the agent and the hook; the UI is the exe
-  # plus its native libraries, because bundling those unpacks them outside the tree.
+  # be published is not a green build. Only the hook is one file: the agent is two and the UI
+  # five, because bundling the natives unpacks them outside the tree, and deduplicating the
+  # sqlite native the agent and the UI share leaves the seven an install needs.
   publish-check:
     runs-on: windows-latest
 

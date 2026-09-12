@@ -467,6 +467,8 @@ docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
+tools/publish.ps1     Publishes the three projects, assembles the seven files an install
+                      needs, and packages the portable zip. CI runs this
 tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
                       number is reproducible
 tools/{freegosy,argosy}-probes/
@@ -480,8 +482,6 @@ tools/{freegosy,argosy}-probes/
 ```bash
 dotnet build
 dotnet test
-./tools/publish.ps1                     # publish, assemble the seven files, zip
-./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 
 trunk fmt && trunk check        # lint, from WSL on Windows
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
@@ -489,6 +489,13 @@ cd reference && ./refresh.sh    # refresh upstream data, verify, check generated
 
 Trunk has no Windows-native CLI, so run it under WSL. [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)
 gives the exact command and a fallback for docs-only changes.
+
+Packaging is PowerShell, so it needs a PowerShell 7 prompt rather than the shell above.
+
+```powershell
+./tools/publish.ps1                          # publish, assemble the seven files, zip
+./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
+```
 
 Full setup, including how to point at a RomM instance and stand up a throwaway RetroBat,
 is in [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).

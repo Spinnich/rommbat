@@ -169,14 +169,19 @@ config file committed to git.
 ```bash
 dotnet build
 dotnet test
-./tools/publish.ps1                     # publish, assemble the seven files, zip
-./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 trunk fmt && trunk check        # lint
 
 # Only when deliberately moving the pinned RomM schema version. Needs `dotnet tool restore`.
 cd src/RomM.Client/openapi && ./generate.sh
+```
+
+Packaging is PowerShell, and does not run from Git Bash.
+
+```powershell
+./tools/publish.ps1                          # publish, assemble the seven files, zip
+./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
 
 Setup, including how to point at a RomM instance and stand up a throwaway RetroBat, is in
