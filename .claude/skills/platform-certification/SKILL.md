@@ -31,9 +31,11 @@ the wave table below rather than one.
 
 ## When to run this
 
-**The wave rollout starts after M7.** Every pass needs a person launching real games, and
-doing that through a terminal instead of the gamepad UI makes a long job longer. The waves
-finish against an M8 package, which is what a user installs.
+**The gate opened with M7 stage 7b, and it is open now.** Every pass needs a person launching
+real games, and doing that through a terminal instead of the gamepad UI makes a long job longer.
+7b landed and a game was driven from EmulationStation and back through the hooks, which is what
+the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
+That launch certified nothing: it is one of nine points on one row.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
@@ -78,18 +80,37 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 
 ## Wave order
 
-| Wave | Systems                                                                                      | Why here                                                                            |
-| ---- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Class A saves, no BIOS, single files. Proves the spine                              |
-| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Introduces BIOS and disc formats                                                    |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | The hard save shapes                                                                |
-| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Arcade: romset-versioned naming, the fan-out question, 12 BIOS files for `neogeocd` |
-| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Long tail, mostly class A                                                           |
+Named in `es_systems.cfg`'s vocabulary, which is what a record file is named after: Mega CD is
+`megacd`, WonderSwan is `wswan`, WonderSwan Color is `wswanc`. Nintendo's DSi is out of scope
+rather than unscheduled, because RetroBat declares no `dsi` system.
+
+| Wave | Systems                                                                                                  | n   | Why here                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | 7   | Class A saves observed, little or no BIOS, single files. Proves the spine         |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | 6   | BIOS resolved by md5 and disc formats, plus class B (`saturn`) and BD (`megacd`)  |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
+| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
+| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: they share a parent system's tree, which nothing has tested |
+| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
+| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the fan-out question, 12 BIOS files              |
 
 Arcade is last on purpose: it is the only wave needing the explicit folder-choice decision
 and the only one coupled to romset versions.
 
-The order is derivable rather than hand-maintained: `es_systems.cfg` carries
-`<manufacturer>`, `<hardware>` and `<release>`, so filtering to `hardware=console` for
-Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony and sorting by year reproduces this list
-and stays correct as RetroBat adds systems.
+**The first pass through a wave is one row per system**, on that system's recommended emulator
+and core. Alternates are a second pass, except where the shape is emulator-dependent and the
+alternate is the point, which `save_shapes.json`'s `DependsOnEmulator` flag names.
+
+**Steps 1, 2 and 3 can be batched for a whole wave before anyone sits down**, since none of them
+needs an emulator running. Staging a wave that way means its BIOS gaps are known before a
+controller is picked up, and it leaves six of nine steps open per record. Steps 4 through 9
+cannot be staged.
+
+**The order is hand-maintained, and a `hardware=console` filter does not reproduce it.** That
+filter drops `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and
+`psp`, which are `hardware=portable`, and `fds`, `satellaview`, `sufami`, `sega32x`, `megacd`
+and `n64dd`, which are `hardware=extension`. A manufacturer allowlist of Atari, Bandai, NEC,
+Nintendo, Sega, SNK and Sony drops all of generation 2 on top of that. Read `<manufacturer>`,
+`<hardware>` and `<release>` when RetroBat adds a system, then decide the wave from what the
+system introduces.

@@ -3553,24 +3553,44 @@ back. That is minutes rather than a wave, and it is the difference between "the 
 | 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       |
 | 2c       | A PS2 battery save after opting that game into a per-game memory card |
 
-**Suggested order**, 2nd through 6th generation consoles, which is where the usage is and
-where the save shapes stay tractable:
+**The order**, by what each wave introduces rather than by generation. Novelty first while the
+machinery is unproven, then the long tails that repeat a shape already established. The systems
+are named in `es_systems.cfg`'s vocabulary, which is what the record files are named in and is
+neither RomM's nor the name on the box: Mega CD is `megacd`, WonderSwan is `wswan`.
 
-| Wave | Systems                                                                                      | Why here                                                                                       |
-| ---- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                               | Class A saves, no BIOS, single files. Proves the spine                                         |
-| 2    | `n64`, `psx`, `saturn`, `segacd`, `pcengine`, `pcenginecd`                                   | Introduces BIOS (`psx`, `saturn`, `segacd`) and disc formats                                   |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`                                                       | The hard save shapes: memory cards, GCI folders, VMU                                           |
-| 4    | `neogeo`, `neogeocd`, `fbneo`                                                                | Arcade: romset-versioned naming, the ten-folder mapping question, 12 BIOS files for `neogeocd` |
-| 5    | `wonderswan`, `wonderswancolor`, `ngp`, `ngpc`, `lynx`, `gamegear`, `atari2600`, `atari7800` | Long tail of the same manufacturers, mostly class A                                            |
+| Wave | Systems                                                                                                  | n   | Why here                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------------- | --- | --------------------------------------------------------------------------------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | 7   | Class A saves observed, little or no BIOS, single files. Proves the spine         |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | 6   | BIOS resolved by md5 and disc formats, plus class B (`saturn`) and BD (`megacd`)  |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
+| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
+| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: they share a parent system's tree, which nothing has tested |
+| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
+| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the ten-folder mapping question, 12 BIOS files   |
 
 Arcade is deliberately last. It is the only wave that needs the explicit
 folder-choice decision from M2 and carries romset-version coupling nothing else does.
 
-The order can be derived rather than hand-maintained: `es_systems.cfg` carries
-`<manufacturer>`, `<hardware>` and `<release>` per system, so filtering to
-`hardware=console` for Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony and sorting by
-release year reproduces roughly this list and stays correct as RetroBat adds systems.
+**51 systems is 51 first-pass rows, not 51 certified triples.** The first pass through a wave
+takes one `(system, emulator, core)` per system, using that system's recommended pick;
+alternates are a named second pass. The exception is a system whose shape is emulator-dependent,
+where the alternate is the whole point, and `save_shapes.json`'s `DependsOnEmulator` flag is
+what names those.
+
+**Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
+`nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under
+`nds`, so there is no folder for a record to be named after.
+
+**An earlier revision of this section claimed the order was derivable from `hardware=console`,
+and it is not.** That filter drops eleven of the systems the table already carried: `gb`, `gbc`,
+`gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and `psp` are
+`hardware=portable`, and `fds`, `satellaview`, `sufami`, `sega32x`, `megacd` and `n64dd` are
+`hardware=extension`. Restricting to Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony drops the
+whole of generation 2 as well, since RetroBat attributes those to Coleco, Emerson, Fairchild,
+Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth
+reading when RetroBat adds a system, but which wave it belongs in is a judgement about what it
+introduces, and the table is hand-maintained.
 
 ---
 
