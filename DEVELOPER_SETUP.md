@@ -70,6 +70,11 @@ This is what CI runs, so the two cannot drift. It publishes the three projects, 
 the **seven files** an install needs, refuses to package a set missing any of them, and
 writes `publish/rommbat-win-x64.zip`.
 
+Every entry in that zip is prefixed `emulators/rommbat/`, so it **extracts at the RetroBat
+root** and the files land where `RetroBatInstall.AppDirectory` and `hooks install` expect
+them. A flat archive would put them at the tree root, where the ES menu entry cannot resolve
+its executable.
+
 Seven, because self-contained is not one file. The agent and the UI each carry
 `e_sqlite3.dll`, and the UI carries three more Avalonia natives, since bundling those
 unpacks them into the host's temp directory rather than the tree, which core principle 4
@@ -79,6 +84,15 @@ nothing a user can read**, which is why the file list is checked rather than ass
 The per-project output directories are cleaned on every run. Publishing over a warm one
 that is missing a native makes the copy step consider itself up to date, skip **every**
 native, and still report success.
+
+That clean is also why deleting a native and re-running does not exercise the refusal: the
+file is republished before the manifest check can see it is gone. `-NoPublish` packages
+whatever the last publish left behind, which is the way to reach it.
+
+```powershell
+Remove-Item publish\ui\libSkiaSharp.dll
+./tools/publish.ps1 -NoPublish           # refuses, naming the missing file
+```
 
 `-Deploy` writes only those seven into `emulators/rommbat`, so `rommbat.db` and `device.id`
 survive and the install stays paired. It refuses a path that is not a RetroBat root.

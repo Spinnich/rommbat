@@ -3475,11 +3475,15 @@ it rather than carrying its own publish steps. It came forward because the platf
 redeploys on every defect a pass turns up, and repeating a seven-file hand copy across seven
 systems is a defect generator.
 
-Two things it measured, both of which a hand copy gets wrong silently. A publish emits **105 MB
+Two things it measured, both of which a hand copy gets wrong silently. A publish emits **101 MB
 of `.pdb` files** beside the 185 MB payload, so the layout names its files rather than copying
 the output directory. And **publishing over a warm output directory that is missing a native
 skips every native and still reports success**: deleting `libSkiaSharp.dll` alone left all four
 absent, so each project's output is cleaned first.
+
+The zip's entries carry the `emulators/rommbat/` prefix, because the artefact is extracted at
+the RetroBat root and `RetroBatInstall.AppDirectory` pins the app to that directory. A flat
+archive extracts to a tree whose ES menu entry cannot resolve its executable.
 
 Still open here: the installer wrapper, removal restoring the tree's prior state, and the docs.
 
