@@ -287,9 +287,11 @@ Add(MediaKind.Marquee, row.ScreenScraper?.LogoPath);
 user asked for the title screen, and `ss_metadata.title_screen_path` is populated and unread.
 
 **RomMBat silently ignores a setting the user changed**, which is why this belongs above the
-"observation" line. #108 files it as an enhancement to honour the three pickers; the symptom is a
-bug. The other half, unfiled, is that **changing the source after a sync has to re-fetch the
-affected files**, and nothing does that today.
+"observation" line. #108 already predicted this exact symptom and had confirmed it on two
+installs; this is the third, and the first where a person noticed it from the game list rather
+than from reading config. #108 also already designs the re-fetch a source change needs, by
+recording which source filled a slot on the `local_file` row. What is arguably wrong there is the
+`enhancement` label: the mapping is an enhancement, but "the setting does nothing" is a bug.
 
 RomM exposes fourteen `ss_metadata` paths against the nine values the pickers offer, so the fix
 is a mapping rather than new plumbing. Whether a given library actually holds a given kind is the
