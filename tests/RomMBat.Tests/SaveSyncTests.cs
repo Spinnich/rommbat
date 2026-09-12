@@ -1287,6 +1287,219 @@ public class SaveSyncTests
     }
 
     /// <summary>An install, a store, a stub server and the plumbing between them.</summary>
+    [Fact]
+    public async Task A_save_the_server_holds_for_a_game_here_with_no_local_file_is_found_and_restored()
+    {
+        // The case the feature exists for, and the one negotiate can never answer: the device
+        // uploaded the save, acknowledged it, and then the file went. Negotiate reads no_op from
+        // its own sync record, so GET /api/saves is the only thing that still knows.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the server");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        Assert.True(found.IsSuccess);
+
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        Assert.Empty(findings.Unrestorable);
+
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal(7, pick.RomId);
+        Assert.Equal("saves/gb/Tetris (World).srm", pick.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Refused);
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        // Under the name the emulator matches on, not the tagged one the server keeps.
+        Assert.Equal(
+            "from the server",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        // Acknowledged, or the server goes on believing this device lacks it.
+        Assert.Equal(100, Assert.Single(fixture.Stub.Acknowledged));
+        Assert.Empty(fixture.Stub.OptimisticDownloads);
+    }
+
+    [Fact]
+    public async Task A_save_already_in_the_tree_is_not_offered_for_restore()
+    {
+        // Restoring over a file nobody asked about is the one outcome this feature must never
+        // produce, so the File.Exists guard is asserted rather than trusted to the store's row.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "the local one");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "the server one");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        Assert.Empty(findings.Restorable);
+        Assert.Empty(findings.Unrestorable);
+
+        Assert.Equal(
+            "the local one",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_save_for_a_game_this_device_does_not_hold_is_skipped_without_a_word()
+    {
+        // The ordinary case on a device carrying a subset of the library, and the reason the
+        // unfiltered list is affordable: it is answered locally rather than reported.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "the local one");
+        fixture.Scan();
+
+        fixture.SeedServerSave(4242, "libretro:battery", "Some Other Game", "srm", "never synced here", id: 101);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        Assert.Empty(findings.Restorable);
+        Assert.Empty(findings.Unrestorable);
+    }
+
+    [Fact]
+    public async Task A_second_restore_finds_nothing_left_to_do()
+    {
+        // The no-op re-run. A restore that offered the same save again would either overwrite
+        // what it just wrote or make a person think the first one failed.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the server");
+
+        var first = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var restored = await fixture.RestoreAsync(
+            Assert.IsType<SaveRestoreFindings>(first.Value).Restorable,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(1, restored.Restored);
+
+        var second = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(second.Value);
+
+        Assert.Empty(findings.Restorable);
+        Assert.Empty(findings.Unrestorable);
+    }
+
+    [Fact]
+    public async Task A_directory_save_for_a_game_this_device_has_never_played_is_named_rather_than_offered()
+    {
+        // The class C guard the flush applies, at the same decision point. Without it the archive
+        // takes the class A path with a null local save and lands as saves/psp/<stem>.zip, which
+        // is what the flush guard exists to prevent, and a server row can carry a null
+        // content_hash so the verification that would have caught it never runs.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(9, "psp", "Wipeout Pure (USA)", ".iso", ".srm", "not a psp save");
+        File.Delete(fixture.Resolve("saves/psp/Wipeout Pure (USA).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(9, "ppsspp:savedata", "Wipeout Pure (USA)", "zip", "a bundled unit");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        Assert.Empty(findings.Restorable);
+
+        var named = Assert.Single(findings.Unrestorable);
+        Assert.Equal(9, named.RomId);
+        Assert.Equal("ppsspp:savedata", named.Slot);
+        Assert.Contains("directory save", named.Reason, StringComparison.Ordinal);
+
+        // And nothing reached the tree, which is the half that mattered.
+        Assert.False(File.Exists(fixture.Resolve("saves/psp/Wipeout Pure (USA).zip")));
+    }
+
+    [Fact]
+    public async Task A_restored_save_whose_slot_and_emulator_are_blank_still_gets_a_row()
+    {
+        // Finding 245 closed the null case; the CHECKs behind it refuse the empty string and
+        // whitespace the same way, and SaveScanner.SlotFor throws on a blank emulator before a
+        // CHECK is even reached. Both reach this path now that a restore covers any installed
+        // ROM rather than only this device's own uploads, so the values are another client's.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(
+            7,
+            "   ",
+            "Tetris (World)",
+            "srm",
+            "from a client that wrote neither",
+            emulator: string.Empty);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var picks = Assert.IsType<SaveRestoreFindings>(found.Value).Restorable;
+
+        var outcome = await fixture.RestoreAsync(picks, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Problems);
+
+        Assert.Equal(
+            "from a client that wrote neither",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        // Derived rather than carried over. Which emulator names it is the scanner's to settle
+        // on the next pass; what this asserts is that a row could be written at all.
+        var recorded = Assert.Single(fixture.Store.Saves.List());
+        Assert.False(string.IsNullOrWhiteSpace(recorded.Slot));
+        Assert.False(string.IsNullOrWhiteSpace(recorded.Emulator));
+    }
+
+    [Fact]
+    public async Task A_restore_refuses_rather_than_writing_while_something_else_holds_the_tree_lock()
+    {
+        // The ES quit hook spawns a detached background flush fire-and-forget, so a person
+        // running a restore at a terminal beside one is ordinary rather than an edge. Refused
+        // rather than skipped: a flush treats a held lock as success because somebody else is
+        // doing its work, and nobody is doing this one's.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the server");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var picks = Assert.IsType<SaveRestoreFindings>(found.Value).Restorable;
+        Assert.Single(picks);
+
+        using var flushing = TreeLock.TryAcquire(fixture.Install);
+        Assert.NotNull(flushing);
+
+        var outcome = await fixture.RestoreAsync(picks, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Refused);
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Single(outcome.Problems);
+
+        // Nothing was written and nothing was told to the server, which is what "refused" has to
+        // mean for the retry to be safe.
+        Assert.False(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
     private sealed class SyncFixture : IDisposable
     {
         private readonly TempRetroBatTree _tree;
@@ -1358,16 +1571,18 @@ public class SaveSyncTests
             string stem,
             string extension,
             string contents,
-            bool lieAboutHash = false)
+            bool lieAboutHash = false,
+            int id = 100,
+            string emulator = "libretro")
         {
             var bytes = System.Text.Encoding.UTF8.GetBytes(contents);
 
-            Stub.Saves[100] = new StubRomMServer.StubSave
+            Stub.Saves[id] = new StubRomMServer.StubSave
             {
-                Id = 100,
+                Id = id,
                 RomId = romId,
                 Slot = slot,
-                Emulator = "libretro",
+                Emulator = emulator,
                 Bytes = bytes,
                 FileNameNoTags = stem,
                 FileExtension = extension,
@@ -1450,6 +1665,15 @@ public class SaveSyncTests
 
         public Task<SaveSyncOutcome> SyncAsync(CancellationToken cancellationToken = default) =>
             new SaveSync(Install, Store, _connection, DeviceId).RunAsync(cancellationToken);
+
+        public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
+            CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId).FindRestorableAsync(cancellationToken);
+
+        public Task<SaveRestoreOutcome> RestoreAsync(
+            IReadOnlyList<RestorableSave> picks,
+            CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId).RestoreAsync(picks, cancellationToken);
 
         public Task<ConflictResolutionOutcome> ResolveAsync(
             long romId,

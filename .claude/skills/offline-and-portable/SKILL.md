@@ -266,8 +266,8 @@ evict` works with the server off. What 7b-2b removed is the interface to it: Rom
   prevent. **A `FileShare.None` sentinel inside the directory does not fix this**, measured
   rather than assumed: `Directory.Delete(recursive: true)` removes the siblings and only then
   fails on the sentinel, so the staged members are gone either way. `PartialSweep.Apply` takes
-  `TreeLock` and returns having done nothing when it cannot get it, and both routes into a
-  restore (`flush`, and `saves resolve`) hold the same lock. Producers that run outside it
+  `TreeLock` and returns having done nothing when it cannot get it, and all three routes into a
+  restore (`flush`, `saves resolve` and `saves restore --apply`) hold the same lock. Producers that run outside it
   (`sync`, `bios`) rely on `FileShare.None` while writing, where losing the race costs a
   transfer that starts again rather than data. **Reproduced on a real install, not reasoned
   about**: against a staging directory holding three real PPSSPP `SAVEDATA` members, the

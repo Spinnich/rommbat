@@ -725,11 +725,14 @@ internal static class SavesCommand
         var sync = new SaveSync(context.Install, context.Store, connection, deviceId);
         var found = await sync.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
 
-        if (!found.IsSuccess || found.Value is not { } restorable)
+        if (!found.IsSuccess || found.Value is not { } findings)
         {
             Console.Error.WriteLine(found.Message ?? "The save list could not be read.");
             return ExitCode.Offline;
         }
+
+        var restorable = findings.Restorable;
+        var unrestorable = findings.Unrestorable;
 
         // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
         // is not made to take every save back.
@@ -746,12 +749,33 @@ internal static class SavesCommand
             restorable = [.. restorable.Where(save =>
                 save.RomId == romId
                 && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+
+            unrestorable = [.. unrestorable.Where(save =>
+                save.RomId == romId
+                && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
         }
+
+        // Ahead of the "nothing to restore" line, because a save the server holds and this device
+        // cannot place is not nothing, and saying nothing about it is what would send somebody
+        // looking for a bug in the server.
+        foreach (var save in unrestorable)
+        {
+            Console.Error.WriteLine(
+                $"  rom {save.RomId} slot {(save.Slot.Length == 0 ? "(none)" : save.Slot)}: {save.Reason}");
+        }
+
+        // Only --apply can end Partial. A preview was not asked to change anything, so a save it
+        // named as unplaceable is an advisory rather than a failed attempt.
+        var applying = command.Has("apply");
 
         if (restorable.Count == 0)
         {
-            Console.WriteLine("Nothing to restore: every save the server holds for a game on this device is already here.");
-            return ExitCode.Ok;
+            Console.WriteLine(
+                unrestorable.Count > 0
+                    ? "Nothing to restore: the saves above are the only ones missing here, and none can be placed."
+                    : "Nothing to restore: every save the server holds for a game on this device is already here.");
+
+            return applying && unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
         }
 
         foreach (var save in restorable)
@@ -767,7 +791,7 @@ internal static class SavesCommand
 
         Console.WriteLine();
 
-        if (!command.Has("apply"))
+        if (!applying)
         {
             Console.WriteLine(
                 $"{restorable.Count} to restore. Nothing was written. Run 'saves restore --apply' to bring these in.");
@@ -781,10 +805,16 @@ internal static class SavesCommand
             Console.Error.WriteLine("  " + problem);
         }
 
+        // Nothing was attempted, so there is no count to print and it is not a partial run.
+        if (outcome.Refused)
+        {
+            return ExitCode.Refused;
+        }
+
         Console.WriteLine(
             $"restored {outcome.Restored}, failed {outcome.Failed}, {ByteSize.Format(outcome.BytesTransferred)}");
 
-        return outcome.Failed > 0 ? ExitCode.Partial : ExitCode.Ok;
+        return outcome.Failed > 0 || unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
     }
 
     private static string Short(string? hash) =>

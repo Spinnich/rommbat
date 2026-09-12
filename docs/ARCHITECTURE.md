@@ -128,9 +128,11 @@ task.
 | `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
-All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
-one subcommand that needs the network and a decision from a person, and the only caller of
-`overwrite=true` anywhere in the codebase. `saves bind <system> <game id> <rom id>`, and
+All of these are implemented. Two subcommands need both the network and a decision from a
+person: `saves resolve <rom> <slot> --keep-local | --keep-server`, which is also the only caller
+of `overwrite=true` anywhere in the codebase, and `saves restore --apply`, which puts back a save
+the server holds and this device does not. Neither has a default side and neither is ever reached
+from a flush. `saves bind <system> <game id> <rom id>`, and
 `--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
 one by hand.
 
@@ -187,10 +189,12 @@ hook is never told the system, emulator or core, so
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
 hook execution is the normal case. Anything else that writes the same save files takes it
-too: `saves resolve`, which runs the same class C restore a flush does, and `evict`'s sweep of
+too: `saves resolve`, which runs the same class C restore a flush does, `saves restore --apply`,
+which writes into `saves/<system>/` exactly as a download does, and `evict`'s sweep of
 `partial/`, which would otherwise delete a restore's staging directory out from under it. A
 flush that cannot get the lock is done, because another process is doing the work; the other
-two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for the next pass.
+three have nobody doing theirs, so both `saves` subcommands refuse and the sweep waits for the
+next pass.
 
 ### `src/RomMBat.UI`
 
