@@ -103,6 +103,12 @@ work. All three counts are against the 51 systems above.
   Five (`mastersystem`, `vectrex`, `sega32x`, `ngp`, `ngpc`) have a requirement RetroBat names no
   hash for, in whole, so step 3 records that in those words and the pass certifies on the other
   eight. `neogeocd` is the outlier at 12 files, 10 of them hashless.
+- **Artwork outweighs the ROMs on a retro platform, by a lot.** Measured across two whole
+  platforms with three kinds each and no video: `atari2600` is 296.6 KB of ROM against 28 MB of
+  artwork over 53 games, and `atari5200` is 757.5 KB against 46.8 MB over 76. A set whose budget
+  was sized from the ROMs fills with ROMs, every game lands with no cover, and no later run
+  repairs it. Step 7 checks for art, so a wave's sets need headroom or the step fails for a
+  reason that is nothing to do with the platform.
 - **Only 13 emulators declare a save-state directory**, so step 5 is bounded by
   `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)

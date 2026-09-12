@@ -74,6 +74,18 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    populated and is the one to read, so confirm it rather than expecting it to be empty.
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
+
+   **Give the set a budget with real headroom, or step 7 fails for a reason that is not the
+   platform's.** Artwork is not a rounding error on retro systems: measured across two whole
+   platforms with three kinds each and no video at all, `atari2600`'s 53 games are 296.6 KB of
+   ROM against 28 MB of artwork, and `atari5200`'s 76 games are 757.5 KB against 46.8 MB. That
+   is 94x and 62x. A budget sized from the ROMs is filled by the ROMs, every game lands with no
+   cover, and **no later run repairs it, because nothing frees space by itself**. Media is fetched
+   per game so a budget that runs out truncates the tail rather than stripping the artwork off
+   everything, which is #102, but interleaving concentrates the same bytes and does not conjure
+   more. A step 7 failure on a tight budget is a budget setting and must not be recorded as a
+   platform result.
+
 8. A play session is recorded and reaches RomM.
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is
    the strongest single signal that slots, cursors and mapping are all correct.
