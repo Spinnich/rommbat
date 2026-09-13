@@ -136,6 +136,17 @@ that clause with why the states are invisible. The split asks `SaveStateSchema.F
 `{{system}}/bizhawk/sstates/{{core}}`, so `saves/nes/bizhawk/` matches no state directory while
 the emulator is very much declared.
 
+**The directory name is not always the declared name, so it goes through a map first.**
+`es_savestates.cfg` declares `name="dolphin"` with `<directory>{{system}}/dolphin</directory>`,
+and the save tree RetroBat writes beside it is `dolphin-emu` (finding 740, and `save_shapes.json`
+carries `dolphin-emu` for both the gamecube and wii `unit_paths`). Asking `For("dolphin-emu")`
+returns null, so without the map `saves/gamecube/dolphin-emu/` and `saves/wii/dolphin-emu/` would
+be reported under `no_state_declaration` on every install, for the one emulator whose save states
+are measured working (finding 971). `SaveScanner.DeclaredNames` is that map and has one entry;
+`mame`, `ppsspp` and `rpcs3` were checked against all 13 declared names and need none. **Add to
+it whenever a new row's save directory is spelled differently from its `es_savestates.cfg`
+name**, because nothing upstream publishes the correspondence.
+
 Two things that row deliberately does not claim. It does not say the states are lost, because
 RetroBat may mirror them into a declared path (PPSSPP writes the undeclared `psp/PPSSPP_STATE/`
 and is mirrored live into `psp/ppsspp/`), and nothing at that point can tell that case from

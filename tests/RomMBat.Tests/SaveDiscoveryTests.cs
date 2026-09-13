@@ -463,6 +463,34 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void An_emulator_declared_under_another_name_than_its_save_directory_stays_declared()
+    {
+        // es_savestates.cfg names Dolphin "dolphin" and RetroBat writes its save tree under
+        // dolphin-emu/, so asking the directory name alone puts the one emulator whose states
+        // are measured working (finding 971) in the half that says nothing here is restorable.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("gamecube", "dolphin-emu/User/GC/USA/5D-GUNE-Gauntlet.gci.deleted", "not a unit");
+
+        fixture.ScanWithStateSchema();
+
+        var row = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "gamecube" && entry.Emulator.Length == 0);
+
+        Assert.Equal(UnsyncableReason.NotInThisVersion, row.Reason);
+        Assert.DoesNotContain("not restorable", row.Detail, StringComparison.Ordinal);
+
+        // gamecube is class C with no class A or B, so there are no loose battery saves for
+        // the sentence to be about and the clause is dropped rather than printed empty.
+        Assert.DoesNotContain("battery saves loose", row.Detail, StringComparison.Ordinal);
+        Assert.Contains(
+            "syncs the save states es_savestates.cfg declares and the directory saves",
+            row.Detail,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void An_install_with_no_state_schema_claims_nothing_about_declarations()
     {
         // The undeclared row's claim is that es_savestates.cfg was read and does not name the

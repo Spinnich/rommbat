@@ -117,6 +117,13 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   promises save states sync. Step 5 for such a row records what the emulator wrote and where, and
   that RomMBat does not read it.
 
+  **Check the declaration by emulator name, not by save-directory name**, before recording a row
+  as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
+  as `dolphin` and writes its save tree to `dolphin-emu/`, and its save states are measured
+  working (finding 971). `SaveScanner.DeclaredNames` carries the correspondence for the one row
+  where it diverges, so a new row whose directory name is not in `es_savestates.cfg` needs that
+  checked before the record says the emulator declares nothing.
+
 **Name how the row was selected, every time.** A row driven under an `es_settings.cfg` override
 is not the row a stock install gives a user, and a record that does not distinguish them is
 claiming something it did not test. Confirm what actually ran from

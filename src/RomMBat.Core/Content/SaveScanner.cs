@@ -65,6 +65,26 @@ public sealed record SaveScanOutcome
 /// </remarks>
 public sealed class SaveScanner
 {
+    /// <summary>
+    /// Save-tree directory names RetroBat spells differently from its
+    /// <c>es_savestates.cfg</c> name.
+    /// </summary>
+    /// <remarks>
+    /// The file declares <c>name="dolphin"</c> with <c>&lt;directory&gt;{{system}}/dolphin</c>,
+    /// and the save tree beside it is <c>dolphin-emu</c>: finding 740 lists
+    /// <c>wii/dolphin-emu</c>, and <c>save_shapes.json</c> carries <c>dolphin-emu</c> for both
+    /// the gamecube and wii <c>unit_paths</c>. Without this step the one emulator whose save
+    /// states are measured working (finding 971, <c>.s01</c>, written live) would be reported
+    /// under a row saying nothing here is restorable, on every install: <c>shared2/</c>,
+    /// <c>sys/</c> and <c>title/00000001</c> are never units, so the wii count is never zero.
+    /// <para>
+    /// One entry, because it is the only divergence among the emulators any shape names.
+    /// <c>mame</c>, <c>ppsspp</c> and <c>rpcs3</c> were checked against all 13 declared names.
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<string, string> DeclaredNames =
+        new(StringComparer.OrdinalIgnoreCase) { ["dolphin-emu"] = "dolphin" };
+
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
     private readonly SaveShapes _shapes;
@@ -729,19 +749,22 @@ public sealed class SaveScanner
             return;
         }
 
-        var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
-
         // The system's own class is named because a reader will ask why a class A system has
         // anything unsyncable at all. The answer is that the class describes its battery
         // saves, which are the loose files, and these subdirectories are the emulators' own
         // trees: memory cards and directory saves, which this release does not carry.
+        var synced = shape.HasSyncableClass
+            ? $"the battery saves loose under saves/{system}/ (class {Classes(shape)}), the save "
+                + "states beside them, and the directory saves the shape definition names"
+            : "the save states es_savestates.cfg declares and the directory saves the shape "
+                + "definition names";
+
         report.Add(
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
             $"{NameList(entries)} hold shared containers or a shape no declaration covers. This "
-                + $"release syncs the battery saves loose under saves/{system}/ (class {classes}), "
-                + "the save states beside them, and the directory saves the shape definition names.",
+                + $"release syncs {synced}.",
             entries.Sum(entry => entry.Files));
     }
 
@@ -773,7 +796,10 @@ public sealed class SaveScanner
             return;
         }
 
-        var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
+        var synced = shape.HasSyncableClass
+            ? $"the battery saves loose under saves/{system}/ (class {Classes(shape)}) and the "
+                + "directory saves the shape definition names"
+            : "the directory saves the shape definition names";
 
         report.Add(
             system,
@@ -781,12 +807,23 @@ public sealed class SaveScanner
             UnsyncableReason.NoStateDeclaration,
             $"{NameList(entries)} hold shared containers or a shape no declaration covers, and no "
                 + "es_savestates.cfg entry declares a save-state directory under them either. This "
-                + $"release syncs the battery saves loose under saves/{system}/ (class {classes}) "
-                + "and the directory saves the shape definition names. A save state written under "
-                + "these is found only where RetroBat mirrors it into a declared path, and is "
-                + "otherwise not scanned, not uploaded and not restorable.",
+                + $"release syncs {synced}. A save state written under these is found only where "
+                + "RetroBat mirrors it into a declared path, and is otherwise not scanned, not "
+                + "uploaded and not restorable.",
             entries.Sum(entry => entry.Files));
     }
+
+    /// <summary>
+    /// The system's declared classes, named only where a loose battery save can exist.
+    /// </summary>
+    /// <remarks>
+    /// <c>gamecube</c> and <c>wii</c> are class C with no class A or B at all, so
+    /// "the battery saves loose under saves/wii/" describes nothing that is there. The clause
+    /// is dropped rather than reworded, which is why this is only reached behind
+    /// <see cref="SaveShape.HasSyncableClass"/>.
+    /// </remarks>
+    private static string Classes(SaveShape shape) =>
+        string.Concat(shape.Classes.Select(value => value.ToString()));
 
     private static string NameList(List<(string Directory, int Files)> entries) =>
         string.Join(
@@ -803,14 +840,27 @@ public sealed class SaveScanner
     /// much declared. Asking <see cref="SaveStateSchema.MatchDirectory"/> here would put every
     /// such emulator in the undeclared half.
     /// <para>
+    /// The directory name goes through <see cref="DeclaredNames"/> first, because RetroBat does
+    /// not spell an emulator the same way in both places.
+    /// </para>
+    /// <para>
     /// <b>No schema is not an absent declaration.</b> The undeclared row's claim is that the
     /// file was read and does not name this emulator, and an install with no
     /// <c>es_savestates.cfg</c> supports neither half of that. Everything stays in the declared
     /// row there, which is what this reported before the split.
     /// </para>
     /// </remarks>
-    private bool DeclaresStates(string directory) =>
-        _states is null || _states.For(Path.GetFileName(directory)) is not null;
+    private bool DeclaresStates(string directory)
+    {
+        if (_states is null)
+        {
+            return true;
+        }
+
+        var name = Path.GetFileName(directory);
+
+        return _states.For(DeclaredNames.GetValueOrDefault(name, name)) is not null;
+    }
 
     /// <summary>
     /// Drops rows for saves that are no longer on disk, so a deleted save stops blocking eviction.
