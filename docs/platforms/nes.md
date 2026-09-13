@@ -470,6 +470,16 @@ uniform.
 
 `<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`.
 
+**The screenshot half of that column was recorded for the three `libretro` rows only, and the gap
+is not cosmetic here.** `es_savestates.cfg` declares an `<image>` for `bizhawk`
+(`{{romfilename}}.QuickSave{{slot0}}.png`) and for `jgenesis` (`{{romfilename}}_{{slot0}}.png`), so
+whether those five rows wrote one is a measurable fact this pass did not capture. The other three
+declare no entry at all, so there is no `<image>` template to check them against and anything they
+wrote would be in their own tree, unread for the same reason their states are. Step 5's screenshot
+half
+is this platform's open gap, so which rows write one decides how wide that gap is. It needs another
+hands-on pass.
+
 **So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
 entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
 string was already telling the truth: six of the nine rows write something else entirely, in four
@@ -519,12 +529,16 @@ shape no declaration covers. This release syncs the battery saves loose under `s
 (class A), the save states beside them, and the directory saves the shape definition names."
 Nothing is dropped silently.
 
-**The state column is not reported, and that is a defect.** `mednafen`, `mesen` and `ares` declare
+**The state column is misreported, and that is a defect.** `mednafen`, `mesen` and `ares` declare
 no `es_savestates.cfg` entry, and `StateScanner` finds states only from that file, so the states
-they wrote are not scanned, not uploaded, not restorable **and not mentioned**. A person with a
-save state is told there is none. Issue #150, and it reaches well past this platform: 30 of wave
-1's 81 rows are in that family, and `docs/platforms/README.md` had been reading "declares no
-directory" as "writes no state".
+they wrote are not scanned, not uploaded and not restorable. They are mentioned, and that is the
+part to be precise about: `CountFiles` excludes only declared state directories, so these three
+undeclared ones are counted and named by the same `AddSubdirectories` row quoted above. So a person
+with a save state is not told there is none. They are told the directory holds something unsyncable,
+under a sentence promising that "the save states beside them" sync, and with the state files folded
+into a count whose reason is about battery saves and shared containers. Issue #150, and it reaches
+well past this platform: 30 of wave 1's 81 rows are in that family, and `docs/platforms/README.md`
+had been reading "declares no directory" as "writes no state".
 
 Two smaller findings from the same pass:
 
@@ -612,12 +626,20 @@ That is the mechanism #155 is about, now known to work when it is not racing a l
 
 ### Two defects, #157
 
-**A download leaves `save_slot` naming the superseded save.** After pulling save 211 down, the row
-still read `save_id 209` with the pre-download hash, while 211's content sat on disk. It does not
-self-correct: the local file is then in step, so the slot is never negotiated again. `--keep-server`
-inherits it, because it runs the same restore; `--keep-local` writes the row correctly. Nothing
-visibly breaks, because the server-side sync record **is** updated, so the damage is confined to
-the device's picture of the server and is silent.
+**A class A download leaves `save_slot` naming the superseded save.** After pulling save 211 down,
+the row still read `save_id 209` with the pre-download hash, while 211's content sat on disk. It
+does not self-correct: the local file is then in step, so the slot is never negotiated again.
+`--keep-local` writes the row correctly. Nothing visibly breaks, because the server-side sync
+record **is** updated, so the damage is confined to the device's picture of the server and is
+silent.
+
+**It is class A's, not every restore's, and keep-server is a second instance rather than an
+inheritance.** `SaveSync.RestoreUnitAsync` and `SaveConflictResolver.FinishUnitAsync`, the class C
+halves, both call `SaveSlots.RecordRestored`. `SaveSync.RecordRestored` and
+`SaveConflictResolver.KeepServerAsync`, the class A halves, both write `local_save` and stop.
+`KeepServerAsync` does not call the download path, so it is broken separately and a fix to the
+download alone would leave it broken. Only class A was driven here, which is what this pass can
+speak to; the class C recording is read from the code and from the 7b-3 measurement it cites.
 
 **A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
 copy is still there with no decision to attach to it and no mechanism that will remove it.

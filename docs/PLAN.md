@@ -3602,8 +3602,14 @@ systems**.
 The cost is bounded because **only steps 4, 5 and 6 are per row**, and those collapse into four
 families rather than 81 shapes: libretro (30 of the 81, one `es_savestates.cfg` entry differing
 by a path segment), bizhawk (14, core-scoped), jgenesis (7), and **30 rows that declare no state
-directory at all**, where step 5 is a recorded declaration and the row certifies on the other
-eight steps. `docs/platforms/README.md` carries the table.
+directory at all**. `docs/platforms/README.md` carries the table.
+
+**An earlier revision read that fourth family as having no states to sync, and it was wrong.**
+Driven on `nes`: `mednafen`, `mesen` and `ares` each wrote a real save state into a directory they
+name themselves, which `StateScanner` never reads because it works from `es_savestates.cfg` alone.
+So step 5 for those rows is not a recorded declaration that there is nothing to carry, it is an
+open gap, and the row does not quietly certify around it. Issue #150. That is a third of wave 1,
+so the family has to be re-checked per row rather than counted as cheap.
 
 **Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
 `nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under

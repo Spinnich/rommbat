@@ -118,10 +118,17 @@ with **no entry at all** still writes save states, into a directory it names its
 | `mesen`    | no entry            | `saves/nes/mesen/SaveStates/*_1.mss` |
 | `ares`     | no entry            | `saves/nes/ares/<profile>/*.bs1`     |
 
-`StateScanner` finds states only from `es_savestates.cfg`, so these are invisible: not scanned, not
-uploaded, not restorable, and not reported. **Never read "declares no state directory" as "this row
+`StateScanner` finds states only from `es_savestates.cfg`, so these are invisible to state sync:
+not scanned, not uploaded, not restorable. **Never read "declares no state directory" as "this row
 has no states"**, which is the reading `docs/platforms/README.md` was built on for 30 of wave 1's
 81 rows. Issue #150.
+
+They are not silent, though, and the difference matters to whoever fixes it. `SaveScanner.CountFiles`
+excludes only the directories `es_savestates.cfg` declares, so an undeclared state directory is
+counted as unsyncable and `AddSubdirectories` names it in the row it prints. What is wrong is the
+explanation attached: the reason string says this release syncs "the save states beside them", for
+directories where it does not, and the state files land in a count reported under a battery or
+container reason.
 
 **`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
 declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that
