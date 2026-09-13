@@ -346,10 +346,20 @@ deliberately not converted. And a converted card has never been **downloaded** o
 real device, only onto a test one. See
 [docs/platforms/README.md](docs/platforms/README.md) for the per-stage records, gaps included.
 
-**Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
-conflict detection, so there is nothing to negotiate: a state goes up when its contents change
-and does not come back down. Anything RomMBat cannot sync is reported by `saves` with the
-reason rather than passed over in silence.
+**Save states are pushed automatically and pulled only when asked.** `POST /api/states` has no
+slot, no device and no conflict detection, so there is nothing to negotiate: a state goes up when
+its contents change, and a sync never brings one down. `saves restore` is the way back, for the
+reason it is the way back for a save: a file that reappears because a sync decided it should is
+indistinguishable from a bug to whoever deleted it.
+
+**Nothing verifies a state that comes down, and the command says so.** RomM publishes no hash for
+a state, where a save carries `content_hash`, so there is nothing to check the bytes against. Nor
+can the emulator build be checked: a state carries its emulator and core but no version, so one
+made on a different build looks identical here and may refuse to load. Both are limits of the
+API, and `saves restore` prints them on the preview as well as before applying.
+
+Anything RomMBat cannot sync is reported by `saves` with the reason rather than passed over in
+silence.
 
 ### Known upstream issues
 

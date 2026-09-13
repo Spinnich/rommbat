@@ -540,12 +540,19 @@ and rescanning saves all work with the server unreachable, so `--offline` is a r
 than a dry run. `saves` is the report of what is on disk, what has gone up, what cannot go up
 and why, and what is waiting on a decision.
 
-**Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
-conflict detection, so there is nothing to negotiate: a state goes up when its content changes
-and never comes back down. The uploaded name is not the name on disk. It carries the emulator
-and core, because the server keys a state on `(rom_id, file_name)` alone and two libretro cores
-writing one filename for one game would otherwise become one row with the second silently
-winning.
+**Save states are pushed automatically and pulled only when asked.** `POST /api/states` has no
+slot, no device and no conflict detection, so there is nothing to negotiate: a state goes up when
+its content changes, and no sync brings one down. `saves restore` offers both halves in one
+preview, labelling each row `save` or `state`, and writes nothing without `--apply`. A state it
+brings down is unverified twice over, and it says so: RomM publishes no hash for a state, and a
+state carries no emulator version either, so one made on a different build of the same emulator
+cannot be told apart from one made here.
+
+The uploaded name is not the name on disk. It carries the emulator and core, because the server
+keys a state on `(rom_id, file_name)` alone and two libretro cores writing one filename for one
+game would otherwise become one row with the second silently winning. Coming back the other way
+the ROM on disk names the file, never the server row: RomM strips parenthesised groups as tags,
+so the server's `file_name_no_tags` would put the state where the emulator never looks.
 
 **A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
 `--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
