@@ -3,10 +3,10 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified.** Steps 1, 3, 7, 8 and 9 hold and step 6 is N/A. **Three remain open**: step 2's
-exclusion cannot be exercised on this platform, step 4 works upward and is measured broken
-downward, and step 5's screenshot does not link. A pass is not done at eight of nine, and two of
-the three open ones are defects rather than unrun work.
+**Not certified.** Steps 1, 3, 4, 7, 8 and 9 hold and step 6 is N/A. **Two remain open**: step 2's
+exclusion cannot be exercised on this platform, and step 5's screenshot does not link, which is
+now a loss rather than a cosmetic gap, because a restore cannot bring back what the state does
+not point at. A pass is not done at eight of nine.
 
 ## The row
 
@@ -44,6 +44,12 @@ describes.
 | Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free         |
 | Media kinds | `ScrapeVideos` and `ScrapeManual` both `true`, as a fresh 8.2.1 ships them |
 
+**This record spans two sessions and two builds**, and the difference matters to step 4. The
+first ran before `saves restore` existed and measured the download half as broken. The second ran
+on a deploy of `main` carrying #136 and #140, made by `tools/publish.ps1 -Deploy R:\RetroBat`,
+and measured it working. Where the two disagree the second one is the result, and the file says
+which is which rather than quietly replacing the earlier text.
+
 The budget being off is deliberate and narrows what this pass proves: **nothing here certifies
 `budget`, `evict` or the eviction guards.** None of those is among the nine steps. It also means
 a missing cover at step 7 cannot be a headroom problem, which is why it was switched off.
@@ -55,8 +61,8 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 | 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                   |
 | 2   | `<extension>` captured; unsupported file excluded and reported | **Partial, and not exercisable here.** The library is `.zip` throughout for this platform |
 | 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                             |
-| 4   | Save shape classified, battery save round-trips                | **Up only, and down is now measured as broken.** See #84 below                            |
-| 5   | Save state round-trips with its screenshot                     | **State yes, screenshot no.** A finding 138 recurrence                                    |
+| 4   | Save shape classified, battery save round-trips                | **Pass, both directions.** Class A, and the md5 is equal up and down. See below           |
+| 5   | Save state round-trips with its screenshot                     | **State yes, both ways. Screenshot no**, a finding 138 recurrence                         |
 | 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                        |
 | 7   | Launches from EmulationStation with art and metadata           | **Pass.** Box art confirmed rendering in the game list, metadata present                  |
 | 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                        |
@@ -173,31 +179,53 @@ Zelda's own character encoding. So this is a player save rather than a file the 
 boot, which is the trap `save_shapes.json` records for `mastersystem` and which a size check
 alone would not catch.
 
-**The download half was then driven, and it does not work.** The local `.srm` was backed up and
-deleted from the tree, leaving the server copy intact and hash-matched. Neither `flush` nor
-`sync` brought it back, which is **#84 reproduced deliberately** rather than inferred.
+**The download half was driven twice, and the second time it worked.**
 
-Two things this adds to #84 as written.
+The first pass, before #136, deleted the backed-up `.srm` from the tree and found that neither
+`flush` nor `sync` brought it back, which was **#84 reproduced deliberately** rather than
+inferred. The mechanism was that save sync is scan-driven: candidates come from saves found on
+disk, so a save with no local file was never considered. #136 added `saves restore`, which walks
+the server's save list instead, and #140 did the same for states.
 
-**Nothing in the tool surfaces the loss.** `status --check-files` answered
-`1,316 recorded, all present`, which is exactly 228 ROMs plus 1,088 media. That sweep covers
-downloaded content and never looks at saves, so a save missing from the tree is not merely
-unrecoverable, it is invisible.
+**The second pass, on the merge of both, brings it back byte for byte.** Same file, deleted from
+the tree again after a backup and an md5:
 
-**The store still holds everything needed to recover it.** After the delete, `local_save` had
-no row, because that table is rebuilt from what is on disk, but `save_slot` still read:
-
-```text
-rom_id 158633, slot libretro:battery, save_id 196, server_content_hash 0dda7bfc...
+```console
+$ rommbat-agent saves restore --apply
+  save   rom 158633  libretro:battery          8 KB  2026-09-12 18:27  saves/nes/Legend of Zelda, The (USA) (Rev 1).srm
+  state  rom 158633  libretro.nestopia      10.2 KB  2026-09-12 18:27  saves/nes/libretro.nestopia/Legend of Zelda, The (USA) (Rev 1).state1
+restored 1 save(s) and 1 state(s), failed 0, 18.2 KB
 ```
 
-So RomMBat knew the server had save 196 for an installed ROM, and knew its hash, and still did
-not fetch it. **The mechanism is that save sync is scan-driven**: candidates come from saves
-found on disk, so a save with no local file is never considered. That is a sharper statement
-than "never fetched back" and it names where a fix would go.
+|                     | Before the delete                  | After the restore                  |
+| ------------------- | ---------------------------------- | ---------------------------------- |
+| `.srm`, 8,192 B     | `0dda7bfc92305642b6120324911e0362` | `0dda7bfc92305642b6120324911e0362` |
+| `.state1`, 10,459 B | `2e4d4b06ade2cfd5cbe2f769531720e7` | `2e4d4b06ade2cfd5cbe2f769531720e7` |
 
-The save was restored from the backup afterwards, re-attributed, and the server still holds
-exactly one row for it. Nothing was duplicated by the exercise.
+**So step 4 closes in both directions**, and step 5's state half closes with it. A `flush`
+afterwards reported `saves: 3 of 3 attributed` and `states: 1 already in step`, and
+`saves restore 158633` then answered that everything the server holds for that ROM is already
+here. No duplicate server row was created by the round trip.
+
+Three things this pass adds, none of which stops step 4 passing.
+
+**The first `saves restore` after the delete offered nothing, which is #147.** The save became
+visible only after an unrelated `saves` run scanned the tree, because the restore asks
+`local_save` what this device holds and nothing in the command rebuilds it. The state half of
+the same run did not have the bug and offered its row immediately, which is what made the shape
+obvious. A person whose save has just vanished runs this command first and is told there is
+nothing to restore.
+
+**`--apply` exited 7 with `failed 0`, which is #148.** Eighteen states on this server were
+written by another client that scopes a state by core, and `es_savestates.cfg` names emulators,
+so they can never be placed here. They are folded into the exit code, so on this install the
+command cannot exit 0 no matter what it restores. `saves restore 158633` exits 0, because
+narrowing to one ROM drops them.
+
+**Nothing in the tool surfaced the loss**, which is #142 and is unchanged by either PR.
+`status --check-files` answered `1,316 recorded, all present`, which is exactly 228 ROMs plus
+1,088 media. That sweep covers downloaded content and never looks at saves, so the save was
+recoverable and still invisible.
 
 ### 5. Save state and screenshot
 
@@ -218,16 +246,35 @@ filenames match `{{romfilename}}.state{{slot}}` and its `.png` sibling exactly.
 overwritten server row. Finding 134 proved that collision; this is the fix holding on a second
 platform.
 
+**The state comes back down as well as up**, measured in the same exercise as step 4: deleted
+from the tree and restored by `saves restore --apply` at an identical md5, into the same declared
+directory it was written from.
+
 **The screenshot did not link, which is finding 138 recurring.** It uploaded, stored against the
 ROM at the right name and size, and the state still reads `screenshot: null`. Finding 138
 measured this at roughly a third of thirty-five attempts on `mastersystem` under
 `genesis_plus_gx`; seeing it on `nes` under `nestopia` shows it is **not specific to a platform or
 a core**. Nothing here suggests a RomMBat fault: the asset is on the server, correctly named.
 
+**What changed is the cost of that gap.** While states only went up, an unlinked screenshot was
+cosmetic. Now that a state comes back, the screenshot does not come with it: the restore has only
+the state's own `screenshot` field to follow, that field is null, and screenshot 193 sits on the
+server unreachable. `.state1.png` was the one file of the three that did not return. So step 5
+stays open on the screenshot, and the reason it stays open is now a loss rather than an untidy
+record.
+
+**The missing link is only half of it, and the other half is RomMBat's.** `RestorableState`
+carries no screenshot member, `RestoreAsync` fetches `DownloadStateAsync` and nothing else, and
+`RomMConnection.States` has an upload path for a screenshot with no download counterpart. So a
+state whose `screenshot` field did link would still not bring its `.png` back today. Step 5 needs
+#158 as well as the RomM-side link, and no `(system, emulator, core)` row can pass it on either
+alone.
+
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
-nothing to compare against. That is a property of RomM's model rather than of this platform, and
-it is worth knowing before state download is designed.
+nothing to compare against. The restore says so itself rather than implying a check it cannot
+make, and it warns that a state carries emulator and core but no version. That is a property of
+RomM's model rather than of this platform.
 
 ### 9. Re-sync
 
@@ -299,7 +346,8 @@ ordinary `Missing` case, per finding 239.
 
 ### 8. Play session
 
-The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working:
+The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working. The
+block is the earlier capture, taken before the Zelda launch, which is why it stops at 18:13:51:
 
 ```text
 2026-09-12 18:01:34Z  start  background start started
@@ -309,8 +357,10 @@ The hook chain fired on a fresh install with nobody at a terminal, which is rule
 ```
 
 `start` and `quit` each spawned a detached pass; `game-start` and `game-end` journalled and
-started nothing. **The step is not passed**, because the one launch was accidental and lasted
-about ten seconds, and no play session has been confirmed on the server.
+started nothing. **The step passes**, confirmed on the server rather than from the hook log:
+`last_played` moved at 18:27:15 from a quit hook that fired at 18:27:07, and `now_playing`
+cleared. An earlier revision of this section said the step was not passed, which was true of the
+first accidental ten-second launch and was left standing after the Zelda session closed it.
 
 ## What the pass turned up
 
@@ -346,6 +396,17 @@ moves it to the destination with no unwrapping, so had the hash matched it would
 ZIP to `saves/nes/River City Ransom (USA).srm`, which nestopia cannot read. The mismatch masked
 it. The trigger here is bad data rather than ordinary operation, so this wants filing and
 measuring against a save RomMBat itself uploaded, not a fix written from this record alone.
+
+**Eighteen states on this server can never be placed on this install, and none of them is
+RomMBat's.** Their slots name a core where `es_savestates.cfg` names an emulator: `fceumm`,
+`genesis_plus_gx`, `snes9x`, `mgba`, `mupen64plus_next`, `pcsx_rearmed`, `beetle_psx_hw` and
+`dc`. They were written by another client against the same library, the same one that left the
+two stale `River City Ransom` saves. RomMBat names each one and the reason rather than dropping
+it, which is right, but it also folds them into the exit code, which is #148. Four of the
+eighteen are `nes` rows under `fceumm`, so **this is what a second `(emulator, core)` row's
+states would look like to a restore** if RomMBat ever scoped one by core alone. It does not:
+`ScopeOf` writes `{emulator}.{core}`, which is what makes these rows unplaceable and RomMBat's
+own placeable.
 
 **A stock 8.2.1 install ships 1,231 MAME nvram directories**, and `saves` reports every one as a
 directory save that is not sent, with 1,531 files unsyncable for `no matching ROM`. Nothing here

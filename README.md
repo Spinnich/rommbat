@@ -318,12 +318,12 @@ ships in stages small enough to review. The first cut is at the save-class bound
 second is at what each remaining piece needs from Game-ID attribution, which is the only hard
 dependency among them.
 
-| Stage | Scope                                                                                          | State                                                                                                                     |
-| ----- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                                     |
-| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** States are pushed one way; `saves resolve` picks a side and prunes the copy kept aside                      |
-| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | **Complete.** A PPSSPP `SAVEDATA/` directory went up, came back as a conflict, and the game loaded what the restore wrote |
-| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | **Complete.** A PS2 game opted into a per-game memory card, written by the game, synced, and loaded back                  |
+| Stage | Scope                                                                                          | State                                                                                                                                             |
+| ----- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                                                             |
+| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** A sync only pushes a state and `saves restore` is what brings one back; `saves resolve` picks a side and prunes the copy kept aside |
+| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | **Complete.** A PPSSPP `SAVEDATA/` directory went up, came back as a conflict, and the game loaded what the restore wrote                         |
+| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | **Complete.** A PS2 game opted into a per-game memory card, written by the game, synced, and loaded back                                          |
 
 **M6's four save shapes, and what proved each.** The milestone asks for one game from each
 shape rather than three of the easy one, so the evidence is listed per shape rather than

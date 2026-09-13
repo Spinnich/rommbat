@@ -207,7 +207,8 @@ internal static class SavesCommand
         }
 
         Console.WriteLine();
-        Console.WriteLine($"{states.Count} save states on disk (pushed one way, never downloaded):");
+        Console.WriteLine(
+            $"{states.Count} save states on disk (a sync only pushes them; 'saves restore' brings one back):");
 
         foreach (var state in states.OrderBy(state => state.Path.Value, StringComparer.Ordinal))
         {
