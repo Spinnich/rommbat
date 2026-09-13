@@ -396,6 +396,41 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public void A_v10_unsyncable_row_survives_the_011_rebuild()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var path = tree.Install().DatabasePath;
+        string[] upToV10 =
+            [
+                "001-initial.sql", "002-sync-sets.sql", "003-content.sql",
+                "004-metadata-and-media.sql", "005-firmware.sql", "006-saves.sql",
+                "007-states-and-conflicts.sql", "008-save-units-and-bindings.sql",
+                "009-multi-file-flag.sql", "010-save-conversions.sql",
+            ];
+
+        using (var seed = new SqliteConnection($"Data Source={path}"))
+        {
+            seed.Open();
+            foreach (var migration in upToV10)
+                Execute(seed, ReadMigration(migration));
+
+            Execute(
+                seed,
+                """
+                INSERT INTO unsyncable (system, emulator, reason_kind, detail, file_count, observed_at_utc)
+                VALUES ('ps3', '', 'not_in_this_version', 'rpcs3 holds directory saves.', 2,
+                        '2026-01-01T00:00:00Z');
+                PRAGMA user_version = 10;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+        var row = Assert.Single(store.Unsyncable.List());
+        Assert.Equal(UnsyncableReason.NotInThisVersion, row.Reason);
+        Assert.Equal(2, row.FileCount);
+    }
+
+    [Fact]
     public void A_v14_unsyncable_row_survives_the_015_rebuild()
     {
         // SQLite cannot widen a CHECK in place, so 015 copies the table and drops the old one.
