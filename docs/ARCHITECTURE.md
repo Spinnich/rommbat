@@ -480,13 +480,16 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Thirteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Fourteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
 widens `sync_set.scope_kind` to admit `'picked'`, so a hand-picked set is a set rather than an
 id list smuggled into another scope's column, and adds no column: for that scope the id list is
-the definition and lives in `scope_value` as a filter's JSON already does. The
+the definition and lives in `scope_value` as a filter's JSON already does. 015 widens
+`unsyncable.reason_kind` to admit `'no_state_declaration'`, the first reason there that is
+about the state half rather than a save shape: an emulator with no `es_savestates.cfg` entry
+writes save states anyway, into a directory nothing reads. The
 schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 

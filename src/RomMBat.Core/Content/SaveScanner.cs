@@ -678,6 +678,15 @@ public sealed class SaveScanner
     /// The exclusion asks the schema rather than matching directory names, so the two passes
     /// cannot disagree about what a state directory is.
     /// </para>
+    /// <para>
+    /// <b>Two rows, split on whether <c>es_savestates.cfg</c> names the emulator at all.</b> One
+    /// row said "this release syncs the save states beside them" over both halves, and for an
+    /// emulator with no entry that is false: <c>mednafen</c>, <c>mesen</c> and <c>ares</c> each
+    /// wrote a real save state into a directory they name themselves, and those files landed in
+    /// a count whose reason is about battery saves and shared containers. Telling someone their
+    /// states sync while counting them as unsyncable is the earlier defect in the other
+    /// direction. See #150.
+    /// </para>
     /// </remarks>
     private void AddSubdirectories(
         UnsyncableReport report,
@@ -688,23 +697,37 @@ public sealed class SaveScanner
         HashSet<RelativePath> carried,
         HashSet<string> shared)
     {
-        var subdirectories = Directory.EnumerateDirectories(systemDirectory).ToList();
-        var files = subdirectories.Sum(directory => CountFiles(directory, savesRoot, carried, shared));
-
-        if (files == 0)
-        {
-            return;
-        }
-
         // Named only where something in them is genuinely not carried, so a system whose only
         // subdirectory is a state directory, or holds nothing but a container already named as
         // shared, is not listed at all.
-        var names = string.Join(
-            ", ",
-            subdirectories
-                .Where(directory => CountFiles(directory, savesRoot, carried, shared) > 0)
-                .Select(Path.GetFileName)
-                .Order(StringComparer.Ordinal));
+        var declared = new List<(string Directory, int Files)>();
+        var undeclared = new List<(string Directory, int Files)>();
+
+        foreach (var directory in Directory.EnumerateDirectories(systemDirectory))
+        {
+            var count = CountFiles(directory, savesRoot, carried, shared);
+
+            if (count > 0)
+            {
+                (DeclaresStates(directory) ? declared : undeclared).Add((directory, count));
+            }
+        }
+
+        AddDeclaredSubdirectories(report, system, shape, declared);
+        AddUndeclaredSubdirectories(report, system, shape, undeclared);
+    }
+
+    /// <summary>Reports subdirectories of emulators <c>es_savestates.cfg</c> does declare.</summary>
+    private static void AddDeclaredSubdirectories(
+        UnsyncableReport report,
+        string system,
+        SaveShape shape,
+        List<(string Directory, int Files)> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
 
         var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
 
@@ -716,11 +739,78 @@ public sealed class SaveScanner
             system,
             string.Empty,
             UnsyncableReason.NotInThisVersion,
-            $"{names} hold shared containers or a shape no declaration covers. This release syncs "
-                + $"the battery saves loose under saves/{system}/ (class {classes}), the save states "
-                + "beside them, and the directory saves the shape definition names.",
-            files);
+            $"{NameList(entries)} hold shared containers or a shape no declaration covers. This "
+                + $"release syncs the battery saves loose under saves/{system}/ (class {classes}), "
+                + "the save states beside them, and the directory saves the shape definition names.",
+            entries.Sum(entry => entry.Files));
     }
+
+    /// <summary>
+    /// Reports subdirectories no <c>es_savestates.cfg</c> entry claims.
+    /// </summary>
+    /// <remarks>
+    /// <b>It carries the shape half too, because the same directory holds both.</b>
+    /// <c>saves/nes/ares/Famicom/</c> holds a battery save this release defers and a save state
+    /// nothing reads, and splitting those into two rows would count one file twice under two
+    /// explanations. So this row says everything the declared row says except the one clause
+    /// that is false here, and adds why.
+    /// <para>
+    /// <b>Hedged on the mirror, because nothing here can settle it.</b> PPSSPP writes
+    /// <c>psp/PPSSPP_STATE/</c>, which no entry declares, and RetroBat mirrors each state into
+    /// the declared <c>psp/ppsspp/</c> while the game is still running, so a flat "nothing here
+    /// is synced" is false there and true for <c>mednafen</c>. With no declaration nothing
+    /// distinguishes the two, so the row names the mechanism that decides it instead.
+    /// </para>
+    /// </remarks>
+    private static void AddUndeclaredSubdirectories(
+        UnsyncableReport report,
+        string system,
+        SaveShape shape,
+        List<(string Directory, int Files)> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        var classes = string.Concat(shape.Classes.Select(value => value.ToString()));
+
+        report.Add(
+            system,
+            string.Empty,
+            UnsyncableReason.NoStateDeclaration,
+            $"{NameList(entries)} hold shared containers or a shape no declaration covers, and no "
+                + "es_savestates.cfg entry declares a save-state directory under them either. This "
+                + $"release syncs the battery saves loose under saves/{system}/ (class {classes}) "
+                + "and the directory saves the shape definition names. A save state written under "
+                + "these is found only where RetroBat mirrors it into a declared path, and is "
+                + "otherwise not scanned, not uploaded and not restorable.",
+            entries.Sum(entry => entry.Files));
+    }
+
+    private static string NameList(List<(string Directory, int Files)> entries) =>
+        string.Join(
+            ", ",
+            entries.Select(entry => Path.GetFileName(entry.Directory)).Order(StringComparer.Ordinal));
+
+    /// <summary>
+    /// Whether <c>es_savestates.cfg</c> names the emulator this directory is called after.
+    /// </summary>
+    /// <remarks>
+    /// The emulator rather than the directory, because the declared template usually sits below
+    /// this level: BizHawk declares <c>{{system}}/bizhawk/sstates/{{core}}</c>, so
+    /// <c>saves/nes/bizhawk/</c> itself matches no state directory while the emulator is very
+    /// much declared. Asking <see cref="SaveStateSchema.MatchDirectory"/> here would put every
+    /// such emulator in the undeclared half.
+    /// <para>
+    /// <b>No schema is not an absent declaration.</b> The undeclared row's claim is that the
+    /// file was read and does not name this emulator, and an install with no
+    /// <c>es_savestates.cfg</c> supports neither half of that. Everything stays in the declared
+    /// row there, which is what this reported before the split.
+    /// </para>
+    /// </remarks>
+    private bool DeclaresStates(string directory) =>
+        _states is null || _states.For(Path.GetFileName(directory)) is not null;
 
     /// <summary>
     /// Drops rows for saves that are no longer on disk, so a deleted save stops blocking eviction.

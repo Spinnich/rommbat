@@ -230,6 +230,12 @@ in, and play sessions.** A directory save such as PPSSPP's `SAVEDATA/` goes up a
 and comes back down as one. `saves` lists everything it found that it is not syncing, and why,
 rather than leaving you to notice.
 
+**Save states sync for the emulators RetroBat declares a state directory for, which is 13 of
+them.** An emulator outside that list still writes save states, into a directory it names
+itself, and RomMBat does not read them: `mednafen`, `mesen` and `ares` were each driven on
+`nes` and each wrote one. `saves` names those directories and says so rather than counting
+them silently, but they do not go up and cannot be restored.
+
 **A shared container has no game to belong to, so RomMBat offers to split it, one game at a
 time.** A stock PS2 memory card holds every game you have played on it: the one measured while
 building this held saves for **11 different games**, which is why none of them can be attributed
