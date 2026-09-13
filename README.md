@@ -311,7 +311,7 @@ framework works end to end.
 | M5        | BIOS and firmware                                                                                                   | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | M6        | Offline-first save, state and playtime sync                                                                         | **Complete.** All four save shapes proven, the last of them on hardware. See below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | M7        | Closing the EmulationStation loop, then the gamepad UI                                                              | **Stages 7a and 7b complete, all five sub-stages.** Hooks start the sync passes, RomMBat is in the ES menu, and the menu entry opens a real full-screen interface. From a controller you can define what this device should hold, by platform, collection or saved search, resolve it against RomM, download it with live progress, stop a sync part way and get a tree with no half-finished game in it, watch the disk budget as it is spent, **find one game and install it in one press, firmware included**, **take a game or a whole set back off without ever losing a save**, **choose a side on a save conflict**, **fix where a platform's games land**, and **see and cancel a setting waiting on EmulationStation closing**. The hands-on pass has been driven on a live install: sets synced, a game found, installed and launched, a save conflict resolved against the server, a platform remapped, and a per-game memory card queued and applied. **The platform rollout gate is open** |
-| M8        | Packaging, docs, release                                                                                            | Not started                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| M8        | Packaging, docs, release                                                                                            | **The portable zip landed early**, ahead of the platform rollout that redeploys on every defect a pass finds. `tools/publish.ps1` publishes the three projects, assembles the seven files an install needs, refuses to package a set missing any of them, and extracts into a tree with `-Deploy`. CI calls it. The installer wrapper, removal restoring the tree's prior state, and the docs are still open                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 M6 is the one milestone where a missed detail loses a save rather than a download, so it
 ships in stages small enough to review. The first cut is at the save-class boundary; the
@@ -469,6 +469,8 @@ docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
+tools/publish.ps1     Publishes the three projects, assembles the seven files an install
+                      needs, and packages the portable zip. CI runs this
 tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
                       number is reproducible
 tools/{freegosy,argosy}-probes/
@@ -482,7 +484,6 @@ tools/{freegosy,argosy}-probes/
 ```bash
 dotnet build
 dotnet test
-dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true
 
 trunk fmt && trunk check        # lint, from WSL on Windows
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
@@ -490,6 +491,13 @@ cd reference && ./refresh.sh    # refresh upstream data, verify, check generated
 
 Trunk has no Windows-native CLI, so run it under WSL. [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)
 gives the exact command and a fallback for docs-only changes.
+
+Packaging is PowerShell, so it needs a PowerShell 7 prompt rather than the shell above.
+
+```powershell
+./tools/publish.ps1                          # publish, assemble the seven files, zip
+./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
+```
 
 Full setup, including how to point at a RomM instance and stand up a throwaway RetroBat,
 is in [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).

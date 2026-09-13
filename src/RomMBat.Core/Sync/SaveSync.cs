@@ -99,9 +99,33 @@ public sealed record RestorableSave(
     string? Emulator,
     DateTimeOffset? ServerUpdatedAt);
 
+/// <summary>
+/// A save the server holds for a game on this device that a restore cannot write.
+/// </summary>
+/// <remarks>
+/// Reported rather than dropped. A preview is the answer to "what can I bring back", and a save
+/// silently missing from it reads as one the server does not hold.
+/// </remarks>
+public sealed record UnrestorableSave(int RomId, string Slot, string Reason);
+
+/// <summary>What the server holds for this device, split by whether it can be placed.</summary>
+public sealed record SaveRestoreFindings(
+    IReadOnlyList<RestorableSave> Restorable,
+    IReadOnlyList<UnrestorableSave> Unrestorable);
+
 /// <summary>What a restore did.</summary>
 public sealed record SaveRestoreOutcome
 {
+    /// <summary>
+    /// The tree lock was held elsewhere and nothing was attempted.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from a failure, because nothing was tried and trying again later works. A person
+    /// asked for this, so it is refused rather than reported as done the way a flush reports a
+    /// failed acquire.
+    /// </remarks>
+    public bool Refused { get; init; }
+
     /// <summary>Saves written into the tree.</summary>
     public int Restored { get; init; }
 
@@ -582,14 +606,14 @@ public sealed class SaveSync
     /// which is what keeps this from re-fetching the library.
     /// </para>
     /// </remarks>
-    public async Task<RomMResponse<IReadOnlyList<RestorableSave>>> FindRestorableAsync(
+    public async Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
         CancellationToken cancellationToken = default)
     {
         var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
 
         if (!listed.IsSuccess || listed.Value is not { } rows)
         {
-            return RomMResponse.Failure<IReadOnlyList<RestorableSave>>(
+            return RomMResponse.Failure<SaveRestoreFindings>(
                 listed.Status,
                 listed.Message ?? "The save list could not be read.");
         }
@@ -600,6 +624,7 @@ public sealed class SaveSync
             .ToHashSet();
 
         var found = new List<RestorableSave>();
+        var unrestorable = new List<UnrestorableSave>();
 
         foreach (var row in rows)
         {
@@ -627,8 +652,32 @@ public sealed class SaveSync
 
             // Not an error and not reported: a device holding a subset of the library is the
             // ordinary case, and every save for a game it does not have lands here.
-            if (problem == TargetProblem.RomNotHere || target is not { } destination)
+            if (problem == TargetProblem.RomNotHere)
             {
+                continue;
+            }
+
+            // The guard the flush applies at the same decision point, and for the same reason: a
+            // bundled slot this device has never held has no container to expand and no key to
+            // place under, so the class A path would leave a .zip where an emulator expects a
+            // save. Listing it as restorable is already a claim that it can be brought back.
+            if (IsUnplaceableUnit(operation))
+            {
+                unrestorable.Add(new UnrestorableSave(
+                    row.RomId,
+                    slot,
+                    "this is a directory save and this device holds none for that game yet, so "
+                        + "there is no folder to put it in. Run the game once, then try again."));
+                continue;
+            }
+
+            if (target is not { } destination)
+            {
+                unrestorable.Add(new UnrestorableSave(
+                    row.RomId,
+                    slot,
+                    "nowhere to write it. The server named no file and this device holds no save "
+                        + "in that slot."));
                 continue;
             }
 
@@ -651,7 +700,7 @@ public sealed class SaveSync
                 row.UpdatedAt));
         }
 
-        return RomMResponse.Success<IReadOnlyList<RestorableSave>>(found);
+        return RomMResponse.Success(new SaveRestoreFindings(found, unrestorable));
     }
 
     /// <summary>
@@ -662,12 +711,37 @@ public sealed class SaveSync
     /// hash, written through the partial directory, and recorded exactly as one that arrived
     /// through a negotiate. No session is opened: <c>session_id</c> is optional on the content
     /// endpoint and a restore is not a sync run.
+    /// <para>
+    /// <b>Holds <see cref="TreeLock"/>, and refuses rather than treating a failed acquire as
+    /// done.</b> This writes the same save files a flush writes, and the hooks spawn a flush
+    /// fire-and-forget, so a person restoring at a terminal while a <c>background quit</c> pass
+    /// runs is an ordinary race. Refusing is the rule <c>saves resolve</c> set, for its reason: a
+    /// flush treats a held lock as success because somebody else is doing its work, and nobody
+    /// is doing this one's. Safe to take here rather than in a service because nothing calls
+    /// this from the flush pass, which is the same sentence as "never automatic" seen from the
+    /// lock's side.
+    /// </para>
     /// </remarks>
     public async Task<SaveRestoreOutcome> RestoreAsync(
         IReadOnlyList<RestorableSave> picks,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(picks);
+
+        using var held = TreeLock.TryAcquire(_install);
+
+        if (held is null)
+        {
+            return new SaveRestoreOutcome
+            {
+                Refused = true,
+                Problems =
+                [
+                    "A flush is running, and restoring a save writes the same files it does. "
+                        + "Nothing was changed. Try again once it has finished.",
+                ],
+            };
+        }
 
         var restored = 0;
         var failed = 0;
@@ -683,7 +757,7 @@ public sealed class SaveSync
                 pick.RomId,
                 pick.SaveId,
                 pick.Destination.Name,
-                pick.Slot.Length == 0 ? null : pick.Slot,
+                NullIfBlank(pick.Slot),
                 pick.Emulator,
                 "restore",
                 pick.ServerUpdatedAt,
@@ -1392,7 +1466,15 @@ public sealed class SaveSync
         // saves/<system>/..., which the schema's CHECK already guarantees is the shape.
         var segments = destination.Value.Split('/');
 
-        var emulator = previous?.Emulator ?? operation.Emulator ?? SaveShapes.Bundled.LooseEmulator;
+        // Blank rather than null on both of these, because the CHECKs they answer to refuse the
+        // empty string and whitespace exactly as they refuse null, and SaveScanner.SlotFor
+        // throws on a blank emulator before a CHECK is even reached. Finding 245 established
+        // that this server does emit slot values a client did not expect, and the branch that
+        // widened this to any installed ROM brought other clients' free-text emulator values
+        // with it.
+        var emulator = NullIfBlank(previous?.Emulator)
+            ?? NullIfBlank(operation.Emulator)
+            ?? SaveShapes.Bundled.LooseEmulator;
         var shapeClass = previous?.ShapeClass ?? SaveShapeClass.A;
 
         _store.Saves.Record(
@@ -1413,8 +1495,8 @@ public sealed class SaveSync
                 // as fceumm:battery becoming libretro:battery. That is the scanner being
                 // authoritative about local state, and it costs one correction with no duplicate
                 // row. What matters here is only that a row can be written at all.
-                Slot = operation.Slot
-                    ?? previous?.Slot
+                Slot = NullIfBlank(operation.Slot)
+                    ?? NullIfBlank(previous?.Slot)
                     ?? SaveScanner.SlotFor(emulator, shapeClass, Path.GetExtension(destination.Value)),
                 RomId = operation.RomId,
                 RomPath = previous?.RomPath,
@@ -1426,6 +1508,9 @@ public sealed class SaveSync
             },
             now);
     }
+
+    /// <summary>Null for anything <c>local_save</c>'s non-empty CHECKs would refuse.</summary>
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static void SafeDelete(string path)
     {

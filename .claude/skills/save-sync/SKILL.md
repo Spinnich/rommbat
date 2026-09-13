@@ -471,10 +471,33 @@ hash, folded into one digest. The archive is transport only.
   indistinguishable from a bug to whoever deleted it deliberately, so finding is separate from
   restoring and `--apply` is required for either.
 
+  **The find applies every guard the flush's download applies, at the same decision point.** A
+  restore reaches `DownloadAsync` with a null local save, which is the same state an unsolicited
+  negotiate download arrives in, so a rule written into the flush and not into the find is a rule
+  the restore path does not have. The class C guard is the one that bites: with the ROM installed
+  and no local unit, a `ppsspp:savedata` row resolves a target, passes `File.Exists` and takes the
+  **class A** path, where a null `content_hash` skips verification entirely and the archive lands
+  as `saves/psp/<stem>.zip`. Listing it in a preview is already a claim that it can be brought
+  back, so it is named with a reason instead, the same reason the flush gives.
+
+  **The write half holds `TreeLock` and refuses rather than skipping.** `saves restore --apply` is
+  a third holder beside `saves resolve` and `evict`'s sweep, and for the same reason: it does
+  `MoveAside`, `File.Move` and `Saves.Record` over the files a flush is concurrently hashing and
+  uploading, and the ES `quit` hook spawns a detached `background quit` flush that nobody sees. A
+  flush treats a held lock as success because somebody else is doing its work; nobody is doing a
+  restore's, so a failed acquire is `Refused` with an exit code. The `partial/save-<id>.part`
+  write is **not** the part that needs it: it is opened `FileShare.None`, which is what producers
+  outside the lock rely on. The tree write is.
+
 - **A server save can carry no slot at all**, written by a client that sets none, and
   `local_save.slot` is `CHECK`ed non-empty. Keying that as the empty string threw SQLite error
   19 **after the bytes were on disk**, leaving a save in the tree with no row behind it and
-  aborting the rest of the batch. Derive a slot instead. The derived value is provisional: the
+  aborting the rest of the batch. Derive a slot instead. **Null is not the only value that does
+  this**: the CHECK refuses the empty string and whitespace the same way, `local_save.emulator`
+  has its own, and `SaveScanner.SlotFor` throws on a blank emulator before a CHECK is reached, so
+  the test is blankness rather than nullness on both columns. It reaches further than it looks:
+  a restore covers **any** installed ROM, not only this device's own uploads, so the values
+  arriving are other clients' free text. The derived value is provisional: the
   next scan re-keys a loose save to the loose emulator, measured as `fceumm:battery` becoming
   `libretro:battery`, which is the scanner being authoritative and costs one correction with no
   duplicate row.
