@@ -737,7 +737,7 @@ took 426 s where the scoped subtree took 0.06 s.
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
 `StateSync` and returns a `FlushReport`; `flush` and the sync screen are both printers over it.
-Three properties of that pass are rules rather than implementation, and each has a test:
+Four properties of that pass are rules rather than implementation, and each has a test:
 
 - **The tree lock is taken there and a failed acquire is `FlushState.Skipped`**, an outcome with
   its own sentence rather than an error. Two flushes overlap whenever somebody runs one beside a
@@ -750,6 +750,13 @@ Three properties of that pass are rules rather than implementation, and each has
   route reads `local_state` and `SaveScanner` runs it, so scanning saves first leaves the route
   reading an empty table. The second is because states are the only part of the pass nobody has
   to act on.
+- **No save is written for a game that is being played.** `Sync/InFlightGuard` reads the journal
+  and the spool, and a download for a running game becomes `SaveSyncOutcome.Deferred` rather
+  than a file: nothing is acknowledged, so the next negotiate offers the same save and the pass
+  the `quit` hook spawns lands it. The alternative is what #155 measured, a download landing on
+  a file the emulator holds open and being overwritten by the emulator's own copy on exit. The
+  guard is per ROM, widened to a container the shape file declares as shared, so a `gamecube`
+  launch defers another GameCube game's `.gci` and never an `nes` save.
 
 Three rules that are not obvious:
 

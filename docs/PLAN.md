@@ -1892,6 +1892,26 @@ mitigation and not an answer.
   work up. Driven on hardware: two sessions, `start` and `quit` each spawned a pass that
   reached the server and finished with exit 0, with no terminal used.
 
+- **A save is never written for a game that is in flight, and that is the whole of what #155
+  fixes.** The freshness check the `start` pass performs races the launch it protects: ES's own
+  launch write lands 1.6 to 4.9 s before the `start` hook fires and the pass then takes 5 to 11 s
+  on this install, so a user pressing A promptly starts the emulator before the download that was
+  meant to precede it. Nothing gated the write either, so the ordering ended with another device's
+  save overwritten by the emulator's own copy on exit, under a handle it still held.
+
+  **The write is guarded and the launch is not.** `Sync/InFlightGuard` reads the journal and the
+  undrained spool, and a download for a running game is `Deferred`: nothing is written, nothing is
+  acknowledged, and the `quit` pass lands it. Per ROM, widened to a container `save_shapes.json`
+  declares as shared, since one game being played must not stall a library sync but a GameCube
+  region folder holds every game's `.gci` at once. Every branch fails closed, `SaveGuard`'s rule:
+  a `game-start` whose rom path is null means a game is running that cannot be named.
+
+  **Two of the three gaps #155 names are not closed by this and stay open.** A save arriving
+  mid-session is still noticed only at the next ES start, and a launch is still not gated on the
+  check having finished. Neither is reachable without either a daemon a portable install cannot
+  register or network work inside the launch path, and the second is rule 4. `game-selected` would
+  be the natural re-check and ES exposes no hook folder for it.
+
 - **Hook installation happens on the first `sync`, announced, and `hooks uninstall` reverses
   it.** The opt-in rule that governs class D exists because flipping a memory card mode
   changes where an emulator writes and strands the saves already there. Installing a hook

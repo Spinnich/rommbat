@@ -364,6 +364,18 @@ can the emulator build be checked: a state carries its emulator and core but no 
 made on a different build looks identical here and may refuse to load. Both are limits of the
 API, and `saves restore` prints them on the preview as well as before applying.
 
+**A save is never written for a game you are playing.** A save another device made is pulled down
+when EmulationStation starts, and that check races the launch: on a measured install the pass takes
+5 to 11 seconds and ES is interactive before it begins. So rather than write into a file the
+emulator holds open, which loses the save and can tear the file, RomMBat holds the write back and
+says so. It lands on the next flush, which the `quit` hook runs when you leave EmulationStation, and
+`saves restore` names the game in the way. One game being played does not hold back any other
+game's save.
+
+What this does **not** do is make a launch see a save that arrived while EmulationStation was
+sitting idle. That is still picked up at the next start and no sooner
+([#155](https://github.com/Spinnich/rommbat/issues/155)).
+
 Anything RomMBat cannot sync is reported by `saves` with the reason rather than passed over in
 silence.
 

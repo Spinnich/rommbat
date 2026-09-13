@@ -32,6 +32,17 @@ public sealed record SaveSyncOutcome
     /// </remarks>
     public int Skipped { get; init; }
 
+    /// <summary>
+    /// Downloads held back because the game they belong to is being played.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, and the whole point of it is that it is not one.</b> Writing a save under
+    /// an emulator that has the file open loses it, so the write waits for the pass the
+    /// <c>quit</c> hook spawns instead. Nothing is acknowledged, so the next negotiate offers the
+    /// same save again. See <see cref="InFlightGuard"/> and issue #155.
+    /// </remarks>
+    public int Deferred { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
@@ -40,7 +51,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0;
+        && Skipped == 0 && Deferred == 0;
 
     public string Summary
     {
@@ -71,6 +82,11 @@ public sealed record SaveSyncOutcome
             if (Failed > 0)
             {
                 parts.Add($"{Failed} failed");
+            }
+
+            if (Deferred > 0)
+            {
+                parts.Add($"{Deferred} waiting on a running game");
             }
 
             if (Skipped > 0)
@@ -132,6 +148,15 @@ public sealed record SaveRestoreOutcome
     /// <summary>Saves that could not be written, each with a line in <see cref="Problems"/>.</summary>
     public int Failed { get; init; }
 
+    /// <summary>
+    /// Saves held back because the game they belong to is being played.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="Failed"/> for the reason <see cref="Refused"/> is: nothing was
+    /// written and asking again once the game is closed works. See <see cref="InFlightGuard"/>.
+    /// </remarks>
+    public int Deferred { get; init; }
+
     /// <summary>Bytes fetched.</summary>
     public long BytesTransferred { get; init; }
 
@@ -189,6 +214,7 @@ public sealed class SaveSync
     private readonly string _deviceId;
     private readonly TimeProvider _time;
     private readonly SaveUnitScanner _units;
+    private readonly InFlightGuard _inFlight;
     private readonly SaveShapes _shapes = SaveShapes.Bundled;
 
     public SaveSync(
@@ -209,6 +235,7 @@ public sealed class SaveSync
         _deviceId = deviceId;
         _time = timeProvider ?? TimeProvider.System;
         _units = new SaveUnitScanner(install);
+        _inFlight = new InFlightGuard(install, store, _shapes);
     }
 
     /// <summary>Where a download lands before it is verified.</summary>
@@ -311,6 +338,7 @@ public sealed class SaveSync
         var uploaded = 0;
         var downloaded = 0;
         var noOps = 0;
+        var deferred = 0;
         var bytes = 0L;
         var conflicts = new List<SaveConflict>();
 
@@ -422,7 +450,17 @@ public sealed class SaveSync
                             cancellationToken)
                         .ConfigureAwait(false);
 
-                    if (download.Problem is { } downloadProblem)
+                    if (download.Deferred is { } waiting)
+                    {
+                        // Counted and said once, never as a failure: the save is intact on the
+                        // server, nothing was acknowledged, and the pass the quit hook spawns
+                        // lands it. Reported per operation rather than as a bare count because
+                        // the answer to "why is my save not here" is which game was running.
+                        deferred++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {waiting}. The next flush writes it.");
+                    }
+                    else if (download.Problem is { } downloadProblem)
                     {
                         failed++;
                         problems.Add(downloadProblem);
@@ -482,6 +520,7 @@ public sealed class SaveSync
             NoOps = noOps,
             Failed = failed,
             Skipped = skipped,
+            Deferred = deferred,
             BytesTransferred = bytes,
             Problems = problems,
             Unresolved = conflicts,
@@ -745,6 +784,7 @@ public sealed class SaveSync
 
         var restored = 0;
         var failed = 0;
+        var deferred = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -768,7 +808,7 @@ public sealed class SaveSync
             // already written, so the process died with one save on disk, no row behind it and
             // the second never attempted. A restore is reached by hand and reports per line, so
             // it carries on and says what did not land.
-            (long Bytes, string? Problem) outcome;
+            (long Bytes, string? Problem, string? Deferred) outcome;
 
             try
             {
@@ -788,6 +828,15 @@ public sealed class SaveSync
                 continue;
             }
 
+            if (outcome.Deferred is { } waiting)
+            {
+                // A person asked for this one, so it says which game is in the way rather than
+                // only that something is. Nothing was written and nothing is lost.
+                deferred++;
+                problems.Add($"{pick.Destination}: not written because {waiting}.");
+                continue;
+            }
+
             if (outcome.Problem is { } problem)
             {
                 failed++;
@@ -803,6 +852,7 @@ public sealed class SaveSync
         {
             Restored = restored,
             Failed = failed,
+            Deferred = deferred,
             BytesTransferred = bytes,
             Problems = problems,
         };
@@ -988,7 +1038,7 @@ public sealed class SaveSync
     /// undone rather than left: the unit ends up wholly new or wholly as it was.
     /// </para>
     /// </remarks>
-    private async Task<(long Bytes, string? Problem)> DownloadAsync(
+    private async Task<(long Bytes, string? Problem, string? Deferred)> DownloadAsync(
         SyncOperation operation,
         int saveId,
         LocalSave? local,
@@ -996,6 +1046,14 @@ public sealed class SaveSync
         int? sessionId,
         CancellationToken cancellationToken)
     {
+        // Before the transfer, not before the write, so a deferral costs nothing on the wire
+        // either. Every route that writes a save into the tree comes through here, which is what
+        // makes this the one place the question has to be asked.
+        if (_inFlight.Check(operation.RomId, destination) is { CanWrite: false } verdict)
+        {
+            return (0, null, verdict.Reason);
+        }
+
         var partialDirectory = _install.Resolve(PartialDirectory);
         var part = Path.Combine(partialDirectory, $"save-{saveId}.part");
 
@@ -1005,8 +1063,10 @@ public sealed class SaveSync
 
             if (local?.ShapeClass == SaveShapeClass.C)
             {
-                return await RestoreUnitAsync(operation, saveId, local, sessionId, part, cancellationToken)
+                var unit = await RestoreUnitAsync(operation, saveId, local, sessionId, part, cancellationToken)
                     .ConfigureAwait(false);
+
+                return (unit.Bytes, unit.Problem, null);
             }
 
             long written;
@@ -1019,7 +1079,7 @@ public sealed class SaveSync
 
                 if (!response.IsSuccess)
                 {
-                    return (0, $"{destination}: {response.Message}");
+                    return (0, $"{destination}: {response.Message}", null);
                 }
 
                 written = response.Value;
@@ -1033,7 +1093,7 @@ public sealed class SaveSync
                 {
                     SafeDelete(part);
                     return (0, $"{destination}: what arrived hashes to {found} and the server said "
-                        + $"{expected}. Nothing was written and the server was not told it arrived.");
+                        + $"{expected}. Nothing was written and the server was not told it arrived.", null);
                 }
             }
 
@@ -1052,21 +1112,21 @@ public sealed class SaveSync
                 // The file is in place and the server does not know. The next negotiate offers
                 // it again and the second download is a no-op against identical content, so
                 // this costs a transfer rather than a save.
-                return (written, $"{destination}: written, but the server was not told: {ack.Message}");
+                return (written, $"{destination}: written, but the server was not told: {ack.Message}", null);
             }
 
             RecordRestored(operation, destination, local);
-            return (written, null);
+            return (written, null, null);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(part);
-            return (0, $"{destination}: {ex.Message}");
+            return (0, $"{destination}: {ex.Message}", null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             SafeDelete(part);
-            return (0, $"{destination}: it could not be written: {ex.Message}");
+            return (0, $"{destination}: it could not be written: {ex.Message}", null);
         }
     }
 

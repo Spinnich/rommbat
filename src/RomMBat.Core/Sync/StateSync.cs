@@ -135,6 +135,17 @@ public sealed record StateRestoreOutcome
     /// <summary>States written into the tree.</summary>
     public int Restored { get; init; }
 
+    /// <summary>
+    /// States held back because the game they belong to is being played.
+    /// </summary>
+    /// <remarks>
+    /// Matches <see cref="SaveRestoreOutcome.Deferred"/>, and is here for the same reason
+    /// <see cref="Refused"/> is: nothing was written and asking again later works. A state goes
+    /// into a directory the running emulator is reading, and <see cref="InFlightGuard"/> is the
+    /// one thing that knows a game is open.
+    /// </remarks>
+    public int Deferred { get; init; }
+
     /// <summary>States that could not be written, each with a line in <see cref="Problems"/>.</summary>
     public int Failed { get; init; }
 
@@ -175,6 +186,7 @@ public sealed class StateSync
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
     private readonly RomMConnection _connection;
+    private readonly InFlightGuard _inFlight;
     private readonly TimeProvider _time;
 
     public StateSync(
@@ -190,6 +202,7 @@ public sealed class StateSync
         _install = install;
         _store = store;
         _connection = connection;
+        _inFlight = new InFlightGuard(install, store);
         _time = timeProvider ?? TimeProvider.System;
     }
 
@@ -435,6 +448,7 @@ public sealed class StateSync
 
         var restored = 0;
         var failed = 0;
+        var deferred = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -443,6 +457,16 @@ public sealed class StateSync
         foreach (var pick in picks)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            // Ahead of the transfer, so a deferral costs nothing on the wire. A state cannot
+            // overwrite one here, since the move below refuses to, but it still puts a file into
+            // a directory a running emulator reads its slots from.
+            if (_inFlight.Check(pick.RomId, pick.Destination) is { CanWrite: false } verdict)
+            {
+                deferred++;
+                problems.Add($"{pick.Destination}: not written because {verdict.Reason}.");
+                continue;
+            }
 
             var part = Path.Combine(partialDirectory, $"state-{pick.StateId}.part");
 
@@ -507,6 +531,7 @@ public sealed class StateSync
         {
             Restored = restored,
             Failed = failed,
+            Deferred = deferred,
             BytesTransferred = bytes,
             Problems = problems,
         };
