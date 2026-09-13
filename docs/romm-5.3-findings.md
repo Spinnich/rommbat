@@ -4,12 +4,15 @@ What RomM 5.3.0-alpha.1 changes for RomMBat, what it falsifies in this repo, and
 too early to say. Written in the shape of [retrobat-findings.md](retrobat-findings.md), and
 it carries the same warning with one extra clause.
 
-**Nothing here has been measured.** Every row below was settled by reading upstream source or
-upstream's own release notes, and this repo's standing rule is that a changelog line is
-upstream's belief rather than a measurement. Rows are labelled by the route that settled them.
-A row marked `source` was read in `rommapp/romm` and is a fact about upstream's code. A row
-marked `notes` is upstream's claim and nothing more. **No row here is yet a fact about
+**Almost nothing here has been measured.** Every row below was settled by reading upstream
+source or upstream's own release notes, and this repo's standing rule is that a changelog line
+is upstream's belief rather than a measurement. Rows are labelled by the route that settled
+them. A row marked `source` was read in `rommapp/romm` and is a fact about upstream's code. A
+row marked `notes` is upstream's claim and nothing more. **Neither is yet a fact about
 behaviour**, and no workaround comes out of this repo on the strength of one.
+
+The exception is labelled `measured`, and there is currently one: section C, taken against a
+live `5.3.0-alpha.2` server. It is the only row here that has standing to change code.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
@@ -17,10 +20,10 @@ behaviour**, and no workaround comes out of this repo on the strength of one.
 | API read at            | tag `5.3.0-alpha.1`                                                                  |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
-| Measured against       | nothing yet. No live 5.3.0 instance has been stood up                                |
+| Measured against       | `5.3.0-alpha.2`, one live server, section C only. Everything else is unmeasured      |
 | Date                   | 2026-09-13                                                                           |
 
-## Two things are already true, before any adoption decision
+## Three things are already true, before any adoption decision
 
 ### A. `reference/refresh.sh` is broken against upstream today
 
@@ -59,6 +62,47 @@ components and ignores the suffix, so the alpha ranks as `5.3.0` and lands above
 in the warn band. That is the documented lenient direction. **Do not "fix" it to be
 semver-strict**, which would rank every prerelease below its release and, more to the point,
 would refuse every stock RetroBat install whose suffix names a channel.
+
+### C. Multi-file ROMs answer a `Range` now, and the two answers are different files (`measured`)
+
+**Measured, not read.** `LiveContentTests.A_range_on_a_multi_file_rom_is_refused_which_is_why_none_is_sent`
+fails against a live `5.3.0-alpha.2`, which is the job that test was written to do: it is kept as
+a test rather than as prose "so a server that changes its mind is noticed here instead of in the
+field". The server changed its mind.
+
+The rule it encodes is a 5.2.0 measurement, recorded at `PLAN.md:1226` and in the `romm-api`
+skill: **any `Range` on a multi-file ROM is refused 403 by nginx**, so multi-file is not
+resumable by any header. Re-measured on one multi-file ROM, `neogeocd`, repeated and stable:
+
+| Request               | Status | `Content-Length` | `ETag`              | `Accept-Ranges` |
+| --------------------- | ------ | ---------------- | ------------------- | --------------- |
+| no `Range`            | 200    | 2,740,790        | absent              | absent          |
+| `Range: bytes=0-`     | 206    | 2,740,768        | `"6aa70200-29d220"` | implied by 206  |
+| `Range: bytes=0-1023` | 206    | 1,024            | same                | implied by 206  |
+
+The 403 is gone and multi-file is range-served. **The interesting part is the 22 byte
+difference.** The two responses to one URL describe different resources: only the ranged one
+carries a validator, and `Content-Range` totals 2,740,768 against the plain response's
+2,740,790. Both figures are stable across repeated requests, so this is not a timestamp in a
+zip rebuilt per call. Range semantics assume one representation, and here there are two.
+
+**This is finding B again, and it is the sharper case.** A 5.3.0 server already meets today's
+client, so this is a bug against the current floor rather than adoption work. **Today's code is
+still correct, and its stated reason is now wrong.** `RomMConnection.Content.cs:86` gates the
+header on `!request.IsMultiFile` and the comment above it gives the 403 as the reason, which is
+the thing that stopped being true. The behaviour must not change on the strength of the refusal
+having gone: a resume that begins on the plain response and continues on the ranged one splices
+two artifacts, and the plain response carries no `ETag`, so the stale-validator restart that
+protects the single-file path has nothing to compare against here.
+
+**Single-file is unaffected**, re-checked on a 47 GB `.iso` rather than inferred: the plain 200
+carries `ETag`, `Accept-Ranges: bytes` and a `Content-Length` of 47,976,480,768, and the 206
+reports the same `ETag` and the same total. The two representations agree, which is nginx
+serving one file from disk, and it is the contrast that makes the multi-file mismatch a finding
+rather than a quirk of the measurement.
+
+**Owed:** a follow-up issue, not a change here. The 5.2.0 reading stays where it is, labelled,
+per the version move checklist's rule on provenance, and both sites now name this section.
 
 ## Findings
 
@@ -294,16 +338,23 @@ The decision is to move the floor to 5.3.0-alpha.1. The version move checklist i
 | Move `Minimum`, `LastTested`, README table and compat row  | Ready, and a test asserts the trio agree                           |
 | Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                  |
 | Leave provenance alone                                     | See finding 9                                                      |
-| **Move the pinned OpenAPI schema**                         | **Gated on a live 5.3.0-alpha.1**                                  |
+| **Move the pinned OpenAPI schema**                         | **Gated on which version the floor names**, see below              |
 
 `src/RomM.Client/openapi/generate.sh` regenerates DTOs from the pinned file, but the pinned
 file itself is a byte exact `/openapi.json` captured from a running server, per
 `DEVELOPER_SETUP.md`. FastAPI builds that schema at runtime and the repo does not hold one.
 
-**A disposable RomM via Docker is the documented route for exactly this**, and this machine has
-`docker compose` v5.1.4 with the daemon not running. Standing up `rommapp/romm:5.3.0-alpha.1`
-long enough to capture `/openapi.json` unblocks the pin, and the same instance is what
-findings 2, 5, 6 and 9 need in order to answer the questions below.
+**A live 5.3.0 server is reachable from this machine, and it is not the one the pin needs.**
+The instance the `Live*` tests point at answers `5.3.0-alpha.2`, which is how section C came to
+be measured. That unblocks findings 2, 5, 6 and 9, whose questions are about behaviour and can
+be answered on any 5.3.0 server as long as the reading is attributed to `alpha.2`.
+
+It does not unblock the pin. The pinned schema is a byte exact `/openapi.json` captured from a
+server running **the version the floor names**, and a schema captured from `alpha.2` would
+declare a floor of `alpha.1` while describing a different build. So the choice is to move the
+floor to `alpha.2` and capture from the instance that exists, or to stand up a disposable
+`rommapp/romm:5.3.0-alpha.1` via Docker, the documented route, on a machine whose daemon is not
+currently running. **That is a question for the plan, not a call this document makes.**
 
 ## Open, and needing a live instance
 

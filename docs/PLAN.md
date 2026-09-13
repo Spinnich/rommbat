@@ -1227,7 +1227,11 @@ the rollout order below can be derived rather than hand-maintained.
   a bounded range and a mid-file range alike), and the plain request that does work carries
   no `ETag` and no `Accept-Ranges`, so a multi-file download is not resumable by any header.
   The earlier reading, that a `Range` header is what selects a resumable cached-zip path, is
-  withdrawn. See findings 78 and 79.
+  withdrawn. See findings 78 and 79. **That 403 is a 5.2.0 reading and it no longer holds
+  above the floor**: measured on 5.3.0-alpha.2, a multi-file ROM answers 206 with an `ETag`,
+  and the plain 200 is 22 bytes longer than the ranged total, so the two answers are different
+  files. Do not start sending a `Range` on the strength of the refusal having gone. See
+  section C of [romm-5.3-findings.md](romm-5.3-findings.md).
 - **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
   rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
