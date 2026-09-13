@@ -77,9 +77,9 @@ public sealed record PartialSweepOutcome
 /// guarantee that it never deletes a file RomMBat did not download is exactly why it does not
 /// walk the filesystem.
 /// <para>
-/// <b>Five producers write here now, not the one this was first described against, and they
+/// <b>Six producers write here now, not the one this was first described against, and they
 /// die differently.</b> Only the ROM transfer resumes, so only it has live state to protect;
-/// the other four open with <c>FileMode.Create</c> or delete in a <c>finally</c>, so anything
+/// the other five open with <c>FileMode.Create</c> or delete in a <c>finally</c>, so anything
 /// of theirs that outlives its process is from a pass that died.
 /// </para>
 /// <list type="bullet">
@@ -89,8 +89,9 @@ public sealed record PartialSweepOutcome
 /// membership rather than on age, so a slow transfer is never mistaken for a dead one.</item>
 /// <item><c>bios-&lt;md5&gt;.part</c>, from <see cref="BiosSync"/>. No <c>content_download</c>
 /// row exists or is wanted, since the fetch never resumes.</item>
-/// <item><c>save-&lt;id&gt;.part</c> and <c>resolve-&lt;id&gt;.part</c>, from the save
-/// download and the conflict resolver.</item>
+/// <item><c>save-&lt;id&gt;.part</c>, <c>resolve-&lt;id&gt;.part</c> and
+/// <c>state-&lt;id&gt;.part</c>, from the save download, the conflict resolver and the state
+/// restore.</item>
 /// <item><c>unit-&lt;guid&gt;.zip</c> and the <c>unit-&lt;guid&gt;/</c> staging directory,
 /// from <see cref="SaveUnitTransfer"/>.</item>
 /// </list>
@@ -104,8 +105,8 @@ public sealed record PartialSweepOutcome
 /// in <see cref="SaveUnitTransfer"/> exists to prevent. A sentinel file inside the staging
 /// directory does not close it, because a recursive delete removes the siblings before it
 /// reaches the sentinel. So <see cref="Apply"/> holds <see cref="TreeLock"/> for the whole pass
-/// and does nothing at all when it cannot get it, and the two routes into a restore
-/// (<c>flush</c>, and <c>saves resolve</c>) both hold the same lock.
+/// and does nothing at all when it cannot get it, and the three routes into a restore
+/// (<c>flush</c>, <c>saves resolve</c> and <c>saves restore --apply</c>) all hold the same lock.
 /// </para>
 /// <para>
 /// <b>The producers that run outside that lock are protected by the filesystem instead, and
@@ -129,6 +130,7 @@ public sealed class PartialSweep
     private const string BiosPrefix = "bios-";
     private const string SavePrefix = "save-";
     private const string ResolvePrefix = "resolve-";
+    private const string StatePrefix = "state-";
     private const string UnitPrefix = "unit-";
 
     /// <summary>An md5 as <c>BiosPlanner</c> writes it, and a <c>Guid("N")</c>, are both this long.</summary>
@@ -276,7 +278,7 @@ public sealed class PartialSweep
     private static PartialReason? Classify(string name, HashSet<int> claimed)
     {
         if (IsHexPart(name, BiosPrefix) || IsIdPart(name, SavePrefix) || IsIdPart(name, ResolvePrefix)
-            || IsUnit(name))
+            || IsIdPart(name, StatePrefix) || IsUnit(name))
         {
             return PartialReason.Abandoned;
         }

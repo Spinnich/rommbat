@@ -233,6 +233,28 @@ public sealed partial class RomMConnection
                 $"api/saves?rom_id={romId}&device_id={Uri.EscapeDataString(deviceId)}"),
             cancellationToken);
 
+    /// <summary>
+    /// Every save this account holds, across every platform.
+    /// </summary>
+    /// <remarks>
+    /// <b>Restore cannot be built on <c>negotiate</c>, which is why this exists.</b> Negotiate
+    /// answers from the server's per-device sync record, so a save this device uploaded and
+    /// acknowledged comes back <c>no_op</c>, "No changes since last sync", even when the client
+    /// claims the slot with a null hash and even when the file is gone from the tree. Measured
+    /// against 5.2.0. An empty negotiate does volunteer everything the server believes the
+    /// device lacks, but that set excludes exactly the saves a restore is for.
+    /// <para>
+    /// Unfiltered on purpose. The parameters are <c>rom_id</c>, <c>platform_id</c>,
+    /// <c>device_id</c> and <c>slot</c>, none of which takes a list, so scoping this to the
+    /// installed library would be one request per ROM. One request returning the account's
+    /// saves and filtering locally is cheaper at every library size that matters: measured, 55
+    /// rows for a 96,000-ROM library, because a save exists only where someone played.
+    /// </para>
+    /// </remarks>
+    public Task<RomMResponse<IReadOnlyList<SaveRow>>> ListAllSavesAsync(
+        CancellationToken cancellationToken = default) =>
+        GetAuthenticatedAsync<IReadOnlyList<SaveRow>>("api/saves", cancellationToken);
+
     /// <summary>Closes a negotiate session. Needs <c>assets.write</c>.</summary>
     public Task<RomMResponse<bool>> CompleteSyncSessionAsync(
         int sessionId,

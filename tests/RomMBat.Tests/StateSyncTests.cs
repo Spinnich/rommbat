@@ -2,6 +2,7 @@ using System.Net;
 using RomM.Client;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -67,6 +68,296 @@ public class StateSyncTests
             fixture.Stub.States.Values
                 .Select(state => System.Text.Encoding.UTF8.GetString(state.Bytes))
                 .Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_restored_state_is_named_after_the_rom_on_disk_and_not_after_the_server_row()
+    {
+        // RomM strips anything parenthesised into its tags, so file_name_no_tags for
+        // "ActRaiser (USA) [libretro.snes9x].state1" comes back as "ActRaiser". Writing that
+        // puts the state where the emulator will never look and it reads as simply absent.
+        // es_savestates.cfg declares {{romfilename}}.state{{slot}}, so the ROM names it.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        // The file goes, which is the case a restore exists for.
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/snes/libretro.snes9x/ActRaiser (USA).state1",
+            candidate.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal("progress", File.ReadAllText(onDisk));
+    }
+
+    [Fact]
+    public async Task A_restored_state_is_not_sent_straight_back_by_the_next_flush()
+    {
+        // The headline case: a state made on another device has no local row at all, so without
+        // one written at restore time the next scan reads the file as never sent and RunAsync
+        // uploads what was just fetched.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        // Deleted and forgotten, which is what a state from another device looks like here: the
+        // scan drops the row for a file that is gone.
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+        fixture.Scan();
+        Assert.Empty(fixture.Store.States.List());
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var restore = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, restore.Restored);
+
+        // The no-op re-sync assertion the checklist wants for a sync change: a second pass over
+        // the same tree sends nothing.
+        fixture.Scan();
+        var after = await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, after.Uploaded);
+        Assert.Equal(1, after.AlreadyInStep);
+        Assert.Single(fixture.Stub.States);
+    }
+
+    [Fact]
+    public async Task A_state_for_a_rom_this_device_does_not_hold_is_dropped_without_a_word()
+    {
+        // The one skip that is ordinary rather than a finding. A device holding a subset of the
+        // library sees a state for every game it does not have, and reporting each would bury
+        // the ones it could actually place.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        // Re-point the uploaded row at a ROM this device has never heard of.
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { RomId = 999 };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(found.Value!.Restorable);
+        Assert.Empty(found.Value!.Unrestorable);
+    }
+
+    [Fact]
+    public async Task A_state_whose_emulator_is_not_declared_here_is_reported_rather_than_dropped()
+    {
+        // A state the server holds for an installed ROM that this device cannot place is not
+        // nothing, and showing nothing is what sends somebody looking for a bug in the server.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { Emulator = "notanemulator" };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(found.Value!.Restorable);
+        var reported = Assert.Single(found.Value!.Unrestorable);
+
+        Assert.Equal(42, reported.RomId);
+        Assert.Contains("es_savestates.cfg", reported.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_download_failure_is_counted_and_reported_rather_than_thrown()
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        fixture.Stub.FailStateDownload = HttpStatusCode.InternalServerError;
+
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Single(outcome.Problems);
+
+        // Nothing half-written where an emulator would find it, and no partial left behind.
+        Assert.False(File.Exists(onDisk));
+        Assert.Empty(Directory.GetFiles(
+            fixture.Install.Resolve(RetroBatInstall.PartialDirectory),
+            "state-*.part"));
+    }
+
+    [Fact]
+    public async Task A_restore_refuses_while_another_holder_has_the_tree_lock()
+    {
+        // The quit hook spawns a detached background flush that holds the lock across
+        // StateScanner.Scan() over these same directories, so this race is ordinary rather than
+        // theoretical. Refusing is the rule, because nobody else is doing a restore's work.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        using (TreeLock.TryAcquire(fixture.Install))
+        {
+            var refused = await fixture.RestoreAsync(
+                found.Value!.Restorable,
+                TestContext.Current.CancellationToken);
+
+            Assert.True(refused.Refused);
+            Assert.Equal(0, refused.Restored);
+            Assert.Equal(0, refused.Failed);
+            Assert.False(File.Exists(onDisk));
+        }
+
+        // And it is a refusal rather than a failure, so the same call works once the lock is free.
+        var after = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(after.Refused);
+        Assert.Equal(1, after.Restored);
+    }
+
+    [Fact]
+    public async Task A_state_that_appeared_since_the_preview_is_not_overwritten()
+    {
+        // A state has no hash and no conflict record, so whatever landed in that window would be
+        // destroyed with nothing written down anywhere. BiosSync takes the same choice.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        // The emulator writes one back between the preview and the apply.
+        File.WriteAllText(onDisk, "newer progress");
+
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal("newer progress", File.ReadAllText(onDisk));
+    }
+
+    [Fact]
+    public async Task A_server_value_local_state_would_refuse_is_reported_rather_than_thrown_mid_restore()
+    {
+        // The emulator field is free text from the server, and the row a restore now writes goes
+        // into CHECKed columns. A slash is the reachable case and a colon is not: RelativePath
+        // refuses a colon anywhere, so SaveStateTemplate.Create already answers null for one,
+        // while "libretro.snes9x/evil" expands to a perfectly valid directory and only
+        // local_state.core objects. Unguarded it threw SQLite error 19 after File.Move had put
+        // the state in the tree: a state that landed, counted Failed, with no row behind it and
+        // the next flush ready to send it back. Same shape as f337d2e's finding 4c on the save
+        // side, and fixed at the same point, in the find.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { Emulator = "libretro.snes9x/evil" };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        // Asserted before the reporting, because this is the defect: unguarded, the row reaches
+        // the restore, the file is written, the insert throws, and the state is counted Failed
+        // with no row behind it.
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(File.Exists(onDisk));
+
+        // Named rather than dropped, so it is not silence either.
+        Assert.Empty(found.Value!.Restorable);
+        var reported = Assert.Single(found.Value!.Unrestorable);
+        Assert.Contains("separator", reported.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_server_name_the_row_would_refuse_costs_the_note_and_not_the_restore()
+    {
+        // uploaded_file_name refuses a separator too, but it is only a note about what went up:
+        // what decides whether a state still needs sending is the hash beside it. So this one is
+        // recorded null rather than refused, and the state still comes back.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+        fixture.Scan();
+
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { FileName = "some/nested/name.state1" };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+
+        // And the row is still the thing that stops the re-upload, note or no note.
+        var row = Assert.Single(fixture.Store.States.List());
+        Assert.Null(row.UploadedFileName);
+        Assert.False(row.NeedsUpload);
     }
 
     [Fact]
@@ -296,6 +587,13 @@ public class StateSyncTests
             var tree = TempRetroBatTree.Create();
             var install = tree.Install();
 
+            // The real es_savestates.cfg, in the tree rather than only loaded beside it. A
+            // restore reads the schema from the install to work out where a state belongs, so a
+            // tree without it has nowhere to put one and reports nothing to restore.
+            var config = install.Resolve(SaveStateSchema.ConfigPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(config)!);
+            File.Copy(Fixtures.EsSaveStatesTemplate, config, overwrite: true);
+
             return new StateFixture(tree, install, LocalStore.Open(install), new StubRomMServer
             {
                 ServerDate = new DateTimeOffset(2026, 8, 17, 12, 0, 0, TimeSpan.Zero),
@@ -332,6 +630,15 @@ public class StateSyncTests
 
         public Task<StateSyncOutcome> PushAsync(CancellationToken cancellationToken = default) =>
             new StateSync(Install, Store, _connection).RunAsync(cancellationToken);
+
+        public Task<RomMResponse<StateRestoreFindings>> FindRestorableAsync(
+            CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).FindRestorableAsync(cancellationToken);
+
+        public Task<StateRestoreOutcome> RestoreAsync(
+            IReadOnlyList<RestorableState> picks,
+            CancellationToken cancellationToken = default) =>
+            new StateSync(Install, Store, _connection).RestoreAsync(picks, cancellationToken);
 
         public void Dispose()
         {

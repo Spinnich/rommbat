@@ -150,6 +150,7 @@ internal static class Program
         Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
+        Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save or state the server has");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
@@ -162,7 +163,8 @@ internal static class Program
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
         Console.Error.WriteLine("  --offline         status, sync, bios: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
-        Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. Without it, neither writes");
+        Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. saves restore: actually");
+        Console.Error.WriteLine("                    write. Without it, none of the three writes");
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");

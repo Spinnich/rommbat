@@ -3468,6 +3468,25 @@ The rollout can start, and it starts with a checklist rather than with this pass
 
 ### M8: packaging, docs, release
 
+**The portable zip landed early, before wave 1.** `tools/publish.ps1` publishes the three
+projects, assembles the seven files an install needs, refuses to package a set missing any of
+them, writes `publish/rommbat-win-x64.zip`, and extracts into a tree with `-Deploy`. CI calls
+it rather than carrying its own publish steps. It came forward because the platform rollout
+redeploys on every defect a pass turns up, and repeating a seven-file hand copy across seven
+systems is a defect generator.
+
+Two things it measured, both of which a hand copy gets wrong silently. A publish emits **101 MB
+of `.pdb` files** beside the 185 MB payload, so the layout names its files rather than copying
+the output directory. And **publishing over a warm output directory that is missing a native
+skips every native and still reports success**: deleting `libSkiaSharp.dll` alone left all four
+absent, so each project's output is cleaned first.
+
+The zip's entries carry the `emulators/rommbat/` prefix, because the artefact is extracted at
+the RetroBat root and `RetroBatInstall.AppDirectory` pins the app to that directory. A flat
+archive extracts to a tree whose ES menu entry cannot resolve its executable.
+
+Still open here: the installer wrapper, removal restoring the tree's prior state, and the docs.
+
 - `dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true` so no .NET
   install is needed. RetroBat already requires the VC++ redist; add nothing else.
 - **A portable zip is the primary artefact**, extracted into the RetroBat tree, requiring
@@ -3573,11 +3592,18 @@ neither RomM's nor the name on the box: Mega CD is `megacd`, WonderSwan is `wswa
 Arcade is deliberately last. It is the only wave that needs the explicit
 folder-choice decision from M2 and carries romset-version coupling nothing else does.
 
-**51 systems is 51 first-pass rows, not 51 certified triples.** The first pass through a wave
-takes one `(system, emulator, core)` per system, using that system's recommended pick;
-alternates are a named second pass. The exception is a system whose shape is emulator-dependent,
-where the alternate is the whole point, and `save_shapes.json`'s `DependsOnEmulator` flag is
-what names those.
+**51 systems is far more than 51 rows, because a wave certifies every emulator and core the
+system declares.** An earlier revision took one recommended pick per system and made alternates
+a second pass. That was dropped: certifying a pick tells a user nothing unless their install
+runs it, and the install decides that through `<system>.emulator` and `<system>.core` in
+`es_settings.cfg`, which RomMBat neither sets nor reads. Wave 1 alone is **81 rows against 7
+systems**.
+
+The cost is bounded because **only steps 4, 5 and 6 are per row**, and those collapse into four
+families rather than 81 shapes: libretro (30 of the 81, one `es_savestates.cfg` entry differing
+by a path segment), bizhawk (14, core-scoped), jgenesis (7), and **30 rows that declare no state
+directory at all**, where step 5 is a recorded declaration and the row certifies on the other
+eight steps. `docs/platforms/README.md` carries the table.
 
 **Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
 `nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under
