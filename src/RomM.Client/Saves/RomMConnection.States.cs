@@ -96,14 +96,6 @@ public sealed partial class RomMConnection
             string.Create(CultureInfo.InvariantCulture, $"api/states?rom_id={romId}"),
             cancellationToken);
 
-    /// <summary>
-    /// Deletes states by id. Needs <c>assets.write</c>.
-    /// </summary>
-    /// <remarks>
-    /// The save sibling of this route fails the whole batch with a 404 when one id is already
-    /// gone, and nothing suggests this one differs, so callers that cannot re-list immediately
-    /// beforehand should send one id at a time.
-    /// </remarks>
     /// <summary>Every state this account holds, across every platform.</summary>
     /// <remarks>
     /// Unfiltered, for the same reason the save list is: the only scoping parameter is
@@ -112,6 +104,15 @@ public sealed partial class RomMConnection
     public Task<RomMResponse<IReadOnlyList<StateRow>>> ListAllStatesAsync(
         CancellationToken cancellationToken = default) =>
         GetAuthenticatedAsync<IReadOnlyList<StateRow>>("api/states", cancellationToken);
+
+    /// <summary>
+    /// Deletes states by id. Needs <c>assets.write</c>.
+    /// </summary>
+    /// <remarks>
+    /// The save sibling of this route fails the whole batch with a 404 when one id is already
+    /// gone, and nothing suggests this one differs, so callers that cannot re-list immediately
+    /// beforehand should send one id at a time.
+    /// </remarks>
 
     /// <summary>
     /// Fetches one state's bytes. Needs <c>assets.read</c>.
