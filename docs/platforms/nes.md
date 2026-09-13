@@ -476,14 +476,32 @@ and neither sees the other.
 
 ### What RomMBat does with them
 
-| Row                   | Battery save    | Save state          |
-| --------------------- | --------------- | ------------------- |
-| the three `libretro`  | synced, class A | synced, core-scoped |
-| `bizhawk`, both cores | **not synced**  | synced, core-scoped |
-| `jgenesis`            | **not synced**  | synced              |
-| `mednafen`            | **not synced**  | **invisible**       |
-| `mesen` standalone    | **not synced**  | **invisible**       |
-| `ares`                | **not synced**  | **invisible**       |
+| Row                   | Battery save           | Save state          |
+| --------------------- | ---------------------- | ------------------- |
+| the three `libretro`  | synced, class A        | synced, core-scoped |
+| `bizhawk`, both cores | **deferred**           | synced, core-scoped |
+| `jgenesis`            | **deferred**           | synced              |
+| `ares`                | **deferred**           | **invisible**       |
+| `mednafen`            | **no shape claims it** | **invisible**       |
+| `mesen` standalone    | **no shape claims it** | **invisible**       |
+
+**Those two battery states are different things, and the distinction decides what to build next.**
+`UnsyncableReason` separates them where the report's wording does not:
+
+- **Deferred** is `NotInThisVersion`, defined as "The shape is understood and this build does not
+  carry it. Stage 2's list." These are the emulators' own subdirectories under `saves/nes/`:
+  `ares/Famicom/`, `bizhawk/`, `jgenesis/nes/`. Understood, planned, not carried.
+- **No shape claims it** is `UnknownShape`. `mednafen` and `mesen` write their battery save **loose
+  under `saves/nes/`**, beside the `.srm` files, which is structurally class A already. The only
+  thing rejecting them is the extension: `save_rules.json` recognises `.bcr`, `.bkr`, `.brm` and
+  `.srm`, and these two are `.sav`.
+
+**The cheap-looking fix is a trap.** `save_rules.json` also hard-wires `loose_emulator` to
+`libretro`, so adding `.sav` to the extension list alone would give mesen's `Crystalis (USA).sav`
+the slot `libretro:battery` for that ROM and collide with libretro's own `Crystalis (USA).srm`,
+which already syncs in that slot. This install holds both, because that game was driven under
+`nestopia` and under `mesen` standalone. The extension list and `loose_emulator` have to stop being
+independent globals first. Issue #152.
 
 The battery column is a **reported** limitation and the right behaviour for this release. `saves`
 names it in those words: "ares, bizhawk, jgenesis, mednafen, mesen hold shared containers or a
