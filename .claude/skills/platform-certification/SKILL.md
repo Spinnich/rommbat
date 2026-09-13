@@ -110,9 +110,30 @@ rather than unscheduled, because RetroBat declares no `dsi` system.
 Arcade is last on purpose: it is the only wave needing the explicit folder-choice decision
 and the only one coupled to romset versions.
 
-**The first pass through a wave is one row per system**, on that system's recommended emulator
-and core. Alternates are a second pass, except where the shape is emulator-dependent and the
-alternate is the point, which `save_shapes.json`'s `DependsOnEmulator` flag names.
+**A wave certifies every emulator and core the system declares, not one recommended row.**
+Certifying a pick tells a user nothing unless their install runs it, and the install decides
+that through `<system>.emulator` and `<system>.core` in `es_settings.cfg`, which RomMBat neither
+sets nor reads. Wave 1 is **81 rows against 7 systems**.
+
+The row count is affordable because **only steps 4, 5 and 6 are per row**, and they collapse
+into four families rather than 81 shapes: **libretro** (30 of wave 1's 81, one entry,
+`{{system}}/libretro.{{core}}`, class A `.srm` throughout), **bizhawk** (14, core-scoped),
+**jgenesis** (7, not core-scoped), and **30 rows that declare no state directory at all**
+(`mednafen`, `mesen`, `ares`, `snes9x`, `mgba`, `nosgba`, `kega-fusion`), where step 5 is a
+recorded declaration and the row still certifies on the other eight steps.
+
+The libretro family is the one that most needs driving rather than assumed: finding 134 measured
+two cores writing an identical `state1` filename, which survived as two server rows only because
+the uploaded name carries the core.
+
+**Name how the row was selected, every time**, and confirm what ran from
+`emulationstation/emulatorLauncher.log` rather than from configuration. A row driven under an
+`es_settings.cfg` override is not the row a stock install gives a user. Never read
+`retroarch.cfg` for this: finding 217 measured that it describes only the last game launched.
+
+**`<extension>` belongs to the system, not the row.** It is a union across every emulator, and
+RetroBat publishes no per-`(emulator, core)` extension data anywhere, so record what the
+certified core was **observed** to launch and treat the rest as declared and unproven.
 
 **Steps 1, 2 and 3 can be batched for a whole wave before anyone sits down**, since none of them
 needs an emulator running. Staging a wave that way means its BIOS gaps are known before a

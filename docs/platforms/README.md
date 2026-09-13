@@ -68,14 +68,56 @@ Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<releas
 reading when a new system appears, but the wave a system belongs in is a judgement about what it
 introduces, and it is hand-maintained.
 
-### One recommended row per system first
+### Every emulator and core a supported platform declares
 
-The first pass through a wave certifies one `(system, emulator, core)` per system, using the
-emulator and core that system's record names as its recommended pick. Alternates are a named
-second pass, so the 51 systems here are 51 first-pass rows rather than the two to four per
-system the full triple implies. The exception is a system whose shape is emulator-dependent,
-where the alternate is the point: `psx` is the worked case, and `save_shapes.json`'s
-`DependsOnEmulator` flag names the rest.
+**A wave certifies the whole matrix, not one recommended row per system.** Certifying a pick
+tells a user nothing unless their install happens to run it, and the install decides that
+through `<system>.emulator` and `<system>.core` in `es_settings.cfg`, which RomMBat neither
+sets nor reads. So the unit stays `(system, emulator, core)` and the wave covers all of them.
+
+This is more rows than it sounds and less work than the row count implies. Wave 1 is **81 rows
+against 7 systems**:
+
+| System         | Rows   | Can sync states |
+| -------------- | ------ | --------------- |
+| `nes`          | 9      | 6               |
+| `snes`         | 15     | 11              |
+| `gb`           | 14     | 10              |
+| `gbc`          | 12     | 8               |
+| `gba`          | 10     | 5               |
+| `megadrive`    | 11     | 6               |
+| `mastersystem` | 10     | 5               |
+| **Total**      | **81** | **51**          |
+
+**Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
+and 6 are redone per row, and they collapse into four families rather than 81 separate shapes:
+
+- **libretro, 30 of the 81.** One `es_savestates.cfg` entry, `{{system}}/libretro.{{core}}`,
+  differing only in a path segment, and class A loose `.srm` throughout. This is the family that
+  makes the matrix affordable, and it is the one that most needs driving: finding 134 measured
+  two libretro cores writing an identical `state1` filename, which became two server rows only
+  because the uploaded name carries the core.
+- **bizhawk, 14.** One entry, core-scoped as `{{system}}/bizhawk/sstates/{{core}}`.
+- **jgenesis, 7.** One entry, not core-scoped.
+- **30 rows that declare no save-state directory at all**, which is `mednafen`, `mesen`, `ares`,
+  `snes9x`, `mgba`, `nosgba` and `kega-fusion` across these seven systems. For those, step 5 is
+  a recorded declaration rather than a test: the emulator can still be certified on the other
+  eight steps, and the record says state sync is outside what RomMBat offers for that row.
+
+**Name how the row was selected, every time.** A row driven under an `es_settings.cfg` override
+is not the row a stock install gives a user, and a record that does not distinguish them is
+claiming something it did not test. Confirm what actually ran from
+`emulationstation/emulatorLauncher.log`, which logs the emulator and core per launch. Never
+infer it from `retroarch.cfg`: finding 217 measured that the file describes only the last game
+launched and is regenerated per launch.
+
+**`<extension>` is a property of the system, not of the row.** The list in `es_systems.cfg` is a
+union across every emulator the system declares, and **RetroBat publishes no per-`(emulator,
+core)` extension data anywhere**: `es_features.cfg` mentions "extension" 28 times and every one
+is an N64 controller pak. So record which extensions the certified core was **observed** to
+launch, and treat the rest as declared and unproven rather than supported. A core refusing a
+declared extension is a real result about that row, not a RomMBat defect, and rule 3 is
+untouched: RetroBat remains the authority at the layer a sync decision is made.
 
 ### What a wave can be staged before anyone sits down
 
