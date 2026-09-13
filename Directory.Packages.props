@@ -16,7 +16,7 @@
     the e_sqlite3 native library, which single-file publish carries.
   -->
   <ItemGroup Label="Local store">
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
 
   <!--
@@ -63,7 +63,7 @@
     dotnet.config at the root opts `dotnet test` into the same platform.
   -->
   <ItemGroup Label="Testing">
-    <PackageVersion Include="xunit.v3" Version="4.0.0" />
+    <PackageVersion Include="xunit.v3" Version="4.0.1" />
   </ItemGroup>
 
 </Project>
