@@ -125,10 +125,34 @@ has no states"**, which is the reading `docs/platforms/README.md` was built on f
 
 They are not silent, though, and the difference matters to whoever fixes it. `SaveScanner.CountFiles`
 excludes only the directories `es_savestates.cfg` declares, so an undeclared state directory is
-counted as unsyncable and `AddSubdirectories` names it in the row it prints. What is wrong is the
-explanation attached: the reason string says this release syncs "the save states beside them", for
-directories where it does not, and the state files land in a count reported under a battery or
-container reason.
+counted as unsyncable and `AddSubdirectories` names it in the row it prints.
+
+**`AddSubdirectories` prints two rows, and which one a directory lands in is the emulator's
+declaration rather than the directory's path.** An emulator the file names goes to the
+`NotInThisVersion` row, whose sentence still ends "the save states beside them", true there. One
+it does not name goes to a `NoStateDeclaration` row, which repeats the shape half and replaces
+that clause with why the states are invisible. The split asks `SaveStateSchema.For` and not
+`MatchDirectory`, because the declared template usually sits below this level: BizHawk declares
+`{{system}}/bizhawk/sstates/{{core}}`, so `saves/nes/bizhawk/` matches no state directory while
+the emulator is very much declared.
+
+**The directory name is not always the declared name, so it goes through a map first.**
+`es_savestates.cfg` declares `name="dolphin"` with `<directory>{{system}}/dolphin</directory>`,
+and the save tree RetroBat writes beside it is `dolphin-emu` (finding 740, and `save_shapes.json`
+carries `dolphin-emu` for both the gamecube and wii `unit_paths`). Asking `For("dolphin-emu")`
+returns null, so without the map `saves/gamecube/dolphin-emu/` and `saves/wii/dolphin-emu/` would
+be reported under `no_state_declaration` on every install, for the one emulator whose save states
+are measured working (finding 971). `SaveScanner.DeclaredNames` is that map and has one entry;
+`mame`, `ppsspp` and `rpcs3` were checked against all 13 declared names and need none. **Add to
+it whenever a new row's save directory is spelled differently from its `es_savestates.cfg`
+name**, because nothing upstream publishes the correspondence.
+
+Two things that row deliberately does not claim. It does not say the states are lost, because
+RetroBat may mirror them into a declared path (PPSSPP writes the undeclared `psp/PPSSPP_STATE/`
+and is mirrored live into `psp/ppsspp/`), and nothing at that point can tell that case from
+`mednafen`. And it does not fire at all when no `es_savestates.cfg` was found, because its claim
+is that the file was read and does not name the emulator, which an install without the file
+supports neither half of.
 
 **`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
 declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that

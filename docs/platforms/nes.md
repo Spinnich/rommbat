@@ -510,7 +510,9 @@ and neither sees the other.
 
 - **Deferred** is `NotInThisVersion`, defined as "The shape is understood and this build does not
   carry it. Stage 2's list." These are the emulators' own subdirectories under `saves/nes/`:
-  `ares/Famicom/`, `bizhawk/`, `jgenesis/nes/`. Understood, planned, not carried.
+  `bizhawk/`, `jgenesis/nes/`. Understood, planned, not carried. `ares/Famicom/` is the same
+  deferral and reports under `NoStateDeclaration` instead, because it holds a save state as well
+  and that is the row that does not promise states sync.
 - **No shape claims it** is `UnknownShape`. `mednafen` and `mesen` write their battery save **loose
   under `saves/nes/`**, beside the `.srm` files, which is structurally class A already. The only
   thing rejecting them is the extension: `save_rules.json` recognises `.bcr`, `.bkr`, `.brm` and
@@ -523,22 +525,34 @@ which already syncs in that slot. This install holds both, because that game was
 `nestopia` and under `mesen` standalone. The extension list and `loose_emulator` have to stop being
 independent globals first. Issue #152.
 
-The battery column is a **reported** limitation and the right behaviour for this release. `saves`
-names it in those words: "ares, bizhawk, jgenesis, mednafen, mesen hold shared containers or a
-shape no declaration covers. This release syncs the battery saves loose under `saves/nes/`
-(class A), the save states beside them, and the directory saves the shape definition names."
-Nothing is dropped silently.
+The battery column is a **reported** limitation and the right behaviour for this release. Nothing
+is dropped silently. The pass that drove these nine rows read one `saves` row covering all five
+directories: "ares, bizhawk, jgenesis, mednafen, mesen hold shared containers or a shape no
+declaration covers. This release syncs the battery saves loose under `saves/nes/` (class A), the
+save states beside them, and the directory saves the shape definition names."
 
-**The state column is misreported, and that is a defect.** `mednafen`, `mesen` and `ares` declare
-no `es_savestates.cfg` entry, and `StateScanner` finds states only from that file, so the states
-they wrote are not scanned, not uploaded and not restorable. They are mentioned, and that is the
-part to be precise about: `CountFiles` excludes only declared state directories, so these three
-undeclared ones are counted and named by the same `AddSubdirectories` row quoted above. So a person
-with a save state is not told there is none. They are told the directory holds something unsyncable,
-under a sentence promising that "the save states beside them" sync, and with the state files folded
-into a count whose reason is about battery saves and shared containers. Issue #150, and it reaches
-well past this platform: 30 of wave 1's 81 rows are in that family, and `docs/platforms/README.md`
-had been reading "declares no directory" as "writes no state".
+**That last clause was false for three of the five, and that was the defect.** `mednafen`, `mesen`
+and `ares` declare no `es_savestates.cfg` entry, and `StateScanner` finds states only from that
+file, so the states they wrote are not scanned, not uploaded and not restorable. They were
+mentioned, and that is the part to be precise about: `CountFiles` excludes only declared state
+directories, so these three undeclared ones were counted and named by the same `AddSubdirectories`
+row. A person with a save state was not told there was none. They were told the directory held
+something unsyncable, under a sentence promising that "the save states beside them" sync, with the
+state files folded into a count whose reason is about battery saves and shared containers.
+
+Issue #150 split that row in two, on whether `es_savestates.cfg` names the emulator at all. `nes`
+now reports `bizhawk, jgenesis` under the sentence above, and `ares, mednafen, mesen` under a
+`no_state_declaration` row that repeats the shape half and ends "a save state written under these
+is found only where RetroBat mirrors it into a declared path, and is otherwise not scanned, not
+uploaded and not restorable". **Which is a correct message, not a fix.** The states are still
+invisible, and making them syncable needs a bundled supplement carrying directory, filename and
+slot per row. The reach past this platform is unchanged: 30 of wave 1's 81 rows are in that
+family, and `docs/platforms/README.md` had been reading "declares no directory" as "writes no
+state".
+
+The split is untested against a real install. It was driven against the `nes` tree this pass
+measured, reproduced as a fixture, and the shipped `es_savestates.cfg`; nobody has re-run `saves`
+on the machine that produced the states.
 
 Two smaller findings from the same pass:
 

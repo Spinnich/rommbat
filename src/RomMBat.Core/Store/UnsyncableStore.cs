@@ -22,6 +22,18 @@ public enum UnsyncableReason
     /// RomMBat. Reported so the user knows a second copy exists, never acted on.
     /// </summary>
     ManagedElsewhere,
+
+    /// <summary>
+    /// No <c>es_savestates.cfg</c> entry declares a save-state directory here, so state
+    /// discovery never looks.
+    /// </summary>
+    /// <remarks>
+    /// A different axis from the four above, which all describe a save shape. This one is
+    /// about the state half: an emulator with no entry still writes save states, into a
+    /// directory it names itself, and <c>StateScanner</c> works from that file alone. Kept
+    /// separate so a record can key on it rather than on the wording of a sentence.
+    /// </remarks>
+    NoStateDeclaration,
 }
 
 /// <summary>One thing that cannot be synced, and why.</summary>
@@ -127,6 +139,7 @@ public sealed class UnsyncableStore
         UnsyncableReason.SharedContainer => "shared_container",
         UnsyncableReason.Unattributed => "unattributed",
         UnsyncableReason.ManagedElsewhere => "managed_elsewhere",
+        UnsyncableReason.NoStateDeclaration => "no_state_declaration",
         _ => throw new ArgumentOutOfRangeException(nameof(value)),
     };
 
@@ -137,6 +150,7 @@ public sealed class UnsyncableStore
         "shared_container" => UnsyncableReason.SharedContainer,
         "unattributed" => UnsyncableReason.Unattributed,
         "managed_elsewhere" => UnsyncableReason.ManagedElsewhere,
+        "no_state_declaration" => UnsyncableReason.NoStateDeclaration,
         _ => throw new InvalidOperationException($"Unknown unsyncable reason '{value}' in the database."),
     };
 }

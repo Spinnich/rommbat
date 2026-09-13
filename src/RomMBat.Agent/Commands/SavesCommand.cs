@@ -994,6 +994,7 @@ internal static class SavesCommand
         UnsyncableReason.SharedContainer => "shared by several games",
         UnsyncableReason.Unattributed => "no matching ROM",
         UnsyncableReason.ManagedElsewhere => "RetroBat is also copying these",
+        UnsyncableReason.NoStateDeclaration => "no save-state directory is declared here",
         _ => "unknown",
     };
 }

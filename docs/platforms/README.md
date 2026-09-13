@@ -112,6 +112,18 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   Issue #150. That is a third of wave 1 resting on the wrong reading, so re-check it per row rather
   than carrying this bullet forward.
 
+  `saves` now says so, which is the reporting half and not the fix: a directory whose emulator the
+  file does not name is reported under `no_state_declaration` rather than folded into the row that
+  promises save states sync. Step 5 for such a row records what the emulator wrote and where, and
+  that RomMBat does not read it.
+
+  **Check the declaration by emulator name, not by save-directory name**, before recording a row
+  as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
+  as `dolphin` and writes its save tree to `dolphin-emu/`, and its save states are measured
+  working (finding 971). `SaveScanner.DeclaredNames` carries the correspondence for the one row
+  where it diverges, so a new row whose directory name is not in `es_savestates.cfg` needs that
+  checked before the record says the emulator declares nothing.
+
 **Name how the row was selected, every time.** A row driven under an `es_settings.cfg` override
 is not the row a stock install gives a user, and a record that does not distinguish them is
 claiming something it did not test. Confirm what actually ran from
@@ -163,7 +175,9 @@ work. All three counts are against the 51 systems above.
   `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
   can still be certified, but step 5 records that it declares no entry and state sync is outside
-  what RomMBat offers for that row.
+  what RomMBat offers for that row. **Outside what it offers, not outside what the emulator
+  writes**: three of those were driven and all three wrote states anyway, so step 5 records the
+  path as well as the absence.
 
 ## Nothing is certified yet, and the gate is now open
 

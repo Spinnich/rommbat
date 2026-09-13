@@ -424,6 +424,89 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void An_emulator_with_no_state_declaration_is_reported_apart_from_one_that_has_it()
+    {
+        // Issue #150. mednafen, mesen and ares declare no es_savestates.cfg entry and each
+        // wrote a real save state into a directory it names itself, which StateScanner never
+        // reads. One row covered both halves and told the reader "this release syncs the save
+        // states beside them", so the states were counted as unsyncable under a sentence
+        // promising they were synced.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("nes", "bizhawk/StarTropics.SaveRAM", "a battery save this release defers");
+        fixture.AddSave("nes", "mednafen/sstates/Final Fantasy (USA).24ae5edf.mc0", "a state nothing reads");
+        fixture.AddSave("nes", "mesen/SaveStates/Crystalis (USA)_1.mss", "another");
+        fixture.AddSave("nes", "ares/Famicom/Dragon Warrior IV (USA).bs1", "and another");
+
+        fixture.ScanWithStateSchema();
+
+        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "nes").ToList();
+        Assert.Equal(2, rows.Count);
+
+        // bizhawk is declared, so the clause about the save states beside them holds for it.
+        var declared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, declared.FileCount);
+        Assert.Contains("bizhawk", declared.Detail, StringComparison.Ordinal);
+        Assert.Contains("the save states beside them", declared.Detail, StringComparison.Ordinal);
+
+        var undeclared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.NoStateDeclaration);
+        Assert.Equal(3, undeclared.FileCount);
+        Assert.StartsWith("ares, mednafen, mesen hold", undeclared.Detail, StringComparison.Ordinal);
+
+        // The claim the old row made, and the one this row must not repeat.
+        Assert.DoesNotContain("the save states beside them", undeclared.Detail, StringComparison.Ordinal);
+        Assert.Contains("not restorable", undeclared.Detail, StringComparison.Ordinal);
+
+        // Every file lands in exactly one row, because ares/Famicom holds a battery save and a
+        // state and counting it twice would say one file is unsyncable for two reasons.
+        Assert.Equal(4, rows.Sum(entry => entry.FileCount));
+    }
+
+    [Fact]
+    public void An_emulator_declared_under_another_name_than_its_save_directory_stays_declared()
+    {
+        // es_savestates.cfg names Dolphin "dolphin" and RetroBat writes its save tree under
+        // dolphin-emu/, so asking the directory name alone puts the one emulator whose states
+        // are measured working (finding 971) in the half that says nothing here is restorable.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("gamecube", "dolphin-emu/User/GC/USA/5D-GUNE-Gauntlet.gci.deleted", "not a unit");
+
+        fixture.ScanWithStateSchema();
+
+        var row = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "gamecube" && entry.Emulator.Length == 0);
+
+        Assert.Equal(UnsyncableReason.NotInThisVersion, row.Reason);
+        Assert.DoesNotContain("not restorable", row.Detail, StringComparison.Ordinal);
+
+        // gamecube is class C with no class A or B, so there are no loose battery saves for
+        // the sentence to be about and the clause is dropped rather than printed empty.
+        Assert.DoesNotContain("battery saves loose", row.Detail, StringComparison.Ordinal);
+        Assert.Contains(
+            "syncs the save states es_savestates.cfg declares and the directory saves",
+            row.Detail,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_install_with_no_state_schema_claims_nothing_about_declarations()
+    {
+        // The undeclared row's claim is that es_savestates.cfg was read and does not name the
+        // emulator. With no file there is no basis for either half of that, so the split does
+        // not fire and the report says what it said before it existed.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("nes", "mednafen/sstates/Final Fantasy (USA).24ae5edf.mc0", "a state nothing reads");
+
+        fixture.Scan();
+
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+        Assert.Equal(UnsyncableReason.NotInThisVersion, row.Reason);
+    }
+
+    [Fact]
     public void A_save_matching_no_rom_is_kept_and_reported_rather_than_attributed_to_a_guess()
     {
         using var fixture = SaveTree.Create();
@@ -651,6 +734,10 @@ public class SaveDiscoveryTests
         }
 
         public SaveScanOutcome Scan() => new SaveScanner(Install, Store).Scan();
+
+        /// <summary>Scans against RetroBat's shipped state schema rather than none at all.</summary>
+        public SaveScanOutcome ScanWithStateSchema() =>
+            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStates()).Scan();
 
         public void Dispose()
         {
