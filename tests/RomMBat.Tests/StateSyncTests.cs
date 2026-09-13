@@ -285,6 +285,82 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_server_value_local_state_would_refuse_is_reported_rather_than_thrown_mid_restore()
+    {
+        // The emulator field is free text from the server, and the row a restore now writes goes
+        // into CHECKed columns. A slash is the reachable case and a colon is not: RelativePath
+        // refuses a colon anywhere, so SaveStateTemplate.Create already answers null for one,
+        // while "libretro.snes9x/evil" expands to a perfectly valid directory and only
+        // local_state.core objects. Unguarded it threw SQLite error 19 after File.Move had put
+        // the state in the tree: a state that landed, counted Failed, with no row behind it and
+        // the next flush ready to send it back. Same shape as f337d2e's finding 4c on the save
+        // side, and fixed at the same point, in the find.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { Emulator = "libretro.snes9x/evil" };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        // Asserted before the reporting, because this is the defect: unguarded, the row reaches
+        // the restore, the file is written, the insert throws, and the state is counted Failed
+        // with no row behind it.
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(File.Exists(onDisk));
+
+        // Named rather than dropped, so it is not silence either.
+        Assert.Empty(found.Value!.Restorable);
+        var reported = Assert.Single(found.Value!.Unrestorable);
+        Assert.Contains("separator", reported.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_server_name_the_row_would_refuse_costs_the_note_and_not_the_restore()
+    {
+        // uploaded_file_name refuses a separator too, but it is only a note about what went up:
+        // what decides whether a state still needs sending is the hash beside it. So this one is
+        // recorded null rather than refused, and the state still comes back.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+        fixture.Scan();
+
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { FileName = "some/nested/name.state1" };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var outcome = await fixture.RestoreAsync(
+            found.Value!.Restorable,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+
+        // And the row is still the thing that stops the re-upload, note or no note.
+        var row = Assert.Single(fixture.Store.States.List());
+        Assert.Null(row.UploadedFileName);
+        Assert.False(row.NeedsUpload);
+    }
+
+    [Fact]
     public async Task Replaying_a_push_sends_nothing_and_reuses_the_row()
     {
         using var fixture = StateFixture.Create();

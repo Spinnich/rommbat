@@ -83,7 +83,11 @@ public sealed record StateSyncOutcome
 /// same template the scanner uses. Carried because the row written after a restore needs it and
 /// the server has no slot field to supply it.
 /// </param>
-/// <param name="UploadedFileName">The name the server holds it under, which is not the name on disk.</param>
+/// <param name="UploadedFileName">
+/// The name the server holds it under, which is not the name on disk. Null where the server's
+/// name is not one <c>local_state.uploaded_file_name</c> will accept, since the column is
+/// nullable and nothing reads it to decide whether a state still needs sending.
+/// </param>
 public sealed record RestorableState(
     int RomId,
     int StateId,
@@ -94,7 +98,7 @@ public sealed record RestorableState(
     string Emulator,
     string Core,
     string SlotKey,
-    string UploadedFileName,
+    string? UploadedFileName,
     DateTimeOffset? ServerUpdatedAt);
 
 /// <summary>
@@ -287,6 +291,23 @@ public sealed class StateSync
             var emulatorName = dot < 0 ? scope : scope[..dot];
             var core = dot < 0 ? null : scope[(dot + 1)..];
 
+            // <b>The core is free text from the server, and it reaches a CHECKed column.</b>
+            // `local_state.core` refuses a separator, and the row a restore writes is the reason
+            // that matters now: without this the write throws SQLite error 19 after the file is
+            // already in the tree, which counts a state that landed as Failed and leaves no row
+            // behind it. That is the shape f337d2e fixed on the save side, fixed here at the same
+            // point. The emulator half needs no guard because schema.For only answers for a name
+            // es_savestates.cfg declares.
+            if (core is not null && core.AsSpan().IndexOfAny('/', '\\', ':') >= 0)
+            {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    $"'{core}' is not a core name this device can record: a core carrying a path "
+                        + "separator would not survive being written down."));
+                continue;
+            }
+
             if (schema.For(emulatorName) is not { } emulator)
             {
                 unrestorable.Add(new UnrestorableState(
@@ -366,7 +387,7 @@ public sealed class StateSync
                 emulator.Name,
                 core ?? string.Empty,
                 match.SlotKey(emulator.Name, core),
-                row.FileName ?? onDisk,
+                RecordableName(row.FileName),
                 row.UpdatedAt ?? row.CreatedAt));
         }
 
@@ -490,6 +511,15 @@ public sealed class StateSync
             Problems = problems,
         };
     }
+
+    /// <summary>Null for anything <c>local_state.uploaded_file_name</c>'s CHECK would refuse.</summary>
+    /// <remarks>
+    /// The server's own file name, and free text as far as this device is concerned. Recording
+    /// null loses nothing: the column is a note about what went up, and what decides whether a
+    /// state still needs sending is the hash beside it.
+    /// </remarks>
+    private static string? RecordableName(string? name) =>
+        string.IsNullOrWhiteSpace(name) || name.AsSpan().IndexOfAny('/', '\\') >= 0 ? null : name;
 
     /// <summary>
     /// Records a restored state as being in step with the server.
