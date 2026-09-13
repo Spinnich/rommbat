@@ -263,6 +263,13 @@ server unreachable. `.state1.png` was the one file of the three that did not ret
 stays open on the screenshot, and the reason it stays open is now a loss rather than an untidy
 record.
 
+**The missing link is only half of it, and the other half is RomMBat's.** `RestorableState`
+carries no screenshot member, `RestoreAsync` fetches `DownloadStateAsync` and nothing else, and
+`RomMConnection.States` has an upload path for a screenshot with no download counterpart. So a
+state whose `screenshot` field did link would still not bring its `.png` back today. Step 5 needs
+#158 as well as the RomM-side link, and no `(system, emulator, core)` row can pass it on either
+alone.
+
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
 nothing to compare against. The restore says so itself rather than implying a check it cannot
@@ -339,7 +346,8 @@ ordinary `Missing` case, per finding 239.
 
 ### 8. Play session
 
-The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working:
+The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working. The
+block is the earlier capture, taken before the Zelda launch, which is why it stops at 18:13:51:
 
 ```text
 2026-09-12 18:01:34Z  start  background start started
@@ -396,7 +404,9 @@ RomMBat's.** Their slots name a core where `es_savestates.cfg` names an emulator
 two stale `River City Ransom` saves. RomMBat names each one and the reason rather than dropping
 it, which is right, but it also folds them into the exit code, which is #148. Four of the
 eighteen are `nes` rows under `fceumm`, so **this is what a second `(emulator, core)` row's
-states would look like to a restore** if RomMBat ever scoped one by core.
+states would look like to a restore** if RomMBat ever scoped one by core alone. It does not:
+`ScopeOf` writes `{emulator}.{core}`, which is what makes these rows unplaceable and RomMBat's
+own placeable.
 
 **A stock 8.2.1 install ships 1,231 MAME nvram directories**, and `saves` reports every one as a
 directory save that is not sent, with 1,531 files unsyncable for `no matching ROM`. Nothing here
