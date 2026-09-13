@@ -663,7 +663,10 @@ internal static class SavesCommand
                 Console.WriteLine(outcome.Message);
                 return ExitCode.Ok;
 
+            // Refused rather than Partial, which is the answer Busy already gives to the same
+            // shape: one thing was asked for and none of it happened.
             case ConflictOutcomeState.Busy:
+            case ConflictOutcomeState.Deferred:
                 Console.Error.WriteLine(outcome.Message);
                 return ExitCode.Refused;
 
@@ -905,14 +908,27 @@ internal static class SavesCommand
             Console.Error.WriteLine("  " + problem);
         }
 
+        var waiting = outcome.Deferred + stateOutcome.Deferred;
+
         Console.WriteLine(
             $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
                 + $"failed {outcome.Failed + stateOutcome.Failed}, "
                 + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}");
 
+        if (waiting > 0)
+        {
+            // Said in the imperative, because unlike every other line here this one has a remedy
+            // the person reading it can carry out now.
+            Console.WriteLine(
+                $"{waiting} save(s) or state(s) were not written because a game is running. "
+                    + "Close it, then run this again.");
+        }
+
         // A refused state half is Partial rather than Refused: the saves did land, so this run is
-        // not the "nothing was changed" that Refused promises.
+        // not the "nothing was changed" that Refused promises. A deferral is Partial for the same
+        // reason: less was written than was asked for, and nothing was lost doing it.
         return outcome.Failed + stateOutcome.Failed > 0 || stateOutcome.Refused || incomplete
+            || waiting > 0
             ? ExitCode.Partial
             : ExitCode.Ok;
     }

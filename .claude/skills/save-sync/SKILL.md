@@ -241,6 +241,55 @@ rules is how saves get lost, so RomMBat does not read `Card A`, does not upload 
 delete it. **Report when the option is off too**: turning it off deletes nothing, so the copies
 outlive the setting and regain their effect the moment it comes back on.
 
+### The other writer is usually the running emulator
+
+**Nothing may write a save for a game that is in flight, and `Sync/InFlightGuard` is the only
+thing that knows.** A download landing while the emulator holds the file is overwritten by the
+emulator's own copy on exit, so the other device's save is gone and the write happened under an
+open handle. Measured on this install (#155): ES's own launch write lands 1.6 to 4.9 s before the
+`start` hook fires and the background pass then takes 5 to 11 s, so a user pressing A promptly
+starts the emulator inside the window the download is still in.
+
+**Guard the write, not the launch.** `game-start` and `game-end` stay inert, because they run in
+the game-launch path and CLAUDE.md rule 4 is not negotiable; a launch that waits on a round trip
+is worse than one that occasionally plays a stale save. So the deferral is the fix, and it is
+cheap: nothing is acknowledged, so the next negotiate offers the same save again.
+
+**Every route that writes a save into the tree asks, which is the set the tree lock already
+groups.** The flush's download and `StateSync.RestoreAsync`, `saves restore --apply`, and
+`saves resolve --keep-server`, whose class C half swaps unit members into a container the running
+emulator holds open. A guard on the flush alone leaves the two routes a person reaches by hand
+writing into a file being played, which is the same data loss on a slower path.
+
+Four things about it that are decisions rather than detail:
+
+- **Read the journal _and_ the spool.** The journal covers a game launched before the pass, since
+  the flush drains and correlates before it downloads and `PlaytimeCorrelator` leaves an unmatched
+  `game-start` open on purpose. The spool covers a game launched _during_ the pass, whose `.hook`
+  file the drain has already gone past. Either alone misses half the window.
+- **A stale `game-start` is bounded by a sequence, not a clock.** A machine that loses power
+  mid-game leaves the row open forever, and the block has to lift on its own. The bound is the
+  last `start` or `quit` row's `local_sequence`, because ES starting or exiting ends every game
+  that was running, and sequence order survives a flat RTC where wall-clock order does not.
+- **Per ROM, widened to a shared container.** One game being played must not stall a library
+  sync, and a class A save is one file beside its own rom. But a container the shape file
+  declares as shared is held by whichever game is running, so a `gamecube` launch defers another
+  GameCube game's `.gci` in the same region folder. A file-shaped declaration matches only
+  itself: a converted per-game `.ps2` card beside `Mcd001.ps2` is a different file.
+- **A launch nobody can name is bounded by EmulationStation, because the spool has no sequence.**
+  A record written by a newer hook is left on disk rather than deleted, so a newer agent recovers
+  the play session it describes (#31), which also means the same file is read again on every
+  pass. Nothing the front end launched outlives the front end, so `EmulationStationProcess` ends
+  it: the install defers while ES is up and syncs on the pass the `quit` hook spawns. Without
+  that, one unparseable file would stop every save the install ever downloads, permanently, which
+  is the failure #31 exists to prevent. The check is injectable for the reason `SaveConverter`'s
+  is: nothing is ever running on a build agent, so the branch is otherwise untestable.
+
+**Freshness before play is still not solved, and is still open on #155.** A save arriving while ES
+sits idle for hours is picked up at the next ES start and not before, and nothing gates a launch
+on the check having finished. The guard turns the data-loss ordering into a deferral; it does not
+make the launch see a newer save.
+
 **Never convert a multi-disc set, and never convert DuckStation at all.** A two-disc set
 driven under stock `PerGameTitle` produced **one card for the set**:
 `memcards/Metal Gear Solid (USA)_1.mcd` and `_2.mcd`, where the suffix is the console **slot**

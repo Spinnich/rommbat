@@ -8,7 +8,20 @@ namespace RomMBat.Core.Sync;
 /// <summary>What resolving one conflict did.</summary>
 public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 {
+    /// <summary>
+    /// Nothing was tried, because the game is being played.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from a failure for the reason <see cref="ConflictOutcomeState.Busy"/> is: the
+    /// conflict is still open, nothing on either side moved, and asking again once the game is
+    /// closed works. See <see cref="InFlightGuard"/>.
+    /// </remarks>
+    public bool IsDeferred { get; init; }
+
     public static ConflictResolutionOutcome Failed(string message) => new(false, message);
+
+    public static ConflictResolutionOutcome Deferred(string message) =>
+        new(false, message) { IsDeferred = true };
 }
 
 /// <summary>
@@ -51,6 +64,7 @@ public sealed class SaveConflictResolver
     private readonly string _deviceId;
     private readonly TimeProvider _time;
     private readonly SaveUnitScanner _units;
+    private readonly InFlightGuard _inFlight;
 
     public SaveConflictResolver(
         RetroBatInstall install,
@@ -70,6 +84,7 @@ public sealed class SaveConflictResolver
         _deviceId = deviceId;
         _time = timeProvider ?? TimeProvider.System;
         _units = new SaveUnitScanner(install);
+        _inFlight = new InFlightGuard(install, store);
     }
 
     /// <summary>
@@ -312,6 +327,17 @@ public sealed class SaveConflictResolver
             return ConflictResolutionOutcome.Failed(
                 "There is nowhere to write the server's copy: this device holds no save in that "
                     + "slot and the slot has no recorded name.");
+        }
+
+        // The same question a download asks, on the route ARCHITECTURE.md pairs with it: this
+        // writes the server's copy into the tree, and the class C half swaps unit members into a
+        // container a running emulator holds open. Asked before the transfer, so a deferral
+        // costs nothing on the wire either.
+        if (_inFlight.Check((int)conflict.RomId, destination) is { CanWrite: false } verdict)
+        {
+            return ConflictResolutionOutcome.Deferred(
+                $"Nothing was written, because {verdict.Reason}. The conflict is still open and "
+                    + "still says the same thing. Close the game, then resolve it again.");
         }
 
         var partialDirectory = _install.Resolve(SaveSync.PartialDirectory);

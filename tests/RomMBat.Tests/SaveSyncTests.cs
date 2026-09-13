@@ -110,6 +110,123 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_download_for_a_game_being_played_is_deferred_rather_than_written_under_it()
+    {
+        // The ordering issue #155 opened on, driven end to end. Before this the download landed
+        // on top of the file libretro had open, the emulator wrote its own copy over it on exit,
+        // and the other device's save was gone with nothing said.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what the emulator has open");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        fixture.Launch(7, "Tetris (World)");
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Deferred);
+        Assert.Equal(0, outcome.Downloaded);
+
+        // Not a failure, so a flush does not exit Partial over a game being played.
+        Assert.Equal(0, outcome.Failed);
+        Assert.Contains("waiting on a running game", outcome.Summary, StringComparison.Ordinal);
+
+        // The two halves of "nothing was lost": the file the emulator holds is untouched, and
+        // the server was not told this device has the save, so the next negotiate offers it again.
+        Assert.Equal(
+            "what the emulator has open",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task The_deferred_download_lands_on_the_pass_after_the_game_closes()
+    {
+        // A deferral is only defensible because it is temporary. This is the quit pass: the same
+        // negotiate, the same save, and nothing needed doing by hand in between.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local, older");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        fixture.Launch(7, "Tetris (World)");
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Deferred);
+
+        // The game ends, and the flush correlates before it downloads, exactly as
+        // SaveFlushService orders the two.
+        fixture.EndLaunch();
+        fixture.Correlate();
+
+        var second = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, second.Downloaded);
+        Assert.Equal(0, second.Deferred);
+        Assert.Equal(
+            "newer from another device",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.Equal([100], fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task One_game_being_played_does_not_hold_back_another_games_save()
+    {
+        // The cost of the guard, bounded. Deferring every write while any game runs would stall a
+        // whole library sync on one person playing, and a class A save is one file beside its own
+        // rom that nothing else has open.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "being played");
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "local, older");
+        fixture.Scan();
+
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "newer from another device");
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+
+        fixture.Launch(7, "Tetris (World)");
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Deferred);
+        Assert.Equal(
+            "newer from another device",
+            File.ReadAllText(fixture.Resolve("saves/snes/ActRaiser (USA).srm")));
+    }
+
+    [Fact]
+    public async Task A_restore_asked_for_by_hand_while_a_game_runs_says_which_game_and_writes_nothing()
+    {
+        // A person typed this one, so it reports per line rather than as a count, and the line
+        // has to name the remedy. Nothing is written, which is the same promise a held lock makes.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        fixture.Scan();
+
+        var findings = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var picks = findings.Value!.Restorable;
+        Assert.Single(picks);
+
+        fixture.Launch(7, "Tetris (World)");
+
+        var outcome = await fixture.RestoreAsync(picks, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Deferred);
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(outcome.Refused);
+        Assert.Contains("this game is running", Assert.Single(outcome.Problems), StringComparison.Ordinal);
+        Assert.False(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
     public async Task A_slot_this_device_no_longer_holds_a_file_for_restores_into_its_roms_folder()
     {
         // The restore case every other download test skips, because they all seed a local save
@@ -1597,6 +1714,25 @@ public class SaveSyncTests
                 Stub.HashLie = "ffffffffffffffffffffffffffffffff";
             }
         }
+
+        /// <summary>Writes a game-start with no game-end, which is a game still running.</summary>
+        public void Launch(int romId, string stem)
+        {
+            var file = Store.Files.List().First(entry => entry.RomId == romId);
+
+            Store.Journal.Append(
+                JournalEvent.GameStart,
+                new DateTimeOffset(2026, 8, 16, 10, 0, 0, TimeSpan.Zero),
+                file.Path,
+                stem,
+                stem);
+        }
+
+        /// <summary>Closes whatever <see cref="Launch"/> opened, as leaving the game does.</summary>
+        public void EndLaunch() =>
+            Store.Journal.Append(
+                JournalEvent.GameEnd,
+                new DateTimeOffset(2026, 8, 16, 10, 30, 0, TimeSpan.Zero));
 
         /// <summary>Writes a game-start and game-end pair straight into the journal.</summary>
         public void PlaySession(int romId, string stem)

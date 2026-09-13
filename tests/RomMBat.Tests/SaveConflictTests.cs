@@ -256,6 +256,39 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task Keeping_the_server_side_is_deferred_while_the_game_is_being_played()
+    {
+        // The same ordering issue #155 measured, on the route a person reaches by hand:
+        // docs/ARCHITECTURE.md groups `saves resolve` with `saves restore --apply` because both
+        // write the files a flush does, and the emulator's own copy on exit would take this one
+        // back out again.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+        fixture.Launch();
+
+        var outcome = await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.True(outcome.IsDeferred);
+        Assert.Contains("this game is running", outcome.Message, StringComparison.Ordinal);
+
+        // Nothing on disk moved.
+        Assert.Equal(
+            "what this device did",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        // Nothing on the wire either: the question is asked before the transfer, so a deferral
+        // costs nothing, and the server still believes this device does not have the save.
+        Assert.DoesNotContain(100, fixture.Stub.Acknowledged);
+
+        // And the decision is still there to make once the game is closed, rather than having
+        // been consumed by an attempt that wrote nothing.
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
     public async Task A_download_that_does_not_match_the_recorded_hash_writes_nothing()
     {
         using var fixture = ConflictFixture.Create();
@@ -447,6 +480,14 @@ public class SaveConflictTests
             CancellationToken cancellationToken = default) =>
             new SaveConflictResolver(Install, Store, _connection, DeviceId, _time)
                 .ResolveAsync(7, Slot, resolution, cancellationToken);
+
+        /// <summary>A game-start with no game-end, which is the rom being played right now.</summary>
+        public void Launch()
+        {
+            var rom = Store.Files.List().First(file => file.RomId == 7).Path;
+
+            Store.Journal.Append(JournalEvent.GameStart, _time.GetUtcNow(), rom, rom.Name, rom.Name);
+        }
 
         /// <summary>Puts the same contents in the slot under a new id, as another device would.</summary>
         public void ReplaceServerSave(int id)

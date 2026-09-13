@@ -58,6 +58,16 @@ public enum ConflictOutcomeState
     Busy,
 
     /// <summary>
+    /// The game is being played, so its save files are in use. Nothing was changed.
+    /// </summary>
+    /// <remarks>
+    /// Alongside <see cref="Busy"/> rather than inside <see cref="Failed"/>, and for the same
+    /// reason: nothing was tried, the conflict is still open, and closing the game is a remedy
+    /// the person reading it can carry out. See <see cref="InFlightGuard"/> and issue #155.
+    /// </remarks>
+    Deferred,
+
+    /// <summary>
     /// There is nothing to sign in with: no pairing row, or a token that would not unlock.
     /// Pairing is the route out, and a front end owes one.
     /// </summary>
@@ -221,7 +231,12 @@ public sealed class ConflictResolutionService
             .ConfigureAwait(false);
 
         return new ConflictOutcome(
-            outcome.Resolved ? ConflictOutcomeState.Resolved : ConflictOutcomeState.Failed,
+            outcome switch
+            {
+                { Resolved: true } => ConflictOutcomeState.Resolved,
+                { IsDeferred: true } => ConflictOutcomeState.Deferred,
+                _ => ConflictOutcomeState.Failed,
+            },
             outcome.Message);
     }
 }
