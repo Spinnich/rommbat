@@ -101,8 +101,8 @@ reports the same `ETag` and the same total. The two representations agree, which
 serving one file from disk, and it is the contrast that makes the multi-file mismatch a finding
 rather than a quirk of the measurement.
 
-**Owed:** a follow-up issue, not a change here. The 5.2.0 reading stays where it is, labelled,
-per the version move checklist's rule on provenance, and both sites now name this section.
+**Owed:** #180, not a change here. The 5.2.0 reading stays where it is, labelled, per the
+version move checklist's rule on provenance, and both sites now name this section.
 
 ## Findings
 
