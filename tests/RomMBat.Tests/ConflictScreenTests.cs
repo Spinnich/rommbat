@@ -159,6 +159,34 @@ public class ConflictScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_resolution_is_deferred_while_the_game_is_being_played()
+    {
+        Seed();
+        Launch(7, "roms/snes/Chrono Trigger (USA).sfc");
+
+        var outcome = await new ConflictResolutionService(_session.Install, _session.Store)
+            .ResolveAsync(
+                7,
+                "libretro:battery",
+                ConflictResolution.KeepServer,
+                () => new RomMConnection(
+                    new RomMClientOptions { Origin = Origin, AccessToken = "rmm_test" },
+                    new StubRomMServer()),
+                TestContext.Current.CancellationToken);
+
+        // Its own state rather than Failed, for the reason Busy is one: nothing was tried, and
+        // the agent answers Refused rather than telling a script that some of it landed.
+        Assert.Equal(ConflictOutcomeState.Deferred, outcome.State);
+        Assert.False(outcome.Resolved);
+
+        // A remedy the person reading it can carry out, which is what separates this from an
+        // error. The screen quotes the sentence rather than writing its own.
+        Assert.Contains("Close the game", outcome.Message, StringComparison.Ordinal);
+
+        Assert.Single(_session.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
     public async Task Nothing_to_sign_in_with_is_a_pairing_problem_and_is_said_to_be_one()
     {
         // Driven through the factory the screens actually pass rather than a bare () => null,
@@ -348,6 +376,24 @@ public class ConflictScreenTests : IDisposable
             FsName = fsName,
             Name = name,
         });
+
+    /// <summary>Indexes a rom and records it as launched with no game-end, which is in flight.</summary>
+    private void Launch(int romId, string relative)
+    {
+        var path = RelativePath.Create(relative);
+
+        _session.Store.Files.Record(new LocalFile
+        {
+            Path = path,
+            Folder = "snes",
+            RomId = romId,
+            Kind = LocalFileKind.Rom,
+            FileName = path.Name,
+            SizeBytes = 3,
+        });
+
+        _session.Store.Journal.Append(JournalEvent.GameStart, DateTimeOffset.UtcNow, path, path.Name, path.Name);
+    }
 
     private void Pair()
     {

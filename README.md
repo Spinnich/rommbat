@@ -372,6 +372,11 @@ says so. It lands on the next flush, which the `quit` hook runs when you leave E
 `saves restore` names the game in the way. One game being played does not hold back any other
 game's save.
 
+Resolving a conflict is held back the same way, whether from `saves resolve` or from the couch:
+taking the server's copy writes the same file a download does, so it is refused while the game is
+open rather than applied under it, and the conflict is still there to decide once you have closed
+the game.
+
 What this does **not** do is make a launch see a save that arrived while EmulationStation was
 sitting idle. That is still picked up at the next start and no sooner
 ([#155](https://github.com/Spinnich/rommbat/issues/155)).

@@ -1,4 +1,5 @@
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
@@ -168,6 +169,43 @@ public class InFlightGuardTests
     }
 
     [Fact]
+    public void A_record_from_a_newer_hook_stops_deferring_once_the_front_end_is_closed()
+    {
+        // The bound the spool cannot supply itself. The drain leaves this file where it is so a
+        // newer agent recovers the play session (issue #31), which means it is read again on
+        // every pass: without an end to it, one file an out-of-step build cannot parse would
+        // stop every save this install ever downloads.
+        using var fixture = GuardFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World).zip");
+        fixture.SpoolRaw("rommbat-hook-99\nevent=game-start\n");
+
+        Assert.False(fixture.Check(7, "saves/gb/Tetris (World).srm").CanWrite);
+
+        // Nothing EmulationStation launched outlives EmulationStation, so the pass the quit
+        // hook spawns lands the save the pass before it held back.
+        fixture.EsRunning = false;
+
+        Assert.True(fixture.Check(7, "saves/gb/Tetris (World).srm").CanWrite);
+    }
+
+    [Fact]
+    public void A_rom_index_that_cannot_be_read_defers_rather_than_ending_the_flush()
+    {
+        // The rom index is read out of the same database as the journal, and a failure there is
+        // no more evidence that nothing is running. SaveSync catches an unreachable host and an
+        // IO failure and nothing else, so this used to unwind out of the whole pass.
+        using var fixture = GuardFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World).zip");
+        fixture.Launch(7);
+        fixture.Execute("DROP TABLE local_file;");
+
+        var verdict = fixture.Check(7, "saves/gb/Tetris (World).srm");
+
+        Assert.False(verdict.CanWrite);
+        Assert.Contains("could not be read", verdict.Reason!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_shared_unit_container_is_deferred_for_a_sibling_game_on_the_same_system()
     {
         // The widened half. Dolphin's GameCube region directory holds every game's .gci side by
@@ -226,6 +264,15 @@ public class InFlightGuardTests
 
         public DateTimeOffset Now { get; } = new(2026, 9, 13, 11, 22, 0, TimeSpan.Zero);
 
+        /// <summary>
+        /// Whether EmulationStation is up, which nothing on a build agent ever is.
+        /// </summary>
+        /// <remarks>
+        /// True by default because that is the state every fail-closed case here is about: a
+        /// launch nobody can name only matters while the front end that made it is running.
+        /// </remarks>
+        public bool EsRunning { get; set; } = true;
+
         public static GuardFixture Create()
         {
             var tree = TempRetroBatTree.Create();
@@ -283,7 +330,21 @@ public class InFlightGuardTests
         }
 
         public InFlightVerdict Check(int romId, string target) =>
-            new InFlightGuard(_install, Store).Check(romId, RelativePath.Create(target));
+            new InFlightGuard(
+                _install,
+                Store,
+                shapes: null,
+                () => EsRunning
+                    ? EsRunningVerdict.Running("EmulationStation is running from this install.")
+                    : EsRunningVerdict.NotRunning)
+                .Check(romId, RelativePath.Create(target));
+
+        /// <summary>Runs a statement against the store, for a test that has to break it.</summary>
+        public void Execute(string sql)
+        {
+            using var command = Store.Connection.Command(sql);
+            command.ExecuteNonQuery();
+        }
 
         public void Dispose()
         {

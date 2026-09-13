@@ -255,7 +255,13 @@ the game-launch path and CLAUDE.md rule 4 is not negotiable; a launch that waits
 is worse than one that occasionally plays a stale save. So the deferral is the fix, and it is
 cheap: nothing is acknowledged, so the next negotiate offers the same save again.
 
-Three things about it that are decisions rather than detail:
+**Every route that writes a save into the tree asks, which is the set the tree lock already
+groups.** The flush's download and `StateSync.RestoreAsync`, `saves restore --apply`, and
+`saves resolve --keep-server`, whose class C half swaps unit members into a container the running
+emulator holds open. A guard on the flush alone leaves the two routes a person reaches by hand
+writing into a file being played, which is the same data loss on a slower path.
+
+Four things about it that are decisions rather than detail:
 
 - **Read the journal _and_ the spool.** The journal covers a game launched before the pass, since
   the flush drains and correlates before it downloads and `PlaytimeCorrelator` leaves an unmatched
@@ -270,6 +276,14 @@ Three things about it that are decisions rather than detail:
   declares as shared is held by whichever game is running, so a `gamecube` launch defers another
   GameCube game's `.gci` in the same region folder. A file-shaped declaration matches only
   itself: a converted per-game `.ps2` card beside `Mcd001.ps2` is a different file.
+- **A launch nobody can name is bounded by EmulationStation, because the spool has no sequence.**
+  A record written by a newer hook is left on disk rather than deleted, so a newer agent recovers
+  the play session it describes (#31), which also means the same file is read again on every
+  pass. Nothing the front end launched outlives the front end, so `EmulationStationProcess` ends
+  it: the install defers while ES is up and syncs on the pass the `quit` hook spawns. Without
+  that, one unparseable file would stop every save the install ever downloads, permanently, which
+  is the failure #31 exists to prevent. The check is injectable for the reason `SaveConverter`'s
+  is: nothing is ever running on a build agent, so the branch is otherwise untestable.
 
 **Freshness before play is still not solved, and is still open on #155.** A save arriving while ES
 sits idle for hours is picked up at the next ES start and not before, and nothing gates a launch

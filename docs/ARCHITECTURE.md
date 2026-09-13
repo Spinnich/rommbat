@@ -196,6 +196,11 @@ flush that cannot get the lock is done, because another process is doing the wor
 three have nobody doing theirs, so both `saves` subcommands refuse and the sweep waits for the
 next pass.
 
+**The two that write saves also ask `Sync/InFlightGuard`**, for the same reason they take the
+lock: a running emulator holds the file whichever process is about to write it, so a guard on
+the flush alone leaves the two routes a person reaches by hand writing under it. Each reports the
+deferral and neither counts it as a failure, since nothing was written and nothing was lost.
+
 ### `src/RomMBat.UI`
 
 Full-screen, gamepad-navigable, published as `RomMBat.exe`, registered with

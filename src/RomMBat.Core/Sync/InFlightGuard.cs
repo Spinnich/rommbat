@@ -55,14 +55,34 @@ public sealed record InFlightVerdict(bool CanWrite, string? Reason)
 /// rom path is null means a game is running that cannot be named, and the cost of being wrong in
 /// the other direction is someone's save.
 /// </para>
+/// <para>
+/// <b>A launch that cannot be named is bounded by the front end, because the spool offers no
+/// sequence to bound it with.</b> A record written by a newer hook is left on disk rather than
+/// deleted, so that a newer agent recovers the play session it describes (issue #31), which
+/// means the same file is read again on every pass and a bound that never lifts would stop
+/// every save this install ever downloads. Nothing EmulationStation launched is still running
+/// once EmulationStation is gone, so <see cref="EmulationStationProcess"/> ends it: an install
+/// whose hook is ahead of its agent defers while the front end is up and syncs on the pass the
+/// <c>quit</c> hook spawns, which is the pass that was always going to land it.
+/// </para>
 /// </remarks>
 public sealed class InFlightGuard
 {
     private readonly RetroBatInstall _install;
     private readonly LocalStore _store;
     private readonly SaveShapes _shapes;
+    private readonly Func<EsRunningVerdict> _emulationStation;
 
-    public InFlightGuard(RetroBatInstall install, LocalStore store, SaveShapes? shapes = null)
+    /// <param name="emulationStation">
+    /// Whether EmulationStation is up. Injectable for the reason <see cref="SaveConverter"/>
+    /// takes it: the real one reads the machine's process list, so a branch that depends on it
+    /// cannot be tested either way on a build agent, where nothing is ever running.
+    /// </param>
+    public InFlightGuard(
+        RetroBatInstall install,
+        LocalStore store,
+        SaveShapes? shapes = null,
+        Func<EsRunningVerdict>? emulationStation = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(store);
@@ -70,6 +90,7 @@ public sealed class InFlightGuard
         _install = install;
         _store = store;
         _shapes = shapes ?? SaveShapes.Bundled;
+        _emulationStation = emulationStation ?? (() => EmulationStationProcess.Check(install));
     }
 
     /// <summary>
@@ -77,13 +98,16 @@ public sealed class InFlightGuard
     /// </summary>
     /// <param name="romId">The ROM the save belongs to.</param>
     /// <param name="target">Where it would land, under <c>saves/</c>.</param>
+    /// <remarks>
+    /// The whole answer is wrapped rather than the journal read alone, because the rom index is
+    /// read out of the same database and a busy timeout that expires there is no more evidence
+    /// that nothing is running than one that expires on the journal.
+    /// </remarks>
     public InFlightVerdict Check(int romId, RelativePath target)
     {
-        List<RelativePath?> launches;
-
         try
         {
-            launches = InFlight();
+            return Decide(romId, target);
         }
         catch (SqliteException ex)
         {
@@ -91,6 +115,11 @@ public sealed class InFlightGuard
                 $"the local database could not be read, so it is not safe to say no game is "
                     + $"running ({ex.Message})");
         }
+    }
+
+    private InFlightVerdict Decide(int romId, RelativePath target)
+    {
+        var launches = InFlight();
 
         if (launches.Count == 0)
         {
@@ -99,9 +128,22 @@ public sealed class InFlightGuard
 
         if (launches.Any(launch => launch is null))
         {
-            return InFlightVerdict.Defer(
-                "a game is running and RomMBat was not told which one, so writing any save now "
-                    + "risks writing under it");
+            // Bounded by the front end rather than left standing. A record this build cannot
+            // read stays on disk for a newer agent, so it is seen again on every pass, and
+            // nothing the front end launched outlives the front end.
+            if (_emulationStation().IsRunning)
+            {
+                return InFlightVerdict.Defer(
+                    "a game is running and RomMBat was not told which one, so writing any save "
+                        + "now risks writing under it");
+            }
+
+            launches.RemoveAll(launch => launch is null);
+
+            if (launches.Count == 0)
+            {
+                return InFlightVerdict.Allowed;
+            }
         }
 
         var romPaths = _store.Files

@@ -663,7 +663,10 @@ internal static class SavesCommand
                 Console.WriteLine(outcome.Message);
                 return ExitCode.Ok;
 
+            // Refused rather than Partial, which is the answer Busy already gives to the same
+            // shape: one thing was asked for and none of it happened.
             case ConflictOutcomeState.Busy:
+            case ConflictOutcomeState.Deferred:
                 Console.Error.WriteLine(outcome.Message);
                 return ExitCode.Refused;
 
@@ -917,8 +920,8 @@ internal static class SavesCommand
             // Said in the imperative, because unlike every other line here this one has a remedy
             // the person reading it can carry out now.
             Console.WriteLine(
-                $"{waiting} were not written because a game is running. Close it, then run this "
-                    + "again.");
+                $"{waiting} save(s) or state(s) were not written because a game is running. "
+                    + "Close it, then run this again.");
         }
 
         // A refused state half is Partial rather than Refused: the saves did land, so this run is

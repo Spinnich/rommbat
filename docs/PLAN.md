@@ -1901,10 +1901,22 @@ mitigation and not an answer.
 
   **The write is guarded and the launch is not.** `Sync/InFlightGuard` reads the journal and the
   undrained spool, and a download for a running game is `Deferred`: nothing is written, nothing is
-  acknowledged, and the `quit` pass lands it. Per ROM, widened to a container `save_shapes.json`
-  declares as shared, since one game being played must not stall a library sync but a GameCube
-  region folder holds every game's `.gci` at once. Every branch fails closed, `SaveGuard`'s rule:
-  a `game-start` whose rom path is null means a game is running that cannot be named.
+  acknowledged, and the `quit` pass lands it. Every route that writes a save into the tree asks it,
+  which is the set `docs/ARCHITECTURE.md` already groups under the tree lock: the flush's download,
+  `saves restore --apply`, `saves resolve --keep-server` and the state restore. Per ROM, widened to
+  a container `save_shapes.json` declares as shared, since one game being played must not stall a
+  library sync but a GameCube region folder holds every game's `.gci` at once. Every branch fails
+  closed, `SaveGuard`'s rule: a `game-start` whose rom path is null means a game is running that
+  cannot be named.
+
+  **Every block lifts on its own, by the cheapest bound that survives a flat RTC.** A stale
+  `game-start` is ended by the last `start` or `quit` row's `local_sequence`, because ES starting
+  or exiting ends every game that was running and journal order outlives a wrong wall clock. A
+  spool record written by a newer hook has no sequence to bound it with, and the drain leaves it
+  where it is so a newer agent recovers the play session it describes (#31), so the front end ends
+  it instead: nothing EmulationStation launched is still running once EmulationStation is gone.
+  Without that bound, one file an out-of-step build cannot parse would stop every save the install
+  ever downloads, which is the failure #31 exists to prevent.
 
   **Two of the three gaps #155 names are not closed by this and stay open.** A save arriving
   mid-session is still noticed only at the next ES start, and a launch is still not gated on the
