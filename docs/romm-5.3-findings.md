@@ -1,6 +1,6 @@
 # RomM 5.3.0 findings
 
-What RomM 5.3.0-alpha.1 changes for RomMBat, what it falsifies in this repo, and what it is
+What RomM 5.3.0-alpha.2 changes for RomMBat, what it falsifies in this repo, and what it is
 too early to say. Written in the shape of [retrobat-findings.md](retrobat-findings.md), and
 it carries the same warning with one extra clause.
 
@@ -16,8 +16,8 @@ live `5.3.0-alpha.2` server. It is the only row here that has standing to change
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Release                | `5.3.0-alpha.1`, 2026-09                                                             |
-| API read at            | tag `5.3.0-alpha.1`                                                                  |
+| Release                | `5.3.0-alpha.2`, 2026-09-13, and the floor this adopts                               |
+| API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
 | Measured against       | `5.3.0-alpha.2`, one live server, section C only. Everything else is unmeasured      |
@@ -57,7 +57,7 @@ are a combination that exists right now, in the field, regardless of when the fl
 Anything 5.3.0 adds that today's code mishandles is a **bug against the current floor**, not
 adoption work that can wait. Finding 6 is the one that bites.
 
-`ProductVersion` handles `5.3.0-alpha.1` correctly and on purpose: it compares numeric
+`ProductVersion` handles `5.3.0-alpha.2` correctly and on purpose: it compares numeric
 components and ignores the suffix, so the alpha ranks as `5.3.0` and lands above `LastTested`
 in the warn band. That is the documented lenient direction. **Do not "fix" it to be
 semver-strict**, which would rank every prerelease below its release and, more to the point,
@@ -326,10 +326,38 @@ The filesystem structure changes (Structure B detection removed, `filesystem.rom
 and inert here, because RomMBat maps to RetroBat's folders and never to the server's. They are
 listed so that inertness is a recorded conclusion rather than an omission.
 
+**Inert for the client is not inert for whoever stands one up.** 5.3.0 makes the layout an
+explicit declaration and **an instance refuses to start** until `filesystem.structure` is set in
+`config.yml`, printing the equivalent template if the removed keys are still present. Anyone
+following `DEVELOPER_SETUP.md` to raise a disposable RomM, for a schema capture or to answer one
+of the questions below, hits that before the server ever listens. The structure-A equivalent is:
+
+```yaml
+filesystem:
+  structure:
+    default: "roms/{platform}/{game}"
+    firmware: "bios/{platform}"
+```
+
 ## What the floor move costs, and what gates it
 
-The decision is to move the floor to 5.3.0-alpha.1. The version move checklist in the
-`pre-pr-verification` skill is the procedure, and two of its steps cannot be run yet.
+**The decision is to move the floor to 5.3.0-alpha.2**, not to the `alpha.1` this document was
+first written against. `alpha.2` was published on 2026-09-13, about eight hours after `alpha.1`,
+which is the same day this assessment was made: the tag moved underneath the work rather than
+after it. The repo's standing rule is to track the newest stable and to adopt within one release
+of it appearing, and picking the older of two same-day prereleases would be adopting a build
+that was already superseded before the PR opened. It is also the version a live server is
+actually running, which is what turns the remaining questions from reading into measurement.
+
+**What that costs is one read, and it is done.** `alpha.1` to `alpha.2` is 19 commits across 21
+files, every one of them under `backend/`: twelve migrations revised, `roms_handler.py`
+(+340/-142), `endpoints/roms/__init__.py`, `utils/database.py`, and their tests. Two things
+follow. It does not touch `backend/models/rom.py` or `backend/endpoints/responses/rom.py`, so
+**finding 2's source reads hold at either tag**. It does land squarely on the `GET /api/roms`
+query path, which is where finding 9's timings and this repo's paging and scoping behaviour
+live, so the re-measurement that finding 9 owes is attributed to `alpha.2` and not to `alpha.1`.
+
+The version move checklist in the `pre-pr-verification` skill is the procedure.
 
 | Step                                                       | State                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -338,23 +366,29 @@ The decision is to move the floor to 5.3.0-alpha.1. The version move checklist i
 | Move `Minimum`, `LastTested`, README table and compat row  | Ready, and a test asserts the trio agree                           |
 | Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                  |
 | Leave provenance alone                                     | See finding 9                                                      |
-| **Move the pinned OpenAPI schema**                         | **Gated on which version the floor names**, see below              |
+| **Move the pinned OpenAPI schema**                         | **Unblocked by the floor choice**, see below                       |
 
 `src/RomM.Client/openapi/generate.sh` regenerates DTOs from the pinned file, but the pinned
 file itself is a byte exact `/openapi.json` captured from a running server, per
 `DEVELOPER_SETUP.md`. FastAPI builds that schema at runtime and the repo does not hold one.
 
-**A live 5.3.0 server is reachable from this machine, and it is not the one the pin needs.**
-The instance the `Live*` tests point at answers `5.3.0-alpha.2`, which is how section C came to
-be measured. That unblocks findings 2, 5, 6 and 9, whose questions are about behaviour and can
-be answered on any 5.3.0 server as long as the reading is attributed to `alpha.2`.
+**The server that answers is the server the floor now names.** The instance the `Live*` tests
+point at runs `5.3.0-alpha.2`, which is how section C came to be measured, and with the floor at
+`alpha.2` it is also a legitimate source for the pin: a capture from it describes the same build
+the floor declares. That removes the Docker step from this adoption. `docker compose` v5.1.4 is
+on this machine with the daemon stopped, and a disposable instance is still the documented route
+whenever the floor and the reachable server disagree, which is the situation this adoption
+avoided rather than solved.
 
-It does not unblock the pin. The pinned schema is a byte exact `/openapi.json` captured from a
-server running **the version the floor names**, and a schema captured from `alpha.2` would
-declare a floor of `alpha.1` while describing a different build. So the choice is to move the
-floor to `alpha.2` and capture from the instance that exists, or to stand up a disposable
-`rommapp/romm:5.3.0-alpha.1` via Docker, the documented route, on a machine whose daemon is not
-currently running. **That is a question for the plan, not a call this document makes.**
+Two conditions on the capture, because a pin is a byte exact artifact and not a convenience.
+It must come from a server that reports `5.3.0-alpha.2` at `/api/heartbeat`, checked at capture
+time rather than assumed, since the instance is somebody's live library and can be upgraded
+underneath the work exactly as upstream's tag was. And the capture is what regenerates the DTOs,
+so `src/RomM.Client/openapi/generate.sh` runs against it and the diff gets reviewed, per the
+committed-DTOs rule.
+
+**Findings 2, 5, 6 and 9 are now measurable rather than parked**, on that same server, with
+every reading attributed to `alpha.2`.
 
 ## Open, and needing a live instance
 
