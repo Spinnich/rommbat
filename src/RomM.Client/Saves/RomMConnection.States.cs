@@ -96,6 +96,15 @@ public sealed partial class RomMConnection
             string.Create(CultureInfo.InvariantCulture, $"api/states?rom_id={romId}"),
             cancellationToken);
 
+    /// <summary>Every state this account holds, across every platform.</summary>
+    /// <remarks>
+    /// Unfiltered, for the same reason the save list is: the only scoping parameter is
+    /// <c>rom_id</c>, so narrowing to an installed library would be one request per ROM.
+    /// </remarks>
+    public Task<RomMResponse<IReadOnlyList<StateRow>>> ListAllStatesAsync(
+        CancellationToken cancellationToken = default) =>
+        GetAuthenticatedAsync<IReadOnlyList<StateRow>>("api/states", cancellationToken);
+
     /// <summary>
     /// Deletes states by id. Needs <c>assets.write</c>.
     /// </summary>
@@ -104,6 +113,45 @@ public sealed partial class RomMConnection
     /// gone, and nothing suggests this one differs, so callers that cannot re-list immediately
     /// beforehand should send one id at a time.
     /// </remarks>
+
+    /// <summary>
+    /// Fetches one state's bytes. Needs <c>assets.read</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>There is nothing to verify the result against, and that is the API rather than a
+    /// shortcut.</b> <c>StateSchema</c> and <c>UserStateSchema</c> carry no hash field of any
+    /// kind in the pinned 5.2.0 schema, where a save carries <c>content_hash</c>. States also
+    /// have no <c>/track</c> or <c>/downloaded</c>, so there is no acknowledgement to send and
+    /// no per-device record to keep in step. A caller writes what arrives and says so.
+    /// </remarks>
+    public async Task<RomMResponse<long>> DownloadStateAsync(
+        int stateId,
+        Stream destination,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        if (!IsAuthenticated)
+        {
+            return RomMResponse.Failure<long>(RomMResponseStatus.Unauthorized, "No access token is stored. Pair first.");
+        }
+
+        var path = string.Create(CultureInfo.InvariantCulture, $"api/states/{stateId}/content");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return await FailureAsync<long>(response, cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var written = await CopyAsync(body, destination, cancellationToken).ConfigureAwait(false);
+
+        return RomMResponse.Success(written);
+    }
+
     public Task<RomMResponse<bool>> DeleteStatesAsync(
         IReadOnlyList<int> stateIds,
         CancellationToken cancellationToken = default)

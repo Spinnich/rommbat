@@ -61,10 +61,41 @@ generated DTOs are committed, so nothing generates at build time.
 
 ### Publish
 
-```bash
-dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/agent
-dotnet publish src/RomMBat.UI    -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish/ui
+```powershell
+./tools/publish.ps1                     # publish, lay out, and zip
+./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
+
+This is what CI runs, so the two cannot drift. It publishes the three projects, assembles
+the **seven files** an install needs, refuses to package a set missing any of them, and
+writes `publish/rommbat-win-x64.zip`.
+
+Every entry in that zip is prefixed `emulators/rommbat/`, so it **extracts at the RetroBat
+root** and the files land where `RetroBatInstall.AppDirectory` and `hooks install` expect
+them. A flat archive would put them at the tree root, where the ES menu entry cannot resolve
+its executable.
+
+Seven, because self-contained is not one file. The agent and the UI each carry
+`e_sqlite3.dll`, and the UI carries three more Avalonia natives, since bundling those
+unpacks them into the host's temp directory rather than the tree, which core principle 4
+forbids. `docs/ARCHITECTURE.md` has the sizes. **Losing one breaks the app at launch with
+nothing a user can read**, which is why the file list is checked rather than assumed.
+
+The per-project output directories are cleaned on every run. Publishing over a warm one
+that is missing a native makes the copy step consider itself up to date, skip **every**
+native, and still report success.
+
+That clean is also why deleting a native and re-running does not exercise the refusal: the
+file is republished before the manifest check can see it is gone. `-NoPublish` packages
+whatever the last publish left behind, which is the way to reach it.
+
+```powershell
+Remove-Item publish\ui\libSkiaSharp.dll
+./tools/publish.ps1 -NoPublish           # refuses, naming the missing file
+```
+
+`-Deploy` writes only those seven into `emulators/rommbat`, so `rommbat.db` and `device.id`
+survive and the install stays paired. It refuses a path that is not a RetroBat root.
 
 Self-contained is not optional. RomMBat installs into a portable RetroBat tree and must
 not require a machine-wide .NET runtime.
@@ -477,12 +508,8 @@ RetroBat put in that gamelist alone.
 not the agent: four copies are installed, one per event folder, so it is built small and
 references nothing.
 
-```powershell
-dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -o publish/hook
-```
-
-Copy the result to `<root>\emulators\rommbat\rommbat-hook.exe`, which is where
-`hooks install` looks for it.
+`./tools/publish.ps1 -Deploy <root>` puts it at `<root>\emulators\rommbat\rommbat-hook.exe`,
+which is where `hooks install` looks for it, along with everything else an install needs.
 
 **The `start` and `quit` hooks trigger a pass; `game-start` and `game-end` do not.** Those
 two run inside the game-launch path, so they write a spool file and exit having started
@@ -494,26 +521,38 @@ and no agent simply spools, and the next `sync` drains it.
 The pass writes what it did to `<root>\emulators\rommbat\logs\background.log`, which is
 the only place to look, since it runs with no console window.
 
-```powershell
-dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -o publish/agent
-```
+The same `-Deploy` run installs the agent, so the two are never out of step with each other.
 
 **Two tests skip until both executables have been published**, because they drive the real
 binaries: the interleaved-hook one, and the rule-4 boundary that proves `game-start` and
-`game-end` start nothing. CI publishes both before it tests, so a local `dotnet test` on its
-own is the only place they are reported skipped.
+`game-end` start nothing. They look in each project's **default** publish directory, so
+`tools/publish.ps1` does not satisfy them: it passes `-o`, which is exactly what moves the
+output somewhere else. Publish without it to un-skip them locally, which is what CI does in a
+separate step:
+
+```powershell
+dotnet publish src/RomMBat.Hook  -c Release -r win-x64 --self-contained
+dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained
+```
 
 `flush` is the only command that needs the lock. Draining the spool, correlating play sessions
 and rescanning saves all work with the server unreachable, so `--offline` is a real mode rather
 than a dry run. `saves` is the report of what is on disk, what has gone up, what cannot go up
 and why, and what is waiting on a decision.
 
-**Save states are pushed, never pulled.** `POST /api/states` has no slot, no device and no
-conflict detection, so there is nothing to negotiate: a state goes up when its content changes
-and never comes back down. The uploaded name is not the name on disk. It carries the emulator
-and core, because the server keys a state on `(rom_id, file_name)` alone and two libretro cores
-writing one filename for one game would otherwise become one row with the second silently
-winning.
+**Save states are pushed automatically and pulled only when asked.** `POST /api/states` has no
+slot, no device and no conflict detection, so there is nothing to negotiate: a state goes up when
+its content changes, and no sync brings one down. `saves restore` offers both halves in one
+preview, labelling each row `save` or `state`, and writes nothing without `--apply`. A state it
+brings down is unverified twice over, and it says so: RomM publishes no hash for a state, and a
+state carries no emulator version either, so one made on a different build of the same emulator
+cannot be told apart from one made here.
+
+The uploaded name is not the name on disk. It carries the emulator and core, because the server
+keys a state on `(rom_id, file_name)` alone and two libretro cores writing one filename for one
+game would otherwise become one row with the second silently winning. Coming back the other way
+the ROM on disk names the file, never the server row: RomM strips parenthesised groups as tags,
+so the server's `file_name_no_tags` would put the state where the emulator never looks.
 
 **A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
 `--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
@@ -681,8 +720,13 @@ there.
 ```text
 <RetroBat root>/
   emulators/rommbat/      forced by the .menu path rules, see retrobat-findings.md probe 4
-    rommbat-agent.exe
+    rommbat-agent.exe     the seven installed files start here
     RomMBat.exe
+    rommbat-hook.exe      the source hooks install copies into each event folder
+    e_sqlite3.dll         needed by both the agent and the UI, one copy serves both
+    libSkiaSharp.dll      the UI's three Avalonia natives; losing one breaks it at launch
+    av_libglesv2.dll
+    libHarfBuzzSharp.dll
     rommbat.db            SQLite: file index, sync sets, outbox, cursors
     device.id             the client_device_identifier GUID
     logs/

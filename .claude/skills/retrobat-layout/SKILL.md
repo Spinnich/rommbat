@@ -222,7 +222,10 @@ therefore takes two files:
 - `system/es_menu/<app>.menu`, plain text, no trailing newline. Line 1 is the executable and
   later lines are arguments. **The path resolves under `emulators\` and `..\` escapes are
   refused outright** (`[Generator] Failed. path is null`, exit 204), which is why RomMBat
-  installs at `emulators/rommbat/` and why its line is `\rommbat\RomMBat.exe`.
+  installs at `emulators/rommbat/` and why its line is `\rommbat\RomMBat.exe`. **The portable
+  zip therefore carries the `emulators/rommbat/` prefix on every entry** and is extracted at
+  the RetroBat root: a flat archive extracts to a tree whose menu entry cannot resolve its
+  executable, and `hooks install` reports the hook missing.
 - a `<game>` element in `system/es_menu/gamelist.xml` whose `<path>` names the `.menu`
   (`./rommbat.menu`). **Without it the entry shows under its bare filename with no artwork**,
   driven rather than assumed. Artwork convention: `<image>` and `<marquee>` both pointing at

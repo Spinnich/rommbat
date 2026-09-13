@@ -128,9 +128,11 @@ task.
 | `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
-All of these are implemented. `saves resolve <rom> <slot> --keep-local | --keep-server` is the
-one subcommand that needs the network and a decision from a person, and the only caller of
-`overwrite=true` anywhere in the codebase. `saves bind <system> <game id> <rom id>`, and
+All of these are implemented. Two subcommands need both the network and a decision from a
+person: `saves resolve <rom> <slot> --keep-local | --keep-server`, which is also the only caller
+of `overwrite=true` anywhere in the codebase, and `saves restore --apply`, which puts back a save or
+save state the server holds and this device does not. Neither has a default side and neither is ever reached
+from a flush. `saves bind <system> <game id> <rom id>`, and
 `--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
 one by hand.
 
@@ -187,10 +189,12 @@ hook is never told the system, emulator or core, so
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
 hook execution is the normal case. Anything else that writes the same save files takes it
-too: `saves resolve`, which runs the same class C restore a flush does, and `evict`'s sweep of
+too: `saves resolve`, which runs the same class C restore a flush does, `saves restore --apply`,
+which writes into `saves/<system>/` exactly as a download does, and `evict`'s sweep of
 `partial/`, which would otherwise delete a restore's staging directory out from under it. A
 flush that cannot get the lock is done, because another process is doing the work; the other
-two have nobody doing theirs, so `saves resolve` refuses and the sweep waits for the next pass.
+three have nobody doing theirs, so both `saves` subcommands refuse and the sweep waits for the
+next pass.
 
 ### `src/RomMBat.UI`
 
@@ -332,8 +336,13 @@ libHarfBuzzSharp.dll    1.7 MB
 `IncludeNativeLibrariesForSelfExtract=true` does produce one file, and it was measured at
 61 MB trimmed. It is not used, because self-extraction unpacks the natives into the **host's**
 temp directory rather than the tree, which is the thing core principle 4 forbids and would
-happen afresh on every machine a portable drive is carried to. M8's installer therefore places
-five files, and losing one of them breaks the app.
+happen afresh on every machine a portable drive is carried to.
+
+**An install is seven files, not five.** These five are the UI's publish; the agent adds
+`rommbat-agent.exe` and the hook adds `rommbat-hook.exe`, and the agent's own `e_sqlite3.dll`
+is byte-identical to the UI's, so one copy in the shared directory serves both. `tools/publish.ps1`
+assembles exactly those seven and refuses to package a set missing any, because losing one
+breaks the app at launch with nothing a user can read.
 
 **Input is read, never detected.** The controller map comes from the live `es_input.cfg`,
 which records which physical input is `a` on that pad rather than what kind of pad it is, and

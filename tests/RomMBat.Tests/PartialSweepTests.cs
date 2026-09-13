@@ -70,28 +70,33 @@ public sealed class PartialSweepTests : IDisposable
     }
 
     [Fact]
-    public void The_four_producers_that_never_resume_are_all_abandoned_once_left_behind()
+    public void The_five_producers_that_never_resume_are_all_abandoned_once_left_behind()
     {
         // None of these opens for resume, and each deletes its own file in a finally, so
         // anything of theirs still here is from a pass that died. The staging directory counts
         // too: it is where a class C restore extracts before touching the live tree.
+        //
+        // state- is here because a producer the sweep does not know is a leak with no upper
+        // bound: an unrecognised name is left alone forever, and a partial has no local_file row,
+        // so the bytes are invisible to the disk budget as well.
         using var store = LocalStore.Open(_tree.Install());
 
         Write("bios-0123456789abcdef0123456789abcdef.part", "half a bios");
         Write("save-42.part", "half a save");
         Write("resolve-42.part", "half a resolution");
+        Write("state-42.part", "half a state");
         Write("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0.zip", "half a unit");
         WriteDirectory("unit-0f1e2d3c4b5a69788796a5b4c3d2e1f0", "SAVEDATA/GAME.DAT", "staged member");
 
         var plan = new PartialSweep(_tree.Install(), store).Plan();
 
-        Assert.Equal(5, plan.Candidates.Count);
+        Assert.Equal(6, plan.Candidates.Count);
         Assert.All(plan.Candidates, candidate => Assert.Equal(PartialReason.Abandoned, candidate.Reason));
         Assert.Contains(plan.Candidates, candidate => candidate.IsDirectory);
 
         var outcome = new PartialSweep(_tree.Install(), store).Apply(plan);
 
-        Assert.Equal(5, outcome.Removed);
+        Assert.Equal(6, outcome.Removed);
         Assert.Empty(outcome.Problems);
         Assert.Empty(Directory.EnumerateFileSystemEntries(_tree.Install().Resolve(PartialSweep.Directory)));
     }
@@ -121,6 +126,7 @@ public sealed class PartialSweepTests : IDisposable
 
         Write("save-notes.txt", "not a save transfer");
         Write("save-.part", "no id at all");
+        Write("state-of-play.md", "not a state transfer");
         Write("bios-nothex.part", "an md5 is 32 hex digits and this is not");
         Write("resolve-conflicts.md", "somebody's working notes");
         WriteDirectory("unit-tests", "readme.md", "not a staging directory");
@@ -128,6 +134,7 @@ public sealed class PartialSweepTests : IDisposable
         Assert.Empty(new PartialSweep(_tree.Install(), store).Plan().Candidates);
         Assert.True(File.Exists(Resolve("save-notes.txt")));
         Assert.True(File.Exists(Resolve("save-.part")));
+        Assert.True(File.Exists(Resolve("state-of-play.md")));
         Assert.True(File.Exists(Resolve("bios-nothex.part")));
         Assert.True(File.Exists(Resolve("resolve-conflicts.md")));
         Assert.True(Directory.Exists(Resolve("unit-tests")));

@@ -3468,6 +3468,25 @@ The rollout can start, and it starts with a checklist rather than with this pass
 
 ### M8: packaging, docs, release
 
+**The portable zip landed early, before wave 1.** `tools/publish.ps1` publishes the three
+projects, assembles the seven files an install needs, refuses to package a set missing any of
+them, writes `publish/rommbat-win-x64.zip`, and extracts into a tree with `-Deploy`. CI calls
+it rather than carrying its own publish steps. It came forward because the platform rollout
+redeploys on every defect a pass turns up, and repeating a seven-file hand copy across seven
+systems is a defect generator.
+
+Two things it measured, both of which a hand copy gets wrong silently. A publish emits **101 MB
+of `.pdb` files** beside the 185 MB payload, so the layout names its files rather than copying
+the output directory. And **publishing over a warm output directory that is missing a native
+skips every native and still reports success**: deleting `libSkiaSharp.dll` alone left all four
+absent, so each project's output is cleaned first.
+
+The zip's entries carry the `emulators/rommbat/` prefix, because the artefact is extracted at
+the RetroBat root and `RetroBatInstall.AppDirectory` pins the app to that directory. A flat
+archive extracts to a tree whose ES menu entry cannot resolve its executable.
+
+Still open here: the installer wrapper, removal restoring the tree's prior state, and the docs.
+
 - `dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true` so no .NET
   install is needed. RetroBat already requires the VC++ redist; add nothing else.
 - **A portable zip is the primary artefact**, extracted into the RetroBat tree, requiring
