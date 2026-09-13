@@ -497,6 +497,9 @@ docs/retrobat-findings.md
 docs/{freegosy,argosy}-findings.md
                       One ledger per mined reference implementation, recording what
                       survived verification and what did not. Both are closed
+docs/romm-5.3-findings.md
+                      What RomM 5.3.0 changes for RomMBat, what it falsifies here, and
+                      what is still too early to say. Nothing in it is measured yet
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number

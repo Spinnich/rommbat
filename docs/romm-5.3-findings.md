@@ -106,17 +106,47 @@ is upstream reaching the same conclusion this repo did.
 four numbers re-derived rather than edited, the mapping table in `reference/README.md` and the
 `platform-mapping` skill corrected.
 
-### 2. `title_id` and `save_target` land on the ROM schema (`notes`)
+### 2. A ROM identity triple lands on the ROM schema (`source`)
 
-`DetailedRomSchema` gains `title_id` and `save_target`, extracted from game binaries during
-scan, gated on `TITLE_ID_EXTRACTION_ENABLED` in the heartbeat. Upstream names PSX, PS2, PS3,
-PSP, PS Vita, Switch, 3DS, Wii, Wii U, GameCube, Dreamcast, Xbox and Xbox 360, and says the
-purpose includes determining save locations for device sync.
+`DetailedRomSchema` gains **three** fields, not two, and all three are declared columns readable
+in source rather than a claim in a release note:
+
+| Field                | Declared at                                               |
+| -------------------- | --------------------------------------------------------- |
+| `title_id`           | `backend/models/rom.py:806`, response schema `rom.py:407` |
+| `save_target`        | `backend/models/rom.py:810`, response schema `rom.py:408` |
+| `save_target_layout` | `backend/models/rom.py:814`, response schema `rom.py:409` |
+
+Upstream carries them as one unit, `RomIdentity` at `backend/models/rom.py:153-155`, described
+there as "the triple that travels from the scan through to the `Rom` columns of the same names".
+`save_target_layout` is an enum, `SaveTargetLayout` at `backend/models/rom.py:137-142`:
+
+```python
+class SaveTargetLayout(enum.StrEnum):
+    FOLDER_EXACT = "folder-exact"
+    FOLDER_PREFIX = "folder-prefix"
+    FILE_EXACT = "file-exact"
+    FILE_PREFIX = "file-prefix"
+    FOLDER_SPLIT = "folder-split"
+```
+
+The values are extracted from game binaries during scan, gated on `TITLE_ID_EXTRACTION_ENABLED`
+in the heartbeat. Upstream names PSX, PS2, PS3, PSP, PS Vita, Switch, 3DS, Wii, Wii U, GameCube,
+Dreamcast, Xbox and Xbox 360, and says the purpose includes determining save locations for
+device sync.
+
+**Two different things are deferred here, and only one of them is unmeasured.** That the columns
+exist, and what shapes `save_target` can take, are settled in source today. Whether any real
+library actually carries values in them, and whether those values agree with what this repo
+measured, needs a live instance and is what #168 gates. Filing the first as belief is what left
+the falsified premise below standing unqualified.
 
 **This falsifies a claim this repo repeats in four places.** "RomM stores no serial, title ID
 or product code anywhere, so no API lookup exists" appears in
 [save-sync](../.claude/skills/save-sync/SKILL.md) and at `PLAN.md` lines 2602, 3699 and 3957.
-It was true at 5.2.0 and it is the premise the whole attribution design rests on.
+It was true at 5.2.0 and it is the premise the whole attribution design rests on. **All four now
+carry a one-line qualifier naming this finding**, because `save-sync` is the file a later session
+loads and this document is linked from nothing.
 
 The complement is close to exact. This repo measured header reads at GameCube 100%, Wii 75.5%,
 and **0% of PSP, PS3 and PSX**, because no constant offset reaches a `.cso`, a `.chd` or an
@@ -129,6 +159,15 @@ evidence a binding has, and disagreement fails closed. `title_id` becomes a four
 the same standing as the others. It is also capability gated, so a server with extraction off,
 or a library scanned before the feature existed, answers nothing. The header and sidecar
 routes stay regardless of what the measurement shows.
+
+**`save_target_layout` names the same distinctions this repo measured, which makes the
+comparison a real one.** `save-sync` records that psp's key is a _prefix_ of the segment
+(`ULES01513SYSDATA`), that `ps3` keeps three directories under one title id, and that `gamecube`
+has no per-game directory at all. Upstream's five members read as the same taxonomy arrived at
+independently, and independent agreement is worth more than either reading alone. The open
+question is therefore sharper than "what shape is `save_target`": it is **whether the layout
+upstream assigns agrees, per system, with the shape this repo measured**, and a disagreement is
+the interesting case rather than a tie break.
 
 **Owed, and in this order:** measure coverage on a real library first, then decide. Nothing in
 `save-sync` changes on the strength of a release note.
@@ -188,8 +227,14 @@ overwriting" fix), took `ASSET_DIRS` into `config.PLATFORM_MEDIA_DIRS`, and gain
 
 This repo derives two unit conversions from that file, that `first_release_date` is
 milliseconds and `average_rating` is on 0 to 100, and `verify.py` asserts them as behaviours
-rather than counts precisely so a rewrite like this one is survivable. Both need re-deriving
-against the new file, along with the three documented deliberate divergences.
+rather than counts precisely so a rewrite like this one is survivable. **Both survive**, read at
+`master`: `first_release_date` is still divided by 1000 at line 125, and `average_rating` by 100
+at line 340 with the "0-100 scale" comment intact. Asserting behaviours rather than line numbers
+is what made that a two minute read instead of a re-derivation.
+
+What #171 still owes is the part a rewrite can move without moving a constant: the three
+documented deliberate divergences (companies, region and lang, genre) and the `marquee` /
+`logo_path` rule.
 
 **One divergence may be able to end.** 5.3.0 splits company metadata into `publishers` and
 `developers` on `DetailedRomSchema`. That is this repo's own upstream follow up 3
@@ -202,19 +247,27 @@ reason this repo joins companies into `developer` and omits `publisher` goes awa
 ### 8. Grants tightened on the export endpoints (`notes`)
 
 `POST /export/gamelist-xml` and `POST /export/pegasus` now require a `PLATFORMS` / `WRITE`
-grant and enforce platform visibility. RomMBat writes its own gamelists and is not believed to
-call either, which needs confirming rather than assuming, because the `romm-api` skill
-documents the scope set and a sixth scope kind landed recently.
+grant and enforce platform visibility. **RomMBat calls neither**, confirmed by grep rather than
+assumed: no hand written C# reaches either path, and the single hit repo-wide is the string
+`pegasus_export` as a JSON property name at `src/RomM.Client/Generated/RomMApiSchema.g.cs:5639`,
+which is a generated DTO field and not a call site. So the tightened grant costs the pairing
+scope set nothing.
+
+What #176 still owes is the line in the `romm-api` skill, because an answer that lives only in
+this document is one the next session re-derives.
 
 ### 9. Performance measurements move, and must not be edited (`notes`)
 
 `SCAN_WORKERS` and `WEB_SERVER_CONCURRENCY` both default to 4, up from 1. An N+1 in
 `GET /api/roms` is fixed. Pooled connections are now recycled before the server drops them.
 
-Every timing in this repo (8 minutes 15 seconds for a full roms walk at 88,331 roms, 2.3 s
-against 8.5 s for a `platform_ids` scoped page, the 300 s session timeout) is a measurement of
-5.2.0 at concurrency 1. Per the version move checklist those are provenance and **do not get
-rewritten to new numbers**. They get re-measured, and the new numbers get their own attribution.
+Every timing in this repo is a measurement of 5.2.0 at concurrency 1, and each one carries the
+scope it was taken on: **8 minutes 15 seconds for a platform scope of 9,196 roms** at 250 rows a
+page before #88, 2.3 s against 8.5 s for a `platform_ids` scoped page at a library of 88,331,
+and the 300 s session timeout. Per the version move checklist those are provenance and **do not
+get rewritten to new numbers**, and that includes the scope: a re-measure that walks the whole
+88,331 rom library has measured a different thing and has nothing to compare against. They get
+re-measured on the same scope, and the new numbers get their own attribution.
 
 ### 10. Not adopting (`notes`)
 
@@ -250,16 +303,19 @@ file itself is a byte exact `/openapi.json` captured from a running server, per
 **A disposable RomM via Docker is the documented route for exactly this**, and this machine has
 `docker compose` v5.1.4 with the daemon not running. Standing up `rommapp/romm:5.3.0-alpha.1`
 long enough to capture `/openapi.json` unblocks the pin, and the same instance is what
-findings 2, 5, 6 and 9 need in order to stop being release notes.
+findings 2, 5, 6 and 9 need in order to answer the questions below.
 
 ## Open, and needing a live instance
+
+**Two questions left this table without one.** Whether the exporter's unit conversions survived
+the rewrite, and whether RomMBat calls either export endpoint, are answered above from upstream
+source and a repo grep. Reach for the cheaper route first: a question parked behind a Docker
+daemon that a read answers today is a question nobody answers.
 
 | #   | Question                                                                             |
 | --- | ------------------------------------------------------------------------------------ |
 | 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? |
-| 2   | What shape is `save_target`, and does it name a path, a key, or a container?         |
+| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      |
 | 5   | Can an identity rebind change what a rom id means to a cached binding or a set row?  |
 | 6   | What does a `is_physical` row look like on `GET /api/roms`, and is it filterable?    |
-| 7   | Do the two unit conversions survive the exporter rewrite?                            |
-| 8   | Does RomMBat call either export endpoint anywhere?                                   |
 | 9   | Every timing in this repo, re-measured at concurrency 4                              |

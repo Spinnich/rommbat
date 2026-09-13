@@ -2600,7 +2600,10 @@ why" rather than silently ignored.
 **Attribution is a real problem for classes C and D.** Directory saves are keyed by Game
 ID (`UCUS98751`, a PS3 `TITLEID`, a GameCube disc ID), not by ROM filename, and Grout's
 own comment says as much. RomM does not help: there is no serial, title ID or product
-code anywhere on the ROM model or response schema, so no API lookup exists. Two client-side
+code anywhere on the ROM model or response schema, so no API lookup exists. (True at the 5.2.0
+floor. RomM 5.3.0 adds `title_id`, `save_target` and `save_target_layout` as ROM columns, which
+would make a fourth route rather than replace these; see finding 2 of
+[romm-5.3-findings.md](romm-5.3-findings.md) and #168.) Two client-side
 routes, in order of preference:
 
 1. **Correlate with the game-start journal.** The ES hooks already record which ROM
@@ -3696,7 +3699,7 @@ introduces, and the table is hand-maintained.
 | Writing emulator INIs directly gets clobbered every launch                                                                      | `emulatorlauncher` regenerates them from options at launch; write `es_settings.cfg` instead, using its `<system>["<rom>"]` per-game form                                                                                                                                                                 |
 | A key written into `es_settings.cfg` while ES is running is silently discarded                                                  | ES serialises a model loaded at startup, so merging and atomicity do not help. Refuse to write while ES is running, say why, and re-read the file afterwards to confirm the key is there                                                                                                                 |
 | Switching a user to per-game cards strands their existing saves                                                                 | Opt-in and reversible, with either a migration path out of the old container or an explicit warning before the switch; note that per-game cards also break legitimate cross-game save reads                                                                                                              |
-| Directory saves are keyed by Game ID and RomM stores no serial or title ID                                                      | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers                                                                                                                                                                       |
+| Directory saves are keyed by Game ID, and RomM stored no serial or title ID before 5.3.0                                        | Attribute by correlating with the `game-start` journal, cache the learned binding, fall back to reading `PARAM.SFO` / disc headers. 5.3.0's `title_id` is a fourth route, not a replacement: finding 2 of `romm-5.3-findings.md`                                                                         |
 | Hashing zip bytes makes RomMBat and Grout disagree on identical saves                                                           | Define `content_hash` over sorted relative paths plus per-file hashes; the archive is transport only                                                                                                                                                                                                     |
 | A save state restored across an emulator update corrupts or crashes                                                             | Record emulator, core and version per state; never silently restore across a version change (RetroBat's own wiki warns about this)                                                                                                                                                                       |
 | Platform nomenclature diverges: 37% of RetroBat systems unmapped, 19 shipped entries stale, 13 slugs fan out to several folders | Layered resolution (override → `fs_slug` → bundled table → normalized suggestion → unmapped), a first-class mapping UI, and `es_systems.cfg` read from the live install                                                                                                                                  |
@@ -3954,9 +3957,10 @@ Paste this into Claude Code from an empty directory:
 > per-file hashes rather than over zip bytes, or you will disagree with Grout forever on
 > identical saves. Treat shared containers as out of scope for v1: detect them, steer the
 > user to their emulator's per-game memory card option, and report what cannot be synced.
-> Directory saves are keyed by Game ID and RomM stores no serial or title ID anywhere, so
-> attribute them by correlating with the `game-start` journal you are already writing, and
-> cache the learned binding.
+> Directory saves are keyed by Game ID and RomM stores no serial or title ID anywhere (true
+> of the 5.2.0 floor this prompt was written against; 5.3.0 adds one, and it is a fourth
+> route rather than a replacement), so attribute them by correlating with the `game-start`
+> journal you are already writing, and cache the learned binding.
 >
 > Shared containers are smaller than they look, because the emulators all support per-game
 > virtual memory cards and RetroBat exposes each as an option. DuckStation already defaults
