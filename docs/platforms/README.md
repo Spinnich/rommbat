@@ -104,6 +104,14 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   a recorded declaration rather than a test: the emulator can still be certified on the other
   eight steps, and the record says state sync is outside what RomMBat offers for that row.
 
+  **Declaring no directory does not mean writing no state**, and an earlier revision of this
+  section assumed it did. Driven on `nes`: `mednafen`, `mesen` and `ares` each wrote a real save
+  state into a directory they name themselves, which `StateScanner` never reads because it works
+  from `es_savestates.cfg` alone. So step 5 for these rows is not "there is nothing to sync", it is
+  **"there is something to sync and RomMBat cannot see it"**, and the record has to say which.
+  Issue #150. That is a third of wave 1 resting on the wrong reading, so re-check it per row rather
+  than carrying this bullet forward.
+
 **Name how the row was selected, every time.** A row driven under an `es_settings.cfg` override
 is not the row a stock install gives a user, and a record that does not distinguish them is
 claiming something it did not test. Confirm what actually ran from

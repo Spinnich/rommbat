@@ -3,10 +3,16 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified.** Steps 1, 3, 4, 7, 8 and 9 hold and step 6 is N/A. **Two remain open**: step 2's
-exclusion cannot be exercised on this platform, and step 5's screenshot does not link, which is
-now a loss rather than a cosmetic gap, because a restore cannot bring back what the state does
-not point at. A pass is not done at eight of nine.
+**Not certified, on any of its nine rows.** Steps 1, 3, 4, 7, 8 and 9 hold and step 6 is N/A.
+**Two remain open**: step 2's exclusion cannot be exercised on this platform, and step 5's
+screenshot does not link, which is now a loss rather than a cosmetic gap, because a restore cannot
+bring back what the state does not point at. A pass is not done at eight of nine.
+
+**This file is in two parts.** The first is `libretro`/`nestopia` in full, which is the row the
+nine steps were driven against. The second is the other eight rows, driven on steps 4 and 5 only,
+which is where the save and state shapes live and where six of the nine turn out to write
+something RomMBat does not sync. Read "The other eight rows" before trusting any sentence here
+about `nes` as a whole, because most of them are about `libretro`.
 
 ## The row
 
@@ -402,9 +408,117 @@ states would look like to a restore** if RomMBat ever scoped one by core.
 directory save that is not sent, with 1,531 files unsyncable for `no matching ROM`. Nothing here
 is the user's, and no MAME ROM is on the device. Same class as #83.
 
+## The other eight rows
+
+`nes` declares **nine** `(emulator, core)` rows, and the one above is one of them. All nine have
+now been driven by hand on this install: a real player battery save and a save state in each,
+launched from EmulationStation, with the emulator confirmed from `emulatorLauncher.log` rather
+than from configuration.
+
+**This does not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
+carry across from the row above, but step 2 is unexercisable on this platform and step 5's
+screenshot half fails, so every row stands where the first one does: eight of nine at best, and
+six of the nine cannot sync what they wrote.
+
+### How each row was selected
+
+EmulationStation keeps a per-game emulator choice in **`gamelist.xml`**, as `<emulator>` and
+`<core>` children of the `<game>` element, and not in `es_settings.cfg`. That was established by
+setting one game through ES's own menu and diffing: `es_settings.cfg` came back byte-identical.
+
+**Fourteen `nes["<rom>.zip"].emulator` keys written into `es_settings.cfg` were ignored.** They
+survived ES's startup and exit rewrites untouched and were never read: five launches made under
+them all ran the system-level `nes.emulator` / `nes.core` pair, `libretro` / `nestopia`. The
+`<system>["<rom>"].<key>` chain is `emulatorlauncher`'s, and it covers feature keys; which emulator
+runs is resolved by ES before `emulatorlauncher` exists. The skill now says so.
+
+**Two rows declare no core and inherited `-core nestopia` from the system key.** `mesen` standalone
+and `jgenesis` were both launched that way and both ignored it, running `Mesen.exe` and
+`jgenesis-cli.exe`. For an emulator that declares no core, `-core` in the log is noise.
+
+**`mesen` standalone is not the `mesen` libretro core**, and the two are separate rows that share a
+name. They were driven on different games and wrote to different places, which is the clearest way
+to see that they are not one thing.
+
+### Where each row actually stores a save
+
+Measured, not declared. Every battery save below was checked for content rather than existence:
+the smallest is 499 non-zero bytes over 52 distinct values, where a file a core writes at boot is
+uniform.
+
+| Row                    | Battery save                               | Save state                                                    |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------- |
+| `libretro`/`fceumm`    | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.fceumm/<rom>.state1` + `.png`             |
+| `libretro`/`mesen`     | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.mesen/<rom>.state1` + `.png`              |
+| `libretro`/`nestopia`  | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.nestopia/<rom>.state1` + `.png`           |
+| `mednafen`/`nes`       | `saves/nes/<rom>.<md5>.sav`                | `saves/nes/mednafen/sstates/<rom>.<md5>.mc0`                  |
+| `mesen` standalone     | `saves/nes/<rom>.sav`                      | `saves/nes/mesen/SaveStates/<rom>_1.mss`                      |
+| `ares`/`Famicom`       | `saves/nes/ares/Famicom/<rom>.ram`         | `saves/nes/ares/Famicom/<rom>.bs1`                            |
+| `bizhawk`/`NesHawk`    | `saves/nes/bizhawk/<display name>.SaveRAM` | `saves/nes/bizhawk/sstates/NesHawk/<rom>.QuickSave0.State`    |
+| `bizhawk`/`quickerNES` | `saves/nes/bizhawk/<display name>.SaveRAM` | `saves/nes/bizhawk/sstates/quickerNES/<rom>.QuickSave0.State` |
+| `jgenesis`             | `saves/nes/jgenesis/nes/<rom>.sav`         | `saves/nes/jgenesis/states/<rom>_0.jst`                       |
+
+`<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`.
+
+**So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
+entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
+string was already telling the truth: six of the nine rows write something else entirely, in four
+different shapes. The file's own `_note` says shape is a property of `(system, emulator)`; this is
+that note measured on one platform across every emulator it declares, and it is the first time the
+claim has been checked rather than repeated.
+
+**Only the three libretro rows share one battery file.** All three write
+`saves/nes/<rom>.srm`, so switching core continues the same save: Kirby's Adventure was played
+under `nestopia`, then under `fceumm`, and the second session carried on from the first and
+rewrote the same 8,192 bytes. Across emulator families they are separate files in incompatible
+formats, so the same game under `mesen` standalone and under `libretro` holds two unrelated saves
+and neither sees the other.
+
+### What RomMBat does with them
+
+| Row                   | Battery save    | Save state          |
+| --------------------- | --------------- | ------------------- |
+| the three `libretro`  | synced, class A | synced, core-scoped |
+| `bizhawk`, both cores | **not synced**  | synced, core-scoped |
+| `jgenesis`            | **not synced**  | synced              |
+| `mednafen`            | **not synced**  | **invisible**       |
+| `mesen` standalone    | **not synced**  | **invisible**       |
+| `ares`                | **not synced**  | **invisible**       |
+
+The battery column is a **reported** limitation and the right behaviour for this release. `saves`
+names it in those words: "ares, bizhawk, jgenesis, mednafen, mesen hold shared containers or a
+shape no declaration covers. This release syncs the battery saves loose under `saves/nes/`
+(class A), the save states beside them, and the directory saves the shape definition names."
+Nothing is dropped silently.
+
+**The state column is not reported, and that is a defect.** `mednafen`, `mesen` and `ares` declare
+no `es_savestates.cfg` entry, and `StateScanner` finds states only from that file, so the states
+they wrote are not scanned, not uploaded, not restorable **and not mentioned**. A person with a
+save state is told there is none. Issue #150, and it reaches well past this platform: 30 of wave
+1's 81 rows are in that family, and `docs/platforms/README.md` had been reading "declares no
+directory" as "writes no state".
+
+Two smaller findings from the same pass:
+
+- **BizHawk names a battery save after the display name**, dropping the region tag:
+  `StarTropics (USA).zip` produced `bizhawk/StarTropics.SaveRAM`. Its own state sidecar spells the
+  convention out, `StarTropics.NesHawk`, so the join key exists. Issue #151.
+- **`saves` groups two unsyncable files under `nes/libretro`**, a directory that does not exist,
+  and names no filenames. Issue #152.
+
+### The hooks carried the whole session
+
+Seventeen launches across eight emulators, with nobody at a terminal, and every `start` and `quit`
+pass in `background.log` exited 0. The states were already uploaded by the `quit` hook's detached
+pass before a flush was run by hand, which is what the arrangement is for. One line of that log
+lost its first eighteen characters, which is issue #153.
+
 ## What this file will not claim
 
-- Nothing here is evidence about any other `(emulator, core)` row for `nes`.
+- The nine rows are driven on steps 4 and 5 and **none of them is certified**, because step 2
+  cannot be exercised here and step 5's screenshot does not link on any of them.
+- Six of the nine cannot sync what they wrote, so a save made on those rows exists only on the
+  device. Nothing here should be read as those rows working.
 - The class D download path is untested anywhere in the project and `nes` contains no class D.
 - Media coverage, once step 7 records it, is a dated observation about this RomM library and
   moves when an administrator rescrapes. It is never a platform result.
