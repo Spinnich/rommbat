@@ -502,6 +502,51 @@ hash, folded into one digest. The archive is transport only.
   `libretro:battery`, which is the scanner being authoritative and costs one correction with no
   duplicate row.
 
+- **States download too now, and nothing verifies them.** `StateSchema` carries no hash field of
+  any kind, where a save carries `content_hash`, and states have no `/track`, no `/downloaded`
+  and no negotiate participation. So a state arrives unverified and the command says so on the
+  preview as well as after; that is the ceiling of the API rather than a shortcut. Finding 246.
+
+  **A restored state is named after the ROM on disk, never after the server row.** RomM strips
+  parenthesised groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
+  reads back as `Legend of Zelda, The`. `es_savestates.cfg` declares `{{romfilename}}.state{{slot}}`,
+  so only the extension comes from the server, and it is the extension that carries the slot.
+  Writing the server's name puts a state where the emulator never looks, and it then reads as
+  absent rather than as an error. Finding 247.
+
+  **A restore writes a `local_state` row, or the next flush sends back what it just fetched.**
+  `RestoreAsync` records with `uploaded_content_hash` equal to what is now on disk, because both
+  sides hold the same bytes. Without it the next scan reads the file as never sent, `NeedsUpload`
+  is true, and the upsert on the server accepts every re-send without complaint. This hits every
+  state that came from another device, because such a state never had a local row to begin with;
+  the same-device case fails too as soon as any flush has run while the file was absent, since
+  `ForgetMissing` drops the row. Proven by the no-op re-sync assertion: restore, scan, push, zero
+  uploaded.
+
+  **The version rule is a statement here, not a comparison, and saying so is the whole of it.**
+  `save-sync` and `PLAN.md` both say never silently restore a state made by a different emulator
+  version. Neither side can perform that check: `ScopeOf` uploads `emulator[.core]` with no
+  version, and `StateScanner.ReadEmulatorVersion` declines on every emulator measured, so the
+  local column is null too. So the command prints the ceiling on the preview and before applying,
+  and `RecordRestored` leaves `emulator_version` null rather than stamping the build that happens
+  to be installed now. Stamping it would be the exact "a wrong version is worse than no version"
+  case the scanner's own remarks warn about.
+
+  **The state half of `saves restore` holds `TreeLock` and refuses, like the save half.** Same
+  race, same reason: the ES `quit` hook spawns a detached `background quit` that holds the lock
+  across `StateScanner.Scan()` over these same directories. A refusal on the save half also
+  skips the state half, or a run that promised "nothing was changed" would still write states.
+  A refusal on the state half alone is `Partial` rather than `Refused`, because the saves landed.
+
+  **A failure reading `/api/states` must not take the save restore down with it.** They are
+  independent reads. A token whose scopes do not cover the route, or a 500 from it, used to
+  return `Offline` before a single save was written. It is now reported and carried, and an
+  `--apply` that could not see the state half ends `Partial`.
+
+  **The `<slot>` positional narrows saves only, and the help says so.** A state's slot lives in
+  its file extension and shares no namespace with a save's key, so matching one against the
+  other would be filtering on a coincidence.
+
 - **A conflict is persisted, not printed.** It goes in `save_conflict` and outlives the flush
   that found it, the local file is copied aside **once per conflict rather than once per
   flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no

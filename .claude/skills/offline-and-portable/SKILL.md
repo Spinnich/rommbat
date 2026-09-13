@@ -249,14 +249,17 @@ evict` works with the server off. What 7b-2b removed is the interface to it: Rom
 - **`partial/` needs its own sweep, because neither bound can see it.** The budget counts
   through `local_file` and a partial has no row until commit; the free-space floor reads the
   volume, so the bytes are gone from free space attributed to nothing. `evict` runs
-  `PartialSweep` for that. Five producers write here and they die differently: only the ROM
+  `PartialSweep` for that. Six producers write here and they die differently: only the ROM
   transfer resumes, so only it is kept, and it is kept on **set membership rather than age**,
   because an interrupted transfer waiting to resume looks exactly like an orphan on disk. The
-  other four (`bios-`, `save-`, `resolve-`, `unit-`) open with `FileMode.Create` or delete in a
-  `finally`, so anything of theirs left behind is from a pass that died. A name none of the five
-  writes is left alone, and that means **matching the whole name each producer writes**
-  (`bios-<32 hex>.part`, `save-<int>.part`, `resolve-<int>.part`, `unit-<32 hex>` with an
-  optional `.zip`), because a prefix match makes `partial/save-notes.txt` a candidate.
+  other five (`bios-`, `save-`, `resolve-`, `state-`, `unit-`) open with `FileMode.Create` or
+  delete in a `finally`, so anything of theirs left behind is from a pass that died. A name none
+  of the six writes is left alone, and that means **matching the whole name each producer
+  writes** (`bios-<32 hex>.part`, `save-<int>.part`, `resolve-<int>.part`, `state-<int>.part`,
+  `unit-<32 hex>` with an optional `.zip`), because a prefix match makes `partial/save-notes.txt`
+  a candidate. **A new producer owes `Classify` a branch in the same change**: the sweep leaves
+  what it does not recognise alone, so an unlisted name is not reclaimed by anything, ever, and
+  is invisible to the budget because a partial has no `local_file` row.
 
 - **`partial/unit-<guid>/` is live state, not litter, so the sweep holds the tree lock.** It is
   where a class C restore extracts a unit before swapping members into a shared container, and

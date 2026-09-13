@@ -189,12 +189,13 @@ internal static class SavesCommand
     }
 
     /// <summary>
-    /// The states, and the fact that they are pushed rather than synced.
+    /// The states, and the fact that a sync only ever pushes them.
     /// </summary>
     /// <remarks>
     /// Said in the output rather than only in the docs, because <c>POST /api/states</c> has no
     /// slot, no device and no conflict detection, so a user who assumes a state behaves like a
-    /// save is assuming something the API cannot do.
+    /// save is assuming something the API cannot do. <c>saves restore</c> is the only way one
+    /// comes back down, and it is asked for rather than automatic.
     /// </remarks>
     private static void ReportStates(AgentContext context)
     {
@@ -692,7 +693,7 @@ internal static class SavesCommand
     }
 
     /// <summary>
-    /// <c>saves restore</c>: puts back a save the server holds and this device does not.
+    /// <c>saves restore</c>: puts back a save or state the server holds and this device does not.
     /// </summary>
     /// <remarks>
     /// <b>A preview by default, in the shape of <c>bios</c> and <c>evict</c>.</b> Nothing is
@@ -722,6 +723,24 @@ internal static class SavesCommand
             return ExitCode.NotPaired;
         }
 
+        // Parsed before either list is fetched, so a usage error costs no request at all. It used
+        // to run after both, which made 'saves restore notanumber' pay for a full GET /api/saves
+        // and GET /api/states before saying the word was not a number.
+        int? romFilter = null;
+        string? slotFilter = null;
+
+        if (command.Positional is [_, var romText, ..])
+        {
+            if (!int.TryParse(romText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var romId))
+            {
+                Console.Error.WriteLine($"'{romText}' is not a rom id.");
+                return ExitCode.Usage;
+            }
+
+            romFilter = romId;
+            slotFilter = command.Positional.Count > 2 ? command.Positional[2] : null;
+        }
+
         var sync = new SaveSync(context.Install, context.Store, connection, deviceId);
         var found = await sync.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
 
@@ -734,25 +753,47 @@ internal static class SavesCommand
         var restorable = findings.Restorable;
         var unrestorable = findings.Unrestorable;
 
-        // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
-        // is not made to take every save back.
-        if (command.Positional is [_, var romText, ..])
+        var states = new StateSync(context.Install, context.Store, connection);
+        var foundStates = await states.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
+
+        // <b>A state list this device cannot read does not take the save restore down with it.</b>
+        // The two are independent reads, and a token whose scopes do not cover /api/states, or a
+        // 500 on that route, would otherwise restore zero saves where it used to restore them all.
+        // Reported and carried, and an --apply that could not see the state half ends Partial
+        // rather than Ok, because it did not do everything it was asked.
+        IReadOnlyList<RestorableState> restorableStates = [];
+        IReadOnlyList<UnrestorableState> unrestorableStates = [];
+        var statesUnread = false;
+
+        if (foundStates.IsSuccess && foundStates.Value is { } stateFindings)
         {
-            if (!int.TryParse(romText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var romId))
-            {
-                Console.Error.WriteLine($"'{romText}' is not a rom id.");
-                return ExitCode.Usage;
-            }
+            restorableStates = stateFindings.Restorable;
+            unrestorableStates = stateFindings.Unrestorable;
+        }
+        else
+        {
+            statesUnread = true;
+            Console.Error.WriteLine(
+                (foundStates.Message ?? "The state list could not be read.")
+                    + " Saves are unaffected and are restored below.");
+        }
 
-            var slot = command.Positional.Count > 2 ? command.Positional[2] : null;
-
+        // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
+        // is not made to take every save back. <b>The slot narrows saves only</b>, and the help
+        // says so: a state's slot lives in its file extension and shares no namespace with a
+        // save's key, so matching one against the other would filter on a coincidence.
+        if (romFilter is { } wanted)
+        {
             restorable = [.. restorable.Where(save =>
-                save.RomId == romId
-                && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+                save.RomId == wanted
+                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
 
             unrestorable = [.. unrestorable.Where(save =>
-                save.RomId == romId
-                && (slot is null || string.Equals(save.Slot, slot, StringComparison.Ordinal)))];
+                save.RomId == wanted
+                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
+
+            restorableStates = [.. restorableStates.Where(state => state.RomId == wanted)];
+            unrestorableStates = [.. unrestorableStates.Where(state => state.RomId == wanted)];
         }
 
         // Ahead of the "nothing to restore" line, because a save the server holds and this device
@@ -764,57 +805,115 @@ internal static class SavesCommand
                 $"  rom {save.RomId} slot {(save.Slot.Length == 0 ? "(none)" : save.Slot)}: {save.Reason}");
         }
 
-        // Only --apply can end Partial. A preview was not asked to change anything, so a save it
+        foreach (var state in unrestorableStates)
+        {
+            Console.Error.WriteLine($"  rom {state.RomId} state {state.Scope}: {state.Reason}");
+        }
+
+        // Only --apply can end Partial. A preview was not asked to change anything, so anything it
         // named as unplaceable is an advisory rather than a failed attempt.
         var applying = command.Has("apply");
+        var incomplete = unrestorable.Count > 0 || unrestorableStates.Count > 0 || statesUnread;
 
-        if (restorable.Count == 0)
+        if (restorable.Count == 0 && restorableStates.Count == 0)
         {
             Console.WriteLine(
-                unrestorable.Count > 0
-                    ? "Nothing to restore: the saves above are the only ones missing here, and none can be placed."
-                    : "Nothing to restore: every save the server holds for a game on this device is already here.");
+                unrestorable.Count > 0 || unrestorableStates.Count > 0
+                    ? "Nothing to restore: the rows above are the only ones missing here, and none can be placed."
+                    : "Nothing to restore: every save and state the server holds for a game on this device is already here.");
 
-            return applying && unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
+            return applying && incomplete ? ExitCode.Partial : ExitCode.Ok;
         }
+
+        static string When(DateTimeOffset? stamp) => stamp is { } value
+            ? value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+            : "unknown";
 
         foreach (var save in restorable)
         {
-            var when = save.ServerUpdatedAt is { } stamp
-                ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
-                : "unknown";
-
             Console.WriteLine(
-                $"  rom {save.RomId}  slot {(save.Slot.Length == 0 ? "(none)" : save.Slot),-20} "
-                    + $"{ByteSize.Format(save.SizeBytes),9}  {when}  {save.Destination}");
+                $"  save   rom {save.RomId}  {(save.Slot.Length == 0 ? "(no slot)" : save.Slot),-20} "
+                    + $"{ByteSize.Format(save.SizeBytes),9}  {When(save.ServerUpdatedAt)}  {save.Destination}");
+        }
+
+        foreach (var state in restorableStates)
+        {
+            Console.WriteLine(
+                $"  state  rom {state.RomId}  {state.Scope,-20} "
+                    + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
         }
 
         Console.WriteLine();
 
+        // Said on the preview as well as after, because both are properties of the thing being
+        // offered rather than caveats on the result. RomM publishes no hash for a state, so there
+        // is nothing to check what arrives against; a save is checked because the server offers
+        // something to check it with.
+        //
+        // The version line is what makes this not a silent restore. save-sync/SKILL.md:147 and
+        // PLAN.md:3656 both say never restore across an emulator version change, and neither side
+        // can perform that comparison: a state is uploaded scoped to emulator and core with no
+        // version, and StateScanner.ReadEmulatorVersion declines on every emulator measured, so
+        // the local column is null too. Saying so is the whole of what "never silently" can mean
+        // here.
+        if (restorableStates.Count > 0)
+        {
+            Console.WriteLine(
+                "States arrive unverified: RomM publishes no hash for one, so nothing can be checked.");
+            Console.WriteLine(
+                "Nor can the emulator build be: a state carries its emulator and core but no "
+                    + "version, so one made on a different build looks identical here and may "
+                    + "refuse to load. Keep a copy of anything you care about.");
+            Console.WriteLine();
+        }
+
         if (!applying)
         {
             Console.WriteLine(
-                $"{restorable.Count} to restore. Nothing was written. Run 'saves restore --apply' to bring these in.");
+                $"{restorable.Count} save(s) and {restorableStates.Count} state(s) to restore. Nothing was "
+                    + "written. Run 'saves restore --apply' to bring these in.");
             return ExitCode.Ok;
         }
 
-        var outcome = await sync.RestoreAsync(restorable, cancellationToken).ConfigureAwait(false);
+        // Each half is asked only when it has something to do. Both take the tree lock, and a
+        // refusal over an empty list would abort the other half for no work at all.
+        var outcome = restorable.Count > 0
+            ? await sync.RestoreAsync(restorable, cancellationToken).ConfigureAwait(false)
+            : new SaveRestoreOutcome();
 
-        foreach (var problem in outcome.Problems)
+        // Nothing was attempted, so there is no count to print and it is not a partial run. The
+        // state half is not attempted either: it takes the same lock for the same reason, and
+        // writing states after the saves were refused is the half-done outcome the refusal exists
+        // to prevent.
+        if (outcome.Refused)
+        {
+            foreach (var problem in outcome.Problems)
+            {
+                Console.Error.WriteLine("  " + problem);
+            }
+
+            return ExitCode.Refused;
+        }
+
+        var stateOutcome = restorableStates.Count > 0
+            ? await states.RestoreAsync(restorableStates, cancellationToken).ConfigureAwait(false)
+            : new StateRestoreOutcome();
+
+        foreach (var problem in outcome.Problems.Concat(stateOutcome.Problems))
         {
             Console.Error.WriteLine("  " + problem);
         }
 
-        // Nothing was attempted, so there is no count to print and it is not a partial run.
-        if (outcome.Refused)
-        {
-            return ExitCode.Refused;
-        }
-
         Console.WriteLine(
-            $"restored {outcome.Restored}, failed {outcome.Failed}, {ByteSize.Format(outcome.BytesTransferred)}");
+            $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
+                + $"failed {outcome.Failed + stateOutcome.Failed}, "
+                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}");
 
-        return outcome.Failed > 0 || unrestorable.Count > 0 ? ExitCode.Partial : ExitCode.Ok;
+        // A refused state half is Partial rather than Refused: the saves did land, so this run is
+        // not the "nothing was changed" that Refused promises.
+        return outcome.Failed + stateOutcome.Failed > 0 || stateOutcome.Refused || incomplete
+            ? ExitCode.Partial
+            : ExitCode.Ok;
     }
 
     private static string Short(string? hash) =>

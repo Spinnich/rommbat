@@ -150,7 +150,7 @@ internal static class Program
         Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
-        Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save the server has");
+        Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save or state the server has");
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
