@@ -75,13 +75,42 @@ public sealed record StateSyncOutcome
 
 /// <summary>A state the server holds that this device could put back.</summary>
 /// <param name="Scope">The emulator, or emulator and core, as <c>ScopeOf</c> wrote it.</param>
+/// <param name="System">The RetroBat folder the ROM lives in, which is what decides the template.</param>
+/// <param name="Emulator">The emulator half of <paramref name="Scope"/>, which is a column.</param>
+/// <param name="Core">The core half, empty where the emulator is not core-scoped.</param>
+/// <param name="SlotKey">
+/// The local <c>{emulator}:{core}:{slot}</c> identity, read off the destination filename by the
+/// same template the scanner uses. Carried because the row written after a restore needs it and
+/// the server has no slot field to supply it.
+/// </param>
+/// <param name="UploadedFileName">The name the server holds it under, which is not the name on disk.</param>
 public sealed record RestorableState(
     int RomId,
     int StateId,
     RelativePath Destination,
     long SizeBytes,
     string Scope,
+    string System,
+    string Emulator,
+    string Core,
+    string SlotKey,
+    string UploadedFileName,
     DateTimeOffset? ServerUpdatedAt);
+
+/// <summary>
+/// A state the server holds for a game on this device that a restore cannot write.
+/// </summary>
+/// <remarks>
+/// Reported rather than dropped, for the reason <see cref="UnrestorableSave"/> is: a preview is
+/// the answer to "what can I bring back", and a state silently missing from it reads as one the
+/// server does not hold. Only the ROM being absent is ordinary enough to drop.
+/// </remarks>
+public sealed record UnrestorableState(int RomId, string Scope, string Reason);
+
+/// <summary>What the server holds for this device, split by whether it can be placed.</summary>
+public sealed record StateRestoreFindings(
+    IReadOnlyList<RestorableState> Restorable,
+    IReadOnlyList<UnrestorableState> Unrestorable);
 
 /// <summary>What a state restore did.</summary>
 /// <remarks>
@@ -89,6 +118,16 @@ public sealed record RestorableState(
 /// </remarks>
 public sealed record StateRestoreOutcome
 {
+    /// <summary>
+    /// The tree lock was held elsewhere and nothing was attempted.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from a failure, because nothing was tried and trying again later works. Matches
+    /// <see cref="SaveRestoreOutcome.Refused"/>, and exists so that a refusal on the save half
+    /// cannot be followed by the state half writing anyway.
+    /// </remarks>
+    public bool Refused { get; init; }
+
     /// <summary>States written into the tree.</summary>
     public int Restored { get; init; }
 
@@ -201,32 +240,44 @@ public sealed class StateSync
     /// <b>Never automatic</b>, for the reason <c>saves restore</c> is not: a state reappearing
     /// because a sync decided it should is indistinguishable from a bug to whoever deleted it.
     /// </para>
+    /// <para>
+    /// <b>Every skip but one is reported.</b> A state the server holds for an <i>installed</i>
+    /// ROM that this device cannot place is not nothing, and showing nothing is what sends
+    /// somebody looking for a bug in the server. Only the ROM being absent is dropped, because a
+    /// device holding a subset of the library is the ordinary case.
+    /// </para>
     /// </remarks>
-    public async Task<RomMResponse<IReadOnlyList<RestorableState>>> FindRestorableAsync(
+    public async Task<RomMResponse<StateRestoreFindings>> FindRestorableAsync(
         CancellationToken cancellationToken = default)
     {
         var schema = StateScanner.LoadSchema(_install);
 
         if (schema is null)
         {
-            return RomMResponse.Success<IReadOnlyList<RestorableState>>([]);
+            return RomMResponse.Success(new StateRestoreFindings([], []));
         }
 
         var listed = await _connection.ListAllStatesAsync(cancellationToken).ConfigureAwait(false);
 
         if (!listed.IsSuccess || listed.Value is not { } rows)
         {
-            return RomMResponse.Failure<IReadOnlyList<RestorableState>>(
+            return RomMResponse.Failure<StateRestoreFindings>(
                 listed.Status,
                 listed.Message ?? "The state list could not be read.");
         }
 
         var found = new List<RestorableState>();
+        var unrestorable = new List<UnrestorableState>();
 
         foreach (var row in rows)
         {
             if (row.OnDiskFileName is not { } onDisk || row.Emulator is not { } scope)
             {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    row.Emulator ?? "(none)",
+                    "the server row names no file or no emulator, so there is nothing to say "
+                        + "where it would go."));
                 continue;
             }
 
@@ -238,6 +289,11 @@ public sealed class StateSync
 
             if (schema.For(emulatorName) is not { } emulator)
             {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    $"'{emulatorName}' is not declared in this install's es_savestates.cfg, so "
+                        + "RetroBat names no state directory for it here."));
                 continue;
             }
 
@@ -252,6 +308,11 @@ public sealed class StateSync
 
             if (SaveStateTemplate.Create(emulator, system, core) is not { } template)
             {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    $"nowhere to write it. {emulatorName} declares no state directory for "
+                        + $"'{system}' in this install."));
                 continue;
             }
 
@@ -266,10 +327,29 @@ public sealed class StateSync
 
             if (string.IsNullOrEmpty(stem) || string.IsNullOrEmpty(extension))
             {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    "the name it would take here is incomplete: the ROM on disk has no stem, or "
+                        + "the server's name no extension, and the extension is the slot."));
                 continue;
             }
 
-            var destination = template.Directory.Combine(stem + extension);
+            var name = stem + extension;
+
+            // Read back through the same template the scanner keys on, so the row written after a
+            // restore pairs with the one the next scan finds instead of becoming a second row.
+            if (template.Match(name) is not { } match)
+            {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    $"'{name}' does not match the name {emulatorName} declares for a state here, "
+                        + "so this device could not tell which slot it is."));
+                continue;
+            }
+
+            var destination = template.Directory.Combine(name);
 
             if (File.Exists(_install.Resolve(destination)))
             {
@@ -282,10 +362,15 @@ public sealed class StateSync
                 destination,
                 row.FileSizeBytes,
                 scope,
+                system,
+                emulator.Name,
+                core ?? string.Empty,
+                match.SlotKey(emulator.Name, core),
+                row.FileName ?? onDisk,
                 row.UpdatedAt ?? row.CreatedAt));
         }
 
-        return RomMResponse.Success<IReadOnlyList<RestorableState>>(found);
+        return RomMResponse.Success(new StateRestoreFindings(found, unrestorable));
     }
 
     /// <summary>Fetches the given states into the tree.</summary>
@@ -293,12 +378,39 @@ public sealed class StateSync
     /// Written through the partial directory and moved into place, so a failure part way leaves
     /// no half state where an emulator would find one. Not verified, for the reason on
     /// <see cref="FindRestorableAsync"/>.
+    /// <para>
+    /// <b>Holds <see cref="TreeLock"/>, and refuses rather than treating a failed acquire as
+    /// done.</b> The same rule and the same reason as <see cref="SaveSync.RestoreAsync"/>: a
+    /// <c>background quit</c> pass holds the lock across <c>StateScanner.Scan()</c> over these
+    /// exact directories, and nobody else is doing a restore's work. Taken here rather than in a
+    /// service because nothing calls this from the flush pass.
+    /// </para>
+    /// <para>
+    /// <b>Each restored state is recorded as being in step with the server.</b> Without the row,
+    /// the next scan reads the file as never sent and <see cref="RunAsync"/> uploads it straight
+    /// back, which hits every state that came from another device.
+    /// </para>
     /// </remarks>
     public async Task<StateRestoreOutcome> RestoreAsync(
         IReadOnlyList<RestorableState> picks,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(picks);
+
+        using var held = TreeLock.TryAcquire(_install);
+
+        if (held is null)
+        {
+            return new StateRestoreOutcome
+            {
+                Refused = true,
+                Problems =
+                [
+                    "A flush is running, and restoring a state writes the same files it scans. "
+                        + "Nothing was changed. Try again once it has finished.",
+                ],
+            };
+        }
 
         var restored = 0;
         var failed = 0;
@@ -337,7 +449,13 @@ public sealed class StateSync
 
                 var absolute = _install.Resolve(pick.Destination);
                 Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
-                File.Move(part, absolute, overwrite: true);
+
+                // Not overwrite: true, matching BiosSync. The find checked the destination was
+                // empty, and a state has no hash and no conflict record, so anything that landed
+                // in the window between would be destroyed with nothing written down anywhere.
+                File.Move(part, absolute, overwrite: false);
+
+                RecordRestored(pick, absolute);
 
                 restored++;
                 bytes += written;
@@ -371,6 +489,47 @@ public sealed class StateSync
             BytesTransferred = bytes,
             Problems = problems,
         };
+    }
+
+    /// <summary>
+    /// Records a restored state as being in step with the server.
+    /// </summary>
+    /// <remarks>
+    /// Written with <c>uploaded_content_hash</c> equal to what is now on disk, because both sides
+    /// hold the same bytes. Without it <see cref="LocalStateStore.Record"/> writes a row with the
+    /// upload columns null on the next scan, <c>NeedsUpload</c> is true, and the very next flush
+    /// sends back what was just fetched.
+    /// <para>
+    /// <c>emulator_version</c> is left null rather than stamped with what is installed now. The
+    /// state was made on another build and this device cannot know which, so a number here would
+    /// be a claim rather than a record. See <c>StateScanner.ReadEmulatorVersion</c>: a wrong
+    /// version is worse than no version for the one job the column has.
+    /// </para>
+    /// </remarks>
+    private void RecordRestored(RestorableState pick, string absolute)
+    {
+        var now = _time.GetUtcNow();
+        var info = new FileInfo(absolute);
+        var hash = LogicalContentHash.OfFile(absolute);
+
+        _store.States.Record(
+            new LocalState
+            {
+                Path = pick.Destination,
+                System = pick.System,
+                Emulator = pick.Emulator,
+                Core = pick.Core,
+                Slot = pick.SlotKey,
+                RomId = pick.RomId,
+                ContentHash = hash,
+                SizeBytes = info.Length,
+                FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
+                StateId = pick.StateId,
+                UploadedFileName = pick.UploadedFileName,
+                UploadedContentHash = hash,
+                UploadedAtUtc = now,
+            },
+            now);
     }
 
     /// <summary>Sends every state that has changed since it was last sent.</summary>

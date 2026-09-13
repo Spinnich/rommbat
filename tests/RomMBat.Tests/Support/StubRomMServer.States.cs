@@ -30,6 +30,16 @@ internal sealed partial class StubRomMServer
     /// <summary>Fails the next state upload with this status, once.</summary>
     public HttpStatusCode? FailNextStateUpload { get; set; }
 
+    /// <summary>Fails every <c>GET /api/states</c> with this status.</summary>
+    /// <remarks>
+    /// A token whose scopes do not cover the route answers 403 and a broken instance answers 500,
+    /// and neither is a reason for the save half of a restore to do nothing.
+    /// </remarks>
+    public HttpStatusCode? FailStateList { get; set; }
+
+    /// <summary>Fails every state content read with this status.</summary>
+    public HttpStatusCode? FailStateDownload { get; set; }
+
     /// <summary>
     /// Accepts a screenshot and answers as though it was never attached.
     /// </summary>
@@ -63,6 +73,11 @@ internal sealed partial class StubRomMServer
         // there is nothing for the caller to verify and the stub simply serves the bytes.
         if (path.EndsWith("/content", StringComparison.Ordinal))
         {
+            if (FailStateDownload is { } downloadStatus)
+            {
+                return Detail(downloadStatus, "the state content could not be read");
+            }
+
             var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
             var stateId = int.Parse(segments[^2], CultureInfo.InvariantCulture);
 
@@ -73,6 +88,11 @@ internal sealed partial class StubRomMServer
 
         if (request.Method == HttpMethod.Get)
         {
+            if (FailStateList is { } listStatus)
+            {
+                return Detail(listStatus, "the state list could not be read");
+            }
+
             // An absent rom_id means every state, which is how a restore discovers them. Filtering
             // on a defaulted 0 returned nothing and made the unfiltered call look empty.
             var wanted = ParseQuery(request.RequestUri).GetValueOrDefault("rom_id");
@@ -180,13 +200,13 @@ internal sealed partial class StubRomMServer
         return (name, System.Text.Encoding.Latin1.GetBytes(text[bodyStart..(bodyEnd < 0 ? text.Length : bodyEnd)]));
     }
 
-    /// <summary>A save state as the stub holds it.</summary>
     /// <summary>How RomM derives <c>file_name_no_tags</c>, measured rather than guessed.</summary>
     private static string StripTags(string stem) =>
         System.Text.RegularExpressions.Regex
             .Replace(stem, @"\s*[\(\[][^\)\]]*[\)\]]", string.Empty)
             .Trim();
 
+    /// <summary>A save state as the stub holds it.</summary>
     public sealed record StubState
     {
         public required int Id { get; init; }
