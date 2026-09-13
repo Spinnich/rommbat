@@ -108,6 +108,28 @@ template was correct and one `<directory>` declaration still is not: **`openmsx`
 `saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
 and cross-check against the emulator's generated config where it matters.
 
+**The inverse is also real, and it is worse, because nothing in the file hints at it.** An emulator
+with **no entry at all** still writes save states, into a directory it names itself. Measured on
+`nes` by driving every emulator the system declares:
+
+| Emulator   | `es_savestates.cfg` | Writes states to                     |
+| ---------- | ------------------- | ------------------------------------ |
+| `mednafen` | no entry            | `saves/nes/mednafen/sstates/*.mc0`   |
+| `mesen`    | no entry            | `saves/nes/mesen/SaveStates/*_1.mss` |
+| `ares`     | no entry            | `saves/nes/ares/<profile>/*.bs1`     |
+
+`StateScanner` finds states only from `es_savestates.cfg`, so these are invisible to state sync:
+not scanned, not uploaded, not restorable. **Never read "declares no state directory" as "this row
+has no states"**, which is the reading `docs/platforms/README.md` was built on for 30 of wave 1's
+81 rows. Issue #150.
+
+They are not silent, though, and the difference matters to whoever fixes it. `SaveScanner.CountFiles`
+excludes only the directories `es_savestates.cfg` declares, so an undeclared state directory is
+counted as unsyncable and `AddSubdirectories` names it in the row it prints. What is wrong is the
+explanation attached: the reason string says this release syncs "the save states beside them", for
+directories where it does not, and the state files land in a count reported under a battery or
+container reason.
+
 **`flycast` was the second and no longer is.** It wrote `dreamcast/reicast/states` against a
 declared `dreamcast/flycast/sstates` on 8.2.0; RetroBat 8.2.1 fixed that
 (`emulatorlauncher#1336`) by pointing the save-state watcher at the directory Flycast really
@@ -161,6 +183,39 @@ That last form is a real per-game override, measured in M0: `emulatorlauncher` h
 outranks the system key, and it affects only its own rom. **Write the rom filename with its
 extension** (`ps2["Game (USA).iso"].pcsx2_slot1_memory`). A bare stem is ignored **silently**,
 so build the key from `fs_name` and never from a stripped name.
+
+**That chain is `emulatorlauncher`'s, and it covers feature keys only. Which emulator and core
+run is not a feature key and is not in this file at all.** EmulationStation resolves that itself,
+before `emulatorlauncher` exists, and passes the answer down as `-emulator` and `-core`. It reads
+the per-game choice from **`gamelist.xml`**, as two children of the `<game>` element:
+
+```xml
+<emulator>libretro</emulator>
+<core>fceumm</core>
+```
+
+Driven on 8.2.1: setting the emulator from ES's own game options menu left `es_settings.cfg`
+**byte-identical** and added exactly those two elements, and ES moved the edited entry to the end
+of the file as it does for any rewrite. Writing `nes["<rom>.zip"].emulator` into `es_settings.cfg`
+instead is accepted, survives ES's startup and exit rewrites untouched, and **is never read**: a
+whole session of launches ran the system-level `nes.emulator` / `nes.core` pair while fourteen such
+keys sat in the file. So it fails silently and looks exactly like a working configuration.
+
+Two consequences for RomMBat, which writes `gamelist.xml`:
+
+- **The merge must not touch `<emulator>` or `<core>`.** It does not: `GamelistDocument` merges by
+  an allowlist of the elements the caller names, and neither appears in `GameMetadata`. Verified on
+  the live install, a full sync left both elements in place and reported `gamelists: all 1 unchanged`.
+  This is the first time that allowlist was tested against an install that actually had them set;
+  the field census it was designed from had none, because nothing had ever set a per-game emulator
+  there.
+- **Dropping them would change which emulator runs**, and save and state paths follow the emulator,
+  so it would strand a user's saves rather than merely losing a preference.
+
+**A row whose emulator declares no core inherits the system-level `<core>` value**, which is noise
+rather than a fallback: `mesen` standalone and `jgenesis` were launched with `-core nestopia` from
+`nes.core`, and both ignored it and ran correctly. Read `-emulator` from the launcher log and treat
+`-core` as meaningless for an emulator that declares none.
 
 Keys read from the live `es_features.cfg`, with the value RomMBat should set:
 

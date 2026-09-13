@@ -444,7 +444,9 @@ hash, folded into one digest. The archive is transport only.
   row down, and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
   it at one. Never tell a user their copy replaced the server's. Measurement 160.
 - An unregistered `device_id` is a **404**, not a request that quietly proceeds without a device.
-  Measurement 162.
+  **Omitting it altogether is accepted**, and produces a save attributed to no device, which is
+  how a second device is simulated on an install that has only one. So the 404 bounds
+  impersonation, not participation. Measurement 162.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
@@ -557,9 +559,12 @@ hash, folded into one digest. The archive is transport only.
 
   **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance in
   M7 stage 7b-3: a keep-local on a psp class C unit created a new save row and left the previous
-  one standing, one second apart. The flag is what gets past the 409 an ordinary upload earns
+  one standing, one second apart. Confirmed on a second shape, class A on `nes`: a keep-local sent
+  save 212 and left 210 standing. The flag is what gets past the 409 an ordinary upload earns
   when this device's sync record is stale; it is not an instruction to the server to reuse the
-  row. Anything reasoning about how many rows a slot has after a resolution has to expect two.
+  row. Anything reasoning about how many rows a slot has after a resolution has to expect two,
+  subject to the one-second rule above: a decision taken later than the same second appends, and
+  one taken inside it updates the row in place.
 
 - **`ConflictResolutionService` takes `TreeLock`, and refuses rather than treating a held lock
   as done.** It runs the same `SaveUnitTransfer.Restore` a flush does, so two of them at once, or
@@ -681,6 +686,54 @@ that has a record, the queried one first, and a device that has never synced is 
 rather than `is_current: false`. Treat a missing entry as the strongest reason to pull.
 `origin_device_id` names the uploader, which is how a device recognises its own save
 returning.
+
+## The slot is the key to everything, so a save without one is inert
+
+`slot` is an **optional** query parameter on `POST /api/saves`, and a client that omits it
+produces a row that RomMBat can neither reconcile nor collide with. Measured end to end on a live
+5.2.0 instance:
+
+- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138).
+- It also **cannot conflict**. A save uploaded through RomM's own web UI, which sets no slot, left
+  the device's record for `libretro:battery` current, and the next flush uploaded over it with no
+  409 and no mention.
+- It still **resolves to the same destination path** as the slotted rows for that ROM, so
+  `saves restore` offers it beside them with nothing to distinguish which one wins (#156).
+
+So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
+the absence of a conflict as evidence that the server holds nothing newer: it may hold something
+newer that the protocol cannot see.
+
+**Staging a conflict therefore takes a slotted upload**, `POST /api/saves?rom_id=<id>&slot=<slot>`,
+with `device_id` omitted for the reasons in the protocol rules above, plus a local edit. Nothing
+reachable from RomM's UI will do it.
+
+## Class A writes the file and forgets to write the slot
+
+`save_slot` holds this device's picture of what the server has in a slot, and every path that
+writes server bytes to disk owes it an update. **The class C paths do it and the class A paths do
+not**, which is the shape of the defect rather than a general omission:
+
+| Path                                                | Class | Records `save_slot` |
+| --------------------------------------------------- | ----- | ------------------- |
+| `SaveSync.RestoreUnitAsync`, download               | C     | yes                 |
+| `SaveConflictResolver.FinishUnitAsync`, keep-server | C     | yes                 |
+| `SaveSync.RecordRestored`, download                 | A     | **no**              |
+| `SaveConflictResolver.KeepServerAsync`, keep-server | A     | **no**              |
+
+Measured: after a negotiate-driven download of save 211 the row still read `save_id 209` with the
+pre-download hash while 211's content sat on disk. It does not self-correct, because the local
+file is then in step and the slot is never negotiated again. The server-side sync record **is**
+updated, which is why nothing visibly breaks. Issue #157.
+
+**Fixing the download alone leaves keep-server broken.** They are two independent writers of
+`local_save`, not one path with a caller: `KeepServerAsync` does not call the download. The class
+C halves are the ones that got it right, for the reason recorded above at "Record the slot's
+server identity when a bundled restore lands", and class A needs the same treatment twice.
+
+**Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
+which is worth knowing before assuming a download is safe to make silent. A resolution prunes its
+copy; a download's copy is currently never pruned.
 
 ## Determinism is what makes replay safe
 
