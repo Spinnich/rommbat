@@ -682,6 +682,49 @@ rather than `is_current: false`. Treat a missing entry as the strongest reason t
 `origin_device_id` names the uploader, which is how a device recognises its own save
 returning.
 
+## The slot is the key to everything, so a save without one is inert
+
+`slot` is an **optional** query parameter on `POST /api/saves`, and a client that omits it
+produces a row that RomMBat can neither reconcile nor collide with. Measured end to end on a live
+5.2.0 instance:
+
+- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138).
+- It also **cannot conflict**. A save uploaded through RomM's own web UI, which sets no slot, left
+  the device's record for `libretro:battery` current, and the next flush uploaded over it with no
+  409 and no mention.
+- It still **resolves to the same destination path** as the slotted rows for that ROM, so
+  `saves restore` offers it beside them with nothing to distinguish which one wins (#156).
+
+So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
+the absence of a conflict as evidence that the server holds nothing newer: it may hold something
+newer that the protocol cannot see.
+
+**`device_id` is validated on upload.** An id that is not a registered device is refused with
+`404 Device with ID ... not found`, so it cannot be used to impersonate another device when
+staging a test. Omitting it works and is what a second-device simulation has to do.
+
+**Staging a conflict therefore takes a slotted upload**, `POST /api/saves?rom_id=<id>&slot=<slot>`,
+plus a local edit. Nothing reachable from RomM's UI will do it.
+
+## `overwrite` supersedes, and a download is where the record goes stale
+
+**`overwrite=true` creates a new row and leaves the previous one standing.** Confirmed on two
+shapes now: a `psp` class C unit in 7b-3, and class A on `nes`, where a `--keep-local` resolution
+sent save 212 and left 210 untouched. So a resolution is never destructive on the server, and the
+slot's history is bounded by `autocleanup_limit` rather than by the resolution.
+
+**Every path that writes a file fetched from the server must update `save_slot` beside it, and
+today none of them does.** After a negotiate-driven download the row still named the superseded
+save and its pre-download hash, while the fetched content sat on disk, and it does not
+self-correct: the local file is then in step, so that slot is never negotiated again.
+`--keep-server` inherits it because it runs the same restore; `--keep-local` gets it right. The
+server-side sync record **is** updated, which is exactly why nothing visibly breaks and why this
+is easy to miss. Issue #157.
+
+**Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
+which is worth knowing before assuming a download is safe to make silent. A resolution prunes its
+copy; a download's copy is currently never pruned.
+
 ## Determinism is what makes replay safe
 
 Identical content uploaded twice into one slot reuses the same row, which is what makes a

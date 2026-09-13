@@ -513,10 +513,93 @@ pass in `background.log` exited 0. The states were already uploaded by the `quit
 pass before a flush was run by hand, which is what the arrangement is for. One line of that log
 lost its first eighteen characters, which is issue #153.
 
+## Conflict resolution, driven both ways
+
+Driven on the two `libretro` rows, which are the only ones whose battery saves sync at all. Both
+branches of `saves resolve` were exercised, plus the negotiate-driven download that had never been
+driven before.
+
+**Both sides of every conflict here were synthesized, and that bounds the claim.** The server side
+was uploaded by hand and the local side was byte-edited, so what this proves is RomMBat's handling
+of a divergence, not that a real two-device race produces one. No second device exists on this
+install.
+
+### Staging one is harder than it looks, and the reason is a finding
+
+**A save uploaded through RomM's web UI cannot conflict with anything.** `slot` is an optional
+query parameter on `POST /api/saves` and the web UI does not set it, so the upload lands with
+`slot: null`, negotiate keys on the slot, and this device's record for `libretro:battery` never
+goes stale. Measured: a web upload at 12:39 left the next flush uploading cleanly with no 409.
+
+It is visible from the restore side, with the local file moved aside so every server row became a
+candidate:
+
+```console
+$ rommbat-agent saves restore 158593
+  save   rom 158593  libretro:battery          8 KB  2026-09-13 11:32  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
+  save   rom 158593  libretro:battery          8 KB  2026-09-13 11:38  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
+  save   rom 158593  (no slot)                 8 KB  2026-09-13 12:39  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
+  save   rom 158593  libretro:battery          8 KB  2026-09-13 12:46  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
+```
+
+That is #138 from a second direction: a null-slot save is not only never fetched by negotiate, it
+also **cannot conflict**, so a client that does not speak RomMBat's slot convention can never
+collide with one. It is also #156, since all four rows resolve to one destination and the offer
+says nothing about that.
+
+Staging one needs `POST /api/saves?slot=libretro:battery`. Note `device_id` is validated: an
+invented one is refused with `404 Device with ID ... not found`, so the upload was made without it.
+
+### What the machinery does
+
+|                          | `--keep-local`, rom 158593            | `--keep-server`, rom 159313         |
+| ------------------------ | ------------------------------------- | ----------------------------------- |
+| Detection                | `1 conflicted`, nothing overwritten   | `1 conflicted`, nothing overwritten |
+| Copy aside before acting | yes                                   | yes                                 |
+| Outcome on disk          | local bytes kept                      | the server's `f78ab191` written     |
+| On the server            | sent as save 212, **210 still stood** | 213 untouched                       |
+| Copy aside afterwards    | pruned                                | pruned                              |
+
+The conflict report names both hashes, the time it was first seen and the copy-aside path before
+asking for a decision, and neither branch is a default:
+
+```text
+  rom 158593, slot libretro:battery, since 2026-09-13 12:57:52Z
+    here    saves/nes/Kirby's Adventure (USA) (Rev 1).srm  7fda7607
+    server  6799e326  2026-09-13 12:56:42Z
+    a copy of the local file is at emulators/rommbat/replaced/20260913T125752-Kirby's ... .srm
+```
+
+**So `overwrite` means supersede, and the resolver's remark is confirmed on a second shape.** It
+was measured on a `psp` class C unit during 7b-3; this is class A on `nes` and behaves the same.
+
+### The download path works, and it had never been driven
+
+Leaving one local file untouched while the server moved produced `1 down (8 KB)`: a save from
+elsewhere came down through negotiate rather than through `saves restore`. **It also copied the
+local file aside before overwriting**, so the copy-aside rule holds on the download path and not
+only on conflicts.
+
+That is the mechanism #155 is about, now known to work when it is not racing a launch.
+
+### Two defects, #157
+
+**A download leaves `save_slot` naming the superseded save.** After pulling save 211 down, the row
+still read `save_id 209` with the pre-download hash, while 211's content sat on disk. It does not
+self-correct: the local file is then in step, so the slot is never negotiated again. `--keep-server`
+inherits it, because it runs the same restore; `--keep-local` writes the row correctly. Nothing
+visibly breaks, because the server-side sync record **is** updated, so the damage is confined to
+the device's picture of the server and is silent.
+
+**A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
+copy is still there with no decision to attach to it and no mechanism that will remove it.
+
 ## What this file will not claim
 
 - The nine rows are driven on steps 4 and 5 and **none of them is certified**, because step 2
   cannot be exercised here and step 5's screenshot does not link on any of them.
+- The conflict results are about RomMBat's handling of a divergence. Both sides were synthesized,
+  so nothing here is evidence that a real two-device race produces one, or how often.
 - Six of the nine cannot sync what they wrote, so a save made on those rows exists only on the
   device. Nothing here should be read as those rows working.
 - The class D download path is untested anywhere in the project and `nes` contains no class D.
