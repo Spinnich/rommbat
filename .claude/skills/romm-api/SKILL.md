@@ -153,6 +153,14 @@ columns for that reason.
 Never needed by either, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
 `platforms.write`, `tasks.run`, `logs.read`.
 
+**RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`, so
+neither grant is requested.** Both tightened at RomM 5.3.0 to require a `PLATFORMS` / `WRITE`
+grant and to enforce platform visibility, which would otherwise have landed on the device
+scope set. Confirmed by grep rather than assumed: no hand-written C# names either route, and
+the one repo-wide hit is `pegasus_export` as a generated DTO property describing the server's
+own config. That follows from the design, since `GamelistSync` writes RetroBat gamelists into
+the install directly and has no reason to ask the server for one. Do not re-run that grep; #176.
+
 `me.write` is **not** a device scope and RomMBat never asks for it. `/approve` and `/deny`
 require it, so only a harness token carries it. A token without it fails the route guard
 with a bare 403 `Forbidden` before the code is looked up; a scope-subset rejection instead
@@ -272,6 +280,16 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   sampled), but only 209 of 602 extensionless ROMs are multi-file; the other 391 are
   `has_nested_single_file`, an ordinary ROM inside a folder, 157 of them holding one file.
   Key off the flag, never off the extension.
+- **A row can describe a game with no file behind it, and that is not new at 5.3.0.**
+  `has_file_on_disk` is a property, not a column: upstream computes it as
+  `not is_physical and not missing_from_fs`. `is_physical` and `has_file_on_disk` arrive at
+  5.3.0 and sit on `RomSchema`, the base `SimpleRomSchema` extends, so they are on every row
+  `GET /api/roms` returns and not only on the detail route. **`missing_from_fs` is required at
+  the 5.2.0 floor**, so a ROM deleted from the server's disk reaches the download path on any
+  supported server. Read `has_file_on_disk` when it is present and derive it when it is not;
+  reading an absent one as false excludes a whole 5.2.0 library. The query can filter
+  server-side, but `missing` exists at 5.2.0 and `physical` only from 5.3.0, so a client at the
+  5.2.0 floor drops these rows itself. `RomRow.HasFileOnDisk` is that rule. #167.
 - **`download_path` on a save is not a usable URL.** It is served with a raw space and an
   unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
   the URL from the save `id`.

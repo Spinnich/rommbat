@@ -50,6 +50,20 @@ Confirmed on both the tag and `master`. Anyone running `refresh.sh` now gets a 4
 `reference/` is a signal to revisit the design, and the design answer here is to re-seed from
 where the knowledge went rather than to accept the collapse or to freeze the old file.
 
+**Resolved in stage 1 (#166), and it was three failures rather than one.** The seed was the
+known one. The second is that `refresh.sh` also extracted the slug enum from
+`backend/handler/metadata/base_handler.py`, which no longer holds it: upstream moved
+`UniversalPlatformSlug` to `backend/utils/platform_slugs.py`, so the `grep` matched nothing,
+and under `set -o pipefail` that killed the script before it reached the seed at all. The third
+is `verify.py`'s `companies` assertion, which is #171 and is untouched here.
+
+The re-seed walks **RetroBat's** system list and asks upstream's own rules what each folder
+resolves to, rather than importing the alias table and correcting it, so the 44 keys naming
+folders RetroBat lacks are never seen. Re-derived, not adjusted: 166 folders resolve (72 by
+identity, 94 by alias), 74 are unmapped, normalization rescues 1 of those where it used to
+rescue 16, and 10 slugs fan out where 13 did. Two slugs the old seed carried, `daphne` and
+`rpgmaker`, are not `UniversalPlatformSlug` values at all and could never have matched a row.
+
 ### B. 5.3.0 servers already meet today's client
 
 Above `LastTested` RomMBat warns and continues, so a 5.3.0 server and a 5.2.0 floor client
@@ -101,8 +115,37 @@ reports the same `ETag` and the same total. The two representations agree, which
 serving one file from disk, and it is the contrast that makes the multi-file mismatch a finding
 rather than a quirk of the measurement.
 
-**Owed:** #180, not a change here. The 5.2.0 reading stays where it is, labelled, per the
-version move checklist's rule on provenance, and both sites now name this section.
+**Re-measured across a second platform in stage 1**, which #180 asked for before anything
+acted on the first reading. It reproduces, and it is worse than "22 bytes" suggested:
+
+| ROM                      | plain 200 `Content-Length` | ranged `Content-Range` total | gap |
+| ------------------------ | -------------------------- | ---------------------------- | --- |
+| `neogeocd`, rom 272137   | 2,740,866                  | 2,740,768                    | 98  |
+| `pcenginecd`, rom 272627 | 9,439,703                  | 9,439,567                    | 136 |
+
+**The gap is per-ROM, not a constant.** The plain length is stable across repeats within a
+session (three requests, 2,740,866 every time), so it is still not a per-call rebuild, but the
+first neogeocd reading above recorded 2,740,790 for that platform and this one reads 2,740,866,
+so it is not stable across days either. Neither figure is retracted; both are what was served
+when they were taken.
+
+**The mechanism is now visible in the `ETag`.** nginx's validator is `hex(mtime)-hex(size)`, and
+its size half is exactly the ranged total in both rows: `0x29d220` is 2,740,768 and `0x90094f` is
+9,439,567. So the ranged answer is **nginx serving a zip that exists on disk** while the plain
+answer is **one the application builds for the request**. They are two artifacts by construction,
+which is why no amount of retrying will make them agree and why the mismatch, not the withdrawn
+403, is the durable reason not to send the header.
+
+**Acted on in stage 1 (#180).** The test is re-aimed rather than made version-aware: it now
+asserts that the two answers are not interchangeable, which a 403 satisfies and a mismatched 206
+satisfies, and it fails loudly on the day a server makes them agree. Four comments that gave the
+403 as their reason now give the mismatch, in `RomMConnection.Content.cs`, `RomContent.cs`,
+`RomRow.cs` and `SyncSetStore.cs`. Multi-file resume is **still not built**: it would need the
+transfer pinned to the ranged representation for its whole life, and the plain response offers no
+validator by which a mix could be detected.
+
+**Owed:** the 5.2.0 reading stays where it is, labelled, per the version move checklist's rule on
+provenance, and both sites name this section.
 
 ## Findings
 
@@ -253,7 +296,7 @@ repo handles as orphans. The open question is whether a rebind can change what a
 under a cached attribution binding or a set membership row, which is a question for a live
 instance and not for a release note.
 
-### 6. Physical games mean a sync set can hold a row with no file (`notes`)
+### 6. Physical games mean a sync set can hold a row with no file (`source`, now `measured`)
 
 `POST /roms/physical` creates a rom with no file on disk, and `DetailedRomSchema` gains
 `is_physical` and `has_file_on_disk`. A catalog page can now return rows that cannot be
@@ -261,6 +304,32 @@ downloaded.
 
 **This is finding B's concrete case.** It needs no floor move and no pin move to reach a user,
 and the fix is a filter plus a null check rather than a feature.
+
+**Upgraded from `notes` in stage 1 (#167), and the hazard is wider than physical games.** Both
+fields are declared on `RomSchema`, the base that `SimpleRomSchema` extends, so they are on every
+row `GET /api/roms` returns rather than only on the detail route; confirmed on a live
+`5.3.0-alpha.2` page, which carries `is_physical`, `has_file_on_disk` and `missing_from_fs`
+together. And `has_file_on_disk` is a property, not a column:
+
+```python
+return not self.is_physical and not self.missing_from_fs
+```
+
+`missing_from_fs` is **required at the 5.2.0 floor**, so a ROM deleted from the server's disk has
+been reaching the download path since before any of this, with no physical game involved. That is
+the half of the bug that was already in the field.
+
+**What was built.** The drop is client-side and derives the answer where the server does not give
+it: `RomRow.HasFileOnDisk` honours `has_file_on_disk` when present and falls back to
+`not is_physical and not missing_from_fs` when it is absent, which is what keeps a 5.2.0 server's
+whole library from being excluded. `SetResolver` gives it its own `ExcludedNoFileOnDisk` state
+ahead of the shape and extension checks, because neither is what is wrong with the row, and
+`PickedSetService` refuses the same case per game.
+
+**Server-side filtering is deliberately not used.** `GET /api/roms` takes both a `missing` and a
+`physical` boolean, but only `missing` exists at 5.2.0; `physical` arrived with this release. One
+client-side rule covers both server generations, and it is worth revisiting when #174 moves the
+floor.
 
 ### 7. The gamelist exporter was substantially rewritten (`source`)
 
@@ -288,7 +357,7 @@ reason this repo joins companies into `developer` and omits `publisher` goes awa
 
 `reference/romm-known_bios_files.json` is **unchanged** on `master`.
 
-### 8. Grants tightened on the export endpoints (`notes`)
+### 8. Grants tightened on the export endpoints (`source`)
 
 `POST /export/gamelist-xml` and `POST /export/pegasus` now require a `PLATFORMS` / `WRITE`
 grant and enforce platform visibility. **RomMBat calls neither**, confirmed by grep rather than
@@ -359,14 +428,14 @@ live, so the re-measurement that finding 9 owes is attributed to `alpha.2` and n
 
 The version move checklist in the `pre-pr-verification` skill is the procedure.
 
-| Step                                                       | State                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| `refresh.sh`, resolve drift rather than editing the number | **Blocked on finding 1.** Re-source first, or it fails on the seed |
-| Read the upstream changelog end to end                     | Done, this document                                                |
-| Move `Minimum`, `LastTested`, README table and compat row  | Ready, and a test asserts the trio agree                           |
-| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                  |
-| Leave provenance alone                                     | See finding 9                                                      |
-| **Move the pinned OpenAPI schema**                         | **Unblocked by the floor choice**, see below                       |
+| Step                                                       | State                                                                |
+| ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `refresh.sh`, resolve drift rather than editing the number | Finding 1 done. **Still owes finding 7**, which flips on the re-pull |
+| Read the upstream changelog end to end                     | Done, this document                                                  |
+| Move `Minimum`, `LastTested`, README table and compat row  | Ready, and a test asserts the trio agree                             |
+| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                    |
+| Leave provenance alone                                     | See finding 9                                                        |
+| **Move the pinned OpenAPI schema**                         | **Unblocked by the floor choice**, see below                         |
 
 `src/RomM.Client/openapi/generate.sh` regenerates DTOs from the pinned file, but the pinned
 file itself is a byte exact `/openapi.json` captured from a running server, per
@@ -392,15 +461,15 @@ every reading attributed to `alpha.2`.
 
 ## Open, and needing a live instance
 
-**Two questions left this table without one.** Whether the exporter's unit conversions survived
+**Three questions left this table without one.** Whether the exporter's unit conversions survived
 the rewrite, and whether RomMBat calls either export endpoint, are answered above from upstream
-source and a repo grep. Reach for the cheaper route first: a question parked behind a Docker
-daemon that a read answers today is a question nobody answers.
+source and a repo grep. Finding 6's row shape is answered from the schema's inheritance and then
+confirmed on a live page in stage 1. Reach for the cheaper route first: a question parked behind a
+Docker daemon that a read answers today is a question nobody answers.
 
 | #   | Question                                                                             |
 | --- | ------------------------------------------------------------------------------------ |
 | 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? |
 | 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      |
 | 5   | Can an identity rebind change what a rom id means to a cached binding or a set row?  |
-| 6   | What does a `is_physical` row look like on `GET /api/roms`, and is it filterable?    |
 | 9   | Every timing in this repo, re-measured at concurrency 4                              |
