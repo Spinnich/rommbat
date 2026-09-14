@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -112,24 +114,94 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.Equal(whole.ToArray(), partial.ToArray());
     }
 
+    /// <summary>
+    /// A multi-file ROM's plain and ranged responses are not two views of one file.
+    /// </summary>
+    /// <remarks>
+    /// <b>Re-aimed after the server changed its mind.</b> This asserted a 403 until RomM
+    /// 5.3.0-alpha.2, where a <c>Range</c> on a multi-file ROM is answered 206 instead. What
+    /// the 403 was protecting survives the change: the two answers still describe different
+    /// representations. Measured on two platforms, plain against ranged total, 2,740,866 against
+    /// 2,740,768 on <c>neogeocd</c> and 9,439,703 against 9,439,567 on <c>pcenginecd</c>, with
+    /// only the ranged one carrying an <c>ETag</c>. So the property is asserted rather than the
+    /// mechanism, and it holds on either server generation.
+    /// <para>
+    /// The client is right either way, because it sends no <c>Range</c> at all here. This exists
+    /// so that the day a server does make the two agree, it is noticed here and multi-file resume
+    /// can be reconsidered, rather than someone reading the 403's absence as permission. If
+    /// either total is missing the test skips with the reason, because an absent header is not
+    /// evidence either way and a silent pass would read as the tripwire having held.
+    /// Single-file is the contrast: same <c>ETag</c>, same total, in
+    /// <see cref="A_single_file_rom_resumes_into_a_byte_identical_file"/>.
+    /// </para>
+    /// <para>
+    /// <b>Headers only, and no body is read.</b> The plain response to a multi-file ROM is a zip
+    /// the server builds for the request, which takes minutes and trips the client's own stall
+    /// timeout; the question is entirely in the headers, and reading one of these twice would cost
+    /// somebody's real library far more than this suite's contract allows.
+    /// </para>
+    /// </remarks>
     [Fact]
-    public async Task A_range_on_a_multi_file_rom_is_refused_which_is_why_none_is_sent()
+    public async Task The_two_answers_for_a_multi_file_rom_are_not_the_same_file()
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
 
         var rom = await MultiFileAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.SkipWhen(rom is null, "No multi-file ROM on this instance.");
 
-        // Deliberately lying about the ROM's shape, to prove the header is what breaks it. The
-        // shipped path never gets here: a multi-file ROM is excluded when the set resolves.
-        await using var destination = new MemoryStream();
-        var response = await fixture.Session.Connection.DownloadRomContentAsync(
-            new RomContentRequest { RomId = rom!.Id, FsName = rom.FsName, IsMultiFile = false },
-            destination,
-            cancellationToken: TestContext.Current.CancellationToken);
+        var url = RomMConnection.JoinOrigin(
+            fixture.Session.Origin,
+            $"api/roms/{rom!.Id.ToString(CultureInfo.InvariantCulture)}/content/{Uri.EscapeDataString(rom.FsName)}");
 
-        Assert.False(response.IsSuccess);
-        Assert.Equal(RomMResponseStatus.Forbidden, response.Status);
+        using var http = new HttpClient(new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromSeconds(5) });
+        http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", fixture.Session.Token);
+
+        using var plainRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        using var plain = await http.SendAsync(
+            plainRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(plain.IsSuccessStatusCode, $"The plain request answered {(int)plain.StatusCode}.");
+
+        using var rangedRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        rangedRequest.Headers.Range = new RangeHeaderValue(0, 1023);
+        using var ranged = await http.SendAsync(
+            rangedRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            TestContext.Current.CancellationToken);
+
+        if (ranged.StatusCode == HttpStatusCode.Forbidden)
+        {
+            // The 5.2.0 answer: nginx refuses the header outright, whatever offset it names.
+            return;
+        }
+
+        Assert.Equal(HttpStatusCode.PartialContent, ranged.StatusCode);
+
+        var plainLength = plain.Content.Headers.ContentLength;
+        var rangedTotal = ranged.Content.Headers.ContentRange?.Length;
+
+        // Without both totals the comparison below cannot rule either way, and a missing header
+        // would otherwise make the assertion pass and read as the tripwire having held.
+        Assert.SkipWhen(
+            plainLength is null || rangedTotal is null,
+            $"'{rom.FsName}' answered without a comparable total: plain Content-Length "
+                + $"{plainLength?.ToString(CultureInfo.InvariantCulture) ?? "absent"}, ranged "
+                + $"Content-Range total {rangedTotal?.ToString(CultureInfo.InvariantCulture) ?? "absent"}.");
+
+        // One of these has to differ, or the two responses are one representation and a resume
+        // could legitimately splice them together.
+        var sameLength = plainLength == rangedTotal;
+        var bothCarryAValidator = plain.Headers.ETag is not null && ranged.Headers.ETag is not null;
+
+        Assert.False(
+            sameLength && bothCarryAValidator,
+            $"'{rom.FsName}' now answers a Range with the same representation it serves plain "
+                + $"({plainLength} bytes, validator {plain.Headers.ETag}). Multi-file resume may "
+                + "have become possible; revisit RomMConnection.Content.cs and #180 rather than "
+                + "deleting this test.");
     }
 
     [Fact]

@@ -18,15 +18,16 @@ fetch RetroBat-Official/emulatorlauncher .emulationstation/es_savestates.cfg es_
 fetch RetroBat-Official/emulatorlauncher batocera-systems/Resources/batocera-systems.json batocera-systems.json
 
 echo "RomM:"
-fetch rommapp/romm examples/config.batocera-retrobat.yml config.batocera-retrobat.yml
 fetch rommapp/romm backend/models/fixtures/known_bios_files.json romm-known_bios_files.json
 fetch rommapp/romm backend/utils/gamelist_exporter.py romm-gamelist_exporter.py
+fetch rommapp/romm backend/utils/platform_slugs.py romm-platform_slugs.py
+fetch rommapp/romm backend/utils/platform_aliases.py romm-platform_aliases.py
 
-# The slug list is an enum in source, not a data file, so extract it.
-echo "  rommapp/romm  backend/handler/metadata/base_handler.py (UniversalPlatformSlug)"
-gh api repos/rommapp/romm/contents/backend/handler/metadata/base_handler.py --jq '.content' |
-  base64 -d |
-  grep -oE '^\s{4}[A-Z0-9_]+ *= *"[^"]+"' |
+# The slug enum lives in the module just fetched, so derive the list here rather than
+# fetching twice. Keeping it as a plain list is what lets verify.py and the normalized-match
+# layer ask "is this a slug" without parsing Python.
+echo "  (derived)  romm-platform_slugs.py -> romm-slugs.txt"
+grep -oE '^\s{4}[A-Z0-9_]+ *= *"[^"]+"' romm-platform_slugs.py |
   sed -E 's/.*"([^"]+)"/\1/' |
   LC_ALL=C sort -u >romm-slugs.txt
 # LC_ALL=C is required: these slugs are punctuation-heavy and locale-aware

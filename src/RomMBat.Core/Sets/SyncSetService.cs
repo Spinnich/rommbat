@@ -555,6 +555,7 @@ public sealed class SyncSetService
         MemberState.ExcludedExtension => "skipped, format not supported by this system",
         MemberState.ExcludedUnmapped => "skipped, no RetroBat folder for their platform",
         MemberState.ExcludedMultiFile => "skipped, held as several files which this version cannot sync yet",
+        MemberState.ExcludedNoFileOnDisk => "skipped, RomM has no file on disk for it",
         MemberState.ExcludedFilesystemLimit => "skipped, too large for this drive's filesystem",
         MemberState.ExcludedOverCount => "past the game cap",
         MemberState.ExcludedOverBytes => "past the byte budget",

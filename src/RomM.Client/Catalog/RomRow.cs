@@ -108,9 +108,10 @@ public sealed record RomRow
     /// True when RomM holds this ROM as several files and would serve it as a zip.
     /// </summary>
     /// <remarks>
-    /// Decides the download before it is made: any <c>Range</c> header on a multi-file ROM is
-    /// refused 403 by nginx, so the header that makes a single-file download resumable breaks
-    /// this one outright. v1 does not sync them at all.
+    /// Decides the download before it is made: the header that makes a single-file download
+    /// resumable is unusable here, because a multi-file ROM's ranged and plain responses are
+    /// different representations of one URL and only the ranged one carries a validator. v1
+    /// does not sync them at all.
     /// <para>
     /// It travels with an empty <see cref="FsExtension"/>: 105 of 105 multi-file ROMs sampled
     /// were extensionless and every extensionless ROM was multi-file. The flag is read rather
@@ -119,6 +120,50 @@ public sealed record RomRow
     /// </remarks>
     [JsonPropertyName("has_multiple_files")]
     public bool HasMultipleFiles { get; init; }
+
+    /// <summary>
+    /// True when this row is a manually added physical copy that never had a file.
+    /// </summary>
+    /// <remarks>
+    /// New at RomM 5.3.0 and absent below it, which reads here as false: a 5.2.0 server has no
+    /// such rows to describe. Read through <see cref="HasFileOnDisk"/> rather than directly.
+    /// </remarks>
+    [JsonPropertyName("is_physical")]
+    public bool IsPhysical { get; init; }
+
+    /// <summary>True when the file backing this row is gone from the server's filesystem.</summary>
+    /// <remarks>Present since 5.2.0, where the schema declares it required.</remarks>
+    [JsonPropertyName("missing_from_fs")]
+    public bool MissingFromFs { get; init; }
+
+    /// <summary>
+    /// The server's own answer to whether a readable file backs this row, or null below 5.3.0.
+    /// </summary>
+    /// <remarks>
+    /// Nullable so the absent case stays distinguishable from a genuine false, which is what
+    /// lets <see cref="HasFileOnDisk"/> fall back instead of excluding every row a 5.2.0 server
+    /// sends.
+    /// </remarks>
+    [JsonPropertyName("has_file_on_disk")]
+    public bool? ServerSaysHasFileOnDisk { get; init; }
+
+    /// <summary>
+    /// Whether anything can actually be downloaded for this row.
+    /// </summary>
+    /// <remarks>
+    /// False for two unrelated reasons the download path has to treat alike, which is upstream's
+    /// own framing: a physical game never had a file, and a missing one no longer does. The
+    /// derived form is <c>not is_physical and not missing_from_fs</c>, read from
+    /// <c>backend/models/rom.py</c>, and it is what a 5.2.0 server's rows are judged by since
+    /// they carry no <c>has_file_on_disk</c> of their own.
+    /// <para>
+    /// <c>GET /api/roms</c> can filter on this server-side, but only in part and only above the
+    /// floor: <c>missing</c> exists at 5.2.0 and <c>physical</c> arrived at 5.3.0. So the drop
+    /// stays client-side, where one rule covers both server generations.
+    /// </para>
+    /// </remarks>
+    [JsonIgnore]
+    public bool HasFileOnDisk => ServerSaysHasFileOnDisk ?? (!IsPhysical && !MissingFromFs);
 
     [JsonPropertyName("name")]
     public string? Name { get; init; }

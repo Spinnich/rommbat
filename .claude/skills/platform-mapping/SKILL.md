@@ -11,18 +11,66 @@ The two vocabularies genuinely diverge. This is a feature with a UI, not a looku
 
 Reproduce with `cd reference && ./refresh.sh`.
 
-|                                                  |                              |
-| ------------------------------------------------ | ---------------------------- |
-| RetroBat systems                                 | 240                          |
-| RomM known platform slugs                        | 457                          |
-| Explicit pairs in `config.batocera-retrobat.yml` | 167                          |
-| RetroBat systems with no mapping                 | 91 (37%)                     |
-| Of those, resolved by normalization              | 16                           |
-| YAML entries naming folders RetroBat lacks       | 18                           |
-| RomM slugs mapping to several folders            | 13 (`arcade` fans out to 10) |
+|                                           |                             |
+| ----------------------------------------- | --------------------------- |
+| RetroBat systems                          | 240                         |
+| RomM known platform slugs                 | 459                         |
+| Folder aliases upstream publishes         | 138                         |
+| Of those, RetroBat system folders         | 94                          |
+| Of those, naming folders RetroBat lacks   | 44                          |
+| RetroBat folders resolving to a RomM slug | 166                         |
+| Of those, by identity                     | 72                          |
+| Of those, via the alias table             | 94                          |
+| RetroBat systems with no mapping          | 74 (31%)                    |
+| Of those, resolved by normalization       | 1                           |
+| RomM slugs mapping to several folders     | 10 (`arcade` fans out to 7) |
 
-Known-stale YAML entries: `astrocde`/`astrocade`, `bbc`/`bbcmicro`, `ps`/`psx`,
-`segacd`/`megacd`.
+## Where the seed comes from, and why the walk goes RetroBat-first
+
+Until RomM 5.3.0 the seed was `examples/config.batocera-retrobat.yml`, 167 explicit
+`folder: slug` pairs. Upstream cut that file to four suggested overrides and moved the
+authority into `backend/utils/platform_aliases.py`. `resolve_platform_slug` there tries a
+config binding, then **identity** when the folder name is itself a `UniversalPlatformSlug`,
+then `PLATFORM_FS_ALIASES`. `nes: nes` left the YAML because it became implicit, not because
+it stopped being true, so reconstructing the map needs the alias table **and** the slug enum.
+Both are vendored, as `reference/romm-platform_aliases.py` and
+`reference/romm-platform_slugs.py`.
+
+**`tools/build-platform-map.py` walks RetroBat's system list, not upstream's alias keys.**
+`PLATFORM_FS_ALIASES` is a Batocera / RetroBat / ES-DE union and 44 of its 138 keys name
+folders no RetroBat install has (`atarijaguar`, `atarilynx`, `gc`, `megadrivejp` against
+RetroBat's `jaguar`, `lynx`, `gamecube`, `megadrive`). Walking from RetroBat's side never sees
+them, which is core principle 3 applied rather than restated, and it is why the generator no
+longer carries a list of stale seed keys to correct.
+
+**The config-binding layer is recorded and not applied.** Upstream's example config suggests
+four bindings for a Batocera or RetroBat install (`atari800: atari8bit`, `model2: arcade`,
+`model3: arcade`, `pico: sega-pico`), and they are in the generated JSON as
+`_upstream_suggested_bindings` so nobody re-discovers the disagreement. They stay unapplied
+because they describe one server's scan, and a library scanned that way reports
+`platform.fs_slug` as the folder name, which layer 2 matches and which outranks the bundled
+table anyway.
+
+**Two things the old YAML had hidden.** It carried two slugs RomM has never had, `daphne` and
+`rpgmaker`, so neither could ever match a platform row; `rpgmaker` is now `rpg-maker` and
+`daphne` has no RomM equivalent. And normalization's share fell from 16 to 1, because identity
+resolution now catches what it used to rescue. `actionmax` against `action-max` is the only
+survivor, and it is the case the mapping regression asserts.
+
+**Four slugs left the table, and two of them are real.** `daphne` and `rpgmaker` are the
+harmless pair above. `odyssey` and `atari8bit` are `UniversalPlatformSlug` values, so the
+accounting is not "two slugs RomM never had" and nothing else:
+
+- `odyssey` was a seed error. Magnavox Odyssey is not the Odyssey², and the seed pointed
+  `odyssey` at folder `odyssey2`. `odyssey-2` → `odyssey2` now carries the real case, so the
+  drop is a correction.
+- `atari8bit` is upstream's suggested binding for folder `atari800`, recorded and not applied,
+  so it has no layer-3 entry. Layer 2 covers it whenever the RomM library folder is itself
+  named `atari800`, bound or unbound, which is the common case. **It does not cover a RomM
+  folder named something RetroBat lacks** (`atari-8bit`, `a800`) that RomM resolved to
+  `atari8bit`: layer 2 misses on `fs_slug`, layer 3 has nothing, and normalization cannot
+  bridge `atari8bit` to `atari800`. That set syncs nothing and needs a manual mapping. Narrow,
+  and accepted, because the RetroBat-first walk is what core principle 3 asks for.
 
 ## Two identity traps, both measured live
 
@@ -55,9 +103,9 @@ and so need no translation at all; the two that are not are aliased in
 | `astrocde`   | `astrocade`     |
 | `msx`        | `msx1`          |
 
-`astrocde` is the same stale spelling the seed YAML has, which is already listed above. Note
-also that RetroBat calls the Mega CD `megacd`, so a BIOS lookup for `segacd` finds nothing:
-that is the seed's `segacd`/`megacd` divergence showing up in a second place.
+`astrocde` is the same spelling RomM's alias table uses, so the divergence shows up in two
+places at once. Note also that RetroBat calls the Mega CD `megacd` while upstream's table keys
+`megacd` and `segacd` both, so a BIOS lookup for `segacd` finds nothing.
 
 ## No authoritative source exists
 
@@ -92,10 +140,11 @@ that is the seed's `segacd`/`megacd` divergence showing up in a second place.
 ## Two kinds of unmapped, and only one matters to the user
 
 - _RomM platform with no RetroBat folder_: skip, explain.
-- _RetroBat system with no RomM platform_: ignore entirely. About 50 of the 75
-  hard-unresolved names are ports and storefronts (`cavestory`, `devilutionx`, `eduke32`,
-  `gemrb`, `opengoal`, `steam`, `gog`, `epic`, `amazon`) which have no RomM equivalent by
-  design.
+- _RetroBat system with no RomM platform_: ignore entirely. About 50 of the 73 left after
+  normalization are ports, engines and storefronts (`cavestory`, `devilutionx`, `eduke32`,
+  `gemrb`, `opengoal`, `gog`, `epic`, `amazon`, the four `pinballfx*` launchers) which have no
+  RomM equivalent by design. The rest is genuinely missing hardware: `chihiro`, `daphne`,
+  `gaelco`, `cassettevision`, `neogeo64`, `vg5k`.
 
 ## Consequences elsewhere
 
@@ -110,13 +159,17 @@ that is the seed's `segacd`/`megacd` divergence showing up in a second place.
   folders is right depends on the romset and arcade names are romset-versioned. Measured in
   M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
   part way to demand a choice that had already been made.
-- **The bundled table is a seed, not an authority.** Correct it against
-  `reference/systems_names.lst`, and expect drift as both projects add systems.
+- **The bundled table is a seed, not an authority.** It is derived from
+  `reference/systems_names.lst` rather than checked against it, so expect drift as both
+  projects add systems, and expect a RomM release to move it.
 
 ## Adding or fixing a mapping
 
 Edit `tools/build-platform-map.py`, not the JSON: `data/retrobat/platforms.json` is
-generated from the seed and regenerating overwrites a hand edit. Then run
+generated and regenerating overwrites a hand edit. A mapping that is wrong because **upstream**
+is wrong belongs in an issue against `rommapp/romm`, not in a local correction table: the
+generator deliberately has no such table any more, so adding one back is a decision and not a
+tidy-up. Then run
 `python tools/build-platform-map.py` and the mapping regression, which asserts every bundled
 mapping resolves to a folder that exists in `systems_names.lst`, that multi-folder slugs
 resolve deterministically against a fixture `es_systems.cfg`, and that an `arcade` slug

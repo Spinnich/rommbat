@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace RomMBat.Tests.Support;
 
@@ -35,6 +36,13 @@ internal sealed record StubRom(
 
     /// <summary>True to serve this ROM the way RomM serves a multi-file one: no ranges, ever.</summary>
     public bool HasMultipleFiles { get; init; }
+
+    /// <summary>True for a row whose backing file has gone from the server's filesystem.</summary>
+    /// <remarks>Reachable at the 5.2.0 floor, where the field is already declared required.</remarks>
+    public bool MissingFromFs { get; init; }
+
+    /// <summary>True for a 5.3.0 physical game: a real row that never had a file.</summary>
+    public bool IsPhysical { get; init; }
 
     /// <summary>
     /// The gamelist metadata the paged read carries, or null for a ROM with none.
@@ -133,6 +141,8 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 /// </remarks>
 internal sealed partial class StubRomMServer : HttpMessageHandler
 {
+    private static readonly JsonSerializerOptions WebOptions = new(JsonSerializerDefaults.Web);
+
     private readonly Queue<Func<HttpResponseMessage>> _tokenResponses = new();
     private readonly List<string> _requestLog = [];
     private readonly List<string> _queryLog = [];
@@ -154,6 +164,24 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
     /// <summary>What <c>GET /api/heartbeat</c> reports as <c>SYSTEM.VERSION</c>.</summary>
     public string ServerVersion { get; set; } = "5.2.0";
+
+    /// <summary>
+    /// Whether ROM rows carry the fields 5.3.0 added, derived from <see cref="ServerVersion"/>.
+    /// </summary>
+    /// <remarks>
+    /// Read off the version rather than set on its own, so the whole suite runs against the
+    /// 5.2.0 row shape by default and the client's fallback is exercised everywhere instead of
+    /// in the one test that remembers to ask for it. A prerelease suffix is ignored:
+    /// <c>5.3.0-alpha.2</c> is a 5.3.0 server.
+    /// </remarks>
+    private bool SpeaksFiveThree
+    {
+        get
+        {
+            var numeric = ServerVersion.Split('-', 2)[0];
+            return Version.TryParse(numeric, out var version) && version >= new Version(5, 3);
+        }
+    }
 
     /// <summary>The <c>Date</c> header the server sends, which is the only clock reference.</summary>
     public DateTimeOffset? ServerDate { get; set; }
@@ -809,12 +837,12 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             : Detail(HttpStatusCode.NotFound, "Rom not found");
     }
 
-    private static object Project(StubRom rom)
+    private object Project(StubRom rom)
     {
         var meta = rom.Metadata;
         var id = rom.Id.ToString(CultureInfo.InvariantCulture);
 
-        return new
+        var row = new
         {
             id = rom.Id,
             platform_id = rom.PlatformId,
@@ -830,6 +858,9 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             md5_hash = rom.Md5Hash ?? string.Empty,
             sha1_hash = rom.Sha1Hash ?? string.Empty,
             has_multiple_files = rom.HasMultipleFiles,
+            missing_from_fs = rom.MissingFromFs,
+            is_physical = rom.IsPhysical,
+            has_file_on_disk = !rom.IsPhysical && !rom.MissingFromFs,
             name = rom.Name,
             name_sort_key = rom.Name,
             updated_at = rom.UpdatedAt,
@@ -852,6 +883,19 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
                 average_rating = meta.AverageRating,
             },
         };
+
+        var node = JsonSerializer.SerializeToNode(row, WebOptions)!.AsObject();
+
+        // Removed rather than sent as null. 5.2.0 knows neither field, and absent is what the
+        // client's fallback keys on: a stub that sent null would be testing a shape no server
+        // sends and would let a regression through.
+        if (!SpeaksFiveThree)
+        {
+            node.Remove("is_physical");
+            node.Remove("has_file_on_disk");
+        }
+
+        return node;
     }
 
     /// <summary>Puts the ROM id into a media path template, so two ROMs never share a file.</summary>
@@ -886,7 +930,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
     private static HttpResponseMessage Json(HttpStatusCode status, object body) => new(status)
     {
-        Content = JsonContent.Create(body, options: new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+        Content = JsonContent.Create(body, options: WebOptions),
     };
 
     private static HttpResponseMessage Detail(HttpStatusCode status, string detail) =>

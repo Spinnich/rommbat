@@ -174,12 +174,14 @@ public class PlatformMappingTests
         var install = Fixtures.LoadEsSystems();
         var resolver = new PlatformResolver(install);
 
-        // RetroBat calls it ti99, RomM calls it ti-99. Close enough to suggest, not close
-        // enough to write games into a folder without being asked.
-        var resolution = resolver.Resolve(new RomMPlatform(1, "ti-99", null, "TI-99"));
+        // RetroBat calls it actionmax, RomM calls it action-max, and upstream's alias table
+        // does not carry the pair. Close enough to suggest, not close enough to write games
+        // into a folder without being asked. It is the only such case left on this install:
+        // ti-99 sat here until RomM's own alias table started resolving it at layer 3.
+        var resolution = resolver.Resolve(new RomMPlatform(1, "action-max", null, "Action Max"));
 
         Assert.Equal(MappingSource.Normalized, resolution.ResolvedBy);
-        Assert.Equal("ti99", resolution.Suggestion);
+        Assert.Equal("actionmax", resolution.Suggestion);
         Assert.Null(resolution.Folder);
         Assert.False(resolution.IsApplied);
     }

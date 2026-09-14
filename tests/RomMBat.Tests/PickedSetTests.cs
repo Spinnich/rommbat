@@ -179,6 +179,24 @@ public sealed class PickedSetTests : IDisposable
         Assert.Contains("several files", outcome.Problem, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_game_with_no_file_on_disk_is_refused_before_its_shape_is_judged()
+    {
+        var picked = new PickedSetService(_session);
+
+        var physical = picked.Pick(Row(11, "Boxed") with { ServerSaysHasFileOnDisk = false }, Now);
+        Assert.True(physical.IsRefused);
+        Assert.Contains("no file on disk", physical.Problem, StringComparison.Ordinal);
+
+        // A 5.2.0 server sends neither new field, so the same refusal has to come out of
+        // missing_from_fs alone.
+        var deleted = picked.Pick(Row(12, "Deleted") with { MissingFromFs = true }, Now);
+        Assert.True(deleted.IsRefused);
+        Assert.Contains("no file on disk", deleted.Problem, StringComparison.Ordinal);
+
+        Assert.Empty(_session.Store.SyncSets.Members(physical.Set.Id));
+    }
+
     // ------------------------------------------------------------------ it is an ordinary set
 
     /// <summary>

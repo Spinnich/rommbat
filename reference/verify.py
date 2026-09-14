@@ -2,7 +2,7 @@
 """Re-derive every number quoted in docs/PLAN.md from the vendored reference data.
 
 Run after ./refresh.sh. If a count moves, the matching section of the plan is stale.
-Needs romm-slugs.txt, which refresh.sh extracts from rommapp/romm.
+Needs the vendored rommapp/romm files refresh.sh pulls, romm-slugs.txt included.
 """
 
 import json
@@ -25,66 +25,78 @@ def norm(s):
     return re.sub(r"[^a-z0-9]", "", s.lower())
 
 
-def read_seed(path):
-    """Parse system.platforms out of the seed YAML, scanning by indentation.
+def read_slugs(path):
+    """Parse UniversalPlatformSlug into member name -> slug value.
 
-    Splitting on the first "platforms:" and matching every four-space key also picks up
-    scan.gamelist.export, which is a boolean and not a platform. tools/build-platform-map.py
-    reads the block the same way, so the two agree on what a pair is.
+    Read as text, not imported: the module is only runnable inside RomM's own tree. The
+    member names are the vocabulary PLATFORM_FS_ALIASES is written in, so the values alone
+    do not decode the alias table. tools/build-platform-map.py reads both files the same
+    way, so the two agree on what a pair is.
     """
-    mapping = {}
-    in_system = in_platforms = False
+    return dict(re.findall(r'^\s{4}([A-Z0-9_]+)\s*=\s*"([^"]+)"', path.read_text(encoding="utf-8"), re.M))
 
-    for line in path.read_text().splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
 
-        indent = len(line) - len(line.lstrip())
+def read_aliases(path, members):
+    """Parse PLATFORM_FS_ALIASES into folder name -> slug value."""
+    block = re.search(r"PLATFORM_FS_ALIASES.*?=\s*\{(.*?)\n\}", path.read_text(encoding="utf-8"), re.S)
+    if block is None:
+        sys.exit(f"No PLATFORM_FS_ALIASES table in {path.name} -- run ./refresh.sh first")
 
-        if indent == 0:
-            in_system, in_platforms = line.startswith("system:"), False
-        elif in_system and indent == 2:
-            in_platforms = line.strip() == "platforms:"
-        elif in_system and in_platforms and indent == 4:
-            pair = re.fullmatch(r"\s{4}([A-Za-z0-9_\-.]+):\s*([A-Za-z0-9_\-.]+)\s*", line)
-            if pair:
-                mapping[pair.group(1)] = pair.group(2)
-
-    return mapping
+    pairs = re.findall(r'^\s{4}"([^"]+)":\s*UPS\.([A-Z0-9_]+),', block.group(1), re.M)
+    return {folder: members[name] for folder, name in pairs if name in members}
 
 
 def main():
     systems = {l.strip() for l in (HERE / "systems_names.lst").read_text().splitlines() if l.strip()}
-
-    mapping = read_seed(HERE / "config.batocera-retrobat.yml")
 
     slugs_file = HERE / "romm-slugs.txt"
     if not slugs_file.exists():
         sys.exit("romm-slugs.txt missing -- run ./refresh.sh first")
     slugs = {l.strip() for l in slugs_file.read_text().splitlines() if l.strip()}
 
+    members = read_slugs(HERE / "romm-platform_slugs.py")
+    aliases = read_aliases(HERE / "romm-platform_aliases.py", members)
+
+    # Upstream's own resolution, minus the config-binding layer: identity first, then the
+    # alias table. Walked over RetroBat's folder list rather than over the alias table's
+    # keys, because core principle 3 says RetroBat decides what folders exist.
+    mapping = {}
+    for folder in sorted(systems):
+        if folder in slugs:
+            mapping[folder] = folder
+        elif folder in aliases:
+            mapping[folder] = aliases[folder]
+
     print("\nPlatform mapping")
     check("RetroBat systems", len(systems), 240)
-    check("RomM known platform slugs", len(slugs), 457)
-    check("Explicit pairs in the YAML", len(mapping), 167)
+    check("RomM known platform slugs", len(slugs), 459)
+    check("  ...and the enum members carrying them", len(members), 459)
+    check("Folder aliases upstream publishes", len(aliases), 138)
+    check("  ...of those, RetroBat system folders", len(set(aliases) & systems), 94)
+    check("  ...naming folders RetroBat lacks", len(set(aliases) - systems), 44)
+
+    check("RetroBat folders resolving to a RomM slug", len(mapping), 166)
+    check("  ...by identity, the folder being a slug", sum(1 for f, s in mapping.items() if f == s), 72)
+    check("  ...via the alias table", sum(1 for f, s in mapping.items() if f != s), 94)
+    check("Mapped slugs RomM does not know", len(set(mapping.values()) - slugs), 0)
 
     unmapped = sorted(systems - set(mapping))
-    check("RetroBat systems with no mapping", len(unmapped), 91)
+    check("RetroBat systems with no mapping", len(unmapped), 74)
 
     by_norm = {norm(s) for s in slugs}
     check(
         "  ...of those, resolved by normalization",
         sum(1 for f in unmapped if norm(f) in by_norm),
-        16,
+        1,
     )
-    check("YAML entries naming folders RetroBat lacks", len(set(mapping) - systems), 18)
 
     fanout = {}
     for folder, slug in mapping.items():
         fanout.setdefault(slug, []).append(folder)
     multi = {k: v for k, v in fanout.items() if len(v) > 1}
-    check("RomM slugs mapping to several folders", len(multi), 13)
-    check("  ...widest fan-out (arcade)", max(len(v) for v in multi.values()), 10)
+    check("Distinct RomM slugs reached", len(fanout), 148)
+    check("RomM slugs mapping to several folders", len(multi), 10)
+    check("  ...widest fan-out (arcade)", max(len(v) for v in multi.values()), 7)
 
     print("\nFirmware")
     bios = json.loads((HERE / "batocera-systems.json").read_text())

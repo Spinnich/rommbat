@@ -264,18 +264,18 @@ a drive-letter change and a move to a different PC.**
 All of this is on `rommapp/romm` master today. Verified against a local checkout of the
 source, not just the docs.
 
-| Concern            | Endpoint / file                                                                                 |
-| ------------------ | ----------------------------------------------------------------------------------------------- |
-| Capability probe   | `GET /api/heartbeat` (unauthenticated, returns `SYSTEM.VERSION`)                                |
-| Device pairing     | `backend/endpoints/device_auth.py`, RFC-8628 style                                              |
-| Long-lived tokens  | `backend/endpoints/client_tokens.py` (`rmm_` + 64 hex, up to 25/user)                           |
-| Device registry    | `backend/endpoints/device.py` (incl. the `sync_config` dict)                                    |
-| Save sync protocol | `backend/endpoints/sync.py` (`/negotiate`, `/sessions/{id}/complete`)                           |
-| Playtime           | `backend/endpoints/play_sessions.py`                                                            |
-| Save/state I/O     | `backend/endpoints/saves.py`, `backend/endpoints/states.py`                                     |
-| ES gamelist export | `backend/endpoints/export.py`, `backend/utils/gamelist_exporter.py`                             |
-| Platform map       | `examples/config.batocera-retrobat.yml` (167 pairs, a starting point, not an answer: see below) |
-| Schema for codegen | `GET /openapi.json` (served at the root, not under `/api`)                                      |
+| Concern            | Endpoint / file                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------- |
+| Capability probe   | `GET /api/heartbeat` (unauthenticated, returns `SYSTEM.VERSION`)                                  |
+| Device pairing     | `backend/endpoints/device_auth.py`, RFC-8628 style                                                |
+| Long-lived tokens  | `backend/endpoints/client_tokens.py` (`rmm_` + 64 hex, up to 25/user)                             |
+| Device registry    | `backend/endpoints/device.py` (incl. the `sync_config` dict)                                      |
+| Save sync protocol | `backend/endpoints/sync.py` (`/negotiate`, `/sessions/{id}/complete`)                             |
+| Playtime           | `backend/endpoints/play_sessions.py`                                                              |
+| Save/state I/O     | `backend/endpoints/saves.py`, `backend/endpoints/states.py`                                       |
+| ES gamelist export | `backend/endpoints/export.py`, `backend/utils/gamelist_exporter.py`                               |
+| Platform map       | `backend/utils/platform_aliases.py` (identity, then 138 aliases: a starting point, not an answer) |
+| Schema for codegen | `GET /openapi.json` (served at the root, not under `/api`)                                        |
 
 Published references: [Client API Tokens](https://docs.romm.app/latest/developers/client-api-tokens/)
 and [Device Sync Protocol](https://docs.romm.app/latest/developers/device-sync-protocol/).
@@ -1084,38 +1084,64 @@ erroring; and every subsequent milestone can be developed with the server switch
 #### Platform mapping is a feature, not a lookup table
 
 The two projects' platform vocabularies genuinely diverge, and treating this as "invert
-the shipped YAML" would fail on roughly a third of a real install. Measured against
-`system/configgen/systems_names.lst` on `RetroBat-Official/retrobat` and
-`UniversalPlatformSlug` in `backend/handler/metadata/base_handler.py`:
+the shipped table" would fail on roughly a third of a real install. Measured against
+`system/configgen/systems_names.lst` on `RetroBat-Official/retrobat` and, on
+`rommapp/romm`, `UniversalPlatformSlug` in `backend/utils/platform_slugs.py` together with
+`PLATFORM_FS_ALIASES` in `backend/utils/platform_aliases.py`:
 
-| Fact                                                          | Count  |
-| ------------------------------------------------------------- | ------ |
-| RetroBat systems                                              | 240    |
-| RomM known platform slugs                                     | 457    |
-| Explicit pairs in `examples/config.batocera-retrobat.yml`     | 167    |
-| **RetroBat systems with no mapping (37%)**                    | **91** |
-| Of those, resolved by case/punctuation normalization alone    | 16     |
-| Still unresolved after normalization                          | 75     |
-| Shipped mappings pointing at folders RetroBat no longer lists | 18     |
-| RomM slugs mapping to **more than one** RetroBat folder       | 13     |
+| Fact                                                       | Count  |
+| ---------------------------------------------------------- | ------ |
+| RetroBat systems                                           | 240    |
+| RomM known platform slugs                                  | 459    |
+| Folder aliases upstream publishes                          | 138    |
+| Of those, RetroBat system folders                          | 94     |
+| Of those, naming folders no RetroBat install has           | 44     |
+| RetroBat folders resolving to a RomM slug                  | 166    |
+| Of those, by identity (the folder name is itself a slug)   | 72     |
+| Of those, via the alias table                              | 94     |
+| **RetroBat systems with no mapping (31%)**                 | **74** |
+| Of those, resolved by case/punctuation normalization alone | 1      |
+| Still unresolved after normalization                       | 73     |
+| RomM slugs mapping to **more than one** RetroBat folder    | 10     |
 
-The pair and stale counts were 168 and 19 until M2 built the table from the same file.
-`reference/verify.py` split the YAML on the first `platforms:` and matched every key at four
-spaces, which also catches `scan.gamelist.export`, a boolean and not a platform. Both the
-script and this table now read the block by indentation. Nothing upstream moved.
+**The source moved at RomM 5.3.0 and so did the shape of the question.** The seed was
+`examples/config.batocera-retrobat.yml`, 167 explicit `folder: slug` pairs, until upstream cut
+it to four suggested overrides and moved the authority into `backend/utils/platform_aliases.py`.
+`resolve_platform_slug` tries a config binding, then identity when the folder name is itself a
+slug, then the alias table, so `nes: nes` left the YAML by becoming implicit rather than by
+ceasing to be true. The 167/91/18/13 figures above were true at 5.2.0 and are superseded, not
+reconciled.
 
-Concretely: the YAML says `astrocde`, `bbc`, `ps` and `segacd` where RetroBat's own list
-says `astrocade`, `bbcmicro`, `psx` and `megacd`. Normalization catches easy drift like
-`actionmax` → `action-max` and `ti99` → `ti-99`, but only 16 of 91. And the relation is
-many-to-many in the write direction: `arcade` alone maps to ten RetroBat folders
-(`mame`, `fbneo`, `naomi`, `model2`, `model3`, `triforce`, `atomiswave`, …), while
-`amiga` covers `amiga500`/`amiga1200`/`amiga4000`.
+`tools/build-platform-map.py` walks **RetroBat's** system list and asks upstream what each
+folder resolves to, rather than importing the 138 alias keys and correcting them: the table is a
+Batocera / RetroBat / ES-DE union whose keys include `atarijaguar`, `atarilynx`, `gc` and
+`megadrivejp` where RetroBat says `jaguar`, `lynx`, `gamecube` and `megadrive`, and walking from
+RetroBat's side never sees the 44 that name nothing here. Core principle 3, applied.
 
-Most of the 75 hard-unresolved names are RetroBat **ports and launchers** with no RomM
-platform by design: `cavestory`, `devilutionx`, `eduke32`, `ecwolf`, `gemrb`, `opengoal`,
-`lowresnx`, plus storefront systems like `steam`, `gog`, `epic` and `amazon`. The rest is
-genuinely missing hardware: `chihiro`, `dragon32`, `cassettevision`, `gaelco`, `gx4000`,
-`neogeo64`.
+Two things the YAML had hidden. It carried two slugs RomM has never had, `daphne` and
+`rpgmaker`, so neither could ever match a platform row; `rpgmaker` is `rpg-maker` upstream and
+`daphne` has no RomM equivalent at all. And normalization fell from rescuing 16 names to
+rescuing one, `actionmax` → `action-max`, because identity resolution now catches the rest.
+
+Four entries left the table, not two. `odyssey` and `atari8bit` are real slugs. `odyssey` was a
+seed error, Magnavox Odyssey being a different machine from the Odyssey², and `odyssey-2` →
+`odyssey2` now carries the real case. `atari8bit` is one of the four bindings upstream suggests
+and is recorded rather than applied, so layer 2 catches it wherever the RomM folder is itself
+named `atari800`, and a RomM folder RetroBat lacks that resolves to `atari8bit` needs a manual
+mapping. Slug `model2` moved the other way, from folder `lindbergh`, which is not a RomM slug at
+all, to `model2` first: a seed error corrected, and a relocation for anyone who synced that
+platform before.
+
+The relation is still many-to-many in the write direction: `arcade` maps to seven RetroBat
+folders (`mame`, `fbneo`, `naomi`, `naomi2`, `triforce`, `atomiswave`, `namco2x6`), while
+`amiga` covers `amiga500`/`amiga1200`/`amiga4000`. `model2` and `model3` left that fan-out by
+becoming slugs of their own, which is one of the four bindings upstream's example config
+suggests reversing and which the bundled table records without applying.
+
+Most of the 73 hard-unresolved names are RetroBat **ports and launchers** with no RomM platform
+by design: `cavestory`, `devilutionx`, `eduke32`, `ecwolf`, `gemrb`, `opengoal`, `lowresnx`,
+plus storefronts like `gog`, `epic` and `amazon`. The rest is genuinely missing hardware:
+`chihiro`, `cassettevision`, `gaelco`, `daphne`, `neogeo64`, `vg5k`.
 
 **There is no authoritative source to lean on.** I checked the obvious candidates:
 `platform.libretro_slug` is a libretro DAT name ("Nintendo - Super Nintendo Entertainment
@@ -1232,6 +1258,15 @@ the rollout order below can be derived rather than hand-maintained.
   and the plain 200 is 22 bytes longer than the ranged total, so the two answers are different
   files. Do not start sending a `Range` on the strength of the refusal having gone. See
   section C of [romm-5.3-findings.md](romm-5.3-findings.md).
+- **A ROM with no file behind it gets its own exclusion state, ahead of shape and format.**
+  RomM 5.3.0's physical games (`is_physical`) are one cause and a ROM deleted from the server's
+  disk (`missing_from_fs`) is the other, and upstream treats them alike:
+  `has_file_on_disk` is `not is_physical and not missing_from_fs`. **The second cause needs no
+  floor move**, because `missing_from_fs` is required at 5.2.0 and the download path never read
+  it. The drop is client-side and derives the answer when the server does not send one, so one
+  rule covers both server generations; `GET /api/roms` can filter on `missing` at 5.2.0 and on
+  `physical` only from 5.3.0, which is why the server-side filter is not used yet. See finding 6
+  of [romm-5.3-findings.md](romm-5.3-findings.md).
 - **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
   rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
@@ -3928,14 +3963,14 @@ Paste this into Claude Code from an empty directory:
 > (`Models/RomM/*` for C# DTOs, `Downloads/DownloadQueueController.cs` for the queue),
 > `rommapp/grout` (`cfw/batocera/data/platforms.json` and `cfw/*/data/save_directories.json`
 > for mapping file shapes, `cache/save_sync.go` for the sync state machine), and RomM's
-> `examples/config.batocera-retrobat.yml` as a **seed** for the platform map.
+> `backend/utils/platform_aliases.py` as a **seed** for the platform map.
 >
-> Do not treat that YAML as the answer. RetroBat ships 240 systems and RomM knows 457
-> platform slugs, but the YAML holds only 167 pairs: 91 RetroBat systems (37%) are
-> unmapped, normalization rescues just 16 of them, 18 entries point at folder names
-> RetroBat's own `system/configgen/systems_names.lst` does not contain (`astrocde` vs
-> `astrocade`, `ps` vs `psx`, `segacd` vs `megacd`), and 13 RomM slugs fan out to several
-> folders (`arcade` alone hits ten). `libretro_slug` is a DAT name and `family_slug` is a
+> Do not treat that table as the answer. RetroBat ships 240 systems and RomM knows 459
+> platform slugs, but only 166 RetroBat folders resolve: 74 (31%) are unmapped, normalization
+> rescues just one of them, 44 of the table's 138 keys name folders RetroBat's own
+> `system/configgen/systems_names.lst` does not contain (`atarijaguar` vs `jaguar`, `gc` vs
+> `gamecube`, `megadrivejp` vs `megadrive`), and 10 RomM slugs fan out to several
+> folders (`arcade` alone hits seven). `libretro_slug` is a DAT name and `family_slug` is a
 > manufacturer, so neither can drive folder placement. Resolve in layers instead: user
 > override, then `platform.fs_slug` matched against the live `es_systems.cfg`, then the
 > bundled table, then a normalized-match _suggestion_, then unmapped as a normal state.
