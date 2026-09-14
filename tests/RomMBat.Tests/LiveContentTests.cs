@@ -128,7 +128,9 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     /// <para>
     /// The client is right either way, because it sends no <c>Range</c> at all here. This exists
     /// so that the day a server does make the two agree, it is noticed here and multi-file resume
-    /// can be reconsidered, rather than someone reading the 403's absence as permission.
+    /// can be reconsidered, rather than someone reading the 403's absence as permission. If
+    /// either total is missing the test skips with the reason, because an absent header is not
+    /// evidence either way and a silent pass would read as the tripwire having held.
     /// Single-file is the contrast: same <c>ETag</c>, same total, in
     /// <see cref="A_single_file_rom_resumes_into_a_byte_identical_file"/>.
     /// </para>
@@ -181,9 +183,17 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         var plainLength = plain.Content.Headers.ContentLength;
         var rangedTotal = ranged.Content.Headers.ContentRange?.Length;
 
+        // Without both totals the comparison below cannot rule either way, and a missing header
+        // would otherwise make the assertion pass and read as the tripwire having held.
+        Assert.SkipWhen(
+            plainLength is null || rangedTotal is null,
+            $"'{rom.FsName}' answered without a comparable total: plain Content-Length "
+                + $"{plainLength?.ToString(CultureInfo.InvariantCulture) ?? "absent"}, ranged "
+                + $"Content-Range total {rangedTotal?.ToString(CultureInfo.InvariantCulture) ?? "absent"}.");
+
         // One of these has to differ, or the two responses are one representation and a resume
         // could legitimately splice them together.
-        var sameLength = plainLength is not null && plainLength == rangedTotal;
+        var sameLength = plainLength == rangedTotal;
         var bothCarryAValidator = plain.Headers.ETag is not null && ranged.Headers.ETag is not null;
 
         Assert.False(
