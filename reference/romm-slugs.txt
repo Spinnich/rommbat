@@ -111,6 +111,7 @@ didj
 digiblast
 doja
 donner30
+doom
 dos
 dragon-32-slash-64
 dvd-player
@@ -323,6 +324,7 @@ r-zone
 rca-studio-ii
 research-machines-380z
 roku
+rpg-maker
 sam-coupe
 satellaview
 saturn

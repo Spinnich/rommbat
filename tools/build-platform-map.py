@@ -2,17 +2,22 @@
 """Emit data/retrobat/platforms.json: RomM platform slug to an ordered list of folders.
 
 Layer 3 of the resolution chain in the `platform-mapping` skill, and only layer 3. The
-bundled table is a seed with the known errors taken out, not a curation pass: a folder that
-the seed never mentioned stays unmentioned here, and the normalized-match layer offers it
-for confirmation at runtime instead.
+bundled table is what RomM's own resolver would make of a RetroBat folder name, not a
+curation pass: a folder neither upstream rule reaches stays unmapped here, and the
+normalized-match layer offers it for confirmation at runtime instead.
 
-Three corrections are applied to the seed, all of them derived rather than typed:
+The direction of the walk is the design decision. It iterates RetroBat's own system list
+and asks upstream what slug each folder resolves to, rather than importing upstream's table
+and correcting it. Core principle 3 says RetroBat is the authority on what folders exist,
+and PLATFORM_FS_ALIASES is a Batocera / RetroBat / ES-DE union whose keys include 44 names
+no RetroBat install has. Walking RetroBat's side never sees them.
 
-  * the seed is keyed folder -> slug and this file is slug -> folders, so it is inverted
-  * a seed key naming a folder `systems_names.lst` does not list is either renamed to the
-    folder RetroBat does list, or dropped when RetroBat has no such system at all
-  * `arcade` is marked as needing an explicit per-sync-set choice rather than resolving,
-    because which of its folders is right depends on the romset a file came from
+Two upstream rules, applied in upstream's order (backend/utils/platform_aliases.py,
+`resolve_platform_slug`), minus the config-binding layer, which is a server operator's
+choice and not a fact about either project:
+
+  * identity, when the folder name is itself a UniversalPlatformSlug value
+  * the PLATFORM_FS_ALIASES table, for the names that differ
 
 Ordering inside a slug decides which folder wins when several are present in the target's
 es_systems.cfg. It is derived, so regenerating cannot silently reshuffle a user's targets:
@@ -32,33 +37,6 @@ ROOT = Path(__file__).resolve().parent.parent
 REFERENCE = ROOT / "reference"
 OUTPUT = ROOT / "data" / "retrobat" / "platforms.json"
 
-# Seed keys naming a folder RetroBat does not list, and what to do about each. A rename
-# names the folder systems_names.lst actually carries; None drops the entry because
-# RetroBat has no equivalent system, which is the ports-and-storefronts case in reverse.
-#
-# Every one of these is a folder-name error in the seed, not a slug error, so the RomM side
-# is left exactly as the seed has it.
-STALE_KEYS = {
-    "astrocde": "astrocade",  # renamed upstream in RetroBat
-    "bbc": "bbcmicro",  # renamed upstream in RetroBat
-    "ps": None,  # duplicate: the seed already maps psx -> psx
-    "segacd": None,  # duplicate: the seed already maps megacd -> segacd
-    "msu-md": None,  # duplicate: the seed already maps megadrive-msu -> genesis
-    "ps3-psn": None,  # duplicate: the seed already maps ps3 -> ps3
-    "wiiware": None,  # duplicate: the seed already maps wii -> wii
-    "namco22": None,  # RetroBat has namco2x6 and namco3xx, neither is System 22
-    "commander-x16": None,  # no RetroBat system
-    "macintosh": None,  # no RetroBat system
-    "pico": None,  # RetroBat's pico8 is PICO-8, not the Sega Pico
-    "plugnplay": None,  # no RetroBat system
-    "ps5": None,  # no RetroBat system
-    "pspminis": None,  # no RetroBat system
-    "psvr": None,  # no RetroBat system
-    "socrates": None,  # no RetroBat system
-    "videopacplus": None,  # no RetroBat system
-    "vis": None,  # no RetroBat system
-}
-
 # Slugs that must never resolve on their own. Arcade ROM names are romset-versioned, so the
 # right folder depends on where the file came from and cannot be read off the slug.
 REQUIRES_EXPLICIT_CHOICE = {
@@ -68,42 +46,54 @@ REQUIRES_EXPLICIT_CHOICE = {
     ),
 }
 
+# The four bindings rommapp/romm's own examples/config.batocera-retrobat.yml suggests for a
+# Batocera or RetroBat install, recorded rather than applied. They are the folders upstream
+# thinks a server operator should bind away from the default resolution below.
+#
+# Not applied, because they are a statement about one server's scan and this table is
+# consulted only when the server's own answer has already failed to match. A library scanned
+# with that config reports platform.fs_slug as the folder name, which layer 2 matches
+# against the live es_systems.cfg and which outranks this file.
+UPSTREAM_SUGGESTED_BINDINGS = {
+    "atari800": "atari8bit",
+    "model2": "arcade",
+    "model3": "arcade",
+    "pico": "sega-pico",
+}
 
-def read_seed(path: Path) -> dict[str, str]:
-    """Parse system.platforms out of the seed YAML without a YAML dependency.
 
-    The block is a flat list of `folder: slug` pairs, so it is scanned by indentation
-    rather than parsed. Anything outside that block is ignored, which is what keeps
-    scan.gamelist.export from being read as a platform.
+def read_slugs(path: Path) -> dict[str, str]:
+    """Parse UniversalPlatformSlug into member name -> slug value.
+
+    Read as text rather than imported: the module imports RomM's config manager under
+    TYPE_CHECKING and is not runnable outside that tree. The names are what the alias table
+    is written in, which is why the values alone are not enough.
     """
-    mapping: dict[str, str] = {}
-    in_system = False
-    in_platforms = False
+    members = dict(re.findall(r'^\s{4}([A-Z0-9_]+)\s*=\s*"([^"]+)"', path.read_text(encoding="utf-8"), re.M))
+    if not members:
+        sys.exit(f"No UniversalPlatformSlug members found in {path.name}. Re-run reference/refresh.sh.")
+    return members
 
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
 
-        indent = len(line) - len(line.lstrip())
+def read_aliases(path: Path, members: dict[str, str]) -> dict[str, str]:
+    """Parse PLATFORM_FS_ALIASES into folder name -> slug value."""
+    block = re.search(r"PLATFORM_FS_ALIASES.*?=\s*\{(.*?)\n\}", path.read_text(encoding="utf-8"), re.S)
+    if block is None:
+        sys.exit(f"No PLATFORM_FS_ALIASES table found in {path.name}. Re-run reference/refresh.sh.")
 
-        if indent == 0:
-            in_system = line.startswith("system:")
-            in_platforms = False
-            continue
+    pairs = re.findall(r'^\s{4}"([^"]+)":\s*UPS\.([A-Z0-9_]+),', block.group(1), re.M)
+    if not pairs:
+        sys.exit(f"PLATFORM_FS_ALIASES in {path.name} parsed to nothing. Its shape has changed.")
 
-        if not in_system:
-            continue
+    unknown = sorted({name for _folder, name in pairs if name not in members})
+    if unknown:
+        sys.exit(
+            "PLATFORM_FS_ALIASES names slugs the enum does not carry: "
+            + ", ".join(unknown)
+            + "\nThe two vendored files are out of step. Re-run reference/refresh.sh."
+        )
 
-        if indent == 2:
-            in_platforms = line.strip() == "platforms:"
-            continue
-
-        if in_platforms and indent == 4:
-            match = re.fullmatch(r"\s{4}([A-Za-z0-9_.\-]+):\s*([A-Za-z0-9_.\-]+)\s*", line)
-            if match:
-                mapping[match.group(1)] = match.group(2)
-
-    return mapping
+    return {folder: members[name] for folder, name in pairs}
 
 
 def order_key(slug: str, folder: str) -> tuple[int, int, str]:
@@ -116,38 +106,30 @@ def build() -> dict[str, object]:
     systems = [s for s in systems if s]
     known = set(systems)
 
-    seed = read_seed(REFERENCE / "config.batocera-retrobat.yml")
+    members = read_slugs(REFERENCE / "romm-platform_slugs.py")
+    aliases = read_aliases(REFERENCE / "romm-platform_aliases.py", members)
+    values = set(members.values())
 
-    stale = sorted(set(seed) - known)
-    unexpected = sorted(set(stale) - set(STALE_KEYS))
-    if unexpected:
-        sys.exit(
-            "Seed keys name folders RetroBat lacks and this script has no ruling for them: "
-            + ", ".join(unexpected)
-            + "\nAdd each to STALE_KEYS with a rename or an explicit drop, then rerun."
-        )
+    resolved: dict[str, str] = {}
+    by_identity = 0
+    by_alias = 0
 
-    corrections: list[dict[str, str]] = []
-    corrected: dict[str, str] = {}
+    for folder in sorted(known):
+        if folder in values:
+            resolved[folder] = folder
+            by_identity += 1
+        elif folder in aliases:
+            resolved[folder] = aliases[folder]
+            by_alias += 1
 
-    for folder, slug in sorted(seed.items()):
-        if folder in known:
-            corrected[folder] = slug
-            continue
-
-        replacement = STALE_KEYS[folder]
-        if replacement is None:
-            corrections.append({"seed_folder": folder, "slug": slug, "action": "dropped"})
-            continue
-
-        if replacement not in known:
-            sys.exit(f"Rename target '{replacement}' for seed key '{folder}' is not a RetroBat system.")
-
-        corrected[replacement] = slug
-        corrections.append({"seed_folder": folder, "slug": slug, "action": "renamed", "folder": replacement})
+    # Every value here came out of the enum or out of a table keyed on it, so this can only
+    # fail if one of the two parsers above has started reading the wrong thing.
+    invalid = sorted({slug for slug in resolved.values() if slug not in values})
+    if invalid:
+        sys.exit("Resolved to slugs RomM does not know: " + ", ".join(invalid))
 
     platforms: dict[str, list[str]] = {}
-    for folder, slug in corrected.items():
+    for folder, slug in resolved.items():
         platforms.setdefault(slug, []).append(folder)
 
     for slug, folders in platforms.items():
@@ -162,12 +144,18 @@ def build() -> dict[str, object]:
             "es_systems.cfg <path> basenames, which are not the same vocabulary as <name>. "
             "Generated by tools/build-platform-map.py; do not hand-edit."
         ),
-        "_source": "rommapp/romm examples/config.batocera-retrobat.yml, corrected against RetroBat systems_names.lst",
+        "_source": (
+            "RetroBat systems_names.lst, each folder resolved by rommapp/romm "
+            "backend/utils/platform_aliases.py (identity, then PLATFORM_FS_ALIASES)"
+        ),
         "_retrobat_systems": len(known),
-        "_seed_pairs": len(seed),
+        "_resolved_folders": len(resolved),
+        "_resolved_by_identity": by_identity,
+        "_resolved_by_alias": by_alias,
+        "_unresolved_folders": len(known) - len(resolved),
         "_ordering": "exact slug match, then shortest folder name, then alphabetical",
         "_requires_explicit_choice": REQUIRES_EXPLICIT_CHOICE,
-        "_corrections": corrections,
+        "_upstream_suggested_bindings": UPSTREAM_SUGGESTED_BINDINGS,
         "platforms": dict(sorted(platforms.items())),
     }
 
@@ -190,12 +178,10 @@ def main() -> int:
     platforms = document["platforms"]
     assert isinstance(platforms, dict)
     folders = sum(len(v) for v in platforms.values())
-    corrections = document["_corrections"]
-    assert isinstance(corrections, list)
-    renamed = sum(1 for c in corrections if c["action"] == "renamed")
     print(
         f"{OUTPUT.relative_to(ROOT)}: {len(platforms)} slugs, {folders} folders, "
-        f"{renamed} renamed and {len(corrections) - renamed} dropped from the seed."
+        f"{document['_resolved_by_identity']} by identity and {document['_resolved_by_alias']} by alias, "
+        f"{document['_unresolved_folders']} RetroBat folders unresolved."
     )
     return 0
 

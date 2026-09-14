@@ -8,10 +8,10 @@ namespace RomMBat.Core.Mapping;
 /// <c>data/retrobat/platforms.json</c>: RomM slug to an ordered list of RetroBat folders.
 /// </summary>
 /// <remarks>
-/// Layer 3 of the resolution chain and nothing more. It is a seed with the seed's known
-/// errors taken out, not an authority: a user override and a <c>fs_slug</c> match against
-/// the live <c>es_systems.cfg</c> both outrank it, and where a slug names several folders
-/// the first one the install actually has wins.
+/// Layer 3 of the resolution chain and nothing more. It is what RomM's own resolver makes
+/// of each RetroBat folder name, not an authority: a user override and a <c>fs_slug</c>
+/// match against the live <c>es_systems.cfg</c> both outrank it, and where a slug names
+/// several folders the first one the install actually has wins.
 /// <para>
 /// Embedded rather than copied, for the same reason the migrations are: a single-file
 /// publish carries it and nothing has to resolve a path to find it.

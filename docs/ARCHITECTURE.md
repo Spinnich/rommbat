@@ -453,12 +453,12 @@ a drift by updating the expected number.
 
 **`data/retrobat/`** holds tables RomMBat actually ships and reads at runtime:
 
-| File                    | Shape                                                | Derived from                                                                             |
-| ----------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `platforms.json`        | RomM slug to an **ordered list** of RetroBat folders | Seeded from RomM's `config.batocera-retrobat.yml`, corrected against `systems_names.lst` |
-| `save_directories.json` | **RetroBat system** to emulator save subdirectories  | M0 experiment 2, in Grout's shape                                                        |
-| `save_shapes.json`      | RetroBat system to save class A/B/C/D                | M0 experiment 2                                                                          |
-| `bios.json`             | RetroBat system to the firmware it requires          | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                   |
+| File                    | Shape                                                | Derived from                                                                            |
+| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `platforms.json`        | RomM slug to an **ordered list** of RetroBat folders | `systems_names.lst`, each folder resolved by RomM's `backend/utils/platform_aliases.py` |
+| `save_directories.json` | **RetroBat system** to emulator save subdirectories  | M0 experiment 2, in Grout's shape                                                       |
+| `save_shapes.json`      | RetroBat system to save class A/B/C/D                | M0 experiment 2                                                                         |
+| `bios.json`             | RetroBat system to the firmware it requires          | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                  |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
@@ -485,7 +485,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Fourteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Fifteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -494,7 +494,10 @@ id list smuggled into another scope's column, and adds no column: for that scope
 the definition and lives in `scope_value` as a filter's JSON already does. 015 widens
 `unsyncable.reason_kind` to admit `'no_state_declaration'`, the first reason there that is
 about the state half rather than a save shape: an emulator with no `es_savestates.cfg` entry
-writes save states anyway, into a directory nothing reads. The
+writes save states anyway, into a directory nothing reads. 016 widens
+`sync_set_member.state` to admit `'excluded_no_file_on_disk'`, for a ROM RomM has a row for and
+no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from the server's
+disk is the other, and the second has been reachable since the 5.2.0 floor. The
 schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 

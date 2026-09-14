@@ -4,12 +4,12 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 [reference/](../reference/), which vendors upstream files purely so the numbers in
 [docs/PLAN.md](../docs/PLAN.md) can be re-derived offline.
 
-| File                             | Shape                                                        | Derived from                                                                 | Arrives in |
-| -------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- | ---------- |
-| `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | RomM's `config.batocera-retrobat.yml`, corrected against `systems_names.lst` | M2         |
-| `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | M0 probe 2, generated from a real install                                    | M6         |
-| `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                    | M6         |
-| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                    | M5         |
+| File                             | Shape                                                        | Derived from                                                                | Arrives in |
+| -------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------- |
+| `retrobat/platforms.json`        | RomM slug to an **ordered list** of RetroBat folders         | `systems_names.lst`, resolved by RomM's `backend/utils/platform_aliases.py` | M2         |
+| `retrobat/save_directories.json` | **RetroBat system** to save subdirectories, in Grout's shape | M0 probe 2, generated from a real install                                   | M6         |
+| `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                   | M6         |
+| `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   | M5         |
 
 ## `platforms.json` is generated, and is only layer 3 of five
 
