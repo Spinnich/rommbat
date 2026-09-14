@@ -537,6 +537,104 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_physical_game_is_excluded_because_there_is_no_file_to_download()
+    {
+        using var stub = new StubRomMServer { ServerVersion = "5.3.0-alpha.2" };
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Boxed", "Boxed.sfc", "sfc", 1024)
+        {
+            IsPhysical = true,
+        });
+        stub.Library.Add(new StubRom(2, 1, "snes", "snes", "Digital", "Digital.sfc", "sfc", 1024));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var systems = Fixtures.Synthesize(("snes", ".sfc .smc"));
+        var resolver = new SetResolver(systems, new PlatformResolver(systems));
+
+        using var connection = Connect(stub);
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
+            DateTimeOffset.UtcNow);
+
+        var resolution = await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set)),
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, Assert.Single(resolution.Members).RomId);
+        Assert.Equal(1, resolution.NoFileOnDisk);
+
+        var excluded = Assert.Single(resolution.Excluded);
+        Assert.Equal(1, excluded.RomId);
+        Assert.Equal(MemberState.ExcludedNoFileOnDisk, excluded.State);
+
+        // Not a format problem and not an unmapped platform, both of which send someone to
+        // change something on this machine when the row is exactly as its owner intended.
+        Assert.Contains("no file on disk", resolution.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("format not supported", resolution.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_rom_missing_from_the_servers_filesystem_is_excluded_on_a_floor_server_too()
+    {
+        // Left at the default 5.2.0, where neither is_physical nor has_file_on_disk exists and
+        // the client has to derive the answer from missing_from_fs. This is the half of the
+        // hazard that needs no version move to reach someone.
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Deleted", "Deleted.sfc", "sfc", 1024)
+        {
+            MissingFromFs = true,
+        });
+
+        using var store = LocalStore.Open(_tree.Install());
+        var systems = Fixtures.Synthesize(("snes", ".sfc .smc"));
+        var resolver = new SetResolver(systems, new PlatformResolver(systems));
+
+        using var connection = Connect(stub);
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
+            DateTimeOffset.UtcNow);
+
+        var resolution = await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set)),
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Empty(resolution.Members);
+        Assert.Equal(1, resolution.NoFileOnDisk);
+        Assert.Equal(MemberState.ExcludedNoFileOnDisk, Assert.Single(resolution.Excluded).State);
+    }
+
+    [Fact]
+    public async Task A_floor_server_sending_neither_new_field_still_syncs_its_whole_library()
+    {
+        // The failure this guards is the inverse of the two above: reading an absent
+        // has_file_on_disk as false would exclude every row a 5.2.0 server sends.
+        using var stub = Library(3);
+
+        using var store = LocalStore.Open(_tree.Install());
+        var systems = Fixtures.Synthesize(("snes", ".sfc .smc"));
+        var resolver = new SetResolver(systems, new PlatformResolver(systems));
+
+        using var connection = Connect(stub);
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
+            DateTimeOffset.UtcNow);
+
+        var resolution = await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set)),
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, resolution.Members.Count);
+        Assert.Equal(0, resolution.NoFileOnDisk);
+    }
+
+    [Fact]
     public async Task A_coarse_filesystem_timestamp_does_not_make_a_present_file_look_changed()
     {
         using var stub = Library(1);

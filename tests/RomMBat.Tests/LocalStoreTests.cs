@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using RomM.Client.Catalog;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
@@ -455,6 +456,119 @@ public class LocalStoreTests
         Assert.Equal(UnsyncableReason.NotInThisVersion, row.Reason);
         Assert.Equal(5, row.FileCount);
         Assert.Equal("rpcs3 holds directory saves.", row.Detail);
+    }
+
+    [Fact]
+    public void A_v15_membership_survives_the_016_rebuild_with_its_position_and_shape()
+    {
+        // 016 widens the state CHECK for excluded_no_file_on_disk, and SQLite cannot widen one
+        // in place, so it copies sync_set_member and drops the old one. That table holds real
+        // membership rather than a report: losing a position changes what eviction takes first,
+        // and losing has_multiple_files makes the next download lie to the client about the
+        // ROM's shape. Both are carried here with a row actually in the table.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        string[] upToV15 =
+            [
+                "001-initial.sql",
+                "002-sync-sets.sql",
+                "003-content.sql",
+                "004-metadata-and-media.sql",
+                "005-firmware.sql",
+                "006-saves.sql",
+                "007-states-and-conflicts.sql",
+                "008-save-units-and-bindings.sql",
+                "009-multi-file-flag.sql",
+                "010-save-conversions.sql",
+                "011-unsyncable-managed-elsewhere.sql",
+                "012-pending-config.sql",
+                "013-hash-only-what-is-compared.sql",
+                "014-picked-scope.sql",
+                "015-unsyncable-no-state-declaration.sql",
+            ];
+
+        using (var seed = new SqliteConnection($"Data Source={path}"))
+        {
+            seed.Open();
+
+            foreach (var migration in upToV15)
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO sync_set (name, scope_kind, scope_value, created_at, updated_at)
+                VALUES ('snes', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_set_member (
+                  sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
+                  size_bytes, md5_hash, sha1_hash, display_name, sort_key, position,
+                  resolved_at, has_multiple_files
+                )
+                VALUES
+                  (1, 42, 'member', 'snes', 'snes', 'Gradius 3 (USA).sfc', 'sfc', 2048,
+                   'fab05f70b7e480d9dee494f65b95ab52', NULL, 'Gradius III', 'Gradius III', 7,
+                   '2026-01-01T00:00:00Z', 0),
+                  (1, 43, 'excluded_multi_file', 'snes', 'snes', 'Disc Set', NULL, 700000,
+                   NULL, NULL, 'Disc Set', 'Disc Set', NULL, '2026-01-01T00:00:00Z', 1);
+
+                PRAGMA user_version = 15;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var members = store.SyncSets.Members(1, state: null);
+        Assert.Equal(2, members.Count);
+
+        var kept = Assert.Single(members, member => member.RomId == 42);
+        Assert.Equal(MemberState.Member, kept.State);
+        Assert.Equal(7, kept.Position);
+        Assert.Equal("fab05f70b7e480d9dee494f65b95ab52", kept.Md5Hash);
+        Assert.False(kept.IsMultiFile);
+
+        var excluded = Assert.Single(members, member => member.RomId == 43);
+        Assert.Equal(MemberState.ExcludedMultiFile, excluded.State);
+        Assert.True(excluded.IsMultiFile);
+    }
+
+    [Fact]
+    public void The_widened_state_check_accepts_the_new_exclusion_and_still_refuses_nonsense()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "snes", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
+            DateTimeOffset.UtcNow);
+
+        store.SyncSets.ReplaceMembers(
+            set.Id,
+            [
+                new SyncSetMember
+                {
+                    RomId = 9,
+                    State = MemberState.ExcludedNoFileOnDisk,
+                    Folder = "snes",
+                    PlatformSlug = "snes",
+                    FsName = "Boxed.sfc",
+                    FsExtension = "sfc",
+                    DisplayName = "Boxed",
+                    SortKey = "Boxed",
+                },
+            ],
+            "1 skipped, RomM has no file on disk for them",
+            DateTimeOffset.UtcNow);
+
+        var stored = Assert.Single(store.SyncSets.Members(set.Id, state: null));
+        Assert.Equal(MemberState.ExcludedNoFileOnDisk, stored.State);
     }
 
     [Fact]

@@ -31,12 +31,24 @@ public enum MemberState
     /// </summary>
     /// <remarks>
     /// Its own state rather than <see cref="ExcludedExtension"/>, because the format is not
-    /// what is wrong with it: RomM serves it as a zip built on demand, any <c>Range</c> on
-    /// that download is refused 403 by nginx, and the ROM-level hashes describe neither the
-    /// zip nor its members. Telling someone their <c>.bin</c>/<c>.cue</c> set is an
-    /// unsupported format would send them to fix the wrong thing.
+    /// what is wrong with it: RomM serves it as a zip built on demand, that download cannot be
+    /// resumed by any header, and the ROM-level hashes describe neither the zip nor its
+    /// members. Telling someone their <c>.bin</c>/<c>.cue</c> set is an unsupported format
+    /// would send them to fix the wrong thing.
     /// </remarks>
     ExcludedMultiFile,
+
+    /// <summary>
+    /// RomM has the row but no file behind it, so there is nothing to download.
+    /// </summary>
+    /// <remarks>
+    /// Two causes, and the user-facing wording covers both because the server does: a physical
+    /// game (5.3.0's <c>POST /roms/physical</c>) never had a file, and a ROM deleted from the
+    /// server's disk no longer does. Its own state rather than <see cref="ExcludedUnmapped"/>
+    /// or <see cref="ExcludedExtension"/>, because nothing on this machine is wrong with it and
+    /// both of those send someone to change something here.
+    /// </remarks>
+    ExcludedNoFileOnDisk,
 
     /// <summary>
     /// The target volume cannot hold a file this large, which today means over 4 GB on FAT32.
@@ -142,9 +154,10 @@ public sealed record SyncSetMember
     /// <b>Carried so <c>ContentSync</c> reads it rather than assuming it.</b> It hardcoded
     /// false, which is true of everything that reaches a plan today, because
     /// <c>SetResolver</c> excludes a multi-file ROM before the extension check. That left the
-    /// client's own multi-file guard unreachable from the shipped path: a ranged request is
-    /// refused for one of these and the nginx 403 is worded, and both were exercised only by
-    /// tests, so re-admitting multi-file ROMs would have leaned on a guard nobody had run.
+    /// client's own multi-file guard unreachable from the shipped path: the header is
+    /// suppressed for one of these and the refusal a 5.2.0 server answers with is worded, and
+    /// both were exercised only by tests, so re-admitting multi-file ROMs would have leaned on
+    /// a guard nobody had run.
     /// <para>
     /// Written for every member and not only for the excluded ones. A flag that is only ever
     /// set on rows that never reach <c>ContentSync</c> is the same assumption with a column
@@ -760,6 +773,7 @@ public sealed class SyncSetStore
         MemberState.ExcludedExtension => "excluded_extension",
         MemberState.ExcludedUnmapped => "excluded_unmapped",
         MemberState.ExcludedMultiFile => "excluded_multi_file",
+        MemberState.ExcludedNoFileOnDisk => "excluded_no_file_on_disk",
         MemberState.ExcludedFilesystemLimit => "excluded_filesystem_limit",
         MemberState.ExcludedOverCount => "excluded_over_count",
         MemberState.ExcludedOverBytes => "excluded_over_bytes",
@@ -772,6 +786,7 @@ public sealed class SyncSetStore
         "excluded_extension" => MemberState.ExcludedExtension,
         "excluded_unmapped" => MemberState.ExcludedUnmapped,
         "excluded_multi_file" => MemberState.ExcludedMultiFile,
+        "excluded_no_file_on_disk" => MemberState.ExcludedNoFileOnDisk,
         "excluded_filesystem_limit" => MemberState.ExcludedFilesystemLimit,
         "excluded_over_count" => MemberState.ExcludedOverCount,
         "excluded_over_bytes" => MemberState.ExcludedOverBytes,

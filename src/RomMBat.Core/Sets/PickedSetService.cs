@@ -212,6 +212,15 @@ public sealed class PickedSetService
                     + "nowhere to go.");
         }
 
+        if (!row.HasFileOnDisk)
+        {
+            return new PickOutcome(
+                set,
+                null,
+                "RomM has no file on disk for this game, so there is nothing to download. A "
+                    + "physical copy never had one, and a missing one has to be restored on the server.");
+        }
+
         if (row.HasMultipleFiles)
         {
             return new PickOutcome(

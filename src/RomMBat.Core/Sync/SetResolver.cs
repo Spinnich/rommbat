@@ -104,6 +104,9 @@ public sealed record SetResolution
     /// <summary>Games RomM holds as several files, which v1 does not sync.</summary>
     public int MultiFile { get; init; }
 
+    /// <summary>Games RomM has a row for but no file behind, so nothing can be downloaded.</summary>
+    public int NoFileOnDisk { get; init; }
+
     /// <summary>Games the target filesystem cannot hold, which today means over 4 GB on FAT32.</summary>
     public int TooLargeForFilesystem { get; init; }
 
@@ -246,11 +249,13 @@ public sealed class SetResolver
         var unmappedCounts = tally.UnmappedPlatforms;
         var scanned = 0;
         var multiFile = 0;
+        var noFileOnDisk = 0;
         var tooLarge = 0;
         RomMResponse<RomPage>? failure = null;
 
         CarryAll(carried, selector, tally);
         multiFile = tally.MultiFile;
+        noFileOnDisk = tally.NoFileOnDisk;
         tooLarge = tally.TooLarge;
 
         while (!pager.IsComplete)
@@ -318,6 +323,7 @@ public sealed class SetResolver
             }
 
             multiFile = tally.MultiFile;
+            noFileOnDisk = tally.NoFileOnDisk;
             tooLarge = tally.TooLarge;
 
             // Per page rather than per row. A row is a few microseconds and a page is seconds,
@@ -351,6 +357,7 @@ public sealed class SetResolver
             ExcludedExtensions = extensionCounts,
             UnmappedPlatforms = unmappedCounts,
             MultiFile = multiFile,
+            NoFileOnDisk = noFileOnDisk,
             TooLargeForFilesystem = tooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
             Metadata = selector.MetadataFor(members),
@@ -398,6 +405,14 @@ public sealed class SetResolver
         if (resolution.MultiFile > 0)
         {
             parts.Add($"{resolution.MultiFile} skipped, held as several files which this version cannot sync yet");
+        }
+
+        // Phrased as the server having nothing rather than as the game being unavailable: a
+        // physical game is deliberately in the library and a missing file is the owner's to fix,
+        // and neither is something to change on this machine.
+        if (resolution.NoFileOnDisk > 0)
+        {
+            parts.Add($"{resolution.NoFileOnDisk} skipped, RomM has no file on disk for them");
         }
 
         if (resolution.TooLargeForFilesystem > 0)
@@ -474,6 +489,7 @@ public sealed class SetResolver
                 break;
 
             case MemberState.ExcludedMultiFile:
+            case MemberState.ExcludedNoFileOnDisk:
             case MemberState.ExcludedFilesystemLimit:
                 excluded.Add(row);
                 break;
@@ -606,6 +622,7 @@ public sealed class SetResolver
             ExcludedExtensions = tally.ExcludedExtensions,
             UnmappedPlatforms = tally.UnmappedPlatforms,
             MultiFile = tally.MultiFile,
+            NoFileOnDisk = tally.NoFileOnDisk,
             TooLargeForFilesystem = tally.TooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
             Metadata = selector.MetadataFor(members),
@@ -643,6 +660,8 @@ public sealed class SetResolver
 
         public int MultiFile { get; set; }
 
+        public int NoFileOnDisk { get; set; }
+
         public int TooLarge { get; set; }
     }
 
@@ -655,6 +674,9 @@ public sealed class SetResolver
             {
                 case MemberState.ExcludedMultiFile:
                     tally.MultiFile++;
+                    break;
+                case MemberState.ExcludedNoFileOnDisk:
+                    tally.NoFileOnDisk++;
                     break;
                 case MemberState.ExcludedFilesystemLimit:
                     tally.TooLarge++;
@@ -692,6 +714,17 @@ public sealed class SetResolver
         {
             Count(tally.UnmappedPlatforms, row.PlatformSlug);
             tally.Excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
+            return null;
+        }
+
+        // Checked before the shape and the extension, because neither is what is wrong: there
+        // is no file to have a shape or an extension. RomM 5.3.0's physical games are one cause
+        // and a ROM deleted from the server's disk is the other, and the second has been
+        // reachable since 5.2.0.
+        if (!row.HasFileOnDisk)
+        {
+            tally.NoFileOnDisk++;
+            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedNoFileOnDisk, resolvedAt));
             return null;
         }
 
