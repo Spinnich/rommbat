@@ -3191,7 +3191,8 @@ which overloads one column with two meanings, or an unmanaged download `Eviction
 be taught to ignore, which means storing "this orphan is deliberate" and is a set by another
 name with none of a set's machinery.
 
-**`GET /api/roms` has no id-list parameter**, verified against the pinned `romm-5.2.0.json`:
+**`GET /api/roms` has no id-list parameter**, verified against the pinned
+`romm-5.3.0-alpha.2.json`:
 its scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
 `smart_collection_id`. That is a property of the scope rather than a defect, so
 `CatalogQuery.ToQueryString` **refuses** a picked scope instead of falling through to a query

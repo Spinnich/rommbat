@@ -1,19 +1,19 @@
 # The pinned RomM schema
 
-`romm-5.2.0.json` is a byte-exact copy of `GET /openapi.json` (served at the root, not
-under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.2.0`. The generated DTOs
+`romm-5.3.0-alpha.2.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
+not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0-alpha.2`. The generated DTOs
 in [`../Generated/RomMApiSchema.g.cs`](../Generated/RomMApiSchema.g.cs) come from it and
 are committed, so an upstream deploy cannot change the contract mid-session.
 
 |                |                                                                    |
 | -------------- | ------------------------------------------------------------------ |
-| RomM version   | 5.2.0, the minimum RomMBat supports                                |
-| Source         | a self-hosted 5.2.0 instance, host redacted                        |
-| Pulled         | 2026-08-25                                                         |
-| `info.version` | 5.2.0                                                              |
-| sha256         | `d7e54d0f73d0dc65d88c13061606edf48c2592fc9b73d804c1438859dcf80d1d` |
-| Paths          | 171                                                                |
-| Schemas        | 211                                                                |
+| RomM version   | 5.3.0-alpha.2, the minimum RomMBat supports                        |
+| Source         | a self-hosted 5.3.0-alpha.2 instance, host redacted                |
+| Pulled         | 2026-09-14                                                         |
+| `info.version` | 5.3.0-alpha.2                                                      |
+| sha256         | `44cdd228a2cc4300ee532b4a13ca696d7f3aefe3b2720f8e90f3e67f118ac839` |
+| Paths          | 199                                                                |
+| Schemas        | 272                                                                |
 
 **The pin is always the minimum version RomMBat declares support for**, so the generated DTOs
 describe the oldest server the client claims to work with. Since RomMBat tracks the newest
@@ -21,12 +21,18 @@ stable, that is also the newest release: moving the floor and moving the pin are
 
 **Prefer the public demo at `demo.romm.app` as the source**, because anyone can reproduce the
 file from it without an account, a token or a hostname that would have to be scrubbed. The
-5.1.0 pin came from there. The 5.2.0 pin did not: the demo still reported 5.1.0 on 2026-08-25,
-five days after 5.2.0 shipped, so the file was pulled from a self-hosted 5.2.0 instead. The
-sha256 above is how that is checked rather than trusted; a `/openapi.json` from any stock
-5.2.0 hashes to it. The file was searched for the source hostname before committing and
-contains none. When the demo catches up to the pinned version, re-pull from it and confirm the
-hash is unchanged.
+5.1.0 pin came from there. Neither the 5.2.0 pin nor this one did: the demo reported 5.1.0 on
+2026-08-25 and 5.2.0 on 2026-09-14, so each was pulled from a self-hosted instance of the
+pinned version instead. A prerelease will not reach the demo at all until it ships as stable.
+
+The sha256 above is how the capture is checked rather than trusted; a `/openapi.json` from any
+stock 5.3.0-alpha.2 hashes to it. That holds because `backend/main.py` registers every router
+unconditionally at this tag, so the served schema is decided by the version and not by the
+instance's configuration. **`SYSTEM.VERSION` was read at capture time rather than assumed**: a
+live library can be upgraded underneath the work, which is how upstream's own tag moved from
+`alpha.1` to `alpha.2` eight hours after publication. The file was searched for the source
+hostname before committing and contains none. When the demo catches up to the pinned version,
+re-pull from it and confirm the hash is unchanged.
 
 Development and testing run against the instances in
 [DEVELOPER_SETUP.md](../../../DEVELOPER_SETUP.md) section 3; only the pin is discussed here.
@@ -51,6 +57,15 @@ was additive except for one thing the DTO diff shows as a single character:
 `with_rom_id_index`; `CatalogQuery` always sends `with_total=true` and a test asserts it, so
 `RomPage.Total` stays a non-nullable `int`. A pin move that silently turned a field nullable
 under code that assumes otherwise would throw at deserialisation, not degrade.
+
+The 5.2.0 to 5.3.0-alpha.2 move adds 32 operations and removes none, and retypes no member of
+any retained class. Two members leave: `ClaimSessionRequest`, renamed to
+`ClaimStreamingSessionRequest`, and `ConfigResponse.DEFAULT_EXCLUDED_DIRS`, which splits into
+`DEFAULT_EXCLUDED_MULTI_FILE_DIRS` and `DEFAULT_EXCLUDED_PLATFORM_DIRS`. No hand-written code
+names either, so the move is additive where this client reads. `SimpleRomSchema` and
+`DetailedRomSchema` each gain fourteen properties, of which `title_id`, `save_target`,
+`save_target_layout`, `has_file_on_disk` and `is_physical` are the ones this repo has open
+questions against.
 
 ## Why the generated file disables four doc-comment warnings
 
