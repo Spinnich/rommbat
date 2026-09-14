@@ -112,6 +112,8 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                 "franchises" => response.Value!.Franchises.Count,
                 "collections" => response.Value!.Collections.Count,
                 "companies" => response.Value!.Companies.Count,
+                "developers" => response.Value!.Developers.Count,
+                "publishers" => response.Value!.Publishers.Count,
                 "game_modes" => response.Value!.GameModes.Count,
                 "age_ratings" => response.Value!.AgeRatings.Count,
                 "player_counts" => response.Value!.PlayerCounts.Count,

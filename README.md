@@ -70,7 +70,7 @@ and through the companion-app protocol RomM already ships.
 |          | Minimum     | Notes                                                            |
 | -------- | ----------- | ---------------------------------------------------------------- |
 | RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
-| RomM     | 5.2.0       | Checked from `GET /api/heartbeat` at startup                     |
+| RomM     | 5.3.0-alpha.2 | Checked from `GET /api/heartbeat` at startup                   |
 | Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
 | .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
 
@@ -459,9 +459,9 @@ folder for, so it is out of scope rather than unscheduled.
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
-| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
-| unreleased | 5.2.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.2.0** `/openapi.json` |
+| RomMBat    | RomM tested   | RetroBat tested    | Notes                                                                       |
+| ---------- | ------------- | ------------------ | ---------------------------------------------------------------------------- |
+| unreleased | 5.3.0-alpha.2 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-alpha.2** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility

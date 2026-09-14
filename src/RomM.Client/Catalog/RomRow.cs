@@ -266,8 +266,9 @@ public sealed record RomRow
 /// <b>Nothing here means what its name suggests without a conversion.</b>
 /// <see cref="FirstReleaseDate"/> is milliseconds, not seconds; <see cref="AverageRating"/>
 /// is 0-100, not 0-1; <see cref="Companies"/> merges developer and publisher into one
-/// alphabetically sorted array, so neither role survives. Only <see cref="PlayerCount"/> is
-/// already in EmulationStation's form. <c>RomMBat.Core.Metadata.GameMetadata</c> owns every
+/// alphabetically sorted array, so neither role survives, and <see cref="Developers"/> and
+/// <see cref="Publishers"/> recover them only on a row scanned since 5.3.0. Only
+/// <see cref="PlayerCount"/> is already in EmulationStation's form. <c>RomMBat.Core.Metadata.GameMetadata</c> owns every
 /// one of those conversions; nothing else should do them inline.
 /// </remarks>
 public sealed record RomMetadata
@@ -287,6 +288,22 @@ public sealed record RomMetadata
     /// </remarks>
     [JsonPropertyName("companies")]
     public IReadOnlyList<string> Companies { get; init; } = [];
+
+    /// <summary>Companies credited as developer, split out of <see cref="Companies"/> at 5.3.0.</summary>
+    /// <remarks>
+    /// Empty on a row whose metadata predates the split, because the server populates it on
+    /// scan rather than backfilling it, so one library carries both shapes at once: measured
+    /// on a live 5.3.0-alpha.2 instance, 398 of 400 rows on the one platform rescanned since
+    /// the upgrade and 0 of 300 on each of nine that were not. Where it is present it holds
+    /// exactly one name, and it disagrees with <see cref="Companies"/>[0] on 41% of rows,
+    /// which is what indexing the sorted array costs.
+    /// </remarks>
+    [JsonPropertyName("developers")]
+    public IReadOnlyList<string> Developers { get; init; } = [];
+
+    /// <summary>Companies credited as publisher. See <see cref="Developers"/>.</summary>
+    [JsonPropertyName("publishers")]
+    public IReadOnlyList<string> Publishers { get; init; } = [];
 
     /// <summary>Already <c>1</c>, <c>1-2</c>, <c>1-4</c>, which is what <c>&lt;players&gt;</c> wants.</summary>
     [JsonPropertyName("player_count")]
@@ -354,6 +371,12 @@ public sealed record RomFilterValues
 
     [JsonPropertyName("companies")]
     public IReadOnlyList<string> Companies { get; init; } = [];
+
+    [JsonPropertyName("developers")]
+    public IReadOnlyList<string> Developers { get; init; } = [];
+
+    [JsonPropertyName("publishers")]
+    public IReadOnlyList<string> Publishers { get; init; } = [];
 
     [JsonPropertyName("game_modes")]
     public IReadOnlyList<string> GameModes { get; init; } = [];

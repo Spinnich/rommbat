@@ -105,7 +105,16 @@ measurement was taken on and must not.
    something was **measured on**. Rewriting those to the new number silently reattributes a
    measurement to a build nobody ran it against.
 6. A RomM move also moves the pinned OpenAPI schema, which is the minimum version on purpose.
-   See `src/RomM.Client/openapi/README.md`.
+   `RomMServerVersion.Minimum`, `RomMServerVersion.LastTested` and the `info.version` inside
+   the pinned file move in one commit, and a test reads the pin rather than restating it so a
+   pin that moves without the floor fails there. See `src/RomM.Client/openapi/README.md`.
+7. **If the target is a prerelease, adopt the newest one and re-check it before the PR opens.**
+   Prereleases supersede each other in hours: `5.3.0-alpha.2` shipped eight hours after
+   `5.3.0-alpha.1`. Read the delta between the two rather than assuming it is cosmetic, because
+   it decides which of your findings were attributed to the wrong tag. The pin cannot come from
+   the public demo, which carries stable only, so it comes from a self-hosted instance whose
+   `SYSTEM.VERSION` you **read at capture time**: a live library can be upgraded underneath the
+   work, and a capture that does not match the floor is the wrong artifact even when it parses.
 
 ## Before claiming done
 

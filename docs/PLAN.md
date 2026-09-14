@@ -415,7 +415,7 @@ there and does not need to: point the client at an existing instance over the LA
 ### Version compatibility is declared, checked, and visible
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.2.1** and **RomM 5.2.0**.
+**RetroBat 8.2.1** and **RomM 5.3.0-alpha.2**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
@@ -433,6 +433,20 @@ the upstream changelog for anything that touches a measured rule, move the floor
 tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
 purpose.
+
+**A prerelease is adoptable, and which prerelease needs a rule of its own.** "Within one
+release" says when to move and not what to move to, and prereleases supersede each other on a
+timescale the policy was not written for: `5.3.0-alpha.2` shipped about eight hours after
+`5.3.0-alpha.1`, on the same day the assessment of `alpha.1` was being written. So **the
+target is the newest prerelease of the version being adopted at the moment the work starts,
+re-checked before the PR opens**, and adopting the older of two same-day prereleases is
+adopting a build that was superseded before anyone could run it. Two consequences follow from
+a prerelease specifically. The public demo will not carry it, so the pin comes from a
+self-hosted instance and `SYSTEM.VERSION` is **read at capture time rather than assumed**,
+because the instance can be upgraded underneath the work exactly as the tag was. And the delta
+between two prereleases is read rather than waved through: `alpha.1` to `alpha.2` was 19
+commits over 21 files, and reading them is what said which findings held at both tags and
+which had to be re-attributed.
 
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
   RetroBat version from **`system/version.info`** in the tree.

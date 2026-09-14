@@ -570,14 +570,30 @@ live, so the re-measurement that finding 9 owes is attributed to `alpha.2` and n
 
 The version move checklist in the `pre-pr-verification` skill is the procedure.
 
-| Step                                                       | State                                                                |
-| ---------------------------------------------------------- | -------------------------------------------------------------------- |
-| `refresh.sh`, resolve drift rather than editing the number | Finding 1 done. **Still owes finding 7**, which flips on the re-pull |
-| Read the upstream changelog end to end                     | Done, this document                                                  |
-| Move `Minimum`, `LastTested`, README table and compat row  | Ready, and a test asserts the trio agree                             |
-| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                    |
-| Leave provenance alone                                     | See finding 9                                                        |
-| **Move the pinned OpenAPI schema**                         | **Unblocked by the floor choice**, see below                         |
+| Step                                                       | State                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| `refresh.sh`, resolve drift rather than editing the number | **Done.** One drift, the companies check, resolved in finding 7    |
+| Read the upstream changelog end to end                     | Done, this document                                                |
+| Move `Minimum`, `LastTested`, README table and compat row  | **Done**, and a test asserts the trio agree                        |
+| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                  |
+| Leave provenance alone                                     | See finding 9                                                      |
+| **Move the pinned OpenAPI schema**                         | **Done**, sha256 `44cdd228...`, 199 paths and 272 schemas          |
+
+**What a prerelease floor cannot do, and it is worth knowing before relying on it.**
+`ProductVersion` drops the version suffix on purpose, because RetroBat's names a channel and a
+semver-strict parse would refuse every stock install. So a floor declared as `5.3.0-alpha.2` is
+`5.3.0` to every comparison the check takes part in, and a server reporting `5.3.0-alpha.1`, the
+tag `alpha.2` superseded, is **Supported**. That is the right trade and not a defect, but the
+README names a precision the startup check does not enforce, so a test now asserts the gap
+rather than leaving it to be rediscovered.
+
+**Two things the floor move broke, both of them correct failures.** A stub server fixed at
+`5.2.0` became a stub of a refusal, which stopped two pairing screen tests before they could ask
+for an approval; the stub now defaults to the floor. And `RomFilterValues` carried no
+`developers` or `publishers`, so the live filter picker test hit its unmapped-facet skip and
+stopped checking the rest of the facets silently. Both are the version move doing its job: the
+first is the compatibility check working, and the second is a live test finding a gap that no
+offline test could.
 
 `src/RomM.Client/openapi/generate.sh` regenerates DTOs from the pinned file, but the pinned
 file itself is a byte exact `/openapi.json` captured from a running server, per
