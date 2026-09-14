@@ -278,21 +278,21 @@ the interesting case rather than a tie break.
 **First reading, 2026-09-14, on the live `5.3.0-alpha.2` library, and it is confounded.**
 `TITLE_ID_EXTRACTION_ENABLED` is true on the heartbeat, so the capability gate is open.
 
-| System    | Sampled | Carries `title_id` | On-disk shape    |
-| --------- | -------- | ------------------- | ----------------- |
-| gamecube  | 100      | 100%                | `.rvz`           |
-| wii       | 100      | 100%                | `.wad`           |
-| wiiu      | 100      | 100%                | `.wua`           |
-| switch    | 100      | 4%                  | folder           |
-| psx       | 300      | **0%**              | `.chd`           |
-| ps2       | 300      | **0%**              | `.chd`           |
-| psp       | 300      | **0%**              | `.cso`           |
-| ps3       | 285      | **0%**              | `.iso` and folder|
-| 3ds       | 100      | **0%**              | `.zcci`          |
-| dreamcast | 100      | **0%**              | `.chd`           |
-| xbox      | 100      | **0%**              | `.xiso.iso`      |
-| xbox360   | 100      | **0%**              | `.iso`           |
-| psvita    | 12       | **0%**              | `.zip`           |
+| System    | Sampled | Carries `title_id` | On-disk shape     |
+| --------- | ------- | ------------------ | ----------------- |
+| gamecube  | 100     | 100%               | `.rvz`            |
+| wii       | 100     | 100%               | `.wad`            |
+| wiiu      | 100     | 100%               | `.wua`            |
+| switch    | 100     | 4%                 | folder            |
+| psx       | 300     | **0%**             | `.chd`            |
+| ps2       | 300     | **0%**             | `.chd`            |
+| psp       | 300     | **0%**             | `.cso`            |
+| ps3       | 285     | **0%**             | `.iso` and folder |
+| 3ds       | 100     | **0%**             | `.zcci`           |
+| dreamcast | 100     | **0%**             | `.chd`            |
+| xbox      | 100     | **0%**             | `.xiso.iso`       |
+| xbox360   | 100     | **0%**             | `.iso`            |
+| psvita    | 12      | **0%**             | `.zip`            |
 
 **This is not yet a coverage measurement**, and reading it as one would be the exact mistake
 this document was written to stop. Extraction runs during a scan, and
@@ -491,15 +491,15 @@ flags, same page sizes, same platform. Two things differ from the 5.2.0 pass bes
 and both belong in any reading of the table: the library is 95,993 roms against 88,331, and the
 metadata mix has moved with it.
 
-| Reading, on the largest platform (`psx`, 9,196 roms)  | 5.2.0, 88,331 roms | 5.3.0-alpha.2, 95,993 roms |
-| ------------------------------------------------------ | ------------------- | --------------------------- |
-| Scoped page, `limit=100`, rom id index on             | 2,288 to 2,494 ms  | 285 to 353 ms              |
-| Scoped page, `limit=100`, rom id index off            | 8,305 to 8,665 ms  | 274 to 328 ms              |
-| What turning the index off costs, scoped              | **3.4 to 3.7x**    | **nothing**                |
-| Unscoped page, `limit=100`, index on against off      | 1.13 to 1.18x      | 1.15 to 1.20x              |
-| Full scoped walk, 250 a page, index off               | **8 m 15 s**       | **22.5 s**                 |
-| Full scoped walk, 250 a page, index on                | not walked         | 24.1 s                     |
-| `GET /api/roms/identifiers`                           | 504 after 300.0 s  | 200 after 176.7 s          |
+| Reading, on the largest platform (`psx`, 9,196 roms) | 5.2.0, 88,331 roms | 5.3.0-alpha.2, 95,993 roms |
+| ---------------------------------------------------- | ------------------ | -------------------------- |
+| Scoped page, `limit=100`, rom id index on            | 2,288 to 2,494 ms  | 285 to 353 ms              |
+| Scoped page, `limit=100`, rom id index off           | 8,305 to 8,665 ms  | 274 to 328 ms              |
+| What turning the index off costs, scoped             | **3.4 to 3.7x**    | **nothing**                |
+| Unscoped page, `limit=100`, index on against off     | 1.13 to 1.18x      | 1.15 to 1.20x              |
+| Full scoped walk, 250 a page, index off              | **8 m 15 s**       | **22.5 s**                 |
+| Full scoped walk, 250 a page, index on               | not walked         | 24.1 s                     |
+| `GET /api/roms/identifiers`                          | 504 after 300.0 s  | 200 after 176.7 s          |
 
 **What the N+1 fix bought is the scoped case specifically.** Unscoped, the index is worth the
 same 1.15x it was worth at 5.2.0, and costs the same 604 KiB a page. Scoped, the 3.4 to 3.7x that
@@ -570,14 +570,14 @@ live, so the re-measurement that finding 9 owes is attributed to `alpha.2` and n
 
 The version move checklist in the `pre-pr-verification` skill is the procedure.
 
-| Step                                                       | State                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| `refresh.sh`, resolve drift rather than editing the number | **Done.** One drift, the companies check, resolved in finding 7    |
-| Read the upstream changelog end to end                     | Done, this document                                                |
-| Move `Minimum`, `LastTested`, README table and compat row  | **Done**, and a test asserts the trio agree                        |
-| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                  |
-| Leave provenance alone                                     | See finding 9                                                      |
-| **Move the pinned OpenAPI schema**                         | **Done**, sha256 `44cdd228...`, 199 paths and 272 schemas          |
+| Step                                                       | State                                                           |
+| ---------------------------------------------------------- | --------------------------------------------------------------- |
+| `refresh.sh`, resolve drift rather than editing the number | **Done.** One drift, the companies check, resolved in finding 7 |
+| Read the upstream changelog end to end                     | Done, this document                                             |
+| Move `Minimum`, `LastTested`, README table and compat row  | **Done**, and a test asserts the trio agree                     |
+| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption               |
+| Leave provenance alone                                     | See finding 9                                                   |
+| **Move the pinned OpenAPI schema**                         | **Done**, sha256 `44cdd228...`, 199 paths and 272 schemas       |
 
 **What a prerelease floor cannot do, and it is worth knowing before relying on it.**
 `ProductVersion` drops the version suffix on purpose, because RetroBat's names a channel and a

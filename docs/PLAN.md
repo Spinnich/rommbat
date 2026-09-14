@@ -1391,6 +1391,7 @@ the rollout order below can be derived rather than hand-maintained.
   is unchanged and its reason is not: the endpoint answers now, and three minutes with no way
   to scope or page it is still not a reconcile. The short budget already handles both, since
   a call that finishes outside it is refused the same way one that never finishes is.
+
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished
