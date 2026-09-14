@@ -64,6 +64,22 @@ identity, 94 by alias), 74 are unmapped, normalization rescues 1 of those where 
 rescue 16, and 10 slugs fan out where 13 did. Two slugs the old seed carried, `daphne` and
 `rpgmaker`, are not `UniversalPlatformSlug` values at all and could never have matched a row.
 
+**Four entries left the table, and two of the four name real slugs.** `odyssey` and `atari8bit`
+are `UniversalPlatformSlug` values, so "two slugs RomM never had" is not the whole accounting.
+`odyssey` is a seed error corrected: Magnavox Odyssey is not the Odyssey², and `odyssey-2` →
+`odyssey2` now carries the real case. `atari8bit` is upstream's suggested binding for `atari800`,
+recorded and not applied, so layer 2 covers it wherever the RomM folder is itself named
+`atari800`; a RomM folder RetroBat lacks (`atari-8bit`, `a800`) that resolves to `atari8bit` has
+no layer-3 entry, cannot be reached by normalization, and needs a manual mapping. Accepted, and
+recorded in the `platform-mapping` skill.
+
+**One slug changed which folder wins.** `model2` resolved to `["lindbergh"]` and now resolves to
+`["model2", "lindbergh"]`. `lindbergh` is not a RomM slug, so the old first choice could only
+ever have come from the seed; a sync set scoped to `model2` wrote into `roms/lindbergh` and now
+writes into `roms/model2`, which relocates games for anyone who already synced it. Unlike
+`arcade`, `model2` is not in `REQUIRES_EXPLICIT_CHOICE`, so it auto-resolves and the change is
+silent. Kept, as a seed error corrected.
+
 ### B. 5.3.0 servers already meet today's client
 
 Above `LastTested` RomMBat warns and continues, so a 5.3.0 server and a 5.2.0 floor client

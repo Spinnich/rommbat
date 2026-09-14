@@ -1123,6 +1123,15 @@ Two things the YAML had hidden. It carried two slugs RomM has never had, `daphne
 `daphne` has no RomM equivalent at all. And normalization fell from rescuing 16 names to
 rescuing one, `actionmax` → `action-max`, because identity resolution now catches the rest.
 
+Four entries left the table, not two. `odyssey` and `atari8bit` are real slugs. `odyssey` was a
+seed error, Magnavox Odyssey being a different machine from the Odyssey², and `odyssey-2` →
+`odyssey2` now carries the real case. `atari8bit` is one of the four bindings upstream suggests
+and is recorded rather than applied, so layer 2 catches it wherever the RomM folder is itself
+named `atari800`, and a RomM folder RetroBat lacks that resolves to `atari8bit` needs a manual
+mapping. Slug `model2` moved the other way, from folder `lindbergh`, which is not a RomM slug at
+all, to `model2` first: a seed error corrected, and a relocation for anyone who synced that
+platform before.
+
 The relation is still many-to-many in the write direction: `arcade` maps to seven RetroBat
 folders (`mame`, `fbneo`, `naomi`, `naomi2`, `triforce`, `atomiswave`, `namco2x6`), while
 `amiga` covers `amiga500`/`amiga1200`/`amiga4000`. `model2` and `model3` left that fan-out by

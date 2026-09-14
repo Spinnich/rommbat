@@ -57,6 +57,21 @@ table anyway.
 resolution now catches what it used to rescue. `actionmax` against `action-max` is the only
 survivor, and it is the case the mapping regression asserts.
 
+**Four slugs left the table, and two of them are real.** `daphne` and `rpgmaker` are the
+harmless pair above. `odyssey` and `atari8bit` are `UniversalPlatformSlug` values, so the
+accounting is not "two slugs RomM never had" and nothing else:
+
+- `odyssey` was a seed error. Magnavox Odyssey is not the Odyssey², and the seed pointed
+  `odyssey` at folder `odyssey2`. `odyssey-2` → `odyssey2` now carries the real case, so the
+  drop is a correction.
+- `atari8bit` is upstream's suggested binding for folder `atari800`, recorded and not applied,
+  so it has no layer-3 entry. Layer 2 covers it whenever the RomM library folder is itself
+  named `atari800`, bound or unbound, which is the common case. **It does not cover a RomM
+  folder named something RetroBat lacks** (`atari-8bit`, `a800`) that RomM resolved to
+  `atari8bit`: layer 2 misses on `fs_slug`, layer 3 has nothing, and normalization cannot
+  bridge `atari8bit` to `atari800`. That set syncs nothing and needs a manual mapping. Narrow,
+  and accepted, because the RetroBat-first walk is what core principle 3 asks for.
+
 ## Two identity traps, both measured live
 
 **`platform.slug` is not unique. `fs_slug` and `id` are.** A real 123-platform library

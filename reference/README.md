@@ -63,6 +63,12 @@ RomM has never had, `daphne` and `rpgmaker`, so neither could ever match a platf
 share collapsed from 16 to 1, because identity resolution catches almost everything it used to
 rescue. The one survivor is `actionmax` against `action-max`.
 
+Four slugs left the table in all, and the other two are real. `odyssey` was a seed error, since
+Magnavox Odyssey is not the Odyssey² and `odyssey-2` → `odyssey2` now carries the real case.
+`atari8bit` is upstream's suggested binding for `atari800`, recorded and not applied, so layer 2
+covers it whenever the RomM folder is itself named `atari800` and a folder RetroBat lacks that
+resolves to `atari8bit` needs a manual mapping. The `platform-mapping` skill has the detail.
+
 The 167/91/18/13 figures held at RomM 5.2.0 and are kept here as what the YAML said, not as
 something to reconcile. The pair and stale counts read 168 and 19 until M2, when `verify.py`
 stopped counting `scan.gamelist.export` as a platform; that was a parser fault here, not drift
