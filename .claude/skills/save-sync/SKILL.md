@@ -396,6 +396,14 @@ Class A and B match by filename. Class C is keyed by **Game ID** (`UCUS98751`, a
 `TITLEID`, a GameCube disc ID), and **RomM stores no serial, title ID or product code
 anywhere**, so no API lookup exists.
 
+**That holds at the 5.2.0 floor and stops holding above it.** 5.3.0 declares `title_id`,
+`save_target` and `save_target_layout` as ROM columns, covering the systems the header route
+reads 0% of, so a server above the floor can answer a lookup this design assumes does not
+exist. It is a **fourth route, not a replacement**: it is capability gated, unmeasured on any
+real library, and the rule below about asking every route is what it joins. See finding 2 of
+[romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) and #168. Nothing here changes until
+coverage is measured.
+
 **Ask every route, not the first one that answers.** They are cheap next to the scan that
 already ran, and their agreement is the only evidence a binding has. One exception comes before
 all of them: under `mame` the key _is_ the ROM basename, so that join needs no route and is
