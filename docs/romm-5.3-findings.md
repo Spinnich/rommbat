@@ -275,6 +275,50 @@ the interesting case rather than a tie break.
 **Owed, and in this order:** measure coverage on a real library first, then decide. Nothing in
 `save-sync` changes on the strength of a release note.
 
+**First reading, 2026-09-14, on the live `5.3.0-alpha.2` library, and it is confounded.**
+`TITLE_ID_EXTRACTION_ENABLED` is true on the heartbeat, so the capability gate is open.
+
+| System    | Sampled | Carries `title_id` | On-disk shape    |
+| --------- | -------- | ------------------- | ----------------- |
+| gamecube  | 100      | 100%                | `.rvz`           |
+| wii       | 100      | 100%                | `.wad`           |
+| wiiu      | 100      | 100%                | `.wua`           |
+| switch    | 100      | 4%                  | folder           |
+| psx       | 300      | **0%**              | `.chd`           |
+| ps2       | 300      | **0%**              | `.chd`           |
+| psp       | 300      | **0%**              | `.cso`           |
+| ps3       | 285      | **0%**              | `.iso` and folder|
+| 3ds       | 100      | **0%**              | `.zcci`          |
+| dreamcast | 100      | **0%**              | `.chd`           |
+| xbox      | 100      | **0%**              | `.xiso.iso`      |
+| xbox360   | 100      | **0%**              | `.iso`           |
+| psvita    | 12       | **0%**              | `.zip`           |
+
+**This is not yet a coverage measurement**, and reading it as one would be the exact mistake
+this document was written to stop. Extraction runs during a scan, and
+`_should_extract_title_ids` re-reads only a rom that carries no id, so a library scanned
+before the feature existed answers nothing until it is rescanned. The systems reading 100%
+are the ones rescanned since the upgrade. So the zeros are the sum of two hypotheses, "never
+scanned" and "the extractor cannot read this container", and the reading cannot separate
+them. A rescan of a handful of rows per system is what separates them, and it is the cheap
+experiment: `should_scan_rom` honours a `roms_ids` list, so the scan can be scoped to named
+rows rather than to a platform of 9,196.
+
+**What the reading does settle** is that the shapes are real and not two fields. A populated
+row carries all three: gamecube `title_id=47553459`, `save_target=47553459`,
+`save_target_layout=file-prefix`; wii `title_id=0001000157453945`,
+`save_target=00010001/57453945`, `folder-split`; switch `title_id=011FAA8D84DC4000`,
+`save_target=011FAA8D84DC4000`, `folder-exact`. The wii row is the interesting one: the
+`save_target` is the title id cut in half with a separator, which is a transformation rather
+than a copy, and it is exactly the kind of thing a client cannot infer from the id alone.
+
+**The route runs both ways, which finding 5 missed.** `PUT /roms/{id}/identity` takes this
+same triple from a client under scope `roms.write`, and its own description is "binary
+identity a client extracted for a ROM that RomM cannot read itself". If the rescan shows the
+extractor cannot reach a `.chd` or a `.cso`, then the systems where it fails and the systems
+where this repo's header reads fail are still disjoint on gamecube and wii, and RomMBat is
+the client that endpoint is describing.
+
 ### 3. Memory card endpoints are for the browser player, not for us (`notes`)
 
 Eleven new endpoints under `/memory-cards`, with versions, sharing and visibility. Read
@@ -304,13 +348,37 @@ repo's negotiation behaviour was measured at 5.2.0. That lands on #156, #157 and
 the in flight write guard. Neither feature is on by default, which bounds the blast radius and
 does not remove it.
 
-### 5. ROM identity is content hashed, and rebindable (`notes`)
+### 5. ROM identity is keyed on the path, and the new endpoint is a write-back (`source`)
 
-Identity is now derived from content, so saves and play history survive a file moving, and
-`PUT /roms/{id}/identity` rebinds after a move. Mostly good news: it is the failure mode this
-repo handles as orphans. The open question is whether a rebind can change what a rom id means
-under a cached attribution binding or a set membership row, which is a question for a live
-instance and not for a release note.
+Read at `5.3.0-alpha.2`, both halves of the release note are wrong as written, and each
+pointed at a different conclusion than the source does.
+
+**Identity is not content hashed.** `0126_unique_rom_full_path` moves the unique index off
+`(platform_id, fs_name)` and onto `(platform_id, full_path_hash)`, where `full_path_hash` is
+`sha256(fs_path + "/" + fs_name)`. The digest is there because that path is 5804 bytes of
+utf8mb4 against InnoDB's 3072 byte key limit, not because content decides identity. What it
+buys is a custom library structure, where one platform may hold identically named files in
+different folders. The direction of travel is the opposite of the note's: a file that moves
+between folders inside a platform used to keep its row for free, because the filename was the
+key, and now does not.
+
+**What survives a move is a rescue, not a key.** `scan.py` flags every entry whose path is
+absent as `missing_from_fs` before it identifies files, then, for a file with no full path
+match, hashes it and looks for a missing entry with the same hash, so a moved or renamed ROM
+carries over its collections, notes and uploaded assets instead of spawning a duplicate. That
+is scan time behaviour and it is gated on hashing being on at all
+(`calculate_hashes = not cnfg.SKIP_HASH_CALCULATION`), so an instance with hashing off turns
+every move into an orphan next to a duplicate.
+
+**`PUT /roms/{id}/identity` rebinds nothing.** It stores the identity triple `title_id`,
+`save_target` and `save_target_layout` that a client extracted from a ROM the server cannot
+read, under scope `roms.write`, normalising the triple for the Switch family on the way in.
+That makes it the return path for finding 2 rather than a repair tool: the systems where this
+repo's header reads succeed and upstream's extractor answers nothing are systems where RomMBat
+could supply the id rather than only consume one.
+
+Left for a live instance: whether the hash reassociation actually fires on a real move, since
+it is what stands between a moved ROM and the orphan this repo handles today.
 
 ### 6. Physical games mean a sync set can hold a row with no file (`source`, now `measured`)
 
@@ -361,15 +429,35 @@ rather than counts precisely so a rewrite like this one is survivable. **Both su
 at line 340 with the "0-100 scale" comment intact. Asserting behaviours rather than line numbers
 is what made that a two minute read instead of a re-derivation.
 
-What #171 still owes is the part a rewrite can move without moving a constant: the three
-documented deliberate divergences (companies, region and lang, genre) and the `marquee` /
-`logo_path` rule.
+**Re-pulled and re-derived, 2026-09-14.** `refresh.sh` moved the vendored copy and `verify.py`
+came back with exactly one drift, the companies check, which is the one the re-pull was
+expected to flip. Everything else held: both unit conversions, the `marquee` / `logo_path`
+rule, the `releasedate` and rating format strings, and all seventeen gamelist elements
+RomMBat writes. Of the three deliberate divergences, region/lang and genre are untouched.
 
-**One divergence may be able to end.** 5.3.0 splits company metadata into `publishers` and
-`developers` on `DetailedRomSchema`. That is this repo's own upstream follow up 3
-(`PLAN.md` "Optional follow ups to RomM itself"), which argued that `companies[0]` and
-`companies[1]` write the alphabet into two role bearing fields. If the split is real, the
-reason this repo joins companies into `developer` and omits `publisher` goes away.
+**One divergence ends, per row rather than outright.** The exporter now reads
+`primary_developer` and `primary_publisher`, which is this repo's own upstream follow up 3
+(`PLAN.md` "Optional follow ups to RomM itself") implemented upstream. But each property
+falls back to the indexing it replaced:
+
+```python
+return next(iter(self.developers or companies[:1]), None)
+```
+
+So the alphabet still reaches `<developer>` on any row whose split is empty, and **a row only
+carries the split once it has been rescanned under 5.3.0**. Measured on the live
+`5.3.0-alpha.2` library, 3,000 rows across ten platforms: the one platform that had been
+rescanned carried `developers` on 398 of 400 rows, and the nine that had not carried it on 0
+of 300 each while still carrying `companies`. Where the split is present it is exactly one
+developer and one publisher and `companies` is the two of them sorted, so indexing assigns
+both roles wrongly on **41% of rows** (163 of 398). `4x4 Evo 2` is
+`companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer when Terminal
+Reality developed it.
+
+The operative consequence for M4: writing `developers[0]` and `publishers[0]` is right where
+they are populated and empty where they are not, so a client that switches to them
+unconditionally loses the field on every un-rescanned row. The join stays as the fallback.
+#172.
 
 `reference/romm-known_bios_files.json` is **unchanged** on `master`.
 
@@ -385,7 +473,7 @@ scope set nothing.
 What #176 still owes is the line in the `romm-api` skill, because an answer that lives only in
 this document is one the next session re-derives.
 
-### 9. Performance measurements move, and must not be edited (`notes`)
+### 9. Performance measurements move, and must not be edited (`measured`)
 
 `SCAN_WORKERS` and `WEB_SERVER_CONCURRENCY` both default to 4, up from 1. An N+1 in
 `GET /api/roms` is fixed. Pooled connections are now recycled before the server drops them.
@@ -397,6 +485,44 @@ and the 300 s session timeout. Per the version move checklist those are provenan
 get rewritten to new numbers**, and that includes the scope: a re-measure that walks the whole
 88,331 rom library has measured a different thing and has nothing to compare against. They get
 re-measured on the same scope, and the new numbers get their own attribution.
+
+**Re-measured 2026-09-14 on `5.3.0-alpha.2`, and the scoped penalty is gone.** Same probes, same
+flags, same page sizes, same platform. Two things differ from the 5.2.0 pass besides the server,
+and both belong in any reading of the table: the library is 95,993 roms against 88,331, and the
+metadata mix has moved with it.
+
+| Reading, on the largest platform (`psx`, 9,196 roms)  | 5.2.0, 88,331 roms | 5.3.0-alpha.2, 95,993 roms |
+| ------------------------------------------------------ | ------------------- | --------------------------- |
+| Scoped page, `limit=100`, rom id index on             | 2,288 to 2,494 ms  | 285 to 353 ms              |
+| Scoped page, `limit=100`, rom id index off            | 8,305 to 8,665 ms  | 274 to 328 ms              |
+| What turning the index off costs, scoped              | **3.4 to 3.7x**    | **nothing**                |
+| Unscoped page, `limit=100`, index on against off      | 1.13 to 1.18x      | 1.15 to 1.20x              |
+| Full scoped walk, 250 a page, index off               | **8 m 15 s**       | **22.5 s**                 |
+| Full scoped walk, 250 a page, index on                | not walked         | 24.1 s                     |
+| `GET /api/roms/identifiers`                           | 504 after 300.0 s  | 200 after 176.7 s          |
+
+**What the N+1 fix bought is the scoped case specifically.** Unscoped, the index is worth the
+same 1.15x it was worth at 5.2.0, and costs the same 604 KiB a page. Scoped, the 3.4 to 3.7x that
+`romm-api`'s "off only when the request is unscoped" rule was written from does not reproduce at
+all: index off is inside the noise, and marginally ahead. The rule survives on bandwidth, which
+was never its argument, and its stated reason is a 5.2.0 reason. **That is a rule to revisit when
+#174 moves the floor, not a code change to make here**, because the client still has to be right
+on the oldest server it claims.
+
+**A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
+costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
+index that is already being built. `CatalogQuery` sends both, so it pays nothing.
+
+**`/api/roms/identifiers` moved from impossible to merely unusable.** It completes now, at
+176.7 s for 95,993 ids, where 5.2.0 answered 504 on the 300 s wall at a smaller library. The
+decision to refuse it stands: three minutes is not a page a sync can wait on, and the endpoint
+still takes no parameters, so it can be neither scoped nor paged. The rejection is now a
+judgement about latency rather than a report that it does not work.
+
+**The payload share moved, and the library moved with it, so this one attributes to neither.**
+`ss_metadata` is 61.2% of a 100 row page against 46.4% at 5.2.0, and `igdb_metadata`, 20.5%
+then, is out of the top fifteen now. The A12 conclusion is unchanged and was never a number:
+a payload share is a property of a library's metadata mix, not of a client or a release.
 
 ### 10. Not adopting (`notes`)
 
@@ -483,9 +609,10 @@ source and a repo grep. Finding 6's row shape is answered from the schema's inhe
 confirmed on a live page in stage 1. Reach for the cheaper route first: a question parked behind a
 Docker daemon that a read answers today is a question nobody answers.
 
-| #   | Question                                                                             |
-| --- | ------------------------------------------------------------------------------------ |
-| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? |
-| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      |
-| 5   | Can an identity rebind change what a rom id means to a cached binding or a set row?  |
-| 9   | Every timing in this repo, re-measured at concurrency 4                              |
+| #   | Question                                                                             | State                                                              |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Confounded**, see finding 2. Needs a rescan, not another read    |
+| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | Open, and there are five layouts rather than the two the note gave |
+| 5   | Can a move change what a rom id means to a cached binding or a set row?              | Open. The premise changed first, see finding 5                     |
+| 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7                 |
+| 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                            |

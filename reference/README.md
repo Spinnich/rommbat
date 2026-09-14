@@ -93,17 +93,26 @@ Confirmed in upstream's own code: `first_release_date` is divided by 1000, so it
 **milliseconds**, and `average_rating` is divided by 100, so it is on a **0-100** scale, with
 a comment saying as much. Both match what RomMBat measured live.
 
-**RomMBat deliberately diverges in three places**, and the checks exist so the divergence
-stays visible rather than becoming an accidental difference:
+**RomMBat deliberately diverges in two places, and the third is being retired**, and the
+checks exist so each divergence stays visible rather than becoming an accidental difference:
 
-- `developer` and `publisher` are `companies[0]` and `companies[1]` upstream. That array is
-  alphabetically sorted on every row measured, so indexing it writes the alphabet into two
-  role-bearing fields: KOTOR gets Activision as developer and Aspyr Media as publisher.
-  RomMBat writes the joined list into `developer` and omits `publisher`.
 - `region` and `lang` are `regions[0]` and `languages[0]` verbatim, so upstream writes `USA`
   and `English` where EmulationStation's own vocabulary is `us` and `en`. RomMBat maps them.
 - `genre` is `genres[0]`. RomMBat joins with `, `, which is what a real scraped install
   already contains (`Racing, Driving` in 2,079 of 4,440 entries).
+- `developer` and `publisher` **were** `companies[0]` and `companies[1]`. 5.3.0 splits company
+  metadata into `developers` and `publishers` and the exporter reads `primary_developer` and
+  `primary_publisher` instead, which is the ask `docs/PLAN.md` recorded as a follow-up to RomM
+  itself. **It ends per row rather than outright**, because each property falls back to the old
+  indexing (`developers[0] or companies[0]`, `publishers[0] or companies[1]`) and a row only
+  carries the split once it has been rescanned under 5.3.0. Measured on a live
+  `5.3.0-alpha.2` library, 2026-09-14: of 3,000 rows sampled across ten platforms, the only
+  platform carrying `developers` was the one that had been rescanned, at 398 of 400 rows;
+  the other nine were 0 of 300 each while still carrying `companies`. Where the split is
+  present it is exactly one developer and one publisher, and `companies` is the two of them
+  sorted, so **alphabetical indexing assigns both roles wrongly on 41% of rows** (163 of 398):
+  `4x4 Evo 2` is `companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer
+  when Terminal Reality developed it. #172.
 
 One thing to copy rather than diverge from: **`marquee` is sourced from ScreenScraper's
 `logo_path`, not its `marquee_path`.** EmulationStation's marquee is game logo art;
@@ -112,16 +121,22 @@ ScreenScraper's marquee is an arcade cabinet marquee.
 ## Snapshot
 
 Captured 2026-08-25 against RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`) and
-`rommapp/romm` master, **except the two platform files, re-pulled 2026-09-14**.
+`rommapp/romm` master, **except the four RomM files, re-pulled 2026-09-14**.
 
-**This snapshot is deliberately not uniform.** `romm-platform_slugs.py`,
-`romm-platform_aliases.py` and the `romm-slugs.txt` derived from them were re-pulled on their
-own, because the platform map had no working source until they were (#166). Everything else is
-still the 2026-08-25 pull. The next full `refresh.sh` will move
-`romm-gamelist_exporter.py` too, and **that is expected to fail `verify.py`**: upstream replaced
-`companies[0]` / `companies[1]` with `primary_developer` / `primary_publisher`, so the
-"upstream still indexes companies" check flips the moment the exporter is re-pulled. Resolving
-that is #171, not a regression in the re-source.
+**This snapshot is deliberately not uniform, and the seam runs between the two projects.**
+Every `romm-*` file is the 2026-09-14 pull: the platform pair went first because the platform
+map had no working source until they did (#166), and `romm-gamelist_exporter.py` followed with
+the rest of the 5.3.0 adoption (#171). The RetroBat files are still the 2026-08-25 pull, on
+purpose. This adoption moves the RomM floor and not the RetroBat one, and RetroBat's newest
+release is still 8.2.1, so re-pulling them would put the vendored snapshot ahead of every
+shipped RetroBat rather than level with the declared one.
+
+**What RetroBat master has moved since, held back deliberately.** `es_systems.cfg` adds
+`.decomp` to `cps3`, `naomi` and `naomi2`, which is the same extension 8.2.1 added to eleven
+other systems, and adds `gearsystem` as a libretro core for one system. `es_savestates.cfg`
+gains an `amiberry` emulator block, slots 1 to 9, `{{system}}/amiberry`, files named
+`{{romfilename}}-{{slot0}}.uss`. None of it moves a number in `verify.py`. It is recorded here
+so the next RetroBat adoption starts from a list rather than a diff.
 
 **What 8.2.1 moved.** `es_systems.cfg` gained `.decomp` on eleven systems (`mame`, `model2`,
 `model3`, `snes`, `n64`, `gamecube`, `wii`, `psx`, `ps2`, `ps3`, `xbox`) and `.zar` on `ps4`,
@@ -130,9 +145,15 @@ and promoted `pcsx2x6` ahead of `play` for `namco2x6`. `batocera-systems.json` g
 both entries carry an empty md5, so nothing new became joinable. `systems_names.lst` and
 `es_savestates.cfg` are unchanged.
 
-**What `rommapp/romm` master moved.** `romm-gamelist_exporter.py` gave `miximage_v2` its own
-asset directory (`miximages_v2`, previously shared with `miximage`) and its own gamelist
-element name, and started falling back to the gamelist provider's path as well as
-ScreenScraper's. Inert here: nothing hand-written references `miximage`, and `verify.py`'s
-gamelist checks are unaffected. Recorded because a vendored file moving is the signal, not
-the consequence.
+**What `rommapp/romm` master moved.** `romm-gamelist_exporter.py` was substantially rewritten
+and every behaviour this repo derives from it survived. It now parses and merges an existing
+gamelist through `defusedxml` rather than overwriting one, moved `ASSET_DIRS` into
+`config.PLATFORM_MEDIA_DIRS`, gained `HAS_FILE_ON_DISK_FILTERS`, `rel_platform_folder` and
+`join_rel_path`, and reads the company roles off `primary_developer` and `primary_publisher`.
+Both unit conversions hold: `first_release_date` is still divided by 1000, so milliseconds,
+and `average_rating` is still divided by 100, so a 0 to 100 scale. So do the `marquee` rule
+and all seventeen elements RomMBat writes. Only the company check changed, and it changed
+because upstream fixed what `docs/PLAN.md` asked them to. Earlier, and still true:
+`miximage_v2` has its own asset directory (`miximages_v2`, previously shared with `miximage`)
+and its own gamelist element name, and falls back to the gamelist provider's path as well as
+ScreenScraper's. Inert here, because nothing hand-written references `miximage`.

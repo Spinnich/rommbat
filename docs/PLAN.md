@@ -127,8 +127,8 @@ Guardrails that follow from this:
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
   rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
   answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
-  in under 1.5 s. Deletion of content is reconciled through set re-resolution instead; see
-  M3 and finding 81.
+  in under 1.5 s (5.3.0-alpha.2 completes it in 176.7 s, which is still not a reconcile).
+  Deletion of content is reconciled through set re-resolution instead; see M3 and finding 81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
   mirror of what is on disk, and that is the whole of the rule.
@@ -1372,6 +1372,11 @@ the rollout order below can be derived rather than hand-maintained.
   the same fact arriving by a cheaper route. The endpoint is still attempted under a short
   budget, because it is quick on a small library, and its answer is a cross-check for
   orphans rather than the mechanism. See finding 81.
+
+  **Re-measured on 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids.** The design
+  is unchanged and its reason is not: the endpoint answers now, and three minutes with no way
+  to scope or page it is still not a reconcile. The short budget already handles both, since
+  a call that finishes outside it is refused the same way one that never finishes is.
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished

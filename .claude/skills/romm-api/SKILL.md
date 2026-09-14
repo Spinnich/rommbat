@@ -202,6 +202,13 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   latency** (2.3 s to 8.5 s a page) to save 63 KiB. Unscoped it costs about 1.15 times to
   save 604 KiB. **Off only when the request is unscoped.**
 
+  **Re-measured at 95,993 roms on 5.3.0-alpha.2, the scoped penalty does not reproduce.** A
+  scoped page is 274 to 353 ms either way, so index off is inside the noise and marginally
+  ahead; unscoped is unchanged at 1.15 to 1.20x. The N+1 fix and concurrency 4 took the
+  scoped page from 2.3 s to 0.3 s and took the latency argument with it. The rule stands as
+  written **because a client at the floor must be right on the floor**, and it will want
+  revisiting on bandwidth grounds, which were never its argument, once #174 lands.
+
   **`CatalogQuery` obeys this as of M7 stage 7b-2a, and did not before.** This rule was written
   from A1's measurement and the code went on sending a constant `false` for a further two
   stages, which is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
@@ -366,6 +373,9 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 - **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504
   after 300 s on an 83k library; the platform and collection siblings answer in under 1.5 s.
+  **On 5.3.0-alpha.2 it completes rather than timing out: 200 after 176.7 s for 95,993 ids.**
+  The refusal stands and its reason changes, from an endpoint that cannot answer to one that
+  answers in three minutes, still unscopable and still unpageable.
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
   133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
   hit, so neither is a sweep.
