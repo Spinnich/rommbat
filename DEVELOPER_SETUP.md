@@ -174,14 +174,21 @@ You will need it for:
 
 ### Pin the schema
 
-Already pinned, and it does not come from either of the instances above.
-`src/RomM.Client/openapi/romm-5.2.0.json` is a byte-exact `/openapi.json` (served at the
-root, not under `/api`) from a server reporting **5.2.0**, the minimum RomMBat supports, so
-the generated DTOs describe the oldest server the client claims to work with. Since the floor
-tracks the newest stable, that is also the newest release. The preferred source is the
-project's public demo, which anyone can reproduce from without an account and without a
-hostname to scrub; the 5.2.0 pin came from a self-hosted instance because the demo had not
-caught up, and the recorded sha256 is how that is checked rather than trusted.
+Already pinned. `src/RomM.Client/openapi/romm-5.3.0-alpha.2.json` is a byte-exact
+`/openapi.json` (served at the root, not under `/api`) from a server reporting
+**5.3.0-alpha.2**, the minimum RomMBat supports, so the generated DTOs describe the oldest
+server the client claims to work with. Since the floor tracks the newest stable, or a
+prerelease ahead of it as it does now, that is also the newest release RomMBat has adopted.
+The preferred source is the project's public demo, which anyone can
+reproduce from without an account and without a hostname to scrub; neither the 5.2.0 pin nor
+this one came from there, because the demo had not caught up either time, and a prerelease
+will not reach it at all until it ships as stable. The recorded sha256 is how the capture is
+checked rather than trusted.
+
+**Read `SYSTEM.VERSION` from `/api/heartbeat` at capture time rather than assuming it.** A
+live library can be upgraded underneath the work, which is how upstream's own tag moved from
+`5.3.0-alpha.1` to `5.3.0-alpha.2` eight hours after publication. A capture whose version
+does not match the floor is the wrong artifact even when it parses.
 
 ```bash
 cd src/RomM.Client/openapi && ./generate.sh    # only when deliberately moving the pin
@@ -639,8 +646,8 @@ There is no `build.ini` in RetroBat 8.2; M0 confirmed it does not exist anywhere
 tree. Note the channel and architecture suffix, which has to be split off before the
 version is compared.
 
-**RomMBat tracks the newest RetroBat and RomM stable rather than supporting a wide range**,
-so expect the floor to move. When it does, the work is: re-run `reference/refresh.sh` and
+**RomMBat tracks the newest RetroBat and RomM stable, or a prerelease ahead of it, rather than
+supporting a wide range**, so expect the floor to move. When it does, the work is: re-run `reference/refresh.sh` and
 resolve the drift, read the upstream changelog for anything touching a rule in
 `docs/retrobat-findings.md`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
 `RetroBatRoot.MinimumVersion` and the README compatibility row together, and re-check the

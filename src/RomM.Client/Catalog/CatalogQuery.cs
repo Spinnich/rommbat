@@ -13,7 +13,7 @@ namespace RomM.Client.Catalog;
 /// <b><see cref="Picked"/> is the exception and cannot be paged at all.</b> The endpoint has no
 /// id-list parameter: its scoping parameters are <c>platform_ids</c>, <c>collection_id</c>,
 /// <c>virtual_collection_id</c> and <c>smart_collection_id</c>, verified against the pinned
-/// 5.2.0 schema. That is a property of the scope rather than something to work around, so
+/// schema at 5.2.0 and again at 5.3.0-alpha.2. That is a property of the scope rather than something to work around, so
 /// <see cref="CatalogQuery.ToQueryString"/> refuses it rather than quietly walking the whole
 /// library, which is what an unscoped query would do.
 /// </para>

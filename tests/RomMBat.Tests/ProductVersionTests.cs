@@ -83,10 +83,34 @@ public class ProductVersionTests
     public void A_prerelease_suffix_on_a_supported_version_is_not_a_downgrade()
     {
         // The shape M0's instance reported. The suffix, not the number, used to be the trap.
-        var check = RomMServerVersion.Check("5.2.0-beta.1");
+        var check = RomMServerVersion.Check("5.3.0-beta.1");
 
         Assert.Equal(CompatibilityVerdict.Supported, check.Verdict);
         Assert.False(check.MustRefuse);
+    }
+
+    [Fact]
+    public void A_prerelease_floor_cannot_refuse_an_earlier_prerelease_of_the_same_version()
+    {
+        // The floor is declared as 5.3.0-alpha.2, and the check cannot hold anyone to that:
+        // ProductVersion drops the suffix on purpose, because RetroBat's names a channel, so
+        // the floor is 5.3.0 to every comparison it takes part in. Asserted rather than left
+        // to be rediscovered, because the README names a prerelease and this is what that
+        // buys. 5.3.0-alpha.1 is the case that matters: it is the tag alpha.2 superseded.
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.0-alpha.1").Verdict);
+        Assert.Equal(CompatibilityVerdict.TooOld, RomMServerVersion.Check("5.2.9").Verdict);
+    }
+
+    [Fact]
+    public void A_prerelease_last_tested_cannot_warn_about_the_stable_release_it_precedes()
+    {
+        // The same suffix drop at the other end: LastTested is 5.3.0-alpha.2, so a final 5.3.0,
+        // or any later 5.3.0 prerelease, compares equal to it and reads as tested. Nothing
+        // warns that the build is one this release never ran against. Asserted, not fixed:
+        // it clears once the stable is adopted and the tested row moves to it.
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.0").Verdict);
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.0-rc.1").Verdict);
+        Assert.Equal(CompatibilityVerdict.Untested, RomMServerVersion.Check("5.3.1").Verdict);
     }
 
     [Fact]
@@ -109,7 +133,7 @@ public class ProductVersionTests
         Assert.Equal(CompatibilityVerdict.TooOld, check.Verdict);
         Assert.True(check.MustRefuse);
         Assert.Contains("5.1.9", check.Message, StringComparison.Ordinal);
-        Assert.Contains("5.2.0", check.Message, StringComparison.Ordinal);
+        Assert.Contains("5.3.0", check.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,7 +195,7 @@ public class ProductVersionTests
     [Fact]
     public void The_declared_minimums_match_the_README_compatibility_table()
     {
-        Assert.Equal(ProductVersion.Parse("5.2.0"), RomMServerVersion.Minimum);
+        Assert.Equal(ProductVersion.Parse("5.3.0-alpha.2"), RomMServerVersion.Minimum);
         Assert.Equal(ProductVersion.Parse("8.2.1"), RetroBatVersion.Minimum);
         Assert.Equal(new Version(8, 2, 1), RetroBatRoot.MinimumVersion);
     }

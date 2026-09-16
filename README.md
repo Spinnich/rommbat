@@ -67,12 +67,12 @@ and through the companion-app protocol RomM already ships.
 
 ## Requirements
 
-|          | Minimum     | Notes                                                            |
-| -------- | ----------- | ---------------------------------------------------------------- |
-| RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
-| RomM     | 5.2.0       | Checked from `GET /api/heartbeat` at startup                     |
-| Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
-| .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
+|          | Minimum       | Notes                                                            |
+| -------- | ------------- | ---------------------------------------------------------------- |
+| RetroBat | 8.2.1         | Checked from `system/version.info` at startup                    |
+| RomM     | 5.3.0-alpha.2 | Checked from `GET /api/heartbeat` at startup                     |
+| Windows  | 10 / 11 x64   | RetroBat's own requirement                                       |
+| .NET     | none          | Published self-contained; RetroBat already ships the VC++ redist |
 
 Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
 it warns and continues.
@@ -459,20 +459,22 @@ folder for, so it is out of scope rather than unscheduled.
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
-| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
-| unreleased | 5.2.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.2.0** `/openapi.json` |
+| RomMBat    | RomM tested   | RetroBat tested    | Notes                                                                       |
+| ---------- | ------------- | ------------------ | --------------------------------------------------------------------------- |
+| unreleased | 5.3.0-alpha.2 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-alpha.2** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility
 decision and moves a row in this table with it; see
 [`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md).
 
-**Both minimums track the newest upstream stable rather than the oldest version that works.**
+**Both minimums track the newest upstream stable, or a prerelease ahead of it, rather than the
+oldest version that works.**
 Every measured rule in this repository is a measurement of one build, so a supported range
 means owning that measurement across the range, on a `(system, emulator, core)` matrix that is
 already several passes per row. RomMBat adopts a new RomM or RetroBat stable within one release
-and raises the floor with it. Earlier rows in this table stay accurate about what was tested;
+and raises the floor with it, and can adopt a prerelease ahead of the stable, which is why the
+RomM floor is an alpha and RomM 5.2.0 is refused. Earlier rows in this table stay accurate about what was tested;
 they are not a support commitment.
 
 ## Repository layout
@@ -499,7 +501,7 @@ docs/{freegosy,argosy}-findings.md
                       survived verification and what did not. Both are closed
 docs/romm-5.3-findings.md
                       What RomM 5.3.0 changes for RomMBat, what it falsifies here, and
-                      what is still too early to say. Nothing in it is measured yet
+                      what the 5.3.0-alpha.2 floor measured as
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
@@ -512,6 +514,8 @@ tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every 
 tools/{freegosy,argosy}-probes/
                       The same, for the probes that verified a mined reference
                       implementation's claims
+tools/romm-5.3-probes/
+                      The same, for the measurements taken to adopt RomM 5.3.0
 .claude/skills/       Task-scoped guides for agents working in this repository
 ```
 

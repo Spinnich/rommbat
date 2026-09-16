@@ -187,12 +187,21 @@ def main():
         'f"{gamelist_rating:.2f}"' in exporter,
         True,
     )
-    # The plan diverges here deliberately: companies[] is alphabetically sorted, so indexing
-    # it writes the alphabet into two role-bearing fields. See finding 98.
+    # Upstream stopped indexing companies[] at 5.3.0 and reads the split roles instead.
+    # Both halves are checked: the second is what flips if the indexing ever comes back.
+    # The divergence this replaced ends per row rather than outright, because
+    # primary_developer falls back to companies[0] wherever developers is empty, and a row
+    # populates the split only when it is rescanned. See finding 98 and finding 7.
     check(
-        "upstream still indexes companies for developer/publisher",
-        "rom.metadatum.companies[0]" in exporter and "rom.metadatum.companies[1]" in exporter,
+        "upstream reads developer and publisher off the split roles",
+        "rom.metadatum.primary_developer" in exporter
+        and "rom.metadatum.primary_publisher" in exporter,
         True,
+    )
+    check(
+        "upstream indexes companies for developer/publisher",
+        "rom.metadatum.companies[0]" in exporter and "rom.metadatum.companies[1]" in exporter,
+        False,
     )
     check(
         "upstream marquee is sourced from the ScreenScraper logo",

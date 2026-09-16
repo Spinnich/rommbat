@@ -127,8 +127,8 @@ Guardrails that follow from this:
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
   rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
   answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
-  in under 1.5 s. Deletion of content is reconciled through set re-resolution instead; see
-  M3 and finding 81.
+  in under 1.5 s (5.3.0-alpha.2 completes it in 176.7 s, which is still not a reconcile).
+  Deletion of content is reconciled through set re-resolution instead; see M3 and finding 81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
   mirror of what is on disk, and that is the whole of the rule.
@@ -337,7 +337,7 @@ ledger, including the eighteen leads dropped at triage and the design notes addr
 [argosy-findings.md](argosy-findings.md). **Treat that document as closed.**
 
 **Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
-mined under a correspondingly higher bar: it targets RomM 4.9 against our 5.2.0 baseline, it
+mined under a correspondingly higher bar: it targets RomM 4.9 against the 5.2.0 baseline it was mined under, it
 is v0.5.x with one maintainer, and it targets desktop emulators, EmuDeck and RetroDECK, so
 **none of its paths is valid for RetroBat and none was taken**. What it was good for was
 pointing at save-protocol parameters this plan had never mentioned. Every claim was then
@@ -415,7 +415,7 @@ there and does not need to: point the client at an existing instance over the LA
 ### Version compatibility is declared, checked, and visible
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.2.1** and **RomM 5.2.0**.
+**RetroBat 8.2.1** and **RomM 5.3.0-alpha.2**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
@@ -433,6 +433,20 @@ the upstream changelog for anything that touches a measured rule, move the floor
 tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
 purpose.
+
+**A prerelease is adoptable, and which prerelease needs a rule of its own.** "Within one
+release" says when to move and not what to move to, and prereleases supersede each other on a
+timescale the policy was not written for: `5.3.0-alpha.2` shipped about eight hours after
+`5.3.0-alpha.1`, on the same day the assessment of `alpha.1` was being written. So **the
+target is the newest prerelease of the version being adopted at the moment the work starts,
+re-checked before the PR opens**, and adopting the older of two same-day prereleases is
+adopting a build that was superseded before anyone could run it. Two consequences follow from
+a prerelease specifically. The public demo will not carry it, so the pin comes from a
+self-hosted instance and `SYSTEM.VERSION` is **read at capture time rather than assumed**,
+because the instance can be upgraded underneath the work exactly as the tag was. And the delta
+between two prereleases is read rather than waved through: `alpha.1` to `alpha.2` was 19
+commits over 21 files, and reading them is what said which findings held at both tags and
+which had to be re-attributed.
 
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
   RetroBat version from **`system/version.info`** in the tree.
@@ -1263,10 +1277,10 @@ the rollout order below can be derived rather than hand-maintained.
   disk (`missing_from_fs`) is the other, and upstream treats them alike:
   `has_file_on_disk` is `not is_physical and not missing_from_fs`. **The second cause needs no
   floor move**, because `missing_from_fs` is required at 5.2.0 and the download path never read
-  it. The drop is client-side and derives the answer when the server does not send one, so one
-  rule covers both server generations; `GET /api/roms` can filter on `missing` at 5.2.0 and on
-  `physical` only from 5.3.0, which is why the server-side filter is not used yet. See finding 6
-  of [romm-5.3-findings.md](romm-5.3-findings.md).
+  it. The drop is client-side and derives the answer when the server does not send one.
+  `GET /api/roms` can filter on `missing` and `physical`, and the server-side filter is not used,
+  because a row the server filters out never reaches the resolver and could not be reported as
+  skipped. See finding 6 of [romm-5.3-findings.md](romm-5.3-findings.md).
 - **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
   rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
@@ -1372,6 +1386,12 @@ the rollout order below can be derived rather than hand-maintained.
   the same fact arriving by a cheaper route. The endpoint is still attempted under a short
   budget, because it is quick on a small library, and its answer is a cross-check for
   orphans rather than the mechanism. See finding 81.
+
+  **Re-measured on 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids.** The design
+  is unchanged and its reason is not: the endpoint answers now, and three minutes with no way
+  to scope or page it is still not a reconcile. The short budget already handles both, since
+  a call that finishes outside it is refused the same way one that never finishes is.
+
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
   power loss cannot leave a partial file in a folder EmulationStation scans. The finished
@@ -2962,8 +2982,8 @@ deleted: that would orphan whatever is on disk and hand it to the next eviction 
 strength of an edit.
 
 **A scope that can be picked has to be completable.** Virtual collections are offered and
-disabled, because that route needs a `type` parameter the pinned 5.2.0 schema declares as a
-bare string with no enumeration, and inventing a list of likely values is the vendor-id table
+disabled, because that route needs a `type` parameter the pinned schema declares as a bare
+string with no enumeration, at 5.2.0 and still at 5.3.0-alpha.2, and inventing a list of likely values is the vendor-id table
 the input work threw out. A test asserts the general rule: every scope offered as pickable has
 something that can produce its value.
 
@@ -3191,7 +3211,8 @@ which overloads one column with two meanings, or an unmanaged download `Eviction
 be taught to ignore, which means storing "this orphan is deliberate" and is a set by another
 name with none of a set's machinery.
 
-**`GET /api/roms` has no id-list parameter**, verified against the pinned `romm-5.2.0.json`:
+**`GET /api/roms` has no id-list parameter**, verified against the pinned
+`romm-5.3.0-alpha.2.json`:
 its scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
 `smart_collection_id`. That is a property of the scope rather than a defect, so
 `CatalogQuery.ToQueryString` **refuses** a picked scope instead of falling through to a query
@@ -3752,7 +3773,7 @@ introduces, and the table is hand-maintained.
 | RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                                                   |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                                                        |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                                                                 |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.2.0), track the newest stable, check both at startup, refuse below and warn above                                                                                                                                                                       |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0-alpha.2), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                   |
 | Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                                                       |
 
 ---

@@ -810,14 +810,20 @@ not hardcode. Two things make it less easy than it looks, both measured:
   expanding a slot range, which is what makes the four documented traps in that file mostly
   stop being traps.
 
-Attribution for classes C and D is a real problem, because these saves are keyed by Game ID
-and RomM stores no serial, title id or product code anywhere. Under `mame` the key is the ROM's
-own basename and the join is direct. Everywhere else three routes are asked, **all of them
-rather than the first that answers**, because their agreement is the only evidence a binding
-has: the launch window `emulatorLauncher.log` records, the `.txt` sidecar RetroBat writes beside
-a save state, and the ROM header. The header route reaches GameCube and Wii and nothing else,
-measured across five systems on a real library, so it supplements the other two rather than
-backing them up.
+Attribution for classes C and D is a real problem, because these saves are keyed by Game ID.
+Under `mame` the key is the ROM's own basename and the join is direct. Everywhere else three
+routes are asked, **all of them rather than the first that answers**, because their agreement is
+the only evidence a binding has: the launch window `emulatorLauncher.log` records, the `.txt`
+sidecar RetroBat writes beside a save state, and the ROM header. The header route reaches
+GameCube and Wii and nothing else, measured across five systems on a real library, so it
+supplements the other two rather than backing them up.
+
+The design assumed no fourth route existed, because RomM stored no serial, title id or product
+code anywhere. **That was true at the 5.2.0 floor and is not true at 5.3.0**, which carries
+`title_id`, `save_target` and `save_target_layout` per ROM, measured answering for the systems
+the header route reaches none of. It joins the three as a fourth rather than replacing any of
+them; `save-sync` holds the rules, including that `save_target` is computed from `title_id` and
+that neither is unique per ROM.
 
 **Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
 games bind nothing and record the refusal, because picking a side uploads one game's save under

@@ -114,8 +114,11 @@ public sealed record RomRow
     /// does not sync them at all.
     /// <para>
     /// It travels with an empty <see cref="FsExtension"/>: 105 of 105 multi-file ROMs sampled
-    /// were extensionless and every extensionless ROM was multi-file. The flag is read rather
-    /// than the extension, because the flag is what states the fact.
+    /// were extensionless. **The converse does not hold.** A folder holding one file is a row
+    /// with an empty extension, a folder name for its <c>fs_name</c>, and this flag false,
+    /// found on a real library and reproduced on 5.3.0-alpha.2 by moving a lone <c>.zip</c> into
+    /// a new subfolder. So the flag is read and the extension is never inferred from, because
+    /// only the flag states the fact. See <c>docs/retrobat-findings.md</c> finding 82.
     /// </para>
     /// </remarks>
     [JsonPropertyName("has_multiple_files")]
@@ -157,9 +160,9 @@ public sealed record RomRow
     /// <c>backend/models/rom.py</c>, and it is what a 5.2.0 server's rows are judged by since
     /// they carry no <c>has_file_on_disk</c> of their own.
     /// <para>
-    /// <c>GET /api/roms</c> can filter on this server-side, but only in part and only above the
-    /// floor: <c>missing</c> exists at 5.2.0 and <c>physical</c> arrived at 5.3.0. So the drop
-    /// stays client-side, where one rule covers both server generations.
+    /// <c>GET /api/roms</c> can filter on this server-side, with <c>missing</c> and
+    /// <c>physical</c>, but a row the server filters out never reaches the resolver, so the
+    /// sync could not say it was skipped or why. The drop stays client-side for that.
     /// </para>
     /// </remarks>
     [JsonIgnore]
@@ -266,8 +269,9 @@ public sealed record RomRow
 /// <b>Nothing here means what its name suggests without a conversion.</b>
 /// <see cref="FirstReleaseDate"/> is milliseconds, not seconds; <see cref="AverageRating"/>
 /// is 0-100, not 0-1; <see cref="Companies"/> merges developer and publisher into one
-/// alphabetically sorted array, so neither role survives. Only <see cref="PlayerCount"/> is
-/// already in EmulationStation's form. <c>RomMBat.Core.Metadata.GameMetadata</c> owns every
+/// alphabetically sorted array, so neither role survives, and <see cref="Developers"/> and
+/// <see cref="Publishers"/> recover them only on a row scanned since 5.3.0. Only
+/// <see cref="PlayerCount"/> is already in EmulationStation's form. <c>RomMBat.Core.Metadata.GameMetadata</c> owns every
 /// one of those conversions; nothing else should do them inline.
 /// </remarks>
 public sealed record RomMetadata
@@ -287,6 +291,22 @@ public sealed record RomMetadata
     /// </remarks>
     [JsonPropertyName("companies")]
     public IReadOnlyList<string> Companies { get; init; } = [];
+
+    /// <summary>Companies credited as developer, split out of <see cref="Companies"/> at 5.3.0.</summary>
+    /// <remarks>
+    /// Empty on a row whose metadata predates the split, because the server populates it on
+    /// scan rather than backfilling it, so one library carries both shapes at once: measured
+    /// on a live 5.3.0-alpha.2 instance, 398 of 400 rows on the one platform rescanned since
+    /// the upgrade and 0 of 300 on each of nine that were not. Where it is present it holds
+    /// exactly one name, and it disagrees with <see cref="Companies"/>[0] on 41% of rows,
+    /// which is what indexing the sorted array costs.
+    /// </remarks>
+    [JsonPropertyName("developers")]
+    public IReadOnlyList<string> Developers { get; init; } = [];
+
+    /// <summary>Companies credited as publisher. See <see cref="Developers"/>.</summary>
+    [JsonPropertyName("publishers")]
+    public IReadOnlyList<string> Publishers { get; init; } = [];
 
     /// <summary>Already <c>1</c>, <c>1-2</c>, <c>1-4</c>, which is what <c>&lt;players&gt;</c> wants.</summary>
     [JsonPropertyName("player_count")]
@@ -354,6 +374,12 @@ public sealed record RomFilterValues
 
     [JsonPropertyName("companies")]
     public IReadOnlyList<string> Companies { get; init; } = [];
+
+    [JsonPropertyName("developers")]
+    public IReadOnlyList<string> Developers { get; init; } = [];
+
+    [JsonPropertyName("publishers")]
+    public IReadOnlyList<string> Publishers { get; init; } = [];
 
     [JsonPropertyName("game_modes")]
     public IReadOnlyList<string> GameModes { get; init; } = [];

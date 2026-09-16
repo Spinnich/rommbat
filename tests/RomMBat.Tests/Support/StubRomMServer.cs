@@ -163,16 +163,24 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     public bool RejectsToken { get; set; }
 
     /// <summary>What <c>GET /api/heartbeat</c> reports as <c>SYSTEM.VERSION</c>.</summary>
-    public string ServerVersion { get; set; } = "5.2.0";
+    /// <remarks>
+    /// The floor, so a test that goes through the compatibility check reaches the behaviour it
+    /// is about. It defaulted to <c>5.2.0</c> until the floor moved, which then read as a
+    /// server the client refuses, and the screens that check at startup stopped before doing
+    /// anything: two pairing tests timed out waiting for an approval that could not be asked
+    /// for. A stub below the floor is a stub of a refusal.
+    /// </remarks>
+    public string ServerVersion { get; set; } = "5.3.0-alpha.2";
 
     /// <summary>
     /// Whether ROM rows carry the fields 5.3.0 added, derived from <see cref="ServerVersion"/>.
     /// </summary>
     /// <remarks>
-    /// Read off the version rather than set on its own, so the whole suite runs against the
-    /// 5.2.0 row shape by default and the client's fallback is exercised everywhere instead of
-    /// in the one test that remembers to ask for it. A prerelease suffix is ignored:
-    /// <c>5.3.0-alpha.2</c> is a 5.3.0 server.
+    /// Read off the version rather than set on its own, so no test can describe a row shape its
+    /// server would not send. A prerelease suffix is ignored: <c>5.3.0-alpha.2</c> is a 5.3.0
+    /// server, which is also why the floor being a prerelease changes nothing here. Set
+    /// <see cref="ServerVersion"/> to a 5.2.0 to exercise the client's fallback for a row that
+    /// omits the fields, which no supported server sends now.
     /// </remarks>
     private bool SpeaksFiveThree
     {

@@ -112,9 +112,10 @@ GPL-3.0, Trunk for linting, `rommapp/template-repo`'s `.github` layout (issue te
 `CODE_OF_CONDUCT.md`, `SECURITY.md`), and the Playnite plugin as the structural analogue
 for a C# repo in the org.
 
-**Declare compatibility, and track the newest stable.** Every release names its minimum
-RomM and RetroBat versions. Currently RetroBat 8.2.1, RomM 5.2.0. Check both at startup,
-refuse below, warn above.
+**Declare compatibility, and track the newest stable or a prerelease ahead of it.** Every
+release names its minimum RomM and RetroBat versions. Currently RetroBat 8.2.1, RomM
+5.3.0-alpha.2, a prerelease, so RomM 5.2.0, the newest stable, is refused. Check both at
+startup, refuse below, warn above.
 
 **The floor moves forward, it does not sit still.** RomMBat adopts a new RomM or RetroBat
 stable within one release of it appearing and raises the minimum with it, rather than
@@ -124,7 +125,10 @@ version in it, across a `(system, emulator, core)` matrix that is already two to
 per row. Adopting one means: re-run `reference/refresh.sh` and resolve the drift, read the
 upstream changelog for anything touching a measured rule, move the floor and the tested row
 together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the RomM floor
-also moves the pinned OpenAPI schema, which is the minimum version on purpose.
+also moves the pinned OpenAPI schema, which is the minimum version on purpose. A prerelease
+is adoptable, and then the target is the newest prerelease of that version when the work
+starts, re-checked before the PR opens; `docs/PLAN.md`, "Version compatibility is declared,
+checked, and visible".
 
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get
 fixtures from a real install, checked in.

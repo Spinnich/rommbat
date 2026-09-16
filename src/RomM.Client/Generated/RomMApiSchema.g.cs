@@ -85,23 +85,26 @@ namespace RomM.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"collection.delete")]
         Collection_delete = 16,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"playlist.edit")]
+        Playlist_edit = 17,
+
         [System.Runtime.Serialization.EnumMember(Value = @"library.scan")]
-        Library_scan = 17,
+        Library_scan = 18,
 
         [System.Runtime.Serialization.EnumMember(Value = @"user.view")]
-        User_view = 18,
+        User_view = 19,
 
         [System.Runtime.Serialization.EnumMember(Value = @"user.create")]
-        User_create = 19,
+        User_create = 20,
 
         [System.Runtime.Serialization.EnumMember(Value = @"user.edit")]
-        User_edit = 20,
+        User_edit = 21,
 
         [System.Runtime.Serialization.EnumMember(Value = @"user.delete")]
-        User_delete = 21,
+        User_delete = 22,
 
         [System.Runtime.Serialization.EnumMember(Value = @"app.admin")]
-        App_admin = 22,
+        App_admin = 23,
 
     }
 
@@ -165,6 +168,123 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("firmware")]
         public System.Collections.Generic.ICollection<FirmwareSchema> Firmware { get; set; } = new System.Collections.Generic.List<FirmwareSchema>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AdminContainerSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string? Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("host")]
+        public string Host { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public System.Collections.Generic.ICollection<string> Platforms { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("supports_desktop")]
+        public bool Supports_desktop { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("configured")]
+        public bool Configured { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("session")]
+        public ContainerSessionSchema? Session { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AdminContainersResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("containers")]
+        public System.Collections.Generic.ICollection<AdminContainerSchema> Containers { get; set; } = new System.Collections.Generic.List<AdminContainerSchema>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AdminSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string? Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string? Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int? Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string? Rom_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("desktop")]
+        public bool Desktop { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimed_at")]
+        public string? Claimed_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_id")]
+        public int? User_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("username")]
+        public string? Username { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class AdminSessionsResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("sessions")]
+        public System.Collections.Generic.ICollection<AdminSessionSchema> Sessions { get; set; } = new System.Collections.Generic.List<AdminSessionSchema>();
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -451,6 +571,27 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Body_delete_memory_cards_api_memory_cards_delete_post
+    {
+
+        /// <summary>
+        /// List of memory card ids to delete.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cards")]
+        public System.Collections.Generic.ICollection<int> Cards { get; set; } = new System.Collections.Generic.List<int>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class Body_delete_roms_api_roms_delete_post
     {
 
@@ -589,6 +730,24 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("group_id")]
         public int? Group_id { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Body_rename_memory_card_api_memory_cards__id__put
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -752,6 +911,24 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Body_update_memory_card_visibility_api_memory_cards__id__visibility_put
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_public")]
+        public bool Is_public { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class Body_update_platform_api_platforms__id__put
     {
 
@@ -818,6 +995,18 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("hltb_id")]
         public string? Hltb_id { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
+        public string? Demozoo_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_id")]
+        public string? Pouet_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_id")]
+        public string? Csdb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_id")]
+        public string? Steam_id { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("libretro_id")]
         public string? Libretro_id { get; set; } = default!;
 
@@ -841,6 +1030,18 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("raw_hltb_metadata")]
         public string? Raw_hltb_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("raw_demozoo_metadata")]
+        public string? Raw_demozoo_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("raw_pouet_metadata")]
+        public string? Raw_pouet_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("raw_csdb_metadata")]
+        public string? Raw_csdb_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("raw_steam_metadata")]
+        public string? Raw_steam_metadata { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("raw_manual_metadata")]
         public string? Raw_manual_metadata { get; set; } = default!;
@@ -1010,6 +1211,27 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class Body_upload_memory_card_version_api_memory_cards__id__versions_post
+    {
+
+        /// <summary>
+        /// Memory card archive to upload.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("cardFile")]
+        public string CardFile { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class BulkOperationResponse
     {
 
@@ -1034,11 +1256,24 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class ClaimSessionRequest
+    public partial class ClaimStreamingSessionRequest
     {
 
         [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
         public int Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("state_id")]
+        public int? State_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("memory_card_id")]
+        public int? Memory_card_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("card_import")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ClaimStreamingSessionRequestCard_import>))]
+        public ClaimStreamingSessionRequestCard_import? Card_import { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("multiplayer")]
+        public bool? Multiplayer { get; set; } = false;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -1072,6 +1307,9 @@ namespace RomM.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class CleanupTaskStatusResponse
     {
+
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
@@ -1479,8 +1717,11 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("EXCLUDED_MULTI_PARTS_FILES")]
         public System.Collections.Generic.ICollection<string> EXCLUDED_MULTI_PARTS_FILES { get; set; } = new System.Collections.Generic.List<string>();
 
-        [System.Text.Json.Serialization.JsonPropertyName("DEFAULT_EXCLUDED_DIRS")]
-        public System.Collections.Generic.ICollection<string> DEFAULT_EXCLUDED_DIRS { get; set; } = new System.Collections.Generic.List<string>();
+        [System.Text.Json.Serialization.JsonPropertyName("DEFAULT_EXCLUDED_PLATFORM_DIRS")]
+        public System.Collections.Generic.ICollection<string> DEFAULT_EXCLUDED_PLATFORM_DIRS { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("DEFAULT_EXCLUDED_MULTI_FILE_DIRS")]
+        public System.Collections.Generic.ICollection<string> DEFAULT_EXCLUDED_MULTI_FILE_DIRS { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("DEFAULT_EXCLUDED_FILES")]
         public System.Collections.Generic.ICollection<string> DEFAULT_EXCLUDED_FILES { get; set; } = new System.Collections.Generic.List<string>();
@@ -1509,11 +1750,17 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("EJS_DISABLE_BATCH_BOOTUP")]
         public bool EJS_DISABLE_BATCH_BOOTUP { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("EJS_ENABLE_AUTO_SAVE_SYNC")]
+        public bool EJS_ENABLE_AUTO_SAVE_SYNC { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("EJS_NETPLAY_ENABLED")]
         public bool EJS_NETPLAY_ENABLED { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("EJS_NETPLAY_ICE_SERVERS")]
         public System.Collections.Generic.ICollection<NetplayICEServer> EJS_NETPLAY_ICE_SERVERS { get; set; } = new System.Collections.Generic.List<NetplayICEServer>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("EJS_DEFAULT_CORES")]
+        public System.Collections.Generic.IDictionary<string, string> EJS_DEFAULT_CORES { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("EJS_SETTINGS")]
         public System.Collections.Generic.IDictionary<string, System.Collections.Generic.IDictionary<string, string>> EJS_SETTINGS { get; set; } = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IDictionary<string, string>>();
@@ -1552,6 +1799,45 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("PEGASUS_AUTO_EXPORT_ON_SCAN")]
         public bool PEGASUS_AUTO_EXPORT_ON_SCAN { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Whatever a container is running, as the fleet view shows it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ContainerSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string? Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int? Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string? Rom_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("desktop")]
+        public bool Desktop { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimed_at")]
+        public string? Claimed_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_id")]
+        public int? User_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("username")]
+        public string? Username { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -1610,6 +1896,9 @@ namespace RomM.Client.Generated
     public partial class ConversionTaskStatusResponse
     {
 
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
 
@@ -1637,6 +1926,27 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("meta")]
         public ConversionTaskMeta Meta { get; set; } = new ConversionTaskMeta();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CsdbCredit
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("role")]
+        public string? Role { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -1686,6 +1996,75 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DemozooCredit
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("role")]
+        public string? Role { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DesktopSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("host")]
+        public string Host { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimed_at")]
+        public string Claimed_at { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DesktopStreamingSessionRequest
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class DetailedRomSchema
     {
 
@@ -1721,6 +2100,18 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("hltb_id")]
         public int? Hltb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
+        public int? Demozoo_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_id")]
+        public int? Pouet_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_id")]
+        public int? Csdb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_id")]
+        public int? Steam_id { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("gamelist_id")]
         public string? Gamelist_id { get; set; } = default!;
@@ -1803,6 +2194,18 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("hltb_metadata")]
         public RomHLTBMetadata? Hltb_metadata { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_metadata")]
+        public RomDemozooMetadata? Demozoo_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_metadata")]
+        public RomPouetMetadata? Pouet_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_metadata")]
+        public RomCsdbMetadata? Csdb_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_metadata")]
+        public RomSteamMetadata? Steam_metadata { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("gamelist_metadata")]
         public RomGamelistMetadata? Gamelist_metadata { get; set; } = default!;
 
@@ -1866,6 +2269,16 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("ra_hash")]
         public string? Ra_hash { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("title_id")]
+        public string? Title_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("save_target")]
+        public string? Save_target { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("save_target_layout")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SaveTargetLayout>))]
+        public SaveTargetLayout? Save_target_layout { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("has_simple_single_file")]
         public bool Has_simple_single_file { get; set; } = default!;
 
@@ -1886,6 +2299,15 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("missing_from_fs")]
         public bool Missing_from_fs { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_physical")]
+        public bool Is_physical { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_file_on_disk")]
+        public bool Has_file_on_disk { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("upc")]
+        public string? Upc { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("has_notes")]
         public bool Has_notes { get; set; } = default!;
@@ -2400,6 +2822,52 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class DocMetaSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("source")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<DocSource>))]
+        public DocSource Source { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("source_url")]
+        public string? Source_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("author")]
+        public string? Author { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("title")]
+        public string? Title { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Where a document (manual/walkthrough) came from.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum DocSource
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"upload")]
+        Upload = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"gamefaqs")]
+        Gamefaqs = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"scraper")]
+        Scraper = 2,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class EarnedAchievement
     {
 
@@ -2481,6 +2949,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("DISABLE_RUFFLE_RS")]
         public bool DISABLE_RUFFLE_RS { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("DISABLE_JSDOS")]
+        public bool DISABLE_JSDOS { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("DISABLE_PICO8")]
+        public bool DISABLE_PICO8 { get; set; } = default!;
+
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -2510,6 +2984,87 @@ namespace RomM.Client.Generated
             get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
             set { _additionalProperties = value; }
         }
+
+    }
+
+    /// <summary>
+    /// The `Config` fields an exclusion write may target.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum ExclusionType
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_PLATFORMS")]
+        EXCLUDED_PLATFORMS = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_SINGLE_EXT")]
+        EXCLUDED_SINGLE_EXT = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_SINGLE_FILES")]
+        EXCLUDED_SINGLE_FILES = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_MULTI_FILES")]
+        EXCLUDED_MULTI_FILES = 3,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_MULTI_PARTS_EXT")]
+        EXCLUDED_MULTI_PARTS_EXT = 4,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"EXCLUDED_MULTI_PARTS_FILES")]
+        EXCLUDED_MULTI_PARTS_FILES = 5,
+
+    }
+
+    /// <summary>
+    /// Every axis a recommendation can be explained by.
+    /// <br/>
+    /// <br/>Reaches the API as a similarity reason's `facet`, so a new member fails
+    /// <br/>the frontend typecheck until the UI maps it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum Facet
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"collection")]
+        Collection = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"franchise")]
+        Franchise = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"genre")]
+        Genre = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"perspective")]
+        Perspective = 3,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"theme")]
+        Theme = 4,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"keyword")]
+        Keyword = 5,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"developer")]
+        Developer = 6,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"publisher")]
+        Publisher = 7,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"company")]
+        Company = 8,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"game_mode")]
+        Game_mode = 9,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"platform")]
+        Platform = 10,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"decade")]
+        Decade = 11,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"igdb")]
+        Igdb = 12,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"top_rated")]
+        Top_rated = 13,
 
     }
 
@@ -2544,6 +3099,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("FS_PLATFORMS")]
         public System.Collections.Generic.ICollection<string> FS_PLATFORMS { get; set; } = new System.Collections.Generic.List<string>();
 
+        [System.Text.Json.Serialization.JsonPropertyName("TITLE_ID_EXTRACTION_ENABLED")]
+        public bool TITLE_ID_EXTRACTION_ENABLED { get; set; } = default!;
+
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -2561,6 +3119,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("id")]
         public int Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int Platform_id { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("file_name")]
         public string File_name { get; set; } = default!;
@@ -2616,6 +3177,27 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ForceReleaseResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public System.Collections.Generic.ICollection<string> Platforms { get; set; } = new System.Collections.Generic.List<string>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class FrontendDict
     {
 
@@ -2657,6 +3239,9 @@ namespace RomM.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class GenericTaskStatusResponse
     {
+
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
@@ -3056,6 +3641,109 @@ namespace RomM.Client.Generated
 
     }
 
+    /// <summary>
+    /// A session its host opened to other players, plus enough of the ROM to
+    /// <br/>draw a cover tile without a second request per session.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class JoinableSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string? Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string? Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int? Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string? Rom_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("host_username")]
+        public string? Host_username { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimed_at")]
+        public string? Claimed_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int? Platform_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_display_name")]
+        public string? Platform_display_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("path_cover_small")]
+        public string? Path_cover_small { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("path_cover_large")]
+        public string? Path_cover_large { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("url_cover")]
+        public string? Url_cover { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class JoinableSessionsResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("sessions")]
+        public System.Collections.Generic.ICollection<JoinableSessionSchema> Sessions { get; set; } = new System.Collections.Generic.List<JoinableSessionSchema>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class JoinedSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("host")]
+        public string Host { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int? Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string? Rom_name { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class LaunchboxImage
     {
@@ -3080,12 +3768,74 @@ namespace RomM.Client.Generated
 
     }
 
+    /// <summary>
+    /// The 202 a claim answers with: the container is reserved and the game is
+    /// <br/>on its way up. The room URL follows over the socket, since only the
+    /// <br/>broker's launch reply carries it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LaunchingSessionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("container")]
+        public string Container { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string Rom_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("claimed_at")]
+        public string Claimed_at { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class LoadStateRequest
     {
 
         [System.Text.Json.Serialization.JsonPropertyName("slot")]
         public int? Slot { get; set; } = 1;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class LoadStateResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("loaded")]
+        public bool Loaded { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("slot")]
+        public int Slot { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -3141,6 +3891,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("game_modes")]
         public System.Collections.Generic.ICollection<string>? Game_modes { get; set; } = default!;
 
@@ -3152,6 +3908,188 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("youtube_video_id")]
         public string? Youtube_video_id { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MemoryCardCreatePayload
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("emulator")]
+        public string Emulator { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int? Platform_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_public")]
+        public bool? Is_public { get; set; } = false;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// The 428 body: a container still holds a card nobody has decided about.
+    /// <br/>
+    /// <br/>The claim is not held open behind the prompt; the answer comes back on a
+    /// <br/>fresh claim as `card_import`.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MemoryCardImportRequired
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("code")]
+        public string Code { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("outcome")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<MemoryCardImportRequiredOutcome>))]
+        public MemoryCardImportRequiredOutcome Outcome { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("summary")]
+        public MemoryCardSummarySchema? Summary { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("reason")]
+        public string? Reason { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// A card's identity. Its data lives in `versions`; the list views return
+    /// <br/>the card without them (fetch history via the versions route) so the schema
+    /// <br/>never touches the lazy="raise" relationship.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MemoryCardSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public int Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_id")]
+        public int User_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("emulator")]
+        public string Emulator { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int? Platform_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("slot")]
+        public int Slot { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_public")]
+        public bool? Is_public { get; set; } = false;
+
+        [System.Text.Json.Serialization.JsonPropertyName("created_at")]
+        public string Created_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("updated_at")]
+        public string Updated_at { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// What is on the card a container is holding, enough for the player to
+    /// <br/>recognise it before deciding whether to keep it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MemoryCardSummarySchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("file_count")]
+        public int File_count { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("total_bytes")]
+        public int Total_bytes { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("game_codes")]
+        public System.Collections.Generic.ICollection<string> Game_codes { get; set; } = new System.Collections.Generic.List<string>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// A single snapshot in a card's history. Unlike the ROM-scoped assets it
+    /// <br/>has no rom_id/user_id, so it does not reuse the shared BaseAsset schema.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MemoryCardVersionSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public int Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("memory_card_id")]
+        public int Memory_card_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("file_name")]
+        public string File_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("file_size_bytes")]
+        public int File_size_bytes { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("content_hash")]
+        public string? Content_hash { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("download_path")]
+        public string Download_path { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("missing_from_fs")]
+        public bool Missing_from_fs { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("created_at")]
+        public string Created_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("updated_at")]
+        public string Updated_at { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -3282,6 +4220,18 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("HLTB_API_ENABLED")]
         public bool HLTB_API_ENABLED { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("DEMOZOO_API_ENABLED")]
+        public bool DEMOZOO_API_ENABLED { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("POUET_API_ENABLED")]
+        public bool POUET_API_ENABLED { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("CSDB_API_ENABLED")]
+        public bool CSDB_API_ENABLED { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("STEAM_API_ENABLED")]
+        public bool STEAM_API_ENABLED { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("LIBRETRO_API_ENABLED")]
         public bool LIBRETRO_API_ENABLED { get; set; } = default!;
 
@@ -3344,12 +4294,105 @@ namespace RomM.Client.Generated
 
     }
 
+    /// <summary>
+    /// A game that has soundtrack tracks -- one entry of the album list.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MusicGameFacetSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int Platform_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_slug")]
+        public string Platform_slug { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_name")]
+        public string Platform_name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("cover_url")]
+        public string? Cover_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("count")]
+        public int Count { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class MusicPage_FacetValueSchema_
     {
 
         [System.Text.Json.Serialization.JsonPropertyName("items")]
         public System.Collections.Generic.ICollection<FacetValueSchema> Items { get; set; } = new System.Collections.Generic.List<FacetValueSchema>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("total")]
+        public int Total { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("limit")]
+        public int Limit { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("offset")]
+        public int Offset { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MusicPage_MusicGameFacetSchema_
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("items")]
+        public System.Collections.Generic.ICollection<MusicGameFacetSchema> Items { get; set; } = new System.Collections.Generic.List<MusicGameFacetSchema>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("total")]
+        public int Total { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("limit")]
+        public int Limit { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("offset")]
+        public int Offset { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MusicPage_MusicPlatformFacetSchema_
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("items")]
+        public System.Collections.Generic.ICollection<MusicPlatformFacetSchema> Items { get; set; } = new System.Collections.Generic.List<MusicPlatformFacetSchema>();
 
         [System.Text.Json.Serialization.JsonPropertyName("total")]
         public int Total { get; set; } = default!;
@@ -3386,6 +4429,36 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("offset")]
         public int Offset { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// A platform that has soundtrack tracks, plus how many it has.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MusicPlatformFacetSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public int Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("slug")]
+        public string Slug { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("count")]
+        public int Count { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -3488,6 +4561,30 @@ namespace RomM.Client.Generated
 
     }
 
+    /// <summary>
+    /// Library-wide soundtrack totals.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MusicStatsSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("total_tracks")]
+        public int Total_tracks { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("total_duration_seconds")]
+        public double Total_duration_seconds { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class MusicTrackIdsPayload
     {
@@ -3549,6 +4646,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("game_name")]
         public string? Game_name { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("game_genres")]
+        public System.Collections.Generic.ICollection<string>? Game_genres { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("added_at")]
+        public string Added_at { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
         public int Platform_id { get; set; } = default!;
 
@@ -3563,6 +4666,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("cover_url")]
         public string? Cover_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("game_cover_url")]
+        public string? Game_cover_url { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -3581,6 +4687,30 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("mute")]
         public bool? Mute { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MuteResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("mute")]
+        public bool? Mute { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -3957,6 +5087,45 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class PhysicalRomCreateForm
+    {
+
+        /// <summary>
+        /// Platform the game belongs to.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int Platform_id { get; set; } = default!;
+
+        /// <summary>
+        /// Game name to match metadata against.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        /// <summary>
+        /// UPC/EAN/barcode of the physical copy.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("upc")]
+        public string? Upc { get; set; } = default!;
+
+        /// <summary>
+        /// Metadata providers to match against; defaults to all enabled.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("metadata_sources")]
+        public System.Collections.Generic.ICollection<string>? Metadata_sources { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class PlatformBindingPayload
     {
 
@@ -4249,6 +5418,27 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class PouetCredit
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string? Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("role")]
+        public string? Role { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class RAGameRomAchievement
     {
 
@@ -4360,6 +5550,36 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RecommendedRomSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom")]
+        public SimpleRomSchema Rom { get; set; } = new SimpleRomSchema();
+
+        [System.Text.Json.Serialization.JsonPropertyName("score")]
+        public double Score { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("reasons")]
+        public System.Collections.Generic.ICollection<SimilarityReasonSchema> Reasons { get; set; } = new System.Collections.Generic.List<SimilarityReasonSchema>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("seed_rom_id")]
+        public int? Seed_rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("seed_rom_name")]
+        public string? Seed_rom_name { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class RegionBreakdownItem
     {
 
@@ -4368,6 +5588,28 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("count")]
         public int Count { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class ReleaseSessionResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<ReleaseSessionResponseStatus>))]
+        public ReleaseSessionResponseStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -4423,6 +5665,123 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomCsdbMetadata
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("types")]
+        public System.Collections.Generic.ICollection<string>? Types { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("groups")]
+        public System.Collections.Generic.ICollection<string>? Groups { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public System.Collections.Generic.ICollection<string>? Platforms { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("credits")]
+        public System.Collections.Generic.ICollection<CsdbCredit>? Credits { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_url")]
+        public string? Csdb_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("first_release_date")]
+        public int? First_release_date { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("companies")]
+        public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("genres")]
+        public System.Collections.Generic.ICollection<string>? Genres { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("download_urls")]
+        public System.Collections.Generic.ICollection<string>? Download_urls { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomDemozooMetadata
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("types")]
+        public System.Collections.Generic.ICollection<string>? Types { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("groups")]
+        public System.Collections.Generic.ICollection<string>? Groups { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public System.Collections.Generic.ICollection<string>? Platforms { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("party")]
+        public string? Party { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("party_id")]
+        public int? Party_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("party_line")]
+        public string? Party_line { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("invitation")]
+        public string? Invitation { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("credits")]
+        public System.Collections.Generic.ICollection<DemozooCredit>? Credits { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("tags")]
+        public System.Collections.Generic.ICollection<string>? Tags { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_url")]
+        public string? Demozoo_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_id")]
+        public int? Pouet_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_url")]
+        public string? Pouet_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_id")]
+        public int? Csdb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_url")]
+        public string? Csdb_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("youtube_video_id")]
+        public string? Youtube_video_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("first_release_date")]
+        public int? First_release_date { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("companies")]
+        public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("genres")]
+        public System.Collections.Generic.ICollection<string>? Genres { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("collections")]
+        public System.Collections.Generic.ICollection<string>? Collections { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("download_urls")]
+        public System.Collections.Generic.ICollection<string>? Download_urls { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public enum RomFileCategory
     {
 
@@ -4438,32 +5797,35 @@ namespace RomM.Client.Generated
         [System.Runtime.Serialization.EnumMember(Value = @"manual")]
         Manual = 3,
 
+        [System.Runtime.Serialization.EnumMember(Value = @"walkthrough")]
+        Walkthrough = 4,
+
         [System.Runtime.Serialization.EnumMember(Value = @"patch")]
-        Patch = 4,
+        Patch = 5,
 
         [System.Runtime.Serialization.EnumMember(Value = @"update")]
-        Update = 5,
+        Update = 6,
 
         [System.Runtime.Serialization.EnumMember(Value = @"mod")]
-        Mod = 6,
+        Mod = 7,
 
         [System.Runtime.Serialization.EnumMember(Value = @"demo")]
-        Demo = 7,
+        Demo = 8,
 
         [System.Runtime.Serialization.EnumMember(Value = @"translation")]
-        Translation = 8,
+        Translation = 9,
 
         [System.Runtime.Serialization.EnumMember(Value = @"prototype")]
-        Prototype = 9,
+        Prototype = 10,
 
         [System.Runtime.Serialization.EnumMember(Value = @"cheat")]
-        Cheat = 10,
+        Cheat = 11,
 
         [System.Runtime.Serialization.EnumMember(Value = @"soundtrack")]
-        Soundtrack = 11,
+        Soundtrack = 12,
 
         [System.Runtime.Serialization.EnumMember(Value = @"screenshot")]
-        Screenshot = 12,
+        Screenshot = 13,
 
     }
 
@@ -4526,6 +5888,42 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("track_meta")]
         public TrackMetaSchema? Track_meta { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("doc_meta")]
+        public DocMetaSchema? Doc_meta { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomFileUserSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_file_id")]
+        public int Rom_file_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_id")]
+        public int User_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("progress")]
+        public double Progress { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("last_page")]
+        public int? Last_page { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("finished")]
+        public bool? Finished { get; set; } = false;
+
+        [System.Text.Json.Serialization.JsonPropertyName("last_read_at")]
+        public string? Last_read_at { get; set; } = default!;
+
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -4552,6 +5950,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string> Companies { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string> Publishers { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string> Developers { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("game_modes")]
         public System.Collections.Generic.ICollection<string> Game_modes { get; set; } = new System.Collections.Generic.List<string>();
@@ -4594,6 +5998,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("source")]
         public string? Source { get; set; } = default!;
@@ -4687,6 +6097,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("franchises")]
         public System.Collections.Generic.ICollection<string>? Franchises { get; set; } = default!;
@@ -4844,6 +6260,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("total_rating")]
         public string? Total_rating { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("total_rating_count")]
+        public int? Total_rating_count { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("aggregated_rating")]
         public string? Aggregated_rating { get; set; } = default!;
 
@@ -4856,6 +6275,15 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("genres")]
         public System.Collections.Generic.ICollection<string>? Genres { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("keywords")]
+        public System.Collections.Generic.ICollection<string>? Keywords { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("themes")]
+        public System.Collections.Generic.ICollection<string>? Themes { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("player_perspectives")]
+        public System.Collections.Generic.ICollection<string>? Player_perspectives { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("franchises")]
         public System.Collections.Generic.ICollection<string>? Franchises { get; set; } = default!;
 
@@ -4867,6 +6295,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("game_modes")]
         public System.Collections.Generic.ICollection<string>? Game_modes { get; set; } = default!;
@@ -4903,6 +6337,43 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("similar_games")]
         public System.Collections.Generic.ICollection<IGDBRelatedGame>? Similar_games { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Binary identity a client extracted for a ROM that RomM cannot read itself.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomIdentityData
+    {
+
+        /// <summary>
+        /// Platform-native identity, e.g. 0100ABCD12340000 or SLUS-20152.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("title_id")]
+        public string? Title_id { get; set; } = default!;
+
+        /// <summary>
+        /// On-disk name the emulator gives this game's saves.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("save_target")]
+        public string? Save_target { get; set; } = default!;
+
+        /// <summary>
+        /// How to apply save_target when locating saves on disk.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("save_target_layout")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SaveTargetLayout>))]
+        public SaveTargetLayout? Save_target_layout { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -4952,6 +6423,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("images")]
         public System.Collections.Generic.ICollection<LaunchboxImage>? Images { get; set; } = default!;
 
@@ -4990,6 +6467,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string> Companies { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string> Publishers { get; set; } = new System.Collections.Generic.List<string>();
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string> Developers { get; set; } = new System.Collections.Generic.List<string>();
 
         [System.Text.Json.Serialization.JsonPropertyName("game_modes")]
         public System.Collections.Generic.ICollection<string> Game_modes { get; set; } = new System.Collections.Generic.List<string>();
@@ -5045,6 +6528,72 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomPouetMetadata
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("types")]
+        public System.Collections.Generic.ICollection<string>? Types { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("groups")]
+        public System.Collections.Generic.ICollection<string>? Groups { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public System.Collections.Generic.ICollection<string>? Platforms { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("party")]
+        public string? Party { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("invitation")]
+        public string? Invitation { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("credits")]
+        public System.Collections.Generic.ICollection<PouetCredit>? Credits { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("vote_avg")]
+        public double? Vote_avg { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_rank")]
+        public int? Pouet_rank { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_cdc")]
+        public int? Pouet_cdc { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_popularity")]
+        public double? Pouet_popularity { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
+        public int? Demozoo_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_url")]
+        public string? Pouet_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("youtube_video_id")]
+        public string? Youtube_video_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("soundtrack_urls")]
+        public System.Collections.Generic.ICollection<string>? Soundtrack_urls { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("genres")]
+        public System.Collections.Generic.ICollection<string>? Genres { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("companies")]
+        public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("download_urls")]
+        public System.Collections.Generic.ICollection<string>? Download_urls { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class RomRAMetadata
     {
 
@@ -5056,6 +6605,12 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("achievements")]
         public System.Collections.Generic.ICollection<RAGameRomAchievement>? Achievements { get; set; } = default!;
@@ -5186,6 +6741,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("companies")]
         public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("franchises")]
         public System.Collections.Generic.ICollection<string>? Franchises { get; set; } = default!;
 
@@ -5197,6 +6758,60 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("player_count")]
         public string? Player_count { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RomSteamMetadata
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("total_rating")]
+        public string? Total_rating { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("first_release_date")]
+        public int? First_release_date { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("genres")]
+        public System.Collections.Generic.ICollection<string>? Genres { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("companies")]
+        public System.Collections.Generic.ICollection<string>? Companies { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("publishers")]
+        public System.Collections.Generic.ICollection<string>? Publishers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("developers")]
+        public System.Collections.Generic.ICollection<string>? Developers { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("game_modes")]
+        public System.Collections.Generic.ICollection<string>? Game_modes { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platforms")]
+        public SteamPlatforms? Platforms { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("controller_support")]
+        public string? Controller_support { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("metacritic_url")]
+        public string? Metacritic_url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("website")]
+        public string? Website { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_free")]
+        public bool? Is_free { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("required_age")]
+        public int? Required_age { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -5473,6 +7088,33 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SaveAndExitResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("saved")]
+        public bool Saved { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("released")]
+        public bool Released { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SaveSchema
     {
 
@@ -5569,6 +7211,30 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SaveStateResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("slot")]
+        public int Slot { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SaveSummarySchema
     {
 
@@ -5586,6 +7252,27 @@ namespace RomM.Client.Generated
             get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
             set { _additionalProperties = value; }
         }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum SaveTargetLayout
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"folder-exact")]
+        FolderExact = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"folder-prefix")]
+        FolderPrefix = 1,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"file-exact")]
+        FileExact = 2,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"file-prefix")]
+        FilePrefix = 3,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"folder-split")]
+        FolderSplit = 4,
 
     }
 
@@ -5684,6 +7371,12 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("new_firmware")]
         public int New_firmware { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("updated_roms")]
+        public int Updated_roms { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("new_files")]
+        public int New_files { get; set; } = default!;
+
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -5716,6 +7409,9 @@ namespace RomM.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ScanTaskStatusResponse
     {
+
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
@@ -5865,6 +7561,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("launchbox_id")]
         public int? Launchbox_id { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
+        public int? Demozoo_id { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("libretro_id")]
         public string? Libretro_id { get; set; } = default!;
 
@@ -5898,6 +7597,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("launchbox_url_cover")]
         public string? Launchbox_url_cover { get; set; } = "";
 
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_url_cover")]
+        public string? Demozoo_url_cover { get; set; } = "";
+
         [System.Text.Json.Serialization.JsonPropertyName("libretro_url_cover")]
         public string? Libretro_url_cover { get; set; } = "";
 
@@ -5906,6 +7608,73 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("is_identified")]
         public bool Is_identified { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SessionStatusSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SessionStatusSchemaStatus>))]
+        public SessionStatusSchemaStatus Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("extraction_phase")]
+        public string? Extraction_phase { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("termination")]
+        public SessionTerminationSchema? Termination { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Why a session the caller held is gone, left behind for their next poll.
+    /// <br/>
+    /// <br/>Only an admin force-release records one; a session the player released or
+    /// <br/>that simply expired leaves no notice.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SessionTerminationSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("ended_by")]
+        public string? Ended_by { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("reason")]
+        public string? Reason { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("ended_at")]
+        public string? Ended_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string? Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int? Rom_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_name")]
+        public string? Rom_name { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -5939,6 +7708,58 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("sort_comparator")]
         public string Sort_comparator { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SimilarRomSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom")]
+        public SimpleRomSchema Rom { get; set; } = new SimpleRomSchema();
+
+        [System.Text.Json.Serialization.JsonPropertyName("score")]
+        public double Score { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("reasons")]
+        public System.Collections.Generic.ICollection<SimilarityReasonSchema> Reasons { get; set; } = new System.Collections.Generic.List<SimilarityReasonSchema>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Why two games were linked, e.g. {"facet": "franchise", "value": "Metroid"}.
+    /// <br/>
+    /// <br/>`value` is empty for facets with no value of their own, which the frontend
+    /// <br/>renders as a translated phrase instead.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SimilarityReasonSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("facet")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<Facet>))]
+        public Facet Facet { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("value")]
+        public string Value { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -5987,6 +7808,18 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("hltb_id")]
         public int? Hltb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
+        public int? Demozoo_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_id")]
+        public int? Pouet_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_id")]
+        public int? Csdb_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_id")]
+        public int? Steam_id { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("gamelist_id")]
         public string? Gamelist_id { get; set; } = default!;
@@ -6069,6 +7902,18 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("hltb_metadata")]
         public RomHLTBMetadata? Hltb_metadata { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("demozoo_metadata")]
+        public RomDemozooMetadata? Demozoo_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("pouet_metadata")]
+        public RomPouetMetadata? Pouet_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("csdb_metadata")]
+        public RomCsdbMetadata? Csdb_metadata { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_metadata")]
+        public RomSteamMetadata? Steam_metadata { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("gamelist_metadata")]
         public RomGamelistMetadata? Gamelist_metadata { get; set; } = default!;
 
@@ -6132,6 +7977,16 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("ra_hash")]
         public string? Ra_hash { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("title_id")]
+        public string? Title_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("save_target")]
+        public string? Save_target { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("save_target_layout")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SaveTargetLayout>))]
+        public SaveTargetLayout? Save_target_layout { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("has_simple_single_file")]
         public bool Has_simple_single_file { get; set; } = default!;
 
@@ -6153,6 +8008,15 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("missing_from_fs")]
         public bool Missing_from_fs { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("is_physical")]
+        public bool Is_physical { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_file_on_disk")]
+        public bool Has_file_on_disk { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("upc")]
+        public string? Upc { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("has_notes")]
         public bool Has_notes { get; set; } = default!;
 
@@ -6173,6 +8037,42 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("screenshot_path")]
         public string? Screenshot_path { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// What save-state controls a platform's emulator actually exposes.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SlotCapabilitiesSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("max_slots")]
+        public int Max_slots { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_autosave")]
+        public bool Has_autosave { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("autosave_slot")]
+        public int Autosave_slot { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_memory_card")]
+        public bool Has_memory_card { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("supports_disc_swap")]
+        public bool Supports_disc_swap { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("has_manual_disc_swap")]
+        public bool Has_manual_disc_swap { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -6309,6 +8209,27 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class StateFrameResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class StateSchema
     {
 
@@ -6414,6 +8335,129 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SteamPlatforms
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("windows")]
+        public bool Windows { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("mac")]
+        public bool Mac { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("linux")]
+        public bool Linux { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class StreamingConfigSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("containers")]
+        public System.Collections.Generic.ICollection<StreamingContainerSchema> Containers { get; set; } = new System.Collections.Generic.List<StreamingContainerSchema>();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// One platform the fleet can stream, as the play screen needs it.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class StreamingContainerSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("host")]
+        public string Host { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("label")]
+        public string Label { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("capabilities")]
+        public SlotCapabilitiesSchema Capabilities { get; set; } = new SlotCapabilitiesSchema();
+
+        [System.Text.Json.Serialization.JsonPropertyName("emulator")]
+        public string Emulator { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("supports_memory_cards")]
+        public bool Supports_memory_cards { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SwapDiscRequest
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("file_id")]
+        public int File_id { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class SwapDiscResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("file_id")]
+        public int File_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SyncCompletePayload
     {
 
@@ -6488,6 +8532,12 @@ namespace RomM.Client.Generated
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("saves")]
         public System.Collections.Generic.ICollection<ClientSaveState> Saves { get; set; } = new System.Collections.Generic.List<ClientSaveState>();
+
+        /// <summary>
+        /// IDs of the ROMs installed on the device. When provided, downloads are offered only for these ROMs (plus any ROM the client sent a save for) instead of the user's whole save library. This is a read-only scope: omitting a ROM never deletes or unlinks its saves. At most 500 IDs per request.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("rom_ids")]
+        public System.Collections.Generic.ICollection<int>? Rom_ids { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -6703,6 +8753,9 @@ namespace RomM.Client.Generated
     public partial class SyncTaskStatusResponse
     {
 
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
 
@@ -6766,6 +8819,9 @@ namespace RomM.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class TaskExecutionResponse
     {
+
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
@@ -7069,6 +9125,9 @@ namespace RomM.Client.Generated
     public partial class UpdateTaskStatusResponse
     {
 
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
 
@@ -7096,6 +9155,34 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("meta")]
         public UpdateTaskMeta Meta { get; set; } = new UpdateTaskMeta();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// Optional body of `/start`: upload into a ROM's folder instead of the
+    /// <br/>platform folder.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class UploadTargetPayload
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
+        public int Rom_id { get; set; } = default!;
+
+        /// <summary>
+        /// Subfolder inside the ROM's folder, relative and forward-slashed. Empty for the root.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("folder")]
+        public string? Folder { get; set; } = "";
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -7159,6 +9246,61 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("ui_settings")]
         public string? Ui_settings { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// A card enriched with its owner's username, for the shared/community
+    /// <br/>picker. Mirrors UserStateSchema.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class UserMemoryCardSchema
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public int Id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_id")]
+        public int User_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("emulator")]
+        public string Emulator { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
+        public int? Platform_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("name")]
+        public string Name { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("slot")]
+        public int Slot { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("is_public")]
+        public bool? Is_public { get; set; } = false;
+
+        [System.Text.Json.Serialization.JsonPropertyName("created_at")]
+        public string Created_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("updated_at")]
+        public string Updated_at { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("username")]
+        public string Username { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_avatar_path")]
+        public string? User_avatar_path { get; set; } = "";
+
+        [System.Text.Json.Serialization.JsonPropertyName("user_updated_at")]
+        public string? User_updated_at { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -7695,6 +9837,30 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class VolumeResponse
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("status")]
+        public string Status { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("level")]
+        public int Level { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform")]
+        public string Platform { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class WatcherTaskMeta
     {
 
@@ -7712,6 +9878,9 @@ namespace RomM.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class WatcherTaskStatusResponse
     {
+
+        [System.Text.Json.Serialization.JsonPropertyName("task_key")]
+        public string? Task_key { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("task_name")]
         public string Task_name { get; set; } = default!;
@@ -7903,6 +10072,18 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum ClaimStreamingSessionRequestCard_import
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"adopt")]
+        Adopt = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"discard")]
+        Discard = 1,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class Cleanup_stats
     {
 
@@ -7929,6 +10110,18 @@ namespace RomM.Client.Generated
             get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
             set { _additionalProperties = value; }
         }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum MemoryCardImportRequiredOutcome
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"found")]
+        Found = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"unreadable")]
+        Unreadable = 1,
 
     }
 
@@ -7962,6 +10155,30 @@ namespace RomM.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"error")]
         Error = 2,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum ReleaseSessionResponseStatus
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"released")]
+        Released = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"not_found")]
+        Not_found = 1,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum SessionStatusSchemaStatus
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"active")]
+        Active = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"ended")]
+        Ended = 1,
 
     }
 

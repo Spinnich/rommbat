@@ -120,9 +120,10 @@ public sealed partial class RomMConnection
     /// <remarks>
     /// <b>There is nothing to verify the result against, and that is the API rather than a
     /// shortcut.</b> <c>StateSchema</c> and <c>UserStateSchema</c> carry no hash field of any
-    /// kind in the pinned 5.2.0 schema, where a save carries <c>content_hash</c>. States also
-    /// have no <c>/track</c> or <c>/downloaded</c>, so there is no acknowledgement to send and
-    /// no per-device record to keep in step. A caller writes what arrives and says so.
+    /// kind in the pinned schema, at 5.2.0 or 5.3.0-alpha.2, where a save carries
+    /// <c>content_hash</c>. States also have no <c>/track</c> or <c>/downloaded</c>, so there
+    /// is no acknowledgement to send and no per-device record to keep in step. A caller writes
+    /// what arrives and says so.
     /// </remarks>
     public async Task<RomMResponse<long>> DownloadStateAsync(
         int stateId,

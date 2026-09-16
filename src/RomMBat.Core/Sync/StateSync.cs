@@ -249,9 +249,9 @@ public sealed class StateSync
     /// <para>
     /// <b>Nothing verifies what arrives, and that is the API rather than a shortcut.</b>
     /// <c>StateSchema</c> and <c>UserStateSchema</c> carry no hash field of any kind in the
-    /// pinned 5.2.0 schema, where a save carries <c>content_hash</c>. A save is verified on
-    /// download because the server offers something to verify against; a state has nothing.
-    /// Callers say so rather than implying a check happened.
+    /// pinned schema, at 5.2.0 or 5.3.0-alpha.2, where a save carries <c>content_hash</c>. A
+    /// save is verified on download because the server offers something to verify against; a
+    /// state has nothing. Callers say so rather than implying a check happened.
     /// </para>
     /// <para>
     /// <b>Never automatic</b>, for the reason <c>saves restore</c> is not: a state reappearing

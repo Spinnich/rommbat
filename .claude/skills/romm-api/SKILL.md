@@ -6,9 +6,9 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 # RomM API
 
 The backend is the contract. DTOs are generated from `/openapi.json` (served at the
-**root**, not under `/api`) and **committed**, pinned to RomM 5.2.0, the minimum supported
-version. The floor tracks the newest RomM stable, so the pin moves with it and the two are
-one decision. The published docs at docs.romm.app have drifted from the server on exactly the
+**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-alpha.2, the minimum supported
+version. The floor tracks the newest RomM stable, or a prerelease ahead of it as it does now,
+so the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
 
 - The pin, the generator, and why the schema is normalised first:
@@ -202,6 +202,14 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   latency** (2.3 s to 8.5 s a page) to save 63 KiB. Unscoped it costs about 1.15 times to
   save 604 KiB. **Off only when the request is unscoped.**
 
+  **Re-measured at 95,993 roms on 5.3.0-alpha.2, the scoped penalty does not reproduce.** A
+  scoped page is 274 to 353 ms either way, so index off is inside the noise and marginally
+  ahead; unscoped is unchanged at 1.15 to 1.20x. The N+1 fix and concurrency 4 took the
+  scoped page from 2.3 s to 0.3 s and took the latency argument with it. **On every supported
+  server the scoped half of the rule now has no stated reason**, and bandwidth, the only argument
+  left, was never the one it was written from. The behaviour stands unchanged until #188 decides
+  it on a bandwidth reading.
+
   **`CatalogQuery` obeys this as of M7 stage 7b-2a, and did not before.** This rule was written
   from A1's measurement and the code went on sending a constant `false` for a further two
   stages, which is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
@@ -284,12 +292,13 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `has_file_on_disk` is a property, not a column: upstream computes it as
   `not is_physical and not missing_from_fs`. `is_physical` and `has_file_on_disk` arrive at
   5.3.0 and sit on `RomSchema`, the base `SimpleRomSchema` extends, so they are on every row
-  `GET /api/roms` returns and not only on the detail route. **`missing_from_fs` is required at
-  the 5.2.0 floor**, so a ROM deleted from the server's disk reaches the download path on any
-  supported server. Read `has_file_on_disk` when it is present and derive it when it is not;
-  reading an absent one as false excludes a whole 5.2.0 library. The query can filter
-  server-side, but `missing` exists at 5.2.0 and `physical` only from 5.3.0, so a client at the
-  5.2.0 floor drops these rows itself. `RomRow.HasFileOnDisk` is that rule. #167.
+  `GET /api/roms` returns and not only on the detail route. **`missing_from_fs` has been
+  required since 5.2.0**, so a ROM deleted from the server's disk reached the download path
+  before 5.3.0 existed. Read `has_file_on_disk` when it is present and derive it when it is not;
+  reading an absent one as false excludes a whole 5.2.0 library. The query can filter on
+  `missing` and `physical` server-side, and **the client drops these rows itself anyway**,
+  because a row the server filters out cannot be reported as skipped, and the sync summary says
+  how many were and why. `RomRow.HasFileOnDisk` is that rule. #167.
 - **`download_path` on a save is not a usable URL.** It is served with a raw space and an
   unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
   the URL from the save `id`.
@@ -311,9 +320,11 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
-  **Re-verified against the pinned `romm-5.2.0.json`, because a whole scope kind turns on it.**
-  The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
-  `smart_collection_id`, and there is nothing else. So a hand-picked set **cannot be resolved by
+  **Re-verified against the pinned `romm-5.3.0-alpha.2.json`, because a whole scope kind turns
+  on it.** The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id`
+  and `smart_collection_id`, and there is nothing else. 5.3.0 takes the query from 51
+  parameters to 58 without adding one: the new ones are filters (`physical`, `playable`,
+  `developers`, `publishers` and their `_logic` partners), not a way to name ids. So a hand-picked set **cannot be resolved by
   a page walk at all**, and that is a property of the scope rather than a defect to work around:
   `CatalogQuery.ToQueryString` throws for it rather than falling through, because every scoping
   parameter would be omitted and the query would match the entire library, which reads as a
@@ -347,9 +358,28 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   one at a time or re-list immediately before.
 - **`POST /api/devices` answers `{device_id, name, created_at}`**, not a `DeviceSchema`.
   `GET /api/devices` keys the same value `id`.
+- **A rom id survives the file behind it moving or being renamed, from 5.3.0.** The unique key
+  is `(platform_id, sha256(fs_path + "/" + fs_name))`, so a rename or a move looks like a brand
+  new file and the old row goes `missing_from_fs`. What saves it is a scan-time rescue rather
+  than the key: a file with no full-path match is hashed and reassociated with a missing entry
+  carrying the same hash, so collections, notes and uploaded assets carry over. Measured on
+  `5.3.0-alpha.2` in both directions: **the rom id, `created_at`, the rom file row id and every
+  hash survive, and `fs_name` and `full_path` follow the new filename.** So cache against the
+  **rom id** and never against `fs_name` or `full_path`.
+
+  **Two conditions, and neither is obvious.** The rescue is gated on
+  `calculate_hashes = not cnfg.SKIP_HASH_CALCULATION`, so an instance with hashing off turns
+  every move into an orphan beside a duplicate. And **moving a file into a subfolder is not a
+  move**: a directory under a platform folder is RomM's convention for one game held as several
+  files, so the row comes back folder shaped, with the folder name as its `fs_name` and no
+  extension. The id still survives; the filename does not, and RomMBat writes `fs_name` into
+  `roms/` and keys per-game `es_settings.cfg` overrides on it. See #183.
+
 - **`md5_hash`, `sha1_hash` and `crc_hash` all describe the _uncompressed_ content**, not
   just the CRC. A `.zip` reports the hashes of the file inside it, so hash inside a
-  single-entry archive rather than over its bytes. Only 91% of ROMs carry an md5 and 96% a
+  single-entry archive rather than over its bytes. That is also why renaming an archive cannot
+  break the reassociation above: the value it matches on describes the member, not the
+  container. Only 91% of ROMs carry an md5 and 96% a
   sha1, so verification must degrade to size and say so.
 
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
@@ -364,6 +394,9 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 - **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504
   after 300 s on an 83k library; the platform and collection siblings answer in under 1.5 s.
+  **On 5.3.0-alpha.2 it completes rather than timing out: 200 after 176.7 s for 95,993 ids.**
+  The refusal stands and its reason changes, from an endpoint that cannot answer to one that
+  answers in three minutes, still unscopable and still unpageable.
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
   133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
   hit, so neither is a sweep.
