@@ -493,9 +493,10 @@ ahead of the shape and extension checks, because neither is what is wrong with t
 `PickedSetService` refuses the same case per game.
 
 **Server-side filtering is deliberately not used.** `GET /api/roms` takes both a `missing` and a
-`physical` boolean, but only `missing` exists at 5.2.0; `physical` arrived with this release. One
-client-side rule covers both server generations, and it is worth revisiting when #174 moves the
-floor.
+`physical` boolean, but only `missing` exists at 5.2.0; `physical` arrived with this release. That
+was the first reason, and the floor move retired it. The one that holds at `alpha.2` is that a row
+the server filters out never reaches the resolver, so the sync summary could not count it as
+skipped for having no file, and a game would disappear from a set with nothing said.
 
 ### 7. The gamelist exporter was substantially rewritten (`source`)
 

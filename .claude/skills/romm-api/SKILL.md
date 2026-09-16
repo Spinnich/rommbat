@@ -292,12 +292,13 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `has_file_on_disk` is a property, not a column: upstream computes it as
   `not is_physical and not missing_from_fs`. `is_physical` and `has_file_on_disk` arrive at
   5.3.0 and sit on `RomSchema`, the base `SimpleRomSchema` extends, so they are on every row
-  `GET /api/roms` returns and not only on the detail route. **`missing_from_fs` is required at
-  the 5.2.0 floor**, so a ROM deleted from the server's disk reaches the download path on any
-  supported server. Read `has_file_on_disk` when it is present and derive it when it is not;
-  reading an absent one as false excludes a whole 5.2.0 library. The query can filter
-  server-side, but `missing` exists at 5.2.0 and `physical` only from 5.3.0, so a client at the
-  5.2.0 floor drops these rows itself. `RomRow.HasFileOnDisk` is that rule. #167.
+  `GET /api/roms` returns and not only on the detail route. **`missing_from_fs` has been
+  required since 5.2.0**, so a ROM deleted from the server's disk reached the download path
+  before 5.3.0 existed. Read `has_file_on_disk` when it is present and derive it when it is not;
+  reading an absent one as false excludes a whole 5.2.0 library. The query can filter on
+  `missing` and `physical` server-side, and **the client drops these rows itself anyway**,
+  because a row the server filters out cannot be reported as skipped, and the sync summary says
+  how many were and why. `RomRow.HasFileOnDisk` is that rule. #167.
 - **`download_path` on a save is not a usable URL.** It is served with a raw space and an
   unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
   the URL from the save `id`.

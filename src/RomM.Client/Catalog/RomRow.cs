@@ -160,9 +160,9 @@ public sealed record RomRow
     /// <c>backend/models/rom.py</c>, and it is what a 5.2.0 server's rows are judged by since
     /// they carry no <c>has_file_on_disk</c> of their own.
     /// <para>
-    /// <c>GET /api/roms</c> can filter on this server-side, but only in part and only above the
-    /// floor: <c>missing</c> exists at 5.2.0 and <c>physical</c> arrived at 5.3.0. So the drop
-    /// stays client-side, where one rule covers both server generations.
+    /// <c>GET /api/roms</c> can filter on this server-side, with <c>missing</c> and
+    /// <c>physical</c>, but a row the server filters out never reaches the resolver, so the
+    /// sync could not say it was skipped or why. The drop stays client-side for that.
     /// </para>
     /// </remarks>
     [JsonIgnore]

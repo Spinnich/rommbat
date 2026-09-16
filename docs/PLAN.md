@@ -1277,10 +1277,10 @@ the rollout order below can be derived rather than hand-maintained.
   disk (`missing_from_fs`) is the other, and upstream treats them alike:
   `has_file_on_disk` is `not is_physical and not missing_from_fs`. **The second cause needs no
   floor move**, because `missing_from_fs` is required at 5.2.0 and the download path never read
-  it. The drop is client-side and derives the answer when the server does not send one, so one
-  rule covers both server generations; `GET /api/roms` can filter on `missing` at 5.2.0 and on
-  `physical` only from 5.3.0, which is why the server-side filter is not used yet. See finding 6
-  of [romm-5.3-findings.md](romm-5.3-findings.md).
+  it. The drop is client-side and derives the answer when the server does not send one.
+  `GET /api/roms` can filter on `missing` and `physical`, and the server-side filter is not used,
+  because a row the server filters out never reaches the resolver and could not be reported as
+  skipped. See finding 6 of [romm-5.3-findings.md](romm-5.3-findings.md).
 - **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
   rather than letting the extension filter catch them, because telling someone their
   `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
