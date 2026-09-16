@@ -300,6 +300,12 @@ state whose `screenshot` field did link would still not bring its `.png` back to
 #158 as well as the RomM-side link, and no `(system, emulator, core)` row can pass it on either
 alone.
 
+**Since closed on RomMBat's side by #158**, in stage 2 of #195: a restore now fetches a linked
+screenshot into the declared `<image>`. Not re-driven on a linked screenshot, because none exists:
+at the 5.3.0-alpha.2 floor all 9 `nes` states on the instance read `screenshot: null`, and 7 of 7
+re-uploaded ones came back unlinked. The `.srm` and `.state1` of Crystalis (USA) were deleted and
+restored byte-identically in the same pass. The RomM-side link is still what keeps step 5 open. Findings 138 and 256 in `docs/retrobat-findings.md`.
+
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
 nothing to compare against. The restore says so itself rather than implying a check it cannot
