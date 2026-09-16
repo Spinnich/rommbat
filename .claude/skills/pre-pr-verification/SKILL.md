@@ -115,6 +115,10 @@ measurement was taken on and must not.
    the public demo, which carries stable only, so it comes from a self-hosted instance whose
    `SYSTEM.VERSION` you **read at capture time**: a live library can be upgraded underneath the
    work, and a capture that does not match the floor is the wrong artifact even when it parses.
+8. **Map the move onto every record in `docs/platforms/`.** Each record gets the nine steps
+   marked touched or carried, step 9 always touched, a one-line reason for each carried step,
+   and the touched ones re-run or recorded as owed at the new floor. The rule and what counts
+   as touched are in the `platform-certification` skill, "When the floor moves".
 
 ## Before claiming done
 

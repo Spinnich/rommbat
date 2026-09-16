@@ -90,6 +90,28 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is
    the strongest single signal that slots, cursors and mapping are all correct.
 
+## When the floor moves
+
+**A record is a measurement of the RomM and RetroBat builds it names, and a floor move does not
+carry it forward by itself.** Nor does it void it. The PR that moves a floor owes every record in
+`docs/platforms/` a mapping of the move onto the nine steps, and the re-run of the steps it touches:
+
+- **A step is touched** when the move changes code or bundled data that step exercises (the
+  diff since the previous floor under `src/` and `data/`), or when the findings doc for the
+  adoption records an upstream change on its path. A changelog line nobody measured counts as
+  touching, because the point is to find out.
+- **Step 9 is always touched.** It is the cheapest step and the one that catches a change nobody
+  mapped: new fields on a row show up as gamelist churn or a re-download.
+- **Every other step says why it carries over**, in one line naming what did not change. "Not
+  obviously broken" is not a reason.
+- **A touched step not yet re-run is owed, not passed.** The record says so against the new
+  floor, and the row is not certified there until it passes, whatever it held on the build it
+  was measured on. Leave the original result and its version in place beside the owed line.
+
+This is the middle of three options #187 weighed. Re-running all nine on every move grows with
+the wave rollout for steps nothing changed, and never re-running leaves a record attesting to a
+server the client refuses at startup.
+
 ## Wave order
 
 Named in `es_systems.cfg`'s vocabulary, which is what a record file is named after: Mega CD is

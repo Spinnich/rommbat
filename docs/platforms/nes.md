@@ -60,6 +60,30 @@ The budget being off is deliberate and narrows what this pass proves: **nothing 
 `budget`, `evict` or the eviction guards.** None of those is among the nine steps. It also means
 a missing cover at step 7 cannot be a headroom problem, which is why it was switched off.
 
+## The move to `5.3.0-alpha.2`
+
+**Every checklist result below was taken on RomM 5.2.0, and no step has been re-run on
+`5.3.0-alpha.2`**, the floor the client now refuses anything below. One later observation, the
+slot record in "Conflict resolution, driven both ways", was driven on it and says itself that it
+re-runs no step. Mapped onto the nine steps per the
+`platform-certification` skill's "When the floor moves", from the `src/` and `data/` diff across
+#179 to #189 and `docs/romm-5.3-findings.md`:
+
+| #   | At `5.3.0-alpha.2` | Why                                                                                                                                                         |
+| --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Owed**           | `data/retrobat/platforms.json` was re-sourced from upstream's alias table (#166)                                                                            |
+| 2   | **Owed**           | The resolver gained a no-file-on-disk exclusion ahead of the extension check (#167), and the index flag on a scoped page changed (#188)                     |
+| 3   | Carried            | No firmware code or bundled BIOS data changed, and the findings doc records no firmware route change                                                        |
+| 4   | **Owed**           | `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` changed to refuse a superseded row the browser's writer revives (#170)                               |
+| 5   | Carried            | `StateSync` and the states client changed in comments only, and the findings doc records no change to `POST /api/states`                                    |
+| 6   | N/A                | Unchanged: `nes` has no class D                                                                                                                             |
+| 7   | Carried            | No media or gamelist code changed. The row's new company split is not read, and the one server-side exporter change (#171) is a route RomMBat does not call |
+| 8   | Carried            | No play-session code changed, and the findings doc records no change to `POST /api/play-sessions`                                                           |
+| 9   | **Owed**           | Always owed on a move                                                                                                                                       |
+
+So the record stands as a 5.2.0 measurement, and the row owes steps 1, 2, 4 and 9 before any
+result here speaks for the current floor.
+
 ## Checklist
 
 | #   | Step                                                           | Result                                                                                    |

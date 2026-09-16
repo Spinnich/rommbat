@@ -432,7 +432,10 @@ What adoption costs, each time: re-run `reference/refresh.sh` and resolve the dr
 the upstream changelog for anything that touches a measured rule, move the floor and the
 tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
-purpose.
+purpose. And every platform record under `docs/platforms/` is mapped onto the nine steps: the
+steps the move touches are re-run or recorded as owed at the new floor, step 9 always among
+them, and each step carried over says why. A record is neither voided by a move nor carried
+through one silently (#187, and the `platform-certification` skill).
 
 **A prerelease is adoptable, and which prerelease needs a rule of its own.** "Within one
 release" says when to move and not what to move to, and prereleases supersede each other on a
