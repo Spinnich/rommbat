@@ -98,7 +98,12 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
         Assert.True(response.IsSuccess, response.Message);
 
         // Every facet the sidecar carried has to survive into the typed value. A count of zero
-        // where the JSON had entries is the shape of the defect this test exists for.
+        // where the JSON had entries is the shape of the defect this test exists for. Every
+        // facet is checked before anything is reported, because a skip ends the test and one
+        // unknown name would otherwise hide every known facet enumerated after it.
+        var unknown = new List<string>();
+        var mismatched = new List<string>();
+
         foreach (var facet in sidecar.EnumerateObject())
         {
             if (facet.Value.ValueKind != JsonValueKind.Array || facet.Value.GetArrayLength() == 0)
@@ -124,11 +129,23 @@ public class LiveCatalogTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
                 _ => -1,
             };
 
-            Assert.SkipWhen(read < 0, $"The schema has no property for '{facet.Name}'.");
-            Assert.True(
-                read == facet.Value.GetArrayLength(),
-                $"'{facet.Name}': the body carried {facet.Value.GetArrayLength()} and we read {read}");
+            if (read < 0)
+            {
+                unknown.Add(facet.Name);
+            }
+            else if (read != facet.Value.GetArrayLength())
+            {
+                mismatched.Add($"'{facet.Name}': the body carried {facet.Value.GetArrayLength()} and we read {read}");
+            }
         }
+
+        Assert.True(mismatched.Count == 0, string.Join("; ", mismatched));
+
+        // A facet with no property is a server newer than the pinned schema, not a read that lost
+        // values, so it skips rather than fails, and only once the known facets have passed.
+        Assert.SkipWhen(
+            unknown.Count > 0,
+            $"The schema has no property for {string.Join(", ", unknown.Select(name => $"'{name}'"))}.");
     }
 
     [Fact]
