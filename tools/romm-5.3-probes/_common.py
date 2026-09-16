@@ -109,22 +109,6 @@ def get_json(path: str, **kwargs):
     return status, parsed, elapsed
 
 
-def multipart(fields: dict[str, tuple[str, bytes]]) -> tuple[bytes, str]:
-    """Builds a multipart/form-data body from {field: (filename, bytes)}."""
-    boundary = "----RomMBatArgosyProbe" + os.urandom(8).hex()
-    chunks: list[bytes] = []
-    for name, (filename, content) in fields.items():
-        chunks.append(f"--{boundary}\r\n".encode())
-        chunks.append(
-            f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\n'.encode()
-        )
-        chunks.append(b"Content-Type: application/octet-stream\r\n\r\n")
-        chunks.append(content)
-        chunks.append(b"\r\n")
-    chunks.append(f"--{boundary}--\r\n".encode())
-    return b"".join(chunks), f"multipart/form-data; boundary={boundary}"
-
-
 def record(name: str, lines: list[str]) -> None:
     """Writes a probe transcript to probe-output/ and echoes it, redacted."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
