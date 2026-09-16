@@ -229,6 +229,16 @@ public sealed class PickedSetService
                 "RomM holds this game as several files, which this version cannot sync yet.");
         }
 
+        // A folder holding a single file arrives with no extension and has_multiple_files false,
+        // so it is refused here rather than above, and named for what it is rather than as a bare dot.
+        if (string.IsNullOrWhiteSpace(row.FsExtension))
+        {
+            return new PickOutcome(
+                set,
+                null,
+                "RomM holds this game as a folder rather than a file, which this version cannot sync yet.");
+        }
+
         if (!EsSystemsFile.Load(_session.Install).TryGetFolder(folder, out var system) || !system.Accepts(row.FsExtension))
         {
             return new PickOutcome(

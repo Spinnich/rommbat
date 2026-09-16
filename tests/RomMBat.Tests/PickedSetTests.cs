@@ -180,6 +180,23 @@ public sealed class PickedSetTests : IDisposable
     }
 
     [Fact]
+    public void A_folder_holding_one_file_is_refused_on_its_extension_and_not_as_multi_file()
+    {
+        // The shape measured on 5.3.0-alpha.2 by moving a lone file into a subfolder: the folder
+        // name as fs_name, no extension, and has_multiple_files false. Refused here, it never
+        // becomes a local file, which is what keeps it away from a per-game key. #183.
+        var outcome = new PickedSetService(_session).Pick(
+            Row(11, "Moved") with { FsName = "Moved", FsExtension = string.Empty, HasMultipleFiles = false },
+            Now);
+
+        Assert.True(outcome.IsRefused);
+        Assert.Contains("as a folder", outcome.Problem, StringComparison.Ordinal);
+        Assert.DoesNotContain("several files", outcome.Problem, StringComparison.Ordinal);
+        Assert.DoesNotContain("a . file", outcome.Problem, StringComparison.Ordinal);
+        Assert.Empty(_session.Store.SyncSets.Members(outcome.Set.Id));
+    }
+
+    [Fact]
     public void A_game_with_no_file_on_disk_is_refused_before_its_shape_is_judged()
     {
         var picked = new PickedSetService(_session);

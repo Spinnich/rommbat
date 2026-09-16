@@ -123,6 +123,27 @@ public class SaveConverterTests
     }
 
     [Fact]
+    public void A_folder_shaped_rom_is_refused_rather_than_thrown_on()
+    {
+        // A foldered multi-disc set is one row with the folder name as its fs_name and no
+        // extension, and no (Disc N) marker, so the disc refusal above does not fire for it.
+        // PerGameKey throws on a stem, and a throw here is a crash rather than a reason.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(49, "ps2", "Armored Core - Nexus (USA)");
+
+        var result = fixture.Converter().Convert(49);
+
+        Assert.Equal(ConversionStatus.Refused, result.Status);
+        Assert.Contains("no extension", result.Detail, StringComparison.Ordinal);
+        Assert.Contains("single file", result.Detail, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConversions.List());
+        Assert.Empty(fixture.Settings().Settings);
+
+        Assert.Equal(ConversionStatus.Refused, fixture.Converter().Queue(49).Status);
+        Assert.Equal(ConversionStatus.Refused, fixture.Converter().PreviewQueue(49).Status);
+    }
+
+    [Fact]
     public void A_system_the_measurement_says_to_leave_alone_is_refused_with_that_reason()
     {
         // psx declares apply:false. Stock PerGameTitle binds a multi-disc set through

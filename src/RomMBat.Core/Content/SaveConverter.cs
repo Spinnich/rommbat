@@ -228,6 +228,19 @@ public sealed class SaveConverter
                     + "the shared card carries through." + alsoHere);
         }
 
+        // Unreachable from a sync today, because the resolver and a pick both refuse an
+        // extensionless row and this reads the name recorded at download. Refused here anyway
+        // rather than left to PerGameKey's throw, since a folder-shaped row is how RomM holds a
+        // foldered multi-disc set, and that is the shape a tidied library moves towards. #183.
+        if (string.IsNullOrEmpty(Path.GetExtension(rom.FsName)))
+        {
+            return Refuse(
+                $"'{rom.FsName}' has no extension, which is how RomM describes a game held as a folder. "
+                    + "EmulationStation keys a per-game setting on the file it launches, and this release "
+                    + "syncs no foldered game, so there is no launched file to key it on. Store the game on "
+                    + "the server as a single file to convert it.");
+        }
+
         var key = EsSettingsFile.PerGameKey(rom.Folder, rom.FsName, conversion.Option);
         var path = _install.Resolve(EsSettingsFile.Location);
         var recorded = _store.SaveConversions.Find(rom.Folder, rom.FsName, conversion.Option);
