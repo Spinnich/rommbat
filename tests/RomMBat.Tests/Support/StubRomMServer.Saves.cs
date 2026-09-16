@@ -141,6 +141,9 @@ internal sealed partial class StubRomMServer
     /// <summary>How many negotiate sessions were closed.</summary>
     public int CompletedSessions { get; private set; }
 
+    /// <summary>Refuse the session close with this status and <c>detail</c>, instead of answering 200.</summary>
+    public (HttpStatusCode Status, string Detail)? CompleteRefusal { get; set; }
+
     /// <summary>Cut a save download off after this many bytes, which is a link dropping.</summary>
     public int? TruncateSaveDownloadAfter { get; set; }
 
@@ -189,6 +192,11 @@ internal sealed partial class StubRomMServer
 
         if (path.Contains("/api/sync/sessions/", StringComparison.Ordinal))
         {
+            if (CompleteRefusal is { } refusal)
+            {
+                return Detail(refusal.Status, refusal.Detail);
+            }
+
             CompletedSessions++;
             return Json(HttpStatusCode.OK, new { ok = true });
         }

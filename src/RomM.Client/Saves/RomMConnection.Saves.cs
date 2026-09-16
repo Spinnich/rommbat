@@ -255,7 +255,12 @@ public sealed partial class RomMConnection
         CancellationToken cancellationToken = default) =>
         GetAuthenticatedAsync<IReadOnlyList<SaveRow>>("api/saves", cancellationToken);
 
-    /// <summary>Closes a negotiate session. Needs <c>assets.write</c>.</summary>
+    /// <summary>Closes a negotiate session. Needs <c>devices.write</c>.</summary>
+    /// <remarks>
+    /// Closing one twice answers 400 with <c>Session is already COMPLETED</c>, which
+    /// <see cref="AlreadyCompleted"/> recognises. The server's other terminal states,
+    /// <c>FAILED</c> and <c>CANCELLED</c>, word the same refusal and are not a close that landed.
+    /// </remarks>
     public Task<RomMResponse<bool>> CompleteSyncSessionAsync(
         int sessionId,
         int completed,
@@ -267,6 +272,11 @@ public sealed partial class RomMConnection
             new CompleteBody(completed, failed, playSessions ?? []),
             cancellationToken,
             emptyBodyValue: true);
+
+    /// <summary>True when a failed close says the session was already closed, so the close landed.</summary>
+    public static bool AlreadyCompleted(RomMResponse<bool> response) =>
+        response.Status == RomMResponseStatus.ServerError
+        && response.Message?.Contains("already COMPLETED", StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
     /// Sends play sessions through their own ingest. Needs <c>roms.user.write</c>.

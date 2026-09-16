@@ -500,6 +500,9 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
   that earlier one answers **400** `Session is already cancelled`. Complete a session before
   negotiating again, or accept that the first one can never be tidied up. Measurement 164.
+  Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
+  `SaveSync` reads it and reports every refusal except `already COMPLETED`, which means the
+  close landed. A 403 there otherwise reads as a clean sync with the session left open (#90).
 - **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
   membership; playtime lives in play sessions.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and
