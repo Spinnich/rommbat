@@ -653,14 +653,14 @@ live, so the re-measurement that finding 9 owes is attributed to `alpha.2` and n
 
 The version move checklist in the `pre-pr-verification` skill is the procedure.
 
-| Step                                                       | State                                                           |
-| ---------------------------------------------------------- | --------------------------------------------------------------- |
+| Step                                                       | State                                                                                                                                          |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `refresh.sh`, resolve drift rather than editing the number | **Done for the RomM half.** One drift, the companies check, resolved in finding 7; the RetroBat files are held back, see `reference/README.md` |
-| Read the upstream changelog end to end                     | Done, this document                                             |
-| Move `Minimum`, `LastTested`, README table and compat row  | **Done**, and a test asserts the trio agree                     |
-| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption               |
-| Leave provenance alone                                     | See finding 9                                                   |
-| **Move the pinned OpenAPI schema**                         | **Done**, sha256 `44cdd228...`, 199 paths and 272 schemas       |
+| Read the upstream changelog end to end                     | Done, this document                                                                                                                            |
+| Move `Minimum`, `LastTested`, README table and compat row  | **Done**, and a test asserts the trio agree                                                                                                    |
+| Re-check open issues in `retrobat-findings.md`             | Not applicable, no RetroBat move in this adoption                                                                                              |
+| Leave provenance alone                                     | See finding 9                                                                                                                                  |
+| **Move the pinned OpenAPI schema**                         | **Done**, sha256 `44cdd228...`, 199 paths and 272 schemas                                                                                      |
 
 **What a prerelease floor cannot do, and it is worth knowing before relying on it.**
 `ProductVersion` drops the version suffix on purpose, because RetroBat's names a channel and a
