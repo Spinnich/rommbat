@@ -494,8 +494,10 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   from `backend/endpoints/sync.py` at both `5.1.0` and `5.1.1-beta.2`, which are identical
   here: the server folds its slotted saves to one row per slot by `updated_at` before matching
   anything, and both the submitted and the unsubmitted pass walk that fold. **A superseded row
-  in a slot is history and is never offered as an operation**, which is what makes an appending
-  upload untidy rather than dangerous. Measurement 163, read from source and then driven against
+  in a slot is history and is never offered as an operation while it stays superseded.** That no
+  longer makes an appending upload safe on its own: the in-place `PUT` above puts one back at the
+  head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
+  what keeps a keep-local from being undone (`save-sync`). Measurement 163, read from source and then driven against
   a slot holding a superseded row.
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
   that earlier one answers **400** `Session is already cancelled`. Complete a session before

@@ -2322,7 +2322,10 @@ the `5.1.0` baseline tag and `5.1.1-beta.2`, which agree with each other and wit
 `overwrite=true`, so a resolution appends a row and leaves the server's copy one row down.
 That is untidy rather than lossy, and 163 is the part that decides it: the row left behind is
 no longer the newest in its slot, so negotiate stops mentioning it entirely and cannot offer
-the rejected copy back as a download. `autocleanup=true&autocleanup_limit=10` on every upload
+the rejected copy back as a download. **Until something writes into it:** `PUT /api/saves/{id}`
+makes the row it touches the newest again, and on RomM 5.3.0-alpha.2 negotiate then offered a
+peer's rejected copy as a download, so the client now refuses that case itself
+(`romm-5.3-findings.md` finding 4, case E). `autocleanup=true&autocleanup_limit=10` on every upload
 then bounds the history. Without 163 this paragraph was reasoning rather than measurement, and
 it is reasoning of the same kind that produced 150. The command's own success message said it
 "replaced the server's copy" and no longer does. The stub modelled the replacement, so no test
