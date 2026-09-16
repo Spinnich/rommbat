@@ -941,6 +941,53 @@ public sealed class SyncScreenTests : IDisposable
     }
 
     [Fact]
+    public async Task A_content_refusal_reaches_the_report_as_its_cause()
+    {
+        // #143. The exit code is read off this cause, and a report that dropped it would exit
+        // Offline, telling a script to wait on a server that answered.
+        using var stub = Library(2);
+        stub.Content.Remove(2);
+
+        Pair();
+        Seed("games", 2);
+
+        using var connection = Connect(stub)(Origin);
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(Core.Sets.SyncState.Incomplete, report.State);
+        Assert.Equal(Core.Sync.FailureCause.Failed, report.Cause);
+    }
+
+    [Fact]
+    public async Task A_resolve_the_server_refuses_reaches_the_report_as_its_cause()
+    {
+        // The early return for an interrupted resolve, which never reaches the content pass.
+        using var stub = Library(2);
+        stub.NextRomsStatus = System.Net.HttpStatusCode.Forbidden;
+
+        Pair();
+        Seed("games", 2);
+
+        using var connection = Connect(stub)(Origin);
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(Core.Sets.SyncState.Incomplete, report.State);
+        Assert.Equal(Core.Sync.FailureCause.NotAuthorized, report.Cause);
+    }
+
+    [Fact]
     public void A_dirty_budget_offers_only_save_and_discard_so_nothing_navigates_away_from_it()
     {
         // Offering a third press while there are unsaved changes would be offering to discard

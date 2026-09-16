@@ -406,6 +406,35 @@ public sealed class PickedSetTests : IDisposable
             _session.Store.SyncSets.Members(set.Id).Select(member => member.RomId).Order());
     }
 
+    [Fact]
+    public async Task A_hydrate_the_server_refuses_access_to_is_not_authorized_rather_than_failed()
+    {
+        // #143. A 403 on a lookup by id is a scope the pairing lacks, so the sync exits NotPaired
+        // and not the ServerError a 500 here gets.
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(11, 1, "snes", "snes", "Chrono Trigger", "chrono.sfc", "sfc", 2_048));
+        stub.FailRomByIdAfter = (0, HttpStatusCode.Forbidden);
+
+        var set = _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "Picked on somewhere else",
+                Scope = CatalogScopeKind.Picked,
+                ScopeValue = PickedScopeJson.Write([11]),
+            },
+            Now);
+
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("https://romm.invalid/"), AccessToken = "rmm_test" },
+            stub);
+
+        var report = Assert.Single(await new SetResolveService(_session, connection)
+            .ResolveAsync([set], progress: null, TestContext.Current.CancellationToken));
+
+        Assert.Equal(ResolveState.Interrupted, report.State);
+        Assert.Equal(FailureCause.NotAuthorized, report.Cause);
+    }
+
     // ------------------------------------------------------------------ seeding
 
     private static RomRow Row(int id, string name) => new()

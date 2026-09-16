@@ -323,6 +323,37 @@ public sealed class BiosSyncTests : IDisposable
         Assert.False(File.Exists(_tree.Install().Resolve(BiosPlanner.PartFor(Md5(wanted)))));
     }
 
+    [Fact]
+    public async Task A_refused_download_carries_its_cause_so_bios_does_not_exit_offline()
+    {
+        // #143. The row was fine when the plan read it and the content route answered 500 when
+        // the pass asked, which is the server answering rather than being out of reach.
+        var wanted = Content("pcfx.rom");
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "pcfx", "pcfx", "PC-FX")
+        {
+            Firmware = [new StubFirmware(1, "pcfxbios.bin", wanted)],
+        });
+
+        var manifest = Manifest(("pcfx", Md5(wanted), "bios/pcfx.rom"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, TestContext.Current.CancellationToken);
+
+        stub.Platforms[0] = stub.Platforms[0] with
+        {
+            Firmware = [new StubFirmware(1, "pcfxbios.bin", wanted) { MissingFromFs = true }],
+        };
+
+        using var connection = Connect(stub);
+        var outcome = await new BiosSync(_tree.Install(), store, connection)
+            .ApplyAsync(plan, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        Assert.Equal(RomMBat.Core.Sync.FailureCause.Failed, outcome.Cause);
+    }
+
     // ------------------------------------------------------------------ offline
 
     [Fact]
