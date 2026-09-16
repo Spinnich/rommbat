@@ -114,8 +114,11 @@ public sealed record RomRow
     /// does not sync them at all.
     /// <para>
     /// It travels with an empty <see cref="FsExtension"/>: 105 of 105 multi-file ROMs sampled
-    /// were extensionless and every extensionless ROM was multi-file. The flag is read rather
-    /// than the extension, because the flag is what states the fact.
+    /// were extensionless. **The converse does not hold.** A folder holding one file is a row
+    /// with an empty extension, a folder name for its <c>fs_name</c>, and this flag false,
+    /// found on a real library and reproduced on 5.3.0-alpha.2 by moving a lone <c>.zip</c> into
+    /// a new subfolder. So the flag is read and the extension is never inferred from, because
+    /// only the flag states the fact. See <c>docs/retrobat-findings.md</c> finding 82.
     /// </para>
     /// </remarks>
     [JsonPropertyName("has_multiple_files")]

@@ -405,8 +405,44 @@ That makes it the return path for finding 2 rather than a repair tool: the syste
 repo's header reads succeed and upstream's extractor answers nothing are systems where RomMBat
 could supply the id rather than only consume one.
 
-Left for a live instance: whether the hash reassociation actually fires on a real move, since
-it is what stands between a moved ROM and the orphan this repo handles today.
+**Measured on 2026-09-16, and it fires.** A lone `.zip` was moved into a new subfolder of its
+platform, keeping the filename byte for byte, and the platform was quick scanned.
+
+|                   | Before                                         | After                 |
+| ----------------- | ---------------------------------------------- | --------------------- |
+| rom id            | 160135                                         | **160135**            |
+| `created_at`      | 2026-03-17T00:32:41Z                           | **unchanged**         |
+| rom file row id   | 517802                                         | **517802**            |
+| `md5_hash`        | `0823b8d4...`                                  | **unchanged**         |
+| `fs_name`         | `Snorlax's Lunch Time (Europe) (GameCube).zip` | `moved`               |
+| `full_path`       | `roms/pokemini/Snorlax's ... .zip`             | `roms/pokemini/moved` |
+| `missing_from_fs` | false                                          | false                 |
+
+The platform still holds 38 rows, no row is flagged missing, and no duplicate was spawned, so
+the reassociation carried the row rather than the scan creating a second one. **A cached binding
+against a rom id survives a move**, which is the question #177 asked.
+
+**The experiment was impure, and the impurity is the more useful half.** A directory under a
+platform folder is RomM's own convention for one game held as several files, so the move did not
+read as "same ROM, new path". It read as a new folder-shaped ROM, and the row's `fs_name` became
+the folder name while `name` stayed `Lunch Time`. Isolating the path change alone needs a rename
+in place, since within one platform there is no subfolder that is not already a game.
+
+**What it cost is the filename, not the identity, and the filename is load bearing.** RomMBat
+writes `roms/{folder}/{fs_name}` and keys `es_settings.cfg` per-game overrides on the rom
+filename, which `EsSettingsFile.PerGameKey` refuses to build without an extension because
+`emulatorlauncher` ignores a key built from a stem. The row that comes back from a move like this
+one has no extension. Nothing breaks today, because per-game conversion exists only for
+`dreamcast`, `gamecube`, `ps2` and `psx` and a multi-disc row is already refused by name. It
+stops being hypothetical the moment a library is tidied: **foldering a multi-disc set is exactly
+what turns a refusal into a row `PerGameKey` cannot express**, and foldering is the correct way
+to store those games.
+
+**It also reproduced a known falsification.** The row is extensionless with `has_multiple_files`
+false, so "every extensionless ROM is multi-file" is wrong in a second, independent way. That was
+already found in `docs/freegosy-findings.md`; finding 82 in `docs/retrobat-findings.md` still
+asserted it and now carries the withdrawal. The code reads the flag and never the extension, so
+nothing mis-excluded either time.
 
 ### 6. Physical games mean a sync set can hold a row with no file (`source`, now `measured`)
 
@@ -657,6 +693,6 @@ Docker daemon that a read answers today is a question nobody answers.
 | --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
 | 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Answered**, 28 of 33 named rows on rescan. Finding 2       |
 | 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | **Answered.** It agrees, and the values agree too. Finding 2 |
-| 5   | Can a move change what a rom id means to a cached binding or a set row?              | Open. The premise changed first, see finding 5               |
+| 5   | Can a move change what a rom id means to a cached binding or a set row?              | **Answered.** The id survives, the filename does not         |
 | 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7           |
 | 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                      |
