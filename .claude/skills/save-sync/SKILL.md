@@ -261,7 +261,7 @@ groups.** The flush's download and `StateSync.RestoreAsync`, `saves restore --ap
 emulator holds open. A guard on the flush alone leaves the two routes a person reaches by hand
 writing into a file being played, which is the same data loss on a slower path.
 
-Four things about it that are decisions rather than detail:
+Five things about it that are decisions rather than detail:
 
 - **Read the journal _and_ the spool.** The journal covers a game launched before the pass, since
   the flush drains and correlates before it downloads and `PlaytimeCorrelator` leaves an unmatched
@@ -284,6 +284,17 @@ Four things about it that are decisions rather than detail:
   that, one unparseable file would stop every save the install ever downloads, permanently, which
   is the failure #31 exists to prevent. The check is injectable for the reason `SaveConverter`'s
   is: nothing is ever running on a build agent, so the branch is otherwise untestable.
+- **A `game-end` pops the newest launch, whoever owns it, and that is safe only because of
+  EmulationStation.** `game-end` carries no arguments, so `ApplySpool` removes the last entry
+  unconditionally, the stack model `PlaytimeCorrelator` uses over the journal. `retrobat-layout`
+  records that a **failed** launch fires `game-end` with no `game-start`, and that orphan would
+  pop a different game that really is running and let a write land under its open handle. It
+  cannot happen today because ES starts no second game while one runs, so an orphan never
+  coexists with another launch in flight. **The argument is ES's, not RomMBat's**: a launch
+  route that overlays a game on a running one, or an ES build that allows it, retires it
+  silently. The fix then is to correlate the pop by rom path through the launch log, the way
+  `PlaytimeCorrelator.MatchLaunch` finds a `game-end`'s launch, and drop a `game-end` that matches
+  nothing. The correlator pops its own stack the same way and would want the same change (#165).
 
 **Freshness before play is still not solved, and is still open on #155.** A save arriving while ES
 sits idle for hours is picked up at the next ES start and not before, and nothing gates a launch
