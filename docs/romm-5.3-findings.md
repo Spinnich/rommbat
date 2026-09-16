@@ -4,15 +4,17 @@ What RomM 5.3.0-alpha.2 changes for RomMBat, what it falsifies in this repo, and
 too early to say. Written in the shape of [retrobat-findings.md](retrobat-findings.md), and
 it carries the same warning with one extra clause.
 
-**Almost nothing here has been measured.** Every row below was settled by reading upstream
+**Most of this was read rather than measured.** Every row below was settled by reading upstream
 source or upstream's own release notes, and this repo's standing rule is that a changelog line
 is upstream's belief rather than a measurement. Rows are labelled by the route that settled
 them. A row marked `source` was read in `rommapp/romm` and is a fact about upstream's code. A
 row marked `notes` is upstream's claim and nothing more. **Neither is yet a fact about
 behaviour**, and no workaround comes out of this repo on the strength of one.
 
-The exception is labelled `measured`, and there is currently one: section C, taken against a
-live `5.3.0-alpha.2` server. It is the only row here that has standing to change code.
+The exception is labelled `measured`, taken against a live `5.3.0-alpha.2` server: section C
+first, then findings 2, 5, 7 and 9 in stage 2 and findings 3 and 4 in stage 4. Only those have
+standing to change code, and a finding labelled `source, then measured` changes code only on the
+half that was measured.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
@@ -20,7 +22,7 @@ live `5.3.0-alpha.2` server. It is the only row here that has standing to change
 | API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
-| Measured against       | `5.3.0-alpha.2`, one live server, section C only. Everything else is unmeasured      |
+| Measured against       | `5.3.0-alpha.2`, one live server, for the rows labelled `measured`                   |
 | Date                   | 2026-09-13                                                                           |
 
 ## Three things are already true, before any adoption decision
@@ -347,7 +349,7 @@ shape of the answer, because **`PUT /roms/{id}/identity` makes the route run bot
 GameCube and Wii, where this repo reads 100% and 75.5%, RomMBat is the client that endpoint's own
 description is about.
 
-### 3. Memory card endpoints are for the browser player, not for us (`notes`)
+### 3. Memory card endpoints are for the browser player, not for us (`source`, then `measured`)
 
 Eleven new endpoints under `/memory-cards`, with versions, sharing and visibility. Read
 alongside the Streaming V2 entry, these exist to give container pooled PS2 and GameCube browser
@@ -358,14 +360,43 @@ disk writing real files, and whose class C and class D work converts shared cont
 game wherever the emulator allows. Memory cards are not our save transport, and this finding
 exists mainly so the next session does not re-litigate it.
 
-Two genuine uses survive, and both are narrow:
+Two uses were filed as surviving, both narrow: #82's raw GameCube card finding a first class home
+server side, and interop with a card a browser streaming session wrote. **Stage 4 (#169) settled
+both against the conclusion**, first from source at tag `5.3.0-alpha.2`, then on the live server,
+which needs no streaming broker for the card routes.
 
-1. **Issue #82**, GameCube as class D when `dolphin_slotA` is `MEMORY CARD`. A raw card now has
-   a first class place to live server side, where before there was nowhere sensible to put one.
-2. **Interop.** A card written by a browser streaming session is currently invisible to the
-   desktop, and a user with both is a user whose two save paths do not see each other.
+**Read in source.** `MemoryCard` is scoped by `(user, emulator)`, and its own docstring says one
+Dolphin card serves both GameCube and Wii. There is no ROM on the record at all, so a card is a
+class D container by construction rather than something that can be made per game. Its data is a
+history of `MemoryCardVersion` rows, each "the whole card image, e.g. the zipped PCSX2 folder
+card". The streaming claim describes a Dolphin card by reading `.gci` names out of the zip
+(`summarize_card`), so the Dolphin card upstream exchanges is a **GCI folder**, which is class C,
+and not the raw `SRAM.<REGION>.raw` that #82 is about.
 
-### 4. Two new writers on the saves the conflict route was measured against (`notes`)
+**Measured, 2026-09-16,** with `tools/romm-5.3-probes/s2-memory-card-record.py`, on a throwaway card
+deleted afterwards:
+
+| Question                            | Answer                                                                                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| What a card record holds            | `id`, `user_id`, `emulator`, `name`, `slot` (always 1), `is_public`, `platform_id`, timestamps           |
+| A card never synced                 | `GET /{id}/content` is 404, "Memory card has no stored data yet"                                         |
+| Is a version whole or a delta       | **Whole.** A two-game zip came back byte-identical, 376 B, both `.gci` members                           |
+| `content_hash`                      | over the zip's contents, not its bytes: `5fa2e028...` stored against an MD5 of `a398e3dd...`             |
+| Is an identical upload deduplicated | **No.** Two uploads of one zip made two versions with one hash, as source says of the upload route       |
+| A bare `SRAM.USA.raw`               | **400**, "not a readable zip archive"                                                                    |
+| A zip holding `SRAM.USA.raw`        | **200.** The server never looks at the layout inside, so it cannot say whether an emulator would take it |
+
+**What that does to the two uses.** #82 gains nothing: the only card the server would store is a
+zip it does not validate, and the format streaming would hydrate for Dolphin is a GCI folder, the
+per-game `.gci` files this client already syncs as class C units. Interop would mean reading
+`.gci` members out of a whole-card version for the games a device holds, and writing back would
+mean rebuilding a whole card, which is two writers on one container with no per-game identity on
+either side. So the conclusion stands and is now evidence rather than a reading: **not a
+transport, and not a bridge worth building**. PCSX2's card is a folder card upstream, which points
+the same way as steering PCSX2 itself onto `folder`; what that choice writes on a RetroBat install
+is unmeasured and is #80.
+
+### 4. Two new writers on the saves the conflict route was measured against (`source`, then `measured`)
 
 `emulatorjs.auto_save_sync` uploads whenever the emulator writes. Streaming V2 pulls saves and
 states back with history, under `STREAMING_STATE_HISTORY_LIMIT` defaulting to 50 states per
@@ -375,6 +406,78 @@ Server side save rows can now change far more often, and from more directions, t
 repo's negotiation behaviour was measured at 5.2.0. That lands on #156, #157 and #138, and on
 the in flight write guard. Neither feature is on by default, which bounds the blast radius and
 does not remove it.
+
+**Stage 4 (#170) measured the browser writer and read the streaming one.** The server behind the
+`Live*` tests runs with `EJS_ENABLE_AUTO_SAVE_SYNC` false and streaming disabled with no containers,
+so nothing here was a browser session or a streaming session. What made the browser half
+measurable anyway is that the flag adds no route.
+
+**Read in source: the browser writes in place, and only the rate is new.**
+`frontend/src/views/Player/EmulatorJS/utils.ts` `saveSave` makes one of two calls. With a save
+loaded it sends `PUT /api/saves/{id}` with the row's own `file_name` and `device_id` only; with none
+loaded it sends `POST /api/saves` with `emulator` set to the core and **no slot**, then holds the row
+it made. `auto_save_sync` calls that on EmulatorJS's save interval, gated on two identical ticks,
+where Save & Quit called it once. The update route keeps the id, the name and the slot, writes
+`content_hash`, lets `updated_at` move on update, and runs no 409 check, no dedup and no device
+check.
+
+**Measured, 2026-09-16,** with `tools/romm-5.3-probes/s1-browser-save-writer.py`, which replays
+those exact calls against a throwaway slot on one ROM, with `device_id` omitted on the browser's
+calls as an ordinary web login sends it, and deletes every row and device afterwards:
+
+| Case                                                                            | What negotiate answered                                                   |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| A. browser PUT over this device's row, local unchanged                          | `download`, same save id, new hash, "Server save is newer than last sync" |
+| B. the same, and local also changed                                             | `conflict`, "Both sides changed since last sync"; ordinary upload 409     |
+| C. keep-local appends a row, then the browser PUTs into the older row it loaded | `conflict` against the **older** row, which now lists first               |
+| E. as C, but the older row was a peer's, never synced by this device            | **`download`**, "Server save is newer (no sync history)"                  |
+| D. nothing loaded: one POST, then two PUTs                                      | one null-slot row, same id throughout; a fresh device is never offered it |
+
+**The conflict route recognises the browser writer, with one exception, and the exception is a
+rule this repo wrote down as a dependency.** A, B and C are the answers a client wants. E is the
+case `docs/PLAN.md` described as "were negotiate ever to volunteer a superseded row, the resolution
+would be undone by the next flush", and it is what happens: with no sync record for the revived row
+negotiate compares timestamps, the browser's write is newer, and the next flush would overwrite the
+save a person chose to keep with a continuation of the one they rejected. **Acted on in stage 4**:
+a download naming a save id lower than the slot's recorded one is recorded as a conflict, since
+ids only grow and a lower id at the head of a slot means something wrote into an older row or
+deleted the newer one. Only the first was measured to reach a download; the second is unmeasured,
+and a conflict is the answer that loses nothing either way. That
+reads the recorded id, which is what made #157 a prerequisite rather than a tidy-up, and both
+class A writers now record it.
+
+**Driven on hardware after the fix**, RetroBat 8.2.1 on the install's own account, `nes` under
+`libretro`/`nestopia`. EmulationStation launched `Destiny of an Emperor (USA)` with no save
+anywhere, RetroArch wrote an 8,192 B `.srm` on close, and the `quit` hook's pass uploaded it as
+save 225. That is the core initialising cartridge RAM, 4 non-zero bytes, and not a player save.
+Then case E by hand: a peer row 226, a local edit, a flush that recorded the conflict through the
+409, keep-local appending 227, and the browser's `PUT` into 226. **The next flush recorded a
+conflict naming 226 as older than 227 and wrote nothing**, where the build before it would have
+taken the download. Keep-server then brought the browser's bytes down and `save_slot` read 226; a
+flush with nothing changed moved nothing; a newer peer row 228 came down as an ordinary download
+with `save_slot` following it to 228, so neither #157 path and not the new refusal misfired. Every
+row and file the pass made was deleted afterwards.
+
+**D is #138 at a higher rate, not a new defect.** A browser session that loads nothing makes one
+null-slot row and keeps writing into it, so it does not pile up rows, and the protocol still cannot
+see it. `saves restore` still can, with #156's collision.
+
+**Read in source, not measured: streaming.** `handler/streaming/saves.py` stores each pulled save
+archive as a **new null-slot row**, `<rom stem> [<emulator> <timestamp>].saves.zip`, dropped when
+its hash matches any save already held for the ROM. Negotiate never offers one. `saves restore`
+would list one as restorable to `saves/<system>/<stem>.zip`, because a null slot matches no
+declared unit path, and `--apply` then fails its hash check, because the server's digest over a
+zip is not the MD5 of its bytes: closed, with a preview that promised more.
+
+`handler/streaming/states.py` keeps every capture as a state row and prunes past the limit with
+`user_states_for_emulator`, which filters the user's states for the ROM **on the emulator name
+alone**. It does not ask who wrote them. This client uploads states with the emulator field set to
+`emulator[.core]`, which is `pcsx2`, `dolphin` and `xemu` for three standalones streaming also names
+that way, so a game streamed past fifty captures loses this device's oldest state rows on the
+server. The local files survive and are not re-sent, because a state is in step by the hash this
+device recorded. Libretro states go up as `libretro.<core>` and do not share streaming's
+`retroarch` budget. Recorded rather than acted on: streaming is off on the only server reachable,
+so nothing here has seen it happen.
 
 ### 5. ROM identity is keyed on the path, and the new endpoint is a write-back (`source`)
 
@@ -715,10 +818,13 @@ source and a repo grep. Finding 6's row shape is answered from the schema's inhe
 confirmed on a live page in stage 1. Reach for the cheaper route first: a question parked behind a
 Docker daemon that a read answers today is a question nobody answers.
 
-| #   | Question                                                                             | State                                                        |
-| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Answered**, 28 of 33 named rows on rescan. Finding 2       |
-| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | **Answered.** It agrees, and the values agree too. Finding 2 |
-| 5   | Can a move change what a rom id means to a cached binding or a set row?              | **Answered.** The id survives, the filename does not         |
-| 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7           |
-| 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                      |
+| #   | Question                                                                             | State                                                           |
+| --- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Answered**, 28 of 33 named rows on rescan. Finding 2          |
+| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | **Answered.** It agrees, and the values agree too. Finding 2    |
+| 5   | Can a move change what a rom id means to a cached binding or a set row?              | **Answered.** The id survives, the filename does not            |
+| 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7              |
+| 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                         |
+| 3   | What a memory card record and version hold, and whether a raw card is accepted       | **Answered.** Whole card, zip only, layout unchecked. Finding 3 |
+| 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
+| 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |

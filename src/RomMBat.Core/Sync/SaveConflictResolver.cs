@@ -430,6 +430,16 @@ public sealed class SaveConflictResolver
                 },
                 now);
 
+            // The save just taken is the slot's server identity now, as FinishUnitAsync records
+            // for a unit. Left alone, save_slot names the copy this device kept before (#157).
+            _store.SaveSlots.RecordRestored(
+                conflict.RomId,
+                conflict.Slot,
+                saveId,
+                conflict.ServerHash,
+                conflict.ServerUpdatedAt,
+                now);
+
             _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepServer, now);
             var pruned = Prune(conflict);
 

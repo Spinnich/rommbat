@@ -655,6 +655,13 @@ halves, both call `SaveSlots.RecordRestored`. `SaveSync.RecordRestored` and
 download alone would leave it broken. Only class A was driven here, which is what this pass can
 speak to; the class C recording is read from the code and from the 7b-3 measurement it cites.
 
+**Both class A writers record the slot now**, fixed with the RomM 5.3.0 stage 4 work, which needed
+the recorded save id to recognise a superseded row returning to the head of a slot. What is above
+is the behaviour this pass measured before the fix. Driven after it on this row, with
+`Destiny of an Emperor (USA)`: keep-server left `save_slot` naming the save it took, and a plain
+download moved it to the newer save. Recorded in finding 4 of
+[romm-5.3-findings.md](../romm-5.3-findings.md); it is not a re-run of any certification step.
+
 **A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
 copy is still there with no decision to attach to it and no mechanism that will remove it.
 

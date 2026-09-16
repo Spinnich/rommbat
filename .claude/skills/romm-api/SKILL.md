@@ -471,6 +471,14 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   but **the uploaded name has to carry the emulator and core** or two cores writing one filename
   for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
   two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary.
+- **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
+  `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
+  never sends it; RomM's browser player does, for the save it loaded, and on every save tick
+  under 5.3.0's `auto_save_sync`. A save id therefore does not name its bytes, and a superseded
+  row can return to the head of its slot. `save-sync` holds the consequences.
+- **`/api/memory-cards` is not called and is not a save transport.** A card is scoped by
+  `(user, emulator)` with no ROM, a version is a whole zipped card, and only a zip is accepted.
+  Measured at 5.3.0-alpha.2; `save-sync` again.
 - **The server does not rename a state.** A save comes back tagged
   `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; a state comes back exactly as sent.
 - **A zero-byte `screenshotFile` is accepted and stored** as a real screenshot row, so the
@@ -486,8 +494,10 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   from `backend/endpoints/sync.py` at both `5.1.0` and `5.1.1-beta.2`, which are identical
   here: the server folds its slotted saves to one row per slot by `updated_at` before matching
   anything, and both the submitted and the unsubmitted pass walk that fold. **A superseded row
-  in a slot is history and is never offered as an operation**, which is what makes an appending
-  upload untidy rather than dangerous. Measurement 163, read from source and then driven against
+  in a slot is history and is never offered as an operation while it stays superseded.** That no
+  longer makes an appending upload safe on its own: the in-place `PUT` above puts one back at the
+  head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
+  what keeps a keep-local from being undone (`save-sync`). Measurement 163, read from source and then driven against
   a slot holding a superseded row.
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
   that earlier one answers **400** `Session is already cancelled`. Complete a session before

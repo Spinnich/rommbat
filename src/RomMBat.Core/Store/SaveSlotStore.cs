@@ -89,13 +89,20 @@ public sealed class SaveSlotStore
     /// Records the server identity a restore just took, which no upload response will supply.
     /// </summary>
     /// <remarks>
-    /// <b>Only a class C restore needs this, and without it the next flush uploads.</b> The wire
-    /// hash for a bundled save that has not changed since it was written is
-    /// <c>server_content_hash</c>, because the server's digest over an archive cannot be
-    /// recomputed here. A restore that leaves this row holding the pre-download digest therefore
-    /// submits a hash the server no longer recognises, and negotiate answers <c>upload</c> for a
-    /// unit that is already in step. Found on hardware: the flush after a class C restore
-    /// reported one upload, which the server then deduplicated into an existing row.
+    /// <b>Every path that writes server bytes into a slot owes this, and for class C the next
+    /// flush uploads without it.</b> The wire hash for a bundled save that has not changed since
+    /// it was written is <c>server_content_hash</c>, because the server's digest over an archive
+    /// cannot be recomputed here. A restore that leaves this row holding the pre-download digest
+    /// therefore submits a hash the server no longer recognises, and negotiate answers
+    /// <c>upload</c> for a unit that is already in step. Found on hardware: the flush after a
+    /// class C restore reported one upload, which the server then deduplicated into an existing
+    /// row.
+    /// <para>
+    /// Class A breaks more quietly. Its wire hash is the file's own, so nothing uploads, but the
+    /// row goes on naming the save the download replaced, and the file being in step means the
+    /// slot is never negotiated again to correct it (#157). The save id recorded here is also
+    /// what tells a superseded row returning to the head of a slot apart from a newer one.
+    /// </para>
     /// <para>
     /// The names are left as they were, since a download carries the tagged name only, and
     /// <c>origin_device_id</c> is cleared rather than kept: the device that uploaded this save

@@ -528,7 +528,7 @@ hash, folded into one digest. The archive is transport only.
   upload is renamed with a `[YYYY-MM-DD_HH-MM-SS]` tag and the row is keyed on that name, so the
   clock decides: same second updates, a second later appends. `overwrite` only suppresses the 409
   checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
-  row down, and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
+  row down until something writes into it in place (see "Other writers on the same slots"), and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
   it at one. Never tell a user their copy replaced the server's. Measurement 160.
 - An unregistered `device_id` is a **404**, not a request that quietly proceeds without a device.
   **Omitting it altogether is accepted**, and produces a save attributed to no device, which is
@@ -795,32 +795,93 @@ newer that the protocol cannot see.
 with `device_id` omitted for the reasons in the protocol rules above, plus a local edit. Nothing
 reachable from RomM's UI will do it.
 
-## Class A writes the file and forgets to write the slot
+## Every path that writes server bytes writes the slot
 
 `save_slot` holds this device's picture of what the server has in a slot, and every path that
-writes server bytes to disk owes it an update. **The class C paths do it and the class A paths do
-not**, which is the shape of the defect rather than a general omission:
+writes server bytes to disk owes it an update:
 
 | Path                                                | Class | Records `save_slot` |
 | --------------------------------------------------- | ----- | ------------------- |
 | `SaveSync.RestoreUnitAsync`, download               | C     | yes                 |
 | `SaveConflictResolver.FinishUnitAsync`, keep-server | C     | yes                 |
-| `SaveSync.RecordRestored`, download                 | A     | **no**              |
-| `SaveConflictResolver.KeepServerAsync`, keep-server | A     | **no**              |
+| `SaveSync.RecordRestored`, download                 | A     | yes                 |
+| `SaveConflictResolver.KeepServerAsync`, keep-server | A     | yes                 |
 
-Measured: after a negotiate-driven download of save 211 the row still read `save_id 209` with the
-pre-download hash while 211's content sat on disk. It does not self-correct, because the local
-file is then in step and the slot is never negotiated again. The server-side sync record **is**
-updated, which is why nothing visibly breaks. Issue #157.
+**The class A rows said no until #157**, and it was measured before it was fixed: after a
+negotiate-driven download of save 211 the row still read `save_id 209` with the pre-download hash
+while 211's content sat on disk. It does not self-correct, because the local file is then in step
+and the slot is never negotiated again. The server-side sync record **is** updated, which is why
+nothing visibly broke.
 
-**Fixing the download alone leaves keep-server broken.** They are two independent writers of
-`local_save`, not one path with a caller: `KeepServerAsync` does not call the download. The class
-C halves are the ones that got it right, for the reason recorded above at "Record the slot's
-server identity when a bundled restore lands", and class A needs the same treatment twice.
+**Fixing the download alone would have left keep-server broken.** They are two independent
+writers of `local_save`, not one path with a caller: `KeepServerAsync` does not call the download.
+A restore of a save the server holds **with no slot** records no slot identity, because that row
+is outside the protocol and its save id would otherwise stand in for a slot it never belonged to.
+
+**The recorded save id is now load-bearing**, which is why this was fixed rather than left
+cosmetic: it is what recognises a superseded row returning to the head of its slot. See "Other
+writers on the same slots" below.
 
 **Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
 which is worth knowing before assuming a download is safe to make silent. A resolution prunes its
 copy; a download's copy is currently never pruned.
+
+## Other writers on the same slots
+
+RomM 5.3.0 adds two writers to the saves this protocol was measured against, and a third route
+that looks like save transport and is not. Finding 3 and 4 of
+[romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) hold the evidence; these are the rules.
+
+**`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
+the id, the tagged `file_name` and the slot, changes `content_hash`, moves `updated_at`, and runs
+no 409 check, no dedup and no device check. RomM's browser player sends it for whichever save it
+loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every save tick**. So
+compare the hash wherever the question is "is this the save I had", which `save_conflict` already
+does and must keep doing. Measured on 5.3.0-alpha.2 with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
+which replays the browser's own calls:
+
+| Case                                                                          | Negotiate answers                                        |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------- |
+| A. browser writes over this device's row, local unchanged                     | `download`, same save id, new hash                       |
+| B. the same, local also changed                                               | `conflict`; an ordinary upload is 409                    |
+| C. after keep-local, browser writes into the older row, this device synced it | `conflict` against the **older** row                     |
+| E. the same, but the older row came from a peer this device never synced      | **`download`**, "Server save is newer (no sync history)" |
+| D. no save loaded                                                             | one null-slot row, updated in place, never offered       |
+
+**A superseded row does not stay one row down.** Negotiate pairs on the newest `updated_at` per
+slot, and a PUT makes the row it touched the newest, so the copy a keep-local rejected comes back
+to the head of the slot. Case E is the one that bites: taking the download would put the rejected
+branch over the kept side and say nothing. **So a download naming a save id lower than the slot's
+recorded one is recorded as a conflict instead** (`SaveSync.SupersededRowReturned`). Ids only grow,
+so a lower id at the head of a slot is an in-place write or a deleted head row. Only the write was
+measured to reach a download, and the refusal covers both without telling them apart. Case A, the
+same id, is an ordinary download.
+
+**Streaming V2 writes saves no slot can see.** Read at tag 5.3.0-alpha.2, not measured, because
+the server measured has streaming off. A session's saves land as a **null-slot** row named
+`<rom stem> [<emulator> <timestamp>].saves.zip`, one per pull, deduplicated by hash against every
+save for the ROM. Negotiate never offers one (#138). `saves restore` would list one as restorable
+to `saves/<system>/<stem>.zip`, because a null slot matches no declared unit, and `--apply` then
+fails the hash check, since RomM's digest over an archive is not the MD5 of its bytes. It fails
+closed, with a misleading preview.
+
+**Streaming prunes states by emulator name, and the name is shared with this client.** Also read,
+not measured. Each capture adds a state row, and past `STREAMING_STATE_HISTORY_LIMIT` (default 50)
+the oldest are deleted from every state the user holds for that `(rom, emulator)`, not only the
+ones streaming wrote. This client uploads PS2, GameCube and Xbox states under `pcsx2`, `dolphin`
+and `xemu`, which are the names streaming uses, so a heavily streamed game deletes this device's
+oldest server copies. The local file survives and is never re-sent, because "in step" is decided
+from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
+
+**Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
+card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;
+a version is the whole card, stored byte for byte and not deduplicated; a bare `SRAM.USA.raw` is
+refused 400 while a zip holding one is accepted, so the server never checks the layout inside.
+Read in source, upstream's Dolphin card is a zip of `.gci` files, the class C shape this client
+already syncs per game, and its PCSX2 card is a folder card. Neither gives #82's raw card a home the server
+would validate, and interop with a streaming card means rebuilding a whole card, which is two
+writers on one container. The direction is the opposite one: steer emulators off shared cards.
+PCSX2's `folder` choice is unmeasured here (#80).
 
 ## Determinism is what makes replay safe
 

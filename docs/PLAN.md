@@ -2087,6 +2087,15 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   client: were negotiate ever to volunteer a superseded row, the resolution would be undone by
   the next flush, because the client holds no sync record for the row it did not ack and
   `AlreadyHeld` compares hashes that by construction differ.
+  **Amended at the RomM 5.3.0 adoption: that is what happens, and the client now refuses it.**
+  Negotiate never volunteers a superseded row as it stands, but `PUT /api/saves/{id}` rewrites
+  one in place and makes it the newest, and RomM's browser player sends that for the save it
+  loaded, on every save tick under `auto_save_sync`. Measured on 5.3.0-alpha.2
+  (`tools/romm-5.3-probes/s1-browser-save-writer.py`): where this device had synced the revived
+  row negotiate answers `conflict`, and where it never had, which is a row from another device,
+  it answers `download`. A download naming a save id lower than the slot's recorded one is
+  therefore recorded as a conflict, which needed both class A writers to record that id (#157).
+  See `romm-5.3-findings.md` finding 4.
   A 409 that survives the overwrite means the slot moved again between the report the user read
   and the choice they made, so it is reported rather than forced. `--keep-server` runs the same
   verified restore an ordinary download does, one move for a single file and a per-member swap
