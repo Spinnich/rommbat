@@ -102,6 +102,18 @@ public class ProductVersionTests
     }
 
     [Fact]
+    public void A_prerelease_last_tested_cannot_warn_about_the_stable_release_it_precedes()
+    {
+        // The same suffix drop at the other end: LastTested is 5.3.0-alpha.2, so a final 5.3.0,
+        // or any later 5.3.0 prerelease, compares equal to it and reads as tested. Nothing
+        // warns that the build is one this release never ran against. Asserted, not fixed:
+        // it clears once the stable is adopted and the tested row moves to it.
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.0").Verdict);
+        Assert.Equal(CompatibilityVerdict.Supported, RomMServerVersion.Check("5.3.0-rc.1").Verdict);
+        Assert.Equal(CompatibilityVerdict.Untested, RomMServerVersion.Check("5.3.1").Verdict);
+    }
+
+    [Fact]
     public void The_pinned_schema_version_is_the_minimum_supported_one()
     {
         // Read out of the pin rather than restated, so moving the pin without moving the
