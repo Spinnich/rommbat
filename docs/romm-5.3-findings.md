@@ -436,7 +436,9 @@ one has no extension. Nothing breaks today, because per-game conversion exists o
 `dreamcast`, `gamecube`, `ps2` and `psx` and a multi-disc row is already refused by name. It
 stops being hypothetical the moment a library is tidied: **foldering a multi-disc set is exactly
 what turns a refusal into a row `PerGameKey` cannot express**, and foldering is the correct way
-to store those games.
+to store those games, so a correctly stored multi-disc game would convert worse than an
+incorrectly stored one. #183, which is a design question about what a folder-shaped ROM lands as
+on disk rather than a missing guard.
 
 **It also reproduced a known falsification.** The row is extensionless with `has_multiple_files`
 false, so "every extensionless ROM is multi-file" is wrong in a second, independent way. That was
