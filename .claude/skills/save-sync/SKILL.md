@@ -640,6 +640,17 @@ hash, folded into one digest. The archive is transport only.
   `ForgetMissing` drops the row. Proven by the no-op re-sync assertion: restore, scan, push, zero
   uploaded.
 
+  **A restored state brings its screenshot only when the server links one** (#158). The find
+  carries the id from the state row's `screenshot` field, and the write fetches
+  `GET /api/screenshots/{id}/content` into the emulator's declared `<image>`, named from the ROM
+  on disk through the template for the reason the state is. Best-effort, like the upload: a fetch
+  that fails costs a line and the state still counts as restored, and an image already in the
+  tree is left alone. **The client half is closed and the server half is not.** A state whose
+  image RomM stored and did not link reads `screenshot: null` (`docs/retrobat-findings.md`
+  finding 138), and there is nothing to follow, so that state comes back without one. The preview
+  says per row which it will be. `DetailedRomSchema.user_screenshots` might reach such an orphan
+  by name, and that is unmeasured, so it is not built on.
+
   **The version rule is a statement here, not a comparison, and saying so is the whole of it.**
   `save-sync` and `PLAN.md` both say never silently restore a state made by a different emulator
   version. Neither side can perform that check: `ScopeOf` uploads `emulator[.core]` with no

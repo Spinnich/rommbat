@@ -949,6 +949,12 @@ internal static class SavesCommand
             Console.WriteLine(
                 $"  state  rom {state.RomId}  {state.Scope,-20} "
                     + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
+
+            // Said per row, because whether a screenshot comes back is decided by the server
+            // linking one, which it does not always do (docs/retrobat-findings.md finding 138).
+            Console.WriteLine(state.ScreenshotDestination is { } image
+                ? $"         with its screenshot, {image.Name}"
+                : "         no screenshot: the server links none to this state");
         }
 
         Console.WriteLine();
@@ -1018,7 +1024,8 @@ internal static class SavesCommand
         Console.WriteLine(
             $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
                 + $"failed {outcome.Failed + stateOutcome.Failed}, "
-                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}");
+                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}"
+                + (stateOutcome.Screenshots > 0 ? $", with {stateOutcome.Screenshots} screenshot(s)" : string.Empty));
 
         if (waiting > 0)
         {
