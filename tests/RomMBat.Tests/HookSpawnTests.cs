@@ -117,10 +117,10 @@ public sealed class HookSpawnTests
         }
 
         // The hook returns in milliseconds and does not wait for what it started, so the test
-        // has to. Process.Start creates the process before the hook can exit, so a pass that
-        // has not written its first line within this budget was never going to: the agent
-        // reaches Main in 34 ms measured, and this is three orders of magnitude above it.
-        var appeared = WaitFor(() => File.Exists(log), NoSpawnBudget);
+        // has to. Two budgets, because the two cases fail in opposite directions: waiting longer
+        // for a spawn that is coming only delays a pass, while waiting longer for one that must
+        // not come is what makes that half slow.
+        var appeared = WaitFor(() => File.Exists(log), spawns ? SpawnBudget : NoSpawnBudget);
 
         if (!spawns)
         {
@@ -175,6 +175,16 @@ public sealed class HookSpawnTests
     /// <c>Main</c> in 34 ms on a USB stick (finding 195) and opens the log immediately after.
     /// </remarks>
     private static TimeSpan NoSpawnBudget => TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// How long to wait for a pass that should have started to write its first line.
+    /// </summary>
+    /// <remarks>
+    /// Generous, and that weakens nothing: a spawn that never happens still fails, only later.
+    /// It is a cold start of a self-contained executable, and a loaded CI runner showed none
+    /// within 15 s on a run where tests that normally take seconds took 51 s (#121).
+    /// </remarks>
+    private static TimeSpan SpawnBudget => TimeSpan.FromSeconds(120);
 
     /// <summary>Reads a file another process still has open for writing.</summary>
     private static string ReadShared(string path)
