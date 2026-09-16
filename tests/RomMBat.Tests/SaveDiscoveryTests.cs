@@ -394,6 +394,44 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_loose_file_of_no_known_shape_names_itself_and_no_emulator()
+    {
+        // #152, the measured case. Two loose .sav files on nes were mesen standalone's and
+        // mednafen's, and the report grouped them under nes/libretro, a directory that does not
+        // exist, with a count and no names.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("nes", "Crystalis (USA).sav", "mesen standalone");
+        fixture.AddSave("nes", "Final Fantasy (USA).24ae5edf.sav", "mednafen");
+
+        fixture.Scan();
+
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+        Assert.Equal(UnsyncableReason.UnknownShape, row.Reason);
+        Assert.Equal(string.Empty, row.Emulator);
+        Assert.Equal(2, row.FileCount);
+        Assert.Contains("saves/nes/Crystalis (USA).sav", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/nes/Final Fantasy (USA).24ae5edf.sav", row.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_row_covering_many_files_names_the_first_few_and_counts_the_rest()
+    {
+        using var fixture = SaveTree.Create();
+
+        for (var game = 1; game <= 7; game++)
+        {
+            fixture.AddSave("snes", $"Nobody Owns {game} (USA).srm", "orphan");
+        }
+
+        fixture.Scan();
+
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.Reason == UnsyncableReason.Unattributed);
+        Assert.Equal(7, row.FileCount);
+        Assert.EndsWith(", and 2 more", row.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Directory_saves_and_states_are_reported_once_per_system_with_a_real_count()
     {
         // Stage 1 ships neither, and the alternative to reporting them is a user whose PS3
