@@ -471,6 +471,14 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   but **the uploaded name has to carry the emulator and core** or two cores writing one filename
   for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
   two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary.
+- **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
+  `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
+  never sends it; RomM's browser player does, for the save it loaded, and on every save tick
+  under 5.3.0's `auto_save_sync`. A save id therefore does not name its bytes, and a superseded
+  row can return to the head of its slot. `save-sync` holds the consequences.
+- **`/api/memory-cards` is not called and is not a save transport.** A card is scoped by
+  `(user, emulator)` with no ROM, a version is a whole zipped card, and only a zip is accepted.
+  Measured at 5.3.0-alpha.2; `save-sync` again.
 - **The server does not rename a state.** A save comes back tagged
   `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; a state comes back exactly as sent.
 - **A zero-byte `screenshotFile` is accepted and stored** as a real screenshot row, so the

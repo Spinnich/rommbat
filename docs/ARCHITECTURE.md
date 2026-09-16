@@ -791,7 +791,12 @@ because a slot returning to contents it once held is a different row carrying a 
 **appends** rather than replacing: row identity is the server's own datetime-tagged filename at
 one-second resolution, so no decision a person takes lands on the row it is overwriting. The
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
-row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. Resolving either way
+row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. **Until
+something writes into it:** `PUT /api/saves/{id}` rewrites a row in place and moves its
+`updated_at`, which RomM's browser player does to the save it loaded, so the rejected copy can
+return to the head of the slot. A download naming a save id lower than the one this device last
+recorded for the slot is therefore recorded as a conflict rather than taken, measured on
+5.3.0-alpha.2 as the case where negotiate would otherwise answer `download`. Resolving either way
 prunes the copy, which is what makes the plan's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 
