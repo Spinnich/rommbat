@@ -348,7 +348,7 @@ internal static class SetsCommand
                             $"  stopped at offset {report.Offset} of {report.Total}. The next run continues from there.");
                     }
 
-                    return ExitCode.Offline;
+                    return ExitCode.For(report.Cause);
             }
         }
 

@@ -354,6 +354,54 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_failed_run_carries_the_worst_cause_so_offline_means_only_unreachable()
+    {
+        // #143. A front end reads Unreachable as "wait and try again", so a run with one game
+        // the server refused and one it could not reach must not come out Unreachable.
+        using var stub = Library(2);
+        using var store = LocalStore.Open(_tree.Install());
+        await ResolveAsync(stub, store, TestContext.Current.CancellationToken);
+
+        var install = _tree.Install();
+        var members = Members(store);
+        using var connection = Connect(stub);
+
+        stub.IsReachable = false;
+        var unreachable = await new ContentSync(install, store, connection).ApplyAsync(
+            new ContentPlanner(install, store).Plan(Set(store), [members[0]]),
+            cancellationToken: TestContext.Current.CancellationToken);
+        stub.IsReachable = true;
+
+        Assert.Equal(FailureCause.Unreachable, unreachable.Cause);
+
+        stub.Content.Remove(members[1].RomId);
+        var refused = await new ContentSync(install, store, connection).ApplyAsync(
+            new ContentPlanner(install, store).Plan(Set(store), [members[1]]),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(FailureCause.Failed, refused.Cause);
+        Assert.Equal(FailureCause.Failed, ContentSyncOutcome.Merge(unreachable, refused).Cause);
+
+        stub.RejectsToken = true;
+        var rejected = await new ContentSync(install, store, connection).ApplyAsync(
+            new ContentPlanner(install, store).Plan(Set(store), [members[1]]),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(FailureCause.NotAuthorized, rejected.Cause);
+        Assert.Equal(FailureCause.NotAuthorized, ContentSyncOutcome.Merge(refused, rejected).Cause);
+    }
+
+    [Theory]
+    [InlineData(RomMResponseStatus.Unauthorized, FailureCause.NotAuthorized)]
+    [InlineData(RomMResponseStatus.Forbidden, FailureCause.NotAuthorized)]
+    [InlineData(RomMResponseStatus.ServerError, FailureCause.Failed)]
+    [InlineData(RomMResponseStatus.NotFound, FailureCause.Failed)]
+    [InlineData(RomMResponseStatus.RangeNotSatisfiable, FailureCause.Failed)]
+    [InlineData(RomMResponseStatus.Ok, FailureCause.None)]
+    public void A_server_answer_is_classified_by_its_status(RomMResponseStatus status, FailureCause expected) =>
+        Assert.Equal(expected, FailureCauses.Of(status));
+
+    [Fact]
     public void A_hash_mismatch_with_no_size_to_confirm_says_retrying_is_worth_it()
     {
         var message = ContentSync.HashMismatch("aaaa", "bbbb", sizeMatched: false);

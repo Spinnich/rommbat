@@ -41,6 +41,12 @@ the source of truth; the network is optional, probed with a short-timeout
   would make it the newest row in the slot and tell every other device to take it, which is an
   unresolved conflict resolving itself in favour of whoever synced last. The conflict is
   persisted and waits for `saves resolve` to pick a side.
+- **Exit `Offline` (5) means unreachable and nothing else.** It is the one code that tells a
+  script waiting will fix it. A 401 or 403 exits `NotPaired` (4), any other server answer, or a
+  transfer that arrived unusable, exits `ServerError` (8). A run with several failures is
+  `Offline` only when every one of them was unreachable, which is `FailureCause` ranked worst
+  first and mapped in `ExitCode.For`. Classify there rather than returning `Offline` from a
+  failed `RomMResponse` (#143).
 - **No daemon exists.** A portable install cannot register a service or scheduled task, so
   the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
 

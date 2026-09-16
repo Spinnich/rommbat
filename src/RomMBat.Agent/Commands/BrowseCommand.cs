@@ -50,7 +50,7 @@ internal static class BrowseCommand
         if (!response.IsSuccess)
         {
             Console.Error.WriteLine(response.Message);
-            return response.NeedsRepairing ? ExitCode.NotPaired : ExitCode.Refused;
+            return ExitCode.For(response.Status);
         }
 
         var page = response.Value!;

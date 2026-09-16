@@ -115,7 +115,7 @@ internal static class PlatformsCommand
         if (!response.IsSuccess)
         {
             Console.Error.WriteLine(response.Message);
-            return response.NeedsRepairing ? ExitCode.NotPaired : ExitCode.Refused;
+            return ExitCode.For(response.Status);
         }
 
         var install = EsSystemsFile.Load(context.Install);

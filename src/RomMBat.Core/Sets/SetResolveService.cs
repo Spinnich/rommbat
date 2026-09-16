@@ -49,6 +49,9 @@ public sealed record ResolveReport(
     /// which is false until they pair again.
     /// </remarks>
     public bool Rejected { get; init; }
+
+    /// <summary>Why an interrupted resolve stopped, or <see cref="FailureCause.None"/> for a cancel.</summary>
+    public FailureCause Cause { get; init; }
 }
 
 /// <summary>
@@ -250,6 +253,7 @@ public sealed class SetResolveService
             _session.Store.SyncSets.Exclusions(set.Id))
         {
             Rejected = resolution.Rejected,
+            Cause = resolution.Cause,
         };
     }
 
@@ -315,6 +319,7 @@ public sealed class SetResolveService
                 _session.Store.SyncSets.Exclusions(set.Id))
             {
                 Rejected = resolution.Rejected,
+                Cause = resolution.Cause,
             };
         }
 

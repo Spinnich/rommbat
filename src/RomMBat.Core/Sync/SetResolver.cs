@@ -72,6 +72,9 @@ public sealed record SetResolution
     /// </remarks>
     public bool Rejected { get; init; }
 
+    /// <summary>Why the walk stopped short, or <see cref="FailureCause.None"/> when nothing failed.</summary>
+    public FailureCause Cause { get; init; }
+
     /// <summary>The games in the set, in the set's own order.</summary>
     public IReadOnlyList<SyncSetMember> Members { get; init; } = [];
 
@@ -252,6 +255,7 @@ public sealed class SetResolver
         var noFileOnDisk = 0;
         var tooLarge = 0;
         RomMResponse<RomPage>? failure = null;
+        var cause = FailureCause.None;
 
         CarryAll(carried, selector, tally);
         multiFile = tally.MultiFile;
@@ -296,12 +300,14 @@ public sealed class SetResolver
                 failure = RomMResponse.Failure<RomPage>(
                     RomMResponseStatus.ServerError,
                     unreachable.Message);
+                cause = FailureCause.Unreachable;
                 break;
             }
 
             if (!response.IsSuccess)
             {
                 failure = response;
+                cause = FailureCauses.Of(response.Status);
                 break;
             }
 
@@ -347,6 +353,7 @@ public sealed class SetResolver
             Set = set,
             Outcome = outcome,
             Rejected = failure?.Status == RomMResponseStatus.Unauthorized,
+            Cause = cause,
             Members = members,
             Excluded = excluded,
             ScopeTotal = pager.Total ?? scanned,
@@ -544,6 +551,7 @@ public sealed class SetResolver
         var scanned = 0;
         var missing = 0;
         RomMResponse<RomRow>? failure = null;
+        var cause = FailureCause.None;
 
         foreach (var romId in romIds)
         {
@@ -567,6 +575,7 @@ public sealed class SetResolver
                 // Stopped rather than thrown, the same rule the page walk follows: everything
                 // already hydrated is real and is recorded.
                 failure = RomMResponse.Failure<RomRow>(RomMResponseStatus.ServerError, unreachable.Message);
+                cause = FailureCause.Unreachable;
                 break;
             }
 
@@ -582,6 +591,7 @@ public sealed class SetResolver
             if (!response.IsSuccess || response.Value is null)
             {
                 failure = response;
+                cause = FailureCauses.Worst(FailureCause.Failed, FailureCauses.Of(response.Status));
                 break;
             }
 
@@ -612,6 +622,7 @@ public sealed class SetResolver
             Set = set,
             Outcome = complete ? ResolutionOutcome.Resolved : ResolutionOutcome.Interrupted,
             Rejected = failure?.Status == RomMResponseStatus.Unauthorized,
+            Cause = cause,
             Members = members,
             Excluded = tally.Excluded,
             ScopeTotal = romIds.Count,

@@ -884,8 +884,8 @@ public sealed class SyncScreenTests : IDisposable
         //
         // #109 fixed the screen and #114 moved the answer into the service, which is where the
         // next caller will read it: a blocked run is SyncState.Blocked, its own state rather
-        // than Incomplete, because Incomplete is what the agent turns into its Offline exit
-        // code and a full disk budget is not being offline.
+        // than Incomplete, because Incomplete is a failure the agent exits Offline or
+        // ServerError for, and a full disk budget is neither.
         using var stub = Library(3);
         Pair();
         Seed("games", 3);
@@ -935,8 +935,8 @@ public sealed class SyncScreenTests : IDisposable
             new Immediate<SyncEvent>(_ => { }),
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Not Done, which was the lie, and not Incomplete, which is what SyncCommand turns into
-        // its Offline exit code: the server was reachable throughout and the disk said no.
+        // Not Done, which was the lie, and not Incomplete, which SyncCommand exits as a failure:
+        // the server was reachable throughout and the disk said no.
         Assert.Equal(Core.Sets.SyncState.Blocked, report.State);
     }
 

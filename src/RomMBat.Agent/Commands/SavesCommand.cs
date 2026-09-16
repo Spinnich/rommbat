@@ -751,7 +751,9 @@ internal static class SavesCommand
         if (!found.IsSuccess || found.Value is not { } findings)
         {
             Console.Error.WriteLine(found.Message ?? "The save list could not be read.");
-            return ExitCode.Offline;
+
+            // Unreachable throws and Program answers Offline, so anything here is the server's answer.
+            return ExitCode.For(found.Status);
         }
 
         var restorable = findings.Restorable;
