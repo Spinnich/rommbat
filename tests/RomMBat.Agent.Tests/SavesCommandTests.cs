@@ -102,6 +102,41 @@ public sealed class SavesCommandTests
     }
 
     [Fact]
+    public async Task The_report_says_it_could_not_ask_the_server_and_still_answers_locally()
+    {
+        // #138 made saves ask the server for saves with no slot. The rest of the report is local
+        // and the command works offline, so a server that is not there costs one line and the
+        // exit code does not move. --offline skips the read altogether.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        using (var store = LocalStore.Open(install))
+        {
+            var now = DateTimeOffset.UtcNow;
+            store.Device.EnsureIdentity(RomMBat.Core.Identity.DeviceIdentity.ReadOrCreate(install));
+            store.Device.SavePairing(
+                new PairingResult(
+                    new Uri("http://127.0.0.1:9"),
+                    "device-1",
+                    "Handheld",
+                    new RomM.Client.GrantedScopes(["assets.read"]),
+                    RomMBat.Core.Identity.TokenProtector.Protect("rmm_token", null, now.AddYears(1))),
+                now);
+        }
+
+        var online = await AgentRunner.RunAsync(tree, "saves");
+
+        Assert.Equal(0, online.ExitCode);
+        Assert.True(online.Wrote("No saves found under saves/."), online.Out);
+        Assert.True(online.Wrote("Server saves with no slot: not checked"), online.Out);
+
+        var offline = await AgentRunner.RunAsync(tree, "saves", "--offline");
+
+        Assert.Equal(0, offline.ExitCode);
+        Assert.False(offline.Wrote("Server saves with no slot"), offline.Out);
+    }
+
+    [Fact]
     public void Restore_ends_partial_only_for_what_the_run_failed_at()
     {
         // #148. The unplaceable rows are not an input at all, which is the rule: measured on nes,

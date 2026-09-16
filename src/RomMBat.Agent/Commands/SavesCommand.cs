@@ -1,4 +1,5 @@
 using System.Globalization;
+using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Store;
@@ -79,6 +80,7 @@ internal static class SavesCommand
 
         ReportSaves(context);
         ReportStates(context);
+        await ReportSlotlessAsync(context, command, cancellationToken).ConfigureAwait(false);
         ReportConflicts(context);
         ReportBindings(context);
         ReportUnsyncable(context);
@@ -222,6 +224,91 @@ internal static class SavesCommand
                 $"  {status,-9} {ByteSize.Format(state.SizeBytes),8}  {state.Slot,-28}{version}");
             Console.WriteLine($"  {string.Empty,-9} {string.Empty,8}  {state.Path}");
         }
+    }
+
+    /// <summary>
+    /// Saves the server holds for a game here with no slot, which no sync will ever fetch.
+    /// </summary>
+    /// <remarks>
+    /// <b>The one part of this report that asks the server</b>, because nothing local can know
+    /// (#138). Negotiate pairs on the slot, so these never reach a flush, and a person who never
+    /// runs <c>saves restore</c> would never learn they exist. Skipped with <c>--offline</c> or on
+    /// an install that is not paired, and a read that fails costs one line: everything else here
+    /// is answered locally and still prints, and the exit code does not move.
+    /// </remarks>
+    private static async Task ReportSlotlessAsync(
+        AgentContext context,
+        CommandLine command,
+        CancellationToken cancellationToken)
+    {
+        if (command.Has("offline")
+            || context.Store.Device.Read() is not { IsPaired: true, RomMDeviceId: { } deviceId })
+        {
+            return;
+        }
+
+        const string NotChecked = "Server saves with no slot: not checked, because ";
+
+        using var why = new StringWriter();
+        using var connection = context.Authenticate(command, why, out _);
+
+        if (connection is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + why.ToString().Trim());
+            return;
+        }
+
+        RomMResponse<IReadOnlyList<SlotlessSave>> found;
+
+        try
+        {
+            found = await new SaveSync(context.Install, context.Store, connection, deviceId)
+                .FindSlotlessAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + "the server is not reachable. Pass --offline to skip this.");
+            return;
+        }
+
+        if (!found.IsSuccess || found.Value is not { } slotless)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + (found.Message ?? "the save list could not be read."));
+            return;
+        }
+
+        if (slotless.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(
+            $"{slotless.Count} saves on the server have no slot, so no sync will fetch them. "
+                + "RomMBat does not give them one:");
+
+        foreach (var save in slotless.Take(MaxListedSaves))
+        {
+            var when = save.ServerUpdatedAt is { } stamp
+                ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                : "unknown";
+
+            Console.WriteLine(
+                $"  rom {save.RomId}  save {save.SaveId}  {save.Emulator ?? "(no emulator)",-12} "
+                    + $"{ByteSize.Format(save.SizeBytes),8}  {when}  {save.FileName}");
+        }
+
+        if (slotless.Count > MaxListedSaves)
+        {
+            Console.WriteLine($"  and {slotless.Count - MaxListedSaves} more, not listed.");
+        }
+
+        Console.WriteLine(
+            "  'saves restore <rom>' offers one when this device has no save for that game.");
     }
 
     /// <summary>

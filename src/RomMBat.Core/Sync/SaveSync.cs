@@ -153,6 +153,23 @@ public sealed record RestorableSave(
 /// </remarks>
 public sealed record UnrestorableSave(int RomId, string Slot, string Reason);
 
+/// <summary>
+/// A save the server holds for a game on this device with no slot, which negotiate never offers.
+/// </summary>
+/// <remarks>
+/// Reported, and never given a derived slot (#138, ruled). Negotiate pairs on the slot, so no
+/// flush fetches one and none conflicts with one. A client that sets no slot writes these: RomM's
+/// web UI, and another client measured on <c>nes</c> as <c>emulator='fceumm'</c>. Deriving a slot
+/// risks two clients keying one save differently, so the honest thing is to say it is there.
+/// </remarks>
+public sealed record SlotlessSave(
+    int RomId,
+    int SaveId,
+    string? FileName,
+    string? Emulator,
+    long SizeBytes,
+    DateTimeOffset? ServerUpdatedAt);
+
 /// <summary>What the server holds for this device, split by whether it can be placed.</summary>
 public sealed record SaveRestoreFindings(
     IReadOnlyList<RestorableSave> Restorable,
@@ -825,6 +842,43 @@ public sealed class SaveSync
         }
 
         return RomMResponse.Success(new SaveRestoreFindings(CollapseByDestination(found), unrestorable));
+    }
+
+    /// <summary>
+    /// Server saves with no slot for a ROM this device holds, which no flush will ever fetch.
+    /// </summary>
+    /// <remarks>
+    /// Blank rather than null is the test, since whitespace and the empty string sit outside the
+    /// protocol the same way. A ROM not on this device is left out, because negotiate would not
+    /// place its save here either and a partial library is the ordinary case. Reads the same
+    /// unfiltered <c>GET /api/saves</c> a restore does, and writes nothing.
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyList<SlotlessSave>>> FindSlotlessAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!listed.IsSuccess || listed.Value is not { } rows)
+        {
+            return RomMResponse.Failure<IReadOnlyList<SlotlessSave>>(
+                listed.Status,
+                listed.Message ?? "The save list could not be read.");
+        }
+
+        IReadOnlyList<SlotlessSave> slotless = [.. rows
+            .Where(row => string.IsNullOrWhiteSpace(row.Slot)
+                && _store.Files.ForRom(row.RomId, LocalFileKind.Rom).Count > 0)
+            .OrderBy(row => row.RomId)
+            .ThenBy(row => row.Id)
+            .Select(row => new SlotlessSave(
+                row.RomId,
+                row.Id,
+                row.FileName,
+                row.Emulator,
+                row.FileSizeBytes,
+                row.UpdatedAt))];
+
+        return RomMResponse.Success(slotless);
     }
 
     /// <summary>The newest candidate for each destination, carrying the older ones it folded.</summary>

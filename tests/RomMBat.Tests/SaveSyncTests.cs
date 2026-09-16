@@ -1623,6 +1623,35 @@ public class SaveSyncTests
         Assert.Empty(pick.Folded);
     }
 
+    [Fact]
+    public async Task Server_saves_with_no_slot_for_a_game_here_are_reported_and_nothing_else_is()
+    {
+        // #138, ruled: report them and derive no slot. Negotiate pairs on the slot, so these
+        // are never fetched, and on nes two such saves sat unmentioned through every flush.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.AddGame(8, "gb", "Dr. Mario (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "slotted", id: 101);
+        fixture.SeedServerSave(7, string.Empty, "Tetris (World)", "srm", "from the web UI", id: 102);
+        fixture.SeedServerSave(7, "   ", "Tetris (World)", "srm", "whitespace", id: 103);
+        fixture.SeedServerSave(8, "libretro:battery", "Dr. Mario (World)", "srm", "null on the wire", id: 104);
+        fixture.Stub.SlotlessDownloads.Add(8);
+        fixture.SeedServerSave(4242, string.Empty, "Not Here", "srm", "rom not on this device", id: 105);
+
+        var found = await fixture.FindSlotlessAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(found.IsSuccess);
+        Assert.Equal([102, 103, 104], found.Value!.Select(save => save.SaveId));
+
+        // Reported, not acted on: nothing was written and no slot was made up.
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal(
+            "played once",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
     private static void SeedAt(SyncFixture fixture, int id, string slot, string contents, DateTimeOffset at)
     {
         fixture.SeedServerSave(7, slot, "Tetris (World)", "srm", contents, id: id);
@@ -1987,6 +2016,10 @@ public class SaveSyncTests
         public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
             CancellationToken cancellationToken = default) =>
             FindRestorableAsync(null, null, cancellationToken);
+
+        public Task<RomMResponse<IReadOnlyList<SlotlessSave>>> FindSlotlessAsync(
+            CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId).FindSlotlessAsync(cancellationToken);
 
         public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
             int? onlyRom,

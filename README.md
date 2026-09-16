@@ -195,6 +195,7 @@ automatic mapping gets one wrong. The terminal is no longer the only way in.
 
 ```powershell
 rommbat-agent.exe saves                      # what is on disk, what went up, what cannot
+rommbat-agent.exe saves --offline            # the same, without asking RomM for saves no sync can fetch
 rommbat-agent.exe saves resolve 42 "ppsspp:savedata" --keep-local  # pick a side on a conflict
 rommbat-agent.exe saves restore                                    # saves and states RomM has and this device does not
 rommbat-agent.exe saves restore --apply                            # put them back

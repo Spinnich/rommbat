@@ -809,7 +809,12 @@ returning.
 produces a row that RomMBat can neither reconcile nor collide with. Measured end to end on a live
 5.2.0 instance:
 
-- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138).
+- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138). **Reported, and no
+  slot is derived for it** (ruled): a derived slot may not match what the originating client
+  would use, and two clients keying one save differently is worse than a save sitting visible.
+  `saves` reads `GET /api/saves` when the install is paired and lists every blank-slot row for a
+  ROM on this device, via `SaveSync.FindSlotlessAsync`. It is the one network read in that
+  report, so `--offline` skips it and a failed read costs one line and not the exit code.
 - It also **cannot conflict**. A save uploaded through RomM's own web UI, which sets no slot, left
   the device's record for `libretro:battery` current, and the next flush uploaded over it with no
   409 and no mention.
