@@ -813,8 +813,13 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
 - It also **cannot conflict**. A save uploaded through RomM's own web UI, which sets no slot, left
   the device's record for `libretro:battery` current, and the next flush uploaded over it with no
   409 and no mention.
-- It still **resolves to the same destination path** as the slotted rows for that ROM, so
-  `saves restore` offers it beside them with nothing to distinguish which one wins (#156).
+- It still **resolves to the same destination path** as the slotted rows for that ROM. So does a
+  slot's own history. `saves restore` used to offer every one as its own restore, and applying
+  them wrote one file repeatedly and kept whichever came last (#156). **The find now keeps the
+  newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
+  names the rows it folded and says when a null-slot row and a slotted one share the file. It
+  narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
+  row even where a newer null-slot row shares the file.
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something

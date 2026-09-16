@@ -130,7 +130,19 @@ public sealed record RestorableSave(
     long SizeBytes,
     string? ContentHash,
     string? Emulator,
-    DateTimeOffset? ServerUpdatedAt);
+    DateTimeOffset? ServerUpdatedAt)
+{
+    /// <summary>
+    /// Older server saves that resolve to the same file, newest first, and are not restored.
+    /// </summary>
+    /// <remarks>
+    /// Named rather than dropped (#156). Restoring them all writes one file several times and
+    /// leaves whichever came last, so a preview listing each as its own row promises something
+    /// the restore cannot do. A slot accumulates history up to <c>autocleanup_limit</c>, and a
+    /// null-slot row from RomM's web UI lands on the same file as the slotted ones.
+    /// </remarks>
+    public IReadOnlyList<RestorableSave> Folded { get; init; } = [];
+}
 
 /// <summary>
 /// A save the server holds for a game on this device that a restore cannot write.
@@ -692,8 +704,18 @@ public sealed class SaveSync
     /// scanned first for the reason <c>saves</c> scans them first: the sidecar attribution route
     /// reads <c>local_state</c> (#64).
     /// </para>
+    /// <para>
+    /// <b>One candidate per destination, the newest</b>, with the rest on
+    /// <see cref="RestorableSave.Folded"/> (#156). Narrowing happens first, so a person asking
+    /// for one slot gets that slot's newest row even where a newer row from another slot, or
+    /// from none, shares the file.
+    /// </para>
     /// </remarks>
+    /// <param name="onlyRom">Only saves for this ROM, when given.</param>
+    /// <param name="onlySlot">Only saves in this slot, when given. The empty string is no slot.</param>
     public async Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
+        int? onlyRom = null,
+        string? onlySlot = null,
         CancellationToken cancellationToken = default)
     {
         var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
@@ -727,6 +749,12 @@ public sealed class SaveSync
             // A null slot is the server's own shape for the older rows, and the empty string is
             // what every key in this class already uses for one.
             var slot = row.Slot ?? string.Empty;
+
+            if ((onlyRom is { } rom && row.RomId != rom)
+                || (onlySlot is not null && !string.Equals(slot, onlySlot, StringComparison.Ordinal)))
+            {
+                continue;
+            }
 
             if (held.Contains((row.RomId, slot)))
             {
@@ -796,8 +824,27 @@ public sealed class SaveSync
                 row.UpdatedAt));
         }
 
-        return RomMResponse.Success(new SaveRestoreFindings(found, unrestorable));
+        return RomMResponse.Success(new SaveRestoreFindings(CollapseByDestination(found), unrestorable));
     }
+
+    /// <summary>The newest candidate for each destination, carrying the older ones it folded.</summary>
+    /// <remarks>
+    /// Newest by the server's <c>updated_at</c>, then by save id, since ids only grow. A null
+    /// slot does not lose to a slotted row or beat one: whichever is newer is the save the
+    /// person last made, and the preview names the other.
+    /// </remarks>
+    private static List<RestorableSave> CollapseByDestination(List<RestorableSave> found) =>
+        [.. found
+            .GroupBy(save => save.Destination)
+            .Select(group =>
+            {
+                var newest = group
+                    .OrderByDescending(save => save.ServerUpdatedAt ?? DateTimeOffset.MinValue)
+                    .ThenByDescending(save => save.SaveId)
+                    .ToList();
+
+                return newest[0] with { Folded = newest[1..] };
+            })];
 
     /// <summary>
     /// Fetches the given saves into the tree.

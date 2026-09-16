@@ -747,7 +747,7 @@ internal static class SavesCommand
         }
 
         var sync = new SaveSync(context.Install, context.Store, connection, deviceId);
-        var found = await sync.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
+        var found = await sync.FindRestorableAsync(romFilter, slotFilter, cancellationToken).ConfigureAwait(false);
 
         if (!found.IsSuccess || found.Value is not { } findings)
         {
@@ -786,19 +786,12 @@ internal static class SavesCommand
         }
 
         // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
-        // is not made to take every save back. <b>The slot narrows saves only</b>, and the help
-        // says so: a state's slot lives in its file extension and shares no namespace with a
-        // save's key, so matching one against the other would filter on a coincidence.
+        // is not made to take every save back. The save half narrows inside the find, ahead of
+        // folding saves that share a file. <b>The slot narrows saves only</b>, and the help says
+        // so: a state's slot lives in its file extension and shares no namespace with a save's
+        // key, so matching one against the other would filter on a coincidence.
         if (romFilter is { } wanted)
         {
-            restorable = [.. restorable.Where(save =>
-                save.RomId == wanted
-                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
-
-            unrestorable = [.. unrestorable.Where(save =>
-                save.RomId == wanted
-                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
-
             restorableStates = [.. restorableStates.Where(state => state.RomId == wanted)];
             unrestorableStates = [.. unrestorableStates.Where(state => state.RomId == wanted)];
         }
@@ -833,11 +826,35 @@ internal static class SavesCommand
             ? value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
             : "unknown";
 
+        static string SlotOf(RestorableSave save) => save.Slot.Length == 0 ? "(no slot)" : save.Slot;
+
         foreach (var save in restorable)
         {
             Console.WriteLine(
-                $"  save   rom {save.RomId}  {(save.Slot.Length == 0 ? "(no slot)" : save.Slot),-20} "
+                $"  save   rom {save.RomId}  {SlotOf(save),-20} "
                     + $"{ByteSize.Format(save.SizeBytes),9}  {When(save.ServerUpdatedAt)}  {save.Destination}");
+
+            // #156. Every row here lands on the same file, so only the newest is restored and the
+            // rest are named, never offered as saves of their own.
+            if (save.Folded.Count == 0)
+            {
+                continue;
+            }
+
+            Console.WriteLine(
+                $"         the newest of {save.Folded.Count + 1} server saves for this file. Not restored:");
+
+            foreach (var older in save.Folded)
+            {
+                Console.WriteLine(
+                    $"           save {older.SaveId}  {SlotOf(older),-20} {When(older.ServerUpdatedAt)}");
+            }
+
+            if (save.Folded.Any(older => older.Slot.Length == 0 != (save.Slot.Length == 0)))
+            {
+                Console.WriteLine(
+                    "         a save with no slot shares this file with a slotted one. The newer was kept.");
+            }
         }
 
         foreach (var state in restorableStates)
