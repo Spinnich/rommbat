@@ -25,7 +25,10 @@ internal static class ExitCode
     /// </summary>
     public const int Refused = 3;
 
-    /// <summary>Not paired, or the stored token no longer works.</summary>
+    /// <summary>
+    /// Not paired, or the server refused the token (401) or found it lacks a scope the call
+    /// needs (403). Pairing again fixes all three.
+    /// </summary>
     public const int NotPaired = 4;
 
     /// <summary>The server could not be reached. Normal, not a fault.</summary>
@@ -38,8 +41,8 @@ internal static class ExitCode
     public const int Partial = 7;
 
     /// <summary>
-    /// The server answered and refused or failed the request, or what it sent could not be used.
-    /// Not normal, and retrying unchanged may not help.
+    /// The server answered and refused or failed the request, or the result could not be verified
+    /// or written here. Not normal, and retrying unchanged may not help.
     /// </summary>
     public const int ServerError = 8;
 

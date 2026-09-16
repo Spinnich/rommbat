@@ -42,8 +42,9 @@ the source of truth; the network is optional, probed with a short-timeout
   unresolved conflict resolving itself in favour of whoever synced last. The conflict is
   persisted and waits for `saves resolve` to pick a side.
 - **Exit `Offline` (5) means unreachable and nothing else.** It is the one code that tells a
-  script waiting will fix it. A 401 or 403 exits `NotPaired` (4), any other server answer, or a
-  transfer that arrived unusable, exits `ServerError` (8). A run with several failures is
+  script waiting will fix it. A 401 or 403 exits `NotPaired` (4). Any other server answer, or a
+  result that could not be verified or written here, exits `ServerError` (8), so a locked
+  destination or a path too long for this machine is 8 too. A run with several failures is
   `Offline` only when every one of them was unreachable, which is `FailureCause` ranked worst
   first and mapped in `ExitCode.For`. Classify there rather than returning `Offline` from a
   failed `RomMResponse` (#143).
