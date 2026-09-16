@@ -12,7 +12,10 @@ and `bizhawk` are core-scoped on top of that, so one game under two cores has in
 sets. So "snes is certified" is not a claim; "`snes` under `libretro`/`snes9x` is certified"
 is, and it says nothing about `snes` under `bizhawk`.
 
-A pass is certified when all nine of these hold against a real install. **A pass is not done at
+A pass is certified when all nine of these hold against a real install **at the current RomM
+and RetroBat floor**. A floor move leaves a record owing the steps it touches, and the row is
+not certified at the new floor until they pass; the `platform-certification` skill, "When the
+floor moves", says how to map one. **A pass is not done at
 eight of nine**, and it cannot be finished from a desk: step 7 requires actually launching a
 game. Three of the nine can be staged ahead of time, which is a different claim and is below.
 

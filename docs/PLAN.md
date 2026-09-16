@@ -329,7 +329,8 @@ had no row for it** while [freegosy-findings.md](freegosy-findings.md) told its 
 had been "mined as trustworthy about the API". That was false, and both places are corrected
 rather than quietly reworded. What the pass actually took is small and specific: it sent this
 plan to re-measure `with_rom_id_index`, which turned out to be a **3.4 to 3.7 times regression
-on a platform-scoped walk** that M2 and M4 are paying today, and to run the BIOS join that found
+on a platform-scoped walk** on 5.2.0 (fixed at 7b-2a, and absent on `5.3.0-alpha.2`, which is why
+the index is off under every scope again, #188), and to run the BIOS join that found
 **84 of RetroBat's 353 requirements are `.zip` files no md5 comparison can ever match**. Neither
 number is Argosy's; both are measured here. It targets Android, so **no path from it is valid for
 RetroBat and none was taken**, and its own headline cost figure inverts on this library. The full
