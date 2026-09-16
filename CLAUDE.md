@@ -150,6 +150,14 @@ starts after M7; a change to save logic before then owes one hands-on pass of th
 touches, and a session that cannot take one says which claims are unproven rather than letting
 the test suite stand in for evidence.
 
+**Ask the maintainer questions as multiple choice.** When a decision is the user's to make, ask
+it with the multiple-choice question tool (`AskUserQuestion`), never as prose tucked into a
+reply, where it is easy to miss and slow to answer. Put the recommended option first, batch
+related decisions into one call rather than asking serially, and allow multi-select when the
+choices are not mutually exclusive. This holds for the whole session, including questions that
+come up mid-task or at handoff. A choice with a conventional default, or a fact the code can
+answer, is not a question: make the call and say which way it went.
+
 **English only** outside of localisation files.
 
 **No em-dashes** in comments, docs, or commit messages. Use commas, parentheses, or
