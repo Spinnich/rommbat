@@ -399,6 +399,12 @@ public sealed class SaveSync
                         break;
                     }
 
+                    if (local is not null && SupersededRowReturned(operation, saveId) is { } revived)
+                    {
+                        conflicts.Add(RecordConflict(revived, local));
+                        break;
+                    }
+
                     var (target, targetProblem) = ResolveTarget(operation, local);
 
                     // Negotiate is unscoped, so a device holding a subset is offered every save
@@ -1018,6 +1024,44 @@ public sealed class SaveSync
             && _store.SaveSlots.IsOwnUpload(operation.RomId, slot, _deviceId);
     }
 
+    /// <summary>
+    /// The operation restated as a conflict when a download names a row older than the one this
+    /// device last exchanged for the slot, or null when it does not.
+    /// </summary>
+    /// <remarks>
+    /// <b>Only a write into an existing row puts an older row back at the head of a slot.</b>
+    /// Save ids only grow, and negotiate pairs on the newest <c>updated_at</c> per slot, so a
+    /// lower id heading the slot means something rewrote a superseded copy in place.
+    /// <c>PUT /api/saves/{id}</c> does that, keeping the id, the name and the slot, and RomM's
+    /// browser player sends it for the save it loaded, on every save tick under 5.3.0's
+    /// <c>auto_save_sync</c>. After a keep-local the row it loaded is the one the person
+    /// rejected.
+    /// <para>
+    /// <b>Negotiate answers <c>download</c> for that when this device never synced the older
+    /// row</b>, measured on 5.3.0-alpha.2 (<c>s1-browser-save-writer.py</c>, case E), because it
+    /// falls back to comparing timestamps. Taking it would overwrite the kept side with a
+    /// continuation of the rejected one and say nothing. Where this device did sync the row the
+    /// server already answers <c>conflict</c> (case C), so this makes the two agree.
+    /// </para>
+    /// </remarks>
+    private SyncOperation? SupersededRowReturned(SyncOperation operation, int saveId)
+    {
+        var recorded = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.SaveId;
+
+        if (recorded is not { } lastExchanged || saveId >= lastExchanged)
+        {
+            return null;
+        }
+
+        return operation with
+        {
+            Reason = $"the server now heads this slot with save {saveId}, older than save "
+                + $"{lastExchanged} this device last exchanged. Something wrote into the older copy "
+                + "after it was replaced, which RomM's browser player does to the save it loaded, "
+                + "so taking it would undo the side that was kept.",
+        };
+    }
+
     /// <summary>How a save is named in a message, since a class C row's path is a container.</summary>
     private static string Describe(LocalSave save) =>
         save.ShapeClass == SaveShapeClass.C ? $"{save.Path}/{save.UnitKey}" : save.Path.Value;
@@ -1567,6 +1611,21 @@ public sealed class SaveSync
                 UploadedAtUtc = now,
             },
             now);
+
+        // The slot's server identity moves with the bytes, as it does for a class C restore, or
+        // save_slot goes on naming the save this download replaced and nothing ever corrects it,
+        // since the file is then in step and the slot is not negotiated again (#157). A save the
+        // server holds with no slot is outside the protocol, so it gets no slot identity here.
+        if (NullIfBlank(operation.Slot) is { } slot && operation.SaveId is { } saveId)
+        {
+            _store.SaveSlots.RecordRestored(
+                operation.RomId,
+                slot,
+                saveId,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                now);
+        }
     }
 
     /// <summary>Null for anything <c>local_save</c>'s non-empty CHECKs would refuse.</summary>

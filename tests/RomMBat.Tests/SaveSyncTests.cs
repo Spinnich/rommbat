@@ -1387,6 +1387,67 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_file_save_download_records_the_save_it_took_as_the_slots_server_identity()
+    {
+        // #157. Measured on a live install: after a negotiate-driven download of save 211 the slot
+        // still read save 209 with the pre-download hash, and because the file was then in step the
+        // slot was never negotiated again to correct it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(100, fixture.Store.SaveSlots.Read(42, "libretro:battery")!.SaveId);
+
+        // Another device's newer save replaces it at the head of the slot.
+        fixture.Stub.Saves.Clear();
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "further along", id: 101);
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+
+        var slot = fixture.Store.SaveSlots.Read(42, "libretro:battery");
+
+        Assert.NotNull(slot);
+        Assert.Equal(101, slot.SaveId);
+        Assert.Equal(fixture.Stub.Saves[101].ContentHash, slot.ServerContentHash);
+
+        // Not this device's upload any more, so its own-upload shortcut must not answer for it.
+        Assert.False(slot.IsFrom("device-under-test"));
+    }
+
+    [Fact]
+    public async Task A_row_rewritten_in_place_still_comes_down_when_this_device_holds_that_row()
+    {
+        // PUT /api/saves/{id} keeps the id and changes the bytes, which RomM's browser player does
+        // to the save it loaded. Measured on 5.3.0-alpha.2 (s1-browser-save-writer.py, case A):
+        // negotiate answers download for the same save id with the new hash. That is the row this
+        // device last exchanged rather than an older one, so it is an ordinary download.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with
+        {
+            Bytes = System.Text.Encoding.UTF8.GetBytes("played on in the browser"),
+        };
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal("played on in the browser", File.ReadAllText(fixture.Resolve("saves/snes/ActRaiser (USA).srm")));
+        Assert.Equal(fixture.Stub.Saves[100].ContentHash, fixture.Store.SaveSlots.Read(42, "libretro:battery")!.ServerContentHash);
+    }
+
+    [Fact]
     public async Task Negotiate_sends_the_files_real_mtime_and_never_the_sync_time()
     {
         // Sending the sync time makes every offline edit lose every conflict it is in.

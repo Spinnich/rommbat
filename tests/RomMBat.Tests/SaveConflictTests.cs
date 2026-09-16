@@ -154,6 +154,121 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task A_browser_writing_into_the_row_a_keep_local_superseded_reopens_the_conflict()
+    {
+        // RomM's browser player writes a loaded save back with PUT /api/saves/{id}, which keeps the
+        // id, the name and the slot and moves updated_at. Under 5.3.0's auto_save_sync it does that
+        // on every save tick, into the row it loaded, which after a keep-local is the row this
+        // device's upload superseded. Measured on 5.3.0-alpha.2 (s1-browser-save-writer.py, case
+        // C): the older row heads the slot again and negotiate answers conflict against it. The
+        // decision was about two sides that no longer exist, so it has to be asked again, against
+        // the row the server now names rather than the one this device last wrote.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        fixture.Stub.ConflictOnUpload.Add((7, Slot));
+        fixture.Stub.ServerDate = fixture.Stub.ServerDate!.Value.AddMinutes(5);
+
+        Assert.True((await fixture.ResolveAsync(
+            ConflictResolution.KeepLocal,
+            cancellationToken: TestContext.Current.CancellationToken)).Resolved);
+
+        var mine = Assert.Single(fixture.Stub.Saves.Values, row => row.Id != 100);
+
+        // The stub names the first row in the slot, which here is the revived one.
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with
+        {
+            Bytes = System.Text.Encoding.UTF8.GetBytes("what the browser wrote"),
+            UpdatedAt = fixture.Stub.ServerDate!.Value.AddMinutes(1),
+        };
+
+        fixture.Advance(TimeSpan.FromMinutes(10));
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.Equal(100, reopened.ServerSaveId);
+        Assert.NotEqual(mine.Id, reopened.ServerSaveId);
+        Assert.Null(reopened.Resolution);
+
+        // Nothing local moved, and the kept side has a copy aside again before anyone decides.
+        Assert.Equal("what this device did", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.NotNull(reopened.LocalCopyPath);
+        Assert.True(File.Exists(fixture.Resolve(reopened.LocalCopyPath.Value.Value)));
+    }
+
+    [Fact]
+    public async Task A_superseded_row_the_server_offers_as_a_download_is_a_conflict_not_an_undone_decision()
+    {
+        // The same browser write, into a row this device never synced because another device made
+        // it. Measured on 5.3.0-alpha.2 (s1-browser-save-writer.py, case E): with no sync record
+        // for the row negotiate falls back to timestamps and answers download, "Server save is
+        // newer (no sync history)". Taking it would put the rejected branch over the kept one and
+        // say nothing, so the client asks instead, which is what the server answers anyway for a
+        // row this device did sync.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        fixture.Stub.ConflictOnUpload.Add((7, Slot));
+        fixture.Stub.ServerDate = fixture.Stub.ServerDate!.Value.AddMinutes(5);
+
+        Assert.True((await fixture.ResolveAsync(
+            ConflictResolution.KeepLocal,
+            cancellationToken: TestContext.Current.CancellationToken)).Resolved);
+
+        var mine = Assert.Single(fixture.Stub.Saves.Values, row => row.Id != 100);
+
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with
+        {
+            Bytes = System.Text.Encoding.UTF8.GetBytes("what the browser wrote"),
+            UpdatedAt = fixture.Stub.ServerDate!.Value.AddMinutes(1),
+        };
+
+        fixture.Advance(TimeSpan.FromMinutes(10));
+        var outcome = await fixture.SyncAsync("download", TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Conflicts);
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal("what this device did", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        var reopened = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.Equal(100, reopened.ServerSaveId);
+        Assert.Contains($"older than save {mine.Id}", reopened.Reason, StringComparison.Ordinal);
+
+        // And taking the server's side this time settles it: the row taken becomes the slot's
+        // identity, so the same offer is no longer older than what this device holds.
+        Assert.True((await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken)).Resolved);
+
+        Assert.Equal(100, fixture.Store.SaveSlots.Read(7, Slot)!.SaveId);
+        Assert.Equal("what the browser wrote", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task Keeping_the_server_side_of_a_file_save_records_the_save_it_took()
+    {
+        // #157 on the resolution route. The class C half recorded the slot's new server identity
+        // and the class A half did not, so save_slot went on naming whatever this device held
+        // before, with nothing later to correct it.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        Assert.True((await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken)).Resolved);
+
+        var slot = fixture.Store.SaveSlots.Read(7, Slot);
+
+        Assert.NotNull(slot);
+        Assert.Equal(100, slot.SaveId);
+        Assert.Equal(fixture.Stub.Saves[100].ContentHash, slot.ServerContentHash);
+        Assert.False(slot.IsFrom(DeviceId));
+    }
+
+    [Fact]
     public async Task A_decided_conflict_keeps_its_row_and_stops_pointing_at_the_pruned_copy()
     {
         // Migration 007 keeps decided rows so `saves` can say what was chosen, and so a slot that
@@ -468,11 +583,15 @@ public class SaveConflictTests
         public void Advance(TimeSpan by) => _time.Advance(by);
 
         /// <summary>Runs a sync that negotiates this slot as a conflict.</summary>
-        public async Task ConflictAsync(CancellationToken cancellationToken = default)
-        {
-            Stub.NegotiateActions[(7, Slot)] = "conflict";
+        public async Task ConflictAsync(CancellationToken cancellationToken = default) =>
+            await SyncAsync("conflict", cancellationToken);
 
-            await new SaveSync(Install, Store, _connection, DeviceId, _time).RunAsync(cancellationToken);
+        /// <summary>Runs a sync that negotiates this slot with the action named.</summary>
+        public Task<SaveSyncOutcome> SyncAsync(string action, CancellationToken cancellationToken = default)
+        {
+            Stub.NegotiateActions[(7, Slot)] = action;
+
+            return new SaveSync(Install, Store, _connection, DeviceId, _time).RunAsync(cancellationToken);
         }
 
         public Task<ConflictResolutionOutcome> ResolveAsync(
