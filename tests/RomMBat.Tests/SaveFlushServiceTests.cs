@@ -198,6 +198,28 @@ public sealed class SaveFlushServiceTests
         Assert.True(fixture.Stub.RequestLog.Count > afterFirst);
     }
 
+    [Fact]
+    public async Task A_session_close_the_server_refuses_ends_the_flush_partial()
+    {
+        // #148: a token without devices.write negotiates and transfers, then fails the close on
+        // every flush. That used to print the problem and exit 0, so Partial did not track what
+        // the run did. The transfer still landed and still counts.
+        using var fixture = FlushTree.Create();
+        fixture.Pair();
+        fixture.WriteSaveStateSchema();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)");
+        fixture.WantsUpload(42);
+        fixture.Stub.CompleteRefusal = (System.Net.HttpStatusCode.Forbidden, "Forbidden");
+
+        var report = await fixture.RunAsync(fixture.Connect());
+
+        Assert.Equal(FlushState.Partial, report.State);
+        Assert.Equal(1, report.SavesSent!.Uploaded);
+        Assert.Equal(0, report.SavesSent.Failed);
+        Assert.True(report.SavesSent.SessionLeftOpen);
+        Assert.Contains(report.SavesSent.Problems, problem => problem.Contains("devices.write", StringComparison.Ordinal));
+    }
+
     private static int LastIndexOf(IReadOnlyList<string> log, string prefix)
     {
         for (var index = log.Count - 1; index >= 0; index--)

@@ -502,7 +502,9 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   negotiating again, or accept that the first one can never be tidied up. Measurement 164.
   Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
   `SaveSync` reads it and reports every refusal except `already COMPLETED`, which means the
-  close landed. A 403 there otherwise reads as a clean sync with the session left open (#90).
+  close landed. A 403 there otherwise reads as a clean sync with the session left open (#90), so
+  a refused close sets `SaveSyncOutcome.SessionLeftOpen` and the flush ends `Partial`, with the
+  403 naming `devices.write` (#148).
 - **There is no `is_favorite` and no `playtime` on rom props.** Favourites are collection
   membership; playtime lives in play sessions.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and

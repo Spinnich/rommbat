@@ -101,6 +101,8 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Contains(outcome.Problems, problem => problem.Contains("could not be closed", StringComparison.Ordinal));
+        Assert.True(outcome.SessionLeftOpen);
+        Assert.False(outcome.IsNoOp);
     }
 
     [Fact]
@@ -116,6 +118,7 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Empty(outcome.Problems);
+        Assert.False(outcome.SessionLeftOpen);
     }
 
     [Fact]

@@ -43,6 +43,15 @@ on it: all three sending passes absorb `RomMUnreachableException` per item and r
 server that goes away mid-flush ends the pass `Partial`. The outer catch is inherited from the
 subcommand rather than designed.
 
+**`Partial` means this run failed at something it attempted, and nothing else** (#148). A
+session close the server refuses counts, though every transfer landed: a token without
+`devices.write` fails it on every flush, and the line names the scope so the repeat has a remedy.
+On `saves restore --apply` a row the find could not place does not count, since the run never
+attempted it: such rows are mostly a standing property of the library, and on the measured `nes`
+install 18 states scoped by core pinned every restore at 7 with `failed 0`. They are printed and
+counted beside the result instead. The flush is different on one row and keeps it: an offered
+bundled slot with no local unit is `Failed`, because it has a remedy, run the game once.
+
 ## Save states: parse, do not hardcode
 
 `.emulationstation/es_savestates.cfg` gives directory, file, image, autosave templates and
@@ -649,7 +658,8 @@ hash, folded into one digest. The archive is transport only.
   **A failure reading `/api/states` must not take the save restore down with it.** They are
   independent reads. A token whose scopes do not cover the route, or a 500 from it, used to
   return `Offline` before a single save was written. It is now reported and carried, and an
-  `--apply` that could not see the state half ends `Partial`.
+  `--apply` that could not see the state half ends `Partial`. A state it can see and cannot place
+  does not, for the rule under "Where the flush passes live".
 
   **The `<slot>` positional narrows saves only, and the help says so.** A state's slot lives in
   its file extension and shares no namespace with a save's key, so matching one against the

@@ -1,3 +1,4 @@
+using RomMBat.Agent.Commands;
 using RomMBat.Agent.Tests.Support;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
@@ -98,6 +99,23 @@ public sealed class SavesCommandTests
 
         Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
         File.WriteAllText(absolute, content);
+    }
+
+    [Fact]
+    public void Restore_ends_partial_only_for_what_the_run_failed_at()
+    {
+        // #148. The unplaceable rows are not an input at all, which is the rule: measured on nes,
+        // 18 states scoped by core pinned every --apply at 7 with "failed 0".
+        Assert.Equal(ExitCode.Ok, SavesCommand.RestoreExitCode(true, new(), new(), statesUnread: false));
+
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new() { Failed = 1 }, new(), false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new() { Failed = 1 }, false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new() { Refused = true }, false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new() { Deferred = 1 }, new(), false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new(), statesUnread: true));
+
+        // A preview attempted nothing, so nothing it found is a failure.
+        Assert.Equal(ExitCode.Ok, SavesCommand.RestoreExitCode(false, new() { Failed = 1 }, new(), true));
     }
 
     [Fact]

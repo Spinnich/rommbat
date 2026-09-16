@@ -43,6 +43,18 @@ public sealed record SaveSyncOutcome
     /// </remarks>
     public int Deferred { get; init; }
 
+    /// <summary>
+    /// The sync session could not be closed, and <see cref="Problems"/> says why.
+    /// </summary>
+    /// <remarks>
+    /// <b>A failure of this run, not an advisory, so the flush ends <c>Partial</c>.</b> Every
+    /// transfer still landed and still counts; what failed is a step the run attempted, and that
+    /// is what <c>Partial</c> means (#148). A token without <c>devices.write</c> fails it on every
+    /// flush, and the problem line names the scope, so a <c>Partial</c> that repeats has a fix:
+    /// pair again.
+    /// </remarks>
+    public bool SessionLeftOpen { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
@@ -51,7 +63,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0;
+        && Skipped == 0 && Deferred == 0 && !SessionLeftOpen;
 
     public string Summary
     {
@@ -95,6 +107,11 @@ public sealed record SaveSyncOutcome
                 // even on a quiet hook-driven flush and this is the case that does not need
                 // saying every time.
                 parts.Add($"{Skipped} skipped, for games not synced here");
+            }
+
+            if (SessionLeftOpen)
+            {
+                parts.Add("the session was not closed");
             }
 
             return "saves: " + string.Join(", ", parts);
@@ -498,6 +515,8 @@ public sealed class SaveSync
 
         problems.AddRange(DescribePartialBatches(sent));
 
+        var leftOpen = false;
+
         try
         {
             // Reported honestly rather than optimistically: a conflict is not a completed
@@ -512,16 +531,23 @@ public sealed class SaveSync
                 .ConfigureAwait(false);
 
             // A refusal returns rather than throws. A 403 here leaves the session open on the
-            // server while every transfer reports success, so it has to be said.
+            // server while every transfer reports success, so it has to be said, and it names
+            // the scope because that is the one refusal with a remedy the reader can carry out.
             if (!closed.IsSuccess && !RomMConnection.AlreadyCompleted(closed))
             {
-                problems.Add($"the sync session could not be closed: {closed.Message}");
+                leftOpen = true;
+                problems.Add(closed.Status == RomMResponseStatus.Forbidden
+                    ? $"the sync session could not be closed: this pairing was not granted "
+                        + $"{RomMScopes.DevicesWrite}. Everything above still landed. Pair again to "
+                        + "grant it."
+                    : $"the sync session could not be closed: {closed.Message}");
             }
         }
         catch (RomMUnreachableException ex)
         {
             // The link dropped after the transfers. Everything that landed still landed, and a
             // session left open costs the server a stale row rather than costing anyone a save.
+            leftOpen = true;
             problems.Add($"the sync session could not be closed: {ex.Message}");
         }
 
@@ -534,6 +560,7 @@ public sealed class SaveSync
             Failed = failed,
             Skipped = skipped,
             Deferred = deferred,
+            SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
             Unresolved = conflicts,

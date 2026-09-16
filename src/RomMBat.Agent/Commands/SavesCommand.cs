@@ -817,10 +817,7 @@ internal static class SavesCommand
             Console.Error.WriteLine($"  rom {state.RomId} state {state.Scope}: {state.Reason}");
         }
 
-        // Only --apply can end Partial. A preview was not asked to change anything, so anything it
-        // named as unplaceable is an advisory rather than a failed attempt.
         var applying = command.Has("apply");
-        var incomplete = unrestorable.Count > 0 || unrestorableStates.Count > 0 || statesUnread;
 
         if (restorable.Count == 0 && restorableStates.Count == 0)
         {
@@ -829,7 +826,7 @@ internal static class SavesCommand
                     ? "Nothing to restore: the rows above are the only ones missing here, and none can be placed."
                     : "Nothing to restore: every save and state the server holds for a game on this device is already here.");
 
-            return applying && incomplete ? ExitCode.Partial : ExitCode.Ok;
+            return RestoreExitCode(applying, new SaveRestoreOutcome(), new StateRestoreOutcome(), statesUnread);
         }
 
         static string When(DateTimeOffset? stamp) => stamp is { } value
@@ -879,6 +876,7 @@ internal static class SavesCommand
             Console.WriteLine(
                 $"{restorable.Count} save(s) and {restorableStates.Count} state(s) to restore. Nothing was "
                     + "written. Run 'saves restore --apply' to bring these in.");
+            ReportUnplaceable(unrestorable.Count, unrestorableStates.Count);
             return ExitCode.Ok;
         }
 
@@ -927,11 +925,55 @@ internal static class SavesCommand
                     + "Close it, then run this again.");
         }
 
-        // A refused state half is Partial rather than Refused: the saves did land, so this run is
-        // not the "nothing was changed" that Refused promises. A deferral is Partial for the same
-        // reason: less was written than was asked for, and nothing was lost doing it.
-        return outcome.Failed + stateOutcome.Failed > 0 || stateOutcome.Refused || incomplete
-            || waiting > 0
+        ReportUnplaceable(unrestorable.Count, unrestorableStates.Count);
+
+        return RestoreExitCode(applying, outcome, stateOutcome, statesUnread);
+    }
+
+    /// <summary>
+    /// The count behind the unplaceable rows listed above, said once and kept off the exit code.
+    /// </summary>
+    private static void ReportUnplaceable(int saves, int states)
+    {
+        if (saves + states == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine(
+            $"{saves} save(s) and {states} state(s) listed above cannot be placed on this install. "
+                + "They were skipped and do not change the exit code.");
+    }
+
+    /// <summary>
+    /// <c>Partial</c> when this run failed at something it attempted, and never otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <b>A row nothing can place is not a parameter here, and that is the rule (#148).</b> Rows
+    /// uploaded by a client that scopes states by core are a standing property of the library, so
+    /// counting them pinned every run on such an install at 7, measured on <c>nes</c> with 18 of
+    /// them, and a code that never moves tells nobody anything. They are still printed, and
+    /// counted beside the result.
+    /// <para>
+    /// Only <c>--apply</c> can end <c>Partial</c>, since a preview attempted nothing. A state list
+    /// that could not be read is a failure of this run: it was asked to restore states and could
+    /// not see them. A refused state half is <c>Partial</c> rather than <c>Refused</c>, because
+    /// the saves landed, and a deferral is <c>Partial</c> because less was written than was asked.
+    /// </para>
+    /// </remarks>
+    internal static int RestoreExitCode(
+        bool applying,
+        SaveRestoreOutcome saves,
+        StateRestoreOutcome states,
+        bool statesUnread)
+    {
+        if (!applying)
+        {
+            return ExitCode.Ok;
+        }
+
+        return saves.Failed + states.Failed > 0 || states.Refused || statesUnread
+            || saves.Deferred + states.Deferred > 0
             ? ExitCode.Partial
             : ExitCode.Ok;
     }
