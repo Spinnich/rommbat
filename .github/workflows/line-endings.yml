@@ -1,0 +1,33 @@
+name: Line endings
+
+# A bash script with CRLF does not run on Linux at all: the shebang asks for "bash\r" and
+# "set -euo pipefail\r" names an option that does not exist. Nothing else fails on one.
+# reference/** is -text so the vendored upstream files stay byte-exact, which also turns off
+# the normalisation that would have fixed reference/refresh.sh, and trunk ignores that tree.
+#
+# Reads the endings git recorded in the index rather than the checkout, so the runner's own
+# line-ending settings cannot hide one.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: line-endings-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shell-scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Fail on a tracked shell script committed with CRLF
+        run: |
+          git ls-files --eol -- '*.sh' \
+            | awk -F '\t' '$1 !~ /^i\/(lf|none) / { print "CRLF in " $2; bad = 1 } END { exit bad }'

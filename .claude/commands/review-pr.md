@@ -143,6 +143,9 @@ Name these if the PR will bounce, but don't spend the review on them.
   `.gitattributes` are the usual Windows divergence: `reference/**` and
   `tests/**/fixtures/**` are byte-exact `-text`, and `.bat`, `.cmd`, `.ps1` are crlf.
 - `reference-verify` runs on any change to `reference/**` or `docs/PLAN.md`.
+- `line-endings` fails on any tracked `.sh` whose committed bytes carry CRLF. `-text` on
+  `reference/**` turns off the normalisation that would otherwise fix `refresh.sh`, and a flip
+  renders as a whole-file rewrite, so read that diff as endings before reading it as content.
 
 ## Reference data
 
