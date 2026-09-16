@@ -571,6 +571,14 @@ hash, folded into one digest. The archive is transport only.
   indistinguishable from a bug to whoever deleted it deliberately, so finding is separate from
   restoring and `--apply` is required for either.
 
+  **The find scans the tree before it reads `local_save`.** A row already held is not a
+  candidate, and the store is only the tree as of the last scan, so a save deleted by hand stayed
+  held and the first `saves restore` after the loss offered nothing. Measured on `nes`: the same
+  command offered it once `saves` had run in between (#147). The scan lives in
+  `SaveSync.FindRestorableAsync` rather than in the subcommand, states first for the #64 reason,
+  so every caller of the find gets a true store. It costs a full save scan, the one `saves` pays
+  on every run.
+
   **The find applies every guard the flush's download applies, at the same decision point.** A
   restore reaches `DownloadAsync` with a null local save, which is the same state an unsolicited
   negotiate download arrives in, so a rule written into the flush and not into the find is a rule

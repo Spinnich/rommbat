@@ -1541,6 +1541,29 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_save_deleted_since_the_last_scan_is_offered_by_the_first_restore()
+    {
+        // #147, measured on nes: the store still held the row for a file deleted by hand, so the
+        // first restore offered nothing and only a run after some other scan found it. No scan
+        // runs between the delete and the find here, which is the whole of the case.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        Assert.Single(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the server");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal("saves/gb/Tetris (World).srm", pick.Destination.Value);
+        Assert.Empty(fixture.Store.Saves.List());
+    }
+
+    [Fact]
     public async Task A_save_already_in_the_tree_is_not_offered_for_restore()
     {
         // Restoring over a file nobody asked about is the one outcome this feature must never

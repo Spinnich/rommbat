@@ -657,6 +657,14 @@ public sealed class SaveSync
     /// another device reaches a game both hold. A row already in the tree is not a candidate,
     /// which is what keeps this from re-fetching the library.
     /// </para>
+    /// <para>
+    /// <b>Scans before it reads <c>local_save</c></b>, because the store is only the tree's
+    /// state as of the last scan. Measured on <c>nes</c> (#147): a save deleted by hand stayed
+    /// held until some other command scanned, so the first <c>saves restore</c> after a loss
+    /// offered nothing and the same command offered it once <c>saves</c> had run. States are
+    /// scanned first for the reason <c>saves</c> scans them first: the sidecar attribution route
+    /// reads <c>local_state</c> (#64).
+    /// </para>
     /// </remarks>
     public async Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
         CancellationToken cancellationToken = default)
@@ -669,6 +677,15 @@ public sealed class SaveSync
                 listed.Status,
                 listed.Message ?? "The save list could not be read.");
         }
+
+        var schema = StateScanner.LoadSchema(_install);
+
+        if (schema is not null)
+        {
+            new StateScanner(_install, _store, schema, _time).Scan();
+        }
+
+        new SaveScanner(_install, _store, _shapes, schema, _time).Scan();
 
         var held = _store.Saves.List()
             .Where(save => save.RomId is not null)
@@ -733,9 +750,9 @@ public sealed class SaveSync
                 continue;
             }
 
-            // The store is rebuilt from the tree, so a row missing above should mean a file
-            // missing here. Checked anyway, because restoring over a file nobody asked about
-            // is the one outcome this feature must never produce.
+            // The scan above rebuilt the store from the tree, so a row missing there should mean
+            // a file missing here. Checked anyway, because restoring over a file nobody asked
+            // about is the one outcome this feature must never produce.
             if (File.Exists(_install.Resolve(destination)))
             {
                 continue;
