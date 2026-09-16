@@ -715,7 +715,8 @@ measured. What the index costs is its id count, so a wider scope only widens the
 
 **A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
 costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
-index that is already being built. `CatalogQuery` sends both, so it pays nothing.
+index that is already being built. With the index off under every scope, `CatalogQuery` pays for
+that count on every walk: inside the noise of a scoped page (R2), and 133 ms unscoped.
 
 **`/api/roms/identifiers` moved from impossible to merely unusable.** It completes now, at
 176.7 s for 95,993 ids, where 5.2.0 answered 504 on the 300 s wall at a smaller library. The

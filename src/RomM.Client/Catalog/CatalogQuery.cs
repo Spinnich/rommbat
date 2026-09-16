@@ -393,14 +393,15 @@ public sealed record CatalogQuery
             // Off under every scope too. Every id the scope matches, resent on every page: 63 KiB
             // a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, at
             // no latency cost on 5.3.0-alpha.2 (romm-5.3-findings, finding 9, probe R2). On
-            // 5.2.0 a scoped page was 3.4 to 3.7 times slower without it, which is why this
-            // followed the scope until the floor moved past that server.
+            // 5.2.0 a scoped page was 3.4 to 3.7 times slower without it (romm-api skill).
             new("with_rom_id_index", "false"),
             new("with_filter_values", withFilterValues ? "true" : "false"),
 
-            // Kept on: it is an integer, it costs nothing, and it is the only way a resumable
-            // walk knows how far it has left to go. Load-bearing since RomM 5.2.0, which made
-            // the response's `total` nullable: the server returns null when neither this nor
+            // Kept on: it is the only way a resumable walk knows how far it has left to go. With
+            // the index off it is a separate count rather than the index's length: inside the
+            // noise of a scoped page and about 130 ms unscoped on 5.3.0-alpha.2
+            // (romm-5.3-findings, finding 9). Load-bearing since RomM 5.2.0, which made the
+            // response's `total` nullable: the server returns null when neither this nor
             // with_rom_id_index is set, and RomPage.Total is a non-nullable int, so turning
             // this off to save bytes throws on deserialisation rather than degrading.
             new("with_total", "true"),
