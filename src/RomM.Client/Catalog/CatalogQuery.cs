@@ -390,22 +390,18 @@ public sealed record CatalogQuery
             // and the server resends them in full each time.
             new("with_char_index", "false"),
 
-            // Follows the scope rather than being a constant, because the premise above only
-            // holds unscoped. Under a scoping parameter the index spans the scope rather than
-            // the library, and it is what lets the server serve a page by primary key instead
-            // of OFFSET n LIMIT m over a sort with no covering index.
-            //
-            // Measured against a live 88,331-rom instance on 5.2.0 (argosy-findings A1):
-            // scoped, turning it off costs six seconds a page to save 63 KiB; unscoped it costs
-            // about 130 ms to save 600 KiB. Measured end to end here too: a 9,196-rom platform
-            // scope walked in 8m 15s with it off, which is what a person waits through on the
-            // first screen that resolves a set.
-            new("with_rom_id_index", Scope == CatalogScopeKind.Filter ? "false" : "true"),
+            // Off under every scope too. Every id the scope matches, resent on every page: 63 KiB
+            // a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, at
+            // no latency cost on 5.3.0-alpha.2 (romm-5.3-findings, finding 9, probe R2). On
+            // 5.2.0 a scoped page was 3.4 to 3.7 times slower without it (romm-api skill).
+            new("with_rom_id_index", "false"),
             new("with_filter_values", withFilterValues ? "true" : "false"),
 
-            // Kept on: it is an integer, it costs nothing, and it is the only way a resumable
-            // walk knows how far it has left to go. Load-bearing since RomM 5.2.0, which made
-            // the response's `total` nullable: the server returns null when neither this nor
+            // Kept on: it is the only way a resumable walk knows how far it has left to go. With
+            // the index off it is a separate count rather than the index's length: inside the
+            // noise of a scoped page and about 130 ms unscoped on 5.3.0-alpha.2
+            // (romm-5.3-findings, finding 9). Load-bearing since RomM 5.2.0, which made the
+            // response's `total` nullable: the server returns null when neither this nor
             // with_rom_id_index is set, and RomPage.Total is a non-nullable int, so turning
             // this off to save bytes throws on deserialisation rather than degrading.
             new("with_total", "true"),

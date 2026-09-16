@@ -57,28 +57,28 @@ public class CatalogPagingTests
     }
 
     /// <summary>
-    /// The rom id index follows the scope, because its cost inverts with one.
+    /// The rom id index is off under every scope.
     /// </summary>
     /// <remarks>
-    /// Scoped, the index spans the scope rather than the library and is what lets the server
-    /// answer by primary key: measured at six seconds a page to save 63 KiB with it off.
-    /// Unscoped it is the whole library and costs about 130 ms to save 600 KiB. Sending
-    /// <c>false</c> for both was #88, and it made a 9,196-rom platform resolve take 8m 15s
-    /// against a live instance.
+    /// It resends every id the scope matches on every page. On 5.2.0 a scoped page was 3.4 to
+    /// 3.7 times slower without it, so it followed the scope, and a constant <c>false</c> then
+    /// was #88. On 5.3.0-alpha.2, the floor, that penalty is gone at a 9,196-rom platform and a
+    /// 16,441-rom virtual collection, and only the bytes remain. #188.
     /// </remarks>
     [Theory]
-    [InlineData(CatalogScopeKind.Platform, "true")]
-    [InlineData(CatalogScopeKind.Collection, "true")]
-    [InlineData(CatalogScopeKind.SmartCollection, "true")]
-    [InlineData(CatalogScopeKind.VirtualCollection, "true")]
-    [InlineData(CatalogScopeKind.Filter, "false")]
-    public void The_rom_id_index_is_on_for_a_scoped_walk_and_off_for_an_unscoped_one(
-        CatalogScopeKind scope,
-        string expected)
+    [InlineData(CatalogScopeKind.Platform)]
+    [InlineData(CatalogScopeKind.Collection)]
+    [InlineData(CatalogScopeKind.SmartCollection)]
+    [InlineData(CatalogScopeKind.VirtualCollection)]
+    [InlineData(CatalogScopeKind.Filter)]
+    public void The_rom_id_index_is_off_under_every_scope(CatalogScopeKind scope)
     {
         var built = new CatalogQuery { Scope = scope, ScopeId = "6" }.ToQueryString(limit: 250, offset: 0);
 
-        Assert.Contains($"with_rom_id_index={expected}", built, StringComparison.Ordinal);
+        Assert.Contains("with_rom_id_index=false", built, StringComparison.Ordinal);
+
+        // With the index off, with_total is the only thing keeping RomPage.Total non-null.
+        Assert.Contains("with_total=true", built, StringComparison.Ordinal);
     }
 
     [Fact]

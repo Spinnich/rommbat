@@ -105,19 +105,19 @@ Guardrails that follow from this:
 - Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
   Each of those sidecars scans the whole library.
 
-  **`with_rom_id_index` is the exception and it follows the scope.** It was in that list
-  until 2026-08-25 on the reasoning that it is whole-library metadata resent per page. That
-  is true only of an unscoped request. Under `platform_ids` the index spans **that
-  platform**, and it is what lets the server serve the page by primary key instead of
-  `OFFSET n LIMIT m` on a sort with no covering index. Measured at 88,331 roms on 5.2.0,
-  turning it off costs **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a
-  page) to save 63 KiB, and about 1.15 times unscoped to save 604 KiB. Send it **off only
-  for an unscoped walk**; leave it on for `platform_ids`, `collection_id`,
-  `smart_collection_id` and `virtual_collection_id`. See
-  [argosy-findings.md](argosy-findings.md), A1.
+  **`with_rom_id_index=false` too, under every scope, from the `5.3.0-alpha.2` floor.** Under a
+  scoping parameter the index spans the scope rather than the library, and on 5.2.0 it was what
+  let the server serve a scoped page by primary key: measured at 88,331 roms, turning it off cost
+  **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a page) to save 63 KiB, so
+  from 2026-08-25 it followed the scope ([argosy-findings.md](argosy-findings.md), A1). **On
+  `5.3.0-alpha.2` that penalty does not reproduce**, and the bytes do: 63 KiB a 250-row page on a
+  9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, with index off inside the
+  noise or ahead on both. With no supported server left that pays the latency, it is off
+  everywhere. #188, and [romm-5.3-findings.md](romm-5.3-findings.md) finding 9.
 
-  `with_total` rides on the same decision: `resolve_total()` returns `len(rom_id_index)`,
-  so the count is free with the index on (1 ms) and costs 124 ms with it off. A2.
+  `with_total` stays on and is what keeps `total` non-null with the index off. It is not free
+  that way (`resolve_total()` returns `len(rom_id_index)` when the index is built, A2), but
+  under a scope on `5.3.0-alpha.2` its cost is inside the noise of the page.
 
 - **Never read `rom_ids` off a collection response.** `BaseCollectionSchema.rom_ids` is a
   full `set[int]` and it is present on the _list_ endpoint too, so `GET /api/collections`
@@ -329,7 +329,8 @@ had no row for it** while [freegosy-findings.md](freegosy-findings.md) told its 
 had been "mined as trustworthy about the API". That was false, and both places are corrected
 rather than quietly reworded. What the pass actually took is small and specific: it sent this
 plan to re-measure `with_rom_id_index`, which turned out to be a **3.4 to 3.7 times regression
-on a platform-scoped walk** that M2 and M4 are paying today, and to run the BIOS join that found
+on a platform-scoped walk** on 5.2.0 (fixed at 7b-2a, and absent on `5.3.0-alpha.2`, which is why
+the index is off under every scope again, #188), and to run the BIOS join that found
 **84 of RetroBat's 353 requirements are `.zip` files no md5 comparison can ever match**. Neither
 number is Argosy's; both are measured here. It targets Android, so **no path from it is valid for
 RetroBat and none was taken**, and its own headline cost figure inverts on this library. The full
@@ -432,7 +433,10 @@ What adoption costs, each time: re-run `reference/refresh.sh` and resolve the dr
 the upstream changelog for anything that touches a measured rule, move the floor and the
 tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
-purpose.
+purpose. And every platform record under `docs/platforms/` is mapped onto the nine steps: the
+steps the move touches are re-run or recorded as owed at the new floor, step 9 always among
+them, and each step carried over says why. A record is neither voided by a move nor carried
+through one silently (#187, and the `platform-certification` skill).
 
 **A prerelease is adoptable, and which prerelease needs a rule of its own.** "Within one
 release" says when to move and not what to move to, and prereleases supersede each other on a
@@ -748,6 +752,8 @@ saves/dreamcast/reicast/states` while the file declares `{{system}}/flycast/ssta
    it off, at every offset, while the index costs only 63 KiB there rather than 582 KiB.
    Scoping also defeats sidecar memoisation on its own, which is why a scoped page is
    2.3 s where an unscoped one is 0.3 s. See [argosy-findings.md](argosy-findings.md), A1.
+   **Both readings are 5.2.0's.** On `5.3.0-alpha.2` the scoped penalty is gone and the flag is
+   off on every path again; #188.
    Default page size **250 with sidecars off**; a full walk of 83k roms then takes about
    14 minutes, so incremental sync via `updated_after` is the normal path. A **single**
    `GET /api/collections` entry returned **715 KB**, 99% of it two inlined arrays of
@@ -1026,12 +1032,11 @@ erroring; and every subsequent milestone can be developed with the server switch
   zero bytes, and it is what lets an interrupted walk know how far it has left to go. No
   full-library mirror, ever.
 
-  **`with_rom_id_index` is set from the scope, not held off as a constant.** Four of the
-  five scope kinds send a scoping parameter and only `Filter` pages unscoped, and the flag
-  costs 3.4 to 3.7 times the page latency when it is off on a scoped walk. Off for
-  `Filter`, on for the other four. `CatalogQuery` already knows its own scope, so this
-  belongs in `ToQueryString` beside the switch that emits the scope parameter.
-  See [argosy-findings.md](argosy-findings.md), A1 and A2.
+  **`with_rom_id_index` is off for every scope kind.** From M7 stage 7b-2a to the
+  `5.3.0-alpha.2` adoption it followed the scope, on for the four kinds that send a scoping
+  parameter, because on 5.2.0 the flag cost 3.4 to 3.7 times the page latency when it was off on
+  a scoped walk ([argosy-findings.md](argosy-findings.md), A1 and A2). That cost is gone at the
+  floor and only the ids resent on every page remain, so it is a constant again (#188).
 
 - Incremental by `updated_after`, recorded in `sync_cursor`. A full walk is a first-run or
   repair operation, takes about 14 minutes on 83k ROMs, and must resume from a recorded
