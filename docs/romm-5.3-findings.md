@@ -422,11 +422,27 @@ The platform still holds 38 rows, no row is flagged missing, and no duplicate wa
 the reassociation carried the row rather than the scan creating a second one. **A cached binding
 against a rom id survives a move**, which is the question #177 asked.
 
-**The experiment was impure, and the impurity is the more useful half.** A directory under a
+**That experiment was impure, and the impurity is the more useful half.** A directory under a
 platform folder is RomM's own convention for one game held as several files, so the move did not
 read as "same ROM, new path". It read as a new folder-shaped ROM, and the row's `fs_name` became
-the folder name while `name` stayed `Lunch Time`. Isolating the path change alone needs a rename
-in place, since within one platform there is no subfolder that is not already a game.
+the folder name while `name` stayed `Lunch Time`. Within one platform there is no subfolder that
+is not already a game, so isolating the path needs a rename instead.
+
+**Both controls were run, and the mechanism holds in every direction.** Moving the file back and
+rescanning returned **every** field to its original value except `updated_at`, including
+`fs_name`, `fs_extension` and `has_multiple_files`, so the round trip is lossless at the row
+level and a reorganisation is recoverable. Renaming the archive in place, same folder, then
+isolates the path change: rom id, `created_at`, file row id, all three hashes and `name` were
+untouched, `fs_name` and `full_path` followed the new filename, the platform stayed at 38 rows and
+nothing was flagged missing. So the reassociation fires on a pure path change and the move result
+was not an artifact of the folder conversion.
+
+**Why a rename cannot break it, which is a property of a measured rule rather than luck.** The
+archive was renamed and the member inside it was not, and RomM's rom hashes describe the member
+rather than the container (finding 80 in `docs/retrobat-findings.md`: a `.zip` reports the hashes
+of the file inside it and nothing about the archive). A container rename is invisible to the
+value the reassociation matches on. Untested, and worth knowing before relying on this: whether
+renaming the **member** also leaves the match intact.
 
 **What it cost is the filename, not the identity, and the filename is load bearing.** RomMBat
 writes `roms/{folder}/{fs_name}` and keys `es_settings.cfg` per-game overrides on the rom

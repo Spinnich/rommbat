@@ -356,9 +356,28 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   one at a time or re-list immediately before.
 - **`POST /api/devices` answers `{device_id, name, created_at}`**, not a `DeviceSchema`.
   `GET /api/devices` keys the same value `id`.
+- **A rom id survives the file behind it moving or being renamed, from 5.3.0.** The unique key
+  is `(platform_id, sha256(fs_path + "/" + fs_name))`, so a rename or a move looks like a brand
+  new file and the old row goes `missing_from_fs`. What saves it is a scan-time rescue rather
+  than the key: a file with no full-path match is hashed and reassociated with a missing entry
+  carrying the same hash, so collections, notes and uploaded assets carry over. Measured on
+  `5.3.0-alpha.2` in both directions: **the rom id, `created_at`, the rom file row id and every
+  hash survive, and `fs_name` and `full_path` follow the new filename.** So cache against the
+  **rom id** and never against `fs_name` or `full_path`.
+
+  **Two conditions, and neither is obvious.** The rescue is gated on
+  `calculate_hashes = not cnfg.SKIP_HASH_CALCULATION`, so an instance with hashing off turns
+  every move into an orphan beside a duplicate. And **moving a file into a subfolder is not a
+  move**: a directory under a platform folder is RomM's convention for one game held as several
+  files, so the row comes back folder shaped, with the folder name as its `fs_name` and no
+  extension. The id still survives; the filename does not, and RomMBat writes `fs_name` into
+  `roms/` and keys per-game `es_settings.cfg` overrides on it. See #183.
+
 - **`md5_hash`, `sha1_hash` and `crc_hash` all describe the _uncompressed_ content**, not
   just the CRC. A `.zip` reports the hashes of the file inside it, so hash inside a
-  single-entry archive rather than over its bytes. Only 91% of ROMs carry an md5 and 96% a
+  single-entry archive rather than over its bytes. That is also why renaming an archive cannot
+  break the reassociation above: the value it matches on describes the member, not the
+  container. Only 91% of ROMs carry an md5 and 96% a
   sha1, so verification must degrade to size and say so.
 
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
