@@ -328,6 +328,42 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_hash_mismatch_names_both_hashes_and_points_at_the_record_when_the_size_was_exact()
+    {
+        // Finding 180: RomM served one file and recorded the hash of another. Without both numbers
+        // that is indistinguishable from a damaged transfer, and it took Range requests to tell.
+        var served = Encoding.UTF8.GetBytes(new string('S', 4096));
+        var recordedFor = Encoding.UTF8.GetBytes(new string('T', 4096));
+
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
+        stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Game", "Game.sfc", "sfc", served.Length)
+        {
+            Md5Hash = Md5(recordedFor),
+        });
+        stub.Content[1] = served;
+
+        using var store = LocalStore.Open(_tree.Install());
+        var outcome = await SyncAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Failed);
+        var problem = Assert.Single(outcome.Problems);
+        Assert.Contains(Md5(served), problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(Md5(recordedFor), problem, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("retrying will not help", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_hash_mismatch_with_no_size_to_confirm_says_retrying_is_worth_it()
+    {
+        var message = ContentSync.HashMismatch("aaaa", "bbbb", sizeMatched: false);
+
+        Assert.Contains("aaaa", message, StringComparison.Ordinal);
+        Assert.Contains("bbbb", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("will not help", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_zip_is_verified_against_the_hash_of_what_is_inside_it()
     {
         // The trap measured against a live server: a 1,025-byte zip reports the hashes of the

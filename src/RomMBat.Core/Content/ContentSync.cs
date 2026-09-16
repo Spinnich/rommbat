@@ -466,7 +466,7 @@ public sealed class ContentSync
         {
             if (!string.IsNullOrWhiteSpace(member.Md5Hash) && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
             {
-                return (null, "the downloaded file does not match the md5 the server reported.");
+                return (null, HashMismatch(fingerprint.Md5, member.Md5Hash.Trim(), member.SizeBytes > 0));
             }
 
             // No sha1 branch. It is a second number the same server published rather than an
@@ -479,6 +479,23 @@ public sealed class ContentSync
 
         return (fingerprint, null);
     }
+
+    /// <summary>
+    /// Names both hashes, because a damaged transfer and a server record that describes some
+    /// other file need opposite responses and look identical without them.
+    /// </summary>
+    /// <remarks>
+    /// A damaged or truncated download almost never lands on exactly the promised length, so a
+    /// hash mismatch at a confirmed size points at the record. Finding 180 is that case: RomM
+    /// served one file and recorded the hash of another, and retrying could never have worked.
+    /// </remarks>
+    internal static string HashMismatch(string? found, string expected, bool sizeMatched) =>
+        $"the download hashes to md5 {found} but the server said {expected}. "
+            + (sizeMatched
+                ? "It is exactly the size the server said, which a damaged transfer rarely is, so RomM's "
+                    + "recorded hash probably does not describe the file it serves and retrying will not help."
+                : "Retrying fixes a damaged transfer; if it fails the same way, RomM's recorded hash is the "
+                    + "likelier fault.");
 
     /// <summary>Moves a verified file into place and records it, so neither can outlive the other.</summary>
     private void Commit(ContentStep step, string partAbsolute, string targetAbsolute, ContentFingerprint fingerprint)
