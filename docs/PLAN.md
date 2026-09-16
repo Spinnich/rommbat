@@ -2884,7 +2884,8 @@ pass does, not a correction to 7a. See [argosy-findings.md](argosy-findings.md),
 
 #### 7b: the gamepad UI
 
-**Cut into three, for the reason M6 was cut into 2a, 2b and 2c.** Only the first has landed.
+**Cut into three, for the reason M6 was cut into 2a, 2b and 2c,** and 7b-2 was cut into three
+again, so 7b shipped as five sub-stages. All five have landed.
 
 ##### 7b-1: the shell and the way in (done)
 
@@ -2923,7 +2924,7 @@ pairing. The drop-to-pairing-on-rejection rule from M1 belongs with the first sc
 
 ##### 7b-2: sets, the sync run, and browse
 
-**Cut into three, and the first has landed.** 7b-1's ledger owed a verdict on the split, since
+**Cut into three, and all three have landed.** 7b-1's ledger owed a verdict on the split, since
 7b-2 as first written is M2, M3 and `EvictionPlanner` given a face at once.
 
 ###### 7b-2a: the seam, and sets (done)
