@@ -168,7 +168,9 @@ from local state.
 
 `status --check-files` compares what RomMBat has recorded against the tree and reports rows
 whose file is gone, which the disk budget would otherwise count forever; `--repair-files`
-removes those rows. Off unless asked for, because it is one filesystem check per row where
+removes those rows. It checks saves too and reports a missing one, but `--repair-files` never
+removes a save's row: `saves restore` is how you find out whether the server still has it. Off
+unless asked for, because it is one filesystem check per row where
 every other line is answered from the database. The disk screen offers the same check.
 
 ### Syncing content

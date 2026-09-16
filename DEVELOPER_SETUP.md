@@ -429,7 +429,8 @@ refusing, so the offline half needs no server at all: seed `local_file` rows, op
 and read `BrowseViewModel.Note` for which of the two it is showing.
 
 For the inventory check behind the disk screen, `rommbat-agent status --check-files` prints the
-same count, and `--repair-files` applies it.
+same count, and `--repair-files` applies it. Both also show saves whose file or unit is gone,
+and the repair leaves those rows alone.
 
 **A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
 identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.

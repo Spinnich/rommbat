@@ -60,6 +60,27 @@ internal static class StatusCommand
                 Console.WriteLine($"    {folder,-14} {count,6:N0} missing, {ByteSize.Format(bytes)}");
             }
 
+            // Saves are checked and never repaired (#142). The row may be the last local record
+            // of a save only the server still holds, and bringing that back is asked for.
+            Console.WriteLine($"  local saves:     {inventory.SavesSummary}");
+
+            foreach (var save in inventory.MissingSaves.Take(5))
+            {
+                Console.WriteLine(
+                    $"    {(save.UnitKey.Length > 0 ? $"{save.Path}/{save.UnitKey}" : save.Path.Value)}");
+            }
+
+            if (inventory.MissingSaves.Count > 5)
+            {
+                Console.WriteLine($"    and {inventory.MissingSaves.Count - 5:N0} more");
+            }
+
+            if (inventory.MissingSaves.Count > 0)
+            {
+                Console.WriteLine(
+                    "  saves are left alone by --repair-files. Run 'saves restore' to see what the server still has.");
+            }
+
             if (command.Has("repair-files") && !inventory.NothingFound)
             {
                 // Safe by the rollback's own argument: a row must never outlive its bytes, and

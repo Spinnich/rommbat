@@ -15,6 +15,22 @@ public sealed record InventoryReport(
     long MissingBytes,
     IReadOnlyList<(string Folder, int Count, long Bytes)> Folders)
 {
+    /// <summary>Every <c>local_save</c> row.</summary>
+    public int SaveRows { get; init; }
+
+    /// <summary>
+    /// Save rows whose file, or whose unit inside a shared container, is not there.
+    /// </summary>
+    /// <remarks>
+    /// <b>Reported and never repaired</b> (#142). A missing ROM's row is the wrong claim and the
+    /// next sync re-downloads it. A save's row may be the last local record of a save that exists
+    /// only on the server, and bringing that back is <c>saves restore</c>'s job, which is asked
+    /// for rather than automatic. So nothing on this report feeds <see cref="IsClean"/> or
+    /// <see cref="InventorySweep.Apply"/>.
+    /// </remarks>
+    public IReadOnlyList<LocalSave> MissingSaves { get; init; } = [];
+
+    /// <summary>True when every <c>local_file</c> row is present. Saves are not part of it.</summary>
     public bool IsClean => Missing.Count == 0;
 
     /// <summary>
@@ -44,10 +60,16 @@ public sealed record InventoryReport(
             ? $"{Rows:N0} recorded, none of them found. This does not look like the tree they "
                 + "were written to, so nothing will be forgotten."
             : $"{Rows:N0} recorded, {Missing.Count:N0} missing ({ByteSize.Format(MissingBytes)})";
+
+    /// <summary>The line <c>status</c> prints for saves.</summary>
+    public string SavesSummary => MissingSaves.Count == 0
+        ? $"{SaveRows:N0} recorded, all present"
+        : $"{SaveRows:N0} recorded, {MissingSaves.Count:N0} not on this drive";
 }
 
 /// <summary>
-/// Finds <c>local_file</c> rows whose bytes are gone, and takes them out.
+/// Finds <c>local_file</c> rows whose bytes are gone, and takes them out. Finds <c>local_save</c>
+/// rows whose save is gone too, and leaves those in.
 /// </summary>
 /// <remarks>
 /// <b>The inventory is what makes a second sync a no-op, and an inventory nobody checks stops
@@ -117,23 +139,32 @@ public sealed class InventorySweep
     public InventoryReport Plan(IProgress<(int Done, int Total)>? progress = null)
     {
         var rows = _store.Files.List();
+        var saves = _store.Saves.List();
+        var total = rows.Count + saves.Count;
         var missing = new List<LocalFile>();
+        var missingSaves = new List<LocalSave>();
+        var units = new UnitIndex(_install);
 
-        for (var index = 0; index < rows.Count; index++)
+        for (var index = 0; index < total; index++)
         {
-            var file = rows[index];
-
-            if (!Exists(file.Path))
+            if (index < rows.Count)
             {
-                missing.Add(file);
+                if (!Exists(rows[index].Path))
+                {
+                    missing.Add(rows[index]);
+                }
+            }
+            else if (saves[index - rows.Count] is var save && !units.Exists(save, Exists))
+            {
+                missingSaves.Add(save);
             }
 
             // Every hundredth, not every row. The screen redraws its whole panel on each report
             // and five thousand of those is what starves the pad, which is the same reason the
             // sync screen rate-limits its own progress.
-            if (progress is not null && (index % 100 == 99 || index == rows.Count - 1))
+            if (progress is not null && (index % 100 == 99 || index == total - 1))
             {
-                progress.Report((index + 1, rows.Count));
+                progress.Report((index + 1, total));
             }
         }
 
@@ -147,11 +178,16 @@ public sealed class InventorySweep
             rows.Count,
             missing,
             missing.Sum(file => file.SizeBytes),
-            folders);
+            folders)
+        {
+            SaveRows = saves.Count,
+            MissingSaves = missingSaves,
+        };
     }
 
     /// <summary>
-    /// Removes the rows a report found, re-checking each one first.
+    /// Removes the file rows a report found, re-checking each one first. Save rows are never
+    /// removed, for the reason on <see cref="InventoryReport.MissingSaves"/>.
     /// </summary>
     /// <remarks>
     /// Re-checked rather than trusted, for the same reason
@@ -217,6 +253,54 @@ public sealed class InventorySweep
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return true;
+        }
+    }
+}
+
+/// <summary>
+/// Whether a save row's unit is still in the tree, reading each system's containers once.
+/// </summary>
+/// <remarks>
+/// <b>A class C row names a shared container, so <c>File.Exists</c> on its path is the wrong
+/// question.</b> <c>saves/psp/SAVEDATA</c> exists while any PSP game has a save, so one game's
+/// members going leaves the container answering present. The unit is the (container, key) pair
+/// and is looked up as one. Every other class is one file at the row's path.
+/// </remarks>
+internal sealed class UnitIndex(RetroBatInstall install)
+{
+    private readonly SaveUnitScanner _scanner = new(install);
+    private readonly Dictionary<string, HashSet<(RelativePath, string)>?> _bySystem =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public bool Exists(LocalSave save, Func<RelativePath, bool> fileExists)
+    {
+        if (save.ShapeClass != SaveShapeClass.C)
+        {
+            return fileExists(save.Path);
+        }
+
+        if (!_bySystem.TryGetValue(save.System, out var present))
+        {
+            present = Read(save.System);
+            _bySystem[save.System] = present;
+        }
+
+        // Null when the containers could not be read, which counts as present for the reason
+        // InventorySweep.Exists gives: being unable to answer is not evidence a save is gone.
+        return present is null || present.Contains((save.Path, save.UnitKey.ToUpperInvariant()));
+    }
+
+    private HashSet<(RelativePath, string)>? Read(string system)
+    {
+        try
+        {
+            return [.. _scanner.Scan(system)
+                .Where(unit => unit.Files.Count > 0)
+                .Select(unit => (unit.Container, unit.Key.ToUpperInvariant()))];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
         }
     }
 }
