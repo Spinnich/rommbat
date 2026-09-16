@@ -195,32 +195,30 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
   a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
-- **`with_rom_id_index` follows the scope; it is not always-off.** Under a scoping parameter
-  (`platform_ids`, `collection_id`, `smart_collection_id`, `virtual_collection_id`) the index
-  spans that scope, not the library, and it is what lets the server serve the page by primary
-  key. Measured at 88,331 roms on 5.2.0: **scoped, turning it off costs 3.4 to 3.7 times the
-  latency** (2.3 s to 8.5 s a page) to save 63 KiB. Unscoped it costs about 1.15 times to
-  save 604 KiB. **Off only when the request is unscoped.**
+- **`with_rom_id_index=false` under every scope, from the `5.3.0-alpha.2` floor.** Under a
+  scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
+  `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
+  every page. **Measured on 5.3.0-alpha.2 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
+  a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, with index off
+  inside the noise or ahead on both.** Unscoped it is 604 KiB a page against 1.15 to 1.20x.
 
-  **Re-measured at 95,993 roms on 5.3.0-alpha.2, the scoped penalty does not reproduce.** A
-  scoped page is 274 to 353 ms either way, so index off is inside the noise and marginally
-  ahead; unscoped is unchanged at 1.15 to 1.20x. The N+1 fix and concurrency 4 took the
-  scoped page from 2.3 s to 0.3 s and took the latency argument with it. **On every supported
-  server the scoped half of the rule now has no stated reason**, and bandwidth, the only argument
-  left, was never the one it was written from. The behaviour stands unchanged until #188 decides
-  it on a bandwidth reading.
+  **The rule was the opposite at 5.2.0 and do not bring it back from there.** At 88,331 roms a
+  scoped page cost 3.4 to 3.7 times the latency with the index off (2.3 s to 8.5 s), so from
+  7b-2a to #188 the flag followed the scope. The N+1 fix and concurrency 4 took that penalty with
+  them. If a later floor brings it back, R2 is the probe that shows it.
 
-  **`CatalogQuery` obeys this as of M7 stage 7b-2a, and did not before.** This rule was written
-  from A1's measurement and the code went on sending a constant `false` for a further two
-  stages, which is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
+  **The 5.2.0 rule reached `CatalogQuery` only at M7 stage 7b-2a.** It was written from A1's
+  measurement and the code went on sending a constant `false` for a further two stages, which
+  is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
   **8 m 15 s**, 13.4 s a page at 250, where `RomPager`'s own comment records 2.5 s a page for
   the unscoped case. **A rule in a skill is not a rule in the code**, and this one went
   unnoticed until a stage put the walk behind a screen somebody had to sit and watch.
 
-- **`with_total` rides on that flag.** `resolve_total()` returns `len(rom_id_index)`, so the
-  count is free with the index on (1 ms) and costs 124 ms with it off. Keep it on; do not
-  pair it with an index opt-out on a scoped walk, which is the one combination that pays for
-  both. See [argosy-findings.md](../../../docs/argosy-findings.md), A1 and A2.
+- **`with_total=true` is what keeps `total` non-null with the index off.** The server nulls
+  `total` when neither flag is set, and `RomPage.Total` is a non-nullable `int`. The count is
+  free with the index on, because `resolve_total()` returns `len(rom_id_index)`, and computed
+  separately with it off: 124 ms unscoped on 5.2.0 (A2), and inside the noise of a scoped page on
+  5.3.0-alpha.2. Never turn it off to save the cost.
 - **An absent hash is an empty string, not null.** `GET /api/roms/191723` on a live 5.1.x
   instance answers `"md5_hash": ""` and `"crc_hash": ""` beside a populated sha1. Null is the
   ordinary case rather than the exception, since only 91% of a real library carries an md5, so

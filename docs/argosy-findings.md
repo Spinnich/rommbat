@@ -152,6 +152,11 @@ re-walks the same dead ends.
 
 ## A1: `with_rom_id_index=false` is a regression on a scoped walk, and RomMBat sends it. **Confirmed**
 
+**A 5.2.0 reading, and it does not hold at the `5.3.0-alpha.2` floor.** Re-measured there, the
+scoped penalty is gone, and `CatalogQuery` sends the index off under every scope again. The
+readings below stay as they were taken; #188 and
+[romm-5.3-findings.md](romm-5.3-findings.md), finding 9.
+
 `CatalogQuery.ToQueryString` sends `with_rom_id_index=false` on every page, reasoning that the
 index is "whole-library index metadata, not per-page data, and the server resends it in full each
 time". That is the same reasoning Argosy's sync doc opens with, and its own measurement says the

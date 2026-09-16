@@ -673,7 +673,10 @@ get rewritten to new numbers**, and that includes the scope: a re-measure that w
 re-measured on the same scope, and the new numbers get their own attribution.
 
 **Re-measured 2026-09-14 on `5.3.0-alpha.2`, and the scoped penalty is gone.** Same probes, same
-flags, same page sizes, same platform. Two things differ from the 5.2.0 pass besides the server,
+flags, same page sizes, same platform. The `limit=100` page rows and the `with_total` pairs below
+are `tools/argosy-probes/a1-a2-rom-id-index.py`, run unchanged from the commit that took the 5.2.0
+readings, so the two columns come from one script. The two walk rows are
+`tools/romm-5.3-probes/r1-page-walk.py`. Two things differ from the 5.2.0 pass besides the server,
 and both belong in any reading of the table: the library is 95,993 roms against 88,331, and the
 metadata mix has moved with it.
 
@@ -692,8 +695,23 @@ same 1.15x it was worth at 5.2.0, and costs the same 604 KiB a page. Scoped, the
 `romm-api`'s "off only when the request is unscoped" rule was written from does not reproduce at
 all: index off is inside the noise, and marginally ahead. The rule survives on bandwidth, which
 was never its argument, and its stated reason is a 5.2.0 reason. With the floor at `alpha.2` that
-reason holds on no supported server. **The behaviour is kept and the decision is #188**, because
-changing it wants a bandwidth reading this section did not take.
+reason holds on no supported server. The behaviour was kept at the time and the decision went to
+#188, because changing it wanted a bandwidth reading this section did not take.
+
+**Decided 2026-09-16 on that reading: the index is off under every scope.**
+`tools/romm-5.3-probes/r2-scoped-index-bandwidth.py`, at the client's 250 a page, index on and
+off interleaved within each of five repeats, on the widest scopes this account can page:
+
+| Scope, 250 a page                     | Ids    | Index on   | Index off  | Off saves a page |
+| ------------------------------------- | ------ | ---------- | ---------- | ---------------- |
+| `platform_ids` psx                    | 9,196  | 548-604 ms | 557-575 ms | 63 KiB           |
+| `virtual_collection_id` Single-player | 16,441 | 543-953 ms | 487-936 ms | 112 KiB          |
+
+`total` stayed non-null in every off row because `with_total=true` is sent, and under a scope its
+separate computation was inside the noise of the page. The account has no regular collection, and
+its largest smart collection advertises 594 roms and pages to a total of 0, so neither kind has a
+reading; a virtual collection spanning platforms is the widest scope a set can name, and it was
+measured. What the index costs is its id count, so a wider scope only widens the saving.
 
 **A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
 costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
