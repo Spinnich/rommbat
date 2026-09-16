@@ -576,12 +576,12 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
-    public async Task A_rom_missing_from_the_servers_filesystem_is_excluded_on_a_floor_server_too()
+    public async Task A_rom_missing_from_the_servers_filesystem_is_excluded_when_the_row_omits_has_file_on_disk()
     {
-        // Left at the default 5.2.0, where neither is_physical nor has_file_on_disk exists and
-        // the client has to derive the answer from missing_from_fs. This is the half of the
-        // hazard that needs no version move to reach someone.
-        using var stub = new StubRomMServer();
+        // A 5.2.0 server sends neither is_physical nor has_file_on_disk, so the client has to
+        // derive the answer from missing_from_fs. Pinned rather than left at the default,
+        // which is the floor and sends has_file_on_disk, so the derivation would never run.
+        using var stub = new StubRomMServer { ServerVersion = "5.2.0" };
         stub.Platforms.Add(new StubPlatform(1, "snes", "snes", "Super Nintendo"));
         stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Deleted", "Deleted.sfc", "sfc", 1024)
         {
@@ -609,11 +609,13 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
-    public async Task A_floor_server_sending_neither_new_field_still_syncs_its_whole_library()
+    public async Task A_server_sending_neither_new_field_still_syncs_its_whole_library()
     {
         // The failure this guards is the inverse of the two above: reading an absent
-        // has_file_on_disk as false would exclude every row a 5.2.0 server sends.
+        // has_file_on_disk as false would exclude every row a 5.2.0 server sends. Pinned for
+        // the same reason as the test above.
         using var stub = Library(3);
+        stub.ServerVersion = "5.2.0";
 
         using var store = LocalStore.Open(_tree.Install());
         var systems = Fixtures.Synthesize(("snes", ".sfc .smc"));
