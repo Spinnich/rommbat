@@ -440,7 +440,9 @@ would be undone by the next flush", and it is what happens: with no sync record 
 negotiate compares timestamps, the browser's write is newer, and the next flush would overwrite the
 save a person chose to keep with a continuation of the one they rejected. **Acted on in stage 4**:
 a download naming a save id lower than the slot's recorded one is recorded as a conflict, since
-ids only grow and nothing but an in-place write puts an older row at the head of a slot. That
+ids only grow and a lower id at the head of a slot means something wrote into an older row or
+deleted the newer one. Only the first was measured to reach a download; the second is unmeasured,
+and a conflict is the answer that loses nothing either way. That
 reads the recorded id, which is what made #157 a prerequisite rather than a tidy-up, and both
 class A writers now record it.
 

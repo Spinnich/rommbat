@@ -853,8 +853,9 @@ slot, and a PUT makes the row it touched the newest, so the copy a keep-local re
 to the head of the slot. Case E is the one that bites: taking the download would put the rejected
 branch over the kept side and say nothing. **So a download naming a save id lower than the slot's
 recorded one is recorded as a conflict instead** (`SaveSync.SupersededRowReturned`). Ids only grow,
-so a lower id at the head of a slot is an in-place write and nothing else; case A, the same id,
-is an ordinary download.
+so a lower id at the head of a slot is an in-place write or a deleted head row. Only the write was
+measured to reach a download, and the refusal covers both without telling them apart. Case A, the
+same id, is an ordinary download.
 
 **Streaming V2 writes saves no slot can see.** Read at tag 5.3.0-alpha.2, not measured, because
 the server measured has streaming off. A session's saves land as a **null-slot** row named

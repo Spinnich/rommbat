@@ -1029,10 +1029,11 @@ public sealed class SaveSync
     /// device last exchanged for the slot, or null when it does not.
     /// </summary>
     /// <remarks>
-    /// <b>Only a write into an existing row puts an older row back at the head of a slot.</b>
-    /// Save ids only grow, and negotiate pairs on the newest <c>updated_at</c> per slot, so a
-    /// lower id heading the slot means something rewrote a superseded copy in place.
-    /// <c>PUT /api/saves/{id}</c> does that, keeping the id, the name and the slot, and RomM's
+    /// <b>An older row heads a slot again when it is written into, or when the newer one is
+    /// deleted.</b> Save ids only grow, and negotiate pairs on the newest <c>updated_at</c> per
+    /// slot, so a lower id heading the slot means one of the two. Only the write was measured to
+    /// reach a download, and a conflict loses nothing in either case, so they are not told apart.
+    /// <c>PUT /api/saves/{id}</c> is the write, keeping the id, the name and the slot, and RomM's
     /// browser player sends it for the save it loaded, on every save tick under 5.3.0's
     /// <c>auto_save_sync</c>. After a keep-local the row it loaded is the one the person
     /// rejected.
@@ -1056,9 +1057,9 @@ public sealed class SaveSync
         return operation with
         {
             Reason = $"the server now heads this slot with save {saveId}, older than save "
-                + $"{lastExchanged} this device last exchanged. Something wrote into the older copy "
-                + "after it was replaced, which RomM's browser player does to the save it loaded, "
-                + "so taking it would undo the side that was kept.",
+                + $"{lastExchanged} this device last exchanged. Either the newer copy was deleted "
+                + "or something wrote into the older one after it was replaced, which RomM's browser "
+                + "player does to the save it loaded, so taking it could undo the side that was kept.",
         };
     }
 
