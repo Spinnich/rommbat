@@ -7,8 +7,8 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 
 The backend is the contract. DTOs are generated from `/openapi.json` (served at the
 **root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-alpha.2, the minimum supported
-version. The floor tracks the newest RomM stable, so the pin moves with it and the two are
-one decision. The published docs at docs.romm.app have drifted from the server on exactly the
+version. The floor tracks the newest RomM stable, or a prerelease ahead of it as it does now,
+so the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
 
 - The pin, the generator, and why the schema is normalised first:

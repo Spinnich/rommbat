@@ -468,11 +468,13 @@ describe the oldest server the client claims to work with. Moving the pin is a c
 decision and moves a row in this table with it; see
 [`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md).
 
-**Both minimums track the newest upstream stable rather than the oldest version that works.**
+**Both minimums track the newest upstream stable, or a prerelease ahead of it, rather than the
+oldest version that works.**
 Every measured rule in this repository is a measurement of one build, so a supported range
 means owning that measurement across the range, on a `(system, emulator, core)` matrix that is
 already several passes per row. RomMBat adopts a new RomM or RetroBat stable within one release
-and raises the floor with it. Earlier rows in this table stay accurate about what was tested;
+and raises the floor with it, and can adopt a prerelease ahead of the stable, which is why the
+RomM floor is an alpha and RomM 5.2.0 is refused. Earlier rows in this table stay accurate about what was tested;
 they are not a support commitment.
 
 ## Repository layout

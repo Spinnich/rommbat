@@ -44,7 +44,7 @@ describes.
 |             |                                                                            |
 | ----------- | -------------------------------------------------------------------------- |
 | RetroBat    | `8.2.1-stable-win64`, the supported floor                                  |
-| RomM        | 5.2.0, the supported floor                                                 |
+| RomM        | 5.2.0, the floor at the time                                               |
 | Root        | `R:\RetroBat`, found by walking up from the executable                     |
 | Store       | schema 14 of 14, WAL                                                       |
 | Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free         |

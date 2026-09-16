@@ -45,9 +45,9 @@ category, on five counts that each translate to a specific way a claim can be wr
 > three had been mined with rows in `docs/PLAN.md`. **Argosy had never been read and had no
 > row.** It has been mined since: `docs/argosy-findings.md`.
 
-1. **It targets RomM 4.9.** Our declared baseline is RomM 5.2.0, and anything below it is
-   refused at startup rather than warned about. Every API claim you find is a claim about a
-   server three minor versions behind ours. Route shapes, parameter names and required scopes
+1. **It targets RomM 4.9.** Our declared baseline is RomM 5.3.0-alpha.2, and anything below it
+   is refused at startup rather than warned about. Every API claim you find is a claim about a
+   server four minor versions behind ours. Route shapes, parameter names and required scopes
    are all fair game to have moved.
 2. **It is at v0.5.x with one maintainer**, outside the `rommapp` org. Nothing has been
    reviewed by the server's authors.
