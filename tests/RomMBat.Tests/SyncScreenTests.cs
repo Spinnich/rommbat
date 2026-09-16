@@ -909,6 +909,65 @@ public sealed class SyncScreenTests : IDisposable
         sync.Dispose();
     }
 
+    [Fact]
+    public async Task A_run_the_server_could_not_be_reached_for_says_syncing_again_picks_it_up()
+    {
+        using var stub = Library(2);
+        stub.IsReachable = false;
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_refused_access_says_to_pair_again_rather_than_to_sync_again()
+    {
+        // #143's rule on the screen. A 403 answers the same way on every run until the pairing
+        // changes, so "syncing again picks up where this left off" sends a person round a loop.
+        using var stub = Library(2);
+        stub.NextRomsStatus = System.Net.HttpStatusCode.Forbidden;
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("Pair again", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_the_server_failed_says_syncing_again_may_not_fix_it()
+    {
+        using var stub = Library(2);
+        stub.Content.Remove(2);
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("may not", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Contains("problems", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        sync.Dispose();
+    }
+
     /// <summary>
     /// The service answers it, which is the half #114 was actually about.
     /// </summary>

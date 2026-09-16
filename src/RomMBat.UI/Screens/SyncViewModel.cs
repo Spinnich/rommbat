@@ -732,7 +732,17 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 SyncStage.Refused,
                 "A sync set could not be resolved, so nothing was fetched."),
 
-            _ => (SyncStage.Incomplete, "Some games could not be fetched. Syncing again picks up where this left off."),
+            // Only an unreachable server clears itself, so only that run is told to sync again.
+            _ => (SyncStage.Incomplete, report.Cause switch
+            {
+                FailureCause.NotAuthorized =>
+                    "RomM refused this device access to some of it. Pair again to fix that. Your games, "
+                        + "saves and settings are kept.",
+                FailureCause.Failed =>
+                    "Some games could not be fetched: RomM refused them, or what arrived could not be "
+                        + "verified or written here. Syncing again may not fix it, so check the problems listed.",
+                _ => "Some games could not be fetched. Syncing again picks up where this left off.",
+            }),
         };
 
         // Pass and the game go with the run. Leaving them set told a person the sync was still
