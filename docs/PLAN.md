@@ -2982,8 +2982,8 @@ deleted: that would orphan whatever is on disk and hand it to the next eviction 
 strength of an edit.
 
 **A scope that can be picked has to be completable.** Virtual collections are offered and
-disabled, because that route needs a `type` parameter the pinned 5.2.0 schema declares as a
-bare string with no enumeration, and inventing a list of likely values is the vendor-id table
+disabled, because that route needs a `type` parameter the pinned schema declares as a bare
+string with no enumeration, at 5.2.0 and still at 5.3.0-alpha.2, and inventing a list of likely values is the vendor-id table
 the input work threw out. A test asserts the general rule: every scope offered as pickable has
 something that can produce its value.
 

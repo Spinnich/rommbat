@@ -154,8 +154,8 @@ public sealed record ScopeValues(IReadOnlyList<ScopeValueOption> Options, string
 /// </para>
 /// <para>
 /// <b>Virtual collections are not offered, and the reason is a gap rather than a decision.</b>
-/// That route requires a <c>type</c> parameter, answers 422 without one, and the pinned 5.2.0
-/// schema declares it as a bare string with no enumeration. Nothing in this repository has
+/// That route requires a <c>type</c> parameter, answers 422 without one, and the pinned schema
+/// declares it as a bare string with no enumeration, at 5.2.0 and still at 5.3.0-alpha.2. Nothing in this repository has
 /// measured which values are valid, and inventing a list of likely ones is the same mistake as
 /// the vendor-id table the input work threw out. It becomes available the day someone measures
 /// it against a live instance.
