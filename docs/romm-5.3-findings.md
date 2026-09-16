@@ -275,49 +275,77 @@ the interesting case rather than a tie break.
 **Owed, and in this order:** measure coverage on a real library first, then decide. Nothing in
 `save-sync` changes on the strength of a release note.
 
-**First reading, 2026-09-14, on the live `5.3.0-alpha.2` library, and it is confounded.**
-`TITLE_ID_EXTRACTION_ENABLED` is true on the heartbeat, so the capability gate is open.
+**Measured, 2026-09-16, by rescanning named rows rather than reading a library-wide fraction.**
+The first reading was confounded: extraction runs during a scan and `_should_extract_title_ids`
+re-reads only a row carrying no id, so a platform scanned before the feature existed reads 0%
+whatever the extractor can do. `should_scan_rom` honours a `roms_ids` list, so the experiment is
+a handful of named rows per system rather than a platform of 9,196. **28 of 33 rows answered.**
 
-| System    | Sampled | Carries `title_id` | On-disk shape     |
-| --------- | ------- | ------------------ | ----------------- |
-| gamecube  | 100     | 100%               | `.rvz`            |
-| wii       | 100     | 100%               | `.wad`            |
-| wiiu      | 100     | 100%               | `.wua`            |
-| switch    | 100     | 4%                 | folder            |
-| psx       | 300     | **0%**             | `.chd`            |
-| ps2       | 300     | **0%**             | `.chd`            |
-| psp       | 300     | **0%**             | `.cso`            |
-| ps3       | 285     | **0%**             | `.iso` and folder |
-| 3ds       | 100     | **0%**             | `.zcci`           |
-| dreamcast | 100     | **0%**             | `.chd`            |
-| xbox      | 100     | **0%**             | `.xiso.iso`       |
-| xbox360   | 100     | **0%**             | `.iso`            |
-| psvita    | 12      | **0%**             | `.zip`            |
+| System    | Container          | Result | `title_id`           | `save_target`       | Layout          |
+| --------- | ------------------ | ------ | -------------------- | ------------------- | --------------- |
+| psx       | `.chd`             | 3 of 4 | `SLES-00972`         | `SLES-00972`        | `file-prefix`   |
+| ps2       | `.chd`             | 4 of 4 | `SCUS-97472`         | `BASCUS-97472`      | `folder-prefix` |
+| psp       | `.cso`             | 4 of 4 | `ULES00151`          | `ULES00151`         | `folder-prefix` |
+| ps3       | `.dec.iso`, folder | 4 of 4 | `BLUS30443`          | `BLUS30443`         | `folder-prefix` |
+| 3ds       | `.zcci`            | 3 of 3 | `00040000000EC400`   | `00040000/000ec400` | `folder-split`  |
+| dreamcast | `.chd`             | 3 of 3 | `MK-5100050`         | `MK-5100050`        | `file-prefix`   |
+| xbox      | `.xiso.iso`        | 3 of 3 | `MS-100`             | `4D530064`          | `folder-exact`  |
+| xbox360   | `.iso`             | 3 of 3 | `4D5307E6`           | `4D5307E6`          | `folder-exact`  |
+| switch    | folder             | 0 of 3 | encrypted, see below |                     |                 |
+| psvita    | `.zip`             | 0 of 2 | nothing              |                     |                 |
 
-**This is not yet a coverage measurement**, and reading it as one would be the exact mistake
-this document was written to stop. Extraction runs during a scan, and
-`_should_extract_title_ids` re-reads only a rom that carries no id, so a library scanned
-before the feature existed answers nothing until it is rescanned. The systems reading 100%
-are the ones rescanned since the upgrade. So the zeros are the sum of two hypotheses, "never
-scanned" and "the extractor cannot read this container", and the reading cannot separate
-them. A rescan of a handful of rows per system is what separates them, and it is the cheap
-experiment: `should_scan_rom` honours a `roms_ids` list, so the scan can be scoped to named
-rows rather than to a platform of 9,196.
+**The premise this repo carried is now falsified in the client's favour.** The measured claim was
+0% of PSP, PS3 and PSX "because no constant offset reaches a `.cso`, a `.chd` or an ISO9660
+filesystem". That is still true of a **constant offset**, and upstream does not use one: it
+parses the container. So the three systems this repo reads nothing from are three the server
+reads almost everything from, and the complement is close to exact rather than merely claimed.
 
-**What the reading does settle** is that the shapes are real and not two fields. A populated
-row carries all three: gamecube `title_id=47553459`, `save_target=47553459`,
-`save_target_layout=file-prefix`; wii `title_id=0001000157453945`,
-`save_target=00010001/57453945`, `folder-split`; switch `title_id=011FAA8D84DC4000`,
-`save_target=011FAA8D84DC4000`, `folder-exact`. The wii row is the interesting one: the
-`save_target` is the title id cut in half with a separator, which is a transformation rather
-than a copy, and it is exactly the kind of thing a client cannot infer from the id alone.
+**`save_target` is computed, not copied, which is what settles what these fields are for.** Xbox
+is the clearest: `MS-100` becomes `4D530064`, which is `ascii("MS")` followed by `100` as a
+16-bit hex number, and `TC-003` becomes `54430003` the same way. PS2 prefixes `BA` to reach the
+memory card folder PCSX2 creates, and 3ds splits the 16 hex digits in half and lower-cases the
+second. A field carrying identity would need none of that. `title_id` is what was read out of the
+binary and `save_target` is where saves land, and the two are different questions.
 
-**The route runs both ways, which finding 5 missed.** `PUT /roms/{id}/identity` takes this
-same triple from a client under scope `roms.write`, and its own description is "binary
-identity a client extracted for a ROM that RomM cannot read itself". If the rescan shows the
-extractor cannot reach a `.chd` or a `.cso`, then the systems where it fails and the systems
-where this repo's header reads fail are still disjoint on gamecube and wii, and RomMBat is
-the client that endpoint is describing.
+**Where both routes answer they agree exactly.** This repo's header route reads `head[0x58..0x5C]`,
+four ASCII bytes. Upstream stores the same four bytes hex encoded: every one of the 1,601 distinct
+GameCube ids on the live library is eight hex digits decoding to a printable `A-Z0-9` code, 1,549
+leading `G`, 34 `D` and 18 `P`. `47553459` is `GU4Y`. That is independent agreement on the value,
+not merely on the taxonomy, and it is the answer #168 asked for third.
+
+**A serial is not unique per ROM, and that is the point rather than a limitation.** On GameCube,
+scanned end to end, 1,793 rows carry an id and 1,601 are distinct: 167 ids are shared by 359 rows.
+**Two thirds of that is intrinsic and one third is a property of the library it was measured on.**
+The instance's multi-disc releases sit as loose files rather than one folder per game, so RomM
+holds a row per disc where a foldered library would hold one row with several files. Folding each
+disc set back into one game leaves **101 groups over 222 rows, 12% of the platform**, and those
+are revisions and re-releases. Both kinds are correct: Disc 1 and Disc 2 share a memory card, and
+a patched revision does not move the player's save, so a key that separated either would be
+useless for the job it has. The existing first-wins rule already covers it and already gives this
+as its reason, and the hash remains what identifies a ROM.
+
+**Read the 12% rather than the 20% when reasoning about the field**, and read the 20% when
+reasoning about what a real install will hand the attributor, because loose multi-disc files are
+common and RomMBat does not get to require otherwise.
+
+**Three systems answer nothing, for three different reasons.**
+
+- **switch** needs `prod.keys` to decrypt a header, and upstream leaves that out deliberately.
+  Not a gap to work around. The 4% that do answer are the family whose files may carry the id in
+  the filename, which is why `_should_extract_title_ids` re-reads the Switch family every scan.
+- **ps3-psn**, 24 rows and 0 answering, against 170 of 170 on decrypted discs. PSN `.pkg` content
+  is a shape the extractor does not cover yet rather than one it fails at.
+- **psvita**, 12 rows of `.zip` and 0 answering, which is the container rather than the platform.
+- **One row failed where its neighbours did not**: `Metal Gear Solid (Europe) (Disc 1).chd`, a
+  single 402 MB `.chd` in the same platform and category as three `.chd` rows that answered. The
+  shape explains nothing, so this one is upstream's to explain, and it is reported.
+
+**What this does not change.** It is still a fourth route and not a replacement. It is capability
+gated on `TITLE_ID_EXTRACTION_ENABLED`, it answers only for rows scanned since the feature landed,
+and the agreement of routes is still the only evidence a binding has. What it does change is the
+shape of the answer, because **`PUT /roms/{id}/identity` makes the route run both ways**: on
+GameCube and Wii, where this repo reads 100% and 75.5%, RomMBat is the client that endpoint's own
+description is about.
 
 ### 3. Memory card endpoints are for the browser player, not for us (`notes`)
 
@@ -625,10 +653,10 @@ source and a repo grep. Finding 6's row shape is answered from the schema's inhe
 confirmed on a live page in stage 1. Reach for the cheaper route first: a question parked behind a
 Docker daemon that a read answers today is a question nobody answers.
 
-| #   | Question                                                                             | State                                                              |
-| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Confounded**, see finding 2. Needs a rescan, not another read    |
-| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | Open, and there are five layouts rather than the two the note gave |
-| 5   | Can a move change what a rom id means to a cached binding or a set row?              | Open. The premise changed first, see finding 5                     |
-| 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7                 |
-| 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                            |
+| #   | Question                                                                             | State                                                        |
+| --- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| 2   | What fraction of a real PSX, PS2, PS3 and PSP library actually carries a `title_id`? | **Answered**, 28 of 33 named rows on rescan. Finding 2       |
+| 2   | Does `save_target_layout` agree, per system, with the shape this repo measured?      | **Answered.** It agrees, and the values agree too. Finding 2 |
+| 5   | Can a move change what a rom id means to a cached binding or a set row?              | Open. The premise changed first, see finding 5               |
+| 7   | Are `developers` and `publishers` populated on real rows?                            | **Answered**, and the answer is per row. Finding 7           |
+| 9   | Every timing in this repo, re-measured at concurrency 4                              | **Answered**, finding 9                                      |

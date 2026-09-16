@@ -393,16 +393,46 @@ so exclude it or rewrite it on restore.
 ## Attribution
 
 Class A and B match by filename. Class C is keyed by **Game ID** (`UCUS98751`, a PS3
-`TITLEID`, a GameCube disc ID), and **RomM stores no serial, title ID or product code
-anywhere**, so no API lookup exists.
+`TITLEID`, a GameCube disc ID). This design was built around **RomM storing no serial, title ID
+or product code anywhere**, so that no API lookup existed to ask.
 
-**That holds at the 5.2.0 floor and stops holding above it.** 5.3.0 declares `title_id`,
-`save_target` and `save_target_layout` as ROM columns, covering the systems the header route
-reads 0% of, so a server above the floor can answer a lookup this design assumes does not
-exist. It is a **fourth route, not a replacement**: it is capability gated, unmeasured on any
-real library, and the rule below about asking every route is what it joins. See finding 2 of
-[romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) and #168. Nothing here changes until
-coverage is measured.
+**That held at the 5.2.0 floor and stopped holding at 5.3.0**, which is now the floor. RomM
+declares `title_id`, `save_target` and `save_target_layout` as ROM columns, and **measured on a
+live library it answers for the systems this repo reads 0% of**: 3 of 4 psx `.chd`, 4 of 4 ps2
+`.chd`, 4 of 4 psp `.cso`, 4 of 4 ps3, 3 of 3 each for 3ds, dreamcast, xbox and xbox360. The
+route this design was built around not existing does exist. It is still a **fourth route, not a
+replacement**: it is gated on `TITLE_ID_EXTRACTION_ENABLED`, it answers only for rows scanned
+since the feature landed, and the rule below about asking every route is what it joins.
+
+**Three facts about the field decide how to use it, and none are obvious from its name.**
+
+- **`save_target` is computed from `title_id`, not equal to it.** Xbox `MS-100` has a
+  `save_target` of `4D530064`, which is `ascii("MS")` plus `100` as a 16-bit hex number; ps2
+  `SCUS-97472` becomes `BASCUS-97472`, the folder PCSX2 creates; 3ds splits the id in half and
+  lower-cases the tail. **Read `save_target` with `save_target_layout`, never `title_id`**, when
+  the question is where a save lives. `title_id` is what came out of the binary.
+- **Where both routes answer they agree exactly.** Route 2 reads `head[0x58..0x5C]` as four ASCII
+  bytes; RomM stores the same four hex encoded. All 1,601 distinct GameCube ids on a real library
+  decode to printable `A-Z0-9` codes, `47553459` being `GU4Y`. So this route corroborates rather
+  than competes, which is what the disagreement rule needs to be worth anything.
+- **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
+  end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
+  field: multi-disc releases stored as loose files are a row per disc, where one folder per game
+  would be one row with several files, and folding them back leaves 101 groups over 222 rows.
+  Both kinds are right. Disc 1 and Disc 2 share a memory card, and a revision does not move the
+  player's save. **Plan for the larger number**, because a loose multi-disc library is ordinary
+  and this client does not get to require otherwise. The first-wins rule below already covers it
+  and already gives this as the reason. **Never use a serial to identify a ROM**; that is what
+  the hash is for.
+
+**The route runs both ways.** `PUT /roms/{id}/identity` takes the same triple from a client under
+scope `roms.write`, described upstream as identity "a client extracted for a ROM that RomM cannot
+read itself". Its extractor answers nothing for Switch (encrypted, left out deliberately), PSN
+`.pkg` content, or a Vita `.zip`, and this repo reads GameCube at 100% and Wii at 75.5%, so the
+two cover different ground in both directions. Writing back is not built and is not assumed; it
+is recorded here so the next session does not re-derive that the endpoint exists.
+
+See finding 2 of [romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) and #168.
 
 **Ask every route, not the first one that answers.** They are cheap next to the scan that
 already ran, and their agreement is the only evidence a binding has. One exception comes before
