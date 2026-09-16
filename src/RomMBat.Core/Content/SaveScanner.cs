@@ -197,18 +197,22 @@ public sealed class SaveScanner
 
                 if (_shapes.SharedContainerReason(system, name) is { } container)
                 {
-                    report.Add(system, _shapes.LooseEmulator, UnsyncableReason.SharedContainer, container, 1);
+                    report.Add(system, _shapes.LooseEmulator, UnsyncableReason.SharedContainer, container, 1, Named(file));
                     continue;
                 }
 
                 if (!_shapes.IsBatteryExtension(extension))
                 {
+                    // No emulator. LooseEmulator is whose battery extensions those are, and a file
+                    // outside them is not known to be libretro's: measured on nes, a loose .sav
+                    // was mesen standalone's and another mednafen's (#152).
                     report.Add(
                         system,
-                        _shapes.LooseEmulator,
+                        string.Empty,
                         UnsyncableReason.UnknownShape,
                         $"{extension} is not an extension RomMBat recognises as a save",
-                        1);
+                        1,
+                        Named(file));
                     continue;
                 }
 
@@ -234,7 +238,8 @@ public sealed class SaveScanner
                         save.Emulator,
                         UnsyncableReason.Unattributed,
                         "matches no ROM this device holds, so there is no game to upload it against",
-                        1);
+                        1,
+                        save.Path.Value);
                 }
             }
 
@@ -423,7 +428,8 @@ public sealed class SaveScanner
                     unit.Emulator,
                     UnsyncableReason.Unattributed,
                     attribution.Detail,
-                    unit.Files.Count);
+                    unit.Files.Count,
+                    unit.Container.Value);
             }
         }
 
@@ -554,7 +560,8 @@ public sealed class SaveScanner
                     UnsyncableReason.Unattributed,
                     $"'{name}' is a per-game container naming no ROM this device holds, so there is "
                         + "no game to upload it against",
-                    1);
+                    1,
+                    path.Value);
             }
         }
 
@@ -946,37 +953,76 @@ public sealed class SaveScanner
         return _states.MatchDirectory(relative) is not null;
     }
 
+    /// <summary>A file's path from the install root, as the report names it.</summary>
+    private string Named(string absolutePath) => _install.Relativize(absolutePath).Value;
+
     /// <summary>
     /// Accumulates unsyncable findings so each one is written once with a real count.
     /// </summary>
     /// <remarks>
     /// The table is keyed on (system, emulator, reason), so twelve unattributed saves in one
     /// system are one row saying twelve rather than twelve rows overwriting each other.
+    /// <para>
+    /// <b>A row found one file at a time names its files.</b> A count and a reason cannot be
+    /// acted on: a hands-on pass had to read the code to learn which two files "shape not
+    /// recognised" meant (#152). The first few go into the detail, so the report needs no
+    /// column and a row covering a thousand files stays one readable line.
+    /// </para>
     /// </remarks>
     private sealed class UnsyncableReport
     {
-        private readonly Dictionary<(string System, string Emulator, UnsyncableReason Reason), (string Detail, int Count)> _entries = [];
+        private const int NamedFiles = 5;
 
-        public void Add(string system, string emulator, UnsyncableReason reason, string detail, int count)
+        private readonly Dictionary<(string System, string Emulator, UnsyncableReason Reason), Finding> _entries = [];
+
+        public void Add(string system, string emulator, UnsyncableReason reason, string detail, int count, string? file = null)
         {
             var key = (system, emulator, reason);
 
-            _entries[key] = _entries.TryGetValue(key, out var existing)
+            // The first detail is kept, because it names the case rather than the last file
+            // that happened to hit it.
+            if (!_entries.TryGetValue(key, out var finding))
+            {
+                finding = new Finding(detail);
+                _entries[key] = finding;
+            }
 
-                // The first detail is kept, because it names the case rather than the last file
-                // that happened to hit it.
-                ? (existing.Detail, existing.Count + count)
-                : (detail, count);
+            finding.Count += count;
+
+            if (file is not null)
+            {
+                finding.Files.Add(file);
+            }
         }
 
         public int WriteTo(UnsyncableStore store, DateTimeOffset now)
         {
-            foreach (var (key, value) in _entries)
+            foreach (var (key, finding) in _entries)
             {
-                store.Record(key.System, key.Emulator, key.Reason, value.Detail, value.Count, now);
+                store.Record(key.System, key.Emulator, key.Reason, finding.Describe(), finding.Count, now);
             }
 
             return _entries.Count;
+        }
+
+        private sealed class Finding(string detail)
+        {
+            public int Count { get; set; }
+
+            public List<string> Files { get; } = [];
+
+            public string Describe()
+            {
+                if (Files.Count == 0)
+                {
+                    return detail;
+                }
+
+                var named = string.Join(", ", Files.Take(NamedFiles));
+                var more = Files.Count > NamedFiles ? $", and {Files.Count - NamedFiles} more" : string.Empty;
+
+                return $"{detail}. Files: {named}{more}";
+            }
         }
     }
 }

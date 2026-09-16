@@ -87,6 +87,38 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_session_close_the_server_refuses_is_reported_rather_than_swallowed()
+    {
+        // A refusal returns rather than throws, so a token without devices.write used to report
+        // a clean sync while leaving the session open on the server.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        fixture.Stub.CompleteRefusal = (System.Net.HttpStatusCode.Forbidden, "Forbidden");
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("could not be closed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_session_the_server_says_is_already_completed_counts_as_closed()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        fixture.Stub.CompleteRefusal = (System.Net.HttpStatusCode.BadRequest, "Session is already COMPLETED");
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Empty(outcome.Problems);
+    }
+
+    [Fact]
     public async Task A_download_asks_for_the_non_optimistic_form_and_acks_only_after_the_bytes_land()
     {
         using var fixture = SyncFixture.Create();

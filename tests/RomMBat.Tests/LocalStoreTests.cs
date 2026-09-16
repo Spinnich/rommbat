@@ -459,6 +459,63 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public void A_v10_unsyncable_row_survives_the_011_rebuild()
+    {
+        // 011 is the first rebuild of this table and the pattern every later widening copies.
+        // The v14 test above opens past it, so without this one the copy 011 does has only ever
+        // run over an empty table. Kept separate from that test so a failure names the migration.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        string[] upToV10 =
+            [
+                "001-initial.sql",
+                "002-sync-sets.sql",
+                "003-content.sql",
+                "004-metadata-and-media.sql",
+                "005-firmware.sql",
+                "006-saves.sql",
+                "007-states-and-conflicts.sql",
+                "008-save-units-and-bindings.sql",
+                "009-multi-file-flag.sql",
+                "010-save-conversions.sql",
+            ];
+
+        using (var seed = new SqliteConnection($"Data Source={path}"))
+        {
+            seed.Open();
+
+            foreach (var migration in upToV10)
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO unsyncable (system, emulator, reason_kind, detail, file_count, observed_at_utc)
+                VALUES ('nes', 'libretro', 'unknown_shape', '.sav is not an extension RomMBat recognises as a save', 2,
+                        '2026-01-01T00:00:00Z');
+
+                PRAGMA user_version = 10;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var row = Assert.Single(store.Unsyncable.List());
+        Assert.Equal("nes", row.System);
+        Assert.Equal("libretro", row.Emulator);
+        Assert.Equal(UnsyncableReason.UnknownShape, row.Reason);
+        Assert.Equal(2, row.FileCount);
+        Assert.Equal(".sav is not an extension RomMBat recognises as a save", row.Detail);
+    }
+
+    [Fact]
     public void A_v15_membership_survives_the_016_rebuild_with_its_position_and_shape()
     {
         // 016 widens the state CHECK for excluded_no_file_on_disk, and SQLite cannot widen one

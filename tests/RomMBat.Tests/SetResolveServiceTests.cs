@@ -444,6 +444,26 @@ public sealed class SetResolveServiceTests : IDisposable
         // recovery is the same: run it again and it continues.
         Assert.Equal(ResolveState.Interrupted, report.State);
         Assert.NotNull(report.Problem);
+        Assert.Equal(FailureCause.Unreachable, report.Cause);
+    }
+
+    [Fact]
+    public async Task A_walk_the_server_refuses_is_interrupted_but_not_unreachable()
+    {
+        // #143. Both arrive as Interrupted with a problem, and only one clears itself.
+        using var stub = Library(600);
+        stub.NextRomsStatus = System.Net.HttpStatusCode.Forbidden;
+
+        using var connection = Connect(stub);
+
+        var report = Assert.Single(await new SetResolveService(_session, connection).ResolveAsync(
+            [Set()], progress: null, TestContext.Current.CancellationToken));
+
+        Assert.Equal(ResolveState.Interrupted, report.State);
+        Assert.Equal(FailureCause.NotAuthorized, report.Cause);
+
+        // A 403 is not the identity being refused, so the sync still offers no pairing screen.
+        Assert.False(report.Rejected);
     }
 
     [Fact]

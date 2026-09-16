@@ -502,7 +502,7 @@ public sealed class SaveSync
         {
             // Reported honestly rather than optimistically: a conflict is not a completed
             // operation and the server's own counters should not say it was.
-            await _connection
+            var closed = await _connection
                 .CompleteSyncSessionAsync(
                     result.SessionId,
                     uploaded + downloaded + noOps,
@@ -510,6 +510,13 @@ public sealed class SaveSync
                     null,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            // A refusal returns rather than throws. A 403 here leaves the session open on the
+            // server while every transfer reports success, so it has to be said.
+            if (!closed.IsSuccess && !RomMConnection.AlreadyCompleted(closed))
+            {
+                problems.Add($"the sync session could not be closed: {closed.Message}");
+            }
         }
         catch (RomMUnreachableException ex)
         {

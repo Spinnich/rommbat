@@ -285,6 +285,9 @@ public sealed class InFlightGuard
                     break;
 
                 case "game-end":
+                    // The newest, whoever owns it: game-end names no rom. A failed launch's
+                    // orphan would pop a running game, which only ES running one game at a
+                    // time rules out. See save-sync, "the other writer" (#165).
                     if (launches.Count > 0)
                     {
                         launches.RemoveAt(launches.Count - 1);

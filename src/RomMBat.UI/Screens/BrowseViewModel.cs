@@ -333,20 +333,20 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-
         // Cancelled, never disposed: a request still unwinding can register on this token.
         _load.Cancel();
 
         // Under the same lock the fetch opens it under. This runs on the thread that draws and
-        // a fetch still unwinding reads the same field from the pool.
+        // a fetch still unwinding reads the same field from the pool. The flag is set inside it
+        // too, so a fetch reaching Connection() afterwards cannot open one nothing will close.
         lock (_gate)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
             _connection?.Dispose();
             _connection = null;
         }
@@ -479,13 +479,20 @@ public sealed class BrowseViewModel : IScreen, IWindowedScreen, ILiveScreen, IDi
     /// here and a fresh handler per press pays the connect cost every time. Null is an ordinary
     /// answer: <see cref="BrowseService"/> browses this device instead.
     /// </remarks>
-    private RomMConnection? Connection()
+    internal RomMConnection? Connection()
     {
         // Under the lock, because this runs on the thread pool and Dispose reads the same field
         // from the thread that draws. Two fetches with no connection yet could both open one
         // and one RomMConnection was dropped unclosed, holding a handler and its sockets. #118.
         lock (_gate)
         {
+            // Null once the screen is gone, which the fetch already handles as offline. Opening
+            // one here would assign it to a field Dispose has already emptied. #126.
+            if (_disposed)
+            {
+                return null;
+            }
+
             _connection ??= UiConnection.Open(_session, _connect);
             return _connection;
         }

@@ -133,9 +133,9 @@ public enum SyncState
     /// rendered that as "Everything in these sync sets is on this device" over 386 games left
     /// out. Met on a live install.
     /// <para>
-    /// <b>Reusing <see cref="Incomplete"/> would be a different lie.</b> That is what
-    /// <c>SyncCommand</c> turns into its <c>Offline</c> exit code, and a full disk budget is not
-    /// being offline. So this changes an agent exit code rather than borrowing a wrong one, and
+    /// <b>Reusing <see cref="Incomplete"/> would be a different lie.</b> That is a failure,
+    /// which <c>SyncCommand</c> exits as <c>Offline</c> or <c>ServerError</c>, and a full disk
+    /// budget is neither. So this changes an agent exit code rather than borrowing a wrong one, and
     /// costs <c>SyncCommand</c> one arm.
     /// </para>
     /// <para>
@@ -158,7 +158,8 @@ public enum SyncState
 }
 
 /// <summary>The outcome of a whole run.</summary>
-public sealed record SyncReport(SyncState State, IReadOnlyList<SyncPass> Ran);
+/// <param name="Cause">The worst reason anything failed, which decides whether waiting would help.</param>
+public sealed record SyncReport(SyncState State, IReadOnlyList<SyncPass> Ran, FailureCause Cause = FailureCause.None);
 
 /// <summary>
 /// Turning resolved sets into files in the RetroBat tree.
@@ -311,12 +312,12 @@ public sealed class LibrarySyncService
                     // The resolve is the first authenticated call a sync makes, so a rejected
                     // token is met here rather than in the content pass. Reported as what it
                     // is: nothing about it is worth trying again, and the caller offers to pair.
-                    return new SyncReport(SyncState.Rejected, ran);
+                    return new SyncReport(SyncState.Rejected, ran, report.Cause);
                 }
 
                 if (report.State == ResolveState.Interrupted)
                 {
-                    return new SyncReport(SyncState.Incomplete, ran);
+                    return new SyncReport(SyncState.Incomplete, ran, report.Cause);
                 }
             }
 
@@ -325,6 +326,7 @@ public sealed class LibrarySyncService
         }
 
         var worst = SyncState.Done;
+        var cause = FailureCause.None;
 
         // Folders touched across every set, so one gamelist pass covers them all. Two RomM
         // platforms can resolve to one folder, and writing per set would have the second
@@ -376,6 +378,8 @@ public sealed class LibrarySyncService
 
             artwork = MediaSyncOutcome.Merge(artwork, outcome.Media);
             fetchedArtwork = true;
+
+            cause = FailureCauses.Worst(cause, outcome.Content.Cause);
 
             if (outcome.Content.Failed > 0)
             {
@@ -442,7 +446,7 @@ public sealed class LibrarySyncService
             progress.Report(new BudgetReported(planner.ManagedBytes(), cap));
         }
 
-        return new SyncReport(worst, ran);
+        return new SyncReport(worst, ran, cause);
     }
 
     /// <summary>
@@ -575,7 +579,7 @@ public sealed class LibrarySyncService
             : outcome.Content.Blocked > 0 ? SyncState.Blocked
             : SyncState.Done;
 
-        return new SyncReport(state, ran);
+        return new SyncReport(state, ran, outcome.Content.Cause);
     }
 
     /// <summary>

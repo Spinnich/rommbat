@@ -737,6 +737,30 @@ public sealed class BrowseScreenTests : IDisposable
         Assert.Same(root, navigator.Current);
     }
 
+    [Fact]
+    public async Task A_fetch_reaching_for_a_connection_after_the_screen_closed_opens_none()
+    {
+        // #126. Cancelling does not stop the open, so a fetch arriving after Dispose built a
+        // fresh connection into a field nothing would ever dispose again.
+        using var stub = Library(1);
+        Pair();
+
+        var opened = 0;
+        var connect = Connect(stub);
+        var browse = new BrowseViewModel(_session, origin =>
+        {
+            Interlocked.Increment(ref opened);
+            return connect(origin);
+        });
+
+        await Settled(browse);
+        browse.Dispose();
+        var before = opened;
+
+        Assert.Null(browse.Connection());
+        Assert.Equal(before, opened);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static IEnumerable<string> Everything(BrowseViewModel browse)

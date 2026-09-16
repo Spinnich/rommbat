@@ -148,7 +148,7 @@ internal static class BiosCommand
                 Console.Error.WriteLine($"  {problem}");
             }
 
-            return outcome.Failed > 0 ? ExitCode.Offline : ExitCode.Ok;
+            return outcome.Failed > 0 ? ExitCode.For(outcome.Cause) : ExitCode.Ok;
         }
         finally
         {

@@ -41,6 +41,13 @@ the source of truth; the network is optional, probed with a short-timeout
   would make it the newest row in the slot and tell every other device to take it, which is an
   unresolved conflict resolving itself in favour of whoever synced last. The conflict is
   persisted and waits for `saves resolve` to pick a side.
+- **Exit `Offline` (5) means unreachable and nothing else.** It is the one code that tells a
+  script waiting will fix it. A 401 or 403 exits `NotPaired` (4). Any other server answer, or a
+  result that could not be verified or written here, exits `ServerError` (8), so a locked
+  destination or a path too long for this machine is 8 too. A run with several failures is
+  `Offline` only when every one of them was unreachable, which is `FailureCause` ranked worst
+  first and mapped in `ExitCode.For`. Classify there rather than returning `Offline` from a
+  failed `RomMResponse` (#143).
 - **No daemon exists.** A portable install cannot register a service or scheduled task, so
   the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
 
@@ -69,6 +76,13 @@ the source of truth; the network is optional, probed with a short-timeout
   **The pass logs to `emulators/rommbat/logs/background.log`.** It is started with
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.
+
+  **A shared log needs an append-only handle, and `FileMode.Append` is not one.** It seeks to
+  the end once, at open, and `FileStream` then writes at its own tracked offset, so two passes
+  in flight overwrite each other: measured as four writes from two handles leaving one line,
+  and seen on a real install as a line missing its first 18 characters (#153). `BackgroundLog`
+  opens with `FileSystemRights.AppendData` only, writes each line as one buffer, and shares
+  `Delete` so another pass can roll the file while this one holds it.
 
 - **A cancelled transfer's partial is truncated before its handle is closed, and this is a
   measurement about slow drives rather than about tidiness.** Cancelling a download is instant.

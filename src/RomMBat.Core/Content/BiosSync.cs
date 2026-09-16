@@ -2,6 +2,7 @@ using RomM.Client;
 using RomM.Client.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Content;
 
@@ -20,6 +21,9 @@ public sealed record BiosSyncOutcome
     public int Adopted { get; init; }
 
     public int Failed { get; init; }
+
+    /// <summary>The worst reason any file failed, which decides whether waiting would help.</summary>
+    public FailureCause Cause { get; init; }
 
     public long BytesTransferred { get; init; }
 
@@ -135,6 +139,7 @@ public sealed class BiosSync
         var adopted = 0;
         var present = 0;
         var failed = 0;
+        var cause = FailureCause.None;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -193,6 +198,7 @@ public sealed class BiosSync
                         if (copied is { } problem)
                         {
                             failed++;
+                            cause = FailureCauses.Worst(cause, FailureCause.Failed);
                             problems.Add($"{step.Path}: {problem}");
                             break;
                         }
@@ -207,6 +213,7 @@ public sealed class BiosSync
                     if (result.Problem is { } wrong)
                     {
                         failed++;
+                        cause = FailureCauses.Worst(cause, result.Cause);
                         refused.Add(md5);
                         problems.Add($"{step.Requirement.FileName}: {wrong}");
                         break;
@@ -231,19 +238,20 @@ public sealed class BiosSync
             AlreadyPresent = present,
             Adopted = adopted,
             Failed = failed,
+            Cause = cause,
             BytesTransferred = bytes,
             Problems = problems,
         };
     }
 
     /// <summary>Fetches one file, verifies it against RetroBat's hash, and moves it into place.</summary>
-    private async Task<(long Bytes, string? Problem)> FetchAsync(BiosStep step, CancellationToken cancellationToken)
+    private async Task<(long Bytes, string? Problem, FailureCause Cause)> FetchAsync(BiosStep step, CancellationToken cancellationToken)
     {
         var wanted = step.Requirement.Md5!;
 
         if (_connection is null)
         {
-            return (0, "RomM was not asked about it, so there is nothing to fetch from.");
+            return (0, "RomM was not asked about it, so there is nothing to fetch from.", FailureCause.Unreachable);
         }
 
         var part = _install.Resolve(BiosPlanner.PartFor(wanted));
@@ -266,7 +274,7 @@ public sealed class BiosSync
             if (!response.IsSuccess)
             {
                 SafeDelete(part);
-                return (0, response.Message);
+                return (0, response.Message, FailureCauses.Of(response.Status));
             }
 
             // Against RetroBat's hash, not RomM's. They agree by construction of the join, and
@@ -278,33 +286,34 @@ public sealed class BiosSync
             {
                 SafeDelete(part);
                 return (0,
-                    $"what arrived hashes to {found}, and RetroBat requires {wanted}. Nothing was written.");
+                    $"what arrived hashes to {found}, and RetroBat requires {wanted}. Nothing was written.",
+                    FailureCause.Failed);
             }
 
             // Not overwrite: true. A file that appeared at the destination since the plan was
             // built is the user's, and the IOException below reports it rather than losing it.
             File.Move(part, target, overwrite: false);
-            return (response.Value!.BytesWritten, null);
+            return (response.Value!.BytesWritten, null, FailureCause.None);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(part);
-            return (0, ex.Message);
+            return (0, ex.Message, FailureCause.Unreachable);
         }
         catch (PathTooLongException)
         {
             SafeDelete(part);
-            return (0, "the path to it is longer than this machine allows.");
+            return (0, "the path to it is longer than this machine allows.", FailureCause.Failed);
         }
         catch (IOException ex)
         {
             SafeDelete(part);
-            return (0, $"it could not be written: {ex.Message}");
+            return (0, $"it could not be written: {ex.Message}", FailureCause.Failed);
         }
         catch (UnauthorizedAccessException ex)
         {
             SafeDelete(part);
-            return (0, $"it could not be written: {ex.Message}");
+            return (0, $"it could not be written: {ex.Message}", FailureCause.Failed);
         }
     }
 

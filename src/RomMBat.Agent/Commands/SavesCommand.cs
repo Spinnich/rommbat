@@ -294,7 +294,8 @@ internal static class SavesCommand
 
         foreach (var entry in unsyncable)
         {
-            var scope = string.IsNullOrEmpty(entry.Emulator) ? entry.System : $"{entry.System}/{entry.Emulator}";
+            // Not system/emulator, which reads as a directory and names one that need not exist.
+            var scope = string.IsNullOrEmpty(entry.Emulator) ? entry.System : $"{entry.System} ({entry.Emulator})";
             var files = entry.FileCount == 1 ? "file " : "files";
             Console.WriteLine($"  {scope,-24} {entry.FileCount,6} {files}  {Describe(entry.Reason)}");
             Console.WriteLine($"  {string.Empty,-24}               {entry.Detail}");
@@ -751,7 +752,9 @@ internal static class SavesCommand
         if (!found.IsSuccess || found.Value is not { } findings)
         {
             Console.Error.WriteLine(found.Message ?? "The save list could not be read.");
-            return ExitCode.Offline;
+
+            // Unreachable throws and Program answers Offline, so anything here is the server's answer.
+            return ExitCode.For(found.Status);
         }
 
         var restorable = findings.Restorable;

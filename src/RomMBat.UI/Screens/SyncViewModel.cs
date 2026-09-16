@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using RomM.Client;
 using RomMBat.Core;
@@ -61,6 +62,7 @@ public enum SyncStage
 /// Everything that went wrong, in arrival order. Accumulated rather than replaced: they are the
 /// only part of a run a person cannot read back once it ends.
 /// </param>
+/// <param name="Cause">Why a finished run did not all happen, which decides what the footer offers.</param>
 public sealed record SyncSnapshot(
     SyncStage Stage,
     string Detail,
@@ -76,7 +78,8 @@ public sealed record SyncSnapshot(
     long GameTransferred = 0,
     long GameTotal = 0,
     double BytesPerSecond = 0,
-    IReadOnlyList<string>? Problems = null)
+    IReadOnlyList<string>? Problems = null,
+    FailureCause Cause = FailureCause.None)
 {
     public IReadOnlyList<string> Problems { get; init; } = Problems ?? [];
 
@@ -352,7 +355,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         // nothing is lost there; this one drops the game it is in, and the label has to say so.
         SyncStage.Working => [new FooterHint(NavAction.Back, "Stop, and drop the game in progress")],
 
-        SyncStage.NotPaired or SyncStage.Rejected when _pair is not null =>
+        _ when OffersPairing =>
         [
             new FooterHint(NavAction.Accept, "Pair with RomM"),
             new FooterHint(NavAction.Back, "Done"),
@@ -381,6 +384,23 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     /// pass found, with no way to reach the other twenty-one.
     /// </remarks>
     public const int ProblemsShown = 6;
+
+    /// <summary>
+    /// Whether pairing again is the remedy, so the footer offers it.
+    /// </summary>
+    /// <remarks>
+    /// A 403 is included though it stops the run as <see cref="SyncStage.Incomplete"/> rather
+    /// than <see cref="SyncStage.Rejected"/>: the token still works, but it answers the same way
+    /// until a new pairing grants the scope, so the sentence says to pair and the press has to
+    /// be there.
+    /// </remarks>
+    [MemberNotNullWhen(true, nameof(_pair))]
+    private bool OffersPairing => _pair is not null && _state switch
+    {
+        { Stage: SyncStage.NotPaired or SyncStage.Rejected } => true,
+        { Stage: SyncStage.Incomplete, Cause: FailureCause.NotAuthorized } => true,
+        _ => false,
+    };
 
     /// <summary>
     /// Every problem the run reported, on a screen that scrolls.
@@ -418,8 +438,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
     {
         switch (action)
         {
-            case NavAction.Accept when _pair is not null
-                && _state.Stage is SyncStage.NotPaired or SyncStage.Rejected:
+            case NavAction.Accept when OffersPairing:
                 return ScreenCommand.Push(_pair());
 
             case NavAction.Accept when _state.Problems.Count > ProblemsShown:
@@ -732,7 +751,17 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 SyncStage.Refused,
                 "A sync set could not be resolved, so nothing was fetched."),
 
-            _ => (SyncStage.Incomplete, "Some games could not be fetched. Syncing again picks up where this left off."),
+            // Only an unreachable server clears itself, so only that run is told to sync again.
+            _ => (SyncStage.Incomplete, report.Cause switch
+            {
+                FailureCause.NotAuthorized =>
+                    "RomM refused this device access to some of it. Pair again to fix that. Your games, "
+                        + "saves and settings are kept.",
+                FailureCause.Failed =>
+                    "Some games could not be fetched: RomM refused them, or what arrived could not be "
+                        + "verified or written here. Syncing again may not fix it, so check the problems listed.",
+                _ => "Some games could not be fetched. Syncing again picks up where this left off.",
+            }),
         };
 
         // Pass and the game go with the run. Leaving them set told a person the sync was still
@@ -742,6 +771,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
         {
             Stage = stage,
             Detail = detail,
+            Cause = report.Cause,
             Pass = null,
             Game = null,
             GameTotal = 0,

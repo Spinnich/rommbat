@@ -108,6 +108,21 @@ template was correct and one `<directory>` declaration still is not: **`openmsx`
 `saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",
 and cross-check against the emulator's generated config where it matters.
 
+**A `<core>` override is honoured for `enabled` and ignored for `system` and `directory`.**
+`SaveStateSchema.ReadCores` parses all three, and `MatchDirectory`, the only consumer, reads
+`Enabled` alone. `<defaultCoreDirectory>` is not parsed at all. Nothing that ships takes this
+path: RetroBat 8.2.1 carries both only as a commented-out sample under `libretro`
+(`<core name="fceumm" system="nes" directory="{{system}}"/>`). A user who uncomments it gets the
+`enabled="false"` half, and states written under an overridden directory are neither found nor
+reported. **Applying `directory` is not a one-line change, because it breaks the reverse
+lookup.** Discovery matches `<directory>` templates against directories that exist, which is how
+it recovers the system and the core. With `fceumm` overridden to `{{system}}` the directory on
+disk is `saves/nes`, which matches with `system=nes` and **no core**, and `libretro` is
+core-scoped, so `SaveStateTemplate.Create` answers null and the directory yields nothing. The fix
+compiles each overridden core's template as its own directory pattern bound to that core, and
+parses `<defaultCoreDirectory>` in the same change, since it is the same mechanism's default.
+Not planned while nothing ships it (#33).
+
 **The inverse is also real, and it is worse, because nothing in the file hints at it.** An emulator
 with **no entry at all** still writes save states, into a directory it names itself. Measured on
 `nes` by driving every emulator the system declares:

@@ -2,6 +2,7 @@ using RomM.Client;
 using RomM.Client.Content;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Content;
 
@@ -48,6 +49,9 @@ public sealed record ContentSyncOutcome
     /// </remarks>
     public bool Rejected { get; init; }
 
+    /// <summary>The worst reason any game failed, which decides whether waiting would help.</summary>
+    public FailureCause Cause { get; init; }
+
     /// <summary>True when the run wrote nothing at all, which is what an unchanged set should do.</summary>
     public bool IsNoOp => Downloaded == 0 && Resumed == 0 && Adopted == 0 && Failed == 0;
 
@@ -75,6 +79,7 @@ public sealed record ContentSyncOutcome
             BytesTransferred = first.BytesTransferred + second.BytesTransferred,
             Problems = [.. first.Problems, .. second.Problems],
             Rejected = first.Rejected || second.Rejected,
+            Cause = FailureCauses.Worst(first.Cause, second.Cause),
         };
     }
 
@@ -179,6 +184,7 @@ public sealed class ContentSync
         var bytes = 0L;
         var problems = new List<string>();
         var rejected = false;
+        var cause = FailureCause.None;
 
         for (var index = 0; index < plan.Steps.Count; index++)
         {
@@ -209,6 +215,7 @@ public sealed class ContentSync
                         .ConfigureAwait(false);
 
                     rejected |= result.Rejected;
+                    cause = FailureCauses.Worst(cause, result.Cause);
 
                     if (result.Problem is { } problem)
                     {
@@ -246,6 +253,7 @@ public sealed class ContentSync
             BytesTransferred = bytes,
             Problems = problems,
             Rejected = rejected,
+            Cause = cause,
         };
     }
 
@@ -275,7 +283,7 @@ public sealed class ContentSync
         });
     }
 
-    private async Task<(long Bytes, string? Problem, bool Rejected)> TransferAsync(
+    private async Task<(long Bytes, string? Problem, bool Rejected, FailureCause Cause)> TransferAsync(
         ContentStep step,
         int index,
         int total,
@@ -311,7 +319,7 @@ public sealed class ContentSync
             if (wrong is null)
             {
                 Commit(step, partAbsolute, targetAbsolute, finished!);
-                return (0, null, false);
+                return (0, null, false, FailureCause.None);
             }
 
             SafeDelete(partAbsolute);
@@ -387,7 +395,7 @@ public sealed class ContentSync
                     // says it is discarded, so discard it. The next run downloads whole.
                     SafeDelete(partAbsolute);
                     _store.Downloads.Remove(member.RomId);
-                    return (0, response.Message, false);
+                    return (0, response.Message, false, FailureCause.Failed);
                 }
 
                 _store.Downloads.Fail(member.RomId, response.Message ?? "the download failed", _time.GetUtcNow());
@@ -395,7 +403,11 @@ public sealed class ContentSync
                 // 401 only. A 403 is a fact about what this pairing may do and is per call;
                 // a 401 is the identity itself being refused, and the next game would send the
                 // same token.
-                return (0, response.Message, response.Status == RomMResponseStatus.Unauthorized);
+                return (
+                    0,
+                    response.Message,
+                    response.Status == RomMResponseStatus.Unauthorized,
+                    FailureCauses.Of(response.Status));
             }
 
             var transferred = response.Value!.BytesWritten;
@@ -406,18 +418,18 @@ public sealed class ContentSync
                 // forever, and each attempt would end the same way.
                 SafeDelete(partAbsolute);
                 _store.Downloads.Remove(member.RomId);
-                return (transferred, wrong, false);
+                return (transferred, wrong, false, FailureCause.Failed);
             }
 
             Commit(step, partAbsolute, targetAbsolute, verification.Fingerprint!);
-            return (transferred, null, false);
+            return (transferred, null, false, FailureCause.None);
         }
         catch (RomMUnreachableException ex)
         {
             // The partial file stays: the whole point of writing one is that the next run
             // continues rather than starting again.
             _store.Downloads.Fail(member.RomId, ex.Message, _time.GetUtcNow());
-            return (0, ex.Message, false);
+            return (0, ex.Message, false, FailureCause.Unreachable);
         }
         catch (PathTooLongException)
         {
@@ -426,12 +438,13 @@ public sealed class ContentSync
                 0,
                 $"the full path to '{member.FsName}' is longer than this machine allows. Move the RetroBat "
                     + "install closer to the root of the drive, or turn on long path support in Windows.",
-                false);
+                false,
+                FailureCause.Failed);
         }
         catch (IOException ex)
         {
             _store.Downloads.Fail(member.RomId, ex.Message, _time.GetUtcNow());
-            return (0, $"the file could not be written: {ex.Message}", false);
+            return (0, $"the file could not be written: {ex.Message}", false, FailureCause.Failed);
         }
     }
 
@@ -466,7 +479,7 @@ public sealed class ContentSync
         {
             if (!string.IsNullOrWhiteSpace(member.Md5Hash) && !ContentHasher.Matches(fingerprint.Md5, member.Md5Hash))
             {
-                return (null, "the downloaded file does not match the md5 the server reported.");
+                return (null, HashMismatch(fingerprint.Md5, member.Md5Hash.Trim(), member.SizeBytes > 0));
             }
 
             // No sha1 branch. It is a second number the same server published rather than an
@@ -479,6 +492,23 @@ public sealed class ContentSync
 
         return (fingerprint, null);
     }
+
+    /// <summary>
+    /// Names both hashes, because a damaged transfer and a server record that describes some
+    /// other file need opposite responses and look identical without them.
+    /// </summary>
+    /// <remarks>
+    /// A damaged or truncated download almost never lands on exactly the promised length, so a
+    /// hash mismatch at a confirmed size points at the record. Finding 180 is that case: RomM
+    /// served one file and recorded the hash of another, and retrying could never have worked.
+    /// </remarks>
+    internal static string HashMismatch(string? found, string expected, bool sizeMatched) =>
+        $"the download hashes to md5 {found} but the server said {expected}. "
+            + (sizeMatched
+                ? "It is exactly the size the server said, which a damaged transfer rarely is, so RomM's "
+                    + "recorded hash probably does not describe the file it serves and retrying will not help."
+                : "Retrying fixes a damaged transfer; if it fails the same way, RomM's recorded hash is the "
+                    + "likelier fault.");
 
     /// <summary>Moves a verified file into place and records it, so neither can outlive the other.</summary>
     private void Commit(ContentStep step, string partAbsolute, string targetAbsolute, ContentFingerprint fingerprint)

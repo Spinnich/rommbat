@@ -547,7 +547,7 @@ and neither sees the other.
 the slot `libretro:battery` for that ROM and collide with libretro's own `Crystalis (USA).srm`,
 which already syncs in that slot. This install holds both, because that game was driven under
 `nestopia` and under `mesen` standalone. The extension list and `loose_emulator` have to stop being
-independent globals first. Issue #152.
+independent globals first. Issue #151.
 
 The battery column is a **reported** limitation and the right behaviour for this release. Nothing
 is dropped silently. The pass that drove these nine rows read one `saves` row covering all five

@@ -84,24 +84,30 @@ internal static class SyncCommand
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            return report.State switch
-            {
-                SyncState.Refused => ExitCode.Refused,
-                SyncState.Incomplete => ExitCode.Offline,
-
-                // Some of the library landed and the rest is waiting on room, which is what
-                // Partial already means everywhere else in this agent. Not Offline: the server
-                // was reachable throughout and the disk is what said no.
-                SyncState.Blocked => ExitCode.Partial,
-
-                _ => ExitCode.Ok,
-            };
+            return ExitCodeFor(report);
         }
         finally
         {
             connection?.Dispose();
         }
     }
+
+    /// <summary>What a finished run exits with.</summary>
+    internal static int ExitCodeFor(SyncReport report) => report.State switch
+    {
+        SyncState.Refused => ExitCode.Refused,
+        SyncState.Rejected => ExitCode.NotPaired,
+
+        // Offline only when every failure was the server being out of reach.
+        SyncState.Incomplete => ExitCode.For(report.Cause),
+
+        // Some of the library landed and the rest is waiting on room, which is what
+        // Partial already means everywhere else in this agent. Not Offline: the server
+        // was reachable throughout and the disk is what said no.
+        SyncState.Blocked => ExitCode.Partial,
+
+        _ => ExitCode.Ok,
+    };
 
     /// <summary>Runs the same pass 'flush' does, quietly, before the rest of a sync.</summary>
     private static async Task FlushSavesAsync(

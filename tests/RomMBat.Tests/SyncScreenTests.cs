@@ -884,8 +884,8 @@ public sealed class SyncScreenTests : IDisposable
         //
         // #109 fixed the screen and #114 moved the answer into the service, which is where the
         // next caller will read it: a blocked run is SyncState.Blocked, its own state rather
-        // than Incomplete, because Incomplete is what the agent turns into its Offline exit
-        // code and a full disk budget is not being offline.
+        // than Incomplete, because Incomplete is a failure the agent exits Offline or
+        // ServerError for, and a full disk budget is neither.
         using var stub = Library(3);
         Pair();
         Seed("games", 3);
@@ -905,6 +905,88 @@ public sealed class SyncScreenTests : IDisposable
         // And it does not promise that running it again gets past this, which is the lie the
         // ordinary Incomplete sentence would tell here: the same budget blocks identically.
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.OrdinalIgnoreCase);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_the_server_could_not_be_reached_for_says_syncing_again_picks_it_up()
+    {
+        using var stub = Library(2);
+        stub.IsReachable = false;
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_refused_access_says_to_pair_again_rather_than_to_sync_again()
+    {
+        // #143's rule on the screen. A 403 answers the same way on every run until the pairing
+        // changes, so "syncing again picks up where this left off" sends a person round a loop.
+        using var stub = Library(2);
+        stub.NextRomsStatus = System.Net.HttpStatusCode.Forbidden;
+
+        Pair();
+        Seed("games", 2);
+
+        var opened = false;
+        var sync = new SyncViewModel(
+            _session,
+            Set(),
+            Connect(stub),
+            pair: () =>
+            {
+                opened = true;
+                return new MessageScreen("Pair", "here");
+            });
+
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("Pair again", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        // A sentence naming a remedy the footer does not offer is a dead end on a gamepad.
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.True(opened);
+
+        sync.Dispose();
+    }
+
+    [Fact]
+    public async Task A_run_the_server_failed_says_syncing_again_may_not_fix_it()
+    {
+        using var stub = Library(2);
+        stub.Content.Remove(2);
+
+        Pair();
+        Seed("games", 2);
+
+        var sync = new SyncViewModel(
+            _session,
+            Set(),
+            Connect(stub),
+            pair: () => new MessageScreen("Pair", "here"));
+
+        await SettledAsync(sync);
+
+        Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
+        Assert.Contains("may not", sync.State.Detail, StringComparison.Ordinal);
+        Assert.Contains("problems", sync.State.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        // Pairing would not fix a refusal that is not about access, so it is not offered.
+        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
 
         sync.Dispose();
     }
@@ -935,9 +1017,56 @@ public sealed class SyncScreenTests : IDisposable
             new Immediate<SyncEvent>(_ => { }),
             cancellationToken: TestContext.Current.CancellationToken);
 
-        // Not Done, which was the lie, and not Incomplete, which is what SyncCommand turns into
-        // its Offline exit code: the server was reachable throughout and the disk said no.
+        // Not Done, which was the lie, and not Incomplete, which SyncCommand exits as a failure:
+        // the server was reachable throughout and the disk said no.
         Assert.Equal(Core.Sets.SyncState.Blocked, report.State);
+    }
+
+    [Fact]
+    public async Task A_content_refusal_reaches_the_report_as_its_cause()
+    {
+        // #143. The exit code is read off this cause, and a report that dropped it would exit
+        // Offline, telling a script to wait on a server that answered.
+        using var stub = Library(2);
+        stub.Content.Remove(2);
+
+        Pair();
+        Seed("games", 2);
+
+        using var connection = Connect(stub)(Origin);
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(Core.Sets.SyncState.Incomplete, report.State);
+        Assert.Equal(Core.Sync.FailureCause.Failed, report.Cause);
+    }
+
+    [Fact]
+    public async Task A_resolve_the_server_refuses_reaches_the_report_as_its_cause()
+    {
+        // The early return for an interrupted resolve, which never reaches the content pass.
+        using var stub = Library(2);
+        stub.NextRomsStatus = System.Net.HttpStatusCode.Forbidden;
+
+        Pair();
+        Seed("games", 2);
+
+        using var connection = Connect(stub)(Origin);
+
+        var report = await new LibrarySyncService(_session).RunAsync(
+            [Set()],
+            new SyncOptions(),
+            connection,
+            new Immediate<SyncEvent>(_ => { }),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(Core.Sets.SyncState.Incomplete, report.State);
+        Assert.Equal(Core.Sync.FailureCause.NotAuthorized, report.Cause);
     }
 
     [Fact]
