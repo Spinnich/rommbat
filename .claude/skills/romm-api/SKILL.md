@@ -205,9 +205,10 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   **Re-measured at 95,993 roms on 5.3.0-alpha.2, the scoped penalty does not reproduce.** A
   scoped page is 274 to 353 ms either way, so index off is inside the noise and marginally
   ahead; unscoped is unchanged at 1.15 to 1.20x. The N+1 fix and concurrency 4 took the
-  scoped page from 2.3 s to 0.3 s and took the latency argument with it. The rule stands as
-  written **because a client at the floor must be right on the floor**, and it will want
-  revisiting on bandwidth grounds, which were never its argument, once #174 lands.
+  scoped page from 2.3 s to 0.3 s and took the latency argument with it. **On every supported
+  server the scoped half of the rule now has no stated reason**, and bandwidth, the only argument
+  left, was never the one it was written from. The behaviour stands unchanged until #188 decides
+  it on a bandwidth reading.
 
   **`CatalogQuery` obeys this as of M7 stage 7b-2a, and did not before.** This rule was written
   from A1's measurement and the code went on sending a constant `false` for a further two

@@ -587,9 +587,9 @@ metadata mix has moved with it.
 same 1.15x it was worth at 5.2.0, and costs the same 604 KiB a page. Scoped, the 3.4 to 3.7x that
 `romm-api`'s "off only when the request is unscoped" rule was written from does not reproduce at
 all: index off is inside the noise, and marginally ahead. The rule survives on bandwidth, which
-was never its argument, and its stated reason is a 5.2.0 reason. **That is a rule to revisit when
-#174 moves the floor, not a code change to make here**, because the client still has to be right
-on the oldest server it claims.
+was never its argument, and its stated reason is a 5.2.0 reason. With the floor at `alpha.2` that
+reason holds on no supported server. **The behaviour is kept and the decision is #188**, because
+changing it wants a bandwidth reading this section did not take.
 
 **A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
 costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
