@@ -12,11 +12,13 @@ cannot tell the two apart, and the server's answer is the whole question. `devic
 omitted on the browser's calls because `current_device_id` is unset for an ordinary web
 login, which is the case auto_save_sync meets.
 
-Four cases, each against one ROM and one throwaway slot, played by a device registered here:
+Five cases against one ROM and throwaway slots, played by a device registered here, in the
+order they run:
 
   A  the browser writes over the row this device uploaded, and this device did nothing
   B  the same, and this device also changed its copy
   C  this device supersedes the row, then the browser writes over the older one again
+  E  C on a second slot, where the older row came from a peer this device never synced
   D  no save was loaded, so the browser makes a null-slot row and keeps writing into it
 
 Writes to the instance. Everything it creates is deleted before it exits: the save rows,
