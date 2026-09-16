@@ -938,12 +938,27 @@ public sealed class SyncScreenTests : IDisposable
         Pair();
         Seed("games", 2);
 
-        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        var opened = false;
+        var sync = new SyncViewModel(
+            _session,
+            Set(),
+            Connect(stub),
+            pair: () =>
+            {
+                opened = true;
+                return new MessageScreen("Pair", "here");
+            });
+
         await SettledAsync(sync);
 
         Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
         Assert.Contains("Pair again", sync.State.Detail, StringComparison.Ordinal);
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        // A sentence naming a remedy the footer does not offer is a dead end on a gamepad.
+        Assert.Contains(sync.Hints, hint => hint.Action == NavAction.Accept);
+        Assert.Equal(ScreenCommandKind.Push, sync.Handle(NavAction.Accept).Kind);
+        Assert.True(opened);
 
         sync.Dispose();
     }
@@ -957,13 +972,21 @@ public sealed class SyncScreenTests : IDisposable
         Pair();
         Seed("games", 2);
 
-        var sync = new SyncViewModel(_session, Set(), Connect(stub));
+        var sync = new SyncViewModel(
+            _session,
+            Set(),
+            Connect(stub),
+            pair: () => new MessageScreen("Pair", "here"));
+
         await SettledAsync(sync);
 
         Assert.Equal(SyncStage.Incomplete, sync.State.Stage);
         Assert.Contains("may not", sync.State.Detail, StringComparison.Ordinal);
         Assert.Contains("problems", sync.State.Detail, StringComparison.Ordinal);
         Assert.DoesNotContain("picks up where", sync.State.Detail, StringComparison.Ordinal);
+
+        // Pairing would not fix a refusal that is not about access, so it is not offered.
+        Assert.DoesNotContain(sync.Hints, hint => hint.Action == NavAction.Accept);
 
         sync.Dispose();
     }
