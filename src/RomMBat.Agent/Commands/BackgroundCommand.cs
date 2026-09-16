@@ -1,3 +1,5 @@
+using System.Security.AccessControl;
+using System.Text;
 using RomMBat.Core.Content;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
@@ -201,12 +203,12 @@ internal sealed class BackgroundLog : IDisposable
     /// <summary>Rolled at this size, keeping one previous file.</summary>
     private const long MaxBytes = 512 * 1024;
 
-    private readonly TextWriter? _writer;
+    private readonly FileStream? _stream;
     private readonly string _event;
 
-    private BackgroundLog(TextWriter? writer, string hookEvent)
+    private BackgroundLog(FileStream? stream, string hookEvent)
     {
-        _writer = writer;
+        _stream = stream;
         _event = hookEvent;
     }
 
@@ -222,10 +224,7 @@ internal sealed class BackgroundLog : IDisposable
                 File.Move(path, path + ".1", overwrite: true);
             }
 
-            // Shared, because two hooks can be in flight at once and the loser of that race
-            // should still start. Each line is one write, which is what keeps them legible.
-            var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-            return new BackgroundLog(new StreamWriter(stream) { AutoFlush = true }, hookEvent);
+            return new BackgroundLog(OpenForAppend(path), hookEvent);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -237,9 +236,16 @@ internal sealed class BackgroundLog : IDisposable
 
     public void Write(string line)
     {
+        if (_stream is null)
+        {
+            return;
+        }
+
         try
         {
-            _writer?.WriteLine($"{DateTimeOffset.UtcNow:u}  {_event,-5}  {line}");
+            // One buffer and one write, newline included. A StreamWriter is free to split a line
+            // across writes and emits the newline on its own.
+            _stream.Write(Encoding.UTF8.GetBytes($"{DateTimeOffset.UtcNow:u}  {_event,-5}  {line}{Environment.NewLine}"));
         }
         catch (IOException)
         {
@@ -247,5 +253,38 @@ internal sealed class BackgroundLog : IDisposable
         }
     }
 
-    public void Dispose() => _writer?.Dispose();
+    public void Dispose() => _stream?.Dispose();
+
+    /// <summary>
+    /// Opens the log so every write lands at the end of the file as it is at that moment.
+    /// </summary>
+    /// <remarks>
+    /// <b><see cref="FileMode.Append"/> alone does not do that.</b> It seeks to the end once, at
+    /// open, and a <see cref="FileStream"/> then writes at the offset it tracks itself. Two
+    /// hooks in flight each hold their own offset, so the second pass to write lands on top of
+    /// the first pass's line: measured as four writes leaving one line, and seen on a real
+    /// install as a line missing its first 18 characters (#153). A handle holding only
+    /// <see cref="FileSystemRights.AppendData"/> has Windows append every write instead.
+    /// <para>
+    /// <see cref="FileShare.Delete"/> is what lets another pass roll the file while this one
+    /// has it open. Without it the rename threw, and that pass opened no log at all.
+    /// </para>
+    /// </remarks>
+    private static FileStream OpenForAppend(string path)
+    {
+        const FileShare share = FileShare.ReadWrite | FileShare.Delete;
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return new FileStream(path, FileMode.Append, FileAccess.Write, share);
+        }
+
+        return new FileInfo(path).Create(
+            FileMode.Append,
+            FileSystemRights.AppendData,
+            share,
+            bufferSize: 1,
+            FileOptions.None,
+            fileSecurity: null);
+    }
 }

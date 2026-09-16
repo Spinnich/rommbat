@@ -76,6 +76,13 @@ the source of truth; the network is optional, probed with a short-timeout
   `CreateNoWindow`, so nothing it prints reaches a person any other way, and "why did my save
   not go up" is the first question anyone asks about it.
 
+  **A shared log needs an append-only handle, and `FileMode.Append` is not one.** It seeks to
+  the end once, at open, and `FileStream` then writes at its own tracked offset, so two passes
+  in flight overwrite each other: measured as four writes from two handles leaving one line,
+  and seen on a real install as a line missing its first 18 characters (#153). `BackgroundLog`
+  opens with `FileSystemRights.AppendData` only, writes each line as one buffer, and shares
+  `Delete` so another pass can roll the file while this one holds it.
+
 - **A cancelled transfer's partial is truncated before its handle is closed, and this is a
   measurement about slow drives rather than about tidiness.** Cancelling a download is instant.
   What is not instant is closing the handle over a large part-written file, because that waits
