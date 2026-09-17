@@ -460,7 +460,8 @@ row and file the pass made was deleted afterwards.
 
 **D is #138 at a higher rate, not a new defect.** A browser session that loads nothing makes one
 null-slot row and keeps writing into it, so it does not pile up rows, and the protocol still cannot
-see it. `saves restore` still can, with #156's collision.
+see it. `saves restore` still can, with #156's collision, since fixed in stage 2 of #195 by
+offering only the newest row per destination and naming the rest.
 
 **Read in source, not measured: streaming.** `handler/streaming/saves.py` stores each pulled save
 archive as a **new null-slot row**, `<rom stem> [<emulator> <timestamp>].saves.zip`, dropped when
