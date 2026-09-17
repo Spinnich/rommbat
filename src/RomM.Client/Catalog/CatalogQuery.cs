@@ -355,8 +355,8 @@ public sealed record CatalogQuery
     /// <remarks>
     /// Ascending id is what makes offset paging survive a library that changes underneath it:
     /// RomM hands out ascending ids, so a ROM added mid-walk lands past the cursor instead of
-    /// shifting every later page by one. Deletions can still cause a skip, which is what M3's
-    /// reconcile against <c>GET /api/roms/identifiers</c> is for.
+    /// shifting every later page by one. Deletions can still cause a skip, which the next
+    /// resolve's completed walk reconciles.
     /// </remarks>
     public string OrderBy { get; init; } = "id";
 
