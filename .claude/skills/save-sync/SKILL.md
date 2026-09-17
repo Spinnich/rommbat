@@ -802,7 +802,10 @@ hash, folded into one digest. The archive is transport only.
   `MAX_SAVES_PER_SLOT`, 50 by default**, on every slotted upload whatever the client asks, keeping
   the newest by `updated_at` then `id`. This client sets no `autocleanup`, so the cap is its
   retention now, and a version it still names in `save_slot` can be deleted under it by 50 uploads
-  from elsewhere. Unmeasured; finding 11 of `romm-5.3-findings.md`.
+  from elsewhere. **Measured, and safe as long as the upload 409 stays a conflict**: negotiate then
+  forgets the history and answers `upload` for an edited copy, while the upload guard still holds
+  the device's record and refuses 409, which `SaveSync` records as a conflict. An unchanged copy
+  downloads the newest. Finding 11 of `romm-5.3-findings.md`, `s3-slot-retention.py`.
 - Restores stage everything off to one side: extract to a temp directory beside the target, keep
   the previous copy until the next successful sync. **A class C swap is not one filesystem
   operation, and do not write that it is.** Members are removed and moved in one at a time,

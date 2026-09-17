@@ -860,11 +860,26 @@ tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and `autocleanup
 client set `autocleanup`, and prunes past it on every slotted upload, retries included.
 `prune_slot` keeps the newest by `updated_at` then `id` and deletes the rest with their files and
 screenshots. Before, pruning ran only when a client asked. This client never sets `autocleanup`,
-so its slots had been unbounded and are now bounded at 50 by the server. Two consequences worth
-measuring rather than asserting. The prune ranks on `updated_at`, which `PUT /api/saves/{id}`
-moves (finding 4), so an in-place write can change which version goes. And a device offline while
-50 versions reach a slot comes back to find the save its `save_slot` names deleted, which is a
-path the superseded-row guard was not written for.
+so its slots had been unbounded and are now bounded at 50 by the server.
+
+**Measured, and it costs this client nothing** (`tools/romm-5.3-probes/s3-slot-retention.py`, two
+runs on the live `alpha.3`). A device uploaded and negotiated, then a peer with no device put 51
+versions in the slot:
+
+| After 51 peer versions                  | Answer                                                             |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| Rows in the slot                        | 50, and the device's own version is one of those deleted           |
+| Negotiate, the device's copy unchanged  | `download` of the newest, "Server save is newer (no sync history)" |
+| Negotiate, the device's copy edited     | `upload`, "Client save is newer (no sync history)"                 |
+| The ordinary upload that answer invites | **409**, "Slot has a newer save since your last sync"              |
+
+So deleting the version a sync was recorded against makes negotiate forget the history, and the
+upload guard does not: it still holds this device's record for the slot. Two answers that disagree,
+and this client already reconciles them, because `SaveSync` records a negotiated `upload` that
+comes back 409 as a conflict, a path first driven on hardware for a different cause. An unchanged
+copy takes the peer's newest version, which is right, and an edited one becomes a conflict to
+settle rather than an overwrite. The prune ranks on `updated_at` as read: a `PUT` onto the oldest
+surviving version kept it through the next upload, and the next oldest went instead.
 
 **#4540 also renames a slotted save's screenshot to the save's stem, and does nothing for
 states.** Finding 258 of `retrobat-findings.md` is the state side.
@@ -1000,6 +1015,6 @@ Docker daemon that a read answers today is a question nobody answers.
 | 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
 | 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |
-| 11  | What reaches a slot this device is missing when 50 versions arrive while it is away? | **Open.** Probe-able with the approver token                    |
+| 11  | What reaches a slot this device is missing when 50 versions arrive while it is away? | **Answered.** A download, or a 409 that becomes a conflict      |
 | 11  | Does a browser session's `.srm` in a libretro slot land and load under RetroBat?     | **Open.** Needs a person in the browser and at RetroBat         |
 | 11  | What does a browser `.srm` do to a bundled (class C) slot this client holds?         | **Read.** Refused before the tree, then offered every flush     |
