@@ -54,9 +54,9 @@ manufacturing work. These bound it:
 - **Taste is not a finding.** Naming, structure, or idiom that no rule states and no bug
   follows from is a preference. Leave it out.
 - **Only what the branch touched.** Pre-existing problems in surrounding code go in a
-  separate follow-up list, not in the findings. **A document the branch's own code falsified
-  is not pre-existing**, however untouched the file is: the diff is what made it wrong, so it
-  is in scope and blocking. See "Documentation parity".
+  separate list, not in the findings; "Output" says where each one lands. **A document the
+  branch's own code falsified is not pre-existing**, however untouched the file is: the diff
+  is what made it wrong, so it is in scope and blocking. See "Documentation parity".
 - **An empty review is a valid result.** "CI green, invariants hold, nothing blocking" is a
   complete answer. Padding it costs a fix session real work.
 - **Severity is the honest one, not the flattering one.** A nit labelled as a correctness
@@ -238,7 +238,11 @@ a category is clean, one line saying so. No padding.
 Then:
 
 1. A one-line verdict: land it, fix first, or a design question that needs me.
-2. Anything belonging in a follow-up issue rather than this PR, listed separately.
+2. Pre-existing problems, listed separately and sorted two ways. **Small and related** (the
+   PR's subject, or files it already edits) rolls into this PR: it goes on the PR as a
+   comment for the fix session, never as a new issue, because a one-line fix does not earn
+   an issue and a PR of its own. **Large or unrelated** is listed for a follow-up issue.
+   Say which way each one went.
 3. If threads should go on the PR itself, the text for each as `file:line` plus comment.
 
 Write for the fix session and for the record, not for an audience. No preamble, no summary
