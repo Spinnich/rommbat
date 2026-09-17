@@ -1355,7 +1355,8 @@ the rollout order below can be derived rather than hand-maintained.
   `''` on the same 0.6%, and no row carries a sha1 without an md5 (finding 257, which
   supersedes the 91.0% and 96.3% of finding 85). Verification degrades to size when the server
   has no md5, and reports which check it made. **Only md5 is compared as of migration 013**,
-  and that 0.6% is all that degrades.
+  and that 0.6% is all that degrades for want of a hash. An archive the code cannot look inside
+  degrades to size for its own reason, below.
 - **Only `.zip` can be looked inside**, because it is the one archive format the base class
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
