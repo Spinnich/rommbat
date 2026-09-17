@@ -273,6 +273,14 @@ internal static class SavesCommand
             Console.WriteLine(NotChecked + "the server is not reachable. Pass --offline to skip this.");
             return;
         }
+        catch (RomMApiException)
+        {
+            // A 200 whose body is not the list: a proxy's login page, or a save row this client
+            // cannot read. An error status comes back as a failed response instead.
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + "the server's answer could not be read.");
+            return;
+        }
 
         if (!found.IsSuccess || found.Value is not { } slotless)
         {
