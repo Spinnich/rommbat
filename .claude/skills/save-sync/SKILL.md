@@ -63,9 +63,20 @@ link column: `State.screenshot` finds an image whose name, or name less extensio
 state's name or the state's name less extension, where "extension" is RomM's
 `\.(([a-z]+\.)*\w+)$`. Scoping the image's own name put the group after `.state1` and never
 matched for the five emulators whose `<image>` is `<file>.png`, while the seven whose `<image>`
-replaces the extension happened to match; that mix was finding 138's "a third". `<upload name>.png`
-matches for every declared emulator. `StubRomMServer.Binds` is the port of the rule, so a test
-cannot pass on a name the server would not link. Finding 258.
+replaces the extension happened to match; that mix was finding 138's "a third".
+`<upload name><image extension>` matches for every declared emulator (ppsspp's image is `.jpg`).
+
+**A match is not unique, so check the name that comes back.** RomM's pattern strips a run of
+lowercase-letter extensions as one: `Game [libretro.snes9x].state.png` loses `.state.png`, so
+libretro slot 0's image has the name-less-extension of every slot of that game and core. The
+lookup ranks an image whose name less extension is the state's full name first, then takes the
+highest id, so a slot with no image of its own is answered with slot 0's. An old-name slot 0
+image, `Game.state [libretro.x].png`, likewise answers for the autosave
+`Game.state [libretro.x].auto`. `StateSync.IsOwnScreenshot` accepts only an image named
+`<state upload name>.<ext>`, or the exact earlier name of the state's own image (which linked
+for the seven), on restore and when counting a dropped screenshot on push. `StubRomMServer.Binds` ports the filter and `ScreenshotFor` the
+choice among a ROM's images, so a test cannot pass on a name the server would not link or on
+another state's image. Finding 258.
 
 **That slot never leaves the device.** `POST /api/states` has no slot field, and the row it
 returns carries no `content_hash` either, both confirmed live and in the pinned schema. So it

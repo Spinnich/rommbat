@@ -78,8 +78,10 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    while its restore could not place a state for any emulator that keeps the slot in the stem.
    Between them no row could pass step 5, and both were RomMBat's (`docs/retrobat-findings.md`
    findings 138, 256 and 258). An unchanged state is never re-sent, so an older one stays
-   unlinked. Read the row after the upload: a linked screenshot that comes back is a pass, and a
-   null link on a fresh state is a new finding, not a recurrence of an old one.
+   unlinked. Read the row after the upload: a screenshot whose `file_name` is the state's `file_name` plus
+   the image's extension is a pass, and a null link on a fresh state is a new finding, not a
+   recurrence of an old one. **Check the name, not only that one came back**: RomM can answer a
+   libretro slot with slot 0's image, which is not a link to this state (finding 258).
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.

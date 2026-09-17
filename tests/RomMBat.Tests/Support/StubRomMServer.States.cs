@@ -168,7 +168,7 @@ internal sealed partial class StubRomMServer
         return Json(HttpStatusCode.OK, Describe(stored));
     }
 
-    private static object Describe(StubState state) => new
+    private object Describe(StubState state) => new
     {
         id = state.Id,
         rom_id = state.RomId,
@@ -186,15 +186,33 @@ internal sealed partial class StubRomMServer
         missing_from_fs = false,
         created_at = state.UpdatedAt,
         updated_at = state.UpdatedAt,
-        screenshot = state.ScreenshotBytes is null || !Binds(state.FileName, state.ScreenshotName!)
+        screenshot = ScreenshotFor(state) is not { } shot
             ? null
             : new
             {
-                id = state.Id + 1000,
-                file_name = state.ScreenshotName,
-                file_size_bytes = state.ScreenshotBytes.Length,
+                id = shot.Id + 1000,
+                file_name = shot.ScreenshotName,
+                file_size_bytes = shot.ScreenshotBytes!.Length,
             },
     };
+
+    /// <summary>
+    /// The image RomM's <c>State.screenshot</c> answers with, chosen from every image held for the ROM.
+    /// </summary>
+    /// <remarks>
+    /// <c>get_screenshot</c> filters the ROM's images through <see cref="Binds"/>, ranks an image
+    /// whose <c>file_name_no_ext</c> is the state's <c>file_name</c> first, then takes the highest
+    /// id. So one image can answer for several states, which is how libretro slot 0's image reaches
+    /// every other slot. The holding state's id stands in for the image's.
+    /// </remarks>
+    private StubState? ScreenshotFor(StubState state) =>
+        States.Values
+            .Where(held => held.RomId == state.RomId
+                && held.ScreenshotBytes is not null
+                && Binds(state.FileName, held.ScreenshotName!))
+            .OrderBy(held => string.Equals(NoExtension(held.ScreenshotName!), state.FileName, StringComparison.Ordinal) ? 0 : 1)
+            .ThenByDescending(held => held.Id)
+            .FirstOrDefault();
 
     /// <summary>
     /// Pulls the optional <c>screenshotFile</c> part out, if there is one.
@@ -229,7 +247,8 @@ internal sealed partial class StubRomMServer
     /// Whether RomM's <c>State.screenshot</c> lookup finds this image for this state.
     /// </summary>
     /// <remarks>
-    /// Ported from RomM, not approximated: <c>db_screenshot_handler.get_screenshot</c> filters on
+    /// The filter half of the lookup, and <see cref="ScreenshotFor"/> is the choice among the
+    /// images it lets through. Ported from RomM, not approximated: <c>db_screenshot_handler.get_screenshot</c> filters on
     /// the image's <c>file_name</c> or <c>file_name_no_ext</c> being either the state's
     /// <c>file_name</c> or its <c>file_name_no_ext</c>, and <c>compute_file_name_no_ext</c> strips
     /// <c>\.(([a-z]+\.)*\w+)$</c>. Identical at 5.2.0, 5.3.0-alpha.2 and 5.3.0-alpha.3. The
