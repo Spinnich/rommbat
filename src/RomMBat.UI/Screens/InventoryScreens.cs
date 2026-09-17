@@ -78,7 +78,7 @@ public static class InventoryScreens
                         null,
                         "Only what RomMBat had written down. No file was deleted, because there "
                             + "was nothing there to delete. The next sync fetches these games "
-                            + "again if a set still wants them.",
+                            + "again if a set still wants them. Saves were left alone.",
                         false),
                 ]
                 : [],
@@ -117,6 +117,22 @@ public static class InventoryScreens
                     ? "Every one of them is on this drive, so the disk figures are right."
                     : "This is what the disk limit is counted from.",
                 false),
+
+            // Ahead of every early return, because a clean file check says nothing about saves.
+            // Never offered for forgetting: the row may be the last local record of a save only
+            // the server still has (#142).
+            found.MissingSaves.Count == 0
+                ? new ListRow(
+                    "Saves",
+                    $"{found.SaveRows:N0} saves",
+                    "Every one of them is on this drive.",
+                    false)
+                : new ListRow(
+                    "Saves not on the drive",
+                    $"{found.MissingSaves.Count:N0} of {found.SaveRows:N0} saves",
+                    "Forgetting files never touches these. RomM may still have them, and "
+                        + "'saves restore' in rommbat-agent brings back what it has.",
+                    false),
         };
 
         if (found.IsClean)

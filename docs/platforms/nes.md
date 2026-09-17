@@ -244,18 +244,21 @@ visible only after an unrelated `saves` run scanned the tree, because the restor
 `local_save` what this device holds and nothing in the command rebuilds it. The state half of
 the same run did not have the bug and offered its row immediately, which is what made the shape
 obvious. A person whose save has just vanished runs this command first and is told there is
-nothing to restore.
+nothing to restore. **Since fixed by #147** in stage 2 of #195: the find scans the tree before it
+reads `local_save`.
 
 **`--apply` exited 7 with `failed 0`, which is #148.** Eighteen states on this server were
 written by another client that scopes a state by core, and `es_savestates.cfg` names emulators,
 so they can never be placed here. They are folded into the exit code, so on this install the
 command cannot exit 0 no matter what it restores. `saves restore 158633` exits 0, because
-narrowing to one ROM drops them.
+narrowing to one ROM drops them. **Since fixed by #148** in stage 2 of #195: unplaceable rows are
+listed and no longer move the exit code.
 
 **Nothing in the tool surfaced the loss**, which is #142 and is unchanged by either PR.
 `status --check-files` answered `1,316 recorded, all present`, which is exactly 228 ROMs plus
 1,088 media. That sweep covers downloaded content and never looks at saves, so the save was
-recoverable and still invisible.
+recoverable and still invisible. **Since fixed by #142** in stage 2 of #195: the sweep reads
+`local_save` and names a missing save, and never repairs its row.
 
 ### 5. Save state and screenshot
 
@@ -299,6 +302,12 @@ carries no screenshot member, `RestoreAsync` fetches `DownloadStateAsync` and no
 state whose `screenshot` field did link would still not bring its `.png` back today. Step 5 needs
 #158 as well as the RomM-side link, and no `(system, emulator, core)` row can pass it on either
 alone.
+
+**Since closed on RomMBat's side by #158**, in stage 2 of #195: a restore now fetches a linked
+screenshot into the declared `<image>`. Not re-driven on a linked screenshot, because none exists:
+at the 5.3.0-alpha.2 floor all 9 `nes` states on the instance read `screenshot: null`, and 7 of 7
+re-uploaded ones came back unlinked. The `.srm` and `.state1` of Crystalis (USA) were deleted and
+restored byte-identically in the same pass. The RomM-side link is still what keeps step 5 open. Findings 138 and 256 in `docs/retrobat-findings.md`.
 
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
@@ -432,7 +441,8 @@ RomMBat's.** Their slots name a core where `es_savestates.cfg` names an emulator
 `genesis_plus_gx`, `snes9x`, `mgba`, `mupen64plus_next`, `pcsx_rearmed`, `beetle_psx_hw` and
 `dc`. They were written by another client against the same library, the same one that left the
 two stale `River City Ransom` saves. RomMBat names each one and the reason rather than dropping
-it, which is right, but it also folds them into the exit code, which is #148. Four of the
+it, which is right, but it also folds them into the exit code, which is #148 (since fixed in
+stage 2 of #195, where they no longer move it). Four of the
 eighteen are `nes` rows under `fceumm`, so **this is what a second `(emulator, core)` row's
 states would look like to a restore** if RomMBat ever scoped one by core alone. It does not:
 `ScopeOf` writes `{emulator}.{core}`, which is what makes these rows unplaceable and RomMBat's
@@ -625,7 +635,8 @@ $ rommbat-agent saves restore 158593
 That is #138 from a second direction: a null-slot save is not only never fetched by negotiate, it
 also **cannot conflict**, so a client that does not speak RomMBat's slot convention can never
 collide with one. It is also #156, since all four rows resolve to one destination and the offer
-says nothing about that.
+says nothing about that. **Since fixed by #156** in stage 2 of #195: the offer is one row per
+destination, the newest, and it names the rows it folded.
 
 Staging one needs `POST /api/saves?slot=libretro:battery`. Note `device_id` is validated: an
 invented one is refused with `404 Device with ID ... not found`, so the upload was made without it.

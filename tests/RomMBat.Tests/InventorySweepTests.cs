@@ -167,6 +167,61 @@ public sealed class InventorySweepTests : IDisposable
         Assert.Equal(2, sweep.Apply(report).Removed);
     }
 
+    [Fact]
+    public void A_save_whose_file_is_gone_is_reported_and_the_repair_leaves_its_row()
+    {
+        // #142: the sweep read local_file only, so a deleted save reported "all present". And a
+        // save row is not a ROM row: it may be the last local record of a save only the server
+        // has, so the repair must not take it.
+        Write("saves/gb/Tetris (World).srm", "kept");
+        Write("saves/gb/Dr. Mario (World).srm", "deleted");
+        Row("roms/snes/here.sfc", 1_000, onDisk: true);
+        Row("roms/snes/gone.sfc", 4_000, onDisk: false);
+
+        new SaveScanner(_session.Install, _session.Store).Scan();
+        Assert.Equal(2, _session.Store.Saves.List().Count);
+
+        File.Delete(Path.Combine(_tree.Root, "saves", "gb", "Dr. Mario (World).srm"));
+
+        var sweep = new InventorySweep(_session.Install, _session.Store);
+        var report = sweep.Plan();
+
+        Assert.Equal(2, report.SaveRows);
+        Assert.Equal("saves/gb/Dr. Mario (World).srm", Assert.Single(report.MissingSaves).Path.Value);
+        Assert.Contains("1 not on this drive", report.SavesSummary, StringComparison.Ordinal);
+
+        Assert.Equal(1, sweep.Apply(report).Removed);
+        Assert.Equal(2, _session.Store.Saves.List().Count);
+    }
+
+    [Fact]
+    public void A_directory_save_is_missing_when_its_unit_goes_though_the_shared_container_stays()
+    {
+        // File.Exists on a class C row's path asks about saves/psp/SAVEDATA, which stays while
+        // any PSP game has a save, so the unit is what has to be looked up.
+        Write("saves/psp/SAVEDATA/ULES01513SYSDATA/DATA.BIN", "one game");
+        Write("saves/psp/SAVEDATA/ULUS10064DATA00/DATA.BIN", "another game");
+
+        new SaveScanner(_session.Install, _session.Store).Scan();
+        var units = _session.Store.Saves.List();
+        Assert.Equal(2, units.Count);
+        Assert.All(units, save => Assert.Equal("saves/psp/SAVEDATA", save.Path.Value));
+
+        Directory.Delete(Path.Combine(_tree.Root, "saves", "psp", "SAVEDATA", "ULUS10064DATA00"), recursive: true);
+
+        var report = new InventorySweep(_session.Install, _session.Store).Plan();
+
+        var missing = Assert.Single(report.MissingSaves);
+        Assert.StartsWith("ULUS10064", missing.UnitKey, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void Write(string relative, string content)
+    {
+        var absolute = Path.Combine(_tree.Root, relative.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        File.WriteAllText(absolute, content);
+    }
+
     private void Row(string relative, long bytes, bool onDisk)
     {
         if (onDisk)

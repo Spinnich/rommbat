@@ -190,7 +190,7 @@ internal static class FlushCommand
 
         var saves = report.SavesSent!;
 
-        if (!quiet || saves.Failed > 0 || saves.Conflicts > 0)
+        if (!quiet || saves.Failed > 0 || saves.Conflicts > 0 || saves.SessionLeftOpen)
         {
             Console.WriteLine(saves.Summary);
         }

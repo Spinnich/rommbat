@@ -432,6 +432,22 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void An_unattributed_directory_save_is_named_by_its_unit_and_not_its_shared_container()
+    {
+        // Measured on the live install in stage 2 of #195: the #152 report printed
+        // "Files: saves/mame/nvram, saves/mame/nvram, ..." because every unit shares a container.
+        using var fixture = SaveTree.Create();
+        fixture.AddSave("psp", "SAVEDATA/ULES01513SYSDATA/DATA.BIN", "one game");
+        fixture.AddSave("psp", "SAVEDATA/ULUS10064DATA00/DATA.BIN", "another game");
+
+        fixture.Scan();
+
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.Reason == UnsyncableReason.Unattributed);
+        Assert.Contains("saves/psp/SAVEDATA/ULES01513", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/psp/SAVEDATA/ULUS10064", row.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Directory_saves_and_states_are_reported_once_per_system_with_a_real_count()
     {
         // Stage 1 ships neither, and the alternative to reporting them is a user whose PS3

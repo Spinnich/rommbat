@@ -249,7 +249,9 @@ public sealed class SaveFlushService
                 .RunAsync(cancellationToken)
                 .ConfigureAwait(false);
 
-            var failed = saves.Failed > 0 || playtime.Failed > 0 || states.Failed > 0;
+            // A session left open is a step this run attempted and failed, so it counts, even
+            // though every transfer landed (#148).
+            var failed = saves.Failed > 0 || saves.SessionLeftOpen || playtime.Failed > 0 || states.Failed > 0;
 
             return local with
             {

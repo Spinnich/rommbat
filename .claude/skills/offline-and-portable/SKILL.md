@@ -407,6 +407,12 @@ self-heals for a game somebody re-syncs and never for one nobody does.
 `InventorySweep` counts it and offers to forget the rows, which is safe by the rollback's own
 argument that a row must never outlive its bytes.
 
+**It reads `local_save` as well, and reports without repairing** (#142). A ROM row that is gone
+is the wrong claim and the next sync re-downloads it. A save row may be the last local record of
+a save only the server still has, and bringing that back is `saves restore`, which is asked for.
+A class C row is looked up as its `(container, key)` unit, because `File.Exists` on
+`saves/psp/SAVEDATA` stays true while any PSP game has a save.
+
 **The guard that matters was found by a probe, after the first argument for it turned out to be
 wrong.** The claim was that an unplugged drive cannot reach the sweep, since a tree that does not
 open has no session. True, and not enough: **a tree carrying `retrobat.ini`,

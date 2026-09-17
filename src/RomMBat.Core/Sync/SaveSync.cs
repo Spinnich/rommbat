@@ -43,6 +43,18 @@ public sealed record SaveSyncOutcome
     /// </remarks>
     public int Deferred { get; init; }
 
+    /// <summary>
+    /// The sync session could not be closed, and <see cref="Problems"/> says why.
+    /// </summary>
+    /// <remarks>
+    /// <b>A failure of this run, not an advisory, so the flush ends <c>Partial</c>.</b> Every
+    /// transfer still landed and still counts; what failed is a step the run attempted, and that
+    /// is what <c>Partial</c> means (#148). A token without <c>devices.write</c> fails it on every
+    /// flush, and the problem line names the scope, so a <c>Partial</c> that repeats has a fix:
+    /// pair again.
+    /// </remarks>
+    public bool SessionLeftOpen { get; init; }
+
     public long BytesTransferred { get; init; }
 
     public IReadOnlyList<string> Problems { get; init; } = [];
@@ -51,7 +63,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0;
+        && Skipped == 0 && Deferred == 0 && !SessionLeftOpen;
 
     public string Summary
     {
@@ -97,6 +109,11 @@ public sealed record SaveSyncOutcome
                 parts.Add($"{Skipped} skipped, for games not synced here");
             }
 
+            if (SessionLeftOpen)
+            {
+                parts.Add("the session was not closed");
+            }
+
             return "saves: " + string.Join(", ", parts);
         }
     }
@@ -113,7 +130,19 @@ public sealed record RestorableSave(
     long SizeBytes,
     string? ContentHash,
     string? Emulator,
-    DateTimeOffset? ServerUpdatedAt);
+    DateTimeOffset? ServerUpdatedAt)
+{
+    /// <summary>
+    /// Older server saves that resolve to the same file, newest first, and are not restored.
+    /// </summary>
+    /// <remarks>
+    /// Named rather than dropped (#156). Restoring them all writes one file several times and
+    /// leaves whichever came last, so a preview listing each as its own row promises something
+    /// the restore cannot do. A slot accumulates history up to <c>autocleanup_limit</c>, and a
+    /// null-slot row from RomM's web UI lands on the same file as the slotted ones.
+    /// </remarks>
+    public IReadOnlyList<RestorableSave> Folded { get; init; } = [];
+}
 
 /// <summary>
 /// A save the server holds for a game on this device that a restore cannot write.
@@ -123,6 +152,23 @@ public sealed record RestorableSave(
 /// silently missing from it reads as one the server does not hold.
 /// </remarks>
 public sealed record UnrestorableSave(int RomId, string Slot, string Reason);
+
+/// <summary>
+/// A save the server holds for a game on this device with no slot, which negotiate never offers.
+/// </summary>
+/// <remarks>
+/// Reported, and never given a derived slot (#138, ruled). Negotiate pairs on the slot, so no
+/// flush fetches one and none conflicts with one. A client that sets no slot writes these: RomM's
+/// web UI, and another client measured on <c>nes</c> as <c>emulator='fceumm'</c>. Deriving a slot
+/// risks two clients keying one save differently, so the honest thing is to say it is there.
+/// </remarks>
+public sealed record SlotlessSave(
+    int RomId,
+    int SaveId,
+    string? FileName,
+    string? Emulator,
+    long SizeBytes,
+    DateTimeOffset? ServerUpdatedAt);
 
 /// <summary>What the server holds for this device, split by whether it can be placed.</summary>
 public sealed record SaveRestoreFindings(
@@ -498,6 +544,8 @@ public sealed class SaveSync
 
         problems.AddRange(DescribePartialBatches(sent));
 
+        var leftOpen = false;
+
         try
         {
             // Reported honestly rather than optimistically: a conflict is not a completed
@@ -512,16 +560,23 @@ public sealed class SaveSync
                 .ConfigureAwait(false);
 
             // A refusal returns rather than throws. A 403 here leaves the session open on the
-            // server while every transfer reports success, so it has to be said.
+            // server while every transfer reports success, so it has to be said, and it names
+            // the scope because that is the one refusal with a remedy the reader can carry out.
             if (!closed.IsSuccess && !RomMConnection.AlreadyCompleted(closed))
             {
-                problems.Add($"the sync session could not be closed: {closed.Message}");
+                leftOpen = true;
+                problems.Add(closed.Status == RomMResponseStatus.Forbidden
+                    ? $"the sync session could not be closed: this pairing was not granted "
+                        + $"{RomMScopes.DevicesWrite}. Everything above still landed. Pair again to "
+                        + "grant it."
+                    : $"the sync session could not be closed: {closed.Message}");
             }
         }
         catch (RomMUnreachableException ex)
         {
             // The link dropped after the transfers. Everything that landed still landed, and a
             // session left open costs the server a stale row rather than costing anyone a save.
+            leftOpen = true;
             problems.Add($"the sync session could not be closed: {ex.Message}");
         }
 
@@ -534,6 +589,7 @@ public sealed class SaveSync
             Failed = failed,
             Skipped = skipped,
             Deferred = deferred,
+            SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
             Unresolved = conflicts,
@@ -657,8 +713,26 @@ public sealed class SaveSync
     /// another device reaches a game both hold. A row already in the tree is not a candidate,
     /// which is what keeps this from re-fetching the library.
     /// </para>
+    /// <para>
+    /// <b>Scans before it reads <c>local_save</c></b>, because the store is only the tree's
+    /// state as of the last scan. Measured on <c>nes</c> (#147): a save deleted by hand stayed
+    /// held until some other command scanned, so the first <c>saves restore</c> after a loss
+    /// offered nothing and the same command offered it once <c>saves</c> had run. States are
+    /// scanned first for the reason <c>saves</c> scans them first: the sidecar attribution route
+    /// reads <c>local_state</c> (#64).
+    /// </para>
+    /// <para>
+    /// <b>One candidate per destination, the newest</b>, with the rest on
+    /// <see cref="RestorableSave.Folded"/> (#156). Narrowing happens first, so a person asking
+    /// for one slot gets that slot's newest row even where a newer row from another slot, or
+    /// from none, shares the file.
+    /// </para>
     /// </remarks>
+    /// <param name="onlyRom">Only saves for this ROM, when given.</param>
+    /// <param name="onlySlot">Only saves in this slot, when given. The empty string is no slot.</param>
     public async Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
+        int? onlyRom = null,
+        string? onlySlot = null,
         CancellationToken cancellationToken = default)
     {
         var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
@@ -669,6 +743,15 @@ public sealed class SaveSync
                 listed.Status,
                 listed.Message ?? "The save list could not be read.");
         }
+
+        var schema = StateScanner.LoadSchema(_install);
+
+        if (schema is not null)
+        {
+            new StateScanner(_install, _store, schema, _time).Scan();
+        }
+
+        new SaveScanner(_install, _store, _shapes, schema, _time).Scan();
 
         var held = _store.Saves.List()
             .Where(save => save.RomId is not null)
@@ -683,6 +766,12 @@ public sealed class SaveSync
             // A null slot is the server's own shape for the older rows, and the empty string is
             // what every key in this class already uses for one.
             var slot = row.Slot ?? string.Empty;
+
+            if ((onlyRom is { } rom && row.RomId != rom)
+                || (onlySlot is not null && !string.Equals(slot, onlySlot, StringComparison.Ordinal)))
+            {
+                continue;
+            }
 
             if (held.Contains((row.RomId, slot)))
             {
@@ -733,9 +822,9 @@ public sealed class SaveSync
                 continue;
             }
 
-            // The store is rebuilt from the tree, so a row missing above should mean a file
-            // missing here. Checked anyway, because restoring over a file nobody asked about
-            // is the one outcome this feature must never produce.
+            // The scan above rebuilt the store from the tree, so a row missing there should mean
+            // a file missing here. Checked anyway, because restoring over a file nobody asked
+            // about is the one outcome this feature must never produce.
             if (File.Exists(_install.Resolve(destination)))
             {
                 continue;
@@ -752,8 +841,64 @@ public sealed class SaveSync
                 row.UpdatedAt));
         }
 
-        return RomMResponse.Success(new SaveRestoreFindings(found, unrestorable));
+        return RomMResponse.Success(new SaveRestoreFindings(CollapseByDestination(found), unrestorable));
     }
+
+    /// <summary>
+    /// Server saves with no slot for a ROM this device holds, which no flush will ever fetch.
+    /// </summary>
+    /// <remarks>
+    /// Blank rather than null is the test, since whitespace and the empty string sit outside the
+    /// protocol the same way. A ROM not on this device is left out, because negotiate would not
+    /// place its save here either and a partial library is the ordinary case. Reads the same
+    /// unfiltered <c>GET /api/saves</c> a restore does, and writes nothing.
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyList<SlotlessSave>>> FindSlotlessAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var listed = await _connection.ListAllSavesAsync(cancellationToken).ConfigureAwait(false);
+
+        if (!listed.IsSuccess || listed.Value is not { } rows)
+        {
+            return RomMResponse.Failure<IReadOnlyList<SlotlessSave>>(
+                listed.Status,
+                listed.Message ?? "The save list could not be read.");
+        }
+
+        IReadOnlyList<SlotlessSave> slotless = [.. rows
+            .Where(row => string.IsNullOrWhiteSpace(row.Slot)
+                && _store.Files.ForRom(row.RomId, LocalFileKind.Rom).Count > 0)
+            .OrderBy(row => row.RomId)
+            .ThenBy(row => row.Id)
+            .Select(row => new SlotlessSave(
+                row.RomId,
+                row.Id,
+                row.FileName,
+                row.Emulator,
+                row.FileSizeBytes,
+                row.UpdatedAt))];
+
+        return RomMResponse.Success(slotless);
+    }
+
+    /// <summary>The newest candidate for each destination, carrying the older ones it folded.</summary>
+    /// <remarks>
+    /// Newest by the server's <c>updated_at</c>, then by save id, since ids only grow. A null
+    /// slot does not lose to a slotted row or beat one: whichever is newer is the save the
+    /// person last made, and the preview names the other.
+    /// </remarks>
+    private static List<RestorableSave> CollapseByDestination(List<RestorableSave> found) =>
+        [.. found
+            .GroupBy(save => save.Destination)
+            .Select(group =>
+            {
+                var newest = group
+                    .OrderByDescending(save => save.ServerUpdatedAt ?? DateTimeOffset.MinValue)
+                    .ThenByDescending(save => save.SaveId)
+                    .ToList();
+
+                return newest[0] with { Folded = newest[1..] };
+            })];
 
     /// <summary>
     /// Fetches the given saves into the tree.

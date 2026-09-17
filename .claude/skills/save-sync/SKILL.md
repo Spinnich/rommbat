@@ -43,6 +43,15 @@ on it: all three sending passes absorb `RomMUnreachableException` per item and r
 server that goes away mid-flush ends the pass `Partial`. The outer catch is inherited from the
 subcommand rather than designed.
 
+**`Partial` means this run failed at something it attempted, and nothing else** (#148). A
+session close the server refuses counts, though every transfer landed: a token without
+`devices.write` fails it on every flush, and the line names the scope so the repeat has a remedy.
+On `saves restore --apply` a row the find could not place does not count, since the run never
+attempted it: such rows are mostly a standing property of the library, and on the measured `nes`
+install 18 states scoped by core pinned every restore at 7 with `failed 0`. They are printed and
+counted beside the result instead. The flush is different on one row and keeps it: an offered
+bundled slot with no local unit is `Failed`, because it has a remedy, run the game once.
+
 ## Save states: parse, do not hardcode
 
 `.emulationstation/es_savestates.cfg` gives directory, file, image, autosave templates and
@@ -571,6 +580,14 @@ hash, folded into one digest. The archive is transport only.
   indistinguishable from a bug to whoever deleted it deliberately, so finding is separate from
   restoring and `--apply` is required for either.
 
+  **The find scans the tree before it reads `local_save`.** A row already held is not a
+  candidate, and the store is only the tree as of the last scan, so a save deleted by hand stayed
+  held and the first `saves restore` after the loss offered nothing. Measured on `nes`: the same
+  command offered it once `saves` had run in between (#147). The scan lives in
+  `SaveSync.FindRestorableAsync` rather than in the subcommand, states first for the #64 reason,
+  so every caller of the find gets a true store. It costs a full save scan, the one `saves` pays
+  on every run.
+
   **The find applies every guard the flush's download applies, at the same decision point.** A
   restore reaches `DownloadAsync` with a null local save, which is the same state an unsolicited
   negotiate download arrives in, so a rule written into the flush and not into the find is a rule
@@ -623,6 +640,18 @@ hash, folded into one digest. The archive is transport only.
   `ForgetMissing` drops the row. Proven by the no-op re-sync assertion: restore, scan, push, zero
   uploaded.
 
+  **A restored state brings its screenshot only when the server links one** (#158). The find
+  carries the id from the state row's `screenshot` field, and the write fetches
+  `GET /api/screenshots/{id}/content` into the emulator's declared `<image>`, named from the ROM
+  on disk through the template for the reason the state is. Best-effort, like the upload: a fetch
+  that fails costs a line and the state still counts as restored, and an image already in the
+  tree is left alone. **The client half is closed and the server half is not.** A state whose
+  image RomM stored and did not link reads `screenshot: null` (`docs/retrobat-findings.md`
+  finding 138), and there is nothing to follow, so that state comes back without one. So does a
+  linked one for an emulator whose `<image>` is its `<file>`, DeSmuME, which has nowhere to put
+  it; the find keeps the id either way, so the preview says per row which of the three it is. `DetailedRomSchema.user_screenshots` might reach such an orphan
+  by name, and that is unmeasured, so it is not built on.
+
   **The version rule is a statement here, not a comparison, and saying so is the whole of it.**
   `save-sync` and `PLAN.md` both say never silently restore a state made by a different emulator
   version. Neither side can perform that check: `ScopeOf` uploads `emulator[.core]` with no
@@ -641,7 +670,8 @@ hash, folded into one digest. The archive is transport only.
   **A failure reading `/api/states` must not take the save restore down with it.** They are
   independent reads. A token whose scopes do not cover the route, or a 500 from it, used to
   return `Offline` before a single save was written. It is now reported and carried, and an
-  `--apply` that could not see the state half ends `Partial`.
+  `--apply` that could not see the state half ends `Partial`. A state it can see and cannot place
+  does not, for the rule under "Where the flush passes live".
 
   **The `<slot>` positional narrows saves only, and the help says so.** A state's slot lives in
   its file extension and shares no namespace with a save's key, so matching one against the
@@ -791,12 +821,22 @@ returning.
 produces a row that RomMBat can neither reconcile nor collide with. Measured end to end on a live
 5.2.0 instance:
 
-- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138).
+- Negotiate keys on the slot, so a null-slot save is **never fetched** (#138). **Reported, and no
+  slot is derived for it** (ruled): a derived slot may not match what the originating client
+  would use, and two clients keying one save differently is worse than a save sitting visible.
+  `saves` reads `GET /api/saves` when the install is paired and lists every blank-slot row for a
+  ROM on this device, via `SaveSync.FindSlotlessAsync`. It is the one network read in that
+  report, so `--offline` skips it and a failed read costs one line and not the exit code.
 - It also **cannot conflict**. A save uploaded through RomM's own web UI, which sets no slot, left
   the device's record for `libretro:battery` current, and the next flush uploaded over it with no
   409 and no mention.
-- It still **resolves to the same destination path** as the slotted rows for that ROM, so
-  `saves restore` offers it beside them with nothing to distinguish which one wins (#156).
+- It still **resolves to the same destination path** as the slotted rows for that ROM. So does a
+  slot's own history. `saves restore` used to offer every one as its own restore, and applying
+  them wrote one file repeatedly and kept whichever came last (#156). **The find now keeps the
+  newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
+  names the rows it folded and says when a null-slot row and a slotted one share the file. It
+  narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
+  row even where a newer null-slot row shares the file.
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something

@@ -101,6 +101,8 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Contains(outcome.Problems, problem => problem.Contains("could not be closed", StringComparison.Ordinal));
+        Assert.True(outcome.SessionLeftOpen);
+        Assert.False(outcome.IsNoOp);
     }
 
     [Fact]
@@ -116,6 +118,7 @@ public class SaveSyncTests
 
         Assert.Equal(1, outcome.Uploaded);
         Assert.Empty(outcome.Problems);
+        Assert.False(outcome.SessionLeftOpen);
     }
 
     [Fact]
@@ -1541,6 +1544,121 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_save_deleted_since_the_last_scan_is_offered_by_the_first_restore()
+    {
+        // #147, measured on nes: the store still held the row for a file deleted by hand, so the
+        // first restore offered nothing and only a run after some other scan found it. No scan
+        // runs between the delete and the find here, which is the whole of the case.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+        Assert.Single(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the server");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal("saves/gb/Tetris (World).srm", pick.Destination.Value);
+        Assert.Empty(fixture.Store.Saves.List());
+    }
+
+    [Fact]
+    public async Task Server_saves_that_land_on_one_file_are_offered_once_as_the_newest()
+    {
+        // #156, measured on nes: four server rows for one ROM, three of a slot's history and one
+        // from the web UI with no slot, all resolving to one .srm and listed as four restores.
+        // Applying them wrote one file four times and kept whichever came last.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+
+        var at = new DateTimeOffset(2026, 9, 13, 11, 32, 0, TimeSpan.Zero);
+        SeedAt(fixture, 101, "libretro:battery", "oldest", at);
+        SeedAt(fixture, 102, "libretro:battery", "older", at.AddMinutes(6));
+        SeedAt(fixture, 103, string.Empty, "from the web UI", at.AddMinutes(67));
+        SeedAt(fixture, 104, "libretro:battery", "newest", at.AddMinutes(74));
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var pick = Assert.Single(Assert.IsType<SaveRestoreFindings>(found.Value).Restorable);
+
+        Assert.Equal(104, pick.SaveId);
+        Assert.Equal([103, 102, 101], pick.Folded.Select(save => save.SaveId));
+        Assert.Equal(string.Empty, pick.Folded[0].Slot);
+
+        var outcome = await fixture.RestoreAsync([pick], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal("newest", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task Narrowing_to_a_slot_happens_before_saves_on_one_file_are_folded()
+    {
+        // A newer row with no slot shares the file. Asking for the slot by name has to get the
+        // slot's newest row, not an empty answer because the fold kept the other one.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+        File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
+
+        var at = new DateTimeOffset(2026, 9, 13, 11, 32, 0, TimeSpan.Zero);
+        SeedAt(fixture, 101, "libretro:battery", "slotted", at);
+        SeedAt(fixture, 102, string.Empty, "from the web UI", at.AddHours(1));
+
+        var all = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(102, Assert.Single(all.Value!.Restorable).SaveId);
+
+        var narrowed = await fixture.FindRestorableAsync(
+            7,
+            "libretro:battery",
+            TestContext.Current.CancellationToken);
+
+        var pick = Assert.Single(narrowed.Value!.Restorable);
+        Assert.Equal(101, pick.SaveId);
+        Assert.Empty(pick.Folded);
+    }
+
+    [Fact]
+    public async Task Server_saves_with_no_slot_for_a_game_here_are_reported_and_nothing_else_is()
+    {
+        // #138, ruled: report them and derive no slot. Negotiate pairs on the slot, so these
+        // are never fetched, and on nes two such saves sat unmentioned through every flush.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played once");
+        fixture.AddGame(8, "gb", "Dr. Mario (World)", ".zip", ".srm", "played once");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "slotted", id: 101);
+        fixture.SeedServerSave(7, string.Empty, "Tetris (World)", "srm", "from the web UI", id: 102);
+        fixture.SeedServerSave(7, "   ", "Tetris (World)", "srm", "whitespace", id: 103);
+        fixture.SeedServerSave(8, "libretro:battery", "Dr. Mario (World)", "srm", "null on the wire", id: 104);
+        fixture.Stub.SlotlessDownloads.Add(8);
+        fixture.SeedServerSave(4242, string.Empty, "Not Here", "srm", "rom not on this device", id: 105);
+
+        var found = await fixture.FindSlotlessAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(found.IsSuccess);
+        Assert.Equal([102, 103, 104], found.Value!.Select(save => save.SaveId));
+
+        // Reported, not acted on: nothing was written and no slot was made up.
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal(
+            "played once",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    private static void SeedAt(SyncFixture fixture, int id, string slot, string contents, DateTimeOffset at)
+    {
+        fixture.SeedServerSave(7, slot, "Tetris (World)", "srm", contents, id: id);
+        fixture.Stub.Saves[id] = fixture.Stub.Saves[id] with { UpdatedAt = at };
+    }
+
+    [Fact]
     public async Task A_save_already_in_the_tree_is_not_offered_for_restore()
     {
         // Restoring over a file nobody asked about is the one outcome this feature must never
@@ -1897,7 +2015,18 @@ public class SaveSyncTests
 
         public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
             CancellationToken cancellationToken = default) =>
-            new SaveSync(Install, Store, _connection, DeviceId).FindRestorableAsync(cancellationToken);
+            FindRestorableAsync(null, null, cancellationToken);
+
+        public Task<RomMResponse<IReadOnlyList<SlotlessSave>>> FindSlotlessAsync(
+            CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId).FindSlotlessAsync(cancellationToken);
+
+        public Task<RomMResponse<SaveRestoreFindings>> FindRestorableAsync(
+            int? onlyRom,
+            string? onlySlot,
+            CancellationToken cancellationToken = default) =>
+            new SaveSync(Install, Store, _connection, DeviceId)
+                .FindRestorableAsync(onlyRom, onlySlot, cancellationToken);
 
         public Task<SaveRestoreOutcome> RestoreAsync(
             IReadOnlyList<RestorableSave> picks,

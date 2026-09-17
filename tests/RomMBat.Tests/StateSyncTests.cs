@@ -141,6 +141,134 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_restored_state_brings_its_screenshot_when_the_server_links_one()
+    {
+        // #158, measured on nes: the .srm and the .state1 came back byte-identically and the
+        // .state1.png did not, because the restore dropped the screenshot before it could fetch it.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1.png", "png bytes");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var state = fixture.Install.Resolve(RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        var image = state + ".png";
+        File.Delete(state);
+        File.Delete(image);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/snes/libretro.snes9x/ActRaiser (USA).state1.png",
+            candidate.ScreenshotDestination?.Value);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(1, outcome.Screenshots);
+        Assert.Empty(outcome.Problems);
+        Assert.Equal("png bytes", File.ReadAllText(image));
+
+        // Replaying the push over the restored pair sends nothing.
+        fixture.Scan();
+        var after = await fixture.PushAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, after.Uploaded);
+    }
+
+    [Fact]
+    public async Task A_state_the_server_links_no_screenshot_to_restores_without_one_and_says_nothing_failed()
+    {
+        // The upstream half of #158, finding 138: the image was uploaded and not linked, so the
+        // state row reads screenshot: null. The state still comes back and counts.
+        using var fixture = StateFixture.Create();
+        fixture.Stub.DropScreenshots = true;
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1.png", "png bytes");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var state = fixture.Install.Resolve(RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(state);
+        File.Delete(state + ".png");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+        Assert.Null(candidate.ScreenshotDestination);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Screenshots);
+        Assert.Empty(fixture.Stub.ScreenshotRequests);
+        Assert.False(File.Exists(state + ".png"));
+    }
+
+    [Fact]
+    public async Task A_linked_screenshot_for_an_emulator_that_declares_no_image_is_found_and_not_fetched()
+    {
+        // DeSmuME's <image> is its <file>, so there is nowhere to put one, but a row another
+        // client wrote can still link a screenshot. The find keeps the link apart from the
+        // destination, or the preview cannot tell this from a server that links none.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nds", "Game (USA).nds");
+        fixture.AddState("nds/DeSmuME/stateslots", "Game (USA).ds1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var row = Assert.Single(fixture.Stub.States.Values);
+        fixture.Stub.States[row.Id] = row with
+        {
+            ScreenshotName = "Game (USA).png",
+            ScreenshotBytes = "png bytes"u8.ToArray(),
+        };
+
+        var state = fixture.Install.Resolve(RelativePath.Create("saves/nds/DeSmuME/stateslots/Game (USA).ds1"));
+        File.Delete(state);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.NotNull(candidate.ScreenshotId);
+        Assert.Null(candidate.ScreenshotDestination);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Screenshots);
+        Assert.Empty(fixture.Stub.ScreenshotRequests);
+    }
+
+    [Fact]
+    public async Task A_screenshot_that_cannot_be_fetched_costs_a_line_and_not_the_state()
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1.png", "png bytes");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var state = fixture.Install.Resolve(RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(state);
+        File.Delete(state + ".png");
+
+        fixture.Stub.FailScreenshotDownload = HttpStatusCode.InternalServerError;
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var outcome = await fixture.RestoreAsync(found.Value!.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal("progress", File.ReadAllText(state));
+        Assert.Contains(outcome.Problems, problem => problem.Contains("without its screenshot", StringComparison.Ordinal));
+        Assert.False(File.Exists(state + ".png"));
+        Assert.Empty(Directory.EnumerateFiles(fixture.Install.Resolve(RetroBatInstall.PartialDirectory)));
+    }
+
+    [Fact]
     public async Task A_state_for_a_rom_this_device_does_not_hold_is_dropped_without_a_word()
     {
         // The one skip that is ordinary rather than a finding. A device holding a subset of the

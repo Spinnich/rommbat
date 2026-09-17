@@ -161,7 +161,7 @@ internal static class Program
         Console.Error.WriteLine("  --server <url>    The RomM origin. Remembered after the first pairing");
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
-        Console.Error.WriteLine("  --offline         status, sync, bios: work from local state without the server");
+        Console.Error.WriteLine("  --offline         status, sync, bios, saves: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. saves restore: actually");
         Console.Error.WriteLine("                    write. Without it, none of the three writes");
@@ -171,8 +171,8 @@ internal static class Program
         Console.Error.WriteLine("  --media <kinds>   gamelist: which artwork to fetch, e.g. image,thumbnail,video");
         Console.Error.WriteLine("  --no-reload       gamelist: write the files without telling EmulationStation");
         Console.Error.WriteLine("  --no-scan         saves: report what is recorded without rescanning the tree");
-        Console.Error.WriteLine("  --check-files     status: report recorded files whose copy is gone from the tree");
-        Console.Error.WriteLine("  --repair-files    status: drop those rows, so the budget stops counting them");
+        Console.Error.WriteLine("  --check-files     status: report recorded files and saves whose copy is gone from the tree");
+        Console.Error.WriteLine("  --repair-files    status: drop those file rows, so the budget stops counting them. Saves stay");
         Console.Error.WriteLine("  --keep-local      saves resolve: send this device's copy over the server's");
         Console.Error.WriteLine("  --keep-server     saves resolve: take the server's copy over this device's");
     }

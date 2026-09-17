@@ -429,7 +429,10 @@ public sealed class SaveScanner
                     UnsyncableReason.Unattributed,
                     attribution.Detail,
                     unit.Files.Count,
-                    unit.Container.Value);
+
+                    // The unit, not its container: every unit on a system shares the container,
+                    // so the report named saves/mame/nvram once per unit and told nobody which.
+                    $"{unit.Container.Value}/{unit.Key}");
             }
         }
 

@@ -72,6 +72,14 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    `bios/openmsx/savestates/` instead. `flycast` was the second until RetroBat 8.2.1 fixed
    `emulatorlauncher#1336`; on the supported floor its declared `flycast/sstates` is
    populated and is the one to read, so confirm it rather than expecting it to be empty.
+
+   **The screenshot half cannot pass today, on any row, and that is upstream's.** A restore
+   brings a screenshot back only when the state row links one (#158), and RomM stores the image
+   and leaves `screenshot: null`: about a third of uploads on 5.2.0, and 7 of 7 measured at the
+   5.3.0-alpha.2 floor (`docs/retrobat-findings.md` findings 138 and 256). Read the row after the upload: a linked
+   screenshot that comes back is a pass, and a null link is recorded as that finding recurring,
+   not as a RomMBat fault and not as a pass.
+
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
 

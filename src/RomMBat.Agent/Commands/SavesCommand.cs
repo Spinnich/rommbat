@@ -1,4 +1,5 @@
 using System.Globalization;
+using RomM.Client;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Store;
@@ -79,6 +80,7 @@ internal static class SavesCommand
 
         ReportSaves(context);
         ReportStates(context);
+        await ReportSlotlessAsync(context, command, cancellationToken).ConfigureAwait(false);
         ReportConflicts(context);
         ReportBindings(context);
         ReportUnsyncable(context);
@@ -222,6 +224,99 @@ internal static class SavesCommand
                 $"  {status,-9} {ByteSize.Format(state.SizeBytes),8}  {state.Slot,-28}{version}");
             Console.WriteLine($"  {string.Empty,-9} {string.Empty,8}  {state.Path}");
         }
+    }
+
+    /// <summary>
+    /// Saves the server holds for a game here with no slot, which no sync will ever fetch.
+    /// </summary>
+    /// <remarks>
+    /// <b>The one part of this report that asks the server</b>, because nothing local can know
+    /// (#138). Negotiate pairs on the slot, so these never reach a flush, and a person who never
+    /// runs <c>saves restore</c> would never learn they exist. Skipped with <c>--offline</c> or on
+    /// an install that is not paired, and a read that fails costs one line: everything else here
+    /// is answered locally and still prints, and the exit code does not move.
+    /// </remarks>
+    private static async Task ReportSlotlessAsync(
+        AgentContext context,
+        CommandLine command,
+        CancellationToken cancellationToken)
+    {
+        if (command.Has("offline")
+            || context.Store.Device.Read() is not { IsPaired: true, RomMDeviceId: { } deviceId })
+        {
+            return;
+        }
+
+        const string NotChecked = "Server saves with no slot: not checked, because ";
+
+        using var why = new StringWriter();
+        using var connection = context.Authenticate(command, why, out _);
+
+        if (connection is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + why.ToString().Trim());
+            return;
+        }
+
+        RomMResponse<IReadOnlyList<SlotlessSave>> found;
+
+        try
+        {
+            found = await new SaveSync(context.Install, context.Store, connection, deviceId)
+                .FindSlotlessAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + "the server is not reachable. Pass --offline to skip this.");
+            return;
+        }
+        catch (RomMApiException)
+        {
+            // A 200 whose body is not the list: a proxy's login page, or a save row this client
+            // cannot read. An error status comes back as a failed response instead.
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + "the server's answer could not be read.");
+            return;
+        }
+
+        if (!found.IsSuccess || found.Value is not { } slotless)
+        {
+            Console.WriteLine();
+            Console.WriteLine(NotChecked + (found.Message ?? "the save list could not be read."));
+            return;
+        }
+
+        if (slotless.Count == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(
+            $"{slotless.Count} saves on the server have no slot, so no sync will fetch them. "
+                + "RomMBat does not give them one:");
+
+        foreach (var save in slotless.Take(MaxListedSaves))
+        {
+            var when = save.ServerUpdatedAt is { } stamp
+                ? stamp.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+                : "unknown";
+
+            Console.WriteLine(
+                $"  rom {save.RomId}  save {save.SaveId}  {save.Emulator ?? "(no emulator)",-12} "
+                    + $"{ByteSize.Format(save.SizeBytes),8}  {when}  {save.FileName}");
+        }
+
+        if (slotless.Count > MaxListedSaves)
+        {
+            Console.WriteLine($"  and {slotless.Count - MaxListedSaves} more, not listed.");
+        }
+
+        Console.WriteLine(
+            "  'saves restore <rom>' offers one when this device has no save for that game.");
     }
 
     /// <summary>
@@ -747,7 +842,7 @@ internal static class SavesCommand
         }
 
         var sync = new SaveSync(context.Install, context.Store, connection, deviceId);
-        var found = await sync.FindRestorableAsync(cancellationToken).ConfigureAwait(false);
+        var found = await sync.FindRestorableAsync(romFilter, slotFilter, cancellationToken).ConfigureAwait(false);
 
         if (!found.IsSuccess || found.Value is not { } findings)
         {
@@ -786,19 +881,12 @@ internal static class SavesCommand
         }
 
         // Narrowed by rom id, and by slot when one is given, so a person who wants one save back
-        // is not made to take every save back. <b>The slot narrows saves only</b>, and the help
-        // says so: a state's slot lives in its file extension and shares no namespace with a
-        // save's key, so matching one against the other would filter on a coincidence.
+        // is not made to take every save back. The save half narrows inside the find, ahead of
+        // folding saves that share a file. <b>The slot narrows saves only</b>, and the help says
+        // so: a state's slot lives in its file extension and shares no namespace with a save's
+        // key, so matching one against the other would filter on a coincidence.
         if (romFilter is { } wanted)
         {
-            restorable = [.. restorable.Where(save =>
-                save.RomId == wanted
-                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
-
-            unrestorable = [.. unrestorable.Where(save =>
-                save.RomId == wanted
-                && (slotFilter is null || string.Equals(save.Slot, slotFilter, StringComparison.Ordinal)))];
-
             restorableStates = [.. restorableStates.Where(state => state.RomId == wanted)];
             unrestorableStates = [.. unrestorableStates.Where(state => state.RomId == wanted)];
         }
@@ -817,10 +905,7 @@ internal static class SavesCommand
             Console.Error.WriteLine($"  rom {state.RomId} state {state.Scope}: {state.Reason}");
         }
 
-        // Only --apply can end Partial. A preview was not asked to change anything, so anything it
-        // named as unplaceable is an advisory rather than a failed attempt.
         var applying = command.Has("apply");
-        var incomplete = unrestorable.Count > 0 || unrestorableStates.Count > 0 || statesUnread;
 
         if (restorable.Count == 0 && restorableStates.Count == 0)
         {
@@ -829,18 +914,42 @@ internal static class SavesCommand
                     ? "Nothing to restore: the rows above are the only ones missing here, and none can be placed."
                     : "Nothing to restore: every save and state the server holds for a game on this device is already here.");
 
-            return applying && incomplete ? ExitCode.Partial : ExitCode.Ok;
+            return RestoreExitCode(applying, new SaveRestoreOutcome(), new StateRestoreOutcome(), statesUnread);
         }
 
         static string When(DateTimeOffset? stamp) => stamp is { } value
             ? value.UtcDateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
             : "unknown";
 
+        static string SlotOf(RestorableSave save) => save.Slot.Length == 0 ? "(no slot)" : save.Slot;
+
         foreach (var save in restorable)
         {
             Console.WriteLine(
-                $"  save   rom {save.RomId}  {(save.Slot.Length == 0 ? "(no slot)" : save.Slot),-20} "
+                $"  save   rom {save.RomId}  {SlotOf(save),-20} "
                     + $"{ByteSize.Format(save.SizeBytes),9}  {When(save.ServerUpdatedAt)}  {save.Destination}");
+
+            // #156. Every row here lands on the same file, so only the newest is restored and the
+            // rest are named, never offered as saves of their own.
+            if (save.Folded.Count == 0)
+            {
+                continue;
+            }
+
+            Console.WriteLine(
+                $"         the newest of {save.Folded.Count + 1} server saves for this file. Not restored:");
+
+            foreach (var older in save.Folded)
+            {
+                Console.WriteLine(
+                    $"           save {older.SaveId}  {SlotOf(older),-20} {When(older.ServerUpdatedAt)}");
+            }
+
+            if (save.Folded.Any(older => older.Slot.Length == 0 != (save.Slot.Length == 0)))
+            {
+                Console.WriteLine(
+                    "         a save with no slot shares this file with a slotted one. The newer was kept.");
+            }
         }
 
         foreach (var state in restorableStates)
@@ -848,6 +957,17 @@ internal static class SavesCommand
             Console.WriteLine(
                 $"  state  rom {state.RomId}  {state.Scope,-20} "
                     + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
+
+            // Said per row, because whether a screenshot comes back is decided by the server
+            // linking one, which it does not always do (docs/retrobat-findings.md finding 138), and
+            // on the emulator declaring an image apart from its state file, which DeSmuME does not.
+            Console.WriteLine(state switch
+            {
+                { ScreenshotDestination: { } image } => $"         with its screenshot, {image.Name}",
+                { ScreenshotId: not null } =>
+                    $"         no screenshot: {state.Emulator} keeps none beside its states",
+                _ => "         no screenshot: the server links none to this state",
+            });
         }
 
         Console.WriteLine();
@@ -879,6 +999,7 @@ internal static class SavesCommand
             Console.WriteLine(
                 $"{restorable.Count} save(s) and {restorableStates.Count} state(s) to restore. Nothing was "
                     + "written. Run 'saves restore --apply' to bring these in.");
+            ReportUnplaceable(unrestorable.Count, unrestorableStates.Count);
             return ExitCode.Ok;
         }
 
@@ -916,7 +1037,8 @@ internal static class SavesCommand
         Console.WriteLine(
             $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
                 + $"failed {outcome.Failed + stateOutcome.Failed}, "
-                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}");
+                + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}"
+                + (stateOutcome.Screenshots > 0 ? $", with {stateOutcome.Screenshots} screenshot(s)" : string.Empty));
 
         if (waiting > 0)
         {
@@ -927,11 +1049,55 @@ internal static class SavesCommand
                     + "Close it, then run this again.");
         }
 
-        // A refused state half is Partial rather than Refused: the saves did land, so this run is
-        // not the "nothing was changed" that Refused promises. A deferral is Partial for the same
-        // reason: less was written than was asked for, and nothing was lost doing it.
-        return outcome.Failed + stateOutcome.Failed > 0 || stateOutcome.Refused || incomplete
-            || waiting > 0
+        ReportUnplaceable(unrestorable.Count, unrestorableStates.Count);
+
+        return RestoreExitCode(applying, outcome, stateOutcome, statesUnread);
+    }
+
+    /// <summary>
+    /// The count behind the unplaceable rows listed above, said once and kept off the exit code.
+    /// </summary>
+    private static void ReportUnplaceable(int saves, int states)
+    {
+        if (saves + states == 0)
+        {
+            return;
+        }
+
+        Console.WriteLine(
+            $"{saves} save(s) and {states} state(s) listed above cannot be placed on this install. "
+                + "They were skipped and do not change the exit code.");
+    }
+
+    /// <summary>
+    /// <c>Partial</c> when this run failed at something it attempted, and never otherwise.
+    /// </summary>
+    /// <remarks>
+    /// <b>A row nothing can place is not a parameter here, and that is the rule (#148).</b> Rows
+    /// uploaded by a client that scopes states by core are a standing property of the library, so
+    /// counting them pinned every run on such an install at 7, measured on <c>nes</c> with 18 of
+    /// them, and a code that never moves tells nobody anything. They are still printed, and
+    /// counted beside the result.
+    /// <para>
+    /// Only <c>--apply</c> can end <c>Partial</c>, since a preview attempted nothing. A state list
+    /// that could not be read is a failure of this run: it was asked to restore states and could
+    /// not see them. A refused state half is <c>Partial</c> rather than <c>Refused</c>, because
+    /// the saves landed, and a deferral is <c>Partial</c> because less was written than was asked.
+    /// </para>
+    /// </remarks>
+    internal static int RestoreExitCode(
+        bool applying,
+        SaveRestoreOutcome saves,
+        StateRestoreOutcome states,
+        bool statesUnread)
+    {
+        if (!applying)
+        {
+            return ExitCode.Ok;
+        }
+
+        return saves.Failed + states.Failed > 0 || states.Refused || statesUnread
+            || saves.Deferred + states.Deferred > 0
             ? ExitCode.Partial
             : ExitCode.Ok;
     }

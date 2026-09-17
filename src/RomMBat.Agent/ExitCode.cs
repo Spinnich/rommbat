@@ -37,7 +37,12 @@ internal static class ExitCode
     /// <summary>The user cancelled.</summary>
     public const int Cancelled = 6;
 
-    /// <summary>Some of the work landed and some is still queued.</summary>
+    /// <summary>
+    /// The run failed at something it attempted, and the rest landed. Never a report about data
+    /// no run can act on, such as a server row this install cannot place (#148). A flush whose
+    /// session close is refused for a scope ends here rather than at <see cref="NotPaired"/>,
+    /// because its transfers did land.
+    /// </summary>
     public const int Partial = 7;
 
     /// <summary>

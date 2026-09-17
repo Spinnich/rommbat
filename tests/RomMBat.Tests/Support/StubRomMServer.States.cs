@@ -40,6 +40,12 @@ internal sealed partial class StubRomMServer
     /// <summary>Fails every state content read with this status.</summary>
     public HttpStatusCode? FailStateDownload { get; set; }
 
+    /// <summary>Fails every screenshot content read with this status.</summary>
+    public HttpStatusCode? FailScreenshotDownload { get; set; }
+
+    /// <summary>Screenshot ids served, in order.</summary>
+    public IList<int> ScreenshotRequests { get; } = [];
+
     /// <summary>
     /// Accepts a screenshot and answers as though it was never attached.
     /// </summary>
@@ -56,7 +62,8 @@ internal sealed partial class StubRomMServer
     public static bool IsStateRoute(string path) =>
         path.EndsWith("/api/states", StringComparison.Ordinal)
         || path.EndsWith("/api/states/delete", StringComparison.Ordinal)
-        || (path.Contains("/api/states/", StringComparison.Ordinal)
+        || ((path.Contains("/api/states/", StringComparison.Ordinal)
+                || path.Contains("/api/screenshots/", StringComparison.Ordinal))
             && path.EndsWith("/content", StringComparison.Ordinal));
 
     private async Task<HttpResponseMessage> StateRouteAsync(
@@ -67,6 +74,26 @@ internal sealed partial class StubRomMServer
         if (path.EndsWith("/api/states/delete", StringComparison.Ordinal))
         {
             return Json(HttpStatusCode.OK, new { ok = true });
+        }
+
+        // GET /api/screenshots/{id}/content. The id is the one Describe hands out, the state's
+        // own id plus 1000.
+        if (path.Contains("/api/screenshots/", StringComparison.Ordinal))
+        {
+            var screenshotId = int.Parse(
+                path.Split('/', StringSplitOptions.RemoveEmptyEntries)[^2],
+                CultureInfo.InvariantCulture);
+
+            ScreenshotRequests.Add(screenshotId);
+
+            if (FailScreenshotDownload is { } screenshotStatus)
+            {
+                return Detail(screenshotStatus, "the screenshot could not be read");
+            }
+
+            return States.Values.FirstOrDefault(state => state.Id + 1000 == screenshotId) is { ScreenshotBytes: { } image }
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(image) }
+                : Detail(HttpStatusCode.NotFound, "no such screenshot");
         }
 
         // GET /api/states/{id}/content, which is what a restore reads. States carry no hash, so

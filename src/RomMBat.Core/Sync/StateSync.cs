@@ -99,7 +99,21 @@ public sealed record RestorableState(
     string Core,
     string SlotKey,
     string? UploadedFileName,
-    DateTimeOffset? ServerUpdatedAt);
+    DateTimeOffset? ServerUpdatedAt)
+{
+    /// <summary>The screenshot the server links to this state, when it links a non-empty one.</summary>
+    public int? ScreenshotId { get; init; }
+
+    /// <summary>
+    /// Where the screenshot lands: the emulator's declared <c>&lt;image&gt;</c> beside the state.
+    /// </summary>
+    /// <remarks>
+    /// Named from the ROM on disk through the template, like the state, so the emulator's own
+    /// state menu finds it. Null wherever <see cref="ScreenshotId"/> is, and also where the
+    /// emulator declares no image distinct from its state file, which DeSmuME does not.
+    /// </remarks>
+    public RelativePath? ScreenshotDestination { get; init; }
+}
 
 /// <summary>
 /// A state the server holds for a game on this device that a restore cannot write.
@@ -148,6 +162,13 @@ public sealed record StateRestoreOutcome
 
     /// <summary>States that could not be written, each with a line in <see cref="Problems"/>.</summary>
     public int Failed { get; init; }
+
+    /// <summary>Screenshots written beside a restored state.</summary>
+    /// <remarks>
+    /// Not part of <see cref="Restored"/> or <see cref="Failed"/>. A screenshot is best-effort in
+    /// both directions, so a state whose image did not come is still a restored state.
+    /// </remarks>
+    public int Screenshots { get; init; }
 
     /// <summary>Bytes fetched.</summary>
     public long BytesTransferred { get; init; }
@@ -390,6 +411,15 @@ public sealed class StateSync
                 continue;
             }
 
+            // Only a linked, non-empty screenshot. A state whose image the server did not link
+            // (docs/retrobat-findings.md finding 138) comes back without one, and that half is
+            // upstream's (#158). The link is kept even where the emulator has nowhere to put it,
+            // so the preview can say which of the two it was.
+            int? screenshotId = row.Screenshot is { Id: > 0, FileSizeBytes: > 0 } linked ? linked.Id : null;
+            var imagePath = screenshotId is not null && template.ImageFor(match) is { Length: > 0 } imageName
+                ? template.Directory.Combine(imageName)
+                : (RelativePath?)null;
+
             found.Add(new RestorableState(
                 row.RomId,
                 row.Id,
@@ -401,7 +431,11 @@ public sealed class StateSync
                 core ?? string.Empty,
                 match.SlotKey(emulator.Name, core),
                 RecordableName(row.FileName),
-                row.UpdatedAt ?? row.CreatedAt));
+                row.UpdatedAt ?? row.CreatedAt)
+            {
+                ScreenshotId = screenshotId,
+                ScreenshotDestination = imagePath,
+            });
         }
 
         return RomMResponse.Success(new StateRestoreFindings(found, unrestorable));
@@ -449,6 +483,7 @@ public sealed class StateSync
         var restored = 0;
         var failed = 0;
         var deferred = 0;
+        var screenshots = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -504,6 +539,13 @@ public sealed class StateSync
 
                 restored++;
                 bytes += written;
+
+                if (await RestoreScreenshotAsync(pick, partialDirectory, problems, cancellationToken)
+                    .ConfigureAwait(false) is { } imageBytes)
+                {
+                    screenshots++;
+                    bytes += imageBytes;
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -532,9 +574,90 @@ public sealed class StateSync
             Restored = restored,
             Failed = failed,
             Deferred = deferred,
+            Screenshots = screenshots,
             BytesTransferred = bytes,
             Problems = problems,
         };
+    }
+
+    /// <summary>
+    /// Writes the screenshot beside a state that has just landed, and returns its size, or null.
+    /// </summary>
+    /// <remarks>
+    /// <b>Best-effort, and never a reason the state did not restore</b> (#158). The upload half
+    /// treats an image the same way: absent, empty and unkept are all normal. So a fetch that fails
+    /// adds a line and the state still counts, and an image already in the tree is left alone,
+    /// since it may be the one the emulator wrote and nothing records what it replaced.
+    /// </remarks>
+    private async Task<long?> RestoreScreenshotAsync(
+        RestorableState pick,
+        string partialDirectory,
+        List<string> problems,
+        CancellationToken cancellationToken)
+    {
+        if (pick is not { ScreenshotId: { } id, ScreenshotDestination: { } destination })
+        {
+            return null;
+        }
+
+        var absolute = _install.Resolve(destination);
+
+        if (File.Exists(absolute))
+        {
+            return null;
+        }
+
+        var part = Path.Combine(partialDirectory, $"screenshot-{id}.part");
+
+        try
+        {
+            long written;
+
+            await using (var stream = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                var response = await _connection
+                    .DownloadScreenshotAsync(id, stream, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!response.IsSuccess)
+                {
+                    problems.Add(
+                        $"{destination}: the state landed without its screenshot, which could not be "
+                            + $"fetched: {response.Message}");
+                    return null;
+                }
+
+                written = response.Value;
+            }
+
+            // A zero-byte image is what a racing mirror writes, and it is not worth a file.
+            if (written == 0)
+            {
+                return null;
+            }
+
+            File.Move(part, absolute, overwrite: false);
+            return written;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or RomMUnreachableException)
+        {
+            problems.Add($"{destination}: the state landed without its screenshot: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            if (File.Exists(part))
+            {
+                try
+                {
+                    File.Delete(part);
+                }
+                catch (IOException)
+                {
+                    // The eviction sweep's problem, as for a state's own partial.
+                }
+            }
+        }
     }
 
     /// <summary>Null for anything <c>local_state.uploaded_file_name</c>'s CHECK would refuse.</summary>

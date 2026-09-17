@@ -1,3 +1,4 @@
+using RomMBat.Agent.Commands;
 using RomMBat.Agent.Tests.Support;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
@@ -98,6 +99,145 @@ public sealed class SavesCommandTests
 
         Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
         File.WriteAllText(absolute, content);
+    }
+
+    [Fact]
+    public async Task The_report_says_it_could_not_ask_the_server_and_still_answers_locally()
+    {
+        // #138 made saves ask the server for saves with no slot. The rest of the report is local
+        // and the command works offline, so a server that is not there costs one line and the
+        // exit code does not move. --offline skips the read altogether.
+        using var tree = TempRetroBatTree.Create();
+        Pair(tree, new Uri("http://127.0.0.1:9"));
+
+        var online = await AgentRunner.RunAsync(tree, "saves");
+
+        Assert.Equal(0, online.ExitCode);
+        Assert.True(online.Wrote("No saves found under saves/."), online.Out);
+        Assert.True(online.Wrote("Server saves with no slot: not checked"), online.Out);
+
+        var offline = await AgentRunner.RunAsync(tree, "saves", "--offline");
+
+        Assert.Equal(0, offline.ExitCode);
+        Assert.False(offline.Wrote("Server saves with no slot"), offline.Out);
+    }
+
+    [Fact]
+    public async Task The_report_survives_a_server_answer_it_cannot_read()
+    {
+        // A proxy's login page, or a newer RomM whose save row no longer deserializes, is a 200
+        // whose body is not the list, and the connection throws RomMApiException for it rather
+        // than answering a failure. It costs the same one line an unreachable server does.
+        using var tree = TempRetroBatTree.Create();
+        using var server = new LoginPageServer();
+        Pair(tree, server.Origin);
+
+        var run = await AgentRunner.RunAsync(tree, "saves");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.True(run.Wrote("No saves found under saves/."), run.Out);
+        Assert.True(run.Wrote("Server saves with no slot: not checked"), run.Out);
+    }
+
+    private static void Pair(TempRetroBatTree tree, Uri origin)
+    {
+        var install = tree.Install();
+        using var store = LocalStore.Open(install);
+        var now = DateTimeOffset.UtcNow;
+
+        store.Device.EnsureIdentity(RomMBat.Core.Identity.DeviceIdentity.ReadOrCreate(install));
+        store.Device.SavePairing(
+            new PairingResult(
+                origin,
+                "device-1",
+                "Handheld",
+                new RomM.Client.GrantedScopes(["assets.read"]),
+                RomMBat.Core.Identity.TokenProtector.Protect("rmm_token", null, now.AddYears(1))),
+            now);
+    }
+
+    /// <summary>Answers every request on a loopback port with a 200 HTML page.</summary>
+    /// <remarks>
+    /// A real socket, because the agent builds its own handler from the stored origin and there
+    /// is no seam to hand it a stub.
+    /// </remarks>
+    private sealed class LoginPageServer : IDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener = new(System.Net.IPAddress.Loopback, 0);
+        private readonly CancellationTokenSource _stop = new();
+        private readonly Task _serving;
+
+        public LoginPageServer()
+        {
+            _listener.Start();
+            Origin = new Uri($"http://127.0.0.1:{((System.Net.IPEndPoint)_listener.LocalEndpoint).Port}");
+            _serving = ServeAsync(_stop.Token);
+        }
+
+        public Uri Origin { get; }
+
+        public void Dispose()
+        {
+            _stop.Cancel();
+            _listener.Stop();
+
+            try
+            {
+                _serving.Wait(TimeSpan.FromSeconds(5));
+            }
+            catch (AggregateException)
+            {
+            }
+
+            _stop.Dispose();
+        }
+
+        private async Task ServeAsync(CancellationToken cancellationToken)
+        {
+            const string Body = "<html><body>Sign in</body></html>";
+            var response = System.Text.Encoding.ASCII.GetBytes(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n"
+                    + $"Content-Length: {Body.Length}\r\nConnection: close\r\n\r\n{Body}");
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                using var client = await _listener.AcceptTcpClientAsync(cancellationToken);
+                var stream = client.GetStream();
+                var buffer = new byte[8192];
+                var head = new System.Text.StringBuilder();
+
+                while (!head.ToString().Contains("\r\n\r\n", StringComparison.Ordinal))
+                {
+                    var read = await stream.ReadAsync(buffer, cancellationToken);
+
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    head.Append(System.Text.Encoding.ASCII.GetString(buffer, 0, read));
+                }
+
+                await stream.WriteAsync(response, cancellationToken);
+            }
+        }
+    }
+
+    [Fact]
+    public void Restore_ends_partial_only_for_what_the_run_failed_at()
+    {
+        // #148. The unplaceable rows are not an input at all, which is the rule: measured on nes,
+        // 18 states scoped by core pinned every --apply at 7 with "failed 0".
+        Assert.Equal(ExitCode.Ok, SavesCommand.RestoreExitCode(true, new(), new(), statesUnread: false));
+
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new() { Failed = 1 }, new(), false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new() { Failed = 1 }, false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new() { Refused = true }, false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new() { Deferred = 1 }, new(), false));
+        Assert.Equal(ExitCode.Partial, SavesCommand.RestoreExitCode(true, new(), new(), statesUnread: true));
+
+        // A preview attempted nothing, so nothing it found is a failure.
+        Assert.Equal(ExitCode.Ok, SavesCommand.RestoreExitCode(false, new() { Failed = 1 }, new(), true));
     }
 
     [Fact]

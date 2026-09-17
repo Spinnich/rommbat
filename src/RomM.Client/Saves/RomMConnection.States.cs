@@ -153,6 +153,42 @@ public sealed partial class RomMConnection
         return RomMResponse.Success(written);
     }
 
+    /// <summary>
+    /// Fetches one screenshot's bytes. Needs <c>assets.read</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>GET /api/screenshots/{id}/content</c>, addressed by the id a state's <c>screenshot</c>
+    /// field carries. Nothing to verify against, for the reason a state has nothing: the screenshot
+    /// schema carries no hash either.
+    /// </remarks>
+    public async Task<RomMResponse<long>> DownloadScreenshotAsync(
+        int screenshotId,
+        Stream destination,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        if (!IsAuthenticated)
+        {
+            return RomMResponse.Failure<long>(RomMResponseStatus.Unauthorized, "No access token is stored. Pair first.");
+        }
+
+        var path = string.Create(CultureInfo.InvariantCulture, $"api/screenshots/{screenshotId}/content");
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
+        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return await FailureAsync<long>(response, cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var written = await CopyAsync(body, destination, cancellationToken).ConfigureAwait(false);
+
+        return RomMResponse.Success(written);
+    }
+
     public Task<RomMResponse<bool>> DeleteStatesAsync(
         IReadOnlyList<int> stateIds,
         CancellationToken cancellationToken = default)
