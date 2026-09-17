@@ -74,8 +74,9 @@ public sealed record RomRow
     /// the hashes of its own bytes. So comparing an archive's own bytes against this is always
     /// wrong.
     /// <para>
-    /// Null is ordinary. Of 1,895 single-file ROMs sampled from a real library, 91.0% carried
-    /// an md5 and 96.3% a sha1, so verification has to degrade to size for the rest.
+    /// Null is ordinary. Across a whole live library, 94,472 single-file ROMs, the three hashes
+    /// are set on the same 99.4% and blank on the same 0.6%, so verification has to degrade to
+    /// size for that 0.6%.
     /// </para>
     /// </remarks>
     /// <remarks>

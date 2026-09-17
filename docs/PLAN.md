@@ -1348,10 +1348,12 @@ the rollout order below can be derived rather than hand-maintained.
   same to a local one, and comparing an archive's own bytes against `md5_hash` is always
   wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
   so. See finding 80.
-- **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
-  size when the server has no md5, and reports which check it made. **Only md5 is compared as
-  of migration 013**, so the 9% is what degrades rather than the 3.7%, and how far those two
-  numbers really are apart on this library is #112.
+- **Not every ROM has a hash**, and the three hashes arrive together. Across the whole
+  5.3.0-alpha.2 library, 94,472 single-file roms, each of md5, sha1 and crc is set on 99.4% and
+  `''` on the same 0.6%, and no row carries a sha1 without an md5 (finding 257, which
+  supersedes the 91.0% and 96.3% of finding 85). Verification degrades to size when the server
+  has no md5, and reports which check it made. **Only md5 is compared as of migration 013**,
+  and that 0.6% is all that degrades.
 - **Only `.zip` can be looked inside**, because it is the one archive format the base class
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
@@ -3180,17 +3182,16 @@ none. crc32 was never compared anywhere, so `local_file` lost both columns and h
 **339 MB/s to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor
 numbers.
 
-**Dropping the sha1 comparison is the part that is argued rather than measured, and the plan says
-so in both places now.** A sample of 1,616 rom rows from three platforms found no row carrying a
-sha1 without an md5; finding 85, above, measured 91.0% md5 against 96.3% sha1 on the same
-library, which puts about a hundred rows in 1,895 in exactly that state. Finding 181 shows how
-both could have been seen, since a missing md5 arrives as `''` rather than null, which the
-client now reads as absent at the boundary. **#112 is the
-measurement and it needs the live instance.** What the comparison is worth does not depend on
-that count: sha1 is a second number the same server published rather than an independent check,
-and finding 180 measured two ps2 rows served byte-correct against sha1 values describing some
-other file. A row with only a sha1 adopts by length and is recorded `VerifiedBy.Size`, which is
-weaker than main was and is honestly labelled rather than silently trusted.
+**Dropping the sha1 comparison is now measured as well as argued.** A sample of 1,616 rom rows from
+three platforms found no row carrying a sha1 without an md5, and finding 85 measured 91.0% md5
+against 96.3% sha1, which would have put about a hundred rows in 1,895 in exactly that state.
+**#112 walked the whole library and the sample was right**: 94,472 single-file roms, each hash set
+on the same 99.4% and `''` on the same 0.6%, and not one sha1 without an md5 (finding 257, which
+supersedes 85). So no row reaches the size-only path that `main` would have verified by sha1. The
+argument stands beside the count rather than resting on it: sha1 is a second number the same
+server published rather than an independent check, and finding 180 measured two ps2 rows served
+byte-correct against sha1 values describing some other file. A row with no md5 adopts by length and
+is recorded `VerifiedBy.Size`, honestly labelled rather than silently trusted.
 
 **The development box is the wrong machine to have reasoned from**, which is the more useful
 half of this. There a 34.5 MB/s download leaves verification an order of magnitude of headroom

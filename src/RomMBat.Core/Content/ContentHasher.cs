@@ -209,7 +209,8 @@ public static class ContentHasher
         //
         // The sha1 comparison was not a fallback worth keeping either. Across 1,616 rom rows
         // sampled from three platforms of a live library, not one carried a sha1 without also
-        // carrying an md5. See migration 013.
+        // carrying an md5, and a walk of all 94,472 single-file rows found none either. See
+        // migration 013.
 #pragma warning disable CA5351 // MD5, deliberately: it is what RomM publishes.
         using var md5 = MD5.Create();
 #pragma warning restore CA5351

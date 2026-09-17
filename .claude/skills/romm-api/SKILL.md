@@ -124,7 +124,9 @@ fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in on
 compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
 from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
 RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
-nothing. crc32 was never compared anywhere at all.
+nothing. Confirmed over every platform with `tools/romm-5.3-probes/r7-hash-coverage.py`
+(finding 257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
+Test for blank, never for null, because the server never sends null here. crc32 was never compared anywhere at all.
 
 The cost of that, measured on a 3.41 GB image already in the OS cache so the numbers are
 processor rather than disk:

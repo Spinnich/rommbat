@@ -20,14 +20,12 @@
 -- be several times faster and the processor several times slower, and there verification stops
 -- being free and starts being the thing that doubles a sync.
 --
--- Dropping the sha1 *comparison* is a second decision, and it does not rest on the sample this
--- header used to cite. That sample was 1,616 rom rows from three platforms, in which no row
--- carried a sha1 without also carrying an md5. **Finding 85 measured the opposite on the same
--- library**: 91.0% of 1,895 single-file roms carry md5 and 96.3% sha1, which puts at least 5.3%
--- of rows, about a hundred, in exactly the state the sample says is empty. Finding 181 says how
--- both can have been observed: rom 191723 reports `md5_hash: ''` rather than null, so a query
--- testing for a value present counts an empty string as an md5. Which number is right is #112,
--- it needs the live instance, and nothing here should be read as having settled it.
+-- Dropping the sha1 *comparison* is a second decision. A sample of 1,616 rom rows from three
+-- platforms found no row carrying a sha1 without also carrying an md5, and finding 85's 91.0% md5
+-- against 96.3% sha1 said otherwise. **Finding 257 settles it for the sample**: a walk of every
+-- platform, 94,472 single-file roms on 5.3.0-alpha.2, sets all three hashes on the same 99.4% and
+-- leaves all three `''` on the same 0.6%, with no sha1 anywhere an md5 is missing. So no row that
+-- used to verify by sha1 now verifies by length.
 --
 -- What the comparison is worth is a separate question from how many rows reach it, and that is
 -- the argument this migration actually stands on. **sha1 is a second number the same server
