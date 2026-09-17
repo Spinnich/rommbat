@@ -326,6 +326,16 @@ a patched revision does not move the player's save, so a key that separated eith
 useless for the job it has. The existing first-wins rule already covers it and already gives this
 as its reason, and the hash remains what identifies a ROM.
 
+**Re-taken 2026-09-16 with a committed probe**, `tools/romm-5.3-probes/r5-gamecube-title-ids.py`,
+because the sample above recorded no method. The first three numbers reproduce exactly: 1,793 rows,
+1,601 distinct ids, all 1,601 decoding to a game code (G 1,549, D 34, P 18), 167 shared over 359.
+The fold does not quite: removing `(Disc N)` from each name leaves **104 groups over 232 rows**,
+13% of the platform, against 101 over 222. The probe lists every group it keeps, and they are the
+same kinds the paragraph above names: revisions, `(USA)` against `(USA, Canada)` and `(Korea)`,
+retitled re-releases, and two 2-in-1 discs whose disc tag is followed by a title the fold does not
+strip. So the difference is the folding rule and not the library, and the conclusion does not
+move. Compare a later reading against 104 and 232, which the script can reproduce.
+
 **Read the 12% rather than the 20% when reasoning about the field**, and read the 20% when
 reasoning about what a real install will hand the attributor, because loose multi-disc files are
 common and RomMBat does not get to require otherwise.
@@ -462,6 +472,39 @@ row and file the pass made was deleted afterwards.
 null-slot row and keeps writing into it, so it does not pile up rows, and the protocol still cannot
 see it. `saves restore` still can, with #156's collision, since fixed in stage 2 of #195 by
 offering only the newest row per destination and naming the rest.
+
+**Read in source at `5.3.0-alpha.2`: the browser's states (#190). Only one writer rewrites a state
+in place, and it cannot reach a row this client holds, so nothing was measured.** Three frontend
+paths post a state, and none of them calls `stateApi.updateState`, which is defined in
+`services/api/state.ts` and called nowhere.
+
+| Writer                                                     | Route, name, emulator                                                        | In place |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- | -------- |
+| `views/Player/EmulatorJS` (the v2 player wraps the same)   | `POST /api/states`, `<fs_name_no_ext> [<ISO timestamp>].state`, the EJS core | no       |
+| `console/views/Play.vue`                                   | `POST /api/states`, `state.save` every time, `emulatorjs`                    | **yes**  |
+| `v2/components/GameDetails/SaveDataTab.vue`, manual upload | `POST /api/states`, the uploaded file's own name, no emulator                | by name  |
+
+`auto_save_sync` changes nothing for states: `installAutoSaveSync` subscribes to `saveSaveFiles`
+only, so a state is still written on a save-state press and on Save & Quit. The console view
+rewrites because `store_state_file` in `handler/asset_store.py` updates whatever row already holds
+`(user, rom, file_name)`, the upsert `romm-api` records as measured, and a fixed name makes every
+save that one row.
+
+**Neither player reaches `StateSync`.** Every upload this client makes is named
+`<stem> [<emulator>[.<core>]]<ext>`, and neither a timestamp nor `state.save` can equal that, so no
+player write lands on a row this device sent. Restore reports both shapes as unrestorable rather
+than placing them: `emulatorjs` is not declared in `es_savestates.cfg`, and the two EJS cores that
+share a declared emulator name, `ppsspp` and `desmume`, produce a `.state` that neither emulator's
+`<file>` template matches.
+
+**A manual upload under this client's exact name is the one writer that can land on its row**,
+such as a state downloaded from the web UI and uploaded again. It replaces the bytes under the same
+id and **clears the emulator**, because the update writes the caller's emulator and the upload
+sends none. Read in code, `StateSync` does nothing about it: `RunAsync` decides what needs sending
+from the local hash alone and never reads the server row, and restore skips a destination that
+already exists. The next local change overwrites the upload without a word. That is the same last
+writer wins that two devices on one account already get, because states have no conflict route.
+Recorded rather than acted on, since no player write can take this path.
 
 **Read in source, not measured: streaming.** `handler/streaming/saves.py` stores each pulled save
 archive as a **new null-slot row**, `<rom stem> [<emulator> <timestamp>].saves.zip`, dropped when
@@ -641,6 +684,26 @@ both roles wrongly on **41% of rows** (163 of 398). `4x4 Evo 2` is
 `companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer when Terminal
 Reality developed it.
 
+**Re-taken 2026-09-16 over the whole library rather than a sample**, with
+`tools/romm-5.3-probes/r4-company-split.py`, because the sample recorded no method and its 41% is a
+property of the one platform it happened to find rescanned. Two readings: the numbers below are the
+second, and the first differed by 14 split rows because a scan of `nes-unofficial` was running
+between them.
+
+| Rows   | `companies`   | Split         | One and one   | Sorted pair   | Wrong role   |
+| ------ | ------------- | ------------- | ------------- | ------------- | ------------ |
+| 95,993 | 83,037, 86.5% | 18,150, 18.9% | 17,606, 97.0% | 18,065, 99.5% | 3,903, 21.5% |
+
+The last three are shares of split rows. **Two claims above do not hold across the library.** The
+wrong-role rate is **21.5%** and not 41%, and it is a per-platform number that ranges from 0 on
+`channelf` and `gamate` to 45% on `gamecube` (809 of 1,792) and 83% on `arcadia` (40 of 48).
+And a split row is **not always one developer and one publisher**: 3.0% carry more than one of
+either, so `companies` is still their sorted concatenation on 99.5% of split rows but a client
+that writes `developers[0]` is choosing one of several on the rest. What survives is the shape of
+the finding: 53 platforms carry the split and 72 carry none, so one library holds both at once and
+the join stays as the fallback. `wii` is the outlier worth knowing, with 79 split rows of which only
+32 sort to `companies`.
+
 The operative consequence for M4: writing `developers[0]` and `publishers[0]` is right where
 they are populated and empty where they are not, so a client that switches to them
 unconditionally loses the field on every un-rescanned row. The join stays as the fallback.
@@ -714,6 +777,14 @@ its largest smart collection advertises 594 roms and pages to a total of 0, so n
 reading; a virtual collection spanning platforms is the widest scope a set can name, and it was
 measured. What the index costs is its id count, so a wider scope only widens the saving.
 
+**The 594 against 0 is the server working as written, not a defect** (#193).
+`tools/romm-5.3-probes/r6-smart-collections.py` read all 29 smart collections this account can
+list: every one is public, owned by another account, and filters on `favorite` and `platform_ids`,
+and every one pages back 0 while advertising between 6 and 594. `refresh_smart_collection` stores
+`rom_count` and `rom_ids` computed as the owner and says so in its docstring, and
+`smart_collection_id` applies the same criteria as the caller, who has marked none of those
+favourites. The picker no longer shows the stored count, and the rule is in `romm-api`.
+
 **A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
 costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
 index that is already being built. With the index off under every scope, `CatalogQuery` pays for
@@ -723,7 +794,17 @@ that count on every walk: inside the noise of a scoped page (R2), and 133 ms uns
 176.7 s for 95,993 ids, where 5.2.0 answered 504 on the 300 s wall at a smaller library. The
 decision to refuse it stands: three minutes is not a page a sync can wait on, and the endpoint
 still takes no parameters, so it can be neither scoped nor paged. The rejection is now a
-judgement about latency rather than a report that it does not work.
+judgement about latency rather than a report that it does not work. A one-off probe re-took it on
+2026-09-16 at **200 after 181.4 s**, 95,993 ids in a 656 KiB body, on the same library, so the two
+agree.
+
+**And it is a judgement about the server's memory, which is why no probe for it is committed.**
+The route eager-loads every ROM's relationships to return ids and keeps running after the client
+disconnects. The live suite's budgeted call gave up at 10 s, and about sixty runs of it in one
+session took the container from 2 GB to **20.9 GiB**, the web workers holding their peak until
+recycled. Reported as rommapp/romm#4577. The live test, the client method and both probes that
+called it are removed, so the two readings above are not re-taken at the next adoption until
+upstream fixes it.
 
 **The payload share moved, and the library moved with it, so this one attributes to neither.**
 `ss_metadata` is 61.2% of a 100 row page against 46.4% at 5.2.0, and `igdb_metadata`, 20.5%
@@ -848,3 +929,4 @@ Docker daemon that a read answers today is a question nobody answers.
 | 3   | What a memory card record and version hold, and whether a raw card is accepted       | **Answered.** Whole card, zip only, layout unchecked. Finding 3 |
 | 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
+| 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |

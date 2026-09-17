@@ -281,30 +281,6 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     }
 
     [Fact]
-    public async Task The_identifiers_endpoint_is_asked_under_a_budget_and_never_throws()
-    {
-        Assert.SkipUnless(IsConfigured, NotConfigured);
-
-        // Measured at 504 after 300 s on an 83k library, which is why deletion is reconciled
-        // through set re-resolution. It stays a fast-path cross-check, so what matters is that
-        // it answers inside its budget either way.
-        var started = System.Diagnostics.Stopwatch.StartNew();
-        var identifiers = await fixture.Session.Connection.TryGetRomIdentifiersAsync(
-            TimeSpan.FromSeconds(10),
-            TestContext.Current.CancellationToken);
-        started.Stop();
-
-        Assert.True(
-            started.Elapsed < TimeSpan.FromSeconds(30),
-            $"The budget did not bound the call: it took {started.Elapsed.TotalSeconds:0} s.");
-
-        if (identifiers is not null)
-        {
-            Assert.NotEmpty(identifiers);
-        }
-    }
-
-    [Fact]
     public async Task A_real_set_syncs_to_completion_and_the_second_run_is_a_no_op()
     {
         Assert.SkipUnless(IsConfigured, NotConfigured);
@@ -345,7 +321,12 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             DateTimeOffset.UtcNow,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
+        // The cause goes in the message: on a live server an Interrupted outcome alone could be a
+        // failed page, a timeout or a cancellation, and a one-off cannot be re-run to find out.
+        Assert.True(
+            resolution.Outcome == ResolutionOutcome.Resolved,
+            $"The walk ended {resolution.Outcome} after {resolution.Scanned} of {resolution.ScopeTotal} rows, "
+                + $"cause {resolution.Cause}: {resolution.Problem ?? "no problem recorded"}");
         Assert.SkipWhen(resolution.Members.Count == 0, "The chosen platform resolved to nothing syncable.");
 
         session.Store.SyncSets.ReplaceMembers(

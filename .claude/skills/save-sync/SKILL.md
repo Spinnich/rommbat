@@ -438,7 +438,8 @@ since the feature landed, and the rule below about asking every route is what it
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game
-  would be one row with several files, and folding them back leaves 101 groups over 222 rows.
+  would be one row with several files, and folding them back leaves 101 groups over 222 rows
+  (104 over 232 with the committed probe's fold, `r5-gamecube-title-ids.py`, finding 2).
   Both kinds are right. Disc 1 and Disc 2 share a memory card, and a revision does not move the
   player's save. **Plan for the larger number**, because a loose multi-disc library is ordinary
   and this client does not get to require otherwise. The first-wins rule below already covers it
@@ -923,6 +924,16 @@ ones streaming wrote. This client uploads PS2, GameCube and Xbox states under `p
 and `xemu`, which are the names streaming uses, so a heavily streamed game deletes this device's
 oldest server copies. The local file survives and is never re-sent, because "in step" is decided
 from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
+
+**The browser writes states as new rows, and only a same-named manual upload rewrites one this
+client holds** (#190, read at 5.3.0-alpha.2, finding 4). The player posts
+`<rom> [<timestamp>].state` under the EJS core, and `auto_save_sync` does not touch states. The
+console view posts `state.save` under `emulatorjs` every time, so the upsert rewrites one row per
+ROM, but that name can never equal this client's `<stem> [<emulator>[.<core>]]<ext>`, and restore
+reports both shapes unrestorable. A web-UI upload of a file carrying this client's exact name does
+replace that row's bytes and clears its emulator. Nothing notices: `RunAsync` never reads the
+server row, so the next local change overwrites it. Do not build a state conflict route on the
+strength of this; no player write reaches it.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;

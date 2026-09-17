@@ -228,6 +228,9 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>What <c>GET /api/platforms</c> answers with.</summary>
     public IList<StubPlatform> Platforms { get; } = [];
 
+    /// <summary>What <c>GET /api/collections/smart</c> answers with, as (id, name, rom_count).</summary>
+    public IList<(int Id, string Name, int RomCount)> SmartCollections { get; } = [];
+
     /// <summary>
     /// Media files, keyed by their full path under <c>/assets/romm/resources/</c>.
     /// </summary>
@@ -345,9 +348,6 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
     /// <summary>What the content endpoint reports as its <c>ETag</c>. Change it to go stale.</summary>
     public string ContentETag { get; set; } = "\"6a45147a-1009\"";
-
-    /// <summary>What <c>GET /api/roms/identifiers</c> answers with. 504 is what a real one did.</summary>
-    public HttpStatusCode IdentifiersStatus { get; set; } = HttpStatusCode.OK;
 
     /// <summary>How many times the token endpoint was polled.</summary>
     public int TokenPolls { get; private set; }
@@ -489,11 +489,17 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             }).ToArray());
         }
 
-        if (path.EndsWith("/api/roms/identifiers", StringComparison.Ordinal))
+        if (path.EndsWith("/api/collections/smart", StringComparison.Ordinal))
         {
-            return IdentifiersStatus == HttpStatusCode.OK
-                ? Json(HttpStatusCode.OK, Library.Select(rom => rom.Id).ToArray())
-                : Detail(IdentifiersStatus, "gateway timeout");
+            return Json(HttpStatusCode.OK, SmartCollections.Select(collection => new
+            {
+                id = collection.Id,
+                name = collection.Name,
+                rom_count = collection.RomCount,
+                rom_ids = Array.Empty<int>(),
+                is_public = true,
+                filter_criteria = new { favorite = true },
+            }).ToArray());
         }
 
         if (path.EndsWith("/api/roms/by-hash", StringComparison.Ordinal))
@@ -814,8 +820,8 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
 
     /// <summary>Serves <c>GET /api/roms/{id}</c>, or null when the path is not one.</summary>
     /// <remarks>
-    /// Matched last, after every other <c>/api/roms/</c> route, because <c>identifiers</c> and
-    /// <c>by-hash</c> sit under the same prefix and a looser match would swallow them.
+    /// Matched last, after every other <c>/api/roms/</c> route, because <c>by-hash</c> sits under
+    /// the same prefix and a looser match would swallow it.
     /// </remarks>
     private HttpResponseMessage? RomById(string path)
     {

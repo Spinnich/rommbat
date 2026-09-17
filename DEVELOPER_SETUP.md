@@ -246,11 +246,24 @@ dotnet test
 ```
 
 **Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
-these variables exported, **20 of the tests pair against the real server**, minting and revoking
+these variables exported, **21 of the tests pair against the real server**, minting and revoking
 real credentials on the account behind the approver token. Nothing warns you first. Two runs
 overlapping share that one account and the server answers `Too many authorize attempts. Try
 again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
-clears on its own. If you want a run that touches nothing, unset both variables and the 20 skip:
+clears on its own.
+
+**Looping the live suite to chase an intermittent needs spacing, and one class is faster.** Pairing
+is limited to 10 per minute per IP, and one run of all four `Live*` classes pairs about nine times,
+so back-to-back runs trip the limit and prove nothing: 15 of 19 failed on it, 14 of them on every
+test. Leave 75 s between full runs.
+`LiveContentTests` alone pairs once and needs no gap. **Before looping any live test, check that
+none of its requests does server work that outlives a client timeout.** A test that called
+`GET /api/roms/identifiers` under a 10 s budget used to be in that class, and sixty runs of it
+took the server's container from 2 GB to 20.9 GiB, because every abandoned call kept loading the
+whole library in a web worker (rommapp/romm#4577). It has been removed, and so has the client
+method it called.
+
+If you want a run that touches nothing, unset both variables and the 21 skip:
 
 ```bash
 env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test

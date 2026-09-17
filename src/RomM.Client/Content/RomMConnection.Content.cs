@@ -203,44 +203,6 @@ public sealed partial class RomMConnection
     }
 
     /// <summary>
-    /// Every ROM id the account can see, if the server can produce them inside a budget.
-    /// </summary>
-    /// <remarks>
-    /// <b>Not the deletion-reconcile mechanism.</b> This endpoint takes no parameters, so it
-    /// can be neither scoped nor paged, and it answered <b>504 after 300 s</b> on an 83,131 ROM
-    /// library. Deletion is reconciled through set re-resolution, where a member a completed
-    /// walk no longer finds becomes an eviction candidate.
-    /// <para>
-    /// It is still worth asking on a small library, where it is quick and catches an orphan no
-    /// set claims. So it is called under a short budget and a failure is an ordinary answer:
-    /// null, meaning the cross-check did not run.
-    /// </para>
-    /// </remarks>
-    /// <param name="budget">How long to wait before giving up on it entirely.</param>
-    public async Task<IReadOnlyList<int>?> TryGetRomIdentifiersAsync(
-        TimeSpan budget,
-        CancellationToken cancellationToken = default)
-    {
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(budget);
-
-        try
-        {
-            var response = await GetAuthenticatedAsync<IReadOnlyList<int>>("api/roms/identifiers", deadline.Token)
-                .ConfigureAwait(false);
-
-            return response.IsSuccess ? response.Value : null;
-        }
-        catch (Exception ex) when (ex is RomMUnreachableException or OperationCanceledException)
-        {
-            // The caller's own cancellation still has to propagate: only the budget elapsing is
-            // an ordinary "the cross-check did not run".
-            cancellationToken.ThrowIfCancellationRequested();
-            return null;
-        }
-    }
-
-    /// <summary>
     /// The client used for transfers, which deliberately has no overall timeout.
     /// </summary>
     /// <remarks>

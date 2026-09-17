@@ -124,7 +124,9 @@ fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in on
 compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
 from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
 RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
-nothing. crc32 was never compared anywhere at all.
+nothing. Confirmed over every platform with `tools/romm-5.3-probes/r7-hash-coverage.py`
+(finding 257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
+Test for blank, never for null, because the server never sends null here. crc32 was never compared anywhere at all.
 
 The cost of that, measured on a 3.41 GB image already in the OS cache so the numbers are
 processor rather than disk:
@@ -169,26 +171,26 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 ## Endpoints that matter
 
-| Need                     | Call                                                                              |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                          |
-| Platforms                | `GET /api/platforms?updated_after=`                                               |
-| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                                |
-| Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale       |
-| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                            |
-| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                            |
-| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`    |
-| Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}` |
-| Stop "now playing"       | `PUT /api/roms/{id}/props`, body `{"now_playing": false}`. **Not** the heartbeat  |
-| Save negotiation         | `POST /api/sync/negotiate`                                                        |
-| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`     |
-| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                         |
-| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify     |
-| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                  |
-| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                   |
-| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                    |
-| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                            |
-| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`         |
+| Need                     | Call                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                                                                        |
+| Platforms                | `GET /api/platforms?updated_after=`                                                                                             |
+| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                                                                              |
+| Deletion reconcile       | Set re-resolution. **Never** `GET /api/roms/identifiers`: unscopable, unpageable, and its server work outlives a client timeout |
+| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                                                                          |
+| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                                                                          |
+| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`                                                  |
+| Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}`                                               |
+| Stop "now playing"       | `PUT /api/roms/{id}/props`, body `{"now_playing": false}`. **Not** the heartbeat                                                |
+| Save negotiation         | `POST /api/sync/negotiate`                                                                                                      |
+| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`                                                   |
+| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                                                                       |
+| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify                                                   |
+| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                                                                |
+| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                                                                 |
+| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                                                                  |
+| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                                                                          |
+| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`                                                       |
 
 ## Traps
 
@@ -313,6 +315,16 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Never use `url_cover` or `url_manual`.** They are `neoclone.screenscraper.fr` API URLs
   carrying a third party's `devid` and `devpassword` in the query string. Off-LAN, and not
   yours to send.
+- **A smart collection's `rom_count` and `rom_ids` are its owner's view, not what the caller
+  pages** (#193). Both are stored and recomputed by `refresh_smart_collection` with the owner's
+  user id, which its docstring states on purpose. `smart_collection_id` applies the criteria
+  with the **caller's** id and hides the caller's hidden roms, and `GET /api/collections/smart`
+  lists every public collection as well as the caller's own. Per-user criteria are `favorite`,
+  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.0-alpha.2 with
+  `tools/romm-5.3-probes/r6-smart-collections.py`: all 29 collections the approver account can
+  list are public, owned by another account and filter on `favorite`, advertise 6 to 594 roms,
+  and page back 0. So never show or budget from `rom_count` on a smart collection; the picker
+  shows no count, and the resolve's total is the real size. Not an upstream defect.
 - **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**
   `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
@@ -395,6 +407,13 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   **On 5.3.0-alpha.2 it completes rather than timing out: 200 after 176.7 s for 95,993 ids.**
   The refusal stands and its reason changes, from an endpoint that cannot answer to one that
   answers in three minutes, still unscopable and still unpageable.
+  **Never call it at all: not under a budget, not from a test, not from a probe.** The route
+  eager-loads every ROM's platform, `rom_users`, metadata, siblings and notes just to return ids,
+  runs in the threadpool, and keeps running after the client disconnects, so a timeout frees
+  the client and nothing on the server. About sixty 10 s calls from a looped live test took a
+  96k-ROM instance's container from 2 GB to **20.9 GiB**, the workers holding their peak until
+  recycled. rommapp/romm#4577. The same shape applies to any request whose server work outlives
+  a client timeout: never retry one, and never loop one against a real library.
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
   133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
   hit, so neither is a sweep.
@@ -468,7 +487,9 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   and moving its stored path. So there is no append to prune and no `autocleanup` to ask for,
   but **the uploaded name has to carry the emulator and core** or two cores writing one filename
   for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
-  two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary.
+  two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary, and no frontend
+  path at 5.3.0-alpha.2 calls it either. The browser rewrites a state only through this upsert,
+  from the console view's fixed `state.save` name (finding 4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
   never sends it; RomM's browser player does, for the save it loaded, and on every save tick

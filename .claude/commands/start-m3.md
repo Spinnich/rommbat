@@ -65,7 +65,9 @@ local record the next run can trust without the server.
 - Verify by size and hash, remembering `crc_hash` is the CRC of uncompressed content.
 - Enforce per-set and global disk budgets. Eviction is a first-class operation with a
   dry-run that shows what would go before anything goes.
-- Reconcile deletions against `GET /api/roms/identifiers`.
+- Reconcile deletions through set re-resolution. **Never call `GET /api/roms/identifiers`**,
+  not from the client, a test or a probe: it cannot be scoped or paged, and its server work
+  outlives a client timeout (rommapp/romm#4577, the plan's M3).
 - Resume from `.part` after power loss or a dropped link.
 - Detect the target filesystem before writing, and refuse ROMs over 4 GB on FAT32 with a
   clear message rather than failing partway through the write.
@@ -100,8 +102,6 @@ Worth an actual probe:
   `If-Range` that splices silently is the worst outcome this milestone can produce.
 - What `GET /api/roms/by-hash` accepts and answers, and whether it beats hashing locally
   for the adoption pass on a library that is already populated.
-- The shape and cost of `GET /api/roms/identifiers` on a real library, since deletion
-  reconcile runs every sync.
 - Where hashes come from at all. `RomRow` carries none, so find out whether the paged read
   can carry md5 and sha1 without the sidecar cost M2 measured, or whether adoption needs a
   per-rom detail call.

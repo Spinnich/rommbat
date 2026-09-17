@@ -125,10 +125,12 @@ Guardrails that follow from this:
   Resolve membership by paging `GET /api/roms?collection_id=` (or
   `smart_collection_id=` / `virtual_collection_id=`) instead.
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
-  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
-  answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
-  in under 1.5 s (5.3.0-alpha.2 completes it in 176.7 s, which is still not a reconcile).
+  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters, so it
+  can be neither scoped nor paged, and 5.3.0-alpha.2 spends 176.7 s answering it, while its
+  platform and collection siblings answer in under 1.5 s (5.2.0 answered 504 after 300 s).
   Deletion of content is reconciled through set re-resolution instead; see M3 and finding 81.
+  **Nothing calls it, including tests and probes**: an abandoned call keeps loading the whole
+  library server-side, and repeated ones took a live instance to 20.9 GiB (rommapp/romm#4577).
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
   mirror of what is on disk, and that is the whole of the rule.
@@ -162,6 +164,11 @@ a **Sync Set**: a named scope plus a policy.
 - Smart collections are re-evaluated server-side and their membership drifts, so
   re-resolve every set on every sync: new members are added, departed members become
   eviction candidates rather than immediate deletions.
+- **A smart collection's listed `rom_count` is its owner's, not the caller's.** It is stored,
+  and recomputed as the owner, while paging applies the criteria as whoever asks. So a public
+  collection filtering on `favorite` lists another account's favourites and pages back only
+  the caller's: 29 of 29 on a live 5.3.0-alpha.2 instance advertised 6 to 594 and paged 0. The
+  picker shows no count for one, and the resolve reports what the set really holds (#193).
 - Persist set definitions into `Device.sync_config` (a free-form dict, writable via
   `PUT /api/devices/{id}`) so a reimaged or re-paired device gets its configuration back
   and the config is visible from the RomM UI.
@@ -1343,10 +1350,13 @@ the rollout order below can be derived rather than hand-maintained.
   same to a local one, and comparing an archive's own bytes against `md5_hash` is always
   wrong. Where a multi-entry archive makes that rule meaningless, fall back to size and say
   so. See finding 80.
-- **Not every ROM has a hash**: 91.0% carry md5 and 96.3% sha1. Verification degrades to
-  size when the server has no md5, and reports which check it made. **Only md5 is compared as
-  of migration 013**, so the 9% is what degrades rather than the 3.7%, and how far those two
-  numbers really are apart on this library is #112.
+- **Not every ROM has a hash**, and the three hashes arrive together. Across the whole
+  5.3.0-alpha.2 library, 94,472 single-file roms, each of md5, sha1 and crc is set on 99.4% and
+  `''` on the same 0.6%, and no row carries a sha1 without an md5 (finding 257, which
+  supersedes the 91.0% and 96.3% of finding 85). Verification degrades to size when the server
+  has no md5, and reports which check it made. **Only md5 is compared as of migration 013**,
+  and that 0.6% is all that degrades for want of a hash. An archive the code cannot look inside
+  degrades to size for its own reason, below.
 - **Only `.zip` can be looked inside**, because it is the one archive format the base class
   library reads and reaching `.7z` means a new dependency. A `.7z` is therefore verified by
   size alone and says so. RetroBat accepts both formats for many systems, so this is a real
@@ -1384,18 +1394,22 @@ the rollout order below can be derived rather than hand-maintained.
   this is the place it goes**; until then the gap is covered by eviction never touching a file
   RomMBat did not download.
 - **Reconcile deletions through re-resolution, not through `GET /api/roms/identifiers`.**
-  That endpoint answers **504 after 300 s** on 83,131 ROMs and takes no parameters, so it can
-  be neither scoped nor paged, and the reconcile it was supposed to drive would never
-  complete on the libraries this project exists for. Every ROM RomMBat holds belongs to a
-  set, and M2 already marks a member a completed walk no longer finds as `departed`, which is
-  the same fact arriving by a cheaper route. The endpoint is still attempted under a short
-  budget, because it is quick on a small library, and its answer is a cross-check for
-  orphans rather than the mechanism. See finding 81.
+  That endpoint takes no parameters, so it can be neither scoped nor paged, and each call is
+  minutes of whole-library work that the server keeps doing after the client gives up. Every
+  ROM RomMBat holds belongs to a set, and M2 already marks a member a completed walk no longer
+  finds as `departed`, which is the same fact arriving by a cheaper route. See finding 81.
 
-  **Re-measured on 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids.** The design
-  is unchanged and its reason is not: the endpoint answers now, and three minutes with no way
-  to scope or page it is still not a reconcile. The short budget already handles both, since
-  a call that finishes outside it is refused the same way one that never finishes is.
+  **On 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids**, where 5.2.0 answered
+  504 after 300 s on 83,131 ROMs. Answering is not the same as usable: three minutes with no
+  way to scope or page it is still not a reconcile.
+
+  **Never call it, not even under a short budget.** A budget bounds the client and nothing
+  else. The route loads every ROM's platform, user rows, metadata, siblings and notes to return
+  their ids, runs in a web worker's threadpool, and keeps running after the client gives up.
+  The client used to carry a budgeted call for small libraries, and a live test exercised it:
+  about sixty of those abandoned calls, looped during #195 stage 3, took the instance's
+  container from 2 GB to 20.9 GiB, with workers holding their peak until recycled. Reported
+  upstream as rommapp/romm#4577, and the client method is gone.
 
 - Resume cleanly from `.part` files after a power loss or a Wi-Fi drop mid-download.
   **`.part` files live under `emulators/rommbat/partial/`, not beside the target**, so a
@@ -3175,17 +3189,16 @@ none. crc32 was never compared anywhere, so `local_file` lost both columns and h
 **339 MB/s to 594 MB/s** on a 3.41 GB image with the file already cached, which are processor
 numbers.
 
-**Dropping the sha1 comparison is the part that is argued rather than measured, and the plan says
-so in both places now.** A sample of 1,616 rom rows from three platforms found no row carrying a
-sha1 without an md5; finding 85, above, measured 91.0% md5 against 96.3% sha1 on the same
-library, which puts about a hundred rows in 1,895 in exactly that state. Finding 181 shows how
-both could have been seen, since a missing md5 arrives as `''` rather than null, which the
-client now reads as absent at the boundary. **#112 is the
-measurement and it needs the live instance.** What the comparison is worth does not depend on
-that count: sha1 is a second number the same server published rather than an independent check,
-and finding 180 measured two ps2 rows served byte-correct against sha1 values describing some
-other file. A row with only a sha1 adopts by length and is recorded `VerifiedBy.Size`, which is
-weaker than main was and is honestly labelled rather than silently trusted.
+**Dropping the sha1 comparison is now measured as well as argued.** A sample of 1,616 rom rows from
+three platforms found no row carrying a sha1 without an md5, and finding 85 measured 91.0% md5
+against 96.3% sha1, which would have put about a hundred rows in 1,895 in exactly that state.
+**#112 walked the whole library and the sample was right**: 94,472 single-file roms, each hash set
+on the same 99.4% and `''` on the same 0.6%, and not one sha1 without an md5 (finding 257, which
+supersedes 85). So no row reaches the size-only path that `main` would have verified by sha1. The
+argument stands beside the count rather than resting on it: sha1 is a second number the same
+server published rather than an independent check, and finding 180 measured two ps2 rows served
+byte-correct against sha1 values describing some other file. A row with no md5 adopts by length and
+is recorded `VerifiedBy.Size`, honestly labelled rather than silently trusted.
 
 **The development box is the wrong machine to have reasoned from**, which is the more useful
 half of this. There a 34.5 MB/s download leaves verification an order of magnitude of headroom

@@ -74,8 +74,9 @@ public sealed record RomRow
     /// the hashes of its own bytes. So comparing an archive's own bytes against this is always
     /// wrong.
     /// <para>
-    /// Null is ordinary. Of 1,895 single-file ROMs sampled from a real library, 91.0% carried
-    /// an md5 and 96.3% a sha1, so verification has to degrade to size for the rest.
+    /// Null is ordinary. Across a whole live library, 94,472 single-file ROMs, the three hashes
+    /// are set on the same 99.4% and blank on the same 0.6%, so verification has to degrade to
+    /// size for that 0.6%.
     /// </para>
     /// </remarks>
     /// <remarks>
@@ -296,10 +297,10 @@ public sealed record RomMetadata
     /// <remarks>
     /// Empty on a row whose metadata predates the split, because the server populates it on
     /// scan rather than backfilling it, so one library carries both shapes at once: measured
-    /// on a live 5.3.0-alpha.2 instance, 398 of 400 rows on the one platform rescanned since
-    /// the upgrade and 0 of 300 on each of nine that were not. Where it is present it holds
-    /// exactly one name, and it disagrees with <see cref="Companies"/>[0] on 41% of rows,
-    /// which is what indexing the sorted array costs.
+    /// across a whole live 5.3.0-alpha.2 library, 18.9% of 95,993 rows, on 53 platforms of 125.
+    /// Where it is present it usually holds one name, and 3.0% of split rows carry more than one
+    /// developer or publisher. It disagrees with <see cref="Companies"/>[0] on 21.5% of split
+    /// rows, from 0 to 83% by platform, which is what indexing the sorted array costs.
     /// </remarks>
     [JsonPropertyName("developers")]
     public IReadOnlyList<string> Developers { get; init; } = [];

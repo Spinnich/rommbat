@@ -916,26 +916,6 @@ public sealed class ContentSyncTests : IDisposable
     }
 
     [Fact]
-    public async Task An_identifiers_endpoint_that_times_out_is_an_answer_rather_than_a_failure()
-    {
-        using var stub = Library(1);
-        stub.IdentifiersStatus = System.Net.HttpStatusCode.GatewayTimeout;
-
-        using var connection = Connect(stub);
-
-        // Measured at 504 after 300 s on an 83k library, which is why deletion is reconciled
-        // through set re-resolution and this is only ever a cross-check.
-        Assert.Null(
-            await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-
-        stub.IdentifiersStatus = System.Net.HttpStatusCode.OK;
-
-        Assert.Equal(
-            [1],
-            await connection.TryGetRomIdentifiersAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
     public async Task A_drive_that_goes_away_mid_sync_fails_that_game_and_keeps_the_rest()
     {
         using var stub = Library(3);
