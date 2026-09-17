@@ -207,6 +207,41 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_linked_screenshot_for_an_emulator_that_declares_no_image_is_found_and_not_fetched()
+    {
+        // DeSmuME's <image> is its <file>, so there is nowhere to put one, but a row another
+        // client wrote can still link a screenshot. The find keeps the link apart from the
+        // destination, or the preview cannot tell this from a server that links none.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nds", "Game (USA).nds");
+        fixture.AddState("nds/DeSmuME/stateslots", "Game (USA).ds1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var row = Assert.Single(fixture.Stub.States.Values);
+        fixture.Stub.States[row.Id] = row with
+        {
+            ScreenshotName = "Game (USA).png",
+            ScreenshotBytes = "png bytes"u8.ToArray(),
+        };
+
+        var state = fixture.Install.Resolve(RelativePath.Create("saves/nds/DeSmuME/stateslots/Game (USA).ds1"));
+        File.Delete(state);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.NotNull(candidate.ScreenshotId);
+        Assert.Null(candidate.ScreenshotDestination);
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal(0, outcome.Screenshots);
+        Assert.Empty(fixture.Stub.ScreenshotRequests);
+    }
+
+    [Fact]
     public async Task A_screenshot_that_cannot_be_fetched_costs_a_line_and_not_the_state()
     {
         using var fixture = StateFixture.Create();

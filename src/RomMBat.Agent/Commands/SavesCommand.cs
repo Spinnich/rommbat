@@ -959,10 +959,15 @@ internal static class SavesCommand
                     + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
 
             // Said per row, because whether a screenshot comes back is decided by the server
-            // linking one, which it does not always do (docs/retrobat-findings.md finding 138).
-            Console.WriteLine(state.ScreenshotDestination is { } image
-                ? $"         with its screenshot, {image.Name}"
-                : "         no screenshot: the server links none to this state");
+            // linking one, which it does not always do (docs/retrobat-findings.md finding 138), and
+            // on the emulator declaring an image apart from its state file, which DeSmuME does not.
+            Console.WriteLine(state switch
+            {
+                { ScreenshotDestination: { } image } => $"         with its screenshot, {image.Name}",
+                { ScreenshotId: not null } =>
+                    $"         no screenshot: {state.Emulator} keeps none beside its states",
+                _ => "         no screenshot: the server links none to this state",
+            });
         }
 
         Console.WriteLine();

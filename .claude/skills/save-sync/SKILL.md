@@ -647,8 +647,9 @@ hash, folded into one digest. The archive is transport only.
   that fails costs a line and the state still counts as restored, and an image already in the
   tree is left alone. **The client half is closed and the server half is not.** A state whose
   image RomM stored and did not link reads `screenshot: null` (`docs/retrobat-findings.md`
-  finding 138), and there is nothing to follow, so that state comes back without one. The preview
-  says per row which it will be. `DetailedRomSchema.user_screenshots` might reach such an orphan
+  finding 138), and there is nothing to follow, so that state comes back without one. So does a
+  linked one for an emulator whose `<image>` is its `<file>`, DeSmuME, which has nowhere to put
+  it; the find keeps the id either way, so the preview says per row which of the three it is. `DetailedRomSchema.user_screenshots` might reach such an orphan
   by name, and that is unmeasured, so it is not built on.
 
   **The version rule is a statement here, not a comparison, and saying so is the whole of it.**

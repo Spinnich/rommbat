@@ -413,11 +413,12 @@ public sealed class StateSync
 
             // Only a linked, non-empty screenshot. A state whose image the server did not link
             // (docs/retrobat-findings.md finding 138) comes back without one, and that half is
-            // upstream's (#158).
-            var image = row.Screenshot is { Id: > 0, FileSizeBytes: > 0 } linked
-                && template.ImageFor(match) is { Length: > 0 } imageName
-                ? (Id: linked.Id, Path: template.Directory.Combine(imageName))
-                : ((int Id, RelativePath Path)?)null;
+            // upstream's (#158). The link is kept even where the emulator has nowhere to put it,
+            // so the preview can say which of the two it was.
+            int? screenshotId = row.Screenshot is { Id: > 0, FileSizeBytes: > 0 } linked ? linked.Id : null;
+            var imagePath = screenshotId is not null && template.ImageFor(match) is { Length: > 0 } imageName
+                ? template.Directory.Combine(imageName)
+                : (RelativePath?)null;
 
             found.Add(new RestorableState(
                 row.RomId,
@@ -432,8 +433,8 @@ public sealed class StateSync
                 RecordableName(row.FileName),
                 row.UpdatedAt ?? row.CreatedAt)
             {
-                ScreenshotId = image?.Id,
-                ScreenshotDestination = image?.Path,
+                ScreenshotId = screenshotId,
+                ScreenshotDestination = imagePath,
             });
         }
 
