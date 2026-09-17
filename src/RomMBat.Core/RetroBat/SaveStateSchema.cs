@@ -583,12 +583,30 @@ public sealed partial class SaveStateTemplate
             return null;
         }
 
-        return Expand(template, System, Core)
+        return Render(template, match);
+    }
+
+    /// <summary>The state's filename for a match, which is how a restore renames one onto a ROM.</summary>
+    /// <remarks>
+    /// Renders the same way <see cref="ImageFor"/> does, so <c>{{slot}}</c> keeps the digits that
+    /// were on disk and <c>Game.state</c> does not come back as <c>Game.state0</c>. Pass a match
+    /// whose <see cref="SaveStateMatch.Stem"/> is the ROM to name it after.
+    /// </remarks>
+    public string FileFor(SaveStateMatch match)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+
+        var template = match.IsAutosave ? Emulator.AutosaveFile! : Emulator.File;
+
+        return Render(template, match);
+    }
+
+    private string Render(string template, SaveStateMatch match) =>
+        Expand(template, System, Core)
             .Replace("{{romfilename}}", match.Stem, StringComparison.Ordinal)
             .Replace("{{slot2d}}", Format(match.Slot, SlotToken.TwoDigit), StringComparison.Ordinal)
             .Replace("{{slot0}}", Format(match.Slot, SlotToken.OneDigit), StringComparison.Ordinal)
             .Replace("{{slot}}", match.SlotText, StringComparison.Ordinal);
-    }
 
     private static string Format(int? slot, SlotToken token) => slot is not { } value
         ? string.Empty
