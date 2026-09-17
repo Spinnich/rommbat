@@ -520,6 +520,11 @@ library is 3.7 times larger and the endpoint takes no parameters, so it cannot b
 paged out of the problem. A decision that has survived a challenge from a credible source is
 worth more than one that was never tested, and this one has now survived two.
 
+**The probe no longer calls it.** On 5.3.0-alpha.2 the endpoint completes, but every call loads
+every ROM's relationships in a web worker that keeps working after the client gives up, and
+repeated abandoned calls took a 96k-ROM instance to 20.9 GiB (rommapp/romm#4577). The A10 section
+of `a3-a10-a12-library.py` now times only the platform and collection siblings.
+
 ## A11: Withholding on missing evidence is already how our resolver works. **Reasoned**
 
 Argosy's `reconcileDeletedRoms` withholds entirely on missing evidence: no id set, an empty id

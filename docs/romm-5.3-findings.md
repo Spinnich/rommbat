@@ -794,9 +794,17 @@ that count on every walk: inside the noise of a scoped page (R2), and 133 ms uns
 176.7 s for 95,993 ids, where 5.2.0 answered 504 on the 300 s wall at a smaller library. The
 decision to refuse it stands: three minutes is not a page a sync can wait on, and the endpoint
 still takes no parameters, so it can be neither scoped nor paged. The rejection is now a
-judgement about latency rather than a report that it does not work. The 176.7 s had no committed
-probe; `tools/romm-5.3-probes/r3-identifiers.py` re-took it on 2026-09-16 at **200 after 181.4 s**,
-95,993 ids in a 656 KiB body, on the same library, so the two agree.
+judgement about latency rather than a report that it does not work. A one-off probe re-took it on
+2026-09-16 at **200 after 181.4 s**, 95,993 ids in a 656 KiB body, on the same library, so the two
+agree.
+
+**And it is a judgement about the server's memory, which is why no probe for it is committed.**
+The route eager-loads every ROM's relationships to return ids and keeps running after the client
+disconnects. The live suite's budgeted call gave up at 10 s, and about sixty runs of it in one
+session took the container from 2 GB to **20.9 GiB**, the web workers holding their peak until
+recycled. Reported as rommapp/romm#4577. The live test, the client method and both probes that
+called it are removed, so the two readings above are not re-taken at the next adoption until
+upstream fixes it.
 
 **The payload share moved, and the library moved with it, so this one attributes to neither.**
 `ss_metadata` is 61.2% of a 100 row page against 46.4% at 5.2.0, and `igdb_metadata`, 20.5%

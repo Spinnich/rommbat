@@ -6,7 +6,10 @@ A3  Does the md5-only firmware join miss firmware this library actually holds?
 
 A10 GET /api/roms/identifiers was measured at 504 after 300 s on this library
     (retrobat-findings measurement 81). Argosy reconciles deletions through it at
-    23,873 roms. Re-timed here rather than assumed still true.
+    23,873 roms. It is no longer called here: every call loads every rom's relationships
+    in a web worker, which keeps working after the client gives up, and repeated calls
+    held about 20 GiB on a 96k library (rommapp/romm#4577). The platform and collection
+    siblings are still timed.
 
 A12 merged_ra_metadata was 45% of Argosy's page payload. Ours is a different library
     on a different instance, so the share is re-derived rather than carried over.
@@ -23,7 +26,6 @@ import sys
 import _common
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-IDENTIFIERS_TIMEOUT = 310.0
 
 
 def our_manifest_md5s() -> dict[str, list[str]]:
@@ -110,18 +112,8 @@ def probe_a3(lines: list[str]) -> None:
 
 
 def probe_a10(lines: list[str]) -> None:
-    lines.append("## A10: GET /api/roms/identifiers, re-timed")
+    lines.append("## A10: the identifiers siblings")
     lines.append("")
-    try:
-        status, headers, payload, elapsed = _common.request(
-            "GET", "/api/roms/identifiers", timeout=IDENTIFIERS_TIMEOUT
-        )
-        lines.append(f"GET /api/roms/identifiers -> {status} in {elapsed:.1f}s, {len(payload)} bytes")
-        if status == 200:
-            ids = json.loads(payload)
-            lines.append(f"  {len(ids)} ids")
-    except Exception as err:  # noqa: BLE001 - the failure mode is the measurement
-        lines.append(f"GET /api/roms/identifiers -> raised {type(err).__name__}: {err}")
     for sibling in ("/api/platforms/identifiers", "/api/collections/identifiers"):
         try:
             status, _headers, payload, elapsed = _common.request("GET", sibling, timeout=60.0)
