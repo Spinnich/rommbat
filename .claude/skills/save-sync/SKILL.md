@@ -438,7 +438,8 @@ since the feature landed, and the rule below about asking every route is what it
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game
-  would be one row with several files, and folding them back leaves 101 groups over 222 rows.
+  would be one row with several files, and folding them back leaves 101 groups over 222 rows
+  (104 over 232 with the committed probe's fold, `r5-gamecube-title-ids.py`, finding 2).
   Both kinds are right. Disc 1 and Disc 2 share a memory card, and a revision does not move the
   player's save. **Plan for the larger number**, because a loose multi-disc library is ordinary
   and this client does not get to require otherwise. The first-wins rule below already covers it

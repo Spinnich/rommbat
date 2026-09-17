@@ -296,10 +296,10 @@ public sealed record RomMetadata
     /// <remarks>
     /// Empty on a row whose metadata predates the split, because the server populates it on
     /// scan rather than backfilling it, so one library carries both shapes at once: measured
-    /// on a live 5.3.0-alpha.2 instance, 398 of 400 rows on the one platform rescanned since
-    /// the upgrade and 0 of 300 on each of nine that were not. Where it is present it holds
-    /// exactly one name, and it disagrees with <see cref="Companies"/>[0] on 41% of rows,
-    /// which is what indexing the sorted array costs.
+    /// across a whole live 5.3.0-alpha.2 library, 18.9% of 95,993 rows, on 53 platforms of 125.
+    /// Where it is present it usually holds one name, and 3.0% of split rows carry more than one
+    /// developer or publisher. It disagrees with <see cref="Companies"/>[0] on 21.5% of split
+    /// rows, from 0 to 83% by platform, which is what indexing the sorted array costs.
     /// </remarks>
     [JsonPropertyName("developers")]
     public IReadOnlyList<string> Developers { get; init; } = [];

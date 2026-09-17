@@ -326,6 +326,16 @@ a patched revision does not move the player's save, so a key that separated eith
 useless for the job it has. The existing first-wins rule already covers it and already gives this
 as its reason, and the hash remains what identifies a ROM.
 
+**Re-taken 2026-09-16 with a committed probe**, `tools/romm-5.3-probes/r5-gamecube-title-ids.py`,
+because the sample above recorded no method. The first three numbers reproduce exactly: 1,793 rows,
+1,601 distinct ids, all 1,601 decoding to a game code (G 1,549, D 34, P 18), 167 shared over 359.
+The fold does not quite: removing `(Disc N)` from each name leaves **104 groups over 232 rows**,
+13% of the platform, against 101 over 222. The probe lists every group it keeps, and they are the
+same kinds the paragraph above names: revisions, `(USA)` against `(USA, Canada)` and `(Korea)`,
+retitled re-releases, and two 2-in-1 discs whose disc tag is followed by a title the fold does not
+strip. So the difference is the folding rule and not the library, and the conclusion does not
+move. Compare a later reading against 104 and 232, which the script can reproduce.
+
 **Read the 12% rather than the 20% when reasoning about the field**, and read the 20% when
 reasoning about what a real install will hand the attributor, because loose multi-disc files are
 common and RomMBat does not get to require otherwise.
@@ -641,6 +651,26 @@ both roles wrongly on **41% of rows** (163 of 398). `4x4 Evo 2` is
 `companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer when Terminal
 Reality developed it.
 
+**Re-taken 2026-09-16 over the whole library rather than a sample**, with
+`tools/romm-5.3-probes/r4-company-split.py`, because the sample recorded no method and its 41% is a
+property of the one platform it happened to find rescanned. Two readings: the numbers below are the
+second, and the first differed by 14 split rows because a scan of `nes-unofficial` was running
+between them.
+
+| Rows   | `companies`   | Split         | One and one   | Sorted pair   | Wrong role   |
+| ------ | ------------- | ------------- | ------------- | ------------- | ------------ |
+| 95,993 | 83,037, 86.5% | 18,150, 18.9% | 17,606, 97.0% | 18,065, 99.5% | 3,903, 21.5% |
+
+The last three are shares of split rows. **Two claims above do not hold across the library.** The
+wrong-role rate is **21.5%** and not 41%, and it is a per-platform number that ranges from 0 on
+`channelf` and `gamate` to 45% on `gamecube` (809 of 1,792) and 83% on `arcadia` (40 of 48).
+And a split row is **not always one developer and one publisher**: 3.0% carry more than one of
+either, so `companies` is still their sorted concatenation on 99.5% of split rows but a client
+that writes `developers[0]` is choosing one of several on the rest. What survives is the shape of
+the finding: 53 platforms carry the split and 72 carry none, so one library holds both at once and
+the join stays as the fallback. `wii` is the outlier worth knowing, with 79 split rows of which only
+32 sort to `companies`.
+
 The operative consequence for M4: writing `developers[0]` and `publishers[0]` is right where
 they are populated and empty where they are not, so a client that switches to them
 unconditionally loses the field on every un-rescanned row. The join stays as the fallback.
@@ -723,7 +753,9 @@ that count on every walk: inside the noise of a scoped page (R2), and 133 ms uns
 176.7 s for 95,993 ids, where 5.2.0 answered 504 on the 300 s wall at a smaller library. The
 decision to refuse it stands: three minutes is not a page a sync can wait on, and the endpoint
 still takes no parameters, so it can be neither scoped nor paged. The rejection is now a
-judgement about latency rather than a report that it does not work.
+judgement about latency rather than a report that it does not work. The 176.7 s had no committed
+probe; `tools/romm-5.3-probes/r3-identifiers.py` re-took it on 2026-09-16 at **200 after 181.4 s**,
+95,993 ids in a 656 KiB body, on the same library, so the two agree.
 
 **The payload share moved, and the library moved with it, so this one attributes to neither.**
 `ss_metadata` is 61.2% of a 100 row page against 46.4% at 5.2.0, and `igdb_metadata`, 20.5%

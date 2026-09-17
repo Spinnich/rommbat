@@ -109,6 +109,51 @@ def get_json(path: str, **kwargs):
     return status, parsed, elapsed
 
 
+def server_version() -> str:
+    _status, heartbeat, _elapsed = get_json("/api/heartbeat")
+    return (heartbeat or {}).get("SYSTEM", {}).get("VERSION", "unknown")
+
+
+# What CatalogQuery.ToQueryString sends on a walk: index off under every scope since #188,
+# and the total on so the walk knows where it ends.
+WALK = {
+    "with_char_index": "false",
+    "with_filter_values": "false",
+    "with_rom_id_index": "false",
+    "with_files": "false",
+    "with_total": "true",
+    "order_by": "id",
+    "order_dir": "asc",
+    "limit": 250,
+}
+
+
+def walk(scope: dict):
+    """Yields every row a scope pages back, in id order."""
+    offset = 0
+    while True:
+        status, _headers, payload, _elapsed = request(
+            "GET", "/api/roms", params={**WALK, **scope, "offset": offset}, timeout=300.0
+        )
+        if status != 200:
+            raise SystemExit(f"GET /api/roms {scope} at offset {offset} answered {status}")
+        page = json.loads(payload)
+        items = page.get("items") or []
+        yield from items
+        offset += len(items)
+        if not items or offset >= (page.get("total") or 0):
+            return
+
+
+def platforms() -> list[dict]:
+    """Every platform holding roms, largest first."""
+    status, body, _elapsed = get_json("/api/platforms")
+    if status != 200 or body is None:
+        raise SystemExit(f"GET /api/platforms answered {status}")
+    held = [p for p in body if (p.get("rom_count") or 0) > 0]
+    return sorted(held, key=lambda p: -(p.get("rom_count") or 0))
+
+
 def record(name: str, lines: list[str]) -> None:
     """Writes a probe transcript to probe-output/ and echoes it, redacted."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
