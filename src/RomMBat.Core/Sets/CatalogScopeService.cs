@@ -226,12 +226,16 @@ public sealed class CatalogScopeService
                         row.Name,
                         Count(row.Rom_count)))),
 
+                // No count. `rom_count` is stored and computed as the owner, while paging applies
+                // the criteria as the caller, so a public collection filtering on `favorite`
+                // lists another account's favourites and resolves to what this one has marked.
+                // Measured: 29 of 29 advertised between 6 and 594 and paged back 0.
                 CatalogScopeKind.SmartCollection => From(
                     await _connection.ListSmartCollectionsAsync(cancellationToken).ConfigureAwait(false),
                     rows => rows.Select(row => new ScopeValueOption(
                         row.Id.ToString(CultureInfo.InvariantCulture),
                         row.Name,
-                        Count(row.Rom_count)))),
+                        null))),
 
                 _ => new ScopeValues([], null),
             };

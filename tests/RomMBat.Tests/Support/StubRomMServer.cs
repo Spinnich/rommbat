@@ -228,6 +228,9 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// <summary>What <c>GET /api/platforms</c> answers with.</summary>
     public IList<StubPlatform> Platforms { get; } = [];
 
+    /// <summary>What <c>GET /api/collections/smart</c> answers with, as (id, name, rom_count).</summary>
+    public IList<(int Id, string Name, int RomCount)> SmartCollections { get; } = [];
+
     /// <summary>
     /// Media files, keyed by their full path under <c>/assets/romm/resources/</c>.
     /// </summary>
@@ -486,6 +489,19 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
                     is_verified = firmware.IsVerified,
                     missing_from_fs = firmware.MissingFromFs,
                 }).ToArray(),
+            }).ToArray());
+        }
+
+        if (path.EndsWith("/api/collections/smart", StringComparison.Ordinal))
+        {
+            return Json(HttpStatusCode.OK, SmartCollections.Select(collection => new
+            {
+                id = collection.Id,
+                name = collection.Name,
+                rom_count = collection.RomCount,
+                rom_ids = Array.Empty<int>(),
+                is_public = true,
+                filter_criteria = new { favorite = true },
             }).ToArray());
         }
 

@@ -744,6 +744,14 @@ its largest smart collection advertises 594 roms and pages to a total of 0, so n
 reading; a virtual collection spanning platforms is the widest scope a set can name, and it was
 measured. What the index costs is its id count, so a wider scope only widens the saving.
 
+**The 594 against 0 is the server working as written, not a defect** (#193).
+`tools/romm-5.3-probes/r6-smart-collections.py` read all 29 smart collections this account can
+list: every one is public, owned by another account, and filters on `favorite` and `platform_ids`,
+and every one pages back 0 while advertising between 6 and 594. `refresh_smart_collection` stores
+`rom_count` and `rom_ids` computed as the owner and says so in its docstring, and
+`smart_collection_id` applies the same criteria as the caller, who has marked none of those
+favourites. The picker no longer shows the stored count, and the rule is in `romm-api`.
+
 **A2 is unchanged in shape.** `with_total` is free with the index on (262 ms against 264 ms) and
 costs with it off (320 ms against 187 ms), which is `resolve_total()` returning the length of an
 index that is already being built. With the index off under every scope, `CatalogQuery` pays for

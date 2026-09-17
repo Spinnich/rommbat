@@ -313,6 +313,16 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Never use `url_cover` or `url_manual`.** They are `neoclone.screenscraper.fr` API URLs
   carrying a third party's `devid` and `devpassword` in the query string. Off-LAN, and not
   yours to send.
+- **A smart collection's `rom_count` and `rom_ids` are its owner's view, not what the caller
+  pages** (#193). Both are stored and recomputed by `refresh_smart_collection` with the owner's
+  user id, which its docstring states on purpose. `smart_collection_id` applies the criteria
+  with the **caller's** id and hides the caller's hidden roms, and `GET /api/collections/smart`
+  lists every public collection as well as the caller's own. Per-user criteria are `favorite`,
+  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.0-alpha.2 with
+  `tools/romm-5.3-probes/r6-smart-collections.py`: all 29 collections the approver account can
+  list are public, owned by another account and filter on `favorite`, advertise 6 to 594 roms,
+  and page back 0. So never show or budget from `rom_count` on a smart collection; the picker
+  shows no count, and the resolve's total is the real size. Not an upstream defect.
 - **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**
   `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
