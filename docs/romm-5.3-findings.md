@@ -18,7 +18,7 @@ half that was measured.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Release                | `5.3.0-alpha.2`, 2026-09-13, and the floor this adopts                               |
+| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.0-alpha.3`, 2026-09-17, the floor since   |
 | API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
@@ -837,7 +837,77 @@ filesystem:
     firmware: "bios/{platform}"
 ```
 
+### 11. The `alpha.2` to `alpha.3` delta (`source`)
+
+`5.3.0-alpha.3` was published 2026-09-17, 319 commits and 67 non-test backend files after
+`alpha.2`, and is the floor from this adoption. Read at both tags, and the served schema diffed
+against the pin it replaces. Nothing in this section is measured yet; the three questions it
+opens are at the end of this document.
+
+**The contract barely moves where this client reads.** One operation leaves, the streaming
+`state-frame` route, and none arrive. On a route RomMBat calls, the only change is `slot` on
+`POST /api/saves` gaining `maxLength: 255`, so a longer slot is now a 422 rather than a row; the
+longest slot this client writes is a class C `{emulator}:{kind}` far below it. `GET /api/roms`
+takes the same parameters in a different order, because #4487 moved them into one
+`RomFilterParams` model shared with smart collections, and `collection_id` and
+`smart_collection_id` now refuse a value below 1. The facet filters read the `roms_facets` mirror,
+which already existed at `alpha.2`. The routes a download, a firmware fetch, a play session and a
+negotiate use are unchanged, and `backend/main.py` is untouched, so the pin still depends on the
+version and not the instance.
+
+**#4540 caps every slot at 50 versions, whatever the client asks.** `add_save` computes the
+tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and `autocleanup_limit` when the
+client set `autocleanup`, and prunes past it on every slotted upload, retries included.
+`prune_slot` keeps the newest by `updated_at` then `id` and deletes the rest with their files and
+screenshots. Before, pruning ran only when a client asked. This client never sets `autocleanup`,
+so its slots had been unbounded and are now bounded at 50 by the server. Two consequences worth
+measuring rather than asserting. The prune ranks on `updated_at`, which `PUT /api/saves/{id}`
+moves (finding 4), so an in-place write can change which version goes. And a device offline while
+50 versions reach a slot comes back to find the save its `save_slot` names deleted, which is a
+path the superseded-row guard was not written for.
+
+**#4540 also renames a slotted save's screenshot to the save's stem, and does nothing for
+states.** Finding 258 of `retrobat-findings.md` is the state side.
+
+**The browser player now writes into slots, and by default into this client's.** Three parts:
+
+- **A session opens a new version, then rewrites only that one.** `saveSave` in
+  `views/Player/EmulatorJS/utils.ts` holds the version the session created, starting from none:
+  the first write `POST`s into the slot with `overwrite=true`, which skips both the stale-device
+  409 and the content-hash dedup, and every later write in the session `PUT`s that new row in
+  place. At `alpha.2` the player `PUT` the save it loaded, which is finding 4's case A. At `alpha.3`
+  a loaded save is left alone and the session appends beside it.
+- **The slot is the loaded save's, or the newest slotted save's.** `Player.vue` passes
+  `loadedSave?.slot || props.saveSlot`, and the v2 player seeds `props.saveSlot` from
+  `preferredSlot(rom.user_saves)`, the slot of the newest save that has one, falling back to
+  `autosave`. So for a game this client has synced, a browser session writes into
+  `libretro:battery` or whatever slot this client used.
+- **The file is `<fs_name_no_ext>.srm` under the EmulatorJS core's name**, `autocleanup` only in
+  `autosave`. For a class A libretro slot that is the shape this client downloads and writes to the
+  ROM's stem. For a bundled slot it is a raw `.srm` in a slot this client expects to hold an
+  archive.
+
+To this client that is ordinary protocol: a newer row in a slot it holds, so `download` if the
+local file is unchanged and `conflict` if not. What is not known is whether the bytes are right,
+which is a question about EmulatorJS and not about RomM.
+
+**Inert here**, listed so it is a conclusion and not an omission: nginx moves to TLS 1.2 and above
+and serves precompressed frontend assets only, scoped away from `/library/` so a ROM download is
+untouched; the patcher, Steam metadata and covers, the manual upload routes, the scan and title id
+extraction order (#4566, which changes which disc of a set a title id is read from), multi-disc
+playlist handling, and every streaming change. The two screenshot fixes in the notes, #4478 and
+#4526, are the player's and streaming's.
+
 ## What the floor move costs, and what gates it
+
+**The `alpha.3` move, 2026-09-17.** Same procedure, smaller delta. `refresh.sh` drifted only on
+the RetroBat side, and all of it is unreleased work on RetroBat's default branch after 8.2.1
+(`gzdoom` renamed `doom`, an `amiberry` state declaration, `.decomp` on four systems), so the
+vendored files were left at their committed state for the RetroBat adoption that ships it. The pin
+is sha256 `4ef28e4b...`, 198 paths and 272 schemas, captured from a server reporting `5.3.0-alpha.3`
+at capture time. The suffix drop described below still applies with the numbers moved:
+`5.3.0-alpha.2` is now the tag below the floor that reads **Supported**, and `LastTested` is
+`alpha.3`. The paragraphs that follow are the `alpha.2` decision and are left as written.
 
 **The decision is to move the floor to 5.3.0-alpha.2**, not to the `alpha.1` this document was
 first written against. `alpha.2` was published on 2026-09-13, about eight hours after `alpha.1`,
@@ -930,3 +1000,6 @@ Docker daemon that a read answers today is a question nobody answers.
 | 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
 | 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |
+| 11  | What reaches a slot this device is missing when 50 versions arrive while it is away? | **Open.** Probe-able with the approver token                    |
+| 11  | Does a browser session's `.srm` in a libretro slot land and load under RetroBat?     | **Open.** Needs a person in the browser and at RetroBat         |
+| 11  | What does a browser `.srm` do to a bundled (class C) slot this client holds?         | **Read.** Refused before the tree, then offered every flush     |

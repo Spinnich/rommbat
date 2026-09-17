@@ -677,6 +677,12 @@ namespace RomM.Client.Generated
         public string? Output_file_name { get; set; } = default!;
 
         /// <summary>
+        /// File inside a ZIP ROM archive to patch.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("archive_member_name")]
+        public string? Archive_member_name { get; set; } = default!;
+
+        /// <summary>
         /// A patch file uploaded from the client, applied without being stored in the library.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("patch_file")]
@@ -1264,6 +1270,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("state_id")]
         public int? State_id { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("save_id")]
+        public int? Save_id { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("memory_card_id")]
         public int? Memory_card_id { get; set; } = default!;
@@ -1926,6 +1935,58 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("meta")]
         public ConversionTaskMeta Meta { get; set; } = new ConversionTaskMeta();
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    /// <summary>
+    /// One piece of artwork the manual cover search offers, in the shape
+    /// <br/>SteamGridDB grids have, so every provider fills the same picker.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class CoverResource
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("thumb")]
+        public string Thumb { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("url")]
+        public string Url { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("type")]
+        public string Type { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("width")]
+        public int Width { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("height")]
+        public int Height { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("style")]
+        public string Style { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("author")]
+        public string Author { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("score")]
+        public int Score { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("nsfw")]
+        public bool Nsfw { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("humor")]
+        public bool Humor { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("epilepsy")]
+        public bool Epilepsy { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -4247,11 +4308,38 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class MissingFirmwareCleanupStats
+    {
+
+        [System.Text.Json.Serialization.JsonPropertyName("platform_ids")]
+        public System.Collections.Generic.ICollection<int>? Platform_ids { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("firmware_found")]
+        public int Firmware_found { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("firmware_deleted")]
+        public int Firmware_deleted { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("errors")]
+        public int Errors { get; set; } = default!;
+
+        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
+
+        [System.Text.Json.Serialization.JsonExtensionData]
+        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
+        {
+            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
+            set { _additionalProperties = value; }
+        }
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class MissingRomsCleanupStats
     {
 
-        [System.Text.Json.Serialization.JsonPropertyName("platform_id")]
-        public int? Platform_id { get; set; } = default!;
+        [System.Text.Json.Serialization.JsonPropertyName("platform_ids")]
+        public System.Collections.Generic.ICollection<int>? Platform_ids { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("roms_found")]
         public int Roms_found { get; set; } = default!;
@@ -6998,54 +7086,6 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class SGDBResource
-    {
-
-        [System.Text.Json.Serialization.JsonPropertyName("thumb")]
-        public string Thumb { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("url")]
-        public string Url { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("type")]
-        public string Type { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("width")]
-        public int Width { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("height")]
-        public int Height { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("style")]
-        public string Style { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("author")]
-        public string Author { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("score")]
-        public int Score { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("nsfw")]
-        public bool Nsfw { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("humor")]
-        public bool Humor { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("epilepsy")]
-        public bool Epilepsy { get; set; } = default!;
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class SSAgeRating
     {
 
@@ -7519,11 +7559,15 @@ namespace RomM.Client.Generated
     public partial class SearchCoverSchema
     {
 
+        [System.Text.Json.Serialization.JsonPropertyName("provider")]
+        [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<SearchCoverSchemaProvider>))]
+        public SearchCoverSchemaProvider Provider { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         public string Name { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("resources")]
-        public System.Collections.Generic.ICollection<SGDBResource> Resources { get; set; } = new System.Collections.Generic.List<SGDBResource>();
+        public System.Collections.Generic.ICollection<CoverResource> Resources { get; set; } = new System.Collections.Generic.List<CoverResource>();
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -7564,6 +7608,9 @@ namespace RomM.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("demozoo_id")]
         public int? Demozoo_id { get; set; } = default!;
 
+        [System.Text.Json.Serialization.JsonPropertyName("steam_id")]
+        public int? Steam_id { get; set; } = default!;
+
         [System.Text.Json.Serialization.JsonPropertyName("libretro_id")]
         public string? Libretro_id { get; set; } = default!;
 
@@ -7599,6 +7646,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("demozoo_url_cover")]
         public string? Demozoo_url_cover { get; set; } = "";
+
+        [System.Text.Json.Serialization.JsonPropertyName("steam_url_cover")]
+        public string? Steam_url_cover { get; set; } = "";
 
         [System.Text.Json.Serialization.JsonPropertyName("libretro_url_cover")]
         public string? Libretro_url_cover { get; set; } = "";
@@ -8209,27 +8259,6 @@ namespace RomM.Client.Generated
     }
 
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
-    public partial class StateFrameResponse
-    {
-
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
-        public string Status { get; set; } = default!;
-
-        [System.Text.Json.Serialization.JsonPropertyName("platform")]
-        public string Platform { get; set; } = default!;
-
-        private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
-
-        [System.Text.Json.Serialization.JsonExtensionData]
-        public System.Collections.Generic.IDictionary<string, object> AdditionalProperties
-        {
-            get { return _additionalProperties ?? (_additionalProperties = new System.Collections.Generic.Dictionary<string, object>()); }
-            set { _additionalProperties = value; }
-        }
-
-    }
-
-    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class StateSchema
     {
 
@@ -8403,6 +8432,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("supports_memory_cards")]
         public bool Supports_memory_cards { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("supports_save_picker")]
+        public bool Supports_save_picker { get; set; } = default!;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -9169,20 +9201,35 @@ namespace RomM.Client.Generated
 
     /// <summary>
     /// Optional body of `/start`: upload into a ROM's folder instead of the
-    /// <br/>platform folder.
+    /// <br/>platform folder, and name the file where the header cannot.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class UploadTargetPayload
     {
 
+        /// <summary>
+        /// Upload into this ROM's folder instead of the platform folder.
+        /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("rom_id")]
-        public int Rom_id { get; set; } = default!;
+        public int? Rom_id { get; set; } = default!;
 
         /// <summary>
         /// Subfolder inside the ROM's folder, relative and forward-slashed. Empty for the root.
         /// </summary>
         [System.Text.Json.Serialization.JsonPropertyName("folder")]
         public string? Folder { get; set; } = "";
+
+        /// <summary>
+        /// The file name. Takes precedence over the header, which cannot carry characters outside Latin-1.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("filename")]
+        public string? Filename { get; set; } = default!;
+
+        /// <summary>
+        /// Replace a file of the same name in the ROM's folder instead of refusing the upload.
+        /// </summary>
+        [System.Text.Json.Serialization.JsonPropertyName("overwrite")]
+        public bool? Overwrite { get; set; } = false;
 
         private System.Collections.Generic.IDictionary<string, object>? _additionalProperties;
 
@@ -10167,6 +10214,18 @@ namespace RomM.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"not_found")]
         Not_found = 1,
+
+    }
+
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))")]
+    public enum SearchCoverSchemaProvider
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"sgdb")]
+        Sgdb = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"steam")]
+        Steam = 1,
 
     }
 
