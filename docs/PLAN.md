@@ -125,9 +125,9 @@ Guardrails that follow from this:
   Resolve membership by paging `GET /api/roms?collection_id=` (or
   `smart_collection_id=` / `virtual_collection_id=`) instead.
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
-  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters and
-  answered 504 after 300 s on 83,131 ROMs, while its platform and collection siblings answer
-  in under 1.5 s (5.3.0-alpha.2 completes it in 176.7 s, which is still not a reconcile).
+  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters, so it
+  can be neither scoped nor paged, and 5.3.0-alpha.2 spends 176.7 s answering it, while its
+  platform and collection siblings answer in under 1.5 s (5.2.0 answered 504 after 300 s).
   Deletion of content is reconciled through set re-resolution instead; see M3 and finding 81.
   **Nothing calls it, including tests and probes**: an abandoned call keeps loading the whole
   library server-side, and repeated ones took a live instance to 20.9 GiB (rommapp/romm#4577).
@@ -1394,15 +1394,14 @@ the rollout order below can be derived rather than hand-maintained.
   this is the place it goes**; until then the gap is covered by eviction never touching a file
   RomMBat did not download.
 - **Reconcile deletions through re-resolution, not through `GET /api/roms/identifiers`.**
-  That endpoint answers **504 after 300 s** on 83,131 ROMs and takes no parameters, so it can
-  be neither scoped nor paged, and the reconcile it was supposed to drive would never
-  complete on the libraries this project exists for. Every ROM RomMBat holds belongs to a
-  set, and M2 already marks a member a completed walk no longer finds as `departed`, which is
-  the same fact arriving by a cheaper route. See finding 81.
+  That endpoint takes no parameters, so it can be neither scoped nor paged, and each call is
+  minutes of whole-library work that the server keeps doing after the client gives up. Every
+  ROM RomMBat holds belongs to a set, and M2 already marks a member a completed walk no longer
+  finds as `departed`, which is the same fact arriving by a cheaper route. See finding 81.
 
-  **Re-measured on 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids.** The design
-  is unchanged and its reason is not: the endpoint answers now, and three minutes with no way
-  to scope or page it is still not a reconcile.
+  **On 5.3.0-alpha.2 it completes, 200 after 176.7 s for 95,993 ids**, where 5.2.0 answered
+  504 after 300 s on 83,131 ROMs. Answering is not the same as usable: three minutes with no
+  way to scope or page it is still not a reconcile.
 
   **Never call it, not even under a short budget.** A budget bounds the client and nothing
   else. The route loads every ROM's platform, user rows, metadata, siblings and notes to return

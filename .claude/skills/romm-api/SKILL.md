@@ -171,26 +171,26 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 ## Endpoints that matter
 
-| Need                     | Call                                                                              |
-| ------------------------ | --------------------------------------------------------------------------------- |
-| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                          |
-| Platforms                | `GET /api/platforms?updated_after=`                                               |
-| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                                |
-| Deletion reconcile       | Set re-resolution. **Not** `GET /api/roms/identifiers`, which 504s at scale       |
-| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                            |
-| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                            |
-| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`    |
-| Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}` |
-| Stop "now playing"       | `PUT /api/roms/{id}/props`, body `{"now_playing": false}`. **Not** the heartbeat  |
-| Save negotiation         | `POST /api/sync/negotiate`                                                        |
-| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`     |
-| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                         |
-| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify     |
-| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                  |
-| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                   |
-| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                    |
-| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                            |
-| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`         |
+| Need                     | Call                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Version/capability probe | `GET /api/heartbeat` (unauthenticated, `SYSTEM.VERSION`)                                                                        |
+| Platforms                | `GET /api/platforms?updated_after=`                                                                                             |
+| ROMs                     | `GET /api/roms?...&with_files=true&limit=&offset=`                                                                              |
+| Deletion reconcile       | Set re-resolution. **Never** `GET /api/roms/identifiers`: unscopable, unpageable, and its server work outlives a client timeout |
+| Match local files        | `GET /api/roms/by-hash?md5_hash=` (a miss costs 8.3 s)                                                                          |
+| Download a ROM           | `GET /api/roms/{id}/content/{fs_name}`                                                                                          |
+| Firmware, one platform   | `GET /api/firmware?platform_id=`, `GET /api/firmware/{id}/content/{file_name}`                                                  |
+| Presence, "playing now"  | `POST /api/activity/heartbeat`, `GET /api/activity`, `GET /api/activity/rom/{id}`                                               |
+| Stop "now playing"       | `PUT /api/roms/{id}/props`, body `{"now_playing": false}`. **Not** the heartbeat                                                |
+| Save negotiation         | `POST /api/sync/negotiate`                                                                                                      |
+| Save upload              | `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&autocleanup=`                                                   |
+| Save download            | `GET /api/saves/{id}/content?device_id=&optimistic=false`                                                                       |
+| Save download ack        | `POST /api/saves/{id}/downloaded`, body `{device_id}`, after the bytes verify                                                   |
+| Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                                                                |
+| Close session            | `POST /api/sync/sessions/{session_id}/complete`                                                                                 |
+| Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                                                                  |
+| Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                                                                          |
+| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`                                                       |
 
 ## Traps
 
