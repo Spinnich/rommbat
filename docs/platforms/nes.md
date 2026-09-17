@@ -5,8 +5,9 @@ file is named after.
 
 **Not certified, on any of its nine rows.** Steps 1, 3, 4, 7, 8 and 9 hold and step 6 is N/A.
 **Two remain open**: step 2's exclusion cannot be exercised on this platform, and step 5's
-screenshot does not link, which is now a loss rather than a cosmetic gap, because a restore cannot
-bring back what the state does not point at. A pass is not done at eight of nine.
+screenshot did not link. That second one is diagnosed as RomMBat's naming, not RomM's (finding
+258), and fixed, but no state made since the fix has been driven, so it stays open until one
+is. A pass is not done at eight of nine.
 
 **This file is in two parts.** The first is `libretro`/`nestopia` in full, which is the row the
 nine steps were driven against. The second is the other eight rows, driven on steps 4 and 5 only,
@@ -67,22 +68,22 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 slot record in "Conflict resolution, driven both ways", was driven on it and says itself that it
 re-runs no step. Mapped onto the nine steps per the
 `platform-certification` skill's "When the floor moves", from the `src/` and `data/` diff across
-#179 to #189 and `docs/romm-5.3-findings.md`:
+#179 to #199, the finding 258 fix, and `docs/romm-5.3-findings.md`:
 
-| #   | At `5.3.0-alpha.2` | Why                                                                                                                                                         |
-| --- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | **Owed**           | `data/retrobat/platforms.json` was re-sourced from upstream's alias table (#166)                                                                            |
-| 2   | **Owed**           | The resolver gained a no-file-on-disk exclusion ahead of the extension check (#167), and the index flag on a scoped page changed (#188)                     |
-| 3   | Carried            | No firmware code or bundled BIOS data changed, and the findings doc records no firmware route change                                                        |
-| 4   | **Owed**           | `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` changed to refuse a superseded row the browser's writer revives (#170)                               |
-| 5   | Carried            | `StateSync` and the states client changed in comments only, and the findings doc records no change to `POST /api/states`                                    |
-| 6   | N/A                | Unchanged: `nes` has no class D                                                                                                                             |
-| 7   | Carried            | No media or gamelist code changed. The row's new company split is not read, and the one server-side exporter change (#171) is a route RomMBat does not call |
-| 8   | Carried            | No play-session code changed, and the findings doc records no change to `POST /api/play-sessions`                                                           |
-| 9   | **Owed**           | Always owed on a move                                                                                                                                       |
+| #   | At `5.3.0-alpha.2` | Why                                                                                                                                     |
+| --- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Owed**           | `data/retrobat/platforms.json` was re-sourced from upstream's alias table (#166)                                                        |
+| 2   | **Owed**           | The resolver gained a no-file-on-disk exclusion ahead of the extension check (#167), and the index flag on a scoped page changed (#188) |
+| 3   | Carried            | No firmware code or bundled BIOS data changed, and the findings doc records no firmware route change                                    |
+| 4   | **Owed**           | `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` changed to refuse a superseded row the browser's writer revives (#170)           |
+| 5   | **Owed**           | A restore fetches a linked screenshot (#158), and finding 258 renamed the uploaded screenshot and changed how a restore reads the slot  |
+| 6   | N/A                | Unchanged: `nes` has no class D                                                                                                         |
+| 7   | **Owed**           | The catalog query changed when `GET /api/roms/identifiers` was retired (#199), and that query is what fills the game list               |
+| 8   | **Owed**           | The detached `background` pass the hooks spawn writes its log through a new append-only handle (#153)                                   |
+| 9   | **Owed**           | Always owed on a move                                                                                                                   |
 
-So the record stands as a 5.2.0 measurement, and the row owes steps 1, 2, 4 and 9 before any
-result here speaks for the current floor.
+So the record stands as a 5.2.0 measurement, and the row owes steps 1, 2, 4, 5, 7, 8 and 9
+before any result here speaks for the current floor.
 
 ## Checklist
 
@@ -92,7 +93,7 @@ result here speaks for the current floor.
 | 2   | `<extension>` captured; unsupported file excluded and reported | **Partial, and not exercisable here.** The library is `.zip` throughout for this platform |
 | 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                             |
 | 4   | Save shape classified, battery save round-trips                | **Pass, both directions.** Class A, and the md5 is equal up and down. See below           |
-| 5   | Save state round-trips with its screenshot                     | **State yes, both ways. Screenshot no**, a finding 138 recurrence                         |
+| 5   | Save state round-trips with its screenshot                     | **State yes, both ways. Screenshot no**, RomMBat's naming (finding 258), since fixed      |
 | 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                        |
 | 7   | Launches from EmulationStation with art and metadata           | **Pass.** Box art confirmed rendering in the game list, metadata present                  |
 | 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                        |
@@ -307,7 +308,15 @@ alone.
 screenshot into the declared `<image>`. Not re-driven on a linked screenshot, because none exists:
 at the 5.3.0-alpha.2 floor all 9 `nes` states on the instance read `screenshot: null`, and 7 of 7
 re-uploaded ones came back unlinked. The `.srm` and `.state1` of Crystalis (USA) were deleted and
-restored byte-identically in the same pass. The RomM-side link is still what keeps step 5 open. Findings 138 and 256 in `docs/retrobat-findings.md`.
+restored byte-identically in the same pass. Findings 138 and 256 in `docs/retrobat-findings.md`.
+
+**Diagnosed since, and neither half was RomM's** (finding 258). RomM links a screenshot to a
+state by filename, and RomMBat uploaded this one as `Legend of Zelda, The (USA) (Rev 1).state1
+[libretro.nestopia].png`, which that rule can never match against the state's name. The two
+paragraphs above that call the link RomM's, and "a finding 138 recurrence", describe the cause
+as it was understood when they were written. It is fixed: the image now goes up as the state's
+upload name plus `.png`. Screenshot 193 stays unlinked, because an unchanged state is not re-sent,
+so step 5 needs a state made after the fix.
 
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
@@ -538,6 +547,11 @@ and neither sees the other.
 | `ares`                | **deferred**           | **invisible**       |
 | `mednafen`            | **no shape claims it** | **invisible**       |
 | `mesen` standalone    | **no shape claims it** | **invisible**       |
+
+**"Synced" was upload only for `bizhawk` and `jgenesis`.** A restore could not place either
+row's state, because both keep the slot in the stem and the restore read it from the extension.
+The restore preview listed all three as "could not tell which slot it is". Fixed with finding 258,
+not driven since.
 
 **Those two battery states are different things, and the distinction decides what to build next.**
 `UnsyncableReason` separates them where the report's wording does not:

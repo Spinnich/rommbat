@@ -58,6 +58,26 @@ bundled slot with no local unit is `Failed`, because it has a remedy, run the ga
 slot bounds per emulator. See the `retrobat-layout` skill. Map `<image>` onto the optional
 `screenshotFile`, and derive `{emulator}:{core}:{slot}` as the slot.
 
+**Name the screenshot after the state's upload name, never after the image file.** RomM has no
+link column: `State.screenshot` finds an image whose name, or name less extension, equals the
+state's name or the state's name less extension, where "extension" is RomM's
+`\.(([a-z]+\.)*\w+)$`. Scoping the image's own name put the group after `.state1` and never
+matched for the five emulators whose `<image>` is `<file>.png`, while the seven whose `<image>`
+replaces the extension happened to match; that mix was finding 138's "a third".
+`<upload name><image extension>` matches for every declared emulator (ppsspp's image is `.jpg`).
+
+**A match is not unique, so check the name that comes back.** RomM's pattern strips a run of
+lowercase-letter extensions as one: `Game [libretro.snes9x].state.png` loses `.state.png`, so
+libretro slot 0's image has the name-less-extension of every slot of that game and core. The
+lookup ranks an image whose name less extension is the state's full name first, then takes the
+highest id, so a slot with no image of its own is answered with slot 0's. An old-name slot 0
+image, `Game.state [libretro.x].png`, likewise answers for the autosave
+`Game.state [libretro.x].auto`. `StateSync.IsOwnScreenshot` accepts only an image named
+`<state upload name>.<ext>`, or the exact earlier name of the state's own image (which linked
+for the seven), on restore and when counting a dropped screenshot on push. `StubRomMServer.Binds` ports the filter and `ScreenshotFor` the
+choice among a ROM's images, so a test cannot pass on a name the server would not link or on
+another state's image. Finding 258.
+
 **That slot never leaves the device.** `POST /api/states` has no slot field, and the row it
 returns carries no `content_hash` either, both confirmed live and in the pinned schema. So it
 is a local pairing key, and "does this state still need sending" is answerable only from the
@@ -627,10 +647,16 @@ hash, folded into one digest. The archive is transport only.
 
   **A restored state is named after the ROM on disk, never after the server row.** RomM strips
   parenthesised groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
-  reads back as `Legend of Zelda, The`. `es_savestates.cfg` declares `{{romfilename}}.state{{slot}}`,
-  so only the extension comes from the server, and it is the extension that carries the slot.
-  Writing the server's name puts a state where the emulator never looks, and it then reads as
-  absent rather than as an error. Finding 247.
+  reads back as `Legend of Zelda, The`. Writing the server's name puts a state where the emulator
+  never looks, and it then reads as absent rather than as an error. Finding 247.
+
+  **The slot is read out of the uploaded name, not the extension.** `StateSync.SentNameFor`
+  strips the scope group back off `file_name`, the template matches what is left, and
+  `SaveStateTemplate.FileFor` renders it onto the local ROM's stem. Taking only the extension
+  worked for libretro, dolphin, gopher64 and mupen64, and placed nothing for the eight emulators
+  that write the slot into the stem (`Game.QuickSave2.State`, `Game_0.jst`, `Game.01.p2s`) or a
+  libretro autosave (`Game.state.auto`): every one reported "could not tell which slot it is".
+  A name without the group, another client's, falls back to the extension. Finding 258.
 
   **A restore writes a `local_state` row, or the next flush sends back what it just fetched.**
   `RestoreAsync` records with `uploaded_content_hash` equal to what is now on disk, because both
@@ -646,9 +672,10 @@ hash, folded into one digest. The archive is transport only.
   `GET /api/screenshots/{id}/content` into the emulator's declared `<image>`, named from the ROM
   on disk through the template for the reason the state is. Best-effort, like the upload: a fetch
   that fails costs a line and the state still counts as restored, and an image already in the
-  tree is left alone. **The client half is closed and the server half is not.** A state whose
-  image RomM stored and did not link reads `screenshot: null` (`docs/retrobat-findings.md`
-  finding 138), and there is nothing to follow, so that state comes back without one. So does a
+  tree is left alone. **Both halves were RomMBat's.** A state whose image RomM stored and did not
+  link reads `screenshot: null`, and there is nothing to follow, so that state comes back without
+  one. Every libretro-shaped state uploaded before finding 258 is in that position and stays
+  there, because an unchanged state is not re-sent. So does a
   linked one for an emulator whose `<image>` is its `<file>`, DeSmuME, which has nowhere to put
   it; the find keeps the id either way, so the preview says per row which of the three it is. `DetailedRomSchema.user_screenshots` might reach such an orphan
   by name, and that is unmeasured, so it is not built on.

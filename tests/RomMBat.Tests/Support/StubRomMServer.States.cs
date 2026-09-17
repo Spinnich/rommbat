@@ -50,11 +50,9 @@ internal sealed partial class StubRomMServer
     /// Accepts a screenshot and answers as though it was never attached.
     /// </summary>
     /// <remarks>
-    /// Not invented. Measured against a live instance: the image bytes arrive and are stored
-    /// against the ROM at the right name and size, and the state still comes back with
-    /// <c>screenshot: null</c> and stays that way on re-read. It was not reproducible on
-    /// demand across thirty-five attempts, so the client has to report it rather than rely on
-    /// it not happening.
+    /// Stands for any reason the server stores the image and does not link it. The naming reason
+    /// is modelled separately and always on, in <see cref="Binds"/>; this switch covers the rest,
+    /// so the client's report of it stays tested whatever the name.
     /// </remarks>
     public bool DropScreenshots { get; set; }
 
@@ -170,7 +168,7 @@ internal sealed partial class StubRomMServer
         return Json(HttpStatusCode.OK, Describe(stored));
     }
 
-    private static object Describe(StubState state) => new
+    private object Describe(StubState state) => new
     {
         id = state.Id,
         rom_id = state.RomId,
@@ -188,15 +186,33 @@ internal sealed partial class StubRomMServer
         missing_from_fs = false,
         created_at = state.UpdatedAt,
         updated_at = state.UpdatedAt,
-        screenshot = state.ScreenshotBytes is null
+        screenshot = ScreenshotFor(state) is not { } shot
             ? null
             : new
             {
-                id = state.Id + 1000,
-                file_name = state.ScreenshotName,
-                file_size_bytes = state.ScreenshotBytes.Length,
+                id = shot.Id + 1000,
+                file_name = shot.ScreenshotName,
+                file_size_bytes = shot.ScreenshotBytes!.Length,
             },
     };
+
+    /// <summary>
+    /// The image RomM's <c>State.screenshot</c> answers with, chosen from every image held for the ROM.
+    /// </summary>
+    /// <remarks>
+    /// <c>get_screenshot</c> filters the ROM's images through <see cref="Binds"/>, ranks an image
+    /// whose <c>file_name_no_ext</c> is the state's <c>file_name</c> first, then takes the highest
+    /// id. So one image can answer for several states, which is how libretro slot 0's image reaches
+    /// every other slot. The holding state's id stands in for the image's.
+    /// </remarks>
+    private StubState? ScreenshotFor(StubState state) =>
+        States.Values
+            .Where(held => held.RomId == state.RomId
+                && held.ScreenshotBytes is not null
+                && Binds(state.FileName, held.ScreenshotName!))
+            .OrderBy(held => string.Equals(NoExtension(held.ScreenshotName!), state.FileName, StringComparison.Ordinal) ? 0 : 1)
+            .ThenByDescending(held => held.Id)
+            .FirstOrDefault();
 
     /// <summary>
     /// Pulls the optional <c>screenshotFile</c> part out, if there is one.
@@ -226,6 +242,29 @@ internal sealed partial class StubRomMServer
 
         return (name, System.Text.Encoding.Latin1.GetBytes(text[bodyStart..(bodyEnd < 0 ? text.Length : bodyEnd)]));
     }
+
+    /// <summary>
+    /// Whether RomM's <c>State.screenshot</c> lookup finds this image for this state.
+    /// </summary>
+    /// <remarks>
+    /// The filter half of the lookup, and <see cref="ScreenshotFor"/> is the choice among the
+    /// images it lets through. Ported from RomM, not approximated: <c>db_screenshot_handler.get_screenshot</c> filters on
+    /// the image's <c>file_name</c> or <c>file_name_no_ext</c> being either the state's
+    /// <c>file_name</c> or its <c>file_name_no_ext</c>, and <c>compute_file_name_no_ext</c> strips
+    /// <c>\.(([a-z]+\.)*\w+)$</c>. Identical at 5.2.0, 5.3.0-alpha.2 and 5.3.0-alpha.3. The
+    /// multi-part half matters: <c>.jst.png</c> is one extension to RomM and <c>.p2s.png</c> is
+    /// not, because a digit ends the letters-only group.
+    /// </remarks>
+    internal static bool Binds(string stateName, string screenshotName)
+    {
+        string[] state = [stateName, NoExtension(stateName)];
+
+        return state.Contains(screenshotName, StringComparer.Ordinal)
+            || state.Contains(NoExtension(screenshotName), StringComparer.Ordinal);
+    }
+
+    private static string NoExtension(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(name, @"\.(([a-z]+\.)*\w+)$", string.Empty).Trim();
 
     /// <summary>How RomM derives <c>file_name_no_tags</c>, measured rather than guessed.</summary>
     private static string StripTags(string stem) =>

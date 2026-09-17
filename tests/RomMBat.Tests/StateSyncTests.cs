@@ -221,7 +221,7 @@ public class StateSyncTests
         var row = Assert.Single(fixture.Stub.States.Values);
         fixture.Stub.States[row.Id] = row with
         {
-            ScreenshotName = "Game (USA).png",
+            ScreenshotName = row.FileName + ".png",
             ScreenshotBytes = "png bytes"u8.ToArray(),
         };
 
@@ -549,8 +549,202 @@ public class StateSyncTests
         var state = Assert.Single(fixture.Stub.States.Values);
 
         Assert.Equal("Game (USA).01 [pcsx2].p2s", state.FileName);
-        Assert.Equal("Game (USA).01.p2s [pcsx2].png", state.ScreenshotName);
+        Assert.Equal("Game (USA).01 [pcsx2].p2s.png", state.ScreenshotName);
         Assert.Equal("png bytes", System.Text.Encoding.UTF8.GetString(state.ScreenshotBytes!));
+    }
+
+    [Fact]
+    public void The_earlier_screenshot_name_never_attached_where_the_image_is_the_state_name_plus_png()
+    {
+        // Finding 138's "a third", explained. RomM binds by name, and scoping the image's own name
+        // put the group after .state1 for every emulator whose <image> is <file>.png, while an
+        // emulator whose <image> replaces the extension happened to line up.
+        Assert.False(StubRomMServer.Binds(
+            "Game (USA) [libretro.snes9x].state1",
+            "Game (USA).state1 [libretro.snes9x].png"));
+
+        Assert.True(StubRomMServer.Binds(
+            "Game (USA).QuickSave2 [bizhawk.SMSHawk].State",
+            "Game (USA).QuickSave2 [bizhawk.SMSHawk].png"));
+    }
+
+    [Theory]
+    [InlineData("snes", "ActRaiser (USA).zip", "snes/libretro.snes9x", "ActRaiser (USA).state1", "ActRaiser (USA).state1.png")]
+    [InlineData("snes", "ActRaiser (USA).zip", "snes/libretro.snes9x", "ActRaiser (USA).state", "ActRaiser (USA).state.png")]
+    [InlineData("snes", "ActRaiser (USA).zip", "snes/libretro.snes9x", "ActRaiser (USA).state.auto", "ActRaiser (USA).state.auto.png")]
+    [InlineData("ps2", "Game (USA).iso", "ps2/pcsx2", "Game (USA).01.p2s", "Game (USA).01.p2s.png")]
+    [InlineData("nes", "StarTropics (USA).zip", "nes/bizhawk/sstates/NesHawk", "StarTropics (USA).QuickSave0.State", "StarTropics (USA).QuickSave0.png")]
+    [InlineData("nes", "Wizardry (USA).zip", "nes/jgenesis/states", "Wizardry (USA)_0.jst", "Wizardry (USA)_0.png")]
+    [InlineData("gamecube", "Game (USA).rvz", "gamecube/dolphin", "Game (USA).s01", "Game (USA).s01.png")]
+    public async Task Every_state_shape_uploads_a_screenshot_the_server_links_and_restores_under_its_own_slot(
+        string system,
+        string rom,
+        string directory,
+        string stateName,
+        string imageName)
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, system, rom);
+        fixture.AddState(directory, stateName, "progress");
+        fixture.AddState(directory, imageName, "png bytes");
+        fixture.Scan();
+
+        var pushed = await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, pushed.Uploaded);
+        Assert.Equal(0, pushed.ScreenshotsDropped);
+
+        // The slot has to survive the round trip, which the extension alone does not carry for
+        // bizhawk, jgenesis, pcsx2 or a libretro autosave.
+        var state = fixture.Install.Resolve(RelativePath.Create($"saves/{directory}/{stateName}"));
+        var image = fixture.Install.Resolve(RelativePath.Create($"saves/{directory}/{imageName}"));
+        File.Delete(state);
+        File.Delete(image);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(found.Value!.Unrestorable);
+        var candidate = Assert.Single(found.Value.Restorable);
+        Assert.Equal($"saves/{directory}/{stateName}", candidate.Destination.Value);
+        Assert.Equal($"saves/{directory}/{imageName}", candidate.ScreenshotDestination?.Value);
+
+        var restored = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, restored.Restored);
+        Assert.Equal(1, restored.Screenshots);
+        Assert.Equal("progress", File.ReadAllText(state));
+        Assert.Equal("png bytes", File.ReadAllText(image));
+
+        fixture.Scan();
+        Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+    }
+
+    [Fact]
+    public async Task A_state_sent_from_a_rom_named_differently_elsewhere_keeps_its_slot_and_takes_the_local_name()
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nes", "StarTropics (USA).zip");
+        fixture.Stub.States[700] = new StubRomMServer.StubState
+        {
+            Id = 700,
+            RomId = 42,
+            Emulator = "bizhawk.NesHawk",
+            FileName = "StarTropics (U) [!].QuickSave3 [bizhawk.NesHawk].State",
+            Bytes = "progress"u8.ToArray(),
+        };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/nes/bizhawk/sstates/NesHawk/StarTropics (USA).QuickSave3.State",
+            candidate.Destination.Value);
+        Assert.Equal("bizhawk:NesHawk:3", candidate.SlotKey);
+    }
+
+    [Fact]
+    public void The_sent_name_is_recovered_only_where_the_scope_group_is_where_the_upload_put_it()
+    {
+        Assert.Equal(
+            "Game (USA).QuickSave2.State",
+            StateSync.SentNameFor("Game (USA).QuickSave2 [bizhawk.NesHawk].State", "bizhawk.NesHawk"));
+
+        // Another client's name, and a different scope's, carry no slot this can read.
+        Assert.Null(StateSync.SentNameFor("Game (USA) [2026-09-17 12-00-00].state", "libretro.fceumm"));
+        Assert.Null(StateSync.SentNameFor("Game (USA) [libretro.snes9x].state1", "libretro.bsnes"));
+    }
+
+    [Fact]
+    public async Task A_libretro_slot_without_an_image_does_not_restore_slot_zeros()
+    {
+        // RomM strips ".state.png" as one extension, so slot 0's image shares its name less the
+        // extension with every libretro slot, and the lookup hands it to a slot that has none.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state", "slot 0");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state.png", "slot 0 png");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "slot 1");
+        fixture.Scan();
+
+        var pushed = await fixture.PushAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, pushed.Uploaded);
+
+        foreach (var name in new[] { "ActRaiser (USA).state", "ActRaiser (USA).state.png", "ActRaiser (USA).state1" })
+        {
+            File.Delete(fixture.Install.Resolve(RelativePath.Create($"saves/snes/libretro.snes9x/{name}")));
+        }
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var restorable = found.Value!.Restorable.ToDictionary(state => state.Destination.Name);
+
+        Assert.NotNull(restorable["ActRaiser (USA).state"].ScreenshotId);
+        Assert.Null(restorable["ActRaiser (USA).state1"].ScreenshotId);
+        Assert.Null(restorable["ActRaiser (USA).state1"].ScreenshotDestination);
+    }
+
+    [Fact]
+    public async Task A_libretro_slot_whose_image_the_server_dropped_is_counted_though_slot_zeros_answers()
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state", "slot 0");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state.png", "slot 0 png");
+        fixture.Scan();
+        Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).ScreenshotsDropped);
+
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "slot 1");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1.png", "slot 1 png");
+        fixture.Scan();
+        fixture.Stub.DropScreenshots = true;
+
+        var outcome = await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(1, outcome.ScreenshotsDropped);
+    }
+
+    [Fact]
+    public async Task An_image_uploaded_under_the_earlier_name_restores_only_with_its_own_state()
+    {
+        // Two images from before the naming change. The bizhawk one linked, because its <image>
+        // replaces the extension, and is that state's. The libretro slot 0 one is named like the
+        // autosave's stem and the lookup offers it to the autosave, whose image it is not.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nes", "StarTropics (USA).zip");
+        fixture.Stub.States[700] = new StubRomMServer.StubState
+        {
+            Id = 700,
+            RomId = 42,
+            Emulator = "bizhawk.NesHawk",
+            FileName = "StarTropics (USA).QuickSave2 [bizhawk.NesHawk].State",
+            Bytes = "progress"u8.ToArray(),
+            ScreenshotName = "StarTropics (USA).QuickSave2 [bizhawk.NesHawk].png",
+            ScreenshotBytes = "bizhawk png"u8.ToArray(),
+        };
+        fixture.Stub.States[701] = new StubRomMServer.StubState
+        {
+            Id = 701,
+            RomId = 42,
+            Emulator = "libretro.fceumm",
+            FileName = "StarTropics (USA) [libretro.fceumm].state",
+            Bytes = "slot 0"u8.ToArray(),
+            ScreenshotName = "StarTropics (USA).state [libretro.fceumm].png",
+            ScreenshotBytes = "slot 0 png"u8.ToArray(),
+        };
+        fixture.Stub.States[702] = new StubRomMServer.StubState
+        {
+            Id = 702,
+            RomId = 42,
+            Emulator = "libretro.fceumm",
+            FileName = "StarTropics (USA).state [libretro.fceumm].auto",
+            Bytes = "autosave"u8.ToArray(),
+        };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var restorable = found.Value!.Restorable.ToDictionary(state => state.Destination.Name);
+
+        Assert.Equal(1700, restorable["StarTropics (USA).QuickSave2.State"].ScreenshotId);
+        Assert.Null(restorable["StarTropics (USA).state.auto"].ScreenshotId);
     }
 
     [Fact]

@@ -19,13 +19,13 @@ public sealed record StateSyncOutcome
     /// States sent with a screenshot the server did not attach.
     /// </summary>
     /// <remarks>
-    /// <b>Measured against a live instance and not reproducible on demand.</b> The screenshot
-    /// bytes arrive, and are stored against the ROM at the right size and name, but the state
-    /// comes back with <c>screenshot: null</c> and stays that way. Roughly a third of attempts
-    /// across thirty-five did it, varying the filename, the content type, the part header
-    /// order, the handler and connection reuse without finding what separates the two outcomes.
-    /// The request is provably well formed: dumped against a local listener it carries both
-    /// parts, the whole image payload and a correct <c>Content-Length</c>.
+    /// <b>RomM has no link column: <c>State.screenshot</c> is a lookup by filename.</b> A
+    /// screenshot attaches when its name, or its name less the extension, equals the state's
+    /// name or the state's name less the extension. The image is stored against the ROM either
+    /// way, so a name that fails the lookup leaves a screenshot row nothing points at.
+    /// <see cref="StateSync.ScreenshotUploadNameFor"/> is what makes the lookup succeed, and this count is
+    /// what reports the server declining it anyway (finding 138, whose "a third" was the mix of
+    /// emulators the earlier naming did and did not match).
     /// <para>
     /// So this is counted rather than treated as a failure. The state itself is correct and
     /// complete, and a screenshot is best-effort by nature, but silently reporting success for
@@ -260,6 +260,73 @@ public sealed class StateSync
     }
 
     /// <summary>
+    /// The name a state's screenshot is uploaded under: the state's own upload name plus the
+    /// image's extension.
+    /// </summary>
+    /// <remarks>
+    /// <b>Built from the state's name, never from the image's.</b> RomM binds a screenshot to a
+    /// state by name alone, and the image's own name puts the scope group in the wrong place
+    /// whenever the emulator writes <c>&lt;file&gt;.png</c>: <c>Game.state1.png</c> became
+    /// <c>Game.state1 [libretro.snes9x].png</c> against a state called
+    /// <c>Game [libretro.snes9x].state1</c>, and never attached. Appending to the state's name
+    /// makes the image a match for its state for every emulator <c>es_savestates.cfg</c> declares.
+    /// <para>
+    /// <b>Matched is not ranked first, and not unique.</b> RomM strips <c>\.(([a-z]+\.)*\w+)$</c>,
+    /// so a run of lowercase-letter extensions goes as one: <c>Game [libretro.snes9x].state.png</c>
+    /// loses <c>.state.png</c>, not <c>.png</c>, and its name less the extension is that of every
+    /// libretro slot of the game and core. A slot with no image of its own is answered with slot
+    /// 0's, which is why <see cref="IsOwnScreenshot"/> checks the name that comes back.
+    /// </para>
+    /// </remarks>
+    public static string ScreenshotUploadNameFor(string stateUploadName, string imageName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stateUploadName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(imageName);
+
+        return stateUploadName + Path.GetExtension(imageName);
+    }
+
+    /// <summary>
+    /// Whether the screenshot the server answers with for a state is that state's own image.
+    /// </summary>
+    /// <remarks>
+    /// RomM finds a state's screenshot by name, and the name can match another state's image (see
+    /// <see cref="ScreenshotUploadNameFor"/>). The image is this state's when it went up under
+    /// that name, or under <paramref name="earlierName"/>, the name this client gave the same image
+    /// before, which RomM linked for every emulator whose <c>&lt;image&gt;</c> replaces the
+    /// extension.
+    /// </remarks>
+    public static bool IsOwnScreenshot(string? screenshotFileName, string? stateFileName, string? earlierName = null) =>
+        screenshotFileName is { Length: > 0 }
+        && ((stateFileName is { Length: > 0 }
+                && screenshotFileName.StartsWith(stateFileName + ".", StringComparison.Ordinal))
+            || string.Equals(screenshotFileName, earlierName, StringComparison.Ordinal));
+
+    /// <summary>
+    /// The name a state had on the device that uploaded it, or null when the server's name does
+    /// not carry this scope where <see cref="UploadNameFor"/> puts it.
+    /// </summary>
+    /// <remarks>
+    /// The reverse of <see cref="UploadNameFor"/>, and the only place the slot survives for an
+    /// emulator that writes it into the stem: <c>Game.QuickSave2.State</c> uploads as
+    /// <c>Game.QuickSave2 [bizhawk.NesHawk].State</c>, and neither the extension nor RomM's
+    /// <c>file_name_no_tags</c> still says 2.
+    /// </remarks>
+    public static string? SentNameFor(string serverFileName, string scope)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serverFileName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scope);
+
+        var extension = Path.GetExtension(serverFileName);
+        var stem = serverFileName[..^extension.Length];
+        var group = $" [{scope}]";
+
+        return stem.Length > group.Length && stem.EndsWith(group, StringComparison.Ordinal)
+            ? stem[..^group.Length] + extension
+            : null;
+    }
+
+    /// <summary>
     /// States the server holds for a ROM on this device that are not in the tree.
     /// </summary>
     /// <remarks>
@@ -371,26 +438,49 @@ public sealed class StateSync
                 continue;
             }
 
-            // <b>Built from the ROM on disk, never from the server's name.</b> `es_savestates.cfg`
-            // declares `{{romfilename}}.state{{slot}}`, and RomM's `file_name_no_tags` strips
-            // anything parenthesised as a tag: measured, "Legend of Zelda, The (USA) (Rev 1)"
-            // comes back as "Legend of Zelda, The". Writing that name puts a state where the
-            // emulator will never look for it, and the file would read as simply absent. Only
-            // the extension is taken from the server, because that is what carries the slot.
+            // <b>The stem comes from the ROM on disk, never from the server's name.</b> RomM's
+            // `file_name_no_tags` strips anything parenthesised as a tag: measured, "Legend of
+            // Zelda, The (USA) (Rev 1)" comes back as "Legend of Zelda, The", and a state written
+            // under that name reads as simply absent. <b>The slot comes from the name that was
+            // sent</b>, read through this emulator's template, because only libretro-shaped names
+            // keep it in the extension: bizhawk, jgenesis, pcsx2 and a libretro autosave keep it
+            // in the stem. A name this client did not upload falls back to the extension.
             var stem = Path.GetFileNameWithoutExtension(roms[0].FileName);
-            var extension = Path.GetExtension(onDisk);
 
-            if (string.IsNullOrEmpty(stem) || string.IsNullOrEmpty(extension))
+            if (string.IsNullOrEmpty(stem))
             {
                 unrestorable.Add(new UnrestorableState(
                     row.RomId,
                     scope,
-                    "the name it would take here is incomplete: the ROM on disk has no stem, or "
-                        + "the server's name no extension, and the extension is the slot."));
+                    "the name it would take here is incomplete: the ROM on disk has no stem."));
                 continue;
             }
 
-            var name = stem + extension;
+            string name;
+            string? earlierScreenshotName = null;
+
+            if (row.FileName is { Length: > 0 } serverName
+                && SentNameFor(serverName, scope) is { } sent
+                && template.Match(sent) is { } sentMatch)
+            {
+                name = template.FileFor(sentMatch with { Stem = stem });
+                earlierScreenshotName = template.ImageFor(sentMatch) is { Length: > 0 } sentImage
+                    ? UploadNameFor(sentImage, emulator.Name, core)
+                    : null;
+            }
+            else if (Path.GetExtension(onDisk) is { Length: > 0 } extension)
+            {
+                name = stem + extension;
+            }
+            else
+            {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    "the name it would take here is incomplete: the server's name has no extension "
+                        + "and does not carry this emulator's slot."));
+                continue;
+            }
 
             // Read back through the same template the scanner keys on, so the row written after a
             // restore pairs with the one the next scan finds instead of becoming a second row.
@@ -411,11 +501,15 @@ public sealed class StateSync
                 continue;
             }
 
-            // Only a linked, non-empty screenshot. A state whose image the server did not link
-            // (docs/retrobat-findings.md finding 138) comes back without one, and that half is
-            // upstream's (#158). The link is kept even where the emulator has nowhere to put it,
-            // so the preview can say which of the two it was.
-            int? screenshotId = row.Screenshot is { Id: > 0, FileSizeBytes: > 0 } linked ? linked.Id : null;
+            // Only a linked, non-empty screenshot that is this state's own. A state whose image the
+            // server did not link (docs/retrobat-findings.md finding 258), including a libretro or
+            // other `<file>.png` image uploaded under the earlier screenshot name, comes back
+            // without one. The link is kept even where the emulator has nowhere to put it, so the
+            // preview can say which of the two it was.
+            int? screenshotId = row.Screenshot is { Id: > 0, FileSizeBytes: > 0 } linked
+                && IsOwnScreenshot(linked.FileName, row.FileName, earlierScreenshotName)
+                    ? linked.Id
+                    : null;
             var imagePath = screenshotId is not null && template.ImageFor(match) is { Length: > 0 } imageName
                 ? template.Directory.Combine(imageName)
                 : (RelativePath?)null;
@@ -797,7 +891,7 @@ public sealed class StateSync
             await using var content = File.OpenRead(path);
 
             var name = UploadNameFor(state.Path.Name, state.Emulator, state.Core);
-            var screenshot = OpenScreenshot(state);
+            var screenshot = OpenScreenshot(state, name);
 
             try
             {
@@ -816,10 +910,10 @@ public sealed class StateSync
 
                 _store.States.MarkUploaded(state.Path, row.Id, name, state.ContentHash!, _time.GetUtcNow());
 
-                // A screenshot was sent and the row came back without one. Reported rather than
-                // retried: the bytes do reach the server, so a retry uploads the image again
-                // and orphans another copy against the ROM.
-                return (null, false, screenshot is not null && row.Screenshot is null);
+                // A screenshot was sent and the row came back without it, or with another state's.
+                // Reported rather than retried: the bytes do reach the server, so a retry uploads
+                // the image again and orphans another copy against the ROM.
+                return (null, false, screenshot is not null && !IsOwnScreenshot(row.Screenshot?.FileName, row.FileName));
             }
             finally
             {
@@ -845,7 +939,7 @@ public sealed class StateSync
     /// state: it is best-effort everywhere, and the state itself was correct in every observed
     /// case where the image was not.
     /// </remarks>
-    private (string FileName, Stream Content)? OpenScreenshot(LocalState state)
+    private (string FileName, Stream Content)? OpenScreenshot(LocalState state, string stateUploadName)
     {
         if (state.ScreenshotPath is not { } relative)
         {
@@ -858,7 +952,7 @@ public sealed class StateSync
         {
             return !File.Exists(path) || new FileInfo(path).Length == 0
                 ? null
-                : (UploadNameFor(relative.Name, state.Emulator, state.Core), File.OpenRead(path));
+                : (ScreenshotUploadNameFor(stateUploadName, relative.Name), File.OpenRead(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

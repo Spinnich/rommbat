@@ -811,7 +811,12 @@ not hardcode. Two things make it less easy than it looks, both measured:
 - **The upsert keys on `(rom_id, file_name)` and the emulator is not part of it.** So the
   uploaded name is not the name on disk: it carries the emulator and core, or two libretro
   cores writing one filename for one game collapse into a single server row and the second
-  silently wins. Discovery reverses the `<file>` and `<directory>` templates rather than
+  silently wins. **A screenshot attaches to a state by name alone**, so it is uploaded as the
+  state's upload name plus the image's own extension. The name can match another state's image
+  as well (libretro slot 0's `.state.png` strips to every slot's name), so a restore follows
+  only an image named after its own state. A restore reads the slot back out of the uploaded name
+  through the template, because bizhawk, jgenesis and pcsx2 keep it in the stem rather than the
+  extension. Discovery reverses the `<file>` and `<directory>` templates rather than
   expanding a slot range, which is what makes the four documented traps in that file mostly
   stop being traps.
 
