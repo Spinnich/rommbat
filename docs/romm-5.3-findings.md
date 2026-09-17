@@ -473,6 +473,39 @@ null-slot row and keeps writing into it, so it does not pile up rows, and the pr
 see it. `saves restore` still can, with #156's collision, since fixed in stage 2 of #195 by
 offering only the newest row per destination and naming the rest.
 
+**Read in source at `5.3.0-alpha.2`: the browser's states (#190). Only one writer rewrites a state
+in place, and it cannot reach a row this client holds, so nothing was measured.** Three frontend
+paths post a state, and none of them calls `stateApi.updateState`, which is defined in
+`services/api/state.ts` and called nowhere.
+
+| Writer                                                     | Route, name, emulator                                                        | In place |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- | -------- |
+| `views/Player/EmulatorJS` (the v2 player wraps the same)   | `POST /api/states`, `<fs_name_no_ext> [<ISO timestamp>].state`, the EJS core | no       |
+| `console/views/Play.vue`                                   | `POST /api/states`, `state.save` every time, `emulatorjs`                    | **yes**  |
+| `v2/components/GameDetails/SaveDataTab.vue`, manual upload | `POST /api/states`, the uploaded file's own name, no emulator                | by name  |
+
+`auto_save_sync` changes nothing for states: `installAutoSaveSync` subscribes to `saveSaveFiles`
+only, so a state is still written on a save-state press and on Save & Quit. The console view
+rewrites because `store_state_file` in `handler/asset_store.py` updates whatever row already holds
+`(user, rom, file_name)`, the upsert `romm-api` records as measured, and a fixed name makes every
+save that one row.
+
+**Neither player reaches `StateSync`.** Every upload this client makes is named
+`<stem> [<emulator>[.<core>]]<ext>`, and neither a timestamp nor `state.save` can equal that, so no
+player write lands on a row this device sent. Restore reports both shapes as unrestorable rather
+than placing them: `emulatorjs` is not declared in `es_savestates.cfg`, and the two EJS cores that
+share a declared emulator name, `ppsspp` and `desmume`, produce a `.state` that neither emulator's
+`<file>` template matches.
+
+**A manual upload under this client's exact name is the one writer that can land on its row**,
+such as a state downloaded from the web UI and uploaded again. It replaces the bytes under the same
+id and **clears the emulator**, because the update writes the caller's emulator and the upload
+sends none. Read in code, `StateSync` does nothing about it: `RunAsync` decides what needs sending
+from the local hash alone and never reads the server row, and restore skips a destination that
+already exists. The next local change overwrites the upload without a word. That is the same last
+writer wins that two devices on one account already get, because states have no conflict route.
+Recorded rather than acted on, since no player write can take this path.
+
 **Read in source, not measured: streaming.** `handler/streaming/saves.py` stores each pulled save
 archive as a **new null-slot row**, `<rom stem> [<emulator> <timestamp>].saves.zip`, dropped when
 its hash matches any save already held for the ROM. Negotiate never offers one. `saves restore`
@@ -888,3 +921,4 @@ Docker daemon that a read answers today is a question nobody answers.
 | 3   | What a memory card record and version hold, and whether a raw card is accepted       | **Answered.** Whole card, zip only, layout unchecked. Finding 3 |
 | 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
+| 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |

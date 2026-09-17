@@ -925,6 +925,16 @@ and `xemu`, which are the names streaming uses, so a heavily streamed game delet
 oldest server copies. The local file survives and is never re-sent, because "in step" is decided
 from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
 
+**The browser writes states as new rows, and only a same-named manual upload rewrites one this
+client holds** (#190, read at 5.3.0-alpha.2, finding 4). The player posts
+`<rom> [<timestamp>].state` under the EJS core, and `auto_save_sync` does not touch states. The
+console view posts `state.save` under `emulatorjs` every time, so the upsert rewrites one row per
+ROM, but that name can never equal this client's `<stem> [<emulator>[.<core>]]<ext>`, and restore
+reports both shapes unrestorable. A web-UI upload of a file carrying this client's exact name does
+replace that row's bytes and clears its emulator. Nothing notices: `RunAsync` never reads the
+server row, so the next local change overwrites it. Do not build a state conflict route on the
+strength of this; no player write reaches it.
+
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;
 a version is the whole card, stored byte for byte and not deduplicated; a bare `SRAM.USA.raw` is

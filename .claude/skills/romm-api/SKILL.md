@@ -480,7 +480,9 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   and moving its stored path. So there is no append to prune and no `autocleanup` to ask for,
   but **the uploaded name has to carry the emulator and core** or two cores writing one filename
   for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
-  two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary.
+  two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary, and no frontend
+  path at 5.3.0-alpha.2 calls it either. The browser rewrites a state only through this upsert,
+  from the console view's fixed `state.save` name (finding 4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
   never sends it; RomM's browser player does, for the save it loaded, and on every save tick
