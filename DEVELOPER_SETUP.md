@@ -250,7 +250,16 @@ these variables exported, **20 of the tests pair against the real server**, mint
 real credentials on the account behind the approver token. Nothing warns you first. Two runs
 overlapping share that one account and the server answers `Too many authorize attempts. Try
 again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
-clears on its own. If you want a run that touches nothing, unset both variables and the 20 skip:
+clears on its own.
+
+**Looping the live suite to chase an intermittent needs spacing, and one class is faster.** Pairing
+is limited to 10 per minute per IP, and one run of all four `Live*` classes pairs about nine times,
+so back-to-back runs fail 22 of 22 on the limit and prove nothing. Leave 75 s between full runs.
+`LiveContentTests` alone pairs once and needs no gap, but back to back it slows the server: its
+identifiers test abandons a call the server keeps computing for three minutes, and a run that took
+28 s took 147 s by the fortieth.
+
+If you want a run that touches nothing, unset both variables and the 20 skip:
 
 ```bash
 env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test

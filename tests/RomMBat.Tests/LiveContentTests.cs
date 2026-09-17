@@ -345,7 +345,12 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
             DateTimeOffset.UtcNow,
             cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
+        // The cause goes in the message: on a live server an Interrupted outcome alone could be a
+        // failed page, a timeout or a cancellation, and a one-off cannot be re-run to find out.
+        Assert.True(
+            resolution.Outcome == ResolutionOutcome.Resolved,
+            $"The walk ended {resolution.Outcome} after {resolution.Scanned} of {resolution.ScopeTotal} rows, "
+                + $"cause {resolution.Cause}: {resolution.Problem ?? "no problem recorded"}");
         Assert.SkipWhen(resolution.Members.Count == 0, "The chosen platform resolved to nothing syncable.");
 
         session.Store.SyncSets.ReplaceMembers(
