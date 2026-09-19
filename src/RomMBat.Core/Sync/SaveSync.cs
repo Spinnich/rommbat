@@ -499,6 +499,15 @@ public sealed class SaveSync
                     // it, so one silent overwrite becomes the slot's newest save (#205).
                     if (local is null && HeldByAnotherSlot(operation, destination) is { } holder)
                     {
+                        // The same bytes under two slots have nothing to settle. Safe as a plain
+                        // file hash because a bundled slot with no local unit was refused above.
+                        if (holder.ContentHash is { } held
+                            && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            noOps++;
+                            break;
+                        }
+
                         conflicts.Add(RecordConflict(
                             operation,
                             holder,
@@ -1598,7 +1607,6 @@ public sealed class SaveSync
             string.Equals($"{declared.Emulator}:{declared.Slot}", slot, StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>
     /// <summary>
     /// The save another slot keeps at this destination, when the offered slot has none here.
     /// </summary>
@@ -1622,6 +1630,7 @@ public sealed class SaveSync
                 row.Path == destination
                 && !string.Equals(row.Slot, operation.Slot, StringComparison.Ordinal));
 
+    /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>
     private RelativePath? MoveAside(RelativePath target)
     {
         var absolute = _install.Resolve(target);

@@ -775,7 +775,9 @@ hash, folded into one digest. The archive is transport only.
   `libretro:battery`). So a download for a slot this device holds no row for, whose destination
   another slot's `local_save` holds, is **recorded as a conflict on the offered slot** and never
   written; `--keep-local` finds its local side by the conflict's path, since the offered slot has no
-  row. **A bundled slot is the
+  row. **When the offered `content_hash` equals the holder's, it is a no-op instead**, or the save
+  `--keep-local` just sent comes back offered and reopens the conflict it settled; a plain file hash
+  is enough there because the bundled case below was refused first. **A bundled slot is the
   exception and is refused with a reason**, because a class C restore needs a container and a
   unit key and both come from a local unit this device does not have; recognise it from the
   shapes table, never from a `.zip` extension.
