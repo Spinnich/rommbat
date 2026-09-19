@@ -198,8 +198,15 @@ public sealed class SaveConflictResolver
         SaveConflictRecord conflict,
         CancellationToken cancellationToken)
     {
+        // By slot first, then by the file the conflict named. A conflict recorded because another
+        // slot's download would have landed on this device's save (#205) is keyed on the slot the
+        // server offered, which this device holds no row for: its local side is the file, and
+        // without this fallback the only way out of such a conflict would be taking the server's
+        // copy.
         var save = _store.Saves.List(conflict.RomId)
-            .FirstOrDefault(row => string.Equals(row.Slot, conflict.Slot, StringComparison.Ordinal));
+            .FirstOrDefault(row => string.Equals(row.Slot, conflict.Slot, StringComparison.Ordinal))
+            ?? _store.Saves.List(conflict.RomId)
+                .FirstOrDefault(row => row.Path == conflict.LocalPath);
 
         if (save is null)
         {
