@@ -493,6 +493,29 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // A slot this device has never held, landing on a file another slot keeps.
+                    // Recorded rather than written, because the write looks like an ordinary
+                    // download and the next scan re-keys the file to the loose slot and uploads
+                    // it, so one silent overwrite becomes the slot's newest save (#205).
+                    if (local is null && HeldByAnotherSlot(operation, destination) is { } holder)
+                    {
+                        // The same bytes under two slots have nothing to settle. Safe as a plain
+                        // file hash because a bundled slot with no local unit was refused above.
+                        if (holder.ContentHash is { } held
+                            && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase))
+                        {
+                            noOps++;
+                            break;
+                        }
+
+                        conflicts.Add(RecordConflict(
+                            operation,
+                            holder,
+                            $"the server offers slot {operation.Slot} for a save this device keeps "
+                                + $"in slot {holder.Slot}, and both name {destination}."));
+                        break;
+                    }
+
                     var download = await DownloadAsync(
                             operation,
                             saveId,
@@ -1584,6 +1607,29 @@ public sealed class SaveSync
             string.Equals($"{declared.Emulator}:{declared.Slot}", slot, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// The save another slot keeps at this destination, when the offered slot has none here.
+    /// </summary>
+    /// <remarks>
+    /// <b>Two slots resolving to one file is ordinary, not a misconfiguration.</b> A slot this
+    /// device has never held takes its destination from the ROM's folder and stem, which is
+    /// exactly where the loose class A save for that game already is. RomM 5.3.0-alpha.3's
+    /// browser player reaches it without anyone trying: a session started without loading a save
+    /// files under <c>autosave</c>, and that lands on the <c>saves/&lt;system&gt;/&lt;rom&gt;.srm</c>
+    /// this device keeps as <c>libretro:battery</c>. Measured on <c>nes</c>, where it replaced a
+    /// played save and then propagated into this device's own slot on the next scan (#205).
+    /// <para>
+    /// Scoped to the ROM's own rows, which is every row that can share the destination: a shape
+    /// whose container is shared between games is bundled, and a bundled slot with no local unit
+    /// is refused before this by <see cref="IsUnplaceableUnit"/>.
+    /// </para>
+    /// </remarks>
+    private LocalSave? HeldByAnotherSlot(SyncOperation operation, RelativePath destination) =>
+        _store.Saves.List(operation.RomId)
+            .FirstOrDefault(row =>
+                row.Path == destination
+                && !string.Equals(row.Slot, operation.Slot, StringComparison.Ordinal));
+
     /// <summary>Copies whatever is there out of the way, and returns where it went.</summary>
     private RelativePath? MoveAside(RelativePath target)
     {
@@ -1636,10 +1682,11 @@ public sealed class SaveSync
     /// conflict as well as the copy.
     /// </para>
     /// </remarks>
-    private SaveConflict RecordConflict(SyncOperation operation, LocalSave local)
+    private SaveConflict RecordConflict(SyncOperation operation, LocalSave local, string? because = null)
     {
         var slot = operation.Slot ?? string.Empty;
-        var reason = operation.Reason
+        var reason = because
+            ?? operation.Reason
             ?? "both this device and the server changed this slot since the last sync.";
         var now = _time.GetUtcNow();
 

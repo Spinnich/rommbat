@@ -241,6 +241,7 @@ public class SaveSyncTests
         fixture.Scan();
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
         await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        fixture.Stub.NegotiateActions.Remove((7, "libretro:battery"));
 
         File.Delete(fixture.Resolve("saves/gb/Tetris (World).srm"));
         fixture.Scan();
@@ -1826,6 +1827,114 @@ public class SaveSyncTests
         // mean for the retry to be safe.
         Assert.False(File.Exists(fixture.Resolve("saves/gb/Tetris (World).srm")));
         Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_download_for_another_slot_that_lands_on_this_devices_save_is_a_conflict()
+    {
+        // Measured on the nes install against RomM 5.3.0-alpha.3 (#205): a browser session
+        // started without loading a save files under `autosave`, a slot this device has never
+        // held, whose destination is the same saves/<system>/<rom>.srm that libretro:battery
+        // keeps. The flush reported "1 down", the played save was gone, and the next scan
+        // re-keyed the file and uploaded the browser's save over this device's own slot.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+        fixture.Stub.NegotiateActions.Remove((7, "libretro:battery"));
+
+        fixture.SeedServerSave(7, "autosave", "Tetris (World)", "srm", "the browser's fresh game", id: 101);
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Conflicts);
+
+        // The file the emulator reads is untouched, which is the whole point.
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+
+        Assert.Equal("autosave", conflict.Slot);
+        Assert.Equal("saves/gb/Tetris (World).srm", conflict.LocalPath.Value);
+        Assert.Contains("libretro:battery", conflict.Reason, StringComparison.Ordinal);
+
+        // And it stays a conflict rather than being re-offered into a write on the next pass.
+        fixture.Scan();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Downloaded);
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task Keeping_the_local_side_of_that_conflict_sends_the_file_the_other_slot_holds()
+    {
+        // The conflict is keyed on the slot the server offered, which this device holds no row
+        // for, so keep-local has to find its local side by the file the conflict named.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        fixture.Stub.NegotiateActions.Remove((7, "libretro:battery"));
+
+        fixture.SeedServerSave(7, "autosave", "Tetris (World)", "srm", "the browser's fresh game", id: 101);
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var outcome = await fixture.ResolveAsync(
+            7,
+            "autosave",
+            ConflictResolution.KeepLocal,
+            TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+
+        // The device's own bytes now stand in the slot the browser wrote.
+        Assert.Contains(
+            fixture.Stub.Saves.Values,
+            save => save.Slot == "autosave"
+                && System.Text.Encoding.UTF8.GetString(save.Bytes) == "played here");
+
+        // The server offers that save back, and it is the file this device already keeps, so the
+        // next pass writes nothing and reopens nothing.
+        fixture.Scan();
+        var next = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, next.Conflicts);
+        Assert.Equal(0, next.Downloaded);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task A_download_for_another_slot_carrying_this_devices_own_bytes_is_not_a_conflict()
+    {
+        // Two devices holding the same save under different slots. The offer names the file
+        // libretro:battery keeps, but there is nothing to settle when the bytes are the same.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        fixture.Stub.NegotiateActions.Remove((7, "libretro:battery"));
+
+        fixture.SeedServerSave(7, "autosave", "Tetris (World)", "srm", "played here", id: 101);
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
     }
 
     private sealed class SyncFixture : IDisposable
