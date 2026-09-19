@@ -714,6 +714,21 @@ download moved it to the newer save. Recorded in finding 4 of
 **A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
 copy is still there with no decision to attach to it and no mechanism that will remove it.
 
+## RomM's browser player, driven at `5.3.0-alpha.3`
+
+On `libretro`/`nestopia` with The Legend of Zelda (USA) (Rev 1), rom 158633, the maintainer in
+RomM's v2 player and at EmulationStation. Finding 259 in `docs/retrobat-findings.md` has the
+detail; it re-runs no checklist step.
+
+| Session                                      | What reached RetroBat                                                                            |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| A, resuming this client's `libretro:battery` | `1 down`, raw 8,192 B at the `.srm` nestopia reads, **loaded with the browser's new file on it** |
+| RetroBat launch after A                      | A one-time rewrite by nestopia, uploaded once; a second launch rewrote identical bytes           |
+| B, a fresh game filed under `autosave`       | **Overwrote the played save with no conflict**, then went up into `libretro:battery`             |
+
+B is #205, and the fix records it as a conflict instead of writing. The played save was put back
+from the copy aside and is the current `libretro:battery` version again.
+
 ## What this file will not claim
 
 - The nine rows are driven on steps 4 and 5 and **none of them is certified**, because step 2

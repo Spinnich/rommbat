@@ -768,7 +768,14 @@ hash, folded into one digest. The archive is transport only.
   needed. A restore onto a device that never held the slot is an ordinary case, not a dead one,
   so **never return early because the local save list is empty**: that is the device with the
   strongest reason to pull. The target for such a slot comes from the ROM's own folder and stem,
-  with only the extension read off the operation's tagged filename. **A bundled slot is the
+  with only the extension read off the operation's tagged filename. **That target is usually a
+  file another slot already keeps**, the loose class A save, and writing it was a silent overwrite
+  that the next scan then uploaded into the other slot (#205, finding 259: RomM 5.3.0-alpha.3's
+  browser files a fresh session under `autosave`, which lands on the `.srm` this device keeps as
+  `libretro:battery`). So a download for a slot this device holds no row for, whose destination
+  another slot's `local_save` holds, is **recorded as a conflict on the offered slot** and never
+  written; `--keep-local` finds its local side by the conflict's path, since the offered slot has no
+  row. **A bundled slot is the
   exception and is refused with a reason**, because a class C restore needs a container and a
   unit key and both come from a local unit this device does not have; recognise it from the
   shapes table, never from a `.zip` extension.
@@ -864,7 +871,9 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
   names the rows it folded and says when a null-slot row and a slotted one share the file. It
   narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
-  row even where a newer null-slot row shares the file.
+  row even where a newer null-slot row shares the file. **The flush had the same gap for slotted
+  rows and it is closed separately**: a negotiated download for a slot this device never held,
+  landing on another slot's file, is a conflict and not a write (#205).
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something
