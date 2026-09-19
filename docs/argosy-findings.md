@@ -17,7 +17,7 @@ labelled open rather than quietly promoted.
 | Source licence     | GPL-3.0, same as ours                                                            |
 | RomM under test    | `5.2.0`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`                      |
 | Library under test | 88,331 roms, 708 firmware records across 52 platforms                            |
-| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.0-alpha.2.json` now |
+| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.0-alpha.3.json` now |
 | RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`                            |
 | Date               | 2026-08-25                                                                       |
 
