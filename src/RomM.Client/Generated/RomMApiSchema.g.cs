@@ -5949,7 +5949,7 @@ namespace RomM.Client.Generated
         public string Updated_at { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("last_modified")]
-        public string Last_modified { get; set; } = default!;
+        public string? Last_modified { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("crc_hash")]
         public string? Crc_hash { get; set; } = default!;
@@ -8833,6 +8833,9 @@ namespace RomM.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("VERSION")]
         public string VERSION { get; set; } = default!;
+
+        [System.Text.Json.Serialization.JsonPropertyName("GIT_BRANCH")]
+        public string? GIT_BRANCH { get; set; } = default!;
 
         [System.Text.Json.Serialization.JsonPropertyName("SHOW_SETUP_WIZARD")]
         public bool SHOW_SETUP_WIZARD { get; set; } = default!;

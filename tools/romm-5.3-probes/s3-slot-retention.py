@@ -5,6 +5,11 @@ tighter of `MAX_SAVES_PER_SLOT` (env, default 50) and a client's `autocleanup_li
 slotted upload whether the client asked or not. `prune_slot` keeps the newest by `updated_at`
 then `id`. This client never sets `autocleanup`, so the cap is its retention.
 
+`add_save` and `prune_slot` are byte-identical at 5.3.0-beta.1, the floor now: the only save
+change between the tags projects ids for `GET /api/saves/identifiers`. So the run recorded
+against alpha.3 describes the code beta.1 ships, and a re-run would be a re-measurement of the
+same source rather than of a change.
+
 Two cases against one ROM and a throwaway slot, in the order they run:
 
   R1  this device uploads and negotiates, then a peer with no device puts 51 more versions in

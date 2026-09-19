@@ -103,6 +103,26 @@ came with this move beyond the regenerated DTOs, which no step's code reads.
 | 8   | Owed, as before    | `POST /api/play-sessions` is unchanged                                                                                     |
 | 9   | **Touched**        | Always touched on a move                                                                                                   |
 
+## The move to `5.3.0-beta.1`
+
+**It adds nothing to what is owed either, and it un-touches nothing.** Mapped from finding 12 of
+`docs/romm-5.3-findings.md`. The only `src/` change in the move is the regenerated DTOs, four
+lines, and no step's code reads either member.
+
+| #   | At `5.3.0-beta.1` | Why                                                                                                                       |
+| --- | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Owed, as before   | `GET /api/platforms` is unchanged again                                                                                   |
+| 2   | Owed, as before   | `GET /api/roms` takes the same 58 parameters; the change is how the rows are built, not what is asked for                 |
+| 3   | Carried           | No firmware route or BIOS data changed, and `nes` requires no BIOS                                                        |
+| 4   | Owed, as before   | `add_save` and `prune_slot` are byte-identical, and the browser writer's slot choice is unchanged, so alpha.3's row holds |
+| 5   | Owed, as before   | `POST /api/states` is unchanged; only `GET /api/states/identifiers` changed, and it projects ids                          |
+| 6   | N/A               | Unchanged: `nes` has no class D                                                                                           |
+| 7   | Owed, as before   | The game list's query is unchanged                                                                                        |
+| 8   | Owed, as before   | `POST /api/play-sessions` is unchanged                                                                                    |
+| 9   | **Touched**       | Always touched on a move                                                                                                  |
+
+So the row still owes steps 1, 2, 4, 5, 7, 8 and 9, at `5.3.0-beta.1` rather than at `alpha.3`.
+
 ## Checklist
 
 | #   | Step                                                           | Result                                                                                    |

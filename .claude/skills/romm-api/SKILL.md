@@ -6,7 +6,7 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 # RomM API
 
 The backend is the contract. DTOs are generated from `/openapi.json` (served at the
-**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-alpha.3, the minimum supported
+**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-beta.1, the minimum supported
 version. The floor tracks the newest RomM stable, or a prerelease ahead of it as it does now,
 so the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
@@ -330,7 +330,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
-  **Re-verified against the pinned `romm-5.3.0-alpha.3.json`, because a whole scope kind turns
+  **Re-verified against the pinned `romm-5.3.0-beta.1.json`, because a whole scope kind turns
   on it.** The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id`
   and `smart_collection_id`, and there is nothing else. 5.3.0 takes the query from 51
   parameters to 58 without adding one: the new ones are filters (`physical`, `playable`,

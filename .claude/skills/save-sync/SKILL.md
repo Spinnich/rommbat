@@ -937,7 +937,12 @@ save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not m
 of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `overwrite=true`
 into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
 this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
-its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer. So
+its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
+**Still true at the beta.1 floor**, re-read there because the writer was rewritten around it
+(finding 12): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+`autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
+with no slotted save and not one this client syncs. What is new is a screenshot on every save
+version, which is inert here because only states carry one on this side. So
 compare the hash wherever the question is "is this the save I had", which `save_conflict` already
 does and must keep doing. Measured on 5.3.0-alpha.2 with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
 which replays the browser's own calls:

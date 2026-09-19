@@ -115,6 +115,11 @@ measurement was taken on and must not.
    the public demo, which carries stable only, so it comes from a self-hosted instance whose
    `SYSTEM.VERSION` you **read at capture time**: a live library can be upgraded underneath the
    work, and a capture that does not match the floor is the wrong artifact even when it parses.
+   **Take the file list from the trees, not from the compare endpoint.**
+   `GET /repos/{owner}/{repo}/compare/{a}...{b}` caps `files` at 300 and says nothing in the
+   payload when it truncates, so a delta that size reads as complete while hiding whichever
+   files sort last. `alpha.3` to `beta.1` hit exactly 300 and hid the browser save writer, which
+   a finding turned on. Diff blob shas from `git/trees/{ref}?recursive=1` at both tags instead.
 8. **Map the move onto every record in `docs/platforms/`.** Each record gets the nine steps
    marked touched or carried, step 9 always touched, a one-line reason for each carried step,
    and the touched ones re-run or recorded as owed at the new floor. The rule and what counts

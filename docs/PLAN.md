@@ -423,7 +423,7 @@ there and does not need to: point the client at an existing instance over the LA
 ### Version compatibility is declared, checked, and visible
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.2.1** and **RomM 5.3.0-alpha.3**.
+**RetroBat 8.2.1** and **RomM 5.3.0-beta.1**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
@@ -3240,7 +3240,7 @@ be taught to ignore, which means storing "this orphan is deliberate" and is a se
 name with none of a set's machinery.
 
 **`GET /api/roms` has no id-list parameter**, verified against the pinned
-`romm-5.3.0-alpha.3.json`:
+`romm-5.3.0-beta.1.json`:
 its scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
 `smart_collection_id`. That is a property of the scope rather than a defect, so
 `CatalogQuery.ToQueryString` **refuses** a picked scope instead of falling through to a query
@@ -3801,7 +3801,7 @@ introduces, and the table is hand-maintained.
 | RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                                                   |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                                                        |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                                                                 |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0-alpha.3), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                   |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0-beta.1), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                    |
 | Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                                                       |
 
 ---
