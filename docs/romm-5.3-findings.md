@@ -1016,5 +1016,5 @@ Docker daemon that a read answers today is a question nobody answers.
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
 | 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |
 | 11  | What reaches a slot this device is missing when 50 versions arrive while it is away? | **Answered.** A download, or a 409 that becomes a conflict      |
-| 11  | Does a browser session's `.srm` in a libretro slot land and load under RetroBat?     | **Open.** Needs a person in the browser and at RetroBat         |
+| 11  | Does a browser session's `.srm` in a libretro slot land and load under RetroBat?     | **Answered.** It does; a fresh one overwrote, #205, finding 259 |
 | 11  | What does a browser `.srm` do to a bundled (class C) slot this client holds?         | **Read.** Refused before the tree, then offered every flush     |
