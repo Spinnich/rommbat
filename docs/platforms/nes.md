@@ -727,9 +727,14 @@ launched from EmulationStation, with the emulator confirmed from `emulatorLaunch
 than from configuration.
 
 **This does not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
-carry across from the row above, but step 2 is unexercisable on this platform and step 5's
-screenshot half fails, so every row stands where the first one does: eight of nine at best, and
-six of the nine cannot sync what they wrote.
+carry across from the row above, but step 2 is unexercisable on this platform, so eight of nine
+is the ceiling, and six of the nine cannot sync what they wrote.
+
+**They stand further back than the first row since 2026-09-20, and the gap is step 5.** All nine
+were driven before finding 258 was fixed. Only `libretro`/`nestopia` has been driven on a state
+made after it, so the screenshot half is **passed on that row and untested on the other eight**,
+not failing on all nine as this section said before the re-drive. What the other eight owe is
+below, under "What RomMBat does with them".
 
 ### How each row was selected
 
@@ -776,10 +781,10 @@ is not cosmetic here.** `es_savestates.cfg` declares an `<image>` for `bizhawk`
 (`{{romfilename}}.QuickSave{{slot0}}.png`) and for `jgenesis` (`{{romfilename}}_{{slot0}}.png`), so
 whether those five rows wrote one is a measurable fact this pass did not capture. The other three
 declare no entry at all, so there is no `<image>` template to check them against and anything they
-wrote would be in their own tree, unread for the same reason their states are. Step 5's screenshot
-half
-is this platform's open gap, so which rows write one decides how wide that gap is. It needs another
-hands-on pass.
+wrote would be in their own tree, unread for the same reason their states are. Which rows write one
+decides how wide the remaining gap is, and it needs another hands-on pass. It is no longer _this
+platform's_ open gap, because `libretro`/`nestopia` closed it on 2026-09-20; it is what the other
+eight rows owe.
 
 **So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
 entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
