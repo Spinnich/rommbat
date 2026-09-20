@@ -105,7 +105,7 @@ Guardrails that follow from this:
 - Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
   Each of those sidecars scans the whole library.
 
-  **`with_rom_id_index=false` too, under every scope, from the `5.3.0-alpha.2` floor.** Under a
+  **`with_rom_id_index=false` too, under every scope, from the `5.3.0` floor.** Under a
   scoping parameter the index spans the scope rather than the library, and on 5.2.0 it was what
   let the server serve a scoped page by primary key: measured at 88,331 roms, turning it off cost
   **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a page) to save 63 KiB, so
@@ -2108,8 +2108,11 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   `AlreadyHeld` compares hashes that by construction differ.
   **Amended at the RomM 5.3.0 adoption: that is what happens, and the client now refuses it.**
   Negotiate never volunteers a superseded row as it stands, but `PUT /api/saves/{id}` rewrites
-  one in place and makes it the newest, and RomM's browser player sends that for the save it
-  loaded, on every save tick under `auto_save_sync`. Measured on 5.3.0-alpha.2
+  one in place and makes it the newest, and at 5.3.0-alpha.2 RomM's browser player sent that for
+  the save it loaded, on every save tick under `auto_save_sync`. From alpha.3 the player appends
+  beside the loaded save instead, and the server's per-slot prune revives an older row by
+  deleting the newer one (finding 11), so the guard's cause moved rather than going away.
+  Measured on 5.3.0-alpha.2
   (`tools/romm-5.3-probes/s1-browser-save-writer.py`): where this device had synced the revived
   row negotiate answers `conflict`, and where it never had, which is a row from another device,
   it answers `download`. A download naming a save id lower than the slot's recorded one is

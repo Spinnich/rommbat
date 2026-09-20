@@ -504,7 +504,7 @@ docs/{freegosy,argosy}-findings.md
                       survived verification and what did not. Both are closed
 docs/romm-5.3-findings.md
                       What RomM 5.3.0 changes for RomMBat, what it falsifies here, and
-                      what the 5.3.0-alpha.2 floor measured as
+                      what the 5.3.0 floor measured as
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number

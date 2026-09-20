@@ -156,9 +156,9 @@ public class SaveConflictTests
     [Fact]
     public async Task A_browser_writing_into_the_row_a_keep_local_superseded_reopens_the_conflict()
     {
-        // RomM's browser player writes a loaded save back with PUT /api/saves/{id}, which keeps the
-        // id, the name and the slot and moves updated_at. Under 5.3.0's auto_save_sync it does that
-        // on every save tick, into the row it loaded, which after a keep-local is the row this
+        // PUT /api/saves/{id} writes a save back in place, keeping the id, the name and the slot
+        // and moving updated_at. At 5.3.0-alpha.2 RomM's browser player did that on every
+        // auto_save_sync tick, into the row it loaded, which after a keep-local is the row this
         // device's upload superseded. Measured on 5.3.0-alpha.2 (s1-browser-save-writer.py, case
         // C): the older row heads the slot again and negotiate answers conflict against it. The
         // decision was about two sides that no longer exist, so it has to be asked again, against

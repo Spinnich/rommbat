@@ -840,9 +840,9 @@ filesystem:
 ### 11. The `alpha.2` to `alpha.3` delta (`source`)
 
 `5.3.0-alpha.3` was published 2026-09-17, 319 commits and 67 non-test backend files after
-`alpha.2`, and is the floor from this adoption. Read at both tags, and the served schema diffed
-against the pin it replaces. Nothing in this section is measured yet; the three questions it
-opens are at the end of this document.
+`alpha.2`. It was this adoption's target until finding 12 retargeted it at `beta.1`, which is the
+floor. Read at both tags, and the served schema diffed against the pin it replaces. Nothing in
+this section is measured yet; the three questions it opens are at the end of this document.
 
 **The contract barely moves where this client reads.** One operation leaves, the streaming
 `state-frame` route, and none arrive. On a route RomMBat calls, the only change is `slot` on
@@ -855,16 +855,23 @@ which already existed at `alpha.2`. The routes a download, a firmware fetch, a p
 negotiate use are unchanged, and `backend/main.py` is untouched, so the pin still depends on the
 version and not the instance.
 
-**#4540 caps every slot at 50 versions, whatever the client asks.** `add_save` computes the
-tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and `autocleanup_limit` when the
-client set `autocleanup`, and prunes past it on every slotted upload, retries included.
-`prune_slot` keeps the newest by `updated_at` then `id` and deletes the rest with their files and
-screenshots. Before, pruning ran only when a client asked. This client never sets `autocleanup`,
-so its slots had been unbounded and are now bounded at 50 by the server.
+**#4540 caps every slot, whatever the client asks, and for this client the cap does not move.**
+`add_save` computes the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables it) and
+`autocleanup_limit` when the client set `autocleanup`, first clamping the client's ask to
+`MAX_AUTOCLEANUP_LIMIT` (env, default 100) and to at least 1, and prunes past it on every slotted
+upload, retries included. `prune_slot` keeps the newest by `updated_at` then `id` and deletes the
+rest with their files and screenshots. Before, pruning ran only when a client asked.
+**RomMBat has always asked**: `UploadSaveAsync` sends `autocleanup=true&autocleanup_limit=10` on
+every save upload (`src/RomM.Client/Saves/RomMConnection.Saves.cs`, `AutoCleanupLimit`), which
+`docs/PLAN.md` records as the M6 decision. So its own slots were bounded at 10 before alpha.3 and
+are bounded at 10 now, and #4540 changes nothing for what it uploads itself. What the server cap
+governs is every **other** writer on those slots, which asks for no cleanup: a peer, and RomM's
+browser player.
 
-**Measured, and it costs this client nothing** (`tools/romm-5.3-probes/s3-slot-retention.py`, two
-runs on the live `alpha.3`). A device uploaded and negotiated, then a peer with no device put 51
-versions in the slot:
+**Measured against such a writer, and it costs this client nothing**
+(`tools/romm-5.3-probes/s3-slot-retention.py`, two runs on the live `alpha.3`). A device uploaded
+and negotiated, then a peer with no device put 51 versions in the slot, sending no cleanup
+parameters, which is the case `MAX_SAVES_PER_SLOT` actually governs:
 
 | After 51 peer versions                  | Answer                                                             |
 | --------------------------------------- | ------------------------------------------------------------------ |

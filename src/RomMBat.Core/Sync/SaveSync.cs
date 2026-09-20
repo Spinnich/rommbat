@@ -1208,10 +1208,12 @@ public sealed class SaveSync
     /// deleted.</b> Save ids only grow, and negotiate pairs on the newest <c>updated_at</c> per
     /// slot, so a lower id heading the slot means one of the two. Only the write was measured to
     /// reach a download, and a conflict loses nothing in either case, so they are not told apart.
-    /// <c>PUT /api/saves/{id}</c> is the write, keeping the id, the name and the slot, and RomM's
-    /// browser player sends it for the save it loaded, on every save tick under 5.3.0's
-    /// <c>auto_save_sync</c>. After a keep-local the row it loaded is the one the person
-    /// rejected.
+    /// <c>PUT /api/saves/{id}</c> is the write, keeping the id, the name and the slot. At
+    /// 5.3.0-alpha.2 RomM's browser player sent it for the save it loaded, on every save tick
+    /// under <c>auto_save_sync</c>, and after a keep-local the row it loaded is the one the
+    /// person rejected. From alpha.3 the player appends a new version instead and leaves the
+    /// loaded save alone, while the server's per-slot prune supplies the deletion half on every
+    /// slotted upload, so both causes are live at the floor.
     /// <para>
     /// <b>Negotiate answers <c>download</c> for that when this device never synced the older
     /// row</b>, measured on 5.3.0-alpha.2 (<c>s1-browser-save-writer.py</c>, case E), because it
@@ -1232,9 +1234,9 @@ public sealed class SaveSync
         return operation with
         {
             Reason = $"the server now heads this slot with save {saveId}, older than save "
-                + $"{lastExchanged} this device last exchanged. Either the newer copy was deleted "
-                + "or something wrote into the older one after it was replaced, which RomM's browser "
-                + "player does to the save it loaded, so taking it could undo the side that was kept.",
+                + $"{lastExchanged} this device last exchanged. Either the newer copy was deleted, "
+                + "which the server's per-slot prune does, or something wrote into the older one "
+                + "after it was replaced, so taking it could undo the side that was kept.",
         };
     }
 

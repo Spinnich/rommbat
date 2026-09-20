@@ -3,7 +3,9 @@
 Read at tag 5.3.0-alpha.3, `backend/endpoints/saves.py` `add_save` prunes a slot past the
 tighter of `MAX_SAVES_PER_SLOT` (env, default 50) and a client's `autocleanup_limit`, on every
 slotted upload whether the client asked or not. `prune_slot` keeps the newest by `updated_at`
-then `id`. This client never sets `autocleanup`, so the cap is its retention.
+then `id`. RomMBat sends `autocleanup=true&autocleanup_limit=10` on every save upload, so 10 is
+its own retention and always was; the server cap governs writers that ask for no cleanup, which
+is what `upload()` below deliberately imitates.
 
 `add_save` and `prune_slot` are byte-identical at 5.3.0-beta.1, the floor now: the only save
 change between the tags projects ids for `GET /api/saves/identifiers`. So the run recorded
