@@ -20,7 +20,8 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> No platform has been certified against a real emulator; see
+> One `(system, emulator, core)` row is certified against a real emulator, `nes` under
+> `libretro`/`nestopia`, and no whole platform is; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -457,13 +458,14 @@ folder for, so it is out of scope rather than unscheduled.
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
 
-**`nes` under `libretro`/`nestopia` is the furthest along, at eight of nine**, re-driven at the
-`5.3.0-beta.1` floor on 2026-09-20. It is the first row anywhere to pass step 5, a save state
-round-tripping with its screenshot. The step still open is step 2, which cannot be exercised on
-this platform because the library holds no file `nes` is unable to launch, so the row needs a
-library with mixed formats rather than more work on `nes`. Wave 1's other six systems, and the
-other eight `nes` rows, are not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the
-record.
+**`nes` under `libretro`/`nestopia` is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1,
+driven on 2026-09-20. All nine steps hold, with step 6 N/A since `nes` has no class D, and it is
+the first row anywhere to pass step 5, a save state round-tripping with its screenshot.
+
+That is one row, and the unit is `(system, emulator, core)`. It does not certify `nes`: the other
+eight rows of that system are driven on two of the nine steps, six of them cannot sync the battery
+save they write, and three write save states RomMBat cannot see. Wave 1's other six systems are
+not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
 
 ### Compatibility
 

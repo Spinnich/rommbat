@@ -3,14 +3,20 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified, on any of its nine rows.** Steps 1, 3, 4, 5, 7, 8 and 9 hold at the
-`5.3.0-beta.1` floor and step 6 is N/A. **One remains open**: step 2's exclusion cannot be
-exercised on this platform, because every NES ROM in this library is a `.zip` and there is no
-unsupported file to refuse. A pass is not done at eight of nine.
+**`libretro`/`nestopia` is certified. The other eight rows are not.** All nine steps hold for
+that row at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, re-driven on 2026-09-20, with step 6
+N/A because `nes` has no class D. It is the first certified `(system, emulator, core)` row in the
+project.
+
+**It certifies that row and nothing wider.** Not `nes`, not `libretro`, and not the row a stock
+install gives a user, since this one was selected by an `es_settings.cfg` override. Six of the
+other eight rows cannot sync the battery save they write and three have save states RomMBat
+cannot see at all.
 
 **Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
 was driven on a state made after it, and the restored screenshot was checked by its bytes rather
-than by its arrival. See "Re-driven at `5.3.0-beta.1`".
+than by its arrival. Step 2 changed on the same day, from requiring an exclusion this library
+cannot offer to requiring that nothing be excluded. See "Re-driven at `5.3.0-beta.1`".
 
 **This file is in two parts.** The first is `libretro`/`nestopia` in full, which is the row the
 nine steps were driven against. The second is the other eight rows, driven on steps 4 and 5 only,
@@ -143,15 +149,15 @@ the first on this install to carry the floor it was measured against: the previo
 predated the retarget, so the record now names a client that refuses anything below `beta.1`
 rather than one that merely tolerated it.
 
-| #   | Owed for                             | Re-run result                                                                |
-| --- | ------------------------------------ | ---------------------------------------------------------------------------- |
-| 1   | The re-sourced alias table           | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`               |
-| 2   | The no-file-on-disk exclusion        | **Partial, as before.** 228 resolve, and nothing here can exercise a refusal |
-| 4   | The superseded-row guard             | **Pass, both directions.** A new save round-tripped byte for byte            |
-| 5   | The screenshot fetch and finding 258 | **Pass, and for the first time on any row.** See below                       |
-| 7   | The retired identifiers endpoint     | **Pass.** Art on screen, and the game list is unchanged                      |
-| 8   | The append-only background log       | **Pass.** See below                                                          |
-| 9   | Always owed on a move                | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical             |
+| #   | Owed for                             | Re-run result                                                     |
+| --- | ------------------------------------ | ----------------------------------------------------------------- |
+| 1   | The re-sourced alias table           | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`    |
+| 2   | The no-file-on-disk exclusion        | **Pass.** 228 of 228 resolve and nothing is excluded              |
+| 4   | The superseded-row guard             | **Pass, both directions.** A new save round-tripped byte for byte |
+| 5   | The screenshot fetch and finding 258 | **Pass, and for the first time on any row.** See below            |
+| 7   | The retired identifiers endpoint     | **Pass.** Art on screen, and the game list is unchanged           |
+| 8   | The append-only background log       | **Pass.** See below                                               |
+| 9   | Always owed on a move                | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical  |
 
 **Step 3 was not re-run and does not need to be.** All three moves carried it for the same
 reason, that `nes` requires no BIOS and no firmware code or bundled data changed, and re-running
@@ -171,17 +177,17 @@ All nine are stated at `5.3.0-beta.1`, which is the floor the client now declare
 carried from the 5.2.0 measurement for the reason the move tables give; the other eight were
 measured or re-measured on 2026-09-20.
 
-| #   | Step                                                           | Result                                                                                    |
-| --- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                   |
-| 2   | `<extension>` captured; unsupported file excluded and reported | **Partial, and not exercisable here.** The library is `.zip` throughout for this platform |
-| 3   | Required BIOS resolved against RomM by md5                     | **Pass**, carried. RetroBat requires no BIOS for `nes`                                    |
-| 4   | Save shape classified, battery save round-trips                | **Pass, both directions.** Class A, and the md5 is equal up and down. See below           |
-| 5   | Save state round-trips with its screenshot                     | **Pass, both ways, screenshot included.** See below                                       |
-| 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                        |
-| 7   | Launches from EmulationStation with art and metadata           | **Pass.** Box art confirmed rendering in the game list, metadata present                  |
-| 8   | Play session recorded and reaches RomM                         | **Pass.** Session 265 on the server, matching the journal to the second. See below        |
-| 9   | Re-sync is a clean no-op                                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                          |
+| #   | Step                                                          | Result                                                                                     |
+| --- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1   | Folder mapping resolves, layer recorded                       | **Pass**, at layer `fs_slug`. See below                                                    |
+| 2   | `<extension>` captured; every resolved ROM survives the check | **Pass.** 228 of 228 resolved, nothing excluded. The step changed on 2026-09-20, see below |
+| 3   | Required BIOS resolved against RomM by md5                    | **Pass**, carried. RetroBat requires no BIOS for `nes`                                     |
+| 4   | Save shape classified, battery save round-trips               | **Pass, both directions.** Class A, and the md5 is equal up and down. See below            |
+| 5   | Save state round-trips with its screenshot                    | **Pass, both ways, screenshot included.** See below                                        |
+| 6   | Per-game memory card where class D applies                    | **N/A.** See below                                                                         |
+| 7   | Launches from EmulationStation with art and metadata          | **Pass.** Box art confirmed rendering in the game list, metadata present                   |
+| 8   | Play session recorded and reaches RomM                        | **Pass.** Session 265 on the server, matching the journal to the second. See below         |
+| 9   | Re-sync is a clean no-op                                      | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                           |
 
 ### 1. Mapping
 
@@ -221,15 +227,24 @@ Observed to launch under `libretro`/`nestopia`: **`.zip`**, which is what all 22
 are and what the one logged launch used. `.nes`, `.fds`, `.wad` and `.7z` are declared by the
 system and unproven for this row.
 
-The other half of the step, that a file this folder cannot launch is excluded from the sync set
-and reported, **cannot be exercised on this platform.** Every NES ROM in this library is `.zip`,
-which is the sensible choice for the platform, so there is no unsupported file to offer and no
-refusal to record. Manufacturing one by dropping a file into `roms/nes/` would test nothing
-RomMBat does.
+**Nothing was excluded, which is the half of the step that matters and it passes.** The set
+resolved 228 of 228 twice on 2026-09-20, once as a preview and once for real, with no game
+dropped for its extension and none reported as refused.
 
-**This is recorded as a gap rather than a pass**, and it carries to a platform whose library
-holds mixed formats. Wave 2's disc systems are the natural place, since `psx` and the CD systems
-mix `.chd`, `.cue`, `.bin` and `.m3u` and a folder's `<extension>` refuses some of them.
+**The step used to ask for the reverse, and held this row open for a year of calendar time over a
+property of the library.** It required a known-unsupported file to be excluded and reported, and
+every NES ROM here is `.zip`, so there was nothing to refuse. Changed on 2026-09-20 after the
+question was put to the maintainer: the risk runs the other way. A file wrongly downloaded costs
+bytes and a game that does not appear, because EmulationStation filters by `<extension>` itself. A
+file wrongly **excluded** is a game the user asked for silently missing, with no error and no line
+in the report worth questioning. The union list above is the reason: it cannot be precise per
+`(emulator, core)`, so over-rejection is the likelier of the two errors, and `.wad` sitting in a
+NES list is the proof that the list is not a statement about what any core will take.
+
+**The exclusion half is not abandoned, it moved to where it is real.** Wave 2's disc systems carry
+`.chd`, `.cue`, `.bin` and `.m3u` in one set with no manufacturing required, and over-filtering
+there drops real games. That is also where multi-disc and multi-file placement has to be settled,
+which is the thing this step was a poor proxy for.
 
 ### 3. BIOS
 
@@ -727,8 +742,7 @@ launched from EmulationStation, with the emulator confirmed from `emulatorLaunch
 than from configuration.
 
 **This does not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
-carry across from the row above, but step 2 is unexercisable on this platform, so eight of nine
-is the ceiling, and six of the nine cannot sync what they wrote.
+carry across from the row above. Six of the nine cannot sync what they wrote.
 
 **They stand further back than the first row since 2026-09-20, and the gap is step 5.** All nine
 were driven before finding 258 was fixed. Only `libretro`/`nestopia` has been driven on a state
@@ -995,10 +1009,10 @@ from the copy aside and is the current `libretro:battery` version again.
 
 ## What this file will not claim
 
-- The nine rows are driven on steps 4 and 5 and **none of them is certified**, because step 2
-  cannot be exercised here. That is now the only thing holding `libretro`/`nestopia` at eight of
-  nine; the other eight rows are further back, since steps 1, 3, 7, 8 and 9 were carried to them
-  rather than driven and six of them write something RomMBat cannot see at all.
+- **Only `libretro`/`nestopia` is certified**, and only on this install at these two floors.
+  The other eight rows are driven on steps 4 and 5 and none of them is certified: steps 1, 3, 7,
+  8 and 9 were carried to them rather than driven, and six of them write something RomMBat cannot
+  see at all.
 - **Step 5 passed on `libretro`/`nestopia` and on nothing else.** The screenshot link was driven
   on that row alone, and the fix it proves is in the upload name, which is per row by
   construction. A second row owes its own state.

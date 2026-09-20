@@ -20,7 +20,7 @@ eight of nine**, and it cannot be finished from a desk: step 7 requires actually
 game. Three of the nine can be staged ahead of time, which is a different claim and is below.
 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
-2. `<extension>` list captured; a known-unsupported file is correctly excluded.
+2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
 3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
@@ -33,6 +33,16 @@ game. Three of the nine can be staged ahead of time, which is a different claim 
 Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried across emulators with a
 note saying so. **Steps 4, 5 and 6 have to be redone per emulator**, and they are also the
 three where being wrong destroys data rather than costing a re-download.
+
+**Step 2 asked for the opposite until 2026-09-20 and was testing the wrong direction.** It
+required a known-unsupported file to be excluded and reported, which held `nes` open at eight of
+nine for a property of the library rather than of the software. Wrongly downloading a file costs
+bytes and a game that does not appear, since EmulationStation filters by `<extension>` itself;
+wrongly **excluding** one silently drops a game the user asked for. `<extension>` is a per-system
+union across every emulator, so the filter cannot be precise per `(emulator, core)` and
+over-rejection is the likelier error. Do not manufacture a file to reject. The exclusion half
+earns a look on a library with mixed formats arising naturally, which is wave 2, and that is also
+where multi-disc and multi-file placement has to be settled.
 
 Load the `platform-certification` skill before starting. Record what failed as well as
 what passed; a record that only lists successes is not evidence.
@@ -182,7 +192,7 @@ work. All three counts are against the 51 systems above.
   writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Nothing is certified yet, and the gate is now open
+## One row is certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -192,12 +202,18 @@ and came back out through the hooks. The waves finish against an M8 package.
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
-**The closest row is `nes` under `libretro`/`nestopia`, at eight of nine.** Re-driven at the
-`5.3.0-beta.1` floor on 2026-09-20: steps 1, 3, 4, 5, 7, 8 and 9 pass and step 6 is N/A. Step 2
-is the one open, and it is open for a reason no amount of care on this platform fixes, that the
-library holds no file `nes` cannot launch, so there is no exclusion to exercise. **That row is
-also the first anywhere to pass step 5**, screenshot included, which had been blocked on findings
-138, 256 and 258 since the checklist was written.
+**`nes` under `libretro`/`nestopia` is certified**, at the `5.3.0-beta.1` and RetroBat 8.2.1
+floors, re-driven on 2026-09-20. It is the first row anywhere to pass step 5, a save state
+round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258 since the
+checklist was written. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass; step 6 is N/A because `nes` has no
+class D.
+
+**Read that as narrowly as it is written.** It certifies one `(system, emulator, core)` row on one
+install at one pair of floors. It does not certify `nes`: the other eight rows of this system are
+driven on steps 4 and 5 only, six of them cannot sync the battery save they write, and three have
+save states RomMBat cannot see at all. It does not certify `libretro` either, and the row was
+selected by an `es_settings.cfg` override rather than being the one a stock install gives a user.
+[nes.md](nes.md) is the record, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

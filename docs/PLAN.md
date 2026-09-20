@@ -2848,8 +2848,9 @@ The offline half is stage 1's and unchanged. The conflict a user resolves is 2a'
 server side was synthetic. The PCSX2 save state with its screenshot is 2a's, and the screenshot
 uploaded but did not link to the state (finding 138).
 
-**What the milestone does not claim.** Nothing is certified: certification is per
-`(system, emulator, core)` across nine steps, and the rollout starts after M7. Class D was
+**What the milestone does not claim.** Nothing was certified at this milestone: certification
+is per `(system, emulator, core)` across nine steps, and the rollout starts after M7. The first
+certified row, `nes` under `libretro`/`nestopia`, came on 2026-09-20 and is not M6's claim. Class D was
 driven on `(ps2, pcsx2)` only. **A converted card has never been downloaded onto a second real
 device**, so the fresh-device half of class D rests on tests. Dreamcast and PS1 convert in
 principle and are deliberately refused, each with its measured reason: Dreamcast's per-game VMU
@@ -3666,7 +3667,7 @@ through, not the number of passes.
 `docs/platforms/<system>.md` with a section per emulator:
 
 1. Folder mapping resolves, and by which layer.
-2. `<extension>` list captured; a known-unsupported file is correctly excluded.
+2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
 3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
 4. Save shape classified (A/B/C/D) **for this emulator** and battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`

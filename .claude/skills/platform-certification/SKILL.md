@@ -37,6 +37,12 @@ real games, and doing that through a terminal instead of the gamepad UI makes a 
 the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
 That launch certified nothing: it is one of nine points on one row.
 
+**One row is through, and it is the model for the rest.** `nes` under `libretro`/`nestopia`, on
+2026-09-20, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. Read
+`docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
+checklist, and it carries the two traps that cost the most time, the screenshot byte check at
+step 5 and the RomM-side device id at step 8.
+
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
 added: one game, one emulator, one real save or state, driven through EmulationStation and
@@ -51,8 +57,26 @@ or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can
 across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.**
 
 1. Folder mapping resolves, and the resolution layer is recorded.
-2. `<extension>` list captured from the live `es_systems.cfg`; a known-unsupported file is
-   correctly excluded from the sync set and reported.
+2. `<extension>` list captured from the live `es_systems.cfg`, and **every ROM the set resolves
+   survives the extension check**. Nothing is excluded that the user asked for.
+
+   **The step used to ask for the opposite and it was testing the wrong direction.** It required
+   a known-unsupported file to be excluded and reported. Wrongly downloading one costs bytes and
+   a game that does not appear, because EmulationStation filters by `<extension>` itself; wrongly
+   **excluding** one silently drops a game the user asked for, with no error and no line in the
+   report worth questioning. `<extension>` is a per-system union across every emulator the system
+   declares (`nes` lists `.wad`, which is not a NES container at all), so the filter cannot be
+   precise per `(emulator, core)` and over-rejection is the likelier error of the two.
+
+   So record the list, record that the resolve kept everything, and do not manufacture a file to
+   reject. A platform whose library is one format throughout passes this step rather than being
+   held open by it.
+
+   **Where the exclusion half still earns a look is a library with mixed formats arising
+   naturally**, which is wave 2: `psx` and the CD systems carry `.chd`, `.cue`, `.bin` and `.m3u`
+   in one set, and over-filtering there drops real games. That is also where multi-disc and
+   multi-file placement has to be settled, which is the concern this step is a poor proxy for.
+
 3. Required BIOS resolved against RomM **by md5**; gaps listed with expected filename and hash.
    Run `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and
    record all four states rather than a pass or fail: present, fetched, not in the library, and
