@@ -261,9 +261,12 @@ dotnet test
 **Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
 these variables exported, **21 of the tests pair against the real server**, minting and revoking
 real credentials on the account behind the approver token. Nothing warns you first. Two runs
-overlapping share that one account and the server answers `Too many authorize attempts. Try
-again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
-clears on its own.
+inside a minute, overlapping or back to back, share that one account and the server answers
+`Too many authorize attempts. Try again later.` against the 10/min/IP init limit.
+
+`LivePairingTests` **skips** on that rather than failing, naming the limit and the wait, so the
+run still exits zero and a spent budget does not read as broken pairing. Four skips with that
+message mean wait a minute, not that anything regressed. It clears on its own.
 
 **Looping the live suite to chase an intermittent needs spacing, and one class is faster.** Pairing
 is limited to 10 per minute per IP, and one run of all four `Live*` classes pairs about nine times,

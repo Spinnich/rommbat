@@ -48,7 +48,10 @@ grouped (`ABCD-EFGH`).
 Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
 restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing. **The init
 limit binds the test suite too:** one pairing per live test exceeds it, so live tests share
-one pairing per class.
+one pairing per class. `LivePairingTests` is the exception and cannot: pairing is what it
+tests, so it spends four of the ten and two suite runs inside a minute exhaust the budget.
+It skips on the 429 rather than failing, because a spent budget is not a defect in pairing
+and the server's `detail` names the limit without naming the remedy.
 
 **Identity is `client_device_identifier`**, a GUID stored in the tree. Pairing looks the
 device up with `get_device_by_client_identifier` and records no host details, which is what
