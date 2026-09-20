@@ -1,3 +1,4 @@
+using System.Net;
 using RomM.Client;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Server;
@@ -108,7 +109,8 @@ public sealed class LivePairingTests : IAsyncDisposable
             Assert.False(contact.MustRefuse);
 
             var pairing = new PairingService(install, store);
-            var session = await pairing.BeginAsync(
+            var session = await BeginOrSkipAsync(
+                pairing,
                 connection,
                 "RomMBat integration test",
                 TestContext.Current.CancellationToken);
@@ -170,7 +172,8 @@ public sealed class LivePairingTests : IAsyncDisposable
         var first = await ApproveWhilePollingAsync(
             pairing,
             connection,
-            await pairing.BeginAsync(connection, "RomMBat integration test", TestContext.Current.CancellationToken),
+            await BeginOrSkipAsync(
+                pairing, connection, "RomMBat integration test", TestContext.Current.CancellationToken),
             RomMScopes.Requested, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(first.IsPaired);
@@ -182,7 +185,8 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var movedStore = LocalStore.Open(movedInstall);
         var movedPairing = new PairingService(movedInstall, movedStore);
 
-        var session = await movedPairing.BeginAsync(
+        var session = await BeginOrSkipAsync(
+            movedPairing,
             connection,
             "RomMBat integration test",
             TestContext.Current.CancellationToken);
@@ -221,7 +225,8 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var connection = new RomMConnection(new RomMClientOptions { Origin = origin });
 
         var pairing = new PairingService(install, store);
-        var session = await pairing.BeginAsync(
+        var session = await BeginOrSkipAsync(
+            pairing,
             connection,
             "RomMBat integration test (narrowed)",
             TestContext.Current.CancellationToken);
@@ -280,7 +285,8 @@ public sealed class LivePairingTests : IAsyncDisposable
         var widened = await ApproveWhilePollingAsync(
             pairing,
             connection,
-            await pairing.BeginAsync(
+            await BeginOrSkipAsync(
+                pairing,
                 connection,
                 "RomMBat integration test (narrowed)",
                 TestContext.Current.CancellationToken),
@@ -305,7 +311,8 @@ public sealed class LivePairingTests : IAsyncDisposable
         using var connection = new RomMConnection(new RomMClientOptions { Origin = origin });
 
         var pairing = new PairingService(install, store);
-        var session = await pairing.BeginAsync(
+        var session = await BeginOrSkipAsync(
+            pairing,
             connection,
             "RomMBat integration test (declined)",
             TestContext.Current.CancellationToken);
@@ -322,6 +329,38 @@ public sealed class LivePairingTests : IAsyncDisposable
 
         Assert.Equal(PairingOutcome.Denied, completion.Outcome);
         Assert.False(store.Device.Read()!.IsPaired);
+    }
+
+    /// <summary>
+    /// Starts a pairing, or skips the test when the server's init limit is what stopped it.
+    /// </summary>
+    /// <remarks>
+    /// <c>/api/auth/device/init</c> allows 10/min/IP and every test in this class needs its own
+    /// pairing, so running the suite twice inside a minute spends the budget. What follows is a
+    /// 429 whose <c>detail</c> names the limit but not the remedy, on a test that asserts nothing
+    /// about rate limiting, which reads as a defect in pairing. Waiting a minute is the remedy.
+    /// <para>
+    /// A skip rather than a retry: backing off inside the test would hold the suite for up to a
+    /// minute per test and still race the next run.
+    /// </para>
+    /// </remarks>
+    private static async Task<PairingSession> BeginOrSkipAsync(
+        PairingService pairing,
+        RomMConnection connection,
+        string deviceName,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await pairing.BeginAsync(connection, deviceName, cancellationToken);
+        }
+        catch (RomMApiException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            Assert.Skip(
+                $"RomM's pairing init limit (10/min/IP) is spent: {ex.Message} "
+                    + "Wait a minute and run again.");
+            throw;
+        }
     }
 
     /// <summary>

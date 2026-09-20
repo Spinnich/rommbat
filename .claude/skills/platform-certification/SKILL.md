@@ -37,6 +37,12 @@ real games, and doing that through a terminal instead of the gamepad UI makes a 
 the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
 That launch certified nothing: it is one of nine points on one row.
 
+**One row is through, and it is the model for the rest.** `nes` under `libretro`/`nestopia`, on
+2026-09-20, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. Read
+`docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
+checklist, and it carries the two traps that cost the most time, the screenshot byte check at
+step 5 and the RomM-side device id at step 8.
+
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
 added: one game, one emulator, one real save or state, driven through EmulationStation and
@@ -51,8 +57,26 @@ or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can
 across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.**
 
 1. Folder mapping resolves, and the resolution layer is recorded.
-2. `<extension>` list captured from the live `es_systems.cfg`; a known-unsupported file is
-   correctly excluded from the sync set and reported.
+2. `<extension>` list captured from the live `es_systems.cfg`, and **every ROM the set resolves
+   survives the extension check**. Nothing is excluded that the user asked for.
+
+   **The step used to ask for the opposite and it was testing the wrong direction.** It required
+   a known-unsupported file to be excluded and reported. Wrongly downloading one costs bytes and
+   a game that does not appear, because EmulationStation filters by `<extension>` itself; wrongly
+   **excluding** one silently drops a game the user asked for, with no error and no line in the
+   report worth questioning. `<extension>` is a per-system union across every emulator the system
+   declares (`nes` lists `.wad`, which is not a NES container at all), so the filter cannot be
+   precise per `(emulator, core)` and over-rejection is the likelier error of the two.
+
+   So record the list, record that the resolve kept everything, and do not manufacture a file to
+   reject. A platform whose library is one format throughout passes this step rather than being
+   held open by it.
+
+   **Where the exclusion half still earns a look is a library with mixed formats arising
+   naturally**, which is wave 2: `psx` and the CD systems carry `.chd`, `.cue`, `.bin` and `.m3u`
+   in one set, and over-filtering there drops real games. That is also where multi-disc and
+   multi-file placement has to be settled, which is the concern this step is a poor proxy for.
+
 3. Required BIOS resolved against RomM **by md5**; gaps listed with expected filename and hash.
    Run `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and
    record all four states rather than a pass or fail: present, fetched, not in the library, and
@@ -76,12 +100,24 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    **Drive a state made after finding 258's fix, never one uploaded before it.** RomM links a
    screenshot by filename, and RomMBat named it so that no libretro-shaped state ever linked,
    while its restore could not place a state for any emulator that keeps the slot in the stem.
-   Between them no row could pass step 5, and both were RomMBat's (`docs/retrobat-findings.md`
-   findings 138, 256 and 258). An unchanged state is never re-sent, so an older one stays
-   unlinked. Read the row after the upload: a screenshot whose `file_name` is the state's `file_name` plus
-   the image's extension is a pass, and a null link on a fresh state is a new finding, not a
-   recurrence of an old one. **Check the name, not only that one came back**: RomM can answer a
-   libretro slot with slot 0's image, which is not a link to this state (finding 258).
+   Between them no row could pass step 5 until 2026-09-20, and both were RomMBat's
+   (`docs/retrobat-findings.md` findings 138, 256 and 258). An unchanged state is never re-sent,
+   so an older one stays unlinked. A null link on a fresh state is a new finding, not a
+   recurrence of an old one.
+
+   **`nes` under `libretro`/`nestopia` is the one row that has passed it**, and the method is
+   worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
+   run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
+   bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
+   not its name or its arrival**, because RomM can answer a libretro slot with another slot's
+   image, which is not a link to this state. Make more than one state in the session and pick
+   the one whose image is unique for the comparison, because two states on the same frame share an
+   image and cannot tell a real link from a wrong one. `docs/platforms/nes.md` has the worked
+   pass.
+
+   **The state slot is EmulationStation's, not the emulator's.** `emulatorLauncher.log` logs
+   `-state_slot <n>` on the launch line and that is what decides the filename suffix, so read it
+   there rather than assuming a core's default.
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
@@ -98,6 +134,15 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    platform result.
 
 8. A play session is recorded and reaches RomM.
+
+   **Reading it back needs a token on the account the install is paired as, and the filter takes
+   the RomM-side device id.** `GET /api/play-sessions` is scoped to the authenticated user, so
+   another account's token answers `200` with zero rows, and `?device_id=` given the local
+   `client_device_identifier` rather than the id `status` prints on the `romm device` line does
+   the same. Both read exactly like a session that was never written. RomMBat posts and never
+   reads, so the agent cannot settle the step either (#208); `DEVELOPER_SETUP.md` covers the
+   read-only token to set up first.
+
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is
    the strongest single signal that slots, cursors and mapping are all correct.
 

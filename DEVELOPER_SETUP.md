@@ -230,6 +230,19 @@ ROMMBAT_TEST_SERVER=https://your-romm-instance
 ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 ```
 
+**A third variable exists and no test reads it.** `ROMMBAT_TEST_OWNER_TOKEN` is a read-only
+`roms.user.read` token on **the account a real install is paired as**, and it is there so a
+certification pass can check step 8, that a play session reached RomM. Nothing else needs it, and
+a clone without it is unaffected.
+
+It has to be a separate token because the approver one is a different account, and saves, states
+and play sessions are per-user: `GET /api/play-sessions` answers `200` with the _requesting_
+account's rows, so the approver token reads zero for an install it did not pair and no scope
+widens that. `roms.user.read` alone is enough for the sessions; `GET /api/roms/{id}` is `403`
+under it, so `last_played` is not readable and the session row is what to read. Issue #208 is the
+gap that makes this necessary at all: RomMBat posts play sessions and never reads them back, so
+there is no way to ask the agent instead.
+
 Then source it for the run. `dotnet test` reads the process environment and nothing loads
 `.env` on its own, so this is deliberate every time rather than ambient:
 
@@ -248,9 +261,12 @@ dotnet test
 **Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
 these variables exported, **21 of the tests pair against the real server**, minting and revoking
 real credentials on the account behind the approver token. Nothing warns you first. Two runs
-overlapping share that one account and the server answers `Too many authorize attempts. Try
-again later.`, which surfaces as several unrelated-looking failures in `LivePairingTests` and
-clears on its own.
+inside a minute, overlapping or back to back, share that one account and the server answers
+`Too many authorize attempts. Try again later.` against the 10/min/IP init limit.
+
+`LivePairingTests` **skips** on that rather than failing, naming the limit and the wait, so the
+run still exits zero and a spent budget does not read as broken pairing. Four skips with that
+message mean wait a minute, not that anything regressed. It clears on its own.
 
 **Looping the live suite to chase an intermittent needs spacing, and one class is faster.** Pairing
 is limited to 10 per minute per IP, and one run of all four `Live*` classes pairs about nine times,

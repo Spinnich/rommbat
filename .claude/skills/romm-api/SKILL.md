@@ -48,7 +48,10 @@ grouped (`ABCD-EFGH`).
 Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
 restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing. **The init
 limit binds the test suite too:** one pairing per live test exceeds it, so live tests share
-one pairing per class.
+one pairing per class. `LivePairingTests` is the exception and cannot: pairing is what it
+tests, so it spends four of the ten and two suite runs inside a minute exhaust the budget.
+It skips on the 429 rather than failing, because a spent budget is not a defect in pairing
+and the server's `detail` names the limit without naming the remedy.
 
 **Identity is `client_device_identifier`**, a GUID stored in the tree. Pairing looks the
 device up with `get_device_by_client_identifier` and records no host details, which is what
@@ -460,6 +463,15 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   with `created_count`/`skipped_count` and reports a replay as `"status": "duplicate"`. Cap
   100 per call (101 entries answers 400), `end_time` strictly after `start_time`, `rom_id`
   optional. It needs **no** open sync session, so playtime can flush on its own.
+- **`GET /api/play-sessions` can answer `200` with zero rows for a session that exists**, two
+  ways, and neither is distinguishable from one never written. It is scoped to the authenticated
+  user (`roms.user.read`), so a token on any other account reads nothing for an install it did
+  not pair, whatever its scopes. And the row carries the **RomM-side** `device_id`, not the local
+  `client_device_identifier`, which are different values `status` prints on adjacent lines, so a
+  `?device_id=` filter given the local one matches nothing. Reading a session back needs a token
+  on the account the install is paired as; `DEVELOPER_SETUP.md` covers the one certification
+  passes use. RomMBat only posts and never reads, so the agent cannot answer this either (#208),
+  and `docs/platforms/nes.md` step 8 is the worked case.
 - **Ingesting a play session sets `rom_user.now_playing`, and nothing clears it.** Every
   session RomMBat sends is finished by construction, so a client that only posts sessions
   leaves the user's library claiming they are playing every game they have ever launched.

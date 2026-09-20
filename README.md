@@ -20,7 +20,8 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> No platform has been certified against a real emulator; see
+> One `(system, emulator, core)` row is certified against a real emulator, `nes` under
+> `libretro`/`nestopia`, and no whole platform is; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -348,8 +349,10 @@ summarised. **A shape proven by a test and not by an emulator is named as such.*
 Alongside those: a save state with its screenshot across four emulators (2a), a conflict a
 person resolves (2a), and play sessions reaching RomM from the ES hooks (stage 1).
 
-**What is not claimed.** Nothing is certified: certification is per `(system, emulator, core)`
-and needs all nine steps of the checklist, and the wave rollout starts after M7. Class D was
+**What is not claimed.** Nothing was certified at this milestone: certification is per
+`(system, emulator, core)` and needs all nine steps of the checklist, and the wave rollout starts
+after M7. The first certified row, `nes` under `libretro`/`nestopia`, came on 2026-09-20 and is
+not M6's claim. Class D was
 driven on `(ps2, pcsx2)` only; Dreamcast and PS1 are reported with their measured reasons and
 deliberately not converted. And a converted card has never been **downloaded** onto a second
 real device, only onto a test one. See
@@ -448,7 +451,7 @@ folder for, so it is out of scope rather than unscheduled.
 
 | Wave | Systems                                                                                                  | Status      |
 | ---- | -------------------------------------------------------------------------------------------------------- | ----------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Not started |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | In progress |
 | 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started |
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started |
@@ -456,6 +459,15 @@ folder for, so it is out of scope rather than unscheduled.
 | 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started |
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
+
+**`nes` under `libretro`/`nestopia` is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1,
+driven on 2026-09-20. All nine steps hold, with step 6 N/A since `nes` has no class D, and it is
+the first row anywhere to pass step 5, a save state round-tripping with its screenshot.
+
+That is one row, and the unit is `(system, emulator, core)`. It does not certify `nes`: the other
+eight rows of that system are driven on two of the nine steps, six of them cannot sync the battery
+save they write, and three write save states RomMBat cannot see. Wave 1's other six systems are
+not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
 
 ### Compatibility
 
