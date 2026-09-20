@@ -448,7 +448,7 @@ folder for, so it is out of scope rather than unscheduled.
 
 | Wave | Systems                                                                                                  | Status      |
 | ---- | -------------------------------------------------------------------------------------------------------- | ----------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Not started |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | In progress |
 | 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started |
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started |
@@ -456,6 +456,14 @@ folder for, so it is out of scope rather than unscheduled.
 | 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started |
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
+
+**`nes` under `libretro`/`nestopia` is the furthest along, at eight of nine**, re-driven at the
+`5.3.0-beta.1` floor on 2026-09-20. It is the first row anywhere to pass step 5, a save state
+round-tripping with its screenshot. The step still open is step 2, which cannot be exercised on
+this platform because the library holds no file `nes` is unable to launch, so the row needs a
+library with mixed formats rather than more work on `nes`. Wave 1's other six systems, and the
+other eight `nes` rows, are not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the
+record.
 
 ### Compatibility
 

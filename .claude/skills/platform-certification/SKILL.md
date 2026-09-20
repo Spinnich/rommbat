@@ -76,12 +76,24 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    **Drive a state made after finding 258's fix, never one uploaded before it.** RomM links a
    screenshot by filename, and RomMBat named it so that no libretro-shaped state ever linked,
    while its restore could not place a state for any emulator that keeps the slot in the stem.
-   Between them no row could pass step 5, and both were RomMBat's (`docs/retrobat-findings.md`
-   findings 138, 256 and 258). An unchanged state is never re-sent, so an older one stays
-   unlinked. Read the row after the upload: a screenshot whose `file_name` is the state's `file_name` plus
-   the image's extension is a pass, and a null link on a fresh state is a new finding, not a
-   recurrence of an old one. **Check the name, not only that one came back**: RomM can answer a
-   libretro slot with slot 0's image, which is not a link to this state (finding 258).
+   Between them no row could pass step 5 until 2026-09-20, and both were RomMBat's
+   (`docs/retrobat-findings.md` findings 138, 256 and 258). An unchanged state is never re-sent,
+   so an older one stays unlinked. A null link on a fresh state is a new finding, not a
+   recurrence of an old one.
+
+   **`nes` under `libretro`/`nestopia` is the one row that has passed it**, and the method is
+   worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
+   run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
+   bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
+   not its name or its arrival** - RomM can answer a libretro slot with another slot's image,
+   which is not a link to this state. Make more than one state in the session and pick the one
+   whose image is unique for the comparison, because two states saved on the same frame share an
+   image and cannot tell a real link from a wrong one. `docs/platforms/nes.md` has the worked
+   pass.
+
+   **The state slot is EmulationStation's, not the emulator's.** `emulatorLauncher.log` logs
+   `-state_slot <n>` on the launch line and that is what decides the filename suffix, so read it
+   there rather than assuming a core's default.
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.

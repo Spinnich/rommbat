@@ -3,11 +3,14 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Not certified, on any of its nine rows.** Steps 1, 3, 4, 7, 8 and 9 hold and step 6 is N/A.
-**Two remain open**: step 2's exclusion cannot be exercised on this platform, and step 5's
-screenshot did not link. That second one is diagnosed as RomMBat's naming, not RomM's (finding
-258), and fixed, but no state made since the fix has been driven, so it stays open until one
-is. A pass is not done at eight of nine.
+**Not certified, on any of its nine rows.** Steps 1, 3, 4, 5, 7, 8 and 9 hold at the
+`5.3.0-beta.1` floor and step 6 is N/A. **One remains open**: step 2's exclusion cannot be
+exercised on this platform, because every NES ROM in this library is a `.zip` and there is no
+unsupported file to refuse. A pass is not done at eight of nine.
+
+**Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
+was driven on a state made after it, and the restored screenshot was checked by its bytes rather
+than by its arrival. See "Re-driven at `5.3.0-beta.1`".
 
 **This file is in two parts.** The first is `libretro`/`nestopia` in full, which is the row the
 nine steps were driven against. The second is the other eight rows, driven on steps 4 and 5 only,
@@ -60,6 +63,12 @@ which is which rather than quietly replacing the earlier text.
 The budget being off is deliberate and narrows what this pass proves: **nothing here certifies
 `budget`, `evict` or the eviction guards.** None of those is among the nine steps. It also means
 a missing cover at step 7 cannot be a headroom problem, which is why it was switched off.
+
+**The 2026-09-20 re-drive ran on the same install moved forward**, and the two rows that changed
+are the ones a result can turn on: the server reports `5.3.0-beta.1` and the store is at schema
+16 of 16. RetroBat, root, budget and media kinds are as above. The client is a deploy of `main`
+at 9ed1fd1, which is the first build here to declare `beta.1` as its floor rather than to
+tolerate it.
 
 ## The move to `5.3.0-alpha.2`
 
@@ -121,20 +130,57 @@ lines, and no step's code reads either member.
 | 8   | Owed, as before   | `POST /api/play-sessions` is unchanged                                                                                    |
 | 9   | **Touched**       | Always touched on a move                                                                                                  |
 
-So the row still owes steps 1, 2, 4, 5, 7, 8 and 9, at `5.3.0-beta.1` rather than at `alpha.3`.
+So the row owed steps 1, 2, 4, 5, 7, 8 and 9, at `5.3.0-beta.1` rather than at `alpha.3`. They
+were re-driven on 2026-09-20 and the next section is what they came back with. The three tables
+above stay as they are, because what a move was expected to touch is a separate record from what
+re-running it found.
+
+## Re-driven at `5.3.0-beta.1`, 2026-09-20
+
+**The seven owed steps were re-run in one session against a deploy of `main` at 9ed1fd1**, made
+by `tools/publish.ps1 -Deploy R:\RetroBat`, on a server reporting `5.3.0-beta.1`. That build is
+the first on this install to carry the floor it was measured against: the previous deploy
+predated the retarget, so the record now names a client that refuses anything below `beta.1`
+rather than one that merely tolerated it.
+
+| #   | Owed for                             | Re-run result                                                                |
+| --- | ------------------------------------ | ---------------------------------------------------------------------------- |
+| 1   | The re-sourced alias table           | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`               |
+| 2   | The no-file-on-disk exclusion        | **Partial, as before.** 228 resolve, and nothing here can exercise a refusal |
+| 4   | The superseded-row guard             | **Pass, both directions.** A new save round-tripped byte for byte            |
+| 5   | The screenshot fetch and finding 258 | **Pass, and for the first time on any row.** See below                       |
+| 7   | The retired identifiers endpoint     | **Pass.** Art on screen, and the game list is unchanged                      |
+| 8   | The append-only background log       | **Pass.** See below                                                          |
+| 9   | Always owed on a move                | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical             |
+
+**Step 3 was not re-run and does not need to be.** All three moves carried it for the same
+reason, that `nes` requires no BIOS and no firmware code or bundled data changed, and re-running
+`bios nes` would re-read the same empty requirement.
+
+**Step 5 is the one that changed, and it is the reason the session happened.** Every earlier
+revision of this file recorded the screenshot as not linking, first as RomM's fault and then, at
+finding 258, as RomMBat's own naming. The fix could not be believed until a state made after it
+was driven, because an unchanged state is never re-sent.
 
 ## Checklist
+
+| #   | Step | Result |
+| --- | ---- | ------ |
+
+All nine are stated at `5.3.0-beta.1`, which is the floor the client now declares. Step 3 is
+carried from the 5.2.0 measurement for the reason the move tables give; the other eight were
+measured or re-measured on 2026-09-20.
 
 | #   | Step                                                           | Result                                                                                    |
 | --- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | 1   | Folder mapping resolves, layer recorded                        | **Pass**, at layer `fs_slug`. See below                                                   |
 | 2   | `<extension>` captured; unsupported file excluded and reported | **Partial, and not exercisable here.** The library is `.zip` throughout for this platform |
-| 3   | Required BIOS resolved against RomM by md5                     | **Pass.** RetroBat requires no BIOS for `nes`                                             |
+| 3   | Required BIOS resolved against RomM by md5                     | **Pass**, carried. RetroBat requires no BIOS for `nes`                                    |
 | 4   | Save shape classified, battery save round-trips                | **Pass, both directions.** Class A, and the md5 is equal up and down. See below           |
-| 5   | Save state round-trips with its screenshot                     | **State yes, both ways. Screenshot no**, RomMBat's naming (finding 258), since fixed      |
+| 5   | Save state round-trips with its screenshot                     | **Pass, both ways, screenshot included.** See below                                       |
 | 6   | Per-game memory card where class D applies                     | **N/A.** See below                                                                        |
 | 7   | Launches from EmulationStation with art and metadata           | **Pass.** Box art confirmed rendering in the game list, metadata present                  |
-| 8   | Play session recorded and reaches RomM                         | **Pass.** `last_played` updated, driven entirely through the hooks                        |
+| 8   | Play session recorded and reaches RomM                         | **Pass.** Session 265 on the server, matching the journal to the second. See below        |
 | 9   | Re-sync is a clean no-op                                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                          |
 
 ### 1. Mapping
@@ -299,6 +345,34 @@ listed and no longer move the exit code.
 recoverable and still invisible. **Since fixed by #142** in stage 2 of #195: the sweep reads
 `local_save` and names a missing save, and never repairs its row.
 
+#### The save re-driven at `5.3.0-beta.1`, 2026-09-20
+
+Owed because `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` all changed across the move.
+Same game, a second in-game save in a fresh session.
+
+|                      | Value                                                               |
+| -------------------- | ------------------------------------------------------------------- |
+| Before the session   | `5867d7af3f402454c85464aa84b3457f`, 8,192 B                         |
+| After it             | `620bd04701e61863cae7c18257a95cde`, 8,192 B, so the save did change |
+| Uploaded             | by the detached `quit` pass, with nobody at a terminal              |
+| Deleted and restored | `620bd04701e61863cae7c18257a95cde`, **equal**                       |
+
+The restore named it `the newest of 8 server saves for this file` and listed the seven it did
+not restore, three of them in `autosave` from the browser sessions in "RomM's browser player".
+**A flush afterwards re-uploaded nothing**: `states: 15 already in step` and `playtime: nothing
+queued`, exit 0. So the restore wrote its `local_save` and `local_state` rows back rather than
+leaving a file the next scan would treat as new, which is the failure mode #206 describes for an
+identical rewrite.
+
+**A save carries no screenshot in RomM's UI, and that is correct rather than a gap.** The
+maintainer noticed it beside the states, which do carry one. `POST /api/saves` does take an
+optional `screenshotFile` and `SaveSchema` requires a `screenshot` member, so the model allows
+it; what is absent is anything to send. RetroArch writes a `.png` beside a save state and never
+beside an `.srm`, and the agent runs after the emulator has exited, so it has no framebuffer to
+capture. The one `autosave` row on this ROM that does show a thumbnail was written by RomM's
+browser player, which captures its own canvas at save time. `RomMConnection.Saves.cs` says as
+much at the upload.
+
 ### 5. Save state and screenshot
 
 Made in the same session, slot 1.
@@ -362,6 +436,49 @@ nothing to compare against. The restore says so itself rather than implying a ch
 make, and it warns that a state carries emulator and core but no version. That is a property of
 RomM's model rather than of this platform.
 
+#### Driven on a state made after the fix, 2026-09-20, and it links
+
+Everything above this heading describes states uploaded before finding 258 was fixed. Three new
+ones were made in one EmulationStation session and they are what the step now rests on.
+
+| Slot                  | On disk                                               | Screenshot md5 |
+| --------------------- | ----------------------------------------------------- | -------------- |
+| `libretro:nestopia:2` | `Legend of Zelda, The (USA) (Rev 1).state2`, 10,252 B | `ecd1d57f...`  |
+| `libretro:nestopia:3` | `Legend of Zelda, The (USA) (Rev 1).state3`, 10,253 B | `d75aca69...`  |
+| `libretro:nestopia:4` | `Legend of Zelda, The (USA) (Rev 1).state4`, 10,242 B | `d75aca69...`  |
+
+**The slot is EmulationStation's choice, passed on the command line, and this file used to
+assume otherwise.** `emulatorLauncher.log` logged `-state_slot 2` on the launch, which is why the
+first state of the session landed in slot 2 rather than the slot 1 every earlier state here sits
+in. Nothing in RetroArch's own defaults decided it, so a record that reads a slot number as a
+property of the emulator is reading the wrong layer.
+
+Slot 2 was deleted from the tree, with its `.png`, and restored:
+
+```console
+$ rommbat-agent saves restore 158633
+  state  rom 158633  libretro.nestopia        10 KB  2026-09-20 14:23  saves/nes/libretro.nestopia/Legend of Zelda, The (USA) (Rev 1).state2
+         with its screenshot, Legend of Zelda, The (USA) (Rev 1).state2.png
+$ rommbat-agent saves restore 158633 --apply
+restored 1 save(s) and 1 state(s), failed 0, 20.1 KB, with 1 screenshot(s)
+```
+
+|                        | Before the delete | After the restore |
+| ---------------------- | ----------------- | ----------------- |
+| `.state2`, 10,252 B    | `4e257f3b...`     | `4e257f3b...`     |
+| `.state2.png`, 2,144 B | `ecd1d57f...`     | `ecd1d57f...`     |
+
+**The screenshot was checked by its bytes, not by its arrival**, which is the check finding 258
+makes necessary: RomM can answer a libretro slot with another slot's image, and a restore that
+merely produces a `.png` would not notice. Slots 3 and 4 were saved on the same frame and share
+one image, `d75aca69...`; slot 2's is its own. What came back is `ecd1d57f...`, so the link is to
+this state and not to a neighbour, and not to the slot 1 image that has sat unlinked here since
+September 12.
+
+**Slot 1 is still unlinked and is left that way on purpose.** It was uploaded before the fix, an
+unchanged state is never re-sent, and leaving it is what makes the contrast between the two
+readable on one install.
+
 ### 9. Re-sync
 
 ```text
@@ -378,6 +495,26 @@ and one state, and created **no duplicate server rows**: still save 196 and stat
 Two junk save records for `River City Ransom (USA)` failed every flush until they were deleted
 server-side, which is what the earlier exit 7 was. Their removal is why this run is clean, and
 that was confirmed against the server rather than assumed from the quieter output.
+
+#### The re-sync re-driven at `5.3.0-beta.1`, 2026-09-20
+
+Run twice, once before the play session and once after it, and clean both times:
+
+```text
+plan:      nothing to do: all 228 games are already present and verified
+done:      228 games already present, 0 downloaded, 0 written
+media:     889 already present
+gamelists: all 1 unchanged
+```
+
+`gamelist.xml` was md5'd either side of each run and is identical across both, exit 0.
+
+**It is not identical across the session, and the writer is EmulationStation.** The file went
+from `5a35c317...` to `585d259f...` between the two runs, because ES rewrote the played game's
+`<playcount>` to 4 and its `<lastplayed>` to `20260920T102345`, which is the `game-end` second.
+RomMBat reported `all 1 unchanged` on both sides of that and left the file alone, so the churn
+step 9 watches for is absent; a record that md5'd only across the whole session would have read
+ES's own write as a sync defect.
 
 ### 7. Launch, art and metadata
 
@@ -430,6 +567,35 @@ RomM exposes fourteen `ss_metadata` paths against the nine values the pickers of
 is a mapping rather than new plumbing. Whether a given library actually holds a given kind is the
 ordinary `Missing` case, per finding 239.
 
+#### Re-driven at `5.3.0-beta.1`, 2026-09-20, and the video prediction came true
+
+Owed because the catalog query changed when `GET /api/roms/identifiers` was retired, and that
+query is what fills the game list. It passes: box art was confirmed on screen again, and the
+played game's `gamelist.xml` entry carries `<image>`, `<marquee>`, `<video>`, `<manual>` and
+`<desc>`.
+
+On disk, against the earlier capture:
+
+| Kind       | Files | Size   | Offered by the server now |
+| ---------- | ----- | ------ | ------------------------- |
+| ROMs       | 228   | 32 MB  | -                         |
+| `images/`  | 676   | 168 MB | 224 of each of 3 kinds    |
+| `videos/`  | 216   | 362 MB | **8**                     |
+| `manuals/` | 215   | 423 MB | 209                       |
+
+**The sync's media line fell from 1,088 to 889, and that is the administrator's deletion, not a
+regression.** The paragraph above predicted exactly this. Traced rather than assumed: for 208 of
+the 216 games with a video on disk, `path_video` now reads null, and their `ss_metadata` carries
+`video_path` and `video_normalized_path` both null while still holding the ScreenScraper URLs
+the asset would be fetched from. The eight survivors answer with a
+`video_normalized/video-normalized.mp4` path. 224 + 224 + 224 + 209 + 8 is 889 exactly.
+
+**The files already on disk stayed, and the gamelist still points at them.** `Removed` only fires
+when a _kind_ stops being wanted, which is a setting the install owns; a kind that is still wanted
+and merely no longer offered is the ordinary `Missing` case and reclaims nothing. That is the
+right way round, because the artwork is still good and the alternative is deleting a user's media
+whenever their server has a gap.
+
 ### 8. Play session
 
 The hook chain fired on a fresh install with nobody at a terminal, which is rule 4 working. The
@@ -447,6 +613,60 @@ started nothing. **The step passes**, confirmed on the server rather than from t
 `last_played` moved at 18:27:15 from a quit hook that fired at 18:27:07, and `now_playing`
 cleared. An earlier revision of this section said the step was not passed, which was true of the
 first accidental ten-second launch and was left standing after the Zelda session closed it.
+
+#### The session re-driven at `5.3.0-beta.1`, 2026-09-20
+
+Owed because the detached pass the hooks spawn writes its log through a new append-only handle.
+The whole chain fired again, with nobody at a terminal:
+
+```text
+2026-09-20 14:20:50Z  start  background start started
+2026-09-20 14:20:55Z  start  background start finished, flush exit 0
+2026-09-20 14:23:47Z  quit   background quit started
+2026-09-20 14:23:54Z  quit   background quit finished, flush exit 0
+```
+
+**The append-only handle appends**, which is the half this move owed: the file above carries
+every pass back to 2026-09-12 with the new entries at the end, and the truncation visible in the
+2026-09-12 block is older than the change.
+
+The journal holds the session the hooks captured, and the correlation closed it:
+
+| Event        | Recorded     | Correlated   | State        |
+| ------------ | ------------ | ------------ | ------------ |
+| `start`      | 14:20:50.841 | 14:20:51.028 | `correlated` |
+| `game-start` | 14:21:42.517 | 14:23:47.876 | `correlated` |
+| `game-end`   | 14:23:45.327 | 14:23:47.876 | `correlated` |
+| `quit`       | 14:23:47.690 | 14:23:47.876 | `correlated` |
+
+`game-start` carries `roms/nes/Legend of Zelda, The (USA) (Rev 1).zip` and nothing else does,
+which is rule 4 holding: the two hooks inside the launch path journalled and started nothing,
+and the two outside it each spawned the pass that drained what they left. EmulationStation's own
+write agrees, at `<playcount>4</playcount>` and `<lastplayed>20260920T102345</lastplayed>`, the
+`game-end` second.
+
+**The server holds it, and that is what makes the step pass:**
+
+| Field             | Session 265           | Matches                           |
+| ----------------- | --------------------- | --------------------------------- |
+| `start_time`      | `2026-09-20T14:21:42` | `game-start`, journalled at .517  |
+| `end_time`        | `2026-09-20T14:23:45` | `game-end`, journalled at .327    |
+| `duration_ms`     | `122809`              | the 123 s between them            |
+| `device_id`       | `cf1cc550-...`        | `status`'s **`romm device`** line |
+| `sync_session_id` | `null`                | -                                 |
+
+**The row carries the RomM-side device id, not the local one**, and the two are different values
+that `status` prints on adjacent lines. A `?device_id=` filter given the local id returns `200`
+with zero rows, which reads exactly like a session that was never written.
+
+**Reading it back needs a token for the account the install is paired as, and that is #208.**
+`SendPlaySessionsAsync` posts and nothing in the client reads back, so `playtime: nothing queued`
+says the outbox is empty rather than that a row exists. `GET /api/play-sessions` is scoped to the
+authenticated user: with the correct device id above, a second account's token answers `200` with
+**0** rows where the owning account's answers `200` with **5**. That is identity rather than
+permission, and no scope changes it. A read-only `roms.user.read` token on the owning account is
+what settled this step, and `GET /api/roms/{id}` is `403` under that scope, so `last_played` was
+never read; the session row is the stronger evidence anyway.
 
 ## What the pass turned up
 
@@ -771,7 +991,12 @@ from the copy aside and is the current `libretro:battery` version again.
 ## What this file will not claim
 
 - The nine rows are driven on steps 4 and 5 and **none of them is certified**, because step 2
-  cannot be exercised here and step 5's screenshot does not link on any of them.
+  cannot be exercised here. That is now the only thing holding `libretro`/`nestopia` at eight of
+  nine; the other eight rows are further back, since steps 1, 3, 7, 8 and 9 were carried to them
+  rather than driven and six of them write something RomMBat cannot see at all.
+- **Step 5 passed on `libretro`/`nestopia` and on nothing else.** The screenshot link was driven
+  on that row alone, and the fix it proves is in the upload name, which is per row by
+  construction. A second row owes its own state.
 - The conflict results are about RomMBat's handling of a divergence. Both sides were synthesized,
   so nothing here is evidence that a real two-device race produces one, or how often.
 - Six of the nine cannot sync what they wrote, so a save made on those rows exists only on the

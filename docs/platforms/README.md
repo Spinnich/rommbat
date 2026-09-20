@@ -192,6 +192,13 @@ and came back out through the hooks. The waves finish against an M8 package.
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
+**The closest row is `nes` under `libretro`/`nestopia`, at eight of nine.** Re-driven at the
+`5.3.0-beta.1` floor on 2026-09-20: steps 1, 3, 4, 5, 7, 8 and 9 pass and step 6 is N/A. Step 2
+is the one open, and it is open for a reason no amount of care on this platform fixes, that the
+library holds no file `nes` cannot launch, so there is no exclusion to exercise. **That row is
+also the first anywhere to pass step 5**, screenshot included, which had been blocked on findings
+138, 256 and 258 since the checklist was written.
+
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
 one real save or state, through EmulationStation and back. That is not a certification and must

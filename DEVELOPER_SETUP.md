@@ -230,6 +230,19 @@ ROMMBAT_TEST_SERVER=https://your-romm-instance
 ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 ```
 
+**A third variable exists and no test reads it.** `ROMMBAT_TEST_OWNER_TOKEN` is a read-only
+`roms.user.read` token on **the account a real install is paired as**, and it is there so a
+certification pass can check step 8, that a play session reached RomM. Nothing else needs it, and
+a clone without it is unaffected.
+
+It has to be a separate token because the approver one is a different account, and saves, states
+and play sessions are per-user: `GET /api/play-sessions` answers `200` with the _requesting_
+account's rows, so the approver token reads zero for an install it did not pair and no scope
+widens that. `roms.user.read` alone is enough for the sessions; `GET /api/roms/{id}` is `403`
+under it, so `last_played` is not readable and the session row is what to read. Issue #208 is the
+gap that makes this necessary at all: RomMBat posts play sessions and never reads them back, so
+there is no way to ask the agent instead.
+
 Then source it for the run. `dotnet test` reads the process environment and nothing loads
 `.env` on its own, so this is deliberate every time rather than ambient:
 
