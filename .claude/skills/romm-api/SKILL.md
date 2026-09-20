@@ -6,7 +6,7 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 # RomM API
 
 The backend is the contract. DTOs are generated from `/openapi.json` (served at the
-**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-alpha.2, the minimum supported
+**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0-beta.1, the minimum supported
 version. The floor tracks the newest RomM stable, or a prerelease ahead of it as it does now,
 so the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
@@ -197,7 +197,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
   a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
-- **`with_rom_id_index=false` under every scope, from the `5.3.0-alpha.2` floor.** Under a
+- **`with_rom_id_index=false` under every scope, from the `5.3.0` floor.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
   `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
   every page. **Measured on 5.3.0-alpha.2 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
@@ -330,7 +330,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
-  **Re-verified against the pinned `romm-5.3.0-alpha.2.json`, because a whole scope kind turns
+  **Re-verified against the pinned `romm-5.3.0-beta.1.json`, because a whole scope kind turns
   on it.** The scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id`
   and `smart_collection_id`, and there is nothing else. 5.3.0 takes the query from 51
   parameters to 58 without adding one: the new ones are filters (`physical`, `playable`,
@@ -437,7 +437,12 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
   `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
   `--keep-local` not. Measurement 161. `autocleanup` defaults to **false** and
-  `autocleanup_limit` to 10, so a slot grows unboundedly unless you ask it not to.
+  `autocleanup_limit` to 10, so a slot grew unboundedly unless you asked it not to, up to
+  5.3.0-alpha.2. **From alpha.3 the server prunes on each slotted upload whatever the client
+  sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and the
+  client's own `autocleanup_limit`. RomMBat sends `autocleanup=true&autocleanup_limit=10`, so its
+  cap is 10 and the server's bites only on other writers' versions. `slot` is capped at 255
+  characters, a 422 past it. Read in source; `romm-5.3-findings.md` finding 11.
 - **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
   a client cannot dodge the 409 path by sending an id the server does not know. Measurement 162.
 - **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
@@ -492,9 +497,11 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   from the console view's fixed `state.save` name (finding 4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
-  never sends it; RomM's browser player does, for the save it loaded, and on every save tick
-  under 5.3.0's `auto_save_sync`. A save id therefore does not name its bytes, and a superseded
-  row can return to the head of its slot. `save-sync` holds the consequences.
+  never sends it. At 5.3.0-alpha.2 RomM's browser player did, for the save it loaded and on every
+  save tick under `auto_save_sync`; from alpha.3 it `PUT`s only the version its own session
+  created. A save id therefore does not name its bytes, and a superseded row can return to the
+  head of its slot, now by the server's per-slot prune deleting the row above it. `save-sync`
+  holds the consequences.
 - **`/api/memory-cards` is not called and is not a save transport.** A card is scoped by
   `(user, emulator)` with no ROM, a version is a whole zipped card, and only a zip is accepted.
   Measured at 5.3.0-alpha.2; `save-sync` again.

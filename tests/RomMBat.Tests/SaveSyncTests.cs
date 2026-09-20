@@ -1458,8 +1458,8 @@ public class SaveSyncTests
     [Fact]
     public async Task A_row_rewritten_in_place_still_comes_down_when_this_device_holds_that_row()
     {
-        // PUT /api/saves/{id} keeps the id and changes the bytes, which RomM's browser player does
-        // to the save it loaded. Measured on 5.3.0-alpha.2 (s1-browser-save-writer.py, case A):
+        // PUT /api/saves/{id} keeps the id and changes the bytes, which at 5.3.0-alpha.2 RomM's
+        // browser player did to the save it loaded. Measured there (s1-browser-save-writer.py, case A):
         // negotiate answers download for the same save id with the new hash. That is the row this
         // device last exchanged rather than an older one, so it is an ordinary download.
         using var fixture = SyncFixture.Create();

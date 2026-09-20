@@ -251,7 +251,7 @@ internal sealed partial class StubRomMServer
     /// images it lets through. Ported from RomM, not approximated: <c>db_screenshot_handler.get_screenshot</c> filters on
     /// the image's <c>file_name</c> or <c>file_name_no_ext</c> being either the state's
     /// <c>file_name</c> or its <c>file_name_no_ext</c>, and <c>compute_file_name_no_ext</c> strips
-    /// <c>\.(([a-z]+\.)*\w+)$</c>. Identical at 5.2.0, 5.3.0-alpha.2 and 5.3.0-alpha.3. The
+    /// <c>\.(([a-z]+\.)*\w+)$</c>. Identical at 5.2.0, 5.3.0-alpha.2, 5.3.0-alpha.3 and 5.3.0-beta.1. The
     /// multi-part half matters: <c>.jst.png</c> is one extension to RomM and <c>.p2s.png</c> is
     /// not, because a digit ends the letters-only group.
     /// </remarks>

@@ -18,11 +18,11 @@ half that was measured.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Release                | `5.3.0-alpha.2`, 2026-09-13, and the floor this adopts                               |
+| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.0-beta.1`, 2026-09-18, the floor since    |
 | API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
-| Measured against       | `5.3.0-alpha.2`, one live server, for the rows labelled `measured`                   |
+| Measured against       | `5.3.0-alpha.2`, one live server; finding 11's retention table at `5.3.0-alpha.3`    |
 | Date                   | 2026-09-13                                                                           |
 
 ## Three things are already true, before any adoption decision
@@ -837,7 +837,171 @@ filesystem:
     firmware: "bios/{platform}"
 ```
 
+### 11. The `alpha.2` to `alpha.3` delta (`source`)
+
+`5.3.0-alpha.3` was published 2026-09-17, 319 commits and 67 non-test backend files after
+`alpha.2`. It was this adoption's target until finding 12 retargeted it at `beta.1`, which is the
+floor. Read at both tags, and the served schema diffed against the pin it replaces. Nothing in
+this section is measured yet; the three questions it opens are at the end of this document.
+
+**The contract barely moves where this client reads.** One operation leaves, the streaming
+`state-frame` route, and none arrive. On a route RomMBat calls, the only change is `slot` on
+`POST /api/saves` gaining `maxLength: 255`, so a longer slot is now a 422 rather than a row; the
+longest slot this client writes is a class C `{emulator}:{kind}` far below it. `GET /api/roms`
+takes the same parameters in a different order, because #4487 moved them into one
+`RomFilterParams` model shared with smart collections, and `collection_id` and
+`smart_collection_id` now refuse a value below 1. The facet filters read the `roms_facets` mirror,
+which already existed at `alpha.2`. The routes a download, a firmware fetch, a play session and a
+negotiate use are unchanged, and `backend/main.py` is untouched, so the pin still depends on the
+version and not the instance.
+
+**#4540 caps every slot, whatever the client asks, and for this client the cap does not move.**
+`add_save` computes the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables it) and
+`autocleanup_limit` when the client set `autocleanup`, first clamping the client's ask to
+`MAX_AUTOCLEANUP_LIMIT` (env, default 100) and to at least 1, and prunes past it on every slotted
+upload, retries included. `prune_slot` keeps the newest by `updated_at` then `id` and deletes the
+rest with their files and screenshots. Before, pruning ran only when a client asked.
+**RomMBat has always asked**: `UploadSaveAsync` sends `autocleanup=true&autocleanup_limit=10` on
+every save upload (`src/RomM.Client/Saves/RomMConnection.Saves.cs`, `AutoCleanupLimit`), which
+`docs/PLAN.md` records as the M6 decision. So its own slots were bounded at 10 before alpha.3 and
+are bounded at 10 now, and #4540 changes nothing for what it uploads itself. What the server cap
+governs is every **other** writer on those slots, which asks for no cleanup: a peer, and RomM's
+browser player.
+
+**Measured against such a writer, and it costs this client nothing**
+(`tools/romm-5.3-probes/s3-slot-retention.py`, two runs on the live `alpha.3`). A device uploaded
+and negotiated, then a peer with no device put 51 versions in the slot, sending no cleanup
+parameters, which is the case `MAX_SAVES_PER_SLOT` actually governs:
+
+| After 51 peer versions                  | Answer                                                             |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| Rows in the slot                        | 50, and the device's own version is one of those deleted           |
+| Negotiate, the device's copy unchanged  | `download` of the newest, "Server save is newer (no sync history)" |
+| Negotiate, the device's copy edited     | `upload`, "Client save is newer (no sync history)"                 |
+| The ordinary upload that answer invites | **409**, "Slot has a newer save since your last sync"              |
+
+So deleting the version a sync was recorded against makes negotiate forget the history, and the
+upload guard does not: it still holds this device's record for the slot. Two answers that disagree,
+and this client already reconciles them, because `SaveSync` records a negotiated `upload` that
+comes back 409 as a conflict, a path first driven on hardware for a different cause. An unchanged
+copy takes the peer's newest version, which is right, and an edited one becomes a conflict to
+settle rather than an overwrite. The prune ranks on `updated_at` as read: a `PUT` onto the oldest
+surviving version kept it through the next upload, and the next oldest went instead.
+
+**#4540 also renames a slotted save's screenshot to the save's stem, and does nothing for
+states.** Finding 258 of `retrobat-findings.md` is the state side.
+
+**The browser player now writes into slots, and by default into this client's.** Three parts:
+
+- **A session opens a new version, then rewrites only that one.** `saveSave` in
+  `views/Player/EmulatorJS/utils.ts` holds the version the session created, starting from none:
+  the first write `POST`s into the slot with `overwrite=true`, which skips both the stale-device
+  409 and the content-hash dedup, and every later write in the session `PUT`s that new row in
+  place. At `alpha.2` the player `PUT` the save it loaded, which is finding 4's case A. At `alpha.3`
+  a loaded save is left alone and the session appends beside it.
+- **The slot is the loaded save's, or the newest slotted save's.** `Player.vue` passes
+  `loadedSave?.slot || props.saveSlot`, and the v2 player seeds `props.saveSlot` from
+  `preferredSlot(rom.user_saves)`, the slot of the newest save that has one, falling back to
+  `autosave`. So for a game this client has synced, a browser session writes into
+  `libretro:battery` or whatever slot this client used.
+- **The file is `<fs_name_no_ext>.srm` under the EmulatorJS core's name**, `autocleanup` only in
+  `autosave`. For a class A libretro slot that is the shape this client downloads and writes to the
+  ROM's stem. For a bundled slot it is a raw `.srm` in a slot this client expects to hold an
+  archive.
+
+To this client that is ordinary protocol: a newer row in a slot it holds, so `download` if the
+local file is unchanged and `conflict` if not. What is not known is whether the bytes are right,
+which is a question about EmulatorJS and not about RomM.
+
+**Inert here**, listed so it is a conclusion and not an omission: nginx moves to TLS 1.2 and above
+and serves precompressed frontend assets only, scoped away from `/library/` so a ROM download is
+untouched; the patcher, Steam metadata and covers, the manual upload routes, the scan and title id
+extraction order (#4566, which changes which disc of a set a title id is read from), multi-disc
+playlist handling, and every streaming change. The two screenshot fixes in the notes, #4478 and
+#4526, are the player's and streaming's.
+
+### 12. The `alpha.3` to `beta.1` delta (`source`)
+
+`5.3.0-beta.1` was published 2026-09-18, one day after `alpha.3`, and is the floor from this
+adoption. 160 commits, and a recursive tree diff of the two tags gives 52 files added, 5 removed
+and 367 modified. Of those, **31 are non-test backend files and the rest is frontend v2**.
+
+**Count the files from the trees, not from the compare endpoint.** `GET /repos/{o}/{r}/compare/{a}...{b}`
+caps its `files` array at 300 and returned exactly 300 here, with no flag in the payload saying
+so. Two frontend files this finding turns on, `views/Player/EmulatorJS/utils.ts` and its
+`Player.vue`, were missing from that list and are changed. The backend half happened to fit, so
+every contract reading below stands, but the first pass read "the save writer is untouched" off a
+truncated list and that was wrong. Compare blob shas from `git/trees?recursive=1` instead.
+
+**The contract is the smallest move of the four pins.** The same 246 operations and 272 schemas,
+none added, removed or renamed, and the generated diff is four lines. `RomFileSchema.last_modified`
+becomes nullable, `SystemDict` gains `GIT_BRANCH` (a nullable string, filled only on a
+`development` build), and the `X-Upload-Total-Size` and `X-Upload-Total-Chunks` headers on
+`POST /api/roms/upload/start` drop to `minimum: 0` because an empty ROM file is accepted now. No
+hand-written line names any of the three, and RomMBat does not upload ROMs. The pin's README has
+the detail, including why the `required` on `GIT_BRANCH` does not reach the DTO.
+
+**The backend delta is one shape repeated: answer for ids without building rows.** #4584, #4586,
+#4587, #4589 and #4590 add `get_save_ids`, `get_state_ids` and the `RomVisibility`,
+`RomVisibilityLabel` and `RomDeletionTarget` named tuples, and point the identifier, visibility
+and file routes at them. `GET /api/saves/identifiers` was building a `Save` per row to read
+`.id` off it, and now projects the column.
+
+**That lands on finding 9, and nothing here is re-measured.** The identifiers walk, 200 after
+176.7 s for 95,993 ids, is the reading most likely to have moved, and it is `alpha.2`'s. It is
+left exactly as written, because a measurement is attributed to the build it was taken on and
+editing it would invent a number. Re-measuring it is owed and is in the open table below.
+
+**The per-slot cap that finding 11 measured is byte-identical here.** `add_save` and `prune_slot`
+are untouched between the tags; the only save-side change is the ids projection. So the `alpha.3`
+retention table describes the code `beta.1` ships, and `s3-slot-retention.py` says so in its
+docstring rather than implying a re-run happened.
+
+**The browser save writer was substantially rewritten, and finding 11's reading survives it.**
+`utils.ts` gains a canvas screenshot capture per save version, an SRAM dump that flushes the core
+before reading, and a pending-asset path; the naming moved into `services/api/save.ts` as
+`sessionSaveFile` and `sessionScreenshotFile`, which confirm `<fs_name_no_ext>.srm` for a new
+session save and the save's stem for its picture. **The slot decision is unchanged.** `Player.vue`
+still resolves `loadedSave?.slot || props.saveSlot`, `saveSlot` is still
+`chosenSlot(slotChoice)` seeded from `preferredSlot(rom.user_saves)`, and `v2/utils/saveSlots.ts`
+is byte-identical at both tags: `preferredSlot` still returns the slot of the newest slotted save
+and only falls back to `autosave` when there is none. `saveSave` still `POST`s with
+`overwrite: true` into that slot and `PUT`s its own row afterwards.
+
+So for a game this client has synced, a browser session still writes into `libretro:battery` or
+whatever slot this client used. **The release notes say the opposite** ("Ordinary play goes to the
+`autosave` slot"), and read against the source that line describes a game with no slotted save
+rather than one this client syncs. This is the `notes` label earning its keep: acting on the
+changelog here would have retired a live finding that is still true.
+
+**The notes' breaking changes are not new since `alpha.3`.** The filesystem-structure declaration
+and the one-entry-per-container streaming config both landed earlier in the 5.3.0 line, and no
+config or structure file changes between the two tags; the release notes are cumulative from
+5.2.0. They cost the operator a `config.yml` edit on upgrade and are not a client contract.
+Finding 1 is the folder-authority half of the same work.
+
+**Inert here**, for the same reason the `alpha.3` list was written: the jukebox and soundtrack
+player, walkthroughs, recommendations, physical games, js-dos and PICO-8, the Steam and demoscene
+metadata sources, and the v2 UI work that is most of the 367 modified files.
+
 ## What the floor move costs, and what gates it
+
+**The `beta.1` move, 2026-09-18.** Same procedure again, and the smallest delta of the four. The
+pin is sha256 `26ace330...`, 198 paths and 272 schemas, captured from a server reporting
+`5.3.0-beta.1` at capture time, which is also the version the live instance the `Live*` tests
+point at now runs. `refresh.sh` drifts exactly as it did for `alpha.3`, on the RetroBat side only,
+and the vendored files stay held back for the RetroBat adoption that ships it (#204). The suffix
+drop below applies with the numbers moved once more: `5.3.0-alpha.3` is now the tag below the
+floor that reads **Supported**, and `LastTested` is `beta.1`. Finding 12 is the delta.
+
+**The `alpha.3` move, 2026-09-17.** Same procedure, smaller delta. `refresh.sh` drifted only on
+the RetroBat side, and all of it is unreleased work on RetroBat's default branch after 8.2.1
+(`gzdoom` renamed `doom`, an `amiberry` state declaration, `.decomp` on four systems), so the
+vendored files were left at their committed state for the RetroBat adoption that ships it. The pin
+is sha256 `4ef28e4b...`, 198 paths and 272 schemas, captured from a server reporting `5.3.0-alpha.3`
+at capture time. The suffix drop described below still applies with the numbers moved:
+`5.3.0-alpha.2` is now the tag below the floor that reads **Supported**, and `LastTested` is
+`alpha.3`. The paragraphs that follow are the `alpha.2` decision and are left as written.
 
 **The decision is to move the floor to 5.3.0-alpha.2**, not to the `alpha.1` this document was
 first written against. `alpha.2` was published on 2026-09-13, about eight hours after `alpha.1`,
@@ -930,3 +1094,8 @@ Docker daemon that a read answers today is a question nobody answers.
 | 4   | Does the conflict route recognise the browser's save writer?                         | **Answered**, four cases of five. Case E acted on. Finding 4    |
 | 4   | Does a streaming session prune or shadow this client's saves and states?             | **Read, not measured.** Streaming is off on the server reached  |
 | 4   | Does the browser player rewrite states in place?                                     | **Read.** Only the console view, never on this client's row     |
+| 11  | What reaches a slot this device is missing when 50 versions arrive while it is away? | **Answered.** A download, or a 409 that becomes a conflict      |
+| 11  | Does a browser session's `.srm` in a libretro slot land and load under RetroBat?     | **Answered.** It does; a fresh one overwrote, #205, finding 259 |
+| 11  | What does a browser `.srm` do to a bundled (class C) slot this client holds?         | **Read.** Refused before the tree, then offered every flush     |
+| 12  | Every timing in finding 9, re-measured against `beta.1`'s projected id endpoints     | **Open.** The 176.7 s walk is `alpha.2`'s and is left as that   |
+| 12  | Does the browser's new per-version save screenshot reach this client?                | **Read.** No. Saves carry no screenshot here, only states do    |

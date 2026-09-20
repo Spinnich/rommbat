@@ -101,7 +101,7 @@ column holds an absolute path. **No new column.** For this scope the id list is 
 it lives in `scope_value` exactly as a filter's JSON already does.
 
 **`/api/roms` has no id-list parameter.** Verified against the pinned
-`romm-5.3.0-alpha.2.json`: the
+`romm-5.3.0-beta.1.json`: the
 scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
 `smart_collection_id`. So a picked set can never be resolved by a page walk, and that is a property
 of the scope rather than a defect to work around.

@@ -8,7 +8,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-PINNED="romm-5.3.0-alpha.2.json"
+PINNED="romm-5.3.0-beta.1.json"
 # Kept beside nswag.json rather than in the system temp directory: NSwag resolves
 # the path itself, and a Git Bash /tmp path is not one a Windows process can open.
 NORMALIZED="openapi-normalized.tmp.json"

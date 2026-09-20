@@ -67,12 +67,12 @@ and through the companion-app protocol RomM already ships.
 
 ## Requirements
 
-|          | Minimum       | Notes                                                            |
-| -------- | ------------- | ---------------------------------------------------------------- |
-| RetroBat | 8.2.1         | Checked from `system/version.info` at startup                    |
-| RomM     | 5.3.0-alpha.2 | Checked from `GET /api/heartbeat` at startup                     |
-| Windows  | 10 / 11 x64   | RetroBat's own requirement                                       |
-| .NET     | none          | Published self-contained; RetroBat already ships the VC++ redist |
+|          | Minimum      | Notes                                                            |
+| -------- | ------------ | ---------------------------------------------------------------- |
+| RetroBat | 8.2.1        | Checked from `system/version.info` at startup                    |
+| RomM     | 5.3.0-beta.1 | Checked from `GET /api/heartbeat` at startup                     |
+| Windows  | 10 / 11 x64  | RetroBat's own requirement                                       |
+| .NET     | none         | Published self-contained; RetroBat already ships the VC++ redist |
 
 Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
 it warns and continues.
@@ -462,9 +462,9 @@ folder for, so it is out of scope rather than unscheduled.
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested   | RetroBat tested    | Notes                                                                       |
-| ---------- | ------------- | ------------------ | --------------------------------------------------------------------------- |
-| unreleased | 5.3.0-alpha.2 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-alpha.2** `/openapi.json` |
+| RomMBat    | RomM tested  | RetroBat tested    | Notes                                                                      |
+| ---------- | ------------ | ------------------ | -------------------------------------------------------------------------- |
+| unreleased | 5.3.0-beta.1 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-beta.1** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility
@@ -504,7 +504,7 @@ docs/{freegosy,argosy}-findings.md
                       survived verification and what did not. Both are closed
 docs/romm-5.3-findings.md
                       What RomM 5.3.0 changes for RomMBat, what it falsifies here, and
-                      what the 5.3.0-alpha.2 floor measured as
+                      what the 5.3.0 floor measured as
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number

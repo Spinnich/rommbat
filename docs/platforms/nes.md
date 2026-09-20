@@ -85,6 +85,44 @@ re-runs no step. Mapped onto the nine steps per the
 So the record stands as a 5.2.0 measurement, and the row owes steps 1, 2, 4, 5, 7, 8 and 9
 before any result here speaks for the current floor.
 
+## The move to `5.3.0-alpha.3`
+
+**It adds nothing to what is owed, because only step 3 was carried and alpha.3 leaves it
+carried.** Mapped from finding 11 of `docs/romm-5.3-findings.md`; no `src/` or `data/` change
+came with this move beyond the regenerated DTOs, which no step's code reads.
+
+| #   | At `5.3.0-alpha.3` | Why                                                                                                                        |
+| --- | ------------------ | -------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Owed, as before    | `GET /api/platforms` is unchanged                                                                                          |
+| 2   | **Touched**        | The `GET /api/roms` filters moved into one model shared with smart collections (#4487), which is how the set resolves      |
+| 3   | Carried            | The firmware routes and this client's BIOS code are unchanged, and `nes` requires no BIOS                                  |
+| 4   | **Touched**        | Every slot is capped at 50 versions (#4540), and a browser session now writes new versions into this client's slot (#4517) |
+| 5   | Owed, as before    | `POST /api/states` changed only in how a delete removes its screenshot                                                     |
+| 6   | N/A                | Unchanged: `nes` has no class D                                                                                            |
+| 7   | **Touched**        | The same filter move, on the query that fills the game list                                                                |
+| 8   | Owed, as before    | `POST /api/play-sessions` is unchanged                                                                                     |
+| 9   | **Touched**        | Always touched on a move                                                                                                   |
+
+## The move to `5.3.0-beta.1`
+
+**It adds nothing to what is owed either, and it un-touches nothing.** Mapped from finding 12 of
+`docs/romm-5.3-findings.md`. The only `src/` change in the move is the regenerated DTOs, four
+lines, and no step's code reads either member.
+
+| #   | At `5.3.0-beta.1` | Why                                                                                                                       |
+| --- | ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Owed, as before   | `GET /api/platforms` is unchanged again                                                                                   |
+| 2   | Owed, as before   | `GET /api/roms` takes the same 58 parameters; the change is how the rows are built, not what is asked for                 |
+| 3   | Carried           | No firmware route or BIOS data changed, and `nes` requires no BIOS                                                        |
+| 4   | Owed, as before   | `add_save` and `prune_slot` are byte-identical, and the browser writer's slot choice is unchanged, so alpha.3's row holds |
+| 5   | Owed, as before   | `POST /api/states` is unchanged; only `GET /api/states/identifiers` changed, and it projects ids                          |
+| 6   | N/A               | Unchanged: `nes` has no class D                                                                                           |
+| 7   | Owed, as before   | The game list's query is unchanged                                                                                        |
+| 8   | Owed, as before   | `POST /api/play-sessions` is unchanged                                                                                    |
+| 9   | **Touched**       | Always touched on a move                                                                                                  |
+
+So the row still owes steps 1, 2, 4, 5, 7, 8 and 9, at `5.3.0-beta.1` rather than at `alpha.3`.
+
 ## Checklist
 
 | #   | Step                                                           | Result                                                                                    |

@@ -62,7 +62,7 @@ public class CatalogPagingTests
     /// <remarks>
     /// It resends every id the scope matches on every page. On 5.2.0 a scoped page was 3.4 to
     /// 3.7 times slower without it, so it followed the scope, and a constant <c>false</c> then
-    /// was #88. On 5.3.0-alpha.2, the floor, that penalty is gone at a 9,196-rom platform and a
+    /// was #88. On 5.3.0-alpha.2, then the floor, that penalty is gone at a 9,196-rom platform and a
     /// 16,441-rom virtual collection, and only the bytes remain. #188.
     /// </remarks>
     [Theory]

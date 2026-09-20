@@ -1,18 +1,18 @@
 # The pinned RomM schema
 
-`romm-5.3.0-alpha.2.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
-not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0-alpha.2`. The generated DTOs
+`romm-5.3.0-beta.1.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
+not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0-beta.1`. The generated DTOs
 in [`../Generated/RomMApiSchema.g.cs`](../Generated/RomMApiSchema.g.cs) come from it and
 are committed, so an upstream deploy cannot change the contract mid-session.
 
 |                |                                                                    |
 | -------------- | ------------------------------------------------------------------ |
-| RomM version   | 5.3.0-alpha.2, the minimum RomMBat supports                        |
-| Source         | a self-hosted 5.3.0-alpha.2 instance, host redacted                |
-| Pulled         | 2026-09-14                                                         |
-| `info.version` | 5.3.0-alpha.2                                                      |
-| sha256         | `44cdd228a2cc4300ee532b4a13ca696d7f3aefe3b2720f8e90f3e67f118ac839` |
-| Paths          | 199                                                                |
+| RomM version   | 5.3.0-beta.1, the minimum RomMBat supports                         |
+| Source         | a self-hosted 5.3.0-beta.1 instance, host redacted                 |
+| Pulled         | 2026-09-19                                                         |
+| `info.version` | 5.3.0-beta.1                                                       |
+| sha256         | `26ace33006fb2ac44ebaa96fc292547811ed7b2b208c97d1cb445d6827622a96` |
+| Paths          | 198                                                                |
 | Schemas        | 272                                                                |
 
 **The pin is always the minimum version RomMBat declares support for**, so the generated DTOs
@@ -22,12 +22,13 @@ adopted: moving the floor and moving the pin are one decision.
 
 **Prefer the public demo at `demo.romm.app` as the source**, because anyone can reproduce the
 file from it without an account, a token or a hostname that would have to be scrubbed. The
-5.1.0 pin came from there. Neither the 5.2.0 pin nor this one did: the demo reported 5.1.0 on
-2026-08-25 and 5.2.0 on 2026-09-14, so each was pulled from a self-hosted instance of the
-pinned version instead. A prerelease will not reach the demo at all until it ships as stable.
+5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2 or 5.3.0-alpha.3 pins nor this one
+did: the demo reported 5.1.0 on 2026-08-25 and 5.2.0 on 2026-09-14, so each was pulled from a
+self-hosted instance of the pinned version instead. A prerelease will not reach the demo at all
+until it ships as stable.
 
 The sha256 above is how the capture is checked rather than trusted; a `/openapi.json` from any
-stock 5.3.0-alpha.2 hashes to it. That holds because `backend/main.py` registers every router
+stock 5.3.0-beta.1 hashes to it. That holds because `backend/main.py` registers every router
 unconditionally at this tag, so the served schema is decided by the version and not by the
 instance's configuration. **`SYSTEM.VERSION` was read at capture time rather than assumed**: a
 live library can be upgraded underneath the work, which is how upstream's own tag moved from
@@ -67,6 +68,31 @@ names either, so the move is additive where this client reads. `SimpleRomSchema`
 `DetailedRomSchema` each gain fourteen properties, of which `title_id`, `save_target`,
 `save_target_layout`, `has_file_on_disk` and `is_physical` are the ones this repo has open
 questions against.
+
+The 5.3.0-alpha.2 to 5.3.0-alpha.3 move **removes one operation**, the streaming
+`POST /api/streaming/sessions/{platform}/state-frame`, with its `StateFrameResponse`, and adds
+none. `SGDBResource` is renamed `CoverResource`, and `MissingRomsCleanupStats.platform_id`
+becomes a `platform_ids` list. No hand-written code names any of the three. On a route this
+client calls, the only change is `slot` on `POST /api/saves` gaining `maxLength: 255`; the
+`GET /api/roms` parameters are the same set in a different order, and the collection ids on
+`GET /api/roms/download` gain `minimum: 1`. `docs/romm-5.3-findings.md`, section 11.
+
+The 5.3.0-alpha.3 to 5.3.0-beta.1 move is the smallest of the four: **the same 246 operations
+and 272 schemas, none added, removed or renamed.** Three things change, and the generated diff
+is four lines.
+
+- `RomFileSchema.last_modified` becomes nullable, so `Last_modified` generates as `string?`.
+  This is the nullable retype the 5.2.0 paragraph above warns about, and it is safe here for a
+  duller reason than a test: no hand-written line names the member at all.
+- `SystemDict` gains `GIT_BRANCH`, a nullable string the server fills only on a `development`
+  build. It is `required` in the schema, which would matter if NSwag enforced it; `nswag.json`
+  sets `requiredPropertiesMustBeDefined: false` and `generateDataAnnotations: false`, so the
+  property is plain and a server that omits it still deserialises.
+- The `X-Upload-Total-Size` and `X-Upload-Total-Chunks` headers on `POST /api/roms/upload/start`
+  drop from `minimum: 1` to `minimum: 0`, because an empty ROM file is accepted now. RomMBat
+  does not upload ROMs.
+
+`docs/romm-5.3-findings.md`, section 12.
 
 ## Why the generated file disables four doc-comment warnings
 

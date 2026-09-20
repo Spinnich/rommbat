@@ -805,9 +805,20 @@ hash, folded into one digest. The archive is transport only.
   mid-body leaves the server sure the device has a save it does not, and the next negotiate
   answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
   and verified. Same discipline as M3's `.part`: verify, then commit.
-- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10.
-  Without them a slot gains a row per genuine change forever, and the `keep_both` conflict
-  default compounds it.
+- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10, and a
+  writer that leaves them alone gained a row per genuine change forever up to 5.3.0-alpha.2,
+  which the `keep_both` conflict default compounds. **This client is not that writer**: every
+  save upload sends `autocleanup=true&autocleanup_limit=10`, so its slots have been bounded at
+  10 since M6. **From alpha.3 the server prunes every slotted upload whatever the client asks**,
+  keeping the newest by `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env,
+  50 by default, `0` disables) and the client's `autocleanup_limit`. So the cap here stays 10,
+  and `MAX_SAVES_PER_SLOT` only ever bites on versions written by something that asks for no
+  cleanup: a peer, or RomM's browser player. **Measured against such a writer, and safe as long
+  as the upload 409 stays a conflict**: a version this device still names in `save_slot` can be
+  deleted under it, negotiate then forgets the history and answers `upload` for an edited copy,
+  while the upload guard still holds the device's record and refuses 409, which `SaveSync`
+  records as a conflict. An unchanged copy downloads the newest. Finding 11 of
+  `romm-5.3-findings.md`, `s3-slot-retention.py`.
 - Restores stage everything off to one side: extract to a temp directory beside the target, keep
   the previous copy until the next successful sync. **A class C swap is not one filesystem
   operation, and do not write that it is.** Members are removed and moved in one at a time,
@@ -924,8 +935,18 @@ that looks like save transport and is not. Finding 3 and 4 of
 
 **`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
 the id, the tagged `file_name` and the slot, changes `content_hash`, moves `updated_at`, and runs
-no 409 check, no dedup and no device check. RomM's browser player sends it for whichever save it
-loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every save tick**. So
+no 409 check, no dedup and no device check. At 5.3.0-alpha.2 RomM's browser player sent it for
+whichever save it loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every
+save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not measured; finding 11
+of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `overwrite=true`
+into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
+this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
+its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
+**Still true at the beta.1 floor**, re-read there because the writer was rewritten around it
+(finding 12): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+`autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
+with no slotted save and not one this client syncs. What is new is a screenshot on every save
+version, which is inert here because only states carry one on this side. So
 compare the hash wherever the question is "is this the save I had", which `save_conflict` already
 does and must keep doing. Measured on 5.3.0-alpha.2 with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
 which replays the browser's own calls:
