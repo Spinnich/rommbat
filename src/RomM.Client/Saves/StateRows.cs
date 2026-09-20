@@ -27,8 +27,8 @@ public sealed record StateRow(
     [property: JsonPropertyName("file_size_bytes")] long FileSizeBytes,
     [property: JsonPropertyName("emulator")] string? Emulator,
     [property: JsonPropertyName("missing_from_fs")] bool MissingFromFs,
-    [property: JsonPropertyName("created_at")] DateTimeOffset? CreatedAt,
-    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt,
+    [property: JsonPropertyName("created_at")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset? CreatedAt,
+    [property: JsonPropertyName("updated_at")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset? UpdatedAt,
     [property: JsonPropertyName("screenshot")] StateScreenshotRow? Screenshot)
 {
     /// <summary>The name to write on disk, which is not <see cref="FileName"/>.</summary>

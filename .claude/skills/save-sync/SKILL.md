@@ -759,6 +759,34 @@ hash, folded into one digest. The archive is transport only.
   sentinel inside the directory is not a substitute**, measured rather than assumed:
   `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
   sentinel, so the staged members are gone regardless.
+- **A server time shown beside a local one has to be read as UTC first.** RomM serialises
+  `updated_at`, `server_updated_at`, `created_at`, `start_time` and `end_time` with no zone while
+  storing UTC, so a plain `DateTimeOffset` is out by the machine's own offset and the conflict
+  block shows the two sides on different clocks. `UtcTimestampConverter` is on every one of them;
+  see the `romm-api` skill. **Rows written before that fix carry the shifted value** in
+  `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
+  correct themselves when the slot is next negotiated or the conflict resolved, and they are
+  display-only in the meantime, since ordering compares server rows only against each other.
+- **Negotiate decides direction from `updated_at` and never compares the `content_hash` the
+  client sent against the row it holds, so two of its answers have to be overruled here.** The
+  repo's own rule is that mtime never decides whether a save changed, and this is the server
+  applying exactly that reasoning on the other side of the wire; measured on 5.3.0-alpha.3 with
+  `tools/romm-5.3-probes/s4-older-mtime.py` and hit by hand on the install (#206, finding 259).
+  - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
+    uploaded.** That inequality is the client holding evidence the server lacks: this device has
+    a change the server has never seen, whatever the timestamps say. The server answers `no_op`,
+    "No changes since last sync", for content that differs whenever the local mtime is older than
+    this device's own last upload, so a save restored from a backup, copied off another machine
+    or extracted from an archive was never sent and the flush said nothing at all. Uploading is
+    safe rather than merely better than silence: identical content into one slot reuses the row,
+    and a stale device record still answers 409, which lands as a conflict.
+  - **An `upload` of bytes the server already holds is a no-op without a round trip.** Nestopia
+    rewrites its `.srm` with identical bytes on every launch, which moves the mtime and nothing
+    else, so negotiate asks for an upload the server deduplicates into the same row without
+    moving its `updated_at`, and the next flush asks again, forever. Measured as `1 up` on three
+    consecutive flushes for save 336. The operation carries `server_content_hash` even on an
+    `upload`, so this is the same question `AlreadyHeld` answers for a download, read backwards,
+    and it stays conservative: where it cannot tell, the upload runs.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
   two ROMs, one never named by the client, and acking one dropped the next answer to 12. An

@@ -1,4 +1,6 @@
+using System.Globalization;
 using RomM.Client;
+using RomM.Client.Saves;
 using RomMBat.Core;
 using RomMBat.Core.Content;
 using RomMBat.Core.Server;
@@ -164,9 +166,111 @@ internal static class StatusCommand
         Console.WriteLine($"  version:         {contact.Probe.ReportedVersion ?? "not reported"}");
         Console.WriteLine($"  compatibility:   {contact.Probe.Compatibility.Verdict}");
         Console.WriteLine($"  round trip:      {contact.Probe.RoundTrip.TotalMilliseconds:0} ms");
+        Console.WriteLine();
+
+        await WritePlaytimeAsync(context, command, device, cancellationToken).ConfigureAwait(false);
 
         return device.IsPaired ? ExitCode.Ok : ExitCode.NotPaired;
     }
+
+    /// <summary>
+    /// The play sessions the server holds for this device.
+    /// </summary>
+    /// <remarks>
+    /// <b>The only place anything in RomMBat can see the server half of playtime.</b> An
+    /// accepted post is dropped from the outbox and never read back, so <c>flush</c>'s
+    /// <c>playtime:</c> line says what this device sent and not what RomM holds, and it reads
+    /// the same whether every session landed or none was ever written. It is also what makes
+    /// step 8 of the platform-certification checklist answerable from the agent (#208).
+    /// <para>
+    /// <b>Never a failure of <c>status</c>.</b> Nothing above this line needs the token, and a
+    /// locked or narrowed one is an ordinary state rather than a fault, so every refusal here is
+    /// a line and the exit code stays what the rest of the command decided.
+    /// </para>
+    /// <para>
+    /// <b>A mismatch against the journal is shown and not judged.</b> A session the server
+    /// pruned is not a defect, so this reports what came back and leaves the reading to whoever
+    /// is looking.
+    /// </para>
+    /// </remarks>
+    private static async Task WritePlaytimeAsync(
+        AgentContext context,
+        CommandLine command,
+        DeviceRecord device,
+        CancellationToken cancellationToken)
+    {
+        Console.WriteLine("Playtime");
+
+        // The RomM-side id, never ClientDeviceIdentifier. They are two different values,
+        // printed on adjacent lines above, and filtering by the local one answers 200 with
+        // zero rows, which is indistinguishable from a session that was never written.
+        if (device.RomMDeviceId is not { } rommDevice)
+        {
+            Console.WriteLine("  not readable:    this install has no RomM device id yet. Run 'pair'.");
+            return;
+        }
+
+        if (!device.Scopes.Has(RomMScopes.RomsUserRead))
+        {
+            Console.WriteLine($"  not readable:    this pairing was not granted {RomMScopes.RomsUserRead}.");
+            return;
+        }
+
+        var attempt = context.Session.Authenticate(command.Value("passphrase"));
+
+        if (attempt.Connection is null)
+        {
+            Console.WriteLine($"  not readable:    {attempt.Problem}");
+            return;
+        }
+
+        using var authenticated = attempt.Connection;
+
+        RomMResponse<IReadOnlyList<PlaySessionRow>> answer;
+
+        try
+        {
+            answer = await authenticated
+                .ListPlaySessionsAsync(deviceId: rommDevice, limit: SessionWindow, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (RomMUnreachableException ex)
+        {
+            Console.WriteLine($"  not readable:    {ex.Message}");
+            return;
+        }
+
+        if (!answer.IsSuccess || answer.Value is not { } sessions)
+        {
+            Console.WriteLine($"  not readable:    {answer.Message ?? "the server refused the read"}");
+            return;
+        }
+
+        if (sessions.Count == 0)
+        {
+            Console.WriteLine($"  server holds:    nothing for romm device {rommDevice}");
+            Console.WriteLine("  and note:        these rows belong to the paired account and no scope widens that,");
+            Console.WriteLine("                   so an empty answer is not evidence that nothing was sent.");
+            return;
+        }
+
+        var counted = sessions.Count == SessionWindow
+            ? $"{SessionWindow} or more sessions"
+            : $"{sessions.Count} session{(sessions.Count == 1 ? string.Empty : "s")}";
+
+        // Ordered here because the endpoint promises no order, so the first row is not the last
+        // session.
+        var last = sessions.MaxBy(session => session.EndTime)!;
+
+        Console.WriteLine($"  server holds:    {counted} for romm device {rommDevice}");
+        Console.WriteLine(
+            $"  last session:    {Describe(last.StartTime)} to {Describe(last.EndTime)}, "
+                + $"{Describe(TimeSpan.FromMilliseconds(last.DurationMs))}");
+        Console.WriteLine($"  its rom:         {last.RomId?.ToString(CultureInfo.InvariantCulture) ?? "none recorded"}");
+    }
+
+    /// <summary>How many sessions to ask for, which is the server's own default.</summary>
+    private const int SessionWindow = 50;
 
     private static string DescribeToken(DeviceRecord device)
     {
@@ -188,6 +292,13 @@ internal static class StatusCommand
 
     private static string Describe(DateTimeOffset? value) =>
         value is { } moment ? moment.ToUniversalTime().ToString("u") : "never";
+
+    /// <summary>A session length, in the units a person reads a play session in.</summary>
+    private static string Describe(TimeSpan length) => length.TotalHours >= 1
+        ? string.Create(CultureInfo.InvariantCulture, $"{(int)length.TotalHours}h {length.Minutes}m {length.Seconds}s")
+        : length.TotalMinutes >= 1
+            ? string.Create(CultureInfo.InvariantCulture, $"{length.Minutes}m {length.Seconds}s")
+            : string.Create(CultureInfo.InvariantCulture, $"{length.Seconds}s");
 
     private static string Describe(Core.Paths.RootDiscoverySource source) => source switch
     {

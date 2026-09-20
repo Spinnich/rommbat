@@ -398,7 +398,7 @@ public sealed class SaveSync
             var key = ((long)operation.RomId, operation.Slot ?? string.Empty);
             byKey.TryGetValue(key, out var local);
 
-            switch (operation.Parsed)
+            switch (Decide(operation, local))
             {
                 case SyncAction.NoOp:
                     noOps++;
@@ -1143,6 +1143,51 @@ public sealed class SaveSync
     }
 
     /// <summary>
+    /// What to carry out for one slot, which is not always what the server named.
+    /// </summary>
+    /// <remarks>
+    /// <b>Negotiate decides direction from <c>updated_at</c> and never compares the
+    /// <c>content_hash</c> the client sent against the row it holds</b>, so two of its answers are
+    /// wrong in a way this device can see on its own. Measured on 5.3.0-alpha.3 with
+    /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> and hit by hand on the install; #206.
+    /// <para>
+    /// <b>A <c>no_op</c> for a slot this device has an unsent change in is not a no-op.</b>
+    /// <c>content_hash != uploaded_content_hash</c> means the server has never seen these bytes,
+    /// whatever the mtimes say, and the server's own reason there is "No changes since last
+    /// sync", taken from a row this device uploaded. Any route that writes a save while keeping
+    /// an older timestamp reaches it: a restore from backup, a copy off another machine, an
+    /// archive extraction. Uploaded rather than reported, because a replayed upload into one slot
+    /// reuses the row and a 409 still lands as a conflict, so the correction cannot cost a save.
+    /// </para>
+    /// <para>
+    /// <b>An <c>upload</c> of bytes the server already holds is not an upload.</b> Nestopia
+    /// rewrites its <c>.srm</c> with identical bytes on every launch, which moves the mtime and
+    /// nothing else, so negotiate asks for a save the server deduplicates into the same row
+    /// without moving its <c>updated_at</c>, and the next flush asks again, forever. Measured on
+    /// the <c>nes</c> install: three consecutive flushes each reported <c>saves: 1 up</c> for save
+    /// 336. Finding 259.
+    /// </para>
+    /// </remarks>
+    private SyncAction Decide(SyncOperation operation, LocalSave? local)
+    {
+        var named = operation.Parsed;
+
+        if (local is null)
+        {
+            return named;
+        }
+
+        if (named == SyncAction.NoOp && (local.IsUnsent || local.HasChangedSinceUpload))
+        {
+            return SyncAction.Upload;
+        }
+
+        // AlreadyHeld is the same question in the other direction, and it is the conservative
+        // one: where it cannot tell, the upload runs, which is today's behaviour.
+        return named == SyncAction.Upload && AlreadyHeld(operation, local) ? SyncAction.NoOp : named;
+    }
+
+    /// <summary>
     /// True when the save the server is offering is one this device already has on disk.
     /// </summary>
     /// <remarks>
@@ -1165,6 +1210,10 @@ public sealed class SaveSync
     /// <see cref="LocalSave.HasChangedSinceUpload"/> says the tree still holds what went up.
     /// Either alone would skip a download that was needed: the first cannot see a unit edited
     /// since, and the second cannot see the server moving on.
+    /// </para>
+    /// <para>
+    /// <see cref="Decide"/> asks the same question of an <c>upload</c>, where it reads as "the
+    /// bytes the server is asking for are the ones it already has".
     /// </para>
     /// </remarks>
     private bool AlreadyHeld(SyncOperation operation, LocalSave? local)

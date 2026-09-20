@@ -314,6 +314,71 @@ public sealed partial class RomMConnection
     public const int PlaySessionBatchLimit = 100;
 
     /// <summary>
+    /// Reads play sessions back. Needs <c>roms.user.read</c>.
+    /// </summary>
+    /// <remarks>
+    /// <b>The only way anything in RomMBat can see the server half of playtime.</b> A posted
+    /// session is dropped from the outbox and never looked at again, so without this "nothing
+    /// queued" is the same line whether every session landed or none was ever written. #208.
+    /// <para>
+    /// <b><paramref name="deviceId"/> is the RomM-side device id, not the local one.</b> They
+    /// are two different values and <c>status</c> prints them on adjacent lines. Filtering by
+    /// the local one answers <c>200</c> with zero rows, which reads exactly like a session that
+    /// was never written. It cost a probe while driving the <c>nes</c> record.
+    /// </para>
+    /// <para>
+    /// <b>The endpoint is scoped to the authenticated user and no scope widens that.</b> With
+    /// the right device id, a token on another account answered <c>200</c> with 0 rows where the
+    /// owning account's answered <c>200</c> with 5. Identity, not permission, so an empty answer
+    /// is never evidence that nothing was sent, and whatever reads this has to say so.
+    /// </para>
+    /// <para>
+    /// Newest first is not promised by the server, so a caller wanting the last session orders
+    /// the rows itself rather than taking the first.
+    /// </para>
+    /// </remarks>
+    /// <param name="limit">The server's own default is 50.</param>
+    public Task<RomMResponse<IReadOnlyList<PlaySessionRow>>> ListPlaySessionsAsync(
+        int? romId = null,
+        string? deviceId = null,
+        DateTimeOffset? startAfter = null,
+        DateTimeOffset? endBefore = null,
+        int limit = 50,
+        int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var query = new List<string>
+        {
+            "limit=" + limit.ToString(CultureInfo.InvariantCulture),
+            "offset=" + offset.ToString(CultureInfo.InvariantCulture),
+        };
+
+        if (romId is { } rom)
+        {
+            query.Add("rom_id=" + rom.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (!string.IsNullOrEmpty(deviceId))
+        {
+            query.Add("device_id=" + Uri.EscapeDataString(deviceId));
+        }
+
+        if (startAfter is { } after)
+        {
+            query.Add("start_after=" + Uri.EscapeDataString(after.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)));
+        }
+
+        if (endBefore is { } before)
+        {
+            query.Add("end_before=" + Uri.EscapeDataString(before.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)));
+        }
+
+        return GetAuthenticatedAsync<IReadOnlyList<PlaySessionRow>>(
+            "api/play-sessions?" + string.Join('&', query),
+            cancellationToken);
+    }
+
+    /// <summary>
     /// Says this device is no longer playing a game.
     /// </summary>
     /// <remarks>

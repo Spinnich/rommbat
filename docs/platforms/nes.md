@@ -643,6 +643,12 @@ permission, and no scope changes it. A read-only `roms.user.read` token on the o
 what settled this step, and `GET /api/roms/{id}` is `403` under that scope, so `last_played` was
 never read; the session row is the stronger evidence anyway.
 
+**Closed since, and this paragraph is what it was measured against.** #208 added the read:
+`status` now prints a `Playtime` block with the count and the last session, filtered by the
+`romm device` id above, so a later pass settles step 8 from the agent rather than from a
+second token. The two traps recorded here are unchanged and are why the block reports an empty
+answer as found-nothing rather than sent-nothing.
+
 ### 9. Re-sync
 
 ```text

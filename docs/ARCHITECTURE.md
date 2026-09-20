@@ -782,6 +782,14 @@ Three rules that are not obvious:
   archive's contents too, by a function this client cannot reproduce, so the logical fold is
   the local change detector and the digest the server returned on the last upload is the value
   that goes back on the wire. Sending the fold instead answers `download` forever.
+- **Negotiate answers on `updated_at` alone, so two of its answers are overruled locally.** It
+  never compares the `content_hash` the client sent against the row it holds, which is the
+  server applying the reasoning this repo forbids itself: mtime never decides whether a save
+  changed. A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
+  uploaded, because that inequality is the client holding evidence the server lacks and a save
+  put back from a backup otherwise never goes up and the flush says nothing. An `upload` of
+  bytes the server already holds, which is what an emulator rewriting a file unchanged produces
+  on every launch, is a no-op without a round trip. #206, finding 259.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
