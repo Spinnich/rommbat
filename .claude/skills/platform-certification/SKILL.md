@@ -109,9 +109,9 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
    run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
    bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
-   not its name or its arrival** - RomM can answer a libretro slot with another slot's image,
-   which is not a link to this state. Make more than one state in the session and pick the one
-   whose image is unique for the comparison, because two states saved on the same frame share an
+   not its name or its arrival**, because RomM can answer a libretro slot with another slot's
+   image, which is not a link to this state. Make more than one state in the session and pick
+   the one whose image is unique for the comparison, because two states on the same frame share an
    image and cannot tell a real link from a wrong one. `docs/platforms/nes.md` has the worked
    pass.
 
@@ -134,6 +134,15 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    platform result.
 
 8. A play session is recorded and reaches RomM.
+
+   **Reading it back needs a token on the account the install is paired as, and the filter takes
+   the RomM-side device id.** `GET /api/play-sessions` is scoped to the authenticated user, so
+   another account's token answers `200` with zero rows, and `?device_id=` given the local
+   `client_device_identifier` rather than the id `status` prints on the `romm device` line does
+   the same. Both read exactly like a session that was never written. RomMBat posts and never
+   reads, so the agent cannot settle the step either (#208); `DEVELOPER_SETUP.md` covers the
+   read-only token to set up first.
+
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is
    the strongest single signal that slots, cursors and mapping are all correct.
 

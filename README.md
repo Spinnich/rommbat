@@ -349,8 +349,10 @@ summarised. **A shape proven by a test and not by an emulator is named as such.*
 Alongside those: a save state with its screenshot across four emulators (2a), a conflict a
 person resolves (2a), and play sessions reaching RomM from the ES hooks (stage 1).
 
-**What is not claimed.** Nothing is certified: certification is per `(system, emulator, core)`
-and needs all nine steps of the checklist, and the wave rollout starts after M7. Class D was
+**What is not claimed.** Nothing was certified at this milestone: certification is per
+`(system, emulator, core)` and needs all nine steps of the checklist, and the wave rollout starts
+after M7. The first certified row, `nes` under `libretro`/`nestopia`, came on 2026-09-20 and is
+not M6's claim. Class D was
 driven on `(ps2, pcsx2)` only; Dreamcast and PS1 are reported with their measured reasons and
 deliberately not converted. And a converted card has never been **downloaded** onto a second
 real device, only onto a test one. See

@@ -170,9 +170,6 @@ was driven, because an unchanged state is never re-sent.
 
 ## Checklist
 
-| #   | Step | Result |
-| --- | ---- | ------ |
-
 All nine are stated at `5.3.0-beta.1`, which is the floor the client now declares. Step 3 is
 carried from the 5.2.0 measurement for the reason the move tables give; the other eight were
 measured or re-measured on 2026-09-20.
@@ -272,12 +269,6 @@ $ echo $?
 
 A mistyped name is refused with a non-zero exit rather than reported as a system needing no
 firmware.
-
-### 6. Per-game memory card
-
-**N/A, and recorded rather than left blank.** `save_shapes.json` gives `nes` no
-`DependsOnEmulator` flag and no `per_game_conversion` block, so there is no shared container to
-opt a game out of. This holds for every wave 1 system.
 
 ## The set
 
@@ -494,42 +485,11 @@ September 12.
 unchanged state is never re-sent, and leaving it is what makes the contrast between the two
 readable on one install.
 
-### 9. Re-sync
+### 6. Per-game memory card
 
-```text
-plan:      nothing to do: all 228 games are already present and verified
-done:      228 games already present, 0 downloaded, 0 written
-media:     1088 already present
-gamelists: all 1 unchanged
-```
-
-`gamelist.xml` was compared byte for byte before and after and is **identical**, rather than
-taken from the command's own report. A second `flush` exited 0, re-attributed the same one save
-and one state, and created **no duplicate server rows**: still save 196 and state 176 alone.
-
-Two junk save records for `River City Ransom (USA)` failed every flush until they were deleted
-server-side, which is what the earlier exit 7 was. Their removal is why this run is clean, and
-that was confirmed against the server rather than assumed from the quieter output.
-
-#### The re-sync re-driven at `5.3.0-beta.1`, 2026-09-20
-
-Run twice, once before the play session and once after it, and clean both times:
-
-```text
-plan:      nothing to do: all 228 games are already present and verified
-done:      228 games already present, 0 downloaded, 0 written
-media:     889 already present
-gamelists: all 1 unchanged
-```
-
-`gamelist.xml` was md5'd either side of each run and is identical across both, exit 0.
-
-**It is not identical across the session, and the writer is EmulationStation.** The file went
-from `5a35c317...` to `585d259f...` between the two runs, because ES rewrote the played game's
-`<playcount>` to 4 and its `<lastplayed>` to `20260920T102345`, which is the `game-end` second.
-RomMBat reported `all 1 unchanged` on both sides of that and left the file alone, so the churn
-step 9 watches for is absent; a record that md5'd only across the whole session would have read
-ES's own write as a sync defect.
+**N/A, and recorded rather than left blank.** `save_shapes.json` gives `nes` no
+`DependsOnEmulator` flag and no `per_game_conversion` block, so there is no shared container to
+opt a game out of. This holds for every wave 1 system.
 
 ### 7. Launch, art and metadata
 
@@ -682,6 +642,43 @@ authenticated user: with the correct device id above, a second account's token a
 permission, and no scope changes it. A read-only `roms.user.read` token on the owning account is
 what settled this step, and `GET /api/roms/{id}` is `403` under that scope, so `last_played` was
 never read; the session row is the stronger evidence anyway.
+
+### 9. Re-sync
+
+```text
+plan:      nothing to do: all 228 games are already present and verified
+done:      228 games already present, 0 downloaded, 0 written
+media:     1088 already present
+gamelists: all 1 unchanged
+```
+
+`gamelist.xml` was compared byte for byte before and after and is **identical**, rather than
+taken from the command's own report. A second `flush` exited 0, re-attributed the same one save
+and one state, and created **no duplicate server rows**: still save 196 and state 176 alone.
+
+Two junk save records for `River City Ransom (USA)` failed every flush until they were deleted
+server-side, which is what the earlier exit 7 was. Their removal is why this run is clean, and
+that was confirmed against the server rather than assumed from the quieter output.
+
+#### The re-sync re-driven at `5.3.0-beta.1`, 2026-09-20
+
+Run twice, once before the play session and once after it, and clean both times:
+
+```text
+plan:      nothing to do: all 228 games are already present and verified
+done:      228 games already present, 0 downloaded, 0 written
+media:     889 already present
+gamelists: all 1 unchanged
+```
+
+`gamelist.xml` was md5'd either side of each run and is identical across both, exit 0.
+
+**It is not identical across the session, and the writer is EmulationStation.** The file went
+from `5a35c317...` to `585d259f...` between the two runs, because ES rewrote the played game's
+`<playcount>` to 4 and its `<lastplayed>` to `20260920T102345`, which is the `game-end` second.
+RomMBat reported `all 1 unchanged` on both sides of that and left the file alone, so the churn
+step 9 watches for is absent; a record that md5'd only across the whole session would have read
+ES's own write as a sync defect.
 
 ## What the pass turned up
 
@@ -1011,8 +1008,8 @@ from the copy aside and is the current `libretro:battery` version again.
 
 - **Only `libretro`/`nestopia` is certified**, and only on this install at these two floors.
   The other eight rows are driven on steps 4 and 5 and none of them is certified: steps 1, 3, 7,
-  8 and 9 were carried to them rather than driven, and six of them write something RomMBat cannot
-  see at all.
+  8 and 9 were carried to them rather than driven, six of them cannot sync the battery save they
+  write, and three of those write save states RomMBat cannot see at all.
 - **Step 5 passed on `libretro`/`nestopia` and on nothing else.** The screenshot link was driven
   on that row alone, and the fix it proves is in the upload name, which is per row by
   construction. A second row owes its own state.
