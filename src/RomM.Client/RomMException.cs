@@ -101,9 +101,10 @@ public static class RomMTransportErrors
 
         if (exception is TaskCanceledException canceled)
         {
-            // Inner TimeoutException is how SocketsHttpHandler reports a ConnectTimeout, and
-            // how HttpClient reports its own Timeout. Both mean "not reachable in budget".
-            var reason = canceled.InnerException is TimeoutException
+            // Both timeouts arrive as an inner TimeoutException. M0 probe 6b measured the
+            // difference: HttpClient's own Timeout wraps the cancellation it replaced, and
+            // SocketsHttpHandler's ConnectTimeout wraps nothing.
+            var reason = canceled.InnerException is TimeoutException { InnerException: null }
                 ? UnreachableReason.ConnectTimeout
                 : UnreachableReason.RequestTimeout;
 

@@ -56,6 +56,21 @@ public class TransportTests
     }
 
     [Fact]
+    public void HttpClients_own_timeout_is_a_request_timeout_not_a_connect_timeout()
+    {
+        // The chain M0 probe 6b measured for HttpClient.Timeout. A ConnectTimeout's
+        // TimeoutException carries nothing inside it; this one wraps the cancellation it replaced.
+        var timeout = new TaskCanceledException(
+            "The request was canceled due to the configured HttpClient.Timeout of 30 seconds elapsing.",
+            new TimeoutException("A task was canceled.", new TaskCanceledException()));
+
+        var classified = RomMTransportErrors.Classify(timeout, Origin, CancellationToken.None);
+
+        var unreachable = Assert.IsType<RomMUnreachableException>(classified);
+        Assert.Equal(UnreachableReason.RequestTimeout, unreachable.Reason);
+    }
+
+    [Fact]
     public void A_real_cancellation_stays_a_cancellation()
     {
         using var source = new CancellationTokenSource();

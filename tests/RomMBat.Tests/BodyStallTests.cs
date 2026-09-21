@@ -69,11 +69,10 @@ public class BodyStallTests
             handler);
 
         var clock = Stopwatch.StartNew();
-        // No reason asserted: Classify reads HttpClient's own timeout as a ConnectTimeout, and
-        // what matters here is that the call ends as unreachable at all.
-        await Assert.ThrowsAsync<RomMUnreachableException>(
+        var thrown = await Assert.ThrowsAsync<RomMUnreachableException>(
             () => connection.ProbeAsync(TestContext.Current.CancellationToken));
 
+        Assert.Equal(UnreachableReason.RequestTimeout, thrown.Reason);
         Assert.True(clock.Elapsed < TimeSpan.FromSeconds(10), $"took {clock.Elapsed}");
     }
 

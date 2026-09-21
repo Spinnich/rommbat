@@ -24,6 +24,11 @@ payloads this client needs most, so never code from them.
   was streamed: a JSON body could hang a call, and saves, states and screenshots had their own
   copy with no watchdog. `ReadDetailAsync` bounds itself, since it reads error bodies past
   streamed headers.
+- **The two timeouts differ only one level down.** Both arrive as `TaskCanceledException`
+  wrapping `TimeoutException`. Under `HttpClient.Timeout` that `TimeoutException` wraps a
+  further `TaskCanceledException`, and under `ConnectTimeout` it wraps nothing (M0 probe 6b).
+  `Classify` reads that to report `RequestTimeout` or `ConnectTimeout`. Nothing branches on the
+  reason yet.
 - **A heartbeat answer that is not RomM's is no contact, not a crash.** A captive portal's page
   or a proxy's 502 makes `ProbeAsync` throw `RomMApiException`, and `ServerProbes.ContactAsync`
   returns it as a failure beside unreachable, flagged `Answered` so a caller can say something
