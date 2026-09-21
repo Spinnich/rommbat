@@ -441,6 +441,10 @@ list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's 
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 mesen, mednafen, jgenesis and ares are still reported, each waiting on a rule of its own.
 
+**The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
+battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
+split a slot by core or merge two emulators' slots without a new decision.
+
 **BizHawk names a battery save after its own title for the game** (`named_after: display
 name`), so the filename join cannot match: `StarTropics (USA).zip` wrote
 `bizhawk/StarTropics.SaveRAM`, and `Phantasy Star (Brazil).zip` wrote `Phantasy Star (B).SaveRAM`,

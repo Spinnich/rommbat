@@ -2432,6 +2432,14 @@ Two shapes observed that the table above did not predict: **saturn writes `.bcr`
 `.bkr` per game** (class B), and **megacd is B and D simultaneously**, with per-game `.brm`
 plus `.srm` alongside a shared 512 KB `4Mbit_cart.brm`.
 
+**A battery save is kept per emulator, never per core and never across emulators.** Decided by
+the maintainer on 2026-09-21. Every libretro core on a system shares `libretro:battery`, so
+switching `nestopia` to `fceumm` keeps the progress, and BizHawk's cores share `bizhawk:battery`.
+Two emulators for one game are two slots that never reconcile, because their files are named
+differently and nothing proves the bytes interchangeable in general. That BizHawk's StarTropics
+`.SaveRAM` loaded as a `nestopia` `.srm` in the #211 pass is one game, not a rule, and is not a
+reason to migrate saves between emulators.
+
 **Class B takes one slot per file, keyed `{emulator}:battery:{ext}`.** The observed sets are
 two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32 KB, megacd's
 `.brm` with its `.srm`), which is exactly the "small and stable" case. Bundling them would
