@@ -643,6 +643,12 @@ permission, and no scope changes it. A read-only `roms.user.read` token on the o
 what settled this step, and `GET /api/roms/{id}` is `403` under that scope, so `last_played` was
 never read; the session row is the stronger evidence anyway.
 
+**Closed since, and this paragraph is what it was measured against.** #208 added the read:
+`status` now prints a `Playtime` block with the count and the last session, filtered by the
+`romm device` id above, so a later pass settles step 8 from the agent rather than from a
+second token. The two traps recorded here are unchanged and are why the block reports an empty
+answer as found-nothing rather than sent-nothing.
+
 ### 9. Re-sync
 
 ```text
@@ -1003,6 +1009,11 @@ detail; it re-runs no checklist step.
 
 B is #205, and the fix records it as a conflict instead of writing, confirmed by driving B again on it. The played save was put back
 from the copy aside and is the current `libretro:battery` version again.
+
+**Row 2's re-upload does not reproduce at the `5.3.0-beta.1` floor**, and the table is left as it
+was measured on `5.3.0-alpha.3`. Probe case M4 answers `no_op (Content is identical)` there, so
+the hash settles it server-side; finding 259 carries the re-check. #210 guards the client side
+anyway, because the loop it would prevent is silent.
 
 ## What this file will not claim
 

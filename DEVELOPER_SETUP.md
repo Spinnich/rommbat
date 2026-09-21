@@ -235,13 +235,18 @@ ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 certification pass can check step 8, that a play session reached RomM. Nothing else needs it, and
 a clone without it is unaffected.
 
+**Step 8 no longer needs it, and it is kept for the case where the paired token cannot be
+used.** `rommbat-agent status` reads `GET /api/play-sessions` back for this device and prints the
+count and the last session under a `Playtime` block (#208), which is the ordinary route now. A
+token stored with `--protect` needs `--passphrase` on that run.
+
 It has to be a separate token because the approver one is a different account, and saves, states
 and play sessions are per-user: `GET /api/play-sessions` answers `200` with the _requesting_
 account's rows, so the approver token reads zero for an install it did not pair and no scope
 widens that. `roms.user.read` alone is enough for the sessions; `GET /api/roms/{id}` is `403`
-under it, so `last_played` is not readable and the session row is what to read. Issue #208 is the
-gap that makes this necessary at all: RomMBat posts play sessions and never reads them back, so
-there is no way to ask the agent instead.
+under it, so `last_played` is not readable and the session row is what to read. The same two
+traps apply whichever token is used, and the `?device_id=` filter takes the **RomM-side** device
+id, the one `status` prints on its `romm device` line.
 
 Then source it for the run. `dotnet test` reads the process environment and nothing loads
 `.env` on its own, so this is deliberate every time rather than ambient:

@@ -17,6 +17,10 @@ namespace RomM.Client.Saves;
 /// Which device uploaded this. The cheapest way to recognise your own save coming back down,
 /// which decides whether a <c>download</c> operation is worth acting on.
 /// </param>
+/// <param name="UpdatedAt">
+/// <b>Read as UTC whether or not the server names a zone</b>, which it does not.
+/// <see cref="UtcTimestampConverter"/> says what goes wrong without that.
+/// </param>
 public sealed record SaveRow(
     [property: JsonPropertyName("id")] int Id,
     [property: JsonPropertyName("rom_id")] int RomId,
@@ -28,7 +32,7 @@ public sealed record SaveRow(
     [property: JsonPropertyName("slot")] string? Slot,
     [property: JsonPropertyName("emulator")] string? Emulator,
     [property: JsonPropertyName("origin_device_id")] string? OriginDeviceId,
-    [property: JsonPropertyName("updated_at")] DateTimeOffset? UpdatedAt,
+    [property: JsonPropertyName("updated_at")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset? UpdatedAt,
     [property: JsonPropertyName("device_syncs")] IReadOnlyList<SaveDeviceSync>? DeviceSyncs)
 {
     /// <summary>
@@ -80,7 +84,7 @@ public sealed record SyncOperation(
     [property: JsonPropertyName("slot")] string? Slot,
     [property: JsonPropertyName("emulator")] string? Emulator,
     [property: JsonPropertyName("reason")] string? Reason,
-    [property: JsonPropertyName("server_updated_at")] DateTimeOffset? ServerUpdatedAt,
+    [property: JsonPropertyName("server_updated_at")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset? ServerUpdatedAt,
     [property: JsonPropertyName("server_content_hash")] string? ServerContentHash)
 {
     /// <summary>
@@ -185,3 +189,25 @@ public sealed record PlaySessionOutcome(
     [property: JsonPropertyName("results")] IReadOnlyList<PlaySessionResult> Results,
     [property: JsonPropertyName("created_count")] int CreatedCount,
     [property: JsonPropertyName("skipped_count")] int SkippedCount);
+
+/// <summary>One play session as the server holds it.</summary>
+/// <param name="DeviceId">
+/// <b>The RomM-side device id, not the local one.</b> <c>status</c> prints both, on adjacent
+/// lines, and they are different values. This is the one that filters.
+/// </param>
+/// <param name="StartTime">
+/// <b>Read as UTC whether or not the server names a zone</b>, which it does not.
+/// <see cref="UtcTimestampConverter"/> says what goes wrong without that.
+/// </param>
+/// <param name="DurationMs">
+/// The server's own arithmetic over <see cref="StartTime"/> and <see cref="EndTime"/>, which is
+/// what makes it worth comparing against the journal rather than recomputing.
+/// </param>
+public sealed record PlaySessionRow(
+    [property: JsonPropertyName("id")] int Id,
+    [property: JsonPropertyName("device_id")] string? DeviceId,
+    [property: JsonPropertyName("rom_id")] int? RomId,
+    [property: JsonPropertyName("save_slot")] string? SaveSlot,
+    [property: JsonPropertyName("start_time")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset StartTime,
+    [property: JsonPropertyName("end_time")][property: JsonConverter(typeof(UtcTimestampConverter))] DateTimeOffset EndTime,
+    [property: JsonPropertyName("duration_ms")] long DurationMs);

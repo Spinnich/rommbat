@@ -782,6 +782,14 @@ Three rules that are not obvious:
   archive's contents too, by a function this client cannot reproduce, so the logical fold is
   the local change detector and the digest the server returned on the last upload is the value
   that goes back on the wire. Sending the fold instead answers `download` forever.
+- **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
+  answers is overruled locally.** A `no_op` for a slot whose `content_hash` differs from
+  `uploaded_content_hash` is uploaded, because that inequality is the client holding evidence the
+  server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
+  Confirmed at the `5.3.0-beta.1` floor both by asking the server (`s4-older-mtime.py`, M1) and
+  by driving a flush on a real install. A second guard answers an `upload` of bytes the server
+  already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
+  it server-side, and it is kept as cheap defence. #206.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until

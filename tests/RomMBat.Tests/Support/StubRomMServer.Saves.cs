@@ -115,6 +115,15 @@ internal sealed partial class StubRomMServer
     public IList<int> PlaySessionBatchSizes { get; } = [];
 
     /// <summary>
+    /// Sessions the ingest created, which is what the read half serves back.
+    /// </summary>
+    /// <remarks>
+    /// Held rather than discarded so a test can see the server's own half of playtime, which is
+    /// the gap #208 was about: an accepted post leaves the outbox and nothing reads it back.
+    /// </remarks>
+    public IList<StubPlaySession> PlaySessions { get; } = [];
+
+    /// <summary>
     /// Roms this device has told the server it is no longer playing, in order.
     /// </summary>
     /// <remarks>
@@ -269,7 +278,7 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = save.GetProperty("emulator").GetString(),
                 reason = action == "conflict" ? "Both changed since the last sync" : "stub",
-                server_updated_at = existing?.UpdatedAt,
+                server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });
         }
@@ -287,7 +296,7 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = existing?.Emulator,
                 reason = "held on the server and not on this device",
-                server_updated_at = existing?.UpdatedAt,
+                server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });
         }
@@ -305,7 +314,7 @@ internal sealed partial class StubRomMServer
                 slot = (string?)null,
                 emulator = existing?.Emulator,
                 reason = "held on the server with no slot",
-                server_updated_at = existing?.UpdatedAt,
+                server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });
         }
@@ -323,7 +332,7 @@ internal sealed partial class StubRomMServer
                 slot,
                 emulator = existing?.Emulator,
                 reason = "Both changed since the last sync",
-                server_updated_at = existing?.UpdatedAt,
+                server_updated_at = NaiveOrNull(existing?.UpdatedAt),
                 server_content_hash = HashLie ?? existing?.ContentHash,
             });
         }
@@ -484,6 +493,13 @@ internal sealed partial class StubRomMServer
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        // One path, two halves, and only the method separates them, the same way GET and POST
+        // share /api/saves.
+        if (request.Method == HttpMethod.Get)
+        {
+            return ListPlaySessions(request);
+        }
+
         using var document = await ReadJsonAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (document.RootElement.ValueKind != JsonValueKind.Object)
@@ -532,6 +548,22 @@ internal sealed partial class StubRomMServer
             if (SeenPlaySessions.Add(key))
             {
                 results.Add(new { index, status = "created", id = 500 + index, detail = (string?)null });
+
+                // The envelope's device id goes on the row, which is what the read filters by.
+                PlaySessions.Add(new StubPlaySession
+                {
+                    Id = 500 + index,
+                    DeviceId = document.RootElement.TryGetProperty("device_id", out var owner)
+                        ? owner.GetString()
+                        : null,
+                    RomId = int.TryParse(romId, NumberStyles.None, CultureInfo.InvariantCulture, out var id)
+                        ? id
+                        : null,
+                    SaveSlot = session.TryGetProperty("save_slot", out var slot) ? slot.GetString() : null,
+                    StartTime = DateTimeOffset.Parse(start, CultureInfo.InvariantCulture),
+                    EndTime = DateTimeOffset.Parse(end, CultureInfo.InvariantCulture),
+                });
+
                 created++;
             }
             else
@@ -549,6 +581,63 @@ internal sealed partial class StubRomMServer
             created_count = created,
             skipped_count = skipped,
         });
+    }
+
+    /// <summary>
+    /// <c>GET /api/play-sessions</c>: the server's own half of playtime.
+    /// </summary>
+    /// <remarks>
+    /// <b>The <c>device_id</c> filter is exact and the rows carry the RomM-side id</b>, so
+    /// asking with the local one answers 200 with an empty array, which is what makes an empty
+    /// answer say nothing at all. Modelled rather than ignored because a stub that served every
+    /// row whatever was asked for could not catch a caller filtering by the wrong id.
+    /// <para>
+    /// Deliberately unordered, matching the endpoint, so a caller that takes the first row
+    /// rather than the newest is not accidentally right here.
+    /// </para>
+    /// </remarks>
+    private HttpResponseMessage ListPlaySessions(HttpRequestMessage request)
+    {
+        var query = ParseQuery(request.RequestUri);
+        var rows = PlaySessions.AsEnumerable();
+
+        if (query.TryGetValue("device_id", out var deviceId))
+        {
+            rows = rows.Where(row => string.Equals(row.DeviceId, deviceId, StringComparison.Ordinal));
+        }
+
+        if (query.TryGetValue("rom_id", out var romId)
+            && int.TryParse(romId, NumberStyles.None, CultureInfo.InvariantCulture, out var rom))
+        {
+            rows = rows.Where(row => row.RomId == rom);
+        }
+
+        if (query.TryGetValue("limit", out var limit)
+            && int.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out var cap))
+        {
+            rows = rows.Take(cap);
+        }
+
+        return Json(
+            HttpStatusCode.OK,
+            rows.Select(row => new
+            {
+                id = row.Id,
+                user_id = 1,
+                device_id = row.DeviceId,
+                rom_id = row.RomId,
+                sync_session_id = (int?)null,
+                save_slot = row.SaveSlot,
+                // Zone-less, which is how the real server serialises every datetime it holds,
+                // and it stores UTC. A stub writing an offset here would let a client that
+                // reads these as local time pass, and that client is wrong by the machine's
+                // own offset on every row.
+                start_time = Naive(row.StartTime),
+                end_time = Naive(row.EndTime),
+                duration_ms = row.DurationMs,
+                created_at = Naive(row.EndTime),
+                updated_at = Naive(row.EndTime),
+            }).ToArray());
     }
 
     /// <summary>
@@ -582,11 +671,25 @@ internal sealed partial class StubRomMServer
         slot = slotless ? null : save.Slot,
         emulator = save.Emulator,
         origin_device_id = save.OriginDeviceId,
-        updated_at = save.UpdatedAt,
+        updated_at = Naive(save.UpdatedAt),
     };
 
     private static string Second(string timestamp) =>
         timestamp.Length >= 19 ? timestamp[..19] : timestamp;
+
+    /// <summary>
+    /// A timestamp as the server writes one: UTC, with nothing saying so.
+    /// </summary>
+    /// <remarks>
+    /// Every datetime this stub serves goes through here, because a stub that writes an offset
+    /// lets a client reading these as local time pass, and that client is wrong by the machine's
+    /// own offset on every row while being right on a UTC machine, which is what CI is.
+    /// </remarks>
+    public static string Naive(DateTimeOffset moment) =>
+        moment.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.ffffff", CultureInfo.InvariantCulture);
+
+    /// <summary><see cref="Naive"/> for a field the server may leave null.</summary>
+    public static string? NaiveOrNull(DateTimeOffset? moment) => moment is { } at ? Naive(at) : null;
 
     private static string HashOf(byte[] bytes)
     {
@@ -725,6 +828,26 @@ internal sealed partial class StubRomMServer
             + (string.IsNullOrEmpty(FileExtension) ? string.Empty : "." + FileExtension);
 
         public string ContentHash => HashOf(Bytes);
+    }
+
+    /// <summary>One play session as the server ends up holding it.</summary>
+    public sealed record StubPlaySession
+    {
+        public required int Id { get; init; }
+
+        /// <summary>The RomM-side device id, which is what the read filters by.</summary>
+        public required string? DeviceId { get; init; }
+
+        public required int? RomId { get; init; }
+
+        public string? SaveSlot { get; init; }
+
+        public required DateTimeOffset StartTime { get; init; }
+
+        public required DateTimeOffset EndTime { get; init; }
+
+        /// <summary>The server's own arithmetic, not the client's claim.</summary>
+        public long DurationMs => (long)(EndTime - StartTime).TotalMilliseconds;
     }
 
     /// <summary>A body that stops early, which is what a link dropping mid-transfer looks like.</summary>

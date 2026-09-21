@@ -87,6 +87,104 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_no_op_for_a_save_this_device_changed_is_uploaded_anyway()
+    {
+        // #206, and live at the 5.3.0-beta.1 floor. A save restored from a backup, whose mtime
+        // is older than this device's last upload, comes back no_op, "No changes since last
+        // sync", and used to be believed. The client holds the evidence the server does not:
+        // content_hash differs from uploaded_content_hash. Driven on a real install as well as
+        // asked of the server directly (s4-older-mtime.py, M1).
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        // The restore: different bytes, and negotiate answers no_op for the slot because the
+        // stub is told nothing, which is the default.
+        File.WriteAllText(fixture.Resolve("saves/snes/ActRaiser (USA).srm"), "from the backup");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions.Remove((42, "libretro:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.False(outcome.IsNoOp);
+
+        var stored = fixture.Stub.Saves.Values.Single(save => save.RomId == 42);
+        Assert.Equal("from the backup", System.Text.Encoding.UTF8.GetString(stored.Bytes));
+
+        // And the slot settles, so the next pass has nothing to correct.
+        Assert.False(fixture.Store.Saves.List().Single().HasChangedSinceUpload);
+    }
+
+    [Fact]
+    public async Task An_upload_of_bytes_the_server_already_holds_is_not_sent_again()
+    {
+        // The other half of #206, finding 259, and a guard rather than a live fix. Nestopia
+        // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
+        // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
+        // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
+        // It does not reproduce at the 5.3.0-beta.1 floor, where probe case M4 answers
+        // "no_op (Content is identical)". Kept because it costs one comparison against a value
+        // the operation already carries, and the loop it prevents is silent.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        var afterFirst = fixture.Stub.Saves.Count;
+
+        // Still asking, which is what the real server does for as long as the mtime leads.
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Uploaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Equal(0, outcome.Failed);
+        Assert.True(outcome.IsNoOp);
+        Assert.Equal(afterFirst, fixture.Stub.Saves.Count);
+    }
+
+    [Fact]
+    public async Task An_upload_of_bytes_the_server_holds_from_a_peer_is_not_sent_again_either()
+    {
+        // Whether the server already holds these bytes has nothing to do with who put them
+        // there, and the first cut of this fix got that wrong by reusing AlreadyHeld, which also
+        // demands the slot name this device as the uploader. Driven against the paired install:
+        // the save the symptom was measured on, Legend of Zelda (USA) (Rev 1), holds
+        // libretro:battery as save 344 with a NULL origin_device_id, because that row came down
+        // rather than up. Every slot whose current row arrived from a peer or from RomM's
+        // browser player is in that state, so the fix missed its own headline case.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        var local = Assert.Single(fixture.Store.Saves.List());
+
+        // In step, without this device having been the uploader.
+        fixture.Store.Saves.MarkUploaded(
+            local.Path,
+            local.UnitKey,
+            local.ContentHash!,
+            new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero));
+
+        // The server's head row for the slot holds the same bytes, and names somebody else.
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "progress");
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Uploaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Single(fixture.Stub.Saves);
+    }
+
+    [Fact]
     public async Task A_session_close_the_server_refuses_is_reported_rather_than_swallowed()
     {
         // A refusal returns rather than throws, so a token without devices.write used to report
@@ -632,6 +730,12 @@ public class SaveSyncTests
         Assert.NotNull(conflict.LocalCopy);
         Assert.Equal("what this device did", File.ReadAllText(fixture.Resolve(conflict.LocalCopy.Value.Value)));
         Assert.NotEqual(conflict.LocalHash, conflict.ServerHash);
+
+        // The server's time is shown to whoever picks a side, and RomM serialises it with no
+        // zone while storing UTC, which System.Text.Json reads as local. Without
+        // UtcTimestampConverter this is out by the machine's own offset, and right only where
+        // that offset is zero, which is what CI is.
+        Assert.Equal(fixture.Stub.ServerDate, conflict.ServerUpdatedAt);
     }
 
     [Fact]
@@ -1400,6 +1504,83 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_sent_play_session_can_be_read_back_from_the_server()
+    {
+        // #208. An accepted post leaves the outbox and was never looked at again, so "nothing
+        // queued" read the same whether every session landed or none was ever written. This is
+        // the read that makes the server half observable, and step 8 of the certification
+        // checklist answerable from the agent.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        Assert.Equal(1, (await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken)).Sent);
+
+        var answer = await fixture.ReadPlaySessionsAsync(DeviceId, TestContext.Current.CancellationToken);
+
+        Assert.True(answer.IsSuccess);
+        var session = Assert.Single(answer.Value!);
+        Assert.Equal(10, session.RomId);
+        Assert.Equal(30 * 60 * 1000, session.DurationMs);
+
+        // The server writes UTC and says nothing about the zone, and System.Text.Json reads a
+        // zone-less value as local, so without UtcTimestampConverter these are out by the
+        // machine's own offset and right only on a UTC machine. Driven against the live
+        // instance, a session read back landed four hours after the same run's Date header,
+        // which put a finished session in the future.
+        Assert.Equal(new DateTimeOffset(2026, 8, 16, 10, 0, 0, TimeSpan.Zero), session.StartTime);
+        Assert.Equal(new DateTimeOffset(2026, 8, 16, 10, 30, 0, TimeSpan.Zero), session.EndTime);
+    }
+
+    [Fact]
+    public void A_timestamp_the_converter_cannot_read_is_a_JsonException()
+    {
+        // RomMConnection.ReadAsync turns JsonException into RomMApiException, "a body this
+        // client could not read", and catches nothing else. DateTimeOffset.Parse throws
+        // FormatException, which walks past that and out of Program.DispatchAsync, so one
+        // unreadable timestamp in a 200 left the process where every caller is written for a
+        // handled failure. The repo warns above the floor instead of refusing, so a newer RomM
+        // serialising a field differently is a supported state.
+        var unreadable = Assert.Throws<System.Text.Json.JsonException>(() =>
+            System.Text.Json.JsonSerializer.Deserialize<RomM.Client.Saves.PlaySessionRow>(
+                """
+                {"id": 1, "start_time": "not-a-date", "end_time": "2026-08-16T10:30:00", "duration_ms": 0}
+                """));
+
+        Assert.Contains("not-a-date", unreadable.Message, StringComparison.Ordinal);
+
+        // A null where the schema says non-nullable reached Parse as an empty string, which is
+        // the same escape by a different route.
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            System.Text.Json.JsonSerializer.Deserialize<RomM.Client.Saves.PlaySessionRow>(
+                """
+                {"id": 1, "start_time": null, "end_time": "2026-08-16T10:30:00", "duration_ms": 0}
+                """));
+    }
+
+    [Fact]
+    public async Task A_play_session_read_filtered_by_the_wrong_device_answers_with_nothing()
+    {
+        // The trap this endpoint sets, and it cost a probe while driving the nes record: the row
+        // carries the RomM-side device id, status prints that and the local one on adjacent
+        // lines, and asking with the wrong one answers 200 with zero rows, which is
+        // indistinguishable from a session that was never written. The same shape as a token on
+        // another account, which is identity rather than permission and no scope widens.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        var answer = await fixture.ReadPlaySessionsAsync("some-other-device", TestContext.Current.CancellationToken);
+
+        Assert.True(answer.IsSuccess);
+        Assert.Empty(answer.Value!);
+    }
+
+    [Fact]
     public async Task A_save_this_device_uploaded_is_not_fetched_back_down()
     {
         // origin_device_id names the uploader, so a download offered for bytes this device
@@ -2155,6 +2336,11 @@ public class SaveSyncTests
 
         public Task<OutboxFlushOutcome> FlushPlaytimeAsync(CancellationToken cancellationToken = default) =>
             new OutboxFlush(Store, _connection, DeviceId).FlushPlaySessionsAsync(cancellationToken);
+
+        public Task<RomMResponse<IReadOnlyList<RomM.Client.Saves.PlaySessionRow>>> ReadPlaySessionsAsync(
+            string? deviceId,
+            CancellationToken cancellationToken = default) =>
+            _connection.ListPlaySessionsAsync(deviceId: deviceId, cancellationToken: cancellationToken);
 
         public void Dispose()
         {

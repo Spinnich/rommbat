@@ -167,6 +167,12 @@ enter the 8-character code in the RomM web UI. The code lasts 10 minutes; press 
 new one, **Q** to quit. `status --offline` skips the reachability probe and answers entirely
 from local state.
 
+When the server is reachable, `status` also reads back the play sessions RomM holds for this
+device and prints how many there are and when the last one ran. That is the only way to see the
+server's half of playtime: `flush` reports what it sent, not what landed. The rows belong to the
+account this install is paired as and no scope widens that, so an empty answer means nothing was
+found rather than nothing was sent.
+
 `status --check-files` compares what RomMBat has recorded against the tree and reports rows
 whose file is gone, which the disk budget would otherwise count forever; `--repair-files`
 removes those rows. It checks saves too and reports a missing one, but `--repair-files` never

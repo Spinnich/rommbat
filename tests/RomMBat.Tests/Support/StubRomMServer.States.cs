@@ -184,8 +184,8 @@ internal sealed partial class StubRomMServer
         file_size_bytes = state.Bytes.Length,
         emulator = state.Emulator,
         missing_from_fs = false,
-        created_at = state.UpdatedAt,
-        updated_at = state.UpdatedAt,
+        created_at = Naive(state.UpdatedAt),
+        updated_at = Naive(state.UpdatedAt),
         screenshot = ScreenshotFor(state) is not { } shot
             ? null
             : new

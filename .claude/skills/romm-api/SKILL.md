@@ -192,11 +192,22 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 | Slot inventory for a ROM | `GET /api/saves/summary?rom_id=`                                                                                                |
 | Close session            | `POST /api/sync/sessions/{session_id}/complete`                                                                                 |
 | Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                                                                  |
+| Playtime read-back       | `GET /api/play-sessions?device_id=&rom_id=&start_after=&end_before=&limit=&offset=`                                             |
 | Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                                                                          |
 | Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`                                                       |
 
 ## Traps
 
+- **RomM serialises every datetime without a zone and stores UTC, and
+  `System.Text.Json` reads a zone-less value as local.** So a plain `DateTimeOffset` property is
+  wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
+  CI is. Driven against the live instance while adding the play-session read: a session the agent
+  had just fetched came back four hours ahead of the same run's `Date` header, putting a finished
+  session in the future. Finding 260 in `docs/retrobat-findings.md`. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
+  `DateTimeOffset` read off the server**, which honours an offset where one is present, so it is
+  safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
+  its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub
+  writing an offset lets the broken client pass.
 - **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
   a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
@@ -470,8 +481,12 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   `client_device_identifier`, which are different values `status` prints on adjacent lines, so a
   `?device_id=` filter given the local one matches nothing. Reading a session back needs a token
   on the account the install is paired as; `DEVELOPER_SETUP.md` covers the one certification
-  passes use. RomMBat only posts and never reads, so the agent cannot answer this either (#208),
-  and `docs/platforms/nes.md` step 8 is the worked case.
+  passes use. **`RomMConnection.ListPlaySessionsAsync` is the client's read and `status` prints
+  it** under a `Playtime` block, filtered by `RomMDeviceId` and only when the server is reachable
+  and `roms.user.read` was granted, which is what makes step 8 answerable from the agent (#208);
+  `docs/platforms/nes.md` step 8 is the worked case from before it existed. The endpoint promises
+  no order, so take the newest by `end_time` rather than the first row. An empty answer stays
+  ambiguous however it is read, so whatever prints it says so.
 - **Ingesting a play session sets `rom_user.now_playing`, and nothing clears it.** Every
   session RomMBat sends is finished by construction, so a client that only posts sessions
   leaves the user's library claiming they are playing every game they have ever launched.

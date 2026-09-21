@@ -41,7 +41,8 @@ That launch certified nothing: it is one of nine points on one row.
 2026-09-20, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. Read
 `docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
-step 5 and the RomM-side device id at step 8.
+step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
+reads the sessions back, so step 8 no longer needs the token that record describes.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
@@ -135,13 +136,18 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 
 8. A play session is recorded and reaches RomM.
 
-   **Reading it back needs a token on the account the install is paired as, and the filter takes
-   the RomM-side device id.** `GET /api/play-sessions` is scoped to the authenticated user, so
+   **`rommbat-agent status` settles this step**, under its `Playtime` block: with the server
+   reachable it reads `GET /api/play-sessions` back for this device and prints the count and the
+   last session's start, end and length (#208). A token stored with `--protect` needs
+   `--passphrase` on that run, or the block says it could not read.
+
+   **Both of the ways this step used to be answered by hand have a trap, and they are why the
+   block says what it says.** `GET /api/play-sessions` is scoped to the authenticated user, so
    another account's token answers `200` with zero rows, and `?device_id=` given the local
    `client_device_identifier` rather than the id `status` prints on the `romm device` line does
-   the same. Both read exactly like a session that was never written. RomMBat posts and never
-   reads, so the agent cannot settle the step either (#208); `DEVELOPER_SETUP.md` covers the
-   read-only token to set up first.
+   the same. Both read exactly like a session that was never written, which is why an empty
+   answer settles nothing either way. `DEVELOPER_SETUP.md` covers the read-only token, which is
+   still the route where the paired token cannot be used.
 
 9. **Re-sync is a clean no-op**: zero uploads, zero downloads, no gamelist churn. This is
    the strongest single signal that slots, cursors and mapping are all correct.

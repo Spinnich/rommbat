@@ -2018,6 +2018,25 @@ content_hash, updated_at, file_size_bytes}]}` → `{session_id, operations:[{act
 upload|download|conflict|no_op, rom_id, save_id, file_name, slot, emulator, reason,
 server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime** as
   `updated_at`, never the sync time, or offline edits silently lose every conflict.
+
+  **The action falls back to `updated_at` wherever the hashes do not settle it, so one answer is
+  overruled before it is carried out and a second is guarded against.** That is the server
+  applying the reasoning this project forbids itself: mtime never decides whether a save changed.
+  `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly and is the instrument to re-run on a
+  floor move; at `5.3.0-beta.1` it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
+  M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
+
+  **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is uploaded**,
+  because the inequality is evidence the server has never seen these bytes and the server has no
+  way to be told so. Without it a save put back from a backup, copied off another machine or
+  extracted from an archive is never sent and the flush reports nothing at all. Live at the floor
+  (M1, and driven as a flush on the `nes` install). **An `upload` for a save whose content equals
+  both `uploaded_content_hash` and the offered `server_content_hash` is a no-op without a round
+  trip**, which finding 259 measured as a per-flush upload forever on `5.3.0-alpha.3` and which
+  M4 shows the floor settles server-side; kept as defence, at the cost of one comparison. That
+  second check must not ask who uploaded the row, since whether the server holds these bytes does
+  not depend on who put them there. #206, finding 259.
+
 - Upload: `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&overwrite=` as
   `multipart/form-data` with `saveFile` and optional `screenshotFile`. **The server
   rewrites the filename** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`, so persist the
@@ -2817,6 +2836,16 @@ generic write failure.
   to negotiate: routing playtime only through `POST /api/sync/sessions/{id}/complete` couples
   two things that the server does not couple. Use `/complete` when a session is already open
   and the standalone route otherwise.
+
+  **And the client reads them back, because an accepted post is the last anyone sees of it.**
+  `GET /api/play-sessions` filtered by this device is what `status` prints under `Playtime`:
+  without it `flush`'s `playtime:` line reports what this device sent and reads identically
+  whether every session landed or the rows were never written, and step 8 of the certification
+  checklist is unanswerable from the agent (#208). Two traps travel with the read and are
+  encoded where it is: the row carries the **RomM-side** device id rather than the local one, and
+  the endpoint is scoped to the authenticated user with no scope widening it, so a `200` with
+  zero rows is never evidence that nothing was sent. A mismatch against the journal is shown and
+  not judged, since a session the server pruned is not a defect.
 
 - Optionally `PUT /api/roms/{id}/props?update_last_played=true`. Note there is no
   `is_favorite` and no `playtime` field on rom props; favourites are collection
