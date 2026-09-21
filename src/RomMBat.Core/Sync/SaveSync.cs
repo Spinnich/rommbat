@@ -1652,16 +1652,14 @@ public sealed class SaveSync
         SyncOperation operation,
         LocalSave? local)
     {
-        if (local is not null)
-        {
-            return (local.Path, TargetProblem.None);
-        }
+        var proven = local?.Path
+            ?? _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.OnDiskPath;
 
-        var known = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty);
-
-        if (known?.OnDiskPath is { } recorded)
+        if (proven is { } path)
         {
-            return (recorded, TargetProblem.None);
+            return IsShadowedByUnhashedName(path, operation.Slot)
+                ? (null, TargetProblem.ShadowedByUnhashedName)
+                : (path, TargetProblem.None);
         }
 
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
@@ -1726,6 +1724,33 @@ public sealed class SaveSync
         return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)
             ? (derived, TargetProblem.None)
             : (null, TargetProblem.Unnameable);
+    }
+
+    /// <summary>
+    /// True when a hashed save's path is one its emulator no longer opens, because the same
+    /// name without the hash has appeared beside it.
+    /// </summary>
+    /// <remarks>
+    /// A path this device has proven stops being proven when mesen standalone writes
+    /// <c>&lt;rom&gt;.sav</c> next to mednafen's <c>&lt;rom&gt;.&lt;md5&gt;.sav</c>, because mednafen
+    /// tries the name without its hash first (finding 273).
+    /// </remarks>
+    private bool IsShadowedByUnhashedName(RelativePath path, string? slot)
+    {
+        var segments = path.Value.Split('/');
+
+        if (segments.Length < 3
+            || _shapes.BatteryRuleForSlot(segments[1], slot) is not { NamedAfter: BatteryNaming.RomFileAndContentMd5 } rule)
+        {
+            return false;
+        }
+
+        var name = segments[^1];
+        var stem = rule.RomStemOf(name);
+
+        return stem != Path.GetFileNameWithoutExtension(name)
+            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{Path.GetExtension(name)}", out var plain)
+            && File.Exists(_install.Resolve(plain));
     }
 
     /// <summary>

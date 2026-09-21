@@ -824,7 +824,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".srm", "not this one");
         File.Delete(fixture.Resolve("saves/nes/Final Fantasy (USA).srm"));
-        var body = "prg and chr"u8.ToArray();
+        var body = NesBody("prg and chr");
         WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", body);
         fixture.Scan();
 
@@ -873,7 +873,7 @@ public class SaveSyncTests
         // hashed file written beside it is one mednafen never opens.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".sav", "mesen's, which mednafen reads");
-        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", "prg and chr"u8.ToArray());
+        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", NesBody("prg and chr"));
         fixture.Scan();
 
         fixture.SeedServerSave(16, "mednafen:battery", "Final Fantasy (USA)", "sav", "from the other device", emulator: "mednafen");
@@ -887,13 +887,53 @@ public class SaveSyncTests
         Assert.Single(Directory.EnumerateFiles(fixture.Resolve("saves/nes"), "*.sav"));
     }
 
+    [Fact]
+    public async Task A_mednafen_save_already_on_record_is_not_rewritten_where_an_unhashed_save_now_shadows_it()
+    {
+        // The recorded path is proven only until something writes <rom>.sav beside it: mesen
+        // standalone does, and from then on mednafen reads that one instead.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/Final Fantasy (USA).srm"));
+        var body = NesBody("prg and chr");
+        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", body);
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        var hashed = $"saves/nes/Final Fantasy (USA).{hash}.sav";
+        File.WriteAllText(fixture.Resolve(hashed), "mednafen's, sent once");
+        fixture.Scan();
+
+        var sent = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, sent.Uploaded);
+
+        File.WriteAllText(fixture.Resolve("saves/nes/Final Fantasy (USA).sav"), "mesen's, which mednafen reads now");
+        fixture.SeedServerSave(16, "mednafen:battery", "Final Fantasy (USA)", "sav", "newer, from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((16, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("never open this one", StringComparison.Ordinal));
+        Assert.Equal("mednafen's, sent once", File.ReadAllText(fixture.Resolve(hashed)));
+    }
+
+    /// <summary>One 16 KiB PRG bank and no CHR, the length the header written with it declares.</summary>
+    private static byte[] NesBody(string seed)
+    {
+        var body = new byte[16384];
+        System.Text.Encoding.ASCII.GetBytes(seed).CopyTo(body, 0);
+        return body;
+    }
+
     private static void WriteNesZip(string path, string entryName, byte[] body)
     {
         File.Delete(path);
         using var archive = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
         using var stream = archive.CreateEntry(entryName).Open();
         stream.Write("NES"u8);
-        stream.Write(new byte[12]);
+        stream.Write(new byte[] { (byte)(body.Length / 16384), (byte)(body.Length % 16384 / 8192) });
+        stream.Write(new byte[10]);
         stream.Write(body);
     }
 
