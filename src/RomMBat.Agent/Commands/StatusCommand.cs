@@ -151,13 +151,18 @@ internal static class StatusCommand
         }
 
         using var connection = AgentContext.Connect(device.ServerOrigin);
-        var contact = await ServerProbes.TryContactAsync(connection, store, cancellationToken: cancellationToken)
+        var attempt = await ServerProbes.ContactAsync(connection, store, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         Console.WriteLine("Server");
-        if (contact is null)
+        if (attempt.Contact is not { } contact)
         {
             Console.WriteLine($"  reachable:       no ({device.ServerOrigin})");
+            if (attempt.Answered)
+            {
+                Console.WriteLine($"  answer:          {attempt.Failure}");
+            }
+
             Console.WriteLine("  effect:          none. Everything works offline and reconciles on reconnect.");
             return ExitCode.Offline;
         }

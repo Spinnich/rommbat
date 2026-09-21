@@ -37,8 +37,8 @@ public class TransportTests
     [Fact]
     public void The_request_timeout_is_a_different_lever_from_the_connect_timeout()
     {
-        // HttpClient.Timeout bounds the response body too, so it cannot be lowered to make
-        // reachability feel responsive without aborting large downloads.
+        // HttpClient.Timeout covers a slow server that is reachable, so it cannot be lowered to
+        // make reachability feel responsive without aborting legitimate slow answers.
         var options = new RomMClientOptions { Origin = Origin };
 
         Assert.True(options.RequestTimeout > options.ConnectTimeout);

@@ -34,14 +34,16 @@ internal static class PairCommand
 
         using var connection = AgentContext.Connect(origin);
 
-        var contact = await ServerProbes.TryContactAsync(connection, context.Store, cancellationToken: cancellationToken)
+        var attempt = await ServerProbes.ContactAsync(connection, context.Store, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        if (contact is null)
+        if (attempt.Contact is not { } contact)
         {
-            Console.Error.WriteLine(
-                $"{origin} did not answer within {RomMClientOptions.InteractiveConnectTimeout.TotalSeconds:0} seconds. "
-                    + "Pairing needs the server; everything else RomMBat does works offline.");
+            var why = attempt.Answered
+                ? attempt.Failure
+                : $"{origin} did not answer within {RomMClientOptions.InteractiveConnectTimeout.TotalSeconds:0} seconds.";
+
+            Console.Error.WriteLine(why + " Pairing needs the server; everything else RomMBat does works offline.");
             return ExitCode.Offline;
         }
 

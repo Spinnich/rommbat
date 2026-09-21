@@ -191,15 +191,14 @@ public sealed partial class RomMConnection
             $"api/saves/{saveId}/content?{string.Join('&', query)}");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
-        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendStreamedAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
             return await FailureAsync<long>(response, cancellationToken).ConfigureAwait(false);
         }
 
-        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var written = await CopyAsync(body, destination, cancellationToken).ConfigureAwait(false);
+        var written = await CopyAsync(response, destination, 0, null, null, cancellationToken).ConfigureAwait(false);
 
         return RomMResponse.Success(written);
     }
@@ -454,7 +453,7 @@ public sealed partial class RomMConnection
         return RomMResponse.Success(value!);
     }
 
-    private static async Task<RomMResponse<T>> FailureAsync<T>(
+    private async Task<RomMResponse<T>> FailureAsync<T>(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
@@ -472,37 +471,6 @@ public sealed partial class RomMConnection
                 RomMResponseStatus.ServerError,
                 detail ?? $"The server answered {(int)response.StatusCode}."),
         };
-    }
-
-    private static async Task<long> CopyAsync(Stream source, Stream destination, CancellationToken cancellationToken)
-    {
-        var buffer = new byte[81920];
-        var total = 0L;
-
-        while (true)
-        {
-            int read;
-
-            try
-            {
-                read = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is HttpRequestException or IOException or OperationCanceledException)
-            {
-                // A link that dropped mid-body. This is precisely the case optimistic=false
-                // exists for: the server has not recorded the device as current, so the next
-                // negotiate still offers the save.
-                throw RomMTransportErrors.Classify(ex, null, cancellationToken);
-            }
-
-            if (read == 0)
-            {
-                return total;
-            }
-
-            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
-            total += read;
-        }
     }
 
     private sealed record AcknowledgeBody(

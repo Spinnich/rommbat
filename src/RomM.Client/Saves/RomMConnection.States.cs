@@ -140,15 +140,14 @@ public sealed partial class RomMConnection
         var path = string.Create(CultureInfo.InvariantCulture, $"api/states/{stateId}/content");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
-        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendStreamedAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
             return await FailureAsync<long>(response, cancellationToken).ConfigureAwait(false);
         }
 
-        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var written = await CopyAsync(body, destination, cancellationToken).ConfigureAwait(false);
+        var written = await CopyAsync(response, destination, 0, null, null, cancellationToken).ConfigureAwait(false);
 
         return RomMResponse.Success(written);
     }
@@ -176,15 +175,14 @@ public sealed partial class RomMConnection
         var path = string.Create(CultureInfo.InvariantCulture, $"api/screenshots/{screenshotId}/content");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
-        using var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = await SendStreamedAsync(request, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
             return await FailureAsync<long>(response, cancellationToken).ConfigureAwait(false);
         }
 
-        await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var written = await CopyAsync(body, destination, cancellationToken).ConfigureAwait(false);
+        var written = await CopyAsync(response, destination, 0, null, null, cancellationToken).ConfigureAwait(false);
 
         return RomMResponse.Success(written);
     }

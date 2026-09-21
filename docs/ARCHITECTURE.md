@@ -803,6 +803,12 @@ Three rules that are not obvious:
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
 
+  **A `download` over a local save the server has never seen is recorded as a conflict**, the
+  same evidence read the other way. M3 answers `download` for a slot this device has no sync
+  record for whatever it holds, so a second device's offline progress was replaced on its first
+  flush. An unsent save, or one changed since its upload, is kept unless its bytes equal what is
+  offered. #211.
+
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
 `saves resolve` picks a side. A conflict is keyed on the server row and not only on its digest,

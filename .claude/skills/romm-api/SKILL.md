@@ -15,6 +15,19 @@ payloads this client needs most, so never code from them.
   `src/RomM.Client/openapi/README.md`. Regenerate only when deliberately moving the pin.
 - **`SocketsHttpHandler.ConnectTimeout` is set explicitly on every handler** (2 s
   interactive). Nothing sets it by default and an unreachable LAN host stalls 21 s.
+- **`HttpClient.Timeout` stops at the headers under `ResponseHeadersRead`.** Measured (finding
+  267): a body that went silent was still reading at 8 s under a 2 s timeout. So the two kinds of
+  call are sent differently. A JSON call goes through `SendAsync`, which buffers the body with
+  `ResponseContentRead` so `RequestTimeout` covers it. A body copied to a stream goes through
+  `SendStreamedAsync` or the download client and then `CopyAsync`, whose per-read watchdog is
+  `RomMClientOptions.StallTimeout` and raises `RomMUnreachableException`. Until #198 every call
+  was streamed: a JSON body could hang a call, and saves, states and screenshots had their own
+  copy with no watchdog. `ReadDetailAsync` bounds itself, since it reads error bodies past
+  streamed headers.
+- **A heartbeat answer that is not RomM's is no contact, not a crash.** A captive portal's page
+  or a proxy's 502 makes `ProbeAsync` throw `RomMApiException`, and `ServerProbes.ContactAsync`
+  returns it as a failure beside unreachable, flagged `Answered` so a caller can say something
+  answered. `status` used to die on it (#211).
 - **Never `catch (TaskCanceledException)` bare.** A connect timeout and a user cancellation
   are the same type; route everything through `RomMTransportErrors.Classify`.
 - **401 and 403 are results, not exceptions.** Authenticated calls return `RomMResponse<T>`.

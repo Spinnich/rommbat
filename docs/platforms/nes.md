@@ -1154,7 +1154,9 @@ download moved it to the newer save. Recorded in finding 4 of
 [romm-5.3-findings.md](../romm-5.3-findings.md); it is not a re-run of any certification step.
 
 **A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
-copy is still there with no decision to attach to it and no mechanism that will remove it.
+copy is still there with no decision to attach to it and no mechanism that will remove it. Since
+#211 a download that would replace a save this device never sent is a conflict instead, so such
+a copy now always holds bytes the server already has.
 
 ## RomM's browser player, driven at `5.3.0-alpha.3`
 
