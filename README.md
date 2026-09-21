@@ -69,12 +69,12 @@ and through the companion-app protocol RomM already ships.
 
 ## Requirements
 
-|          | Minimum      | Notes                                                            |
-| -------- | ------------ | ---------------------------------------------------------------- |
-| RetroBat | 8.2.1        | Checked from `system/version.info` at startup                    |
-| RomM     | 5.3.0-beta.1 | Checked from `GET /api/heartbeat` at startup                     |
-| Windows  | 10 / 11 x64  | RetroBat's own requirement                                       |
-| .NET     | none         | Published self-contained; RetroBat already ships the VC++ redist |
+|          | Minimum     | Notes                                                            |
+| -------- | ----------- | ---------------------------------------------------------------- |
+| RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
+| RomM     | 5.3.0       | Checked from `GET /api/heartbeat` at startup                     |
+| Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
+| .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
 
 Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
 it warns and continues.
@@ -470,8 +470,8 @@ folder for, so it is out of scope rather than unscheduled.
 
 **Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
 `bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
-at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All nine steps
-hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
+at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, and carried to
+the `5.3.0` floor with step 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
 That is nine rows on one install, and the unit is still `(system, emulator, core)`. The rules the
 last four needed are scoped to `nes`, so none of those emulators is certified anywhere else. Wave
@@ -482,9 +482,9 @@ last four needed are scoped to `nes`, so none of those emulators is certified an
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested  | RetroBat tested    | Notes                                                                      |
-| ---------- | ------------ | ------------------ | -------------------------------------------------------------------------- |
-| unreleased | 5.3.0-beta.1 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-beta.1** `/openapi.json` |
+| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
+| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
+| unreleased | 5.3.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility

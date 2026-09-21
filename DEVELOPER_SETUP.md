@@ -174,11 +174,12 @@ You will need it for:
 
 ### Pin the schema
 
-Already pinned. `src/RomM.Client/openapi/romm-5.3.0-beta.1.json` is a byte-exact
+Already pinned. `src/RomM.Client/openapi/romm-5.3.0.json` is a byte-exact
 `/openapi.json` (served at the root, not under `/api`) from a server reporting
-**5.3.0-beta.1**, the minimum RomMBat supports, so the generated DTOs describe the oldest
+**5.3.0**, the minimum RomMBat supports, so the generated DTOs describe the oldest
 server the client claims to work with. Since the floor tracks the newest stable, or a
-prerelease ahead of it as it does now, that is also the newest release RomMBat has adopted.
+prerelease ahead of it when one is adopted early, that is also the newest release RomMBat has
+adopted.
 The preferred source is the project's public demo, which anyone can
 reproduce from without an account and without a hostname to scrub; neither the 5.2.0 pin nor
 this one came from there, because the demo had not caught up either time, and a prerelease

@@ -1177,7 +1177,7 @@ public sealed class SaveSync
     /// an older timestamp reaches it: a restore from backup, a copy off another machine, an
     /// archive extraction. Uploaded rather than reported, because a replayed upload into one slot
     /// reuses the row and a 409 still lands as a conflict, so the correction cannot cost a save.
-    /// <b>Live at the 5.3.0-beta.1 floor</b>, as probe case M1 and as a flush: a 4-byte save
+    /// <b>Live at 5.3.0-beta.1</b>, as probe case M1 and as a flush, and M1 answers the same at 5.3.0: a 4-byte save
     /// given different content and an older mtime went up as <c>saves: 1 up</c> where the same
     /// flush without this said nothing at all.
     /// </para>
@@ -1190,7 +1190,7 @@ public sealed class SaveSync
     /// consecutive flushes for save 336, finding 259.
     /// </para>
     /// <para>
-    /// <b>That half does not reproduce at the 5.3.0-beta.1 floor and the guard is kept as
+    /// <b>That half does not reproduce at 5.3.0-beta.1 or 5.3.0 and the guard is kept as
     /// defence, not as a live fix.</b> Asked directly, case M4 of
     /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> answers <c>no_op (Content is
     /// identical)</c>, so the server compares the hash there and the repeat never starts. It
@@ -1364,7 +1364,7 @@ public sealed class SaveSync
     /// </summary>
     /// <remarks>
     /// <b>Negotiate answers <c>download</c> for a slot this device has no sync record for,
-    /// whatever the device holds</b>: measured at the <c>5.3.0-beta.1</c> floor as case M3,
+    /// whatever the device holds</b>: measured at <c>5.3.0-beta.1</c> and <c>5.3.0</c> as case M3,
     /// "Server save is newer (no sync history)", against a local save it was sent the hash of
     /// (<c>s4-older-mtime.py</c>, #211). Two devices playing one game offline is the ordinary
     /// case for a handheld, and the second one's first flush replaced its save with no conflict,

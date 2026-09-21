@@ -3,8 +3,9 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**All nine rows `nes` declares are certified.** All nine steps hold on each at the
-`5.3.0-beta.1` and RetroBat 8.2.1 floors, with step 6 N/A because `nes` has no class D.
+**All nine rows `nes` declares are certified.** All nine steps hold on each at RomM
+`5.3.0-beta.1` and RetroBat 8.2.1, with step 6 N/A because `nes` has no class D. The move to
+the `5.3.0` floor touched step 9 alone, and it was re-run; see "The move to `5.3.0`".
 `libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
 re-driven on 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
 `fceumm` is **the row a stock install gives a user**, selected with no override. The two `bizhawk`
@@ -175,9 +176,39 @@ revision of this file recorded the screenshot as not linking, first as RomM's fa
 finding 258, as RomMBat's own naming. The fix could not be believed until a state made after it
 was driven, because an unchanged state is never re-sent.
 
+## The move to `5.3.0`
+
+**It touches step 9 and nothing else, and step 9 was re-run.** Mapped from finding 13 of
+`docs/romm-5.3-findings.md`, which is 14 upstream commits with no contract change, and from this
+repo's `src/` and `data/` diff across the move, which is the two version constants and comments.
+It applies to all nine rows alike, because nothing a single row exercises moved.
+
+| #   | At `5.3.0`  | Why                                                                                                  |
+| --- | ----------- | ---------------------------------------------------------------------------------------------------- |
+| 1   | Carried     | `GET /api/platforms` and the bundled mapping data are unchanged                                      |
+| 2   | Carried     | `GET /api/roms` takes the same 58 parameters and the resolver is unchanged                           |
+| 3   | Carried     | No firmware route or BIOS data changed, and `nes` requires no BIOS                                   |
+| 4   | Carried     | `add_save`, `prune_slot` and negotiate are unchanged, and `s4-older-mtime.py` answers as at `beta.1` |
+| 5   | Carried     | `POST /api/states` and the screenshot link rule are unchanged                                        |
+| 6   | N/A         | Unchanged: `nes` has no class D                                                                      |
+| 7   | Carried     | The game list's query is unchanged; the gallery work in the delta is RomM's own web UI               |
+| 8   | Carried     | Both play-session routes are unchanged                                                               |
+| 9   | **Touched** | Always touched on a move. **Pass**, re-run on 2026-09-21, see below                                  |
+
+**Step 9 was re-run on a deploy of the adoption branch**, made by `tools/publish.ps1 -Deploy`, with
+`status` reading the server as `5.3.0`, Supported. `sync` answered `nothing to do: 227 games
+already present, 0 downloaded, 0 written` for `nes`, the same for the 252-game `megadrive` set,
+and `gamelists: all 2 unchanged`, with every `gamelist.xml` md5'd either side and identical. One
+re-sync covers all nine rows, because none of them owns anything a sync touches that another
+does not.
+
+**#4648 is the one change on an authentication path, and it cannot reach this client**: a bearer
+request carrying a session cookie now keeps the CSRF check, and `RomMConnection` sends no cookie.
+
 ## Checklist
 
-All nine are stated at `5.3.0-beta.1`, which is the floor the client now declares. Step 3 is
+All nine were stated at `5.3.0-beta.1`, the floor the client declared then, and hold at `5.3.0`
+by the table above. Step 3 is
 carried from the 5.2.0 measurement for the reason the move tables give; the other eight were
 measured or re-measured on 2026-09-20.
 
@@ -1496,7 +1527,7 @@ detail; it re-runs no checklist step.
 B is #205, and the fix records it as a conflict instead of writing, confirmed by driving B again on it. The played save was put back
 from the copy aside and is the current `libretro:battery` version again.
 
-**Row 2's re-upload does not reproduce at the `5.3.0-beta.1` floor**, and the table is left as it
+**Row 2's re-upload does not reproduce at `5.3.0-beta.1` or `5.3.0`**, and the table is left as it
 was measured on `5.3.0-alpha.3`. Probe case M4 answers `no_op (Content is identical)` there, so
 the hash settles it server-side; finding 259 carries the re-check. #210 guards the client side
 anyway, because the loop it would prevent is silent.

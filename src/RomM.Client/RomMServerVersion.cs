@@ -20,13 +20,13 @@ public static class RomMServerVersion
     /// moving it and moving the pin are the same decision. See
     /// <c>src/RomM.Client/openapi/README.md</c>.
     /// </remarks>
-    public static ProductVersion Minimum { get; } = ProductVersion.Parse("5.3.0-beta.1");
+    public static ProductVersion Minimum { get; } = ProductVersion.Parse("5.3.0");
 
     /// <summary>
     /// Newest RomM this release has been exercised against. Keep in step with the README
     /// compatibility table.
     /// </summary>
-    public static ProductVersion LastTested { get; } = ProductVersion.Parse("5.3.0-beta.1");
+    public static ProductVersion LastTested { get; } = ProductVersion.Parse("5.3.0");
 
     /// <summary>Checks a reported <c>SYSTEM.VERSION</c> against the supported range.</summary>
     public static CompatibilityCheck Check(string? reported) =>
