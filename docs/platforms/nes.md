@@ -1010,6 +1010,11 @@ detail; it re-runs no checklist step.
 B is #205, and the fix records it as a conflict instead of writing, confirmed by driving B again on it. The played save was put back
 from the copy aside and is the current `libretro:battery` version again.
 
+**Row 2's re-upload does not reproduce at the `5.3.0-beta.1` floor**, and the table is left as it
+was measured on `5.3.0-alpha.3`. Probe case M4 answers `no_op (Content is identical)` there, so
+the hash settles it server-side; finding 259 carries the re-check. #210 guards the client side
+anyway, because the loop it would prevent is silent.
+
 ## What this file will not claim
 
 - **Only `libretro`/`nestopia` is certified**, and only on this install at these two floors.

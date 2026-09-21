@@ -336,21 +336,22 @@ public sealed partial class RomMConnection
     /// Newest first is not promised by the server, so a caller wanting the last session orders
     /// the rows itself rather than taking the first.
     /// </para>
+    /// <para>
+    /// The endpoint also takes <c>start_after</c>, <c>end_before</c> and <c>offset</c>, and this
+    /// sends none of them. Their serialisation has never been put to a real server, so adding
+    /// one means measuring it rather than assuming <c>"O"</c> is the format RomM parses.
+    /// </para>
     /// </remarks>
     /// <param name="limit">The server's own default is 50.</param>
     public Task<RomMResponse<IReadOnlyList<PlaySessionRow>>> ListPlaySessionsAsync(
         int? romId = null,
         string? deviceId = null,
-        DateTimeOffset? startAfter = null,
-        DateTimeOffset? endBefore = null,
         int limit = 50,
-        int offset = 0,
         CancellationToken cancellationToken = default)
     {
         var query = new List<string>
         {
             "limit=" + limit.ToString(CultureInfo.InvariantCulture),
-            "offset=" + offset.ToString(CultureInfo.InvariantCulture),
         };
 
         if (romId is { } rom)
@@ -361,16 +362,6 @@ public sealed partial class RomMConnection
         if (!string.IsNullOrEmpty(deviceId))
         {
             query.Add("device_id=" + Uri.EscapeDataString(deviceId));
-        }
-
-        if (startAfter is { } after)
-        {
-            query.Add("start_after=" + Uri.EscapeDataString(after.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)));
-        }
-
-        if (endBefore is { } before)
-        {
-            query.Add("end_before=" + Uri.EscapeDataString(before.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)));
         }
 
         return GetAuthenticatedAsync<IReadOnlyList<PlaySessionRow>>(

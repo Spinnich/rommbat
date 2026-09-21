@@ -763,7 +763,7 @@ hash, folded into one digest. The archive is transport only.
   `updated_at`, `server_updated_at`, `created_at`, `start_time` and `end_time` with no zone while
   storing UTC, so a plain `DateTimeOffset` is out by the machine's own offset and the conflict
   block shows the two sides on different clocks. `UtcTimestampConverter` is on every one of them;
-  see the `romm-api` skill. **Rows written before that fix carry the shifted value** in
+  see the `romm-api` skill and finding 260. **Rows written before that fix carry the shifted value** in
   `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
   correct themselves when the slot is next negotiated or the conflict resolved, and they are
   display-only in the meantime, since ordering compares server rows only against each other.

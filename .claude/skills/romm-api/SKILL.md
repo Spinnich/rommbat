@@ -203,7 +203,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
   CI is. Driven against the live instance while adding the play-session read: a session the agent
   had just fetched came back four hours ahead of the same run's `Date` header, putting a finished
-  session in the future. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
+  session in the future. Finding 260 in `docs/retrobat-findings.md`. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
   `DateTimeOffset` read off the server**, which honours an offset where one is present, so it is
   safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
   its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub
