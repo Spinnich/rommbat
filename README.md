@@ -20,8 +20,8 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> One `(system, emulator, core)` row is certified against a real emulator, `nes` under
-> `libretro`/`nestopia`, and no whole platform is; see
+> Three `(system, emulator, core)` rows are certified against a real emulator, `nes` under
+> each `libretro` core (`fceumm`, `nestopia`, `mesen`), and no whole platform is; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -466,13 +466,13 @@ folder for, so it is out of scope rather than unscheduled.
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
 
-**`nes` under `libretro`/`nestopia` is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1,
-driven on 2026-09-20. All nine steps hold, with step 6 N/A since `nes` has no class D, and it is
-the first row anywhere to pass step 5, a save state round-tripping with its screenshot.
+**`nes` under `libretro`/`fceumm`, `libretro`/`nestopia` and `libretro`/`mesen` is certified**, at
+RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All nine steps hold
+on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
-That is one row, and the unit is `(system, emulator, core)`. It does not certify `nes`: the other
-eight rows of that system are driven on two of the nine steps, six of them cannot sync the battery
-save they write, and three write save states RomMBat cannot see. Wave 1's other six systems are
+That is three rows, and the unit is `(system, emulator, core)`. It does not certify `nes`: the
+other six rows of that system are driven on two of the nine steps, none of them can sync the
+battery save it writes, and three write save states RomMBat cannot see. Wave 1's other six systems are
 not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
 
 ### Compatibility

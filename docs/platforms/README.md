@@ -192,7 +192,7 @@ work. All three counts are against the 51 systems above.
   writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## One row is certified, and the gate is open
+## Three rows are certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -202,17 +202,17 @@ and came back out through the hooks. The waves finish against an M8 package.
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
-**`nes` under `libretro`/`nestopia` is certified**, at the `5.3.0-beta.1` and RetroBat 8.2.1
-floors, re-driven on 2026-09-20. It is the first row anywhere to pass step 5, a save state
-round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258 since the
-checklist was written. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass; step 6 is N/A because `nes` has no
-class D.
+**`nes` under all three `libretro` cores is certified**, at the `5.3.0-beta.1` and RetroBat 8.2.1
+floors. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
+state round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258
+since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
+row a stock install gives a user, selected with no override. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass
+on all three; step 6 is N/A because `nes` has no class D.
 
-**Read that as narrowly as it is written.** It certifies one `(system, emulator, core)` row on one
-install at one pair of floors. It does not certify `nes`: the other eight rows of this system are
-driven on steps 4 and 5 only, six of them cannot sync the battery save they write, and three have
-save states RomMBat cannot see at all. It does not certify `libretro` either, and the row was
-selected by an `es_settings.cfg` override rather than being the one a stock install gives a user.
+**Read that as narrowly as it is written.** It certifies three `(system, emulator, core)` rows on
+one install at one pair of floors. It does not certify `nes`: the other six rows of this system
+are driven on steps 4 and 5 only, none of them can sync the battery save it writes, and three have
+save states RomMBat cannot see at all. It does not certify `libretro` on any other system either.
 [nes.md](nes.md) is the record, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
