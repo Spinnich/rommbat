@@ -147,9 +147,10 @@ the 32-hex md5 it puts in the name (finding 274). **Add a row to the supplement 
 pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/`, named after
 its own system, so nothing about one system's layout carries to the next.
 
-They are not silent, though, and the difference matters to whoever fixes it. `SaveScanner.CountFiles`
-excludes only the directories `es_savestates.cfg` declares, so an undeclared state directory is
-counted as unsyncable and `AddSubdirectories` names it in the row it prints.
+A row still undeclared on another system is not silent, though, and the difference matters to
+whoever fixes it. `SaveScanner.CountFiles` excludes only the directories `StateScanner.LoadSchema`
+declares, which is `es_savestates.cfg` plus the supplement for that system, so an undeclared
+state directory is counted as unsyncable and `AddSubdirectories` names it in the row it prints.
 
 **`AddSubdirectories` prints two rows, and which one a directory lands in is the emulator's
 declaration rather than the directory's path.** An emulator the file names goes to the
