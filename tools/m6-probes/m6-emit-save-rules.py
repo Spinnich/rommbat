@@ -84,6 +84,56 @@ OTHER_BATTERY_RULES = [
             ),
         },
     },
+    {
+        "emulator": "jgenesis",
+        "systems": ["nes"],
+        "directory": "jgenesis/nes",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "nes under jgenesis on 8.2.1: Wizardry - Proving Grounds of the Mad Overlord (USA).zip "
+            "wrote jgenesis/nes/Wizardry - Proving Grounds of the Mad Overlord (USA).sav, 8,192 B, "
+            "and its states sit apart in jgenesis/states"
+        ),
+    },
+    {
+        "emulator": "mesen",
+        "systems": ["nes"],
+        "directory": "",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote a loose "
+            "Crystalis (USA).sav, 8,192 B, beside libretro's .srm files"
+        ),
+    },
+    {
+        "emulator": "mednafen",
+        "systems": ["nes"],
+        "directory": "",
+        "extensions": [".sav"],
+        "named_after": "rom file and content md5",
+        "class": "A",
+        "evidence": (
+            "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose "
+            "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of "
+            "the .nes inside less its 16-byte iNES header"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["nes"],
+        "directory": "ares/Famicom",
+        "extensions": [".ram"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "nes under ares, core Famicom, on 8.2.1: Dragon Warrior IV (USA).zip wrote "
+            "ares/Famicom/Dragon Warrior IV (USA).ram, 8,192 B, beside its state .bs1"
+        ),
+    },
 ]
 
 # Written into the save tree by RetroArch and by RetroBat, and not a save. The .ldci is the
@@ -150,14 +200,15 @@ document = {
     "_retrobat_version": (root / "system" / "version.info").read_text(encoding="utf-8").strip(),
     "_battery_saves_note": (
         "Which emulator wrote a battery save, from the system, the directory it sits in and its "
-        "extension. directory is relative to saves/<system>/ and empty is the loose level; a rule "
+        "name. directory is relative to saves/<system>/ and empty is the loose level; a rule "
         "with no systems applies to every system. One rule per (system, emulator), because the "
         "emulator is the slot, and no two rules may claim one extension in one directory, or a "
-        "file has two owners. The loose level is libretro's across saturn, megacd, psx, gb and 12 "
+        "file has two owners, unless exactly one of the two names a content hash on the stem, "
+        "which then decides. The loose level is libretro's across saturn, megacd, psx, gb and 12 "
         "more, but not exclusively: on nes, mesen standalone and mednafen write a loose .sav, "
         "which is why this is not one extension list and one loose emulator (#152). named_after "
-        "is what the stem joins on: the rom file, or the emulator's own title for the game, which "
-        "has to be learned (#151)."
+        "is what the stem joins on: the rom file, the emulator's own title for the game, which "
+        "has to be learned (#151), or the rom file and a content md5, which mednafen appends."
     ),
     "battery_saves": [
         {

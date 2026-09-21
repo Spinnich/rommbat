@@ -134,7 +134,9 @@ So writing a downloaded state into the declared directory is what makes it loada
 `emulators/bizhawk/sstates/<system>/<internal title>.<core>.QuickSave0.State` and openMSX
 writes `bios/openmsx/savestates/<name>.oms`. For BizHawk only the mirror lands under `saves/`,
 and deleting the native copy and relaunching rebuilt it from the ES-facing one, so the declared
-path is authoritative in both directions. **openMSX's declared directory stayed empty**, so do
+path is authoritative in both directions. The mirror is `emulatorLauncher`'s: a native state
+written by an EmuHawk started any other way never reaches `saves/`, and the next launch removes
+it (finding 270). **openMSX's declared directory stayed empty**, so do
 not assume every emulator is mirrored. Do not assume everything beside a state travels either:
 BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 
@@ -154,6 +156,9 @@ Four traps, all confirmed across the eleven emulators M0 drove:
 - **`<image>` is absent more often than present**: missing outright for most emulators driven,
   and correct, zero-byte and missing across three runs of the same PPSSPP game. `screenshotFile`
   is best-effort everywhere; absent and empty are both normal and say nothing about the state.
+  **BizHawk declares an `<image>` and never writes one**: its frame is `Framebuffer.bmp` inside
+  the `.State` zip, so the state carries its own screenshot and RomM holds none for it (finding
+  268).
 - **The declared `<directory>` is wrong for one of the twelve emulators launched.**
   **`openmsx` writes to `bios/openmsx/savestates/`, a different top-level tree** from the
   declared `saves/msx1/openmsx`, and that is unfixed. `flycast` was the second until
@@ -439,7 +444,20 @@ Loading refuses two rules claiming one extension in one directory, and one emula
 rules on a system, because either is two saves in one slot. The table replaced one extension
 list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
-mesen, mednafen, jgenesis and ares are still reported, each waiting on a rule of its own.
+On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen and ares
+(`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it.
+
+**mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (finding 273): its `%M`
+is empty on the first try, so an existing plain `.sav`, mesen's included, is the file it reads and
+writes. The hash is of the `.nes` less its 16-byte iNES header (finding 274). So mednafen's rule is
+`named_after: "rom file and content md5"`, which is the one case the loader lets share an extension
+in one directory with a plain rule, the hash on the stem deciding. A plain `<rom>.sav` goes up as
+`mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
+a hashed save where a plain one would shadow it, including onto a path this device recorded before
+the plain one appeared. `HeaderlessNesHash` answers null outside what was measured: a trainer, a
+length other than header plus declared PRG and CHR, no PRG, or NES 2.0 size bits in byte 9. **Do
+not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 header with byte 9
+clear, the three measured ones included.
 
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
@@ -484,8 +502,11 @@ mtime. The binding is cached in `game_id_binding` keyed on the **file name**
 **Driven on both cores on 2026-09-21** (findings 262 to 266, `docs/platforms/nes.md`): upload,
 restore into the file BizHawk loads, the in-flight deferral, the launch route alone, and the
 Europe copy of StarTropics sharing the USA copy's file, contested and then settled by
-`saves bind`. Whether `NesHawk` and `quickerNES` read each other's `.SaveRAM` is **not**
-measured; they share the file and the `bizhawk:battery` slot.
+`saves bind`. **`NesHawk` and `quickerNES` read each other's `.SaveRAM`** (finding 271), so the
+one `bizhawk:battery` slot is one save in fact. **A game can rewrite its save on boot with no
+in-game save**: Destiny of an Emperor changed 4 bytes on a title-screen run (finding 272), so every
+launch sends a new version, and a new hash after a session is not by itself evidence of play. Both
+rows are certified on `nes` since.
 
 Class C is keyed by **Game ID** (`UCUS98751`, a PS3
 `TITLEID`, a GameCube disc ID). This design was built around **RomM storing no serial, title ID

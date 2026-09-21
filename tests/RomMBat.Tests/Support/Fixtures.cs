@@ -43,6 +43,13 @@ internal static class Fixtures
     }
 
     /// <summary>
+    /// The shipped schema with the bundled supplement beneath it, which is what
+    /// <c>StateScanner.LoadSchema</c> hands every caller on a real install.
+    /// </summary>
+    public static SaveStateSchema LoadSaveStatesAsLoaded() =>
+        LoadSaveStates().WithSupplement(SaveStateSchema.Supplement);
+
+    /// <summary>
     /// The pinned RomM OpenAPI schema, linked from <c>src/RomM.Client/openapi/</c>.
     /// </summary>
     /// <remarks>

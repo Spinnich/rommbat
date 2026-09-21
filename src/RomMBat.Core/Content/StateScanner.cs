@@ -125,11 +125,21 @@ public sealed class StateScanner
                 + "from the declared saves/<system>/openmsx entirely.",
         };
 
-    /// <summary>Opens the schema from the install, or null when the file is not there.</summary>
+    /// <summary>
+    /// Opens the schema from the install with the bundled supplement beneath it, or null when the
+    /// file is not there.
+    /// </summary>
+    /// <remarks>
+    /// Null rather than the supplement alone, because an install with no <c>es_savestates.cfg</c>
+    /// is one this client cannot read states from at all, and the supplement only fills gaps in a
+    /// file that was read.
+    /// </remarks>
     public static SaveStateSchema? LoadSchema(RetroBatInstall install)
     {
         ArgumentNullException.ThrowIfNull(install);
-        return SaveStateSchema.Load(install.Resolve(SaveStateSchema.ConfigPath));
+        return SaveStateSchema
+            .Load(install.Resolve(SaveStateSchema.ConfigPath))
+            ?.WithSupplement(SaveStateSchema.Supplement);
     }
 
     /// <summary>Walks every declared state directory that exists and records what is in it.</summary>

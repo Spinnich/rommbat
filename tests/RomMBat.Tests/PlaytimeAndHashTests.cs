@@ -175,7 +175,7 @@ public class PlaytimeAndHashTests
             Assert.Equal(1, first.Found);
             Assert.Equal(1, first.Attributed);
 
-            var states = new StateScanner(install, store, Fixtures.LoadSaveStates()).Scan();
+            var states = new StateScanner(install, store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
             Assert.Equal(1, states.Found);
             Assert.Equal(1, states.Attributed);
             Assert.Equal(1, states.Screenshots);
@@ -192,7 +192,7 @@ public class PlaytimeAndHashTests
         var statesBefore = relocated.States.List();
 
         var outcome = new SaveScanner(movedInstall, relocated).Scan();
-        var stateOutcome = new StateScanner(movedInstall, relocated, Fixtures.LoadSaveStates()).Scan();
+        var stateOutcome = new StateScanner(movedInstall, relocated, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         var after = relocated.Saves.List();
         var statesAfter = relocated.States.List();

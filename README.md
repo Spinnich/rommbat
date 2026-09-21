@@ -20,8 +20,9 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Three `(system, emulator, core)` rows are certified against a real emulator, `nes` under
-> each `libretro` core (`fceumm`, `nestopia`, `mesen`), and no whole platform is; see
+> Nine `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
+> declares, which is its three `libretro` cores, both `bizhawk` cores, `jgenesis`, `mesen`,
+> `mednafen` and `ares`. No other system has a certified row; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -241,10 +242,11 @@ and comes back down as one. `saves` lists everything it found that it is not syn
 rather than leaving you to notice.
 
 **Save states sync for the emulators RetroBat declares a state directory for, which is 13 of
-them.** An emulator outside that list still writes save states, into a directory it names
-itself, and RomMBat does not read them: `mednafen`, `mesen` and `ares` were each driven on
-`nes` and each wrote one. `saves` names those directories and says so rather than counting
-them silently, but they do not go up and cannot be restored.
+them, plus `mednafen`, `mesen` and `ares` on `nes`.** An emulator outside RetroBat's list still
+writes save states, into a directory it names itself. Those three were driven on `nes`, where
+RomMBat carries a measured declaration for each; on any other system, and for any other
+undeclared emulator, `saves` names the directory and says so rather than counting it silently,
+but its states do not go up and cannot be restored.
 
 **A shared container has no game to belong to, so RomMBat offers to split it, one game at a
 time.** A stock PS2 memory card holds every game you have played on it: the one measured while
@@ -466,15 +468,14 @@ folder for, so it is out of scope rather than unscheduled.
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
 
-**`nes` under `libretro`/`fceumm`, `libretro`/`nestopia` and `libretro`/`mesen` is certified**, at
-RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All nine steps hold
-on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
+**Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
+`bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
+at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All nine steps
+hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
-That is three rows, and the unit is `(system, emulator, core)`. It does not certify `nes`: the
-other six rows of that system are driven on two of the nine steps, only the two `bizhawk` rows
-can sync the battery save they write (driven on 2026-09-21, not certified), and three write save states RomMBat
-cannot see. Wave 1's other six systems are
-not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
+That is nine rows on one install, and the unit is still `(system, emulator, core)`. The rules the
+last four needed are scoped to `nes`, so none of those emulators is certified anywhere else. Wave
+1's other six systems are not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
 
 ### Compatibility
 
@@ -527,7 +528,8 @@ docs/romm-5.3-findings.md
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
-data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes)
+data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes and
+                      rules, and the save-state entries es_savestates.cfg leaves out)
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this

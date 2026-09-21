@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using RomMBat.Core.Paths;
@@ -76,6 +77,20 @@ public sealed record SaveStateEmulator(
     string? LastSlot,
     IReadOnlyDictionary<string, SaveStateCore> Cores)
 {
+    /// <summary>
+    /// The systems the entry is good for, or null for every system, which is what every entry in
+    /// <c>es_savestates.cfg</c> is.
+    /// </summary>
+    /// <remarks>
+    /// Only the bundled supplement sets it, because its entries were measured on one system and
+    /// an emulator does not keep one layout across the systems it runs: ares keeps <c>nes</c>
+    /// under <c>ares/Famicom/</c>, named after its own system rather than RetroBat's.
+    /// </remarks>
+    public IReadOnlySet<string>? Systems { get; init; }
+
+    /// <summary>True when the entry says where this emulator's states live for this system.</summary>
+    public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
+
     /// <summary>True when the same game has independent state sets per core.</summary>
     /// <remarks>
     /// <c>libretro</c> (<c>{{system}}/libretro.{{core}}</c>) and <c>bizhawk</c>
@@ -204,6 +219,11 @@ public sealed class SaveStateSchema
 
             var core = match.Groups["core"].Success ? match.Groups["core"].Value : null;
 
+            if (!emulator.AppliesTo(match.Groups["system"].Value))
+            {
+                continue;
+            }
+
             // A core the user turned off through the <core> mechanism is not somewhere
             // RetroBat will be writing, so it is not a state directory either.
             if (core is not null
@@ -295,11 +315,62 @@ public sealed class SaveStateSchema
                 Text(element, "autosave_image"),
                 (string?)element.Attribute("firstslot"),
                 (string?)element.Attribute("lastslot"),
-                ReadCores(element));
+                ReadCores(element))
+            {
+                Systems = (string?)element.Attribute("systems") is { Length: > 0 } systems
+                    ? systems
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                    : null,
+            };
         }
 
         return new SaveStateSchema(emulators);
     }
+
+    /// <summary>
+    /// Entries for emulators <c>es_savestates.cfg</c> does not declare, each measured on a real
+    /// install and each limited to the systems it was measured on.
+    /// </summary>
+    /// <remarks>
+    /// <b>Declaring no directory is not writing no state.</b> <c>mednafen</c>, <c>mesen</c> and
+    /// <c>ares</c> each wrote a real state on <c>nes</c> into a directory they name themselves, and
+    /// with no entry nothing scanned it (#150). The file is <c>es_savestates.cfg</c>'s own format
+    /// plus a <c>systems</c> attribute, so it is read by the same parser.
+    /// </remarks>
+    public static SaveStateSchema Supplement { get; } = LoadSupplement();
+
+    /// <summary>
+    /// This schema with every supplement entry it does not already declare.
+    /// </summary>
+    /// <remarks>
+    /// <b>The install's own file wins.</b> An entry RetroBat or the user writes for one of these
+    /// emulators is what EmulationStation acts on, so the supplement's is dropped rather than
+    /// merged into it.
+    /// </remarks>
+    public SaveStateSchema WithSupplement(SaveStateSchema supplement)
+    {
+        ArgumentNullException.ThrowIfNull(supplement);
+
+        var merged = new Dictionary<string, SaveStateEmulator>(_emulators, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var emulator in supplement.Emulators)
+        {
+            merged.TryAdd(emulator.Name, emulator);
+        }
+
+        return new SaveStateSchema(merged);
+    }
+
+    private static SaveStateSchema LoadSupplement()
+    {
+        using var stream = typeof(SaveStateSchema).Assembly.GetManifestResourceStream(SupplementResource)
+            ?? throw new InvalidOperationException($"The bundled {SupplementResource} is missing.");
+
+        return Parse(stream);
+    }
+
+    private const string SupplementResource = "RomMBat.Core.data.retrobat.es_savestates.supplement.xml";
 
     private static Dictionary<string, SaveStateCore> ReadCores(XElement emulator)
     {
@@ -382,14 +453,14 @@ public sealed partial class SaveStateTemplate
     /// <remarks>
     /// Returns null when the directory template needs a core and none was given, because
     /// <c>saves/snes/libretro./</c> is not a directory any emulator writes and guessing past a
-    /// missing core would invent one.
+    /// missing core would invent one, and when the entry is not for this system.
     /// </remarks>
     public static SaveStateTemplate? Create(SaveStateEmulator emulator, string system, string? core)
     {
         ArgumentNullException.ThrowIfNull(emulator);
         ArgumentException.ThrowIfNullOrWhiteSpace(system);
 
-        if (emulator.IsCoreScoped && string.IsNullOrWhiteSpace(core))
+        if ((emulator.IsCoreScoped && string.IsNullOrWhiteSpace(core)) || !emulator.AppliesTo(system))
         {
             return null;
         }
@@ -437,7 +508,10 @@ public sealed partial class SaveStateTemplate
 
         if (_autosave?.Match(fileName) is { Success: true } auto)
         {
-            return new SaveStateMatch(auto.Groups["stem"].Value, Slot: null, IsAutosave: true, SlotText: string.Empty);
+            return new SaveStateMatch(auto.Groups["stem"].Value, Slot: null, IsAutosave: true, SlotText: string.Empty)
+            {
+                RomHash = HashOf(auto),
+            };
         }
 
         if (_file.Match(fileName) is not { Success: true } match)
@@ -453,8 +527,14 @@ public sealed partial class SaveStateTemplate
             ? 0
             : int.Parse(digits, NumberStyles.None, CultureInfo.InvariantCulture);
 
-        return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false, digits);
+        return new SaveStateMatch(match.Groups["stem"].Value, slot, IsAutosave: false, digits)
+        {
+            RomHash = HashOf(match),
+        };
     }
+
+    private static string? HashOf(Match match) =>
+        match.Groups["hash"] is { Success: true } hash ? hash.Value.ToLowerInvariant() : null;
 
     /// <summary>
     /// A name this emulator very nearly wrote, or null when there is nothing to say about it.
@@ -604,6 +684,7 @@ public sealed partial class SaveStateTemplate
     private string Render(string template, SaveStateMatch match) =>
         Expand(template, System, Core)
             .Replace("{{romfilename}}", match.Stem, StringComparison.Ordinal)
+            .Replace("{{romhash}}", match.RomHash ?? string.Empty, StringComparison.Ordinal)
             .Replace("{{slot2d}}", Format(match.Slot, SlotToken.TwoDigit), StringComparison.Ordinal)
             .Replace("{{slot0}}", Format(match.Slot, SlotToken.OneDigit), StringComparison.Ordinal)
             .Replace("{{slot}}", match.SlotText, StringComparison.Ordinal);
@@ -652,7 +733,7 @@ public sealed partial class SaveStateTemplate
                 _ => string.Empty,
             };
 
-        var placeholder = slotToken switch
+        var slotPlaceholder = slotToken switch
         {
             SlotToken.TwoDigit => "{{slot2d}}",
             SlotToken.OneDigit => "{{slot0}}",
@@ -660,23 +741,29 @@ public sealed partial class SaveStateTemplate
             _ => null,
         };
 
-        // Split on the two placeholders and escape everything between them, so no character of a
-        // real template is ever read as an expression.
-        var pattern = string.Concat(
-            "^",
-            string.Join(
-                @"(?<stem>.+?)",
-                expanded
-                    .Split("{{romfilename}}", StringSplitOptions.None)
-                    .Select(part => placeholder is null
-                        ? Regex.Escape(part)
-                        : string.Join(
-                            slotPattern,
-                            part.Split(placeholder, StringSplitOptions.None).Select(Regex.Escape)))),
-            "$");
+        // Split on the placeholders and escape everything between them, so no character of a
+        // real template is ever read as an expression. Split keeps the captured placeholder, so
+        // the parts alternate literal, placeholder, literal.
+        var pattern = new StringBuilder("^");
 
-        return new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        foreach (var part in Placeholders().Split(expanded))
+        {
+            pattern.Append(part switch
+            {
+                "{{romfilename}}" => @"(?<stem>.+?)",
+                "{{romhash}}" => @"(?<hash>[0-9a-f]{32})",
+                _ when part == slotPlaceholder => slotPattern,
+                _ => Regex.Escape(part),
+            });
+        }
+
+        pattern.Append('$');
+
+        return new Regex(pattern.ToString(), RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
     }
+
+    [GeneratedRegex(@"(\{\{romfilename\}\}|\{\{romhash\}\}|\{\{slot2d\}\}|\{\{slot0\}\}|\{\{slot\}\})", RegexOptions.CultureInvariant)]
+    private static partial Regex Placeholders();
 }
 
 /// <summary>Why a name in a state directory is worth mentioning.</summary>
@@ -712,6 +799,18 @@ public sealed record SaveStateNearMiss(string FileName, NearMissKind Kind, strin
 /// </param>
 public sealed record SaveStateMatch(string Stem, int? Slot, bool IsAutosave, string SlotText)
 {
+    /// <summary>
+    /// The content hash the name carries, lower-cased, or null for a template without
+    /// <c>{{romhash}}</c>.
+    /// </summary>
+    /// <remarks>
+    /// Only the supplement's <c>mednafen</c> entry has one: it names a <c>nes</c> state after the
+    /// md5 of the ROM less its iNES header. The hash belongs to the ROM's content, so a restore
+    /// carries it from the name that was uploaded onto the ROM's stem here, and a ROM with the
+    /// same id is the same content on every device.
+    /// </remarks>
+    public string? RomHash { get; init; }
+
     /// <summary>
     /// The slot a state pairs on locally, which never travels to the server.
     /// </summary>

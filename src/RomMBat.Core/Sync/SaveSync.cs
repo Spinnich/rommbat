@@ -489,10 +489,10 @@ public sealed class SaveSync
                         break;
                     }
 
-                    if (targetProblem == TargetProblem.TitleNotLearned)
+                    if (ReasonFor(targetProblem, operation) is { } explained)
                     {
                         failed++;
-                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: {TitleNotLearnedReason(operation)}");
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: {explained}");
                         break;
                     }
 
@@ -848,9 +848,9 @@ public sealed class SaveSync
                 continue;
             }
 
-            if (problem == TargetProblem.TitleNotLearned)
+            if (ReasonFor(problem, operation) is { } explained)
             {
-                unrestorable.Add(new UnrestorableSave(row.RomId, slot, TitleNotLearnedReason(operation)));
+                unrestorable.Add(new UnrestorableSave(row.RomId, slot, explained));
                 continue;
             }
 
@@ -1652,16 +1652,14 @@ public sealed class SaveSync
         SyncOperation operation,
         LocalSave? local)
     {
-        if (local is not null)
-        {
-            return (local.Path, TargetProblem.None);
-        }
+        var proven = local?.Path
+            ?? _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.OnDiskPath;
 
-        var known = _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty);
-
-        if (known?.OnDiskPath is { } recorded)
+        if (proven is { } path)
         {
-            return (recorded, TargetProblem.None);
+            return IsShadowedByUnhashedName(path, operation.Slot)
+                ? (null, TargetProblem.ShadowedByUnhashedName)
+                : (path, TargetProblem.None);
         }
 
         var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
@@ -1689,11 +1687,12 @@ public sealed class SaveSync
             ? $"saves/{folder}/{container}"
             : $"saves/{folder}";
 
-        // An emulator that keeps its battery saves in its own subdirectory, and one that names
-        // them after its own title for the game, which only a learned binding can supply (#151).
+        // An emulator that keeps its battery saves in its own subdirectory, one that names them
+        // after its own title for the game, which only a learned binding can supply (#151), and
+        // one that puts a hash of the ROM's content on the stem, which only the ROM can supply.
         if (_shapes.BatteryRuleForSlot(folder, operation.Slot) is { } rule)
         {
-            directory = $"saves/{folder}/{rule.Directory}";
+            directory = rule.IsLoose ? $"saves/{folder}" : $"saves/{folder}/{rule.Directory}";
 
             if (rule.NamedAfter == BatteryNaming.DisplayName)
             {
@@ -1704,11 +1703,54 @@ public sealed class SaveSync
 
                 stem = title;
             }
+            else if (rule.NamedAfter == BatteryNaming.RomFileAndContentMd5)
+            {
+                if (HeaderlessNesHash.Of(_install.Resolve(rom.Path)) is not { } hash)
+                {
+                    return (null, TargetProblem.Unnameable);
+                }
+
+                // mednafen fills %M only when the name without it is absent, so an existing
+                // <rom>.sav, mesen standalone's or its own from before, is the file it reads.
+                if (File.Exists(_install.Resolve(RelativePath.Create($"{directory}/{stem}{extension}"))))
+                {
+                    return (null, TargetProblem.ShadowedByUnhashedName);
+                }
+
+                stem = $"{stem}.{hash}";
+            }
         }
 
         return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)
             ? (derived, TargetProblem.None)
             : (null, TargetProblem.Unnameable);
+    }
+
+    /// <summary>
+    /// True when a hashed save's path is one its emulator no longer opens, because the same
+    /// name without the hash has appeared beside it.
+    /// </summary>
+    /// <remarks>
+    /// A path this device has proven stops being proven when mesen standalone writes
+    /// <c>&lt;rom&gt;.sav</c> next to mednafen's <c>&lt;rom&gt;.&lt;md5&gt;.sav</c>, because mednafen
+    /// tries the name without its hash first (finding 273).
+    /// </remarks>
+    private bool IsShadowedByUnhashedName(RelativePath path, string? slot)
+    {
+        var segments = path.Value.Split('/');
+
+        if (segments.Length < 3
+            || _shapes.BatteryRuleForSlot(segments[1], slot) is not { NamedAfter: BatteryNaming.RomFileAndContentMd5 } rule)
+        {
+            return false;
+        }
+
+        var name = segments[^1];
+        var stem = rule.RomStemOf(name);
+
+        return stem != Path.GetFileNameWithoutExtension(name)
+            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{Path.GetExtension(name)}", out var plain)
+            && File.Exists(_install.Resolve(plain));
     }
 
     /// <summary>
@@ -1741,14 +1783,23 @@ public sealed class SaveSync
             : null;
     }
 
-    /// <summary>What to tell a person whose save cannot be placed until a title is learned.</summary>
-    private static string TitleNotLearnedReason(SyncOperation operation)
+    /// <summary>What to tell a person whose save cannot be placed for a reason with a remedy.</summary>
+    private static string? ReasonFor(TargetProblem problem, SyncOperation operation)
     {
         var emulator = operation.Slot?.Split(':', 2)[0] ?? "the emulator";
 
-        return $"{emulator} names this save after its own title for the game, not the ROM file, "
-            + $"and this device has not learned that title yet. Run the game once under {emulator}, "
-            + "then try again.";
+        return problem switch
+        {
+            TargetProblem.TitleNotLearned =>
+                $"{emulator} names this save after its own title for the game, not the ROM file, "
+                    + $"and this device has not learned that title yet. Run the game once under {emulator}, "
+                    + "then try again.",
+            TargetProblem.ShadowedByUnhashedName =>
+                $"{emulator} would read the save already here under the ROM's own name instead, "
+                    + "which mesen standalone or an earlier session of its own wrote, and never open "
+                    + "this one. Nothing was written.",
+            _ => null,
+        };
     }
 
     /// <summary>Why a download has nowhere to go, when it has nowhere to go.</summary>
@@ -1773,6 +1824,12 @@ public sealed class SaveSync
         /// not learned it. Not a fault, and it has a remedy: run the game once under it.
         /// </summary>
         TitleNotLearned,
+
+        /// <summary>
+        /// The emulator puts a content hash on the name only when the name without it is free,
+        /// and here it is not, so the hashed file would be one it never opens.
+        /// </summary>
+        ShadowedByUnhashedName,
     }
 
     /// <summary>

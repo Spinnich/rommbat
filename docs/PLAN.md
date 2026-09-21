@@ -2419,7 +2419,10 @@ names the paths, and anything it does not name is reported as unknown rather tha
   claim one file or one emulator has two rules on a system. A title is joined back to a ROM by
   the state sidecar (`StarTropics.NesHawk`) and by a launch under that emulator, both asked
   every scan, and **a title two ROMs answer to fails closed**, because BizHawk keeps one file
-  for every ROM it gives that title. #151, #152.
+  for every ROM it gives that title. #151, #152. mednafen is the third naming: `<rom>.sav` when
+  that exists and `<rom>.<md5 of the ROM less its iNES header>.sav` when it does not, so its rule
+  names the content hash, a plain `.sav` on `nes` is one save shared with mesen standalone, and a
+  restore refuses to write a hashed save the plain one would shadow (findings 273 and 274).
 - **Class B and class D interleave at one level.** `megacd` holds per-game `.brm` and `.srm`
   beside the shared `4Mbit_cart.brm`, so excluding class D is a named-container list, never
   a positional rule.
@@ -3792,6 +3795,14 @@ name themselves, which `StateScanner` never reads because it works from `es_save
 So step 5 for those rows is not a recorded declaration that there is nothing to carry, it is an
 open gap, and the row does not quietly certify around it. Issue #150. That is a third of wave 1,
 so the family has to be re-checked per row rather than counted as cheap.
+
+**Closed on `nes` by a bundled supplement, not by widening a rule.**
+`data/retrobat/es_savestates.supplement.xml` declares the three there in `es_savestates.cfg`'s own
+format, each entry scoped by a `systems` attribute to where it was driven, beneath the install's
+file so an entry RetroBat or the user writes always wins. With a battery rule each, all three rows
+certified on 2026-09-21. The rest of the family stays open until each row gets its own entry from
+its own pass, because the layout does not carry between systems: ares keeps `nes` under
+`ares/Famicom/`, named after its own system.
 
 **Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
 `nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under

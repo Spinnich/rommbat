@@ -25,6 +25,67 @@ public class SaveStateSchemaTests
     }
 
     [Fact]
+    public void The_supplement_declares_what_the_shipped_file_leaves_out_and_only_where_it_was_measured()
+    {
+        var shipped = Fixtures.LoadSaveStates();
+        var loaded = shipped.WithSupplement(SaveStateSchema.Supplement);
+
+        foreach (var name in new[] { "mednafen", "mesen", "ares" })
+        {
+            Assert.Null(shipped.For(name));
+            Assert.True(loaded.For(name)!.AppliesTo("nes"));
+            Assert.False(loaded.For(name)!.AppliesTo("snes"));
+        }
+
+        Assert.Equal(shipped.Emulators.Count + 3, loaded.Emulators.Count);
+
+        // Measured on nes, so the same tree under snes is nobody's state directory.
+        Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
+        Assert.Null(loaded.MatchDirectory("snes/mesen/SaveStates"));
+        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "snes", core: null));
+    }
+
+    [Fact]
+    public void An_entry_the_install_declares_wins_over_the_supplements()
+    {
+        // What ES acts on is the install's file, so a mesen entry there is the one to read.
+        var own = SaveStateSchema.Parse(new MemoryStream(Encoding.UTF8.GetBytes(
+            """
+            <savestates>
+              <emulator name="mesen">
+                <directory>{{system}}/mesen/States</directory>
+                <file>{{romfilename}}.mss{{slot0}}</file>
+              </emulator>
+            </savestates>
+            """)));
+
+        var mesen = own.WithSupplement(SaveStateSchema.Supplement).For("mesen")!;
+
+        Assert.Equal("{{system}}/mesen/States", mesen.Directory);
+        Assert.Null(mesen.Systems);
+    }
+
+    [Fact]
+    public void A_mednafen_name_carries_the_rom_hash_through_a_match_and_back()
+    {
+        var mednafen = Fixtures.LoadSaveStatesAsLoaded().For("mednafen")!;
+        var template = SaveStateTemplate.Create(mednafen, "nes", core: null)!;
+
+        var match = template.Match("Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0");
+
+        Assert.NotNull(match);
+        Assert.Equal("Final Fantasy (USA)", match.Stem);
+        Assert.Equal(0, match.Slot);
+        Assert.Equal("24ae5edf8375162f91a6846d3202e3d6", match.RomHash);
+        Assert.Equal(
+            "Other Name.24ae5edf8375162f91a6846d3202e3d6.mc0",
+            template.FileFor(match with { Stem = "Other Name" }));
+
+        // Without the hash it is not a name mednafen writes.
+        Assert.Null(template.Match("Final Fantasy (USA).mc0"));
+    }
+
+    [Fact]
     public void Libretro_declares_no_slot_bounds_and_is_still_usable()
     {
         var libretro = Fixtures.LoadSaveStates().For("libretro");

@@ -644,11 +644,11 @@ public class StateDiscoveryTests
         }
 
         public StateScanOutcome Scan() =>
-            new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
+            new StateScanner(Install, Store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         /// <summary>The battery-save pass, given the same schema the real callers give it.</summary>
         public SaveScanOutcome ScanSaves() =>
-            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStates()).Scan();
+            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         public void Dispose()
         {

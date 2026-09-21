@@ -203,11 +203,11 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (_shapes.BatteryRuleFor(system, string.Empty, extension) is not { } rule)
+                if (_shapes.BatteryRuleFor(system, string.Empty, name) is not { } rule)
                 {
-                    // No emulator, because no rule says whose it is: measured on nes, a loose .sav
-                    // was mesen standalone's and another mednafen's, and libretro's rule does not
-                    // claim .sav there (#152).
+                    // No emulator, because no rule says whose it is. A loose .sav is mesen
+                    // standalone's or mednafen's on nes, where each has a rule, and nobody's
+                    // anywhere else; libretro's rule does not claim .sav (#152).
                     report.Add(
                         system,
                         string.Empty,
@@ -317,7 +317,7 @@ public sealed class SaveScanner
         var path = _install.Relativize(file);
         var info = new FileInfo(file);
         var extension = Path.GetExtension(file);
-        var stem = Path.GetFileNameWithoutExtension(file);
+        var stem = rule.RomStemOf(Path.GetFileName(file));
 
         // The class the file is, not the class the system is: megacd is declared BD, and a
         // per-game .brm there is class B while the shared cart is D and never reaches here.
@@ -421,7 +421,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (!rule.Carries(extension))
+                if (!rule.Claims(Path.GetFileName(file)))
                 {
                     continue;
                 }
@@ -874,7 +874,7 @@ public sealed class SaveScanner
 
             if (count > 0)
             {
-                (DeclaresStates(directory) ? declared : undeclared).Add((directory, count));
+                (DeclaresStates(system, directory) ? declared : undeclared).Add((directory, count));
             }
         }
 
@@ -995,7 +995,7 @@ public sealed class SaveScanner
     /// row there, which is what this reported before the split.
     /// </para>
     /// </remarks>
-    private bool DeclaresStates(string directory)
+    private bool DeclaresStates(string system, string directory)
     {
         if (_states is null)
         {
@@ -1004,7 +1004,7 @@ public sealed class SaveScanner
 
         var name = Path.GetFileName(directory);
 
-        return _states.For(DeclaredNames.GetValueOrDefault(name, name)) is not null;
+        return _states.For(DeclaredNames.GetValueOrDefault(name, name))?.AppliesTo(system) == true;
     }
 
     /// <summary>

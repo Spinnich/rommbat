@@ -396,22 +396,44 @@ public class SaveDiscoveryTests
     [Fact]
     public void A_loose_file_of_no_known_shape_names_itself_and_no_emulator()
     {
-        // #152, the measured case. Two loose .sav files on nes were mesen standalone's and
-        // mednafen's, and the report grouped them under nes/libretro, a directory that does not
-        // exist, with a count and no names.
+        // #152. Two loose .sav files on nes were grouped under nes/libretro, a directory that
+        // does not exist, with a count and no names. nes has rules for them now, so the case is
+        // a system that has none.
         using var fixture = SaveTree.Create();
 
-        fixture.AddSave("nes", "Crystalis (USA).sav", "mesen standalone");
-        fixture.AddSave("nes", "Final Fantasy (USA).24ae5edf.sav", "mednafen");
+        fixture.AddSave("snes", "Crystalis (USA).sav", "nobody's");
+        fixture.AddSave("snes", "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav", "nobody's either");
 
         fixture.Scan();
 
-        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
         Assert.Equal(UnsyncableReason.UnknownShape, row.Reason);
         Assert.Equal(string.Empty, row.Emulator);
         Assert.Equal(2, row.FileCount);
-        Assert.Contains("saves/nes/Crystalis (USA).sav", row.Detail, StringComparison.Ordinal);
-        Assert.Contains("saves/nes/Final Fantasy (USA).24ae5edf.sav", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/snes/Crystalis (USA).sav", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/snes/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav", row.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
+    {
+        // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(158320, "nes", "Crystalis (USA).zip");
+        fixture.AddRom(158331, "nes", "Final Fantasy (USA).zip");
+        fixture.AddSave("nes", "Crystalis (USA).sav", "mesen standalone");
+        fixture.AddSave("nes", "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav", "mednafen");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(2, outcome.Attributed);
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.RomId!.Value);
+        Assert.Equal("mesen:battery", saves[158320].Slot);
+        Assert.Equal("mednafen:battery", saves[158331].Slot);
+        Assert.Equal("saves/nes/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav", saves[158331].Path.Value);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
     }
 
     [Fact]
@@ -484,17 +506,17 @@ public class SaveDiscoveryTests
         // wrote a real save state into a directory it names itself, which StateScanner never
         // reads. One row covered both halves and told the reader "this release syncs the save
         // states beside them", so the states were counted as unsyncable under a sentence
-        // promising they were synced.
+        // promising they were synced. The bundled supplement declares all three on nes, where
+        // they were measured, so the split is exercised on a system it does not reach.
         using var fixture = SaveTree.Create();
 
-        fixture.AddSave("nes", "jgenesis/nes/Wizardry (USA).sav", "a battery save this release defers");
-        fixture.AddSave("nes", "mednafen/sstates/Final Fantasy (USA).24ae5edf.mc0", "a state nothing reads");
-        fixture.AddSave("nes", "mesen/SaveStates/Crystalis (USA)_1.mss", "another");
-        fixture.AddSave("nes", "ares/Famicom/Dragon Warrior IV (USA).bs1", "and another");
+        fixture.AddSave("snes", "jgenesis/snes/Super Metroid (USA).sav", "a battery save no rule covers here");
+        fixture.AddSave("snes", "mednafen/sstates/Super Metroid (USA).0123456789abcdef0123456789abcdef.mc0", "a state nothing reads");
+        fixture.AddSave("snes", "mesen/SaveStates/Super Metroid (USA)_1.mss", "another");
 
         fixture.ScanWithStateSchema();
 
-        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "nes").ToList();
+        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "snes").ToList();
         Assert.Equal(2, rows.Count);
 
         // jgenesis is declared, so the clause about the save states beside them holds for it.
@@ -504,16 +526,55 @@ public class SaveDiscoveryTests
         Assert.Contains("the save states beside them", declared.Detail, StringComparison.Ordinal);
 
         var undeclared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.NoStateDeclaration);
-        Assert.Equal(3, undeclared.FileCount);
-        Assert.StartsWith("ares, mednafen, mesen hold", undeclared.Detail, StringComparison.Ordinal);
+        Assert.Equal(2, undeclared.FileCount);
+        Assert.StartsWith("mednafen, mesen hold", undeclared.Detail, StringComparison.Ordinal);
 
         // The claim the old row made, and the one this row must not repeat.
         Assert.DoesNotContain("the save states beside them", undeclared.Detail, StringComparison.Ordinal);
         Assert.Contains("not restorable", undeclared.Detail, StringComparison.Ordinal);
+    }
 
-        // Every file lands in exactly one row, because ares/Famicom holds a battery save and a
-        // state and counting it twice would say one file is unsyncable for two reasons.
-        Assert.Equal(4, rows.Sum(entry => entry.FileCount));
+    [Fact]
+    public void On_nes_every_emulator_tree_is_carried_by_a_rule_or_the_supplement()
+    {
+        // The four trees #150 and the nes pass left unsyncable, as they sit on the measured
+        // install. ares/Famicom holds a battery save and a state side by side.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("nes", "jgenesis/nes/Wizardry (USA).sav", "jgenesis battery");
+        fixture.AddSave("nes", "mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0", "mednafen state");
+        fixture.AddSave("nes", "mesen/SaveStates/Crystalis (USA)_1.mss", "mesen state");
+        fixture.AddSave("nes", "ares/Famicom/Dragon Warrior IV (USA).bs1", "ares state");
+        fixture.AddSave("nes", "ares/Famicom/Dragon Warrior IV (USA).ram", "ares battery");
+
+        fixture.ScanWithStateSchema();
+
+        // Matching no ROM in this tree is the only thing left to say about any of them.
+        Assert.All(
+            fixture.Store.Unsyncable.List().Where(entry => entry.System == "nes"),
+            entry => Assert.Equal(UnsyncableReason.Unattributed, entry.Reason));
+    }
+
+    [Fact]
+    public void A_jgenesis_battery_save_is_found_in_its_own_directory_and_tied_to_its_rom()
+    {
+        // Measured on nes under jgenesis, 8.2.1: the save sits two levels down, beside nothing
+        // but other saves, and is named after the ROM file.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(158972, "nes", "Wizardry - Proving Grounds of the Mad Overlord (USA).zip");
+        fixture.AddSave("nes", "jgenesis/nes/Wizardry - Proving Grounds of the Mad Overlord (USA).sav", "battery bytes");
+
+        var outcome = fixture.ScanWithStateSchema();
+
+        Assert.Equal(1, outcome.Attributed);
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("saves/nes/jgenesis/nes/Wizardry - Proving Grounds of the Mad Overlord (USA).sav", save.Path.Value);
+        Assert.Equal(158972, save.RomId);
+        Assert.Equal(SaveShapeClass.A, save.ShapeClass);
+        Assert.Equal("jgenesis:battery", save.Slot);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
     }
 
     [Fact]
@@ -791,7 +852,7 @@ public class SaveDiscoveryTests
 
         /// <summary>Scans against RetroBat's shipped state schema rather than none at all.</summary>
         public SaveScanOutcome ScanWithStateSchema() =>
-            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStates()).Scan();
+            new SaveScanner(Install, Store, states: Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         public void Dispose()
         {

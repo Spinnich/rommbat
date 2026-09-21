@@ -378,7 +378,7 @@ public sealed class InFlightGuard
         var directory = string.Join('/', segments[2..^1]);
 
         return _shapes
-            .BatteryRuleFor(system, directory, Path.GetExtension(segments[^1])) is { NamedAfter: BatteryNaming.DisplayName } rule
+            .BatteryRuleFor(system, directory, segments[^1]) is { NamedAfter: BatteryNaming.DisplayName } rule
             ? rule.Emulator
             : null;
     }
