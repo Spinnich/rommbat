@@ -103,7 +103,7 @@ the one with all the interesting invariants.
 | Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                |
 | Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                            |
 | Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                             |
-| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema), `es_features.cfg` (per-game options), `system/version.info` (version)                                                                                      |
+| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema, with a bundled supplement beneath it), `es_features.cfg` (per-game options), `system/version.info` (version)                                                |
 | RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                        |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                     |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                            |
@@ -454,12 +454,14 @@ a drift by updating the expected number.
 
 **`data/retrobat/`** holds tables RomMBat actually ships and reads at runtime:
 
-| File                    | Shape                                                | Derived from                                                                            |
-| ----------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `platforms.json`        | RomM slug to an **ordered list** of RetroBat folders | `systems_names.lst`, each folder resolved by RomM's `backend/utils/platform_aliases.py` |
-| `save_directories.json` | **RetroBat system** to emulator save subdirectories  | M0 experiment 2, in Grout's shape                                                       |
-| `save_shapes.json`      | RetroBat system to save class A/B/C/D                | M0 experiment 2                                                                         |
-| `bios.json`             | RetroBat system to the firmware it requires          | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                  |
+| File                           | Shape                                                                  | Derived from                                                                                  |
+| ------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                   | `systems_names.lst`, each folder resolved by RomM's `backend/utils/platform_aliases.py`       |
+| `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | M0 experiment 2, in Grout's shape                                                             |
+| `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | M0 experiment 2                                                                               |
+| `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
+| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` row at a time                                             |
+| `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
@@ -748,7 +750,10 @@ took 426 s where the scoped subtree took 0.06 s.
 the stem joins on. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
 two rules could claim one file or one emulator has two rules on a system. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside
-libretro's own `.srm` (#152). Most rules join on the ROM file; BizHawk's joins on **its own
+libretro's own `.srm` (#152). Most rules join on the ROM file; mednafen's on `nes` joins on the ROM
+file **and the md5 of its content less the iNES header**, which it appends only when the plain
+name is free, so a plain `<rom>.sav` there is shared with mesen standalone and a restore refuses to
+write a hashed one it would shadow. BizHawk's joins on **its own
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
@@ -849,6 +854,13 @@ not hardcode. Two things make it less easy than it looks, both measured:
   extension. Discovery reverses the `<file>` and `<directory>` templates rather than
   expanding a slot range, which is what makes the four documented traps in that file mostly
   stop being traps.
+- **Declaring no directory is not writing no state.** `mednafen`, `mesen` and `ares` have no
+  entry and each writes real states on `nes` into a tree it names itself (#150).
+  `StateScanner.LoadSchema` therefore reads the install's file with
+  `data/retrobat/es_savestates.supplement.xml` beneath it: the same format plus a `systems`
+  attribute limiting each entry to where it was measured, and a `{{romhash}}` token for mednafen's
+  content hash, which a restore carries from the uploaded name. An entry in the install's own file
+  always wins.
 
 Attribution for classes C and D is a real problem, because these saves are keyed by Game ID.
 Under `mame` the key is the ROM's own basename and the join is direct. Everywhere else three

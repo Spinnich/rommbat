@@ -3,28 +3,33 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**Three rows are certified: all three `libretro` cores. The other six are not.** All nine steps
-hold at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, with step 6 N/A because `nes` has no class
-D. `libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
+**All nine rows `nes` declares are certified.** All nine steps hold on each at the
+`5.3.0-beta.1` and RetroBat 8.2.1 floors, with step 6 N/A because `nes` has no class D.
+`libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
 re-driven on 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
-`fceumm` is **the row a stock install gives a user**, selected with no override. See
-"`libretro`/`fceumm` and `libretro`/`mesen`".
+`fceumm` is **the row a stock install gives a user**, selected with no override. The two `bizhawk`
+cores, `jgenesis`, `mesen` standalone, `mednafen` and `ares` followed later the same day, the last
+four on a build that first gave them battery rules and, for three of them, the state declarations
+`es_savestates.cfg` does not carry.
 
-**It certifies those three rows and nothing wider.** Not `nes`, and not `libretro` on any other
-system. The six other rows can't be certified on this build: none of them can sync the battery
-save it writes, and three have save states RomMBat can't see at all.
+**It certifies those nine rows and nothing wider.** Every `(emulator, core)` pair `nes` declares on
+RetroBat 8.2.1 is one of them, which is as close to "`nes` works" as this checklist lets a record
+come, and it is still one install at one pair of floors. It says nothing about any of these
+emulators on another system: every rule and declaration the last four needed is scoped to `nes`,
+because that is the only system they were measured on.
 
 **Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
 was driven on a state made after it, and the restored screenshot was checked by its bytes rather
 than by its arrival. Step 2 changed on the same day, from requiring an exclusion this library
 cannot offer to requiring that nothing be excluded. See "Re-driven at `5.3.0-beta.1`".
 
-**This file is in three parts.** The first is `libretro`/`nestopia` in full, which is the row the
-nine steps were first driven against. The second is the two other `libretro` rows, which carry
-steps 1, 2, 3 and 6 from it and drove the rest themselves. The third is the other eight rows as
+**This file is in five parts.** The first is `libretro`/`nestopia` in full, which is the row the
+nine steps were first driven against. The second is the two other `libretro` rows, the third the
+two `bizhawk` rows and the fourth `jgenesis`, `mesen`, `mednafen` and `ares`, each carrying steps 1,
+2, 3 and 6 from the first and driving the rest themselves. The fifth is the other eight rows as
 first driven, on steps 4 and 5 only, which is where the save and state shapes live and where six
-of the nine turn out to write something RomMBat does not sync. Read "The other eight rows" before trusting any sentence here
-about `nes` as a whole, because most of them are about `libretro`.
+of the nine turned out to write something RomMBat did not sync. All six have since been carried,
+the `bizhawk` pair by #151 and the other four by this file's fourth part.
 
 ## The row
 
@@ -867,6 +872,259 @@ verified`, `0 downloaded, 0 written`, `889 already present` and `all 1 unchanged
 
 The install was left on `libretro`/`nestopia` afterwards, which is where it was found.
 
+## `bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`
+
+**Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
+and server as above. The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
+`tools/publish.ps1 -Deploy R:\RetroBat`, so it carries #151's BizHawk battery saves. The
+maintainer played over RDP. The second state on each row was made from the agent's session on the
+RetroBat machine, which is described under step 5.
+
+|              | `bizhawk`/`NesHawk`                                                 | `bizhawk`/`quickerNES`                                                 |
+| ------------ | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Selected by  | `nes.emulator = bizhawk`, `nes.core = NesHawk` in `es_settings.cfg` | `nes.emulator = bizhawk`, `nes.core = quickerNES` in `es_settings.cfg` |
+| Confirmed by | `-emulator bizhawk -core NesHawk`, ran `EmuHawk.exe`                | `-emulator bizhawk -core quickerNES`, ran `EmuHawk.exe`                |
+| Game         | Destiny of an Emperor (USA), rom 158207, no pin                     | The Legend of Zelda (USA) (Rev 1), rom 158633, **its pin removed**     |
+| Save made by | The in-game "Record" command                                        | Registering a second name on the file-select screen                    |
+
+**Zelda carries a `bizhawk`/`NesHawk` pin in `gamelist.xml`**, left by "How each row was selected"
+below, and a pin overrides the system setting. It was removed for the `quickerNES` session with ES
+closed and put back afterwards. The install was left on `libretro`/`nestopia`, where it was found.
+
+**Destiny of an Emperor was picked because its BizHawk title is unique on this install.** BizHawk
+names a battery save after its own title for the game (finding 263), and a title two ROMs answer
+to is contested rather than synced (finding 262). Zelda's is unique too.
+
+### Checklist for both `bizhawk` rows
+
+Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive. Step 6 is N/A for the
+same reason.
+
+| #   | `bizhawk`/`NesHawk`                                                        | `bizhawk`/`quickerNES`                                                 |
+| --- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1   | **Pass**, carried: `fs_slug`, the same folder                              | **Pass**, carried                                                      |
+| 2   | **Pass**, carried: 228 of 228, nothing excluded. `.zip` observed to launch | **Pass**, carried. `.zip` observed to launch                           |
+| 3   | **Pass**, carried: RetroBat requires no BIOS for `nes`                     | **Pass**, carried                                                      |
+| 4   | **Pass, both directions.** `bizhawk:battery`, equal md5 up and down        | **Pass, both directions.** The file `NesHawk` wrote, read and extended |
+| 5   | **Pass**, two slots, screenshot inside the state. See below                | **Pass**, two slots, screenshot inside the state                       |
+| 6   | **N/A**, no class D                                                        | **N/A**                                                                |
+| 7   | **Pass.** Box art on screen                                                | **Pass.** Box art on screen                                            |
+| 8   | **Pass.** 17:19:29Z to 17:21:14Z, 1m 44s, rom 158207                       | **Pass.** 17:37:16Z to 17:38:02Z, 46s, rom 158633                      |
+| 9   | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical           | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical       |
+
+**A baseline was taken before either session**: `sync` a no-op with `gamelist.xml` unchanged, and
+`flush` with nothing queued.
+
+### 4. Battery save on both `bizhawk` rows
+
+|                       | `NesHawk`                                                  | `quickerNES`                                              |
+| --------------------- | ---------------------------------------------------------- | --------------------------------------------------------- |
+| On disk               | `saves/nes/bizhawk/Destiny of an Emperor.SaveRAM`, 8,192 B | `saves/nes/bizhawk/Legend of Zelda, The.SaveRAM`, 8,192 B |
+| Before the session    | absent                                                     | `d77ad9d3...`, holding `LINK` from `NesHawk`              |
+| Bound by              | the name sidecar beside the state                          | a launch covering when the save was written               |
+| Uploaded              | `bizhawk:battery`, by the `quit` pass                      | `bizhawk:battery`, by the `quit` pass                     |
+| At the restore        | `0b7af58a...`                                              | `2bce4ff7...`, holding `LINK` and `TEST`                  |
+| Moved aside, restored | `0b7af58a...`, **equal**                                   | `2bce4ff7...`, **equal**, both names intact               |
+
+**The two cores read each other's file**, which the "BizHawk battery saves, driven" pass left
+unmeasured. `quickerNES` showed `NesHawk`'s `LINK` on Zelda's file-select screen, and the name
+registered there went into the next file slot of the same `.SaveRAM`. Finding 271.
+
+**The hash at the restore is not the hash the session left**, and the difference is the game's.
+The second state on each row came from a later launch that sat on the title screen, and both
+games rewrote their save on that boot: Destiny changed 4 bytes at `0x400` to `0x403` with its
+saved game intact, and Zelda changed with both names intact. Each rewrite went up as a new
+`bizhawk:battery` version, which is right, since the bytes changed. Finding 272. The restore
+named the newest of 3 server saves on each row and listed the two it did not restore.
+
+A `flush` after each restore reported every restored file `in step` and sent nothing.
+
+### 5. State and screenshot on both `bizhawk` rows
+
+| Row          | Slot | Made by                                         | State md5     | Framebuffer md5 |
+| ------------ | ---- | ----------------------------------------------- | ------------- | --------------- |
+| `NesHawk`    | 0    | the maintainer, pad key, in a town dialogue     | `0dca16bb...` | `6e27d64b...`   |
+| `NesHawk`    | 2    | the agent's session, `Ctrl+F2`, the intro crawl | `ab6c3848...` | `bdeafc1e...`   |
+| `quickerNES` | 5    | the maintainer, pad key                         | `97aad3c2...` | `45c1fb40...`   |
+| `quickerNES` | 2    | the agent's session, `Ctrl+F2`, the title       | `b6fd46fb...` | `61c5052e...`   |
+
+**BizHawk writes no screenshot file, so the screenshot half of step 5 is the state's own bytes.**
+`es_savestates.cfg` declares `{{romfilename}}.QuickSave{{slot0}}.png`, and none of the four
+states has one, nor do the two older ones on this install. The frame is inside the `.State`, which is
+a zip holding `Framebuffer.bmp` beside the core state. So the step was checked by opening each
+state's framebuffer, confirming the two on each row show different screens, and requiring the
+restored state to match by md5, which carries the framebuffer with it. RomM holds no screenshot
+for a BizHawk state, and the restore preview says `no screenshot: the server links none to this
+state`, which is correct. Finding 268.
+
+**The declared `<directory>` is where both cores' states land, and it is a mirror.** EmuHawk
+writes `emulators/bizhawk/sstates/nes/<title>.<core>.QuickSave<n>.State`, and `emulatorLauncher`
+copies it to `saves/nes/bizhawk/sstates/<core>/<rom>.QuickSave<n>.State` in the same second, with
+a `.txt` sidecar holding `<title>.<core>`. The copy is `emulatorLauncher`'s, not EmuHawk's: a
+state made in an EmuHawk opened directly never reached `saves/`, and the next launch through the
+launcher removed it from the native directory. Finding 270. Each uploaded name carries its core,
+`[bizhawk.NesHawk]` and `[bizhawk.quickerNES]`.
+
+On each row both states and the `.SaveRAM` were moved out of the tree. The preview named both
+states at their own slots, `QuickSave0` and `QuickSave2` on `NesHawk`, `QuickSave5` and
+`QuickSave2` on `quickerNES`, and `--apply` answered `restored 1 save(s) and 2 state(s), failed
+0`, exit 0. **Every file came back at its own md5.** This is the first restore of a `bizhawk` state
+since finding 258 changed how a restore reads the slot out of an uploaded name, and the first on
+any emulator that keeps the slot in the stem.
+
+**The slot is ES's, the reverse of `libretro`.** The `quickerNES` launch carried `-state_slot 5`
+and `emulatorLauncher` set EmuHawk's current slot to 5, so the pad's save key wrote `QuickSave5`;
+the `NesHawk` launch carried none and the key wrote `QuickSave0`. The pad has no way to pick a slot
+in game. `Ctrl+F1` to `Ctrl+F10` on a keyboard save to a slot outright, and over RDP those did not
+reach EmuHawk, so the second state on each row was made from the agent's session on the RetroBat
+machine: `emulatorLauncher` started with the row's `-system`, `-emulator`, `-core` and `-rom`, and
+`Ctrl+F2` sent by `keybd_event` with hardware scan codes, since EmuHawk reads the keyboard through
+DirectInput and ignores `SendKeys`. Finding 269. Those two launches skip ES, so the hooks did not
+run, and a `flush` by hand sent each state.
+
+### 7. Launch on both `bizhawk` rows
+
+Box art confirmed on screen in the NES game list by the maintainer, for both games.
+
+### 8. Play session on both `bizhawk` rows
+
+From `status`:
+
+```text
+Playtime
+  server holds:    32 sessions for romm device cf1cc550-5203-4697-94b5-36757ac9a334
+  last session:    2026-09-21 17:19:29Z to 2026-09-21 17:21:14Z, 1m 44s
+  its rom:         158207
+```
+
+and after the `quickerNES` session, `34 sessions`, `17:37:16Z to 17:38:02Z, 46s`, rom 158633. The
+33rd is a second, short `NesHawk` session on Destiny in which the keyboard slot keys were tried
+over RDP. Every `start` and `quit` pass in `background.log` exited 0, and the battery save and the
+first state on each row went up through the `quit` pass before anything was run by hand.
+
+### 9. Re-sync on both `bizhawk` rows
+
+After the `NesHawk` restore, `sync` answered `nothing to do: all 228 games are already present and
+verified`, `0 downloaded, 0 written`, `889 already present`, `all 1 unchanged`, exit 0, with
+`gamelist.xml` md5'd either side and identical, and a flush after it sent nothing.
+
+**After `quickerNES` it answered 227 and 885, and the missing game is the one `NesHawk` was driven
+on.** Destiny of an Emperor (USA) left the set, `departed` at 17:32:32Z. It is not a RomMBat
+result. The set is smart collection 9, whose filter is the NES platform and favourite, and a
+probe set asking the server for favourites titled "Destiny of an Emperor" now answers only
+Destiny of an Emperor II. RomMBat made no write to the server between the `NesHawk` step-9 sync,
+which still resolved 228, and 17:32:32Z: one flush that sent nothing, then the restore's reads and
+downloads. Nothing in `RomM.Client` writes a collection either. Its one user-side write is
+`now_playing: false`, and `RomUserData` has no favourite field. The ROM had been a member since
+the set's first sync, 2026-09-12 18:03Z, origin `synced`, and the maintainer does not recall
+favouriting it. How it came to be a favourite, and why it stopped, is unexplained.
+
+**Step 9 still passes on `quickerNES`**, because the step is about the re-sync: `0 downloaded, 0
+written`, `all 1 unchanged`, `gamelist.xml` identical either side. The departed game kept its
+file, its media and its `gamelist.xml` entry, since `RemoveDeparted` drops only entries whose file
+has gone, and it is now an eviction candidate rather than a deletion.
+
+## `jgenesis`, `mesen`, `mednafen` and `ares`
+
+**All four certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same
+install and server as above. Until this pass none of them could be: `jgenesis` had no battery
+rule, and the other three had neither a battery rule nor a state declaration RomMBat could read
+(#150). The client was a deploy of this branch, built from the working tree that carries both, by
+`tools/publish.ps1 -Deploy`. The maintainer played over RDP, and the second state on each row was
+made from the agent's session on the RetroBat machine, as for `bizhawk`.
+
+|              | `jgenesis`                                              | `mesen` standalone                            | `mednafen`                                     | `ares`                                     |
+| ------------ | ------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| Selected by  | `nes.emulator = jgenesis`                               | `nes.emulator = mesen`                        | `nes.emulator = mednafen`                      | `nes.emulator = ares`                      |
+| Confirmed by | `-emulator jgenesis`, empty `-core`, `jgenesis-cli.exe` | `-emulator mesen`, empty `-core`, `Mesen.exe` | `-emulator mednafen -core nes`, `mednafen.exe` | `-emulator ares -core Famicom`, `ares.exe` |
+| Game         | The Legend of Zelda (USA) (Rev 1), 158633               | The Legend of Zelda (USA) (Rev 1), 158633     | Zelda II - The Adventure of Link (USA), 159313 | The Legend of Zelda (USA) (Rev 1), 158633  |
+| Save made by | Registering a name                                      | Registering a name                            | Registering a name                             | Registering a name                         |
+
+`nes.core = nestopia` stayed set throughout and none of the four took it: the launch line carried
+each emulator's own default core, or none. Zelda and Zelda II were unpinned in `gamelist.xml` for
+these sessions and pinned back afterwards, and the install was left on `libretro`/`nestopia`.
+
+**The first flush on each new build sent what had sat on this install since 2026-09-13**, written
+by the first pass through these rows and unsyncable until now: the `jgenesis` Wizardry save on the
+first, and the `mesen`, `mednafen` and `ares` saves and states on the second, four saves and three
+states in all, from "The other eight rows" below. After the second, the store held no unsyncable
+row for `nes` at all.
+
+### Checklist for the four
+
+Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive, and step 6 is N/A for the
+same reason. `.zip` was observed to launch on all four.
+
+| #   | `jgenesis`                          | `mesen` standalone                  | `mednafen`                                 | `ares`                              |
+| --- | ----------------------------------- | ----------------------------------- | ------------------------------------------ | ----------------------------------- |
+| 4   | **Pass, both directions**           | **Pass, both directions**           | **Pass, both directions**, the hashed name | **Pass, both directions**           |
+| 5   | **Pass**, two slots, no image       | **Pass**, two slots, no image       | **Pass**, two slots, no image              | **Pass**, two slots, no image       |
+| 7   | **Pass.** Box art on screen         | **Pass.** Box art on screen         | **Pass.** Box art on screen                | **Pass.** Box art on screen         |
+| 8   | **Pass.** 18:02:04Z, 2m 31s         | **Pass.** 18:25:40Z, 42s            | **Pass.** 18:33:45Z, 28s                   | **Pass.** 18:36:46Z, 1m 0s          |
+| 9   | **Pass.** No-op, gamelist unchanged | **Pass.** No-op, gamelist unchanged | **Pass.** No-op, gamelist unchanged        | **Pass.** No-op, gamelist unchanged |
+
+### 4. Battery save on the four
+
+| Row        | File                                                   | Slot               | Restored md5  | In it      |
+| ---------- | ------------------------------------------------------ | ------------------ | ------------- | ---------- |
+| `jgenesis` | `saves/nes/jgenesis/nes/<rom>.sav`                     | `jgenesis:battery` | `1ec1ae48...` | `LINK`     |
+| `mesen`    | `saves/nes/<rom>.sav`                                  | `mesen:battery`    | `47df383e...` | `LINK`     |
+| `mednafen` | `saves/nes/<rom>.88c0493fb1146834836c0ff4f3e06e45.sav` | `mednafen:battery` | `57430a0f...` | Zelda II's |
+| `ares`     | `saves/nes/ares/Famicom/<rom>.ram`                     | `ares:battery`     | `7169c0de...` | `LINK`     |
+
+Each went up through the detached `quit` pass, was moved out of the tree with both states, came
+back through `saves restore --apply` at its own md5, and a flush afterwards sent nothing.
+
+**mednafen's hash is of the ROM less its iNES header, measured on three ROMs**: Final Fantasy
+(`24ae5edf...`), Zelda (`d3f45393...`, on its state) and Zelda II (`88c0493f...`) each match the md5
+of the `.nes` inside the zip with its first 16 bytes left off. A restore onto a device that never
+held the file computes it from the ROM there. Finding 274.
+
+**mednafen puts the hash on only when the name without it is free.** Its own documentation says
+`%M` is "empty for first evaluation per full path construction", and the first Zelda session showed
+what that means: `Legend of Zelda, The (USA) (Rev 1).sav`, which `mesen` had written minutes
+earlier, loaded in mednafen with the name on it, and the name registered there went into the next
+file of the same `.sav`. So a plain `<rom>.sav` is one save that `mesen` and `mednafen` both read and
+write, uploaded as `mesen:battery` whichever wrote it last, and mednafen writes the hashed name only
+for a game with no plain one, which is why the row was driven on Zelda II. A restore refuses to
+write a `mednafen:battery` save where a plain `<rom>.sav` would shadow it, rather than leave a file
+mednafen never opens. Finding 273.
+
+### 5. States on the four
+
+| Row        | Directory                     | Slots made     | md5s                         |
+| ---------- | ----------------------------- | -------------- | ---------------------------- |
+| `jgenesis` | `saves/nes/jgenesis/states/`  | `_0`, `_1`     | `471160d0...`, `21b6805b...` |
+| `mesen`    | `saves/nes/mesen/SaveStates/` | `_1`, `_2`     | `6f147768...`, `d15c35fa...` |
+| `mednafen` | `saves/nes/mednafen/sstates/` | `.mc0`, `.mc1` | `05a6bb18...`, `48004de6...` |
+| `ares`     | `saves/nes/ares/Famicom/`     | `.bs1`, `.bs2` | `a48065c6...`, `59e46f2c...` |
+
+The first slot on each row is the maintainer's, from the pad, and the second the agent's, `F7`
+then `F2` through `emulatorLauncher`, which works on all four without a modifier. Every state came
+back at its own md5 under its own slot name, and the restore preview named each at the slot it was
+made in.
+
+**None of the four writes a screenshot.** `jgenesis` declares `{{romfilename}}_{{slot0}}.png` and
+wrote none in either session, and the supplement declares no `<image>` for the other three because
+none was ever seen. So step 5's screenshot half has nothing to carry on these rows, which the
+restore preview says in `no screenshot: the server links none to this state`.
+
+**ES's `-state_slot` decided nothing on any of the four**: launches carrying 6, 6, 3 and 6 wrote
+slots 0, 1, 0 and 1. `jgenesis` mirrors like BizHawk, from `emulators/jgenesis/states/nes/` into
+the declared directory, with a `.txt` sidecar; the other three write straight into their own tree
+under `saves/nes/`, which the supplement names. `ares` states are a fixed 21,719 B, so only the md5
+tells two apart. Finding 275.
+
+### 8 and 9 on the four
+
+`status` read each session back from the server, with the start above and the rom driven: 35
+sessions after `jgenesis`, 36 after `mesen`, 39 after `mednafen`, whose count includes the first
+Zelda session under it, and 40 after `ares`. The agent's own launches went through
+`emulatorLauncher` without ES, so they ran no hooks and recorded no session. Every `start` and `quit` pass in `background.log` exited 0.
+
+After each restore, `sync` answered `nothing to do: 227 games already present`, `0 downloaded, 0
+written`, `all 1 unchanged`, with `gamelist.xml` md5'd either side and identical.
+
 ## The other eight rows
 
 `nes` declares **nine** `(emulator, core)` rows, and the one above is one of them. All nine have
@@ -875,15 +1133,10 @@ launched from EmulationStation, with the emulator confirmed from `emulatorLaunch
 than from configuration.
 
 **This did not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
-carry across from the row above. Six of the nine cannot sync what they wrote. `libretro`/`fceumm`
-and `libretro`/`mesen` have since been certified on passes of their own, in the section above;
-what follows is the earlier pass and still describes the other six.
-
-**They stand further back than the `libretro` rows, and the gap is step 5.** All nine were driven
-before finding 258 was fixed. The three `libretro` rows have since been driven on states made
-after it, so the screenshot half is **passed on those three and untested on the other six**, not
-failing on all nine as this section said before the re-drive. What the other eight owe is
-below, under "What RomMBat does with them".
+carry across from the row above. Six of the nine could not sync what they wrote. All eight have
+since been certified on passes of their own, in the sections above, so what follows is the earlier
+pass, kept as it was measured; where a sentence below says a row cannot sync something, the
+sections above are what replaced it.
 
 ### How each row was selected
 
@@ -923,7 +1176,9 @@ uniform.
 | `bizhawk`/`quickerNES` | `saves/nes/bizhawk/<display name>.SaveRAM` | `saves/nes/bizhawk/sstates/quickerNES/<rom>.QuickSave0.State` |
 | `jgenesis`             | `saves/nes/jgenesis/nes/<rom>.sav`         | `saves/nes/jgenesis/states/<rom>_0.jst`                       |
 
-`<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`.
+`<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`, which is the
+`.nes` less its 16-byte iNES header, and mednafen adds it only when `<rom>.sav` does not already
+exist (findings 273 and 274).
 
 **The screenshot half of that column was recorded for the three `libretro` rows only, and the gap
 is not cosmetic here.** `es_savestates.cfg` declares an `<image>` for `bizhawk`
@@ -933,7 +1188,9 @@ declare no entry at all, so there is no `<image>` template to check them against
 wrote would be in their own tree, unread for the same reason their states are. Which rows write one
 decides how wide the remaining gap is, and it needs another hands-on pass. It is no longer _this
 platform's_ open gap, because the three `libretro` rows closed it on 2026-09-20 and 2026-09-21; it
-is what the other six rows owe.
+is what the other six rows owe. **Since measured on all six**: BizHawk writes the frame inside the
+state and no `.png` (finding 268), and `jgenesis`, `mesen`, `mednafen` and `ares` write no image at
+all (finding 275).
 
 **So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
 entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
@@ -947,23 +1204,30 @@ claim has been checked rather than repeated.
 under `nestopia`, then under `fceumm`, and the second session carried on from the first and
 rewrote the same 8,192 bytes. Across emulator families they are separate files in incompatible
 formats, so the same game under `mesen` standalone and under `libretro` holds two unrelated saves
-and neither sees the other.
+and neither sees the other. **`mesen` standalone and `mednafen` are the exception**, found later:
+mednafen reads a plain `<rom>.sav` whenever one exists, so the two share it (finding 273).
 
 ### What RomMBat does with them
 
-| Row                   | Battery save           | Save state          |
-| --------------------- | ---------------------- | ------------------- |
-| the three `libretro`  | synced, class A        | synced, core-scoped |
-| `bizhawk`, both cores | synced, driven         | synced, core-scoped |
-| `jgenesis`            | **deferred**           | synced              |
-| `ares`                | **deferred**           | **invisible**       |
-| `mednafen`            | **no shape claims it** | **invisible**       |
-| `mesen` standalone    | **no shape claims it** | **invisible**       |
+| Row                   | Battery save      | Save state          |
+| --------------------- | ----------------- | ------------------- |
+| the three `libretro`  | synced, class A   | synced, core-scoped |
+| `bizhawk`, both cores | synced, certified | synced, certified   |
+| `jgenesis`            | synced, certified | synced, certified   |
+| `ares`                | synced, certified | synced, certified   |
+| `mednafen`            | synced, certified | synced, certified   |
+| `mesen` standalone    | synced, certified | synced, certified   |
+
+**The table is as it stands now, and what follows is how it stood after the first pass**, when the
+last four rows read "deferred", "no shape claims it" and "invisible". Each of those is now carried
+by a battery rule in `save_rules.json`, and the three "invisible" states by the bundled
+`es_savestates.supplement.xml`.
 
 **"Synced" was upload only for `bizhawk` and `jgenesis`.** A restore could not place either
 row's state, because both keep the slot in the stem and the restore read it from the extension.
 The restore preview listed all three as "could not tell which slot it is". Fixed with finding 258,
-not driven since.
+and driven since on both `bizhawk` rows and on `jgenesis`, each restoring two slots to their own
+names.
 
 **Those two battery states are different things, and the distinction decides what to build next.**
 `UnsyncableReason` separates them where the report's wording does not:
@@ -985,7 +1249,9 @@ not driven since.
 was driven under `nestopia` and under `mesen` standalone. **#151 replaced the two globals** with a
 `battery_saves` table of one rule per `(system, emulator)`, and loading refuses a table in which
 two rules could claim one file, so `mesen` and `mednafen` each need a rule of their own and can no
-longer be carried by accident. Neither has one yet.
+longer be carried by accident. **Both have one since**, and the two share `.sav` at the loose
+level only because mednafen's rule names a content hash on the stem, which the loader allows for
+exactly one of a pair (finding 273).
 
 The battery column is a **reported** limitation and the right behaviour for this release. Nothing
 is dropped silently. The pass that drove these nine rows read one `saves` row covering all five
@@ -1009,7 +1275,8 @@ BizHawk's battery save), and `ares, mednafen, mesen` under a
 is found only where RetroBat mirrors it into a declared path, and is otherwise not scanned, not
 uploaded and not restorable". **Which is a correct message, not a fix.** The states are still
 invisible, and making them syncable needs a bundled supplement carrying directory, filename and
-slot per row. The reach past this platform is unchanged: 30 of wave 1's 81 rows are in that
+slot per row. **That supplement now exists for `nes`**, `data/retrobat/es_savestates.supplement.xml`,
+and all three rows' states sync and restore through it. The reach past this platform is unchanged: 30 of wave 1's 81 rows are in that
 family, and `docs/platforms/README.md` had been reading "declares no directory" as "writes no
 state".
 
@@ -1049,8 +1316,9 @@ device had already sent restored to the ROM's stem rather than the title (findin
 file was credited to whichever BizHawk session came last and contested (265), and BizHawk's
 `.SaveRAM.bak` was reported as an unknown shape (264).
 
-**Still unmeasured**: whether `NesHawk` and `quickerNES` read each other's `.SaveRAM`. Each game
-was driven on one core, and the two cores share the file and the `bizhawk:battery` slot.
+**Since measured**: `NesHawk` and `quickerNES` read each other's `.SaveRAM`. Zelda's file,
+registered under `NesHawk`, showed on the file-select screen under `quickerNES`, which wrote a
+second name beside it (finding 271, in "`bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`").
 
 ### The hooks carried the whole session
 
@@ -1216,17 +1484,20 @@ anyway, because the loop it would prevent is silent.
 
 ## What this file will not claim
 
-- **Only the three `libretro` rows are certified**, and only on this install at these two floors.
-  The other six are driven on steps 4 and 5 and none of them is certified: steps 1, 3, 7, 8 and 9
-  were carried to them rather than driven, none of them can sync the battery save it writes, and
-  three write save states RomMBat cannot see at all.
-- **Step 5 passed on the three `libretro` rows and on nothing else.** Each drove its own state
-  with its screenshot byte-checked. `bizhawk` and `jgenesis` states upload, but no restore of one
-  has been driven since finding 258 changed how a restore reads the slot.
+- **All nine rows are certified, and only on this install at these two floors.** None of the
+  rules or declarations the last four needed reaches past `nes`, so none of these emulators is
+  certified anywhere else, and each system they run on starts from nothing.
+- **Step 5's screenshot half was byte-checked where a screenshot exists**: as a `.png` for
+  `libretro` and inside the state for `bizhawk`. `jgenesis`, `mesen`, `mednafen` and `ares` write
+  none, so on those four the step is the state alone.
+- **Six passes made one state per row outside EmulationStation**, the two `bizhawk` rows and the
+  last four, through `emulatorLauncher` with the row's arguments, because the keyboard slot keys
+  did not cross RDP. The state is the emulator's and any mirror `emulatorLauncher`'s either way, but
+  the hooks did not run for those launches.
+- **A plain `<rom>.sav` is shared by `mesen` and `mednafen`** and goes up as `mesen:battery` even
+  when mednafen wrote it last. That is the file's owner by rule and not a claim about who played.
 - The conflict results are about RomMBat's handling of a divergence. Both sides were synthesized,
   so nothing here is evidence that a real two-device race produces one, or how often.
-- Six of the nine cannot sync what they wrote, so a save made on those rows exists only on the
-  device. Nothing here should be read as those rows working.
 - The class D download path is untested anywhere in the project and `nes` contains no class D.
 - Media coverage, once step 7 records it, is a dated observation about this RomM library and
   moves when an administrator rescrapes. It is never a platform result.

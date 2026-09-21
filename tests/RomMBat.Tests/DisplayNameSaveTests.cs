@@ -22,28 +22,61 @@ public class DisplayNameSaveTests
     private static readonly DateTimeOffset Now = new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void The_bundled_rules_give_each_file_one_owner_and_leave_a_loose_sav_unclaimed()
+    public void The_bundled_rules_give_each_file_one_owner()
     {
         var shapes = SaveShapes.Bundled;
 
-        Assert.Equal("libretro", shapes.BatteryRuleFor("nes", string.Empty, ".srm")?.Emulator);
-        Assert.Equal("libretro", shapes.BatteryRuleFor("saturn", string.Empty, ".BKR")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("nes", string.Empty, "Kirby's Adventure (USA) (Rev 1).srm")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("saturn", string.Empty, "Battle Garegga (Japan).BKR")?.Emulator);
 
-        var bizhawk = shapes.BatteryRuleFor("nes", "bizhawk", ".SaveRAM");
+        var bizhawk = shapes.BatteryRuleFor("nes", "bizhawk", "StarTropics.SaveRAM");
         Assert.NotNull(bizhawk);
         Assert.Equal(BatteryNaming.DisplayName, bizhawk.NamedAfter);
         Assert.Equal(SaveShapeClass.A, bizhawk.Class);
         Assert.Same(bizhawk, shapes.BatteryRuleForSlot("nes", "bizhawk:battery"));
 
         // Measured on nes only, so snes under bizhawk stays reported rather than guessed at.
-        Assert.Null(shapes.BatteryRuleFor("snes", "bizhawk", ".SaveRAM"));
+        Assert.Null(shapes.BatteryRuleFor("snes", "bizhawk", "Super Metroid.SaveRAM"));
 
-        // #152: mesen standalone's and mednafen's loose .sav are nobody's until their own rules
-        // exist, rather than libretro's by default.
-        Assert.Null(shapes.BatteryRuleFor("nes", string.Empty, ".sav"));
+        // #152, and the two names measured on nes: the hash on the stem is what makes a loose
+        // .sav mednafen's, and without one it is mesen standalone's. Never libretro's.
+        Assert.Equal("mesen", shapes.BatteryRuleFor("nes", string.Empty, "Crystalis (USA).sav")?.Emulator);
+        var mednafen = shapes.BatteryRuleFor("nes", string.Empty, "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav");
+        Assert.Equal("mednafen", mednafen?.Emulator);
+        Assert.Equal("Final Fantasy (USA)", mednafen!.RomStemOf("Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav"));
+        Assert.Null(shapes.BatteryRuleFor("snes", string.Empty, "Crystalis (USA).sav"));
 
-        // A loose save's destination needs no rule, so the slot lookup leaves libretro out.
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("nes", "jgenesis/nes", "Wizardry (USA).sav")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("nes", "ares/Famicom", "Dragon Warrior IV (USA).ram")?.Emulator);
+
+        // A loose save named after the ROM needs no rule to place it, so the slot lookup leaves
+        // libretro and mesen out; mednafen's needs the hash, so it stays in.
         Assert.Null(shapes.BatteryRuleForSlot("nes", "libretro:battery"));
+        Assert.Null(shapes.BatteryRuleForSlot("nes", "mesen:battery"));
+        Assert.Same(mednafen, shapes.BatteryRuleForSlot("nes", "mednafen:battery"));
+    }
+
+    [Fact]
+    public void A_content_hash_rule_may_share_an_extension_with_a_plain_one_but_not_with_another()
+    {
+        var shared = SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "mesen", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file" }""",
+                """{ "emulator": "mednafen", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file and content md5" }"""));
+
+        Assert.Equal("mednafen", shared.BatteryRuleFor("nes", string.Empty, "Game.0123456789abcdef0123456789abcdef.sav")?.Emulator);
+        Assert.Equal("mesen", shared.BatteryRuleFor("nes", string.Empty, "Game.sav")?.Emulator);
+
+        var error = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "mednafen", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file and content md5" }""",
+                """{ "emulator": "other", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file and content md5" }""")));
+
+        Assert.Contains("mednafen and other both claim .sav", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -310,7 +343,7 @@ public class DisplayNameSaveTests
         fixture.AddRom(15, "Dr. Mario (Japan, USA).zip");
         fixture.AddBizHawkState("Dr. Mario (Japan, USA)", "quickerNES", "Dr. Mario.quickerNES");
 
-        new StateScanner(fixture.Install, fixture.Store, Fixtures.LoadSaveStates()).Scan();
+        new StateScanner(fixture.Install, fixture.Store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         var attribution = fixture.Attributor().Attribute("nes", BizHawk, "Dr. Mario.SaveRAM", written: null);
 
@@ -411,7 +444,7 @@ public class DisplayNameSaveTests
         /// <summary>States first, as the flush orders them, so the sidecar route can see them.</summary>
         public SaveScanOutcome Scan()
         {
-            var states = Fixtures.LoadSaveStates();
+            var states = Fixtures.LoadSaveStatesAsLoaded();
             new StateScanner(Install, Store, states).Scan();
             return new SaveScanner(Install, Store, states: states).Scan();
         }

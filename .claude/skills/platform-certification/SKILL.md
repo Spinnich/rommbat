@@ -37,11 +37,13 @@ real games, and doing that through a terminal instead of the gamepad UI makes a 
 the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
 That launch certified nothing: it is one of nine points on one row.
 
-**Three rows are through, and the first is the model for the rest.** `nes` under
-`libretro`/`nestopia` on 2026-09-20, then `libretro`/`fceumm` and `libretro`/`mesen` on
-2026-09-21, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. The two
-later passes took under an hour between them, which is what a `libretro` row costs once steps 1,
-2 and 3 carry. Read
+**All nine `nes` rows are through, and the first is the model for the rest.** `nes` under
+`libretro`/`nestopia` on 2026-09-20, then the other two `libretro` cores, both `bizhawk` cores,
+`jgenesis`, `mesen`, `mednafen` and `ares` on 2026-09-21, at RomM `5.3.0-beta.1` and RetroBat
+8.2.1, all nine steps with step 6 N/A. The two later `libretro` passes took under an hour between
+them, which is what a row costs once steps 1, 2 and 3 carry. The last four needed code first: a
+battery rule each and, for three, a state declaration in RomMBat's bundled supplement, which is
+what a row outside `es_savestates.cfg` will need on every other system too. Read
 `docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
 step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
@@ -109,8 +111,7 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    so an older one stays unlinked. A null link on a fresh state is a new finding, not a
    recurrence of an old one.
 
-   **`nes` under its three `libretro` cores are the rows that have passed it**, and the method is
-   worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
+   **All nine `nes` rows have passed it**, and the method is worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
    run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
    bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
    not its name or its arrival**, because RomM can answer a libretro slot with another slot's
@@ -124,6 +125,17 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    directory, so `-state_slot <n>` on the `emulatorLauncher.log` line does not decide the suffix:
    `mesen` was launched with `-state_slot 5` and wrote slots 1 and 2 (finding 261). Read the slot
    from the `Saving state` lines in `es_launch_stdout.log`, or from the file on disk.
+
+   **Under `bizhawk` it is the other way round, and the screenshot is inside the state.** ES's
+   `-state_slot` becomes EmuHawk's current slot and the pad's save key always writes there, so a
+   second slot needs a keyboard: `Ctrl+F1` to `Ctrl+F10` save to a slot outright (finding 269).
+   Those keys do not cross RDP. From a session on the RetroBat machine, start `emulatorLauncher`
+   with the row's `-system`, `-emulator`, `-core` and `-rom` and send the key with `keybd_event`
+   and its hardware scan code, because EmuHawk reads DirectInput and ignores `SendKeys`. Never
+   start EmuHawk directly: `emulatorLauncher` does the mirror into `saves/`, and a state made
+   without it is removed at the next launch (finding 270). BizHawk writes no `.png` at all, whatever
+   `es_savestates.cfg` declares. The frame is `Framebuffer.bmp` inside the `.State` zip, so open it
+   to check the two slots differ, and an md5-equal restore of the state carries it (finding 268).
 
    **Check the game's `<emulator>` in `gamelist.xml` before driving a row on it.** A per-game pin
    overrides `<system>.emulator` and leaves no trace in `es_settings.cfg`, and on the `nes` install
@@ -221,8 +233,16 @@ certified on the other eight steps. Driving all nine `nes` rows showed otherwise
 `mesen` and `ares` each wrote a real save state into a directory they name themselves, invisible
 to `StateScanner` because it works from `es_savestates.cfg` alone. **Declaring no directory is not
 writing no state.** Look in the emulator's own tree under `saves/<system>/` before recording step 5
-for one of these rows, and record what you found there rather than what the file declares. Issue
-#150 tracks the scanner half.
+for one of these rows, and record what you found there rather than what the file declares. On
+`nes` the three are carried by `data/retrobat/es_savestates.supplement.xml`, one entry each scoped
+to `nes`; a row in this family on another system needs its own entry from its own pass, plus a
+battery rule, before it can pass steps 4 and 5.
+
+**Find each emulator's slot keys before sitting down.** The pad's save key saves to the current
+slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `jgenesis`, `mesen`,
+`mednafen` and `ares` all step the slot on `F7` and save on `F2` with no modifier, which the agent
+can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
+`es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`).
 
 The libretro family is the one that most needs driving rather than assumed: finding 134 measured
 two cores writing an identical `state1` filename, which survived as two server rows only because

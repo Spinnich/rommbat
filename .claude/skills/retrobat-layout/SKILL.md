@@ -133,10 +133,19 @@ with **no entry at all** still writes save states, into a directory it names its
 | `mesen`    | no entry            | `saves/nes/mesen/SaveStates/*_1.mss` |
 | `ares`     | no entry            | `saves/nes/ares/<profile>/*.bs1`     |
 
-`StateScanner` finds states only from `es_savestates.cfg`, so these are invisible to state sync:
+`StateScanner` reads states only through a declaration, so these were invisible to state sync:
 not scanned, not uploaded, not restorable. **Never read "declares no state directory" as "this row
 has no states"**, which is the reading `docs/platforms/README.md` was built on for 30 of wave 1's
 81 rows. Issue #150.
+
+**On `nes` all three are declared now, by RomMBat rather than by RetroBat.**
+`data/retrobat/es_savestates.supplement.xml` is `es_savestates.cfg`'s own format plus a `systems`
+attribute, and `StateScanner.LoadSchema` reads the install's file with it beneath: an entry the
+install declares always wins, and a supplement entry answers only for the systems it names, so
+`saves/snes/mesen/` stays undeclared. mednafen's entry uses `{{romhash}}`, RomMBat's own token for
+the 32-hex md5 it puts in the name (finding 274). **Add a row to the supplement only from a hands-on
+pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/`, named after
+its own system, so nothing about one system's layout carries to the next.
 
 They are not silent, though, and the difference matters to whoever fixes it. `SaveScanner.CountFiles`
 excludes only the directories `es_savestates.cfg` declares, so an undeclared state directory is
@@ -188,7 +197,8 @@ state written there is loaded. A manual save mirrors live; an autosave state app
 exit. `libretro` needs no mirroring, since RetroArch is pointed at the declared path directly
 via `savestate_directory`. Nor does it take its slot from `-state_slot`: with
 `savestate_auto_index` on, RetroArch continues from the highest slot already in that directory
-(finding 261).
+(finding 261). `bizhawk` is the reverse: `emulatorLauncher` writes `-state_slot` into EmuHawk's
+`config.ini` as `SaveSlot`, and the pad's save key writes to that slot (finding 269).
 
 Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
 unconditionally, and it belongs with the state. **Its contents vary by emulator and one of them

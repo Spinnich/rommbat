@@ -1,6 +1,7 @@
 using System.Collections.Frozen;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace RomMBat.Core.RetroBat;
 
@@ -36,6 +37,15 @@ public enum BatteryNaming
     /// <c>Phantasy Star (B).SaveRAM</c>, so no rule over the ROM name recovers it.
     /// </summary>
     DisplayName,
+
+    /// <summary>
+    /// The ROM file's stem, a dot, and the md5 of the ROM's content. mednafen is the measured
+    /// case: <c>Final Fantasy (USA).zip</c> wrote
+    /// <c>Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav</c>, where the hash is of the
+    /// <c>.nes</c> inside with its 16-byte iNES header left off. The stem joins once the hash is
+    /// dropped, and a restore has to compute the hash from the ROM to name the file.
+    /// </summary>
+    RomFileAndContentMd5,
 }
 
 /// <summary>Which files in one directory are one emulator's battery saves.</summary>
@@ -55,7 +65,7 @@ public enum BatteryNaming
 /// leaves <c>StarTropics.SaveRAM.bak</c>, its copy of the save a new one replaced, and counting
 /// it told a reader the directory held a shape nothing covers.
 /// </param>
-public sealed record BatteryRule(
+public sealed partial record BatteryRule(
     string Emulator,
     string Directory,
     FrozenSet<string> Extensions,
@@ -68,9 +78,39 @@ public sealed record BatteryRule(
     /// <summary>True when the rule reads the files loose directly under the system folder.</summary>
     public bool IsLoose => Directory.Length == 0;
 
+    /// <summary>
+    /// True when a restore needs this rule to name the file, because the ROM's folder and stem
+    /// alone would put it somewhere else or call it something else.
+    /// </summary>
+    public bool NeedsRuleToPlace => !IsLoose || NamedAfter != BatteryNaming.RomFile;
+
     public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
 
     public bool Carries(string extension) => Extensions.Contains(extension.ToLowerInvariant());
+
+    /// <summary>True when a file of this name is one of this rule's saves.</summary>
+    /// <remarks>
+    /// The extension alone for every rule but one naming a content hash, which also needs the
+    /// hash on the end of the stem. That is what keeps mednafen's loose <c>.sav</c> apart from
+    /// mesen's on <c>nes</c>.
+    /// </remarks>
+    public bool Claims(string fileName) =>
+        Carries(Path.GetExtension(fileName))
+        && (NamedAfter != BatteryNaming.RomFileAndContentMd5
+            || ContentMd5Suffix().IsMatch(Path.GetFileNameWithoutExtension(fileName)));
+
+    /// <summary>The part of a save's stem that is the ROM file's stem.</summary>
+    public string RomStemOf(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+
+        return NamedAfter == BatteryNaming.RomFileAndContentMd5 && ContentMd5Suffix().IsMatch(stem)
+            ? stem[..^33]
+            : stem;
+    }
+
+    [GeneratedRegex(@"\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    private static partial Regex ContentMd5Suffix();
 
     /// <summary>
     /// True when a binding key is one of this rule's file names, which is how a display-name save
@@ -264,7 +304,7 @@ public sealed class SaveShapes
     /// A fallback in three places: a restored save whose row and server copy both name no
     /// emulator, a kept server copy with no previous row, and the emulator named on a
     /// shared-container report row. Which emulator wrote a file is <see cref="BatteryRuleFor"/>'s answer, keyed
-    /// on the system, the directory and the extension: a loose <c>.sav</c> on <c>nes</c> is
+    /// on the system, the directory and the file name: a loose <c>.sav</c> on <c>nes</c> is
     /// mesen standalone's or mednafen's, and taking this value for it would give it
     /// <c>libretro:battery</c> and collide with libretro's own <c>.srm</c> for the same ROM (#152).
     /// </remarks>
@@ -287,32 +327,39 @@ public sealed class SaveShapes
         _shapes.TryGetValue(system, out var shape) ? shape : null;
 
     /// <summary>
-    /// The rule that claims a file with this extension in this directory, or null when none does.
+    /// The rule that claims a file of this name in this directory, or null when none does.
     /// </summary>
     /// <param name="directory">Relative to <c>saves/&lt;system&gt;/</c>; empty for the loose level.</param>
     /// <remarks>
     /// <b>At most one can answer, and loading refuses a table where two could.</b> One extension
     /// list and one loose emulator for every system was the shape this replaced, and it is why a
     /// second emulator's loose save could not be carried: adding mesen's <c>.sav</c> to the list
-    /// would have given it libretro's slot (#152).
+    /// would have given it libretro's slot (#152). The one sharing it allows is a content-hash rule
+    /// beside a plain one, and the hash rule is asked first because its names are the narrower set:
+    /// <c>Final Fantasy (USA).24ae5edf....sav</c> is mednafen's and <c>Crystalis (USA).sav</c> is
+    /// mesen's.
     /// </remarks>
-    public BatteryRule? BatteryRuleFor(string system, string directory, string extension) =>
-        _batteryRules.FirstOrDefault(rule =>
-            rule.AppliesTo(system)
-            && string.Equals(rule.Directory, directory, StringComparison.OrdinalIgnoreCase)
-            && rule.Carries(extension));
+    public BatteryRule? BatteryRuleFor(string system, string directory, string fileName) =>
+        _batteryRules
+            .Where(rule =>
+                rule.AppliesTo(system)
+                && string.Equals(rule.Directory, directory, StringComparison.OrdinalIgnoreCase)
+                && rule.Claims(fileName))
+            .OrderBy(rule => rule.NamedAfter == BatteryNaming.RomFileAndContentMd5 ? 0 : 1)
+            .FirstOrDefault();
 
     /// <summary>The rules for an emulator's own subdirectory under a system, in table order.</summary>
     public IEnumerable<BatteryRule> BatteryRulesBelow(string system) =>
         _batteryRules.Where(rule => !rule.IsLoose && rule.AppliesTo(system));
 
-    /// <summary>The subdirectory rule whose saves go up under this slot, or null.</summary>
+    /// <summary>The rule a restore needs to name a save going up under this slot, or null.</summary>
     /// <remarks>
-    /// Loose rules are left out, because a loose save's destination is the ROM's own folder and
-    /// stem and needs no rule to find it.
+    /// A loose rule named after the ROM file is left out, because that save's destination is the
+    /// ROM's own folder and stem and needs no rule to find it. A loose rule that names the file
+    /// some other way is not.
     /// </remarks>
     public BatteryRule? BatteryRuleForSlot(string system, string? slot) =>
-        BatteryRulesBelow(system).FirstOrDefault(rule => rule.OwnsSlot(slot));
+        _batteryRules.FirstOrDefault(rule => rule.NeedsRuleToPlace && rule.AppliesTo(system) && rule.OwnsSlot(slot));
 
     /// <summary>
     /// True when the file is something RetroBat or RetroArch writes that is not a save.
@@ -443,8 +490,15 @@ public sealed class SaveShapes
                             + $"so both would upload under {first.Emulator}:battery.");
                 }
 
+                // Exactly one of the pair naming a content hash is what keeps a file to one owner
+                // when both claim the extension: the hash on the stem decides, and a stem either
+                // ends in one or does not. Two such rules, or none, leave nothing to decide by.
+                var oneHashed = (first.NamedAfter == BatteryNaming.RomFileAndContentMd5)
+                    != (second.NamedAfter == BatteryNaming.RomFileAndContentMd5);
+
                 if (string.Equals(first.Directory, second.Directory, StringComparison.OrdinalIgnoreCase)
-                    && first.Extensions.Overlaps(second.Extensions))
+                    && first.Extensions.Overlaps(second.Extensions)
+                    && !oneHashed)
                 {
                     throw new InvalidOperationException(
                         $"save_rules.json lets {first.Emulator} and {second.Emulator} both claim "
@@ -461,6 +515,7 @@ public sealed class SaveShapes
     {
         "rom file" => BatteryNaming.RomFile,
         "display name" => BatteryNaming.DisplayName,
+        "rom file and content md5" => BatteryNaming.RomFileAndContentMd5,
         _ => throw new InvalidOperationException(
             $"save_rules.json names a battery save after '{value}', which this build cannot join."),
     };

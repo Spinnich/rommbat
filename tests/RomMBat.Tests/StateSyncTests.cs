@@ -619,6 +619,70 @@ public class StateSyncTests
         Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
     }
 
+    [Theory]
+    [InlineData("Final Fantasy (USA).zip", "nes/mednafen/sstates", "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0", "mednafen::0")]
+    [InlineData("Crystalis (USA).zip", "nes/mesen/SaveStates", "Crystalis (USA)_1.mss", "mesen::1")]
+    [InlineData("Dragon Warrior IV (USA).zip", "nes/ares/Famicom", "Dragon Warrior IV (USA).bs1", "ares::1")]
+    public async Task A_state_only_the_supplement_declares_uploads_and_restores_under_its_own_slot(
+        string rom,
+        string directory,
+        string stateName,
+        string slotKey)
+    {
+        // #150. The three wrote these on nes and es_savestates.cfg names none of them, so without
+        // the bundled supplement nothing scanned them.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nes", rom);
+        fixture.AddState(directory, stateName, "progress");
+        fixture.Scan();
+
+        var pushed = await fixture.PushAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, pushed.Uploaded);
+
+        var state = fixture.Install.Resolve(RelativePath.Create($"saves/{directory}/{stateName}"));
+        File.Delete(state);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(found.Value!.Unrestorable);
+        var candidate = Assert.Single(found.Value.Restorable);
+        Assert.Equal($"saves/{directory}/{stateName}", candidate.Destination.Value);
+        Assert.Equal(slotKey, candidate.SlotKey);
+
+        var restored = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, restored.Restored);
+        Assert.Equal("progress", File.ReadAllText(state));
+
+        fixture.Scan();
+        Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+    }
+
+    [Fact]
+    public async Task A_mednafen_state_sent_from_a_rom_named_differently_elsewhere_keeps_its_hash()
+    {
+        // The hash is of the ROM's content, so it holds on every device with the same ROM while
+        // the stem is this device's.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "nes", "Final Fantasy (USA).zip");
+        fixture.Stub.States[701] = new StubRomMServer.StubState
+        {
+            Id = 701,
+            RomId = 42,
+            Emulator = "mednafen",
+            FileName = "Final Fantasy (U) [!].24ae5edf8375162f91a6846d3202e3d6 [mednafen].mc3",
+            Bytes = "progress"u8.ToArray(),
+        };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/nes/mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc3",
+            candidate.Destination.Value);
+        Assert.Equal("mednafen::3", candidate.SlotKey);
+    }
+
     [Fact]
     public async Task A_state_sent_from_a_rom_named_differently_elsewhere_keeps_its_slot_and_takes_the_local_name()
     {
@@ -948,7 +1012,7 @@ public class StateSyncTests
         }
 
         public StateScanOutcome Scan() =>
-            new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
+            new StateScanner(Install, Store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         public Task<StateSyncOutcome> PushAsync(CancellationToken cancellationToken = default) =>
             new StateSync(Install, Store, _connection).RunAsync(cancellationToken);

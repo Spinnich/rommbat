@@ -773,6 +773,131 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_jgenesis_save_downloads_into_its_own_directory_under_the_roms_stem()
+    {
+        // jgenesis reads jgenesis/nes/<rom>.sav, so the loose saves/nes/<rom>.sav a stem alone
+        // derives is a file it never opens.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(14, "nes", "Wizardry (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/Wizardry (USA).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(14, "jgenesis:battery", "Wizardry (USA)", "sav", "from the other device", emulator: "jgenesis");
+        fixture.Stub.UnsolicitedDownloads.Add((14, "jgenesis:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve("saves/nes/jgenesis/nes/Wizardry (USA).sav")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/Wizardry (USA).sav")));
+
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("jgenesis:battery", save.Slot);
+        Assert.Equal(14, save.RomId);
+    }
+
+    [Fact]
+    public async Task A_mesen_save_downloads_loose_under_the_roms_stem_beside_libretros()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(15, "nes", "Crystalis (USA)", ".zip", ".srm", "libretro's own");
+        fixture.Scan();
+
+        fixture.SeedServerSave(15, "mesen:battery", "Crystalis (USA)", "sav", "from the other device", emulator: "mesen");
+        fixture.Stub.UnsolicitedDownloads.Add((15, "mesen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve("saves/nes/Crystalis (USA).sav")));
+        Assert.Equal("libretro's own", File.ReadAllText(fixture.Resolve("saves/nes/Crystalis (USA).srm")));
+    }
+
+    [Fact]
+    public async Task A_mednafen_save_downloads_under_the_hash_of_the_rom_this_device_holds()
+    {
+        // mednafen looks for <rom>.<md5 of the .nes less its header>.sav, and a device that has
+        // never run the game has no file to copy that name from, so the ROM supplies it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/Final Fantasy (USA).srm"));
+        var body = "prg and chr"u8.ToArray();
+        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", body);
+        fixture.Scan();
+
+        fixture.SeedServerSave(16, "mednafen:battery", "Final Fantasy (USA)", "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((16, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve($"saves/nes/Final Fantasy (USA).{hash}.sav")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/Final Fantasy (USA).sav")));
+
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("mednafen:battery", save.Slot);
+        Assert.Equal(16, save.RomId);
+    }
+
+    [Fact]
+    public async Task A_mednafen_save_for_a_rom_that_cannot_be_hashed_is_refused_rather_than_misnamed()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/Final Fantasy (USA).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(16, "mednafen:battery", "Final Fantasy (USA)", "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((16, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Empty(Directory.EnumerateFiles(fixture.Resolve("saves/nes"), "*.sav"));
+    }
+
+    [Fact]
+    public async Task A_mednafen_save_is_not_written_where_an_unhashed_save_would_shadow_it()
+    {
+        // mednafen's %M is empty on the first try: with <rom>.sav present it reads that, measured
+        // on nes when Zelda under mednafen loaded the save mesen standalone had just written. A
+        // hashed file written beside it is one mednafen never opens.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(16, "nes", "Final Fantasy (USA)", ".zip", ".sav", "mesen's, which mednafen reads");
+        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", "prg and chr"u8.ToArray());
+        fixture.Scan();
+
+        fixture.SeedServerSave(16, "mednafen:battery", "Final Fantasy (USA)", "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((16, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("never open this one", StringComparison.Ordinal));
+        Assert.Equal("mesen's, which mednafen reads", File.ReadAllText(fixture.Resolve("saves/nes/Final Fantasy (USA).sav")));
+        Assert.Single(Directory.EnumerateFiles(fixture.Resolve("saves/nes"), "*.sav"));
+    }
+
+    private static void WriteNesZip(string path, string entryName, byte[] body)
+    {
+        File.Delete(path);
+        using var archive = System.IO.Compression.ZipFile.Open(path, System.IO.Compression.ZipArchiveMode.Create);
+        using var stream = archive.CreateEntry(entryName).Open();
+        stream.Write("NES"u8);
+        stream.Write(new byte[12]);
+        stream.Write(body);
+    }
+
+    [Fact]
     public async Task A_bizhawk_save_this_device_uploaded_restores_under_its_title_not_the_roms_stem()
     {
         // Caught on a real install, not by the test above: once this device has sent the slot,
@@ -2547,7 +2672,7 @@ public class SaveSyncTests
         }
 
         public StateScanOutcome ScanStates() =>
-            new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();
+            new StateScanner(Install, Store, Fixtures.LoadSaveStatesAsLoaded()).Scan();
 
         public CorrelationOutcome Correlate() => new PlaytimeCorrelator(Install, Store).Correlate();
 

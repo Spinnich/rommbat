@@ -38,6 +38,7 @@
     <EmbeddedResource Include="..\..\data\retrobat\bios.json" Link="data\retrobat\bios.json" />
     <EmbeddedResource Include="..\..\data\retrobat\save_shapes.json" Link="data\retrobat\save_shapes.json" />
     <EmbeddedResource Include="..\..\data\retrobat\save_rules.json" Link="data\retrobat\save_rules.json" />
+    <EmbeddedResource Include="..\..\data\retrobat\es_savestates.supplement.xml" Link="data\retrobat\es_savestates.supplement.xml" />
   </ItemGroup>
 
   <!--

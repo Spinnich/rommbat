@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!--
+  Save-state entries for emulators es_savestates.cfg does not declare, read beneath the install's
+  own file: an entry it declares for the same emulator wins. The format is es_savestates.cfg's,
+  plus a systems attribute naming where each entry was measured, and an evidence element.
+
+  {{romhash}} is RomMBat's, not RetroBat's: 32 lower-case hex digits, carried from the name a
+  state was uploaded under onto the ROM's stem when it is restored.
+
+  No slot bounds are declared. What was observed is recorded in the evidence, and a bound nobody
+  measured would report real states as outside it.
+-->
+<savestates>
+  <emulator name="mednafen" systems="nes">
+    <directory>{{system}}/mednafen/sstates</directory>
+    <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
+    <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
+  </emulator>
+  <emulator name="mesen" systems="nes">
+    <directory>{{system}}/mesen/SaveStates</directory>
+    <file>{{romfilename}}_{{slot}}.mss</file>
+    <evidence>nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote mesen/SaveStates/Crystalis (USA)_1.mss, 9,257 B (#150)</evidence>
+  </emulator>
+  <emulator name="ares" systems="nes">
+    <directory>{{system}}/ares/Famicom</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>nes under ares, core Famicom, on 8.2.1: Dragon Warrior IV (USA).zip wrote ares/Famicom/Dragon Warrior IV (USA).bs1, 21,719 B, beside its battery save .ram (#150)</evidence>
+  </emulator>
+</savestates>
