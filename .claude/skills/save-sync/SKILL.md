@@ -767,11 +767,13 @@ hash, folded into one digest. The archive is transport only.
   `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
   correct themselves when the slot is next negotiated or the conflict resolved, and they are
   display-only in the meantime, since ordering compares server rows only against each other.
-- **Negotiate decides direction from `updated_at` and never compares the `content_hash` the
-  client sent against the row it holds, so two of its answers have to be overruled here.** The
-  repo's own rule is that mtime never decides whether a save changed, and this is the server
-  applying exactly that reasoning on the other side of the wire; measured on 5.3.0-alpha.3 with
-  `tools/romm-5.3-probes/s4-older-mtime.py` and hit by hand on the install (#206, finding 259).
+- **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
+  answers has to be overruled here and a second is guarded against.** The repo's own rule is that
+  mtime never decides whether a save changed, and this is the server applying that reasoning on
+  the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, four
+  cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
+  At the `5.3.0-beta.1` floor: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
+  `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded.** That inequality is the client holding evidence the server lacks: this device has
     a change the server has never seen, whatever the timestamps say. The server answers `no_op`,
@@ -780,13 +782,21 @@ hash, folded into one digest. The archive is transport only.
     or extracted from an archive was never sent and the flush said nothing at all. Uploading is
     safe rather than merely better than silence: identical content into one slot reuses the row,
     and a stale device record still answers 409, which lands as a conflict.
-  - **An `upload` of bytes the server already holds is a no-op without a round trip.** Nestopia
-    rewrites its `.srm` with identical bytes on every launch, which moves the mtime and nothing
-    else, so negotiate asks for an upload the server deduplicates into the same row without
-    moving its `updated_at`, and the next flush asks again, forever. Measured as `1 up` on three
-    consecutive flushes for save 336. The operation carries `server_content_hash` even on an
-    `upload`, so this is the same question `AlreadyHeld` answers for a download, read backwards,
-    and it stays conservative: where it cannot tell, the upload runs.
+  - **An `upload` of bytes the server already holds is a no-op without a round trip, and this
+    one is defence rather than a live fix.** Finding 259 measured `1 up` on three consecutive
+    flushes for save 336 on 5.3.0-alpha.3, an emulator rewriting a save with identical bytes
+    moving the mtime and nothing else. **It does not reproduce at the floor**: M4 answers `no_op
+(Content is identical)`, so the hash settles it server-side. Kept because it costs one
+    comparison against a value the operation already carries, and because the failure it
+    prevents is a silent upload on every flush forever.
+  - **That guard must not ask who uploaded the row.** `AlreadyHeld` requires the slot to name
+    this device, which is right for a download and wrong for an upload: whether the server holds
+    these bytes has nothing to do with who put them there. `AlreadySent` is the upload-direction
+    form and drops that test. The first cut shared `AlreadyHeld` and so missed its own headline
+    case, caught on the install, where `Legend of Zelda, The (USA) (Rev 1).srm` holds
+    `libretro:battery` as save 344 with a **null** `origin_device_id`, because that row came down
+    rather than up. Every slot whose current row arrived from a peer or from RomM's browser
+    player is in that state.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
   two ROMs, one never named by the client, and acking one dropped the next answer to 12. An

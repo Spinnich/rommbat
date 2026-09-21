@@ -89,10 +89,11 @@ public class SaveSyncTests
     [Fact]
     public async Task A_no_op_for_a_save_this_device_changed_is_uploaded_anyway()
     {
-        // #206. Negotiate decides direction from updated_at alone, so a save restored from a
-        // backup, whose mtime is older than this device's last upload, comes back no_op, "No
-        // changes since last sync", and used to be believed. The client holds the evidence the
-        // server does not: content_hash differs from uploaded_content_hash.
+        // #206, and live at the 5.3.0-beta.1 floor. A save restored from a backup, whose mtime
+        // is older than this device's last upload, comes back no_op, "No changes since last
+        // sync", and used to be believed. The client holds the evidence the server does not:
+        // content_hash differs from uploaded_content_hash. Driven on a real install as well as
+        // asked of the server directly (s4-older-mtime.py, M1).
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();
@@ -122,10 +123,13 @@ public class SaveSyncTests
     [Fact]
     public async Task An_upload_of_bytes_the_server_already_holds_is_not_sent_again()
     {
-        // The other half of #206, finding 259. Nestopia rewrites its .srm with identical bytes
-        // on every launch, which moves the mtime and nothing else, so negotiate keeps asking for
-        // an upload the server deduplicates into the same row without moving its updated_at.
-        // Measured on nes: three consecutive flushes each said "saves: 1 up" for save 336.
+        // The other half of #206, finding 259, and a guard rather than a live fix. Nestopia
+        // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
+        // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
+        // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
+        // It does not reproduce at the 5.3.0-beta.1 floor, where probe case M4 answers
+        // "no_op (Content is identical)". Kept because it costs one comparison against a value
+        // the operation already carries, and the loop it prevents is silent.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();
@@ -143,6 +147,41 @@ public class SaveSyncTests
         Assert.Equal(0, outcome.Failed);
         Assert.True(outcome.IsNoOp);
         Assert.Equal(afterFirst, fixture.Stub.Saves.Count);
+    }
+
+    [Fact]
+    public async Task An_upload_of_bytes_the_server_holds_from_a_peer_is_not_sent_again_either()
+    {
+        // Whether the server already holds these bytes has nothing to do with who put them
+        // there, and the first cut of this fix got that wrong by reusing AlreadyHeld, which also
+        // demands the slot name this device as the uploader. Driven against the paired install:
+        // the save the symptom was measured on, Legend of Zelda (USA) (Rev 1), holds
+        // libretro:battery as save 344 with a NULL origin_device_id, because that row came down
+        // rather than up. Every slot whose current row arrived from a peer or from RomM's
+        // browser player is in that state, so the fix missed its own headline case.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        var local = Assert.Single(fixture.Store.Saves.List());
+
+        // In step, without this device having been the uploader.
+        fixture.Store.Saves.MarkUploaded(
+            local.Path,
+            local.UnitKey,
+            local.ContentHash!,
+            new DateTimeOffset(2026, 8, 16, 12, 0, 0, TimeSpan.Zero));
+
+        // The server's head row for the slot holds the same bytes, and names somebody else.
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "progress");
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Uploaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Single(fixture.Stub.Saves);
     }
 
     [Fact]

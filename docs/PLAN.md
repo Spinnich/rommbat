@@ -2019,18 +2019,23 @@ upload|download|conflict|no_op, rom_id, save_id, file_name, slot, emulator, reas
 server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime** as
   `updated_at`, never the sync time, or offline edits silently lose every conflict.
 
-  **The action is decided from `updated_at` alone, so two of them are overruled before they are
-  carried out.** Negotiate never compares the `content_hash` the client sent against the row it
-  holds, which is the server applying the reasoning this project forbids itself: mtime never
-  decides whether a save changed. A `no_op` for a slot whose `content_hash` differs from
-  `uploaded_content_hash` is uploaded instead, because the inequality is evidence the server has
-  never seen these bytes and the server has no way to be told so; without it, a save put back
-  from a backup, copied off another machine or extracted from an archive is never sent and the
-  flush reports nothing at all. An `upload` for a local save whose content equals both
-  `uploaded_content_hash` and the offered `server_content_hash` is a no-op without a round trip,
-  because the server deduplicates such bytes into the same row without moving its `updated_at`
-  and the next flush would ask again, forever. Measured on 5.3.0-alpha.3 with
-  `tools/romm-5.3-probes/s4-older-mtime.py` and on the `nes` install; #206, finding 259.
+  **The action falls back to `updated_at` wherever the hashes do not settle it, so one answer is
+  overruled before it is carried out and a second is guarded against.** That is the server
+  applying the reasoning this project forbids itself: mtime never decides whether a save changed.
+  `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly and is the instrument to re-run on a
+  floor move; at `5.3.0-beta.1` it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
+  M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
+
+  **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is uploaded**,
+  because the inequality is evidence the server has never seen these bytes and the server has no
+  way to be told so. Without it a save put back from a backup, copied off another machine or
+  extracted from an archive is never sent and the flush reports nothing at all. Live at the floor
+  (M1, and driven as a flush on the `nes` install). **An `upload` for a save whose content equals
+  both `uploaded_content_hash` and the offered `server_content_hash` is a no-op without a round
+  trip**, which finding 259 measured as a per-flush upload forever on `5.3.0-alpha.3` and which
+  M4 shows the floor settles server-side; kept as defence, at the cost of one comparison. That
+  second check must not ask who uploaded the row, since whether the server holds these bytes does
+  not depend on who put them there. #206, finding 259.
 
 - Upload: `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&overwrite=` as
   `multipart/form-data` with `saveFile` and optional `screenshotFile`. **The server

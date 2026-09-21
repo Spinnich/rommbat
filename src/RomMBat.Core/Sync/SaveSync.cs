@@ -1146,10 +1146,10 @@ public sealed class SaveSync
     /// What to carry out for one slot, which is not always what the server named.
     /// </summary>
     /// <remarks>
-    /// <b>Negotiate decides direction from <c>updated_at</c> and never compares the
-    /// <c>content_hash</c> the client sent against the row it holds</b>, so two of its answers are
-    /// wrong in a way this device can see on its own. Measured on 5.3.0-alpha.3 with
-    /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> and hit by hand on the install; #206.
+    /// <b>Negotiate decides direction from <c>updated_at</c> wherever the hashes do not settle
+    /// it outright</b>, so an answer of its can be wrong in a way this device can see on its own.
+    /// Measured with <c>tools/romm-5.3-probes/s4-older-mtime.py</c> and hit by hand on the
+    /// install; #206.
     /// <para>
     /// <b>A <c>no_op</c> for a slot this device has an unsent change in is not a no-op.</b>
     /// <c>content_hash != uploaded_content_hash</c> means the server has never seen these bytes,
@@ -1158,14 +1158,25 @@ public sealed class SaveSync
     /// an older timestamp reaches it: a restore from backup, a copy off another machine, an
     /// archive extraction. Uploaded rather than reported, because a replayed upload into one slot
     /// reuses the row and a 409 still lands as a conflict, so the correction cannot cost a save.
+    /// <b>Live at the 5.3.0-beta.1 floor</b>, as probe case M1 and as a flush: a 4-byte save
+    /// given different content and an older mtime went up as <c>saves: 1 up</c> where the same
+    /// flush without this said nothing at all.
     /// </para>
     /// <para>
     /// <b>An <c>upload</c> of bytes the server already holds is not an upload.</b> Nestopia
     /// rewrites its <c>.srm</c> with identical bytes on every launch, which moves the mtime and
-    /// nothing else, so negotiate asks for a save the server deduplicates into the same row
-    /// without moving its <c>updated_at</c>, and the next flush asks again, forever. Measured on
-    /// the <c>nes</c> install: three consecutive flushes each reported <c>saves: 1 up</c> for save
-    /// 336. Finding 259.
+    /// nothing else, and on 5.3.0-alpha.3 negotiate asked for that save anyway: the server
+    /// deduplicated it into the same row without moving its <c>updated_at</c>, so the next flush
+    /// asked again, forever. Measured on the <c>nes</c> install as <c>saves: 1 up</c> on three
+    /// consecutive flushes for save 336, finding 259.
+    /// </para>
+    /// <para>
+    /// <b>That half does not reproduce at the 5.3.0-beta.1 floor and the guard is kept as
+    /// defence, not as a live fix.</b> Asked directly, case M4 of
+    /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> answers <c>no_op (Content is
+    /// identical)</c>, so the server compares the hash there and the repeat never starts. It
+    /// costs one comparison against a value the operation already carries, and the alternative
+    /// is rediscovering the loop if a later version stops making that comparison.
     /// </para>
     /// </remarks>
     private SyncAction Decide(SyncOperation operation, LocalSave? local)
@@ -1182,9 +1193,48 @@ public sealed class SaveSync
             return SyncAction.Upload;
         }
 
-        // AlreadyHeld is the same question in the other direction, and it is the conservative
-        // one: where it cannot tell, the upload runs, which is today's behaviour.
-        return named == SyncAction.Upload && AlreadyHeld(operation, local) ? SyncAction.NoOp : named;
+        return named == SyncAction.Upload && AlreadySent(operation, local) ? SyncAction.NoOp : named;
+    }
+
+    /// <summary>
+    /// True when the bytes the server is asking for are the ones it already holds.
+    /// </summary>
+    /// <remarks>
+    /// <b>The upload direction's form of <see cref="AlreadyHeld"/>, and deliberately not that
+    /// method.</b> That one also requires the slot to name this device as the uploader, which is
+    /// right for a download and wrong here: whether the server's head row for the slot holds
+    /// these bytes has nothing to do with who put them there, and the server deduplicates an
+    /// upload of them into that row whoever asks.
+    /// <para>
+    /// <b>Reusing <c>AlreadyHeld</c> here missed the save the symptom was measured on.</b> Driven
+    /// against the paired install: <c>Legend of Zelda, The (USA) (Rev 1).srm</c> holds slot
+    /// <c>libretro:battery</c> as save 344 with a null <c>origin_device_id</c>, because the row
+    /// came down rather than up, so the origin test was false and the pointless upload ran
+    /// anyway. Any slot whose current row arrived from a peer or from RomM's browser player is
+    /// in that state, which is the ordinary case rather than a corner.
+    /// </para>
+    /// <para>
+    /// A bundled unit's fold and the server's digest over an archive are different functions and
+    /// never equal, so class C asks in the server's vocabulary: the digest the slot recorded on
+    /// the last exchange, against the one being offered, with
+    /// <see cref="LocalSave.HasChangedSinceUpload"/> saying the tree still holds what went up.
+    /// </para>
+    /// </remarks>
+    private bool AlreadySent(SyncOperation operation, LocalSave local)
+    {
+        if (operation.ServerContentHash is not { } offered
+            || local.ContentHash is null
+            || local.IsUnsent
+            || local.HasChangedSinceUpload)
+        {
+            return false;
+        }
+
+        var held = local.ShapeClass == SaveShapeClass.C
+            ? _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.ServerContentHash
+            : local.ContentHash;
+
+        return held is not null && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1212,8 +1262,8 @@ public sealed class SaveSync
     /// since, and the second cannot see the server moving on.
     /// </para>
     /// <para>
-    /// <see cref="Decide"/> asks the same question of an <c>upload</c>, where it reads as "the
-    /// bytes the server is asking for are the ones it already has".
+    /// <see cref="AlreadySent"/> is the same question for an <c>upload</c>, and drops the origin
+    /// test rather than sharing this method, for the reason recorded there.
     /// </para>
     /// </remarks>
     private bool AlreadyHeld(SyncOperation operation, LocalSave? local)

@@ -5,11 +5,18 @@ what this device had last uploaded, its mtime was older than the server row's `u
 the flush moved nothing in either direction. This asks the server directly, so the answer
 separates negotiate's behaviour from the client's.
 
-Three cases against one ROM and a throwaway slot:
+Four cases against one ROM and a throwaway slot:
 
   M1  local content differs, local mtime OLDER than the row this device uploaded
   M2  the same, local mtime NEWER (the ordinary edit)
   M3  the same as M1, but the row was uploaded by a peer this device never synced
+  M4  local content IDENTICAL to the row, local mtime NEWER
+
+M4 is the other direction, added when finding 259's reading of it stopped reproducing: an
+emulator that rewrites a save with the same bytes moves the mtime and nothing else, and the
+finding recorded negotiate answering `upload` for that on 5.3.0-alpha.3, which cost one
+pointless upload per flush forever. It is here so the answer is the server's own rather than
+inferred from what a flush did.
 
 Writes to the instance. Everything it creates is deleted before it exits.
 
@@ -120,6 +127,10 @@ def main() -> None:
         made.append(peer["id"])
         say(f"  peer upload, no device       {status} id={peer['id']}")
         say(f"  negotiate, local older       {negotiate(this, rom_id, restored, older, slot_e)}")
+
+        say()
+        say("M4  content identical to the row, local mtime newer (the emulator rewrite)")
+        say(f"  negotiate                    {negotiate(this, rom_id, uploaded, newer)}")
     finally:
         say()
         if made:
