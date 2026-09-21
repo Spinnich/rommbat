@@ -804,8 +804,8 @@ Three rules that are not obvious:
   answers is overruled locally.** A `no_op` for a slot whose `content_hash` differs from
   `uploaded_content_hash` is uploaded, because that inequality is the client holding evidence the
   server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
-  Confirmed at the `5.3.0-beta.1` floor both by asking the server (`s4-older-mtime.py`, M1) and
-  by driving a flush on a real install. A second guard answers an `upload` of bytes the server
+  Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1` and again at the
+  `5.3.0` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
 

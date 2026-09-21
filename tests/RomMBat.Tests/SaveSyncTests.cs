@@ -89,7 +89,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_no_op_for_a_save_this_device_changed_is_uploaded_anyway()
     {
-        // #206, and live at the 5.3.0-beta.1 floor. A save restored from a backup, whose mtime
+        // #206, and live at 5.3.0-beta.1 and 5.3.0. A save restored from a backup, whose mtime
         // is older than this device's last upload, comes back no_op, "No changes since last
         // sync", and used to be believed. The client holds the evidence the server does not:
         // content_hash differs from uploaded_content_hash. Driven on a real install as well as
@@ -127,7 +127,7 @@ public class SaveSyncTests
         // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
         // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
         // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
-        // It does not reproduce at the 5.3.0-beta.1 floor, where probe case M4 answers
+        // It does not reproduce at 5.3.0-beta.1 or 5.3.0, where probe case M4 answers
         // "no_op (Content is identical)". Kept because it costs one comparison against a value
         // the operation already carries, and the loop it prevents is silent.
         using var fixture = SyncFixture.Create();
@@ -246,7 +246,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_download_over_a_save_this_device_never_sent_is_a_conflict_and_writes_nothing()
     {
-        // #211, probe case M3 at the 5.3.0-beta.1 floor: a slot this device has no sync record
+        // #211, probe case M3 at 5.3.0-beta.1 and 5.3.0: a slot this device has no sync record
         // for is answered "download (Server save is newer (no sync history))" whatever the
         // device holds. Two devices playing one game offline is the ordinary case for a
         // handheld, and the second one's first flush used to replace its save and report 1 down.

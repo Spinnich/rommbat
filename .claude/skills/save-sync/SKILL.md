@@ -848,7 +848,7 @@ hash, folded into one digest. The archive is transport only.
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, four
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
-  At the `5.3.0-beta.1` floor: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
+  At the `5.3.0` floor, as at `beta.1`: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
   `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded.** That inequality is the client holding evidence the server lacks: this device has
@@ -1067,8 +1067,8 @@ of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `
 into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
 this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
 its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
-**Still true at the beta.1 floor**, re-read there because the writer was rewritten around it
-(finding 12): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+**Still true at the `5.3.0` floor**, re-read at `beta.1` because the writer was rewritten around
+it (finding 12), and untouched between `beta.1` and `5.3.0` (finding 13): `preferredSlot` is byte-identical and still prefers the newest slotted save over
 `autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
 with no slotted save and not one this client syncs. What is new is a screenshot on every save
 version, which is inert here because only states carry one on this side. So

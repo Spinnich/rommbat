@@ -207,7 +207,8 @@ and came back out through the hooks. The waves finish against an M8 package.
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
-**Every row `nes` declares is certified**, at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, all
+**Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
+to the `5.3.0` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
 state round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the

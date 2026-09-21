@@ -1,34 +1,34 @@
 # The pinned RomM schema
 
-`romm-5.3.0-beta.1.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
-not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0-beta.1`. The generated DTOs
+`romm-5.3.0.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
+not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0`. The generated DTOs
 in [`../Generated/RomMApiSchema.g.cs`](../Generated/RomMApiSchema.g.cs) come from it and
 are committed, so an upstream deploy cannot change the contract mid-session.
 
 |                |                                                                    |
 | -------------- | ------------------------------------------------------------------ |
-| RomM version   | 5.3.0-beta.1, the minimum RomMBat supports                         |
-| Source         | a self-hosted 5.3.0-beta.1 instance, host redacted                 |
-| Pulled         | 2026-09-19                                                         |
-| `info.version` | 5.3.0-beta.1                                                       |
-| sha256         | `26ace33006fb2ac44ebaa96fc292547811ed7b2b208c97d1cb445d6827622a96` |
+| RomM version   | 5.3.0, the minimum RomMBat supports                                |
+| Source         | a self-hosted 5.3.0 instance, host redacted                        |
+| Pulled         | 2026-09-21                                                         |
+| `info.version` | 5.3.0                                                              |
+| sha256         | `d7fa6ecbcc0e9badb1c0986097800bf890a9f7d36bedc8a19e76a29bf1546171` |
 | Paths          | 198                                                                |
 | Schemas        | 272                                                                |
 
 **The pin is always the minimum version RomMBat declares support for**, so the generated DTOs
 describe the oldest server the client claims to work with. Since RomMBat tracks the newest
-stable, or a prerelease ahead of it as it does now, that is also the newest release RomMBat has
+stable, or a prerelease ahead of it when one is adopted early, that is also the newest release RomMBat has
 adopted: moving the floor and moving the pin are one decision.
 
 **Prefer the public demo at `demo.romm.app` as the source**, because anyone can reproduce the
 file from it without an account, a token or a hostname that would have to be scrubbed. The
-5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2 or 5.3.0-alpha.3 pins nor this one
-did: the demo reported 5.1.0 on 2026-08-25 and 5.2.0 on 2026-09-14, so each was pulled from a
-self-hosted instance of the pinned version instead. A prerelease will not reach the demo at all
-until it ships as stable.
+5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2, 5.3.0-alpha.3 or 5.3.0-beta.1 pins
+nor this one did: the demo reported 5.1.0 on 2026-08-25, and 5.2.0 on 2026-09-14 and again on
+2026-09-21, hours after 5.3.0 shipped, so each was pulled from a self-hosted instance of the
+pinned version instead.
 
 The sha256 above is how the capture is checked rather than trusted; a `/openapi.json` from any
-stock 5.3.0-beta.1 hashes to it. That holds because `backend/main.py` registers every router
+stock 5.3.0 hashes to it. That holds because `backend/main.py` registers every router
 unconditionally at this tag, so the served schema is decided by the version and not by the
 instance's configuration. **`SYSTEM.VERSION` was read at capture time rather than assumed**: a
 live library can be upgraded underneath the work, which is how upstream's own tag moved from
@@ -93,6 +93,10 @@ is four lines.
   does not upload ROMs.
 
 `docs/romm-5.3-findings.md`, section 12.
+
+The 5.3.0-beta.1 to 5.3.0 move is **the first with no generated diff at all.** The capture is
+byte-identical to the `beta.1` pin apart from `info.version`, and `generate.sh` reproduces the
+committed DTOs exactly. `docs/romm-5.3-findings.md`, section 13.
 
 ## Why the generated file disables four doc-comment warnings
 

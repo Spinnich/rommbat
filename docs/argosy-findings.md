@@ -10,16 +10,16 @@ failed, which changes how likely a lead is to be worth chasing and changes nothi
 settles one. Every row carries the route that settled it, and the rows that no route settled are
 labelled open rather than quietly promoted.
 
-|                    |                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------- |
-| Source read        | `rommapp/argosy-launcher` at `3971bee4`, tag `v2.8.0`, 2026-08-24               |
-| Source targets     | Android: libretro via a vendored `libretrodroid`, plus standalone apps          |
-| Source licence     | GPL-3.0, same as ours                                                           |
-| RomM under test    | `5.2.0`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`                     |
-| Library under test | 88,331 roms, 708 firmware records across 52 platforms                           |
-| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.0-beta.1.json` now |
-| RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`                           |
-| Date               | 2026-08-25                                                                      |
+|                    |                                                                          |
+| ------------------ | ------------------------------------------------------------------------ |
+| Source read        | `rommapp/argosy-launcher` at `3971bee4`, tag `v2.8.0`, 2026-08-24        |
+| Source targets     | Android: libretro via a vendored `libretrodroid`, plus standalone apps   |
+| Source licence     | GPL-3.0, same as ours                                                    |
+| RomM under test    | `5.2.0`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`              |
+| Library under test | 88,331 roms, 708 firmware records across 52 platforms                    |
+| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.0.json` now |
+| RetroBat           | `8.2.0-stable-win64`, read from `system/version.info`                    |
+| Date               | 2026-08-25                                                               |
 
 The instance host, the token and every device id are redacted throughout, per the repo rules.
 `libretrodroid` (about 1,700 files) was excluded from the clone. **`sigil` is a git submodule and

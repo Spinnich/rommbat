@@ -113,8 +113,8 @@ GPL-3.0, Trunk for linting, `rommapp/template-repo`'s `.github` layout (issue te
 for a C# repo in the org.
 
 **Declare compatibility, and track the newest stable or a prerelease ahead of it.** Every
-release names its minimum RomM and RetroBat versions. Currently RetroBat 8.2.1, RomM
-5.3.0-beta.1, a prerelease, so RomM 5.2.0, the newest stable, is refused. Check both at
+release names its minimum RomM and RetroBat versions. Currently RetroBat 8.2.1 and RomM
+5.3.0, both the newest stable, so RomM 5.2.0 and every 5.2 release are refused. Check both at
 startup, refuse below, warn above.
 
 **The floor moves forward, it does not sit still.** RomMBat adopts a new RomM or RetroBat
