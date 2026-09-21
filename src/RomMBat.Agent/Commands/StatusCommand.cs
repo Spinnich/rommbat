@@ -239,6 +239,15 @@ internal static class StatusCommand
             Console.WriteLine($"  not readable:    {ex.Message}");
             return;
         }
+        catch (RomMApiException)
+        {
+            // A 200 whose body is not the list: a proxy's login page, or a session row a newer
+            // RomM serialises in a shape this client cannot read. It throws rather than
+            // answering a failed response, and the promise above is that nothing here is a
+            // failure of status.
+            Console.WriteLine("  not readable:    the server's answer could not be read.");
+            return;
+        }
 
         if (!answer.IsSuccess || answer.Value is not { } sessions)
         {

@@ -25,11 +25,21 @@ namespace RomM.Client;
 /// </remarks>
 public sealed class UtcTimestampConverter : JsonConverter<DateTimeOffset>
 {
-    public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
-        DateTimeOffset.Parse(
-            reader.GetString() ?? string.Empty,
+    public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+
+        // JsonException rather than the FormatException Parse throws, because
+        // RomMConnection.ReadAsync turns only that one into RomMApiException and anything else
+        // leaves the process on an unhandled exception.
+        return DateTimeOffset.TryParse(
+            raw,
             CultureInfo.InvariantCulture,
-            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+            out var moment)
+            ? moment
+            : throw new JsonException($"'{raw}' is not a timestamp this client can read.");
+    }
 
     public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options) =>
         writer.WriteStringValue(value.ToUniversalTime());

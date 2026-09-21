@@ -1534,6 +1534,32 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public void A_timestamp_the_converter_cannot_read_is_a_JsonException()
+    {
+        // RomMConnection.ReadAsync turns JsonException into RomMApiException, "a body this
+        // client could not read", and catches nothing else. DateTimeOffset.Parse throws
+        // FormatException, which walks past that and out of Program.DispatchAsync, so one
+        // unreadable timestamp in a 200 left the process where every caller is written for a
+        // handled failure. The repo warns above the floor instead of refusing, so a newer RomM
+        // serialising a field differently is a supported state.
+        var unreadable = Assert.Throws<System.Text.Json.JsonException>(() =>
+            System.Text.Json.JsonSerializer.Deserialize<RomM.Client.Saves.PlaySessionRow>(
+                """
+                {"id": 1, "start_time": "not-a-date", "end_time": "2026-08-16T10:30:00", "duration_ms": 0}
+                """));
+
+        Assert.Contains("not-a-date", unreadable.Message, StringComparison.Ordinal);
+
+        // A null where the schema says non-nullable reached Parse as an empty string, which is
+        // the same escape by a different route.
+        Assert.Throws<System.Text.Json.JsonException>(() =>
+            System.Text.Json.JsonSerializer.Deserialize<RomM.Client.Saves.PlaySessionRow>(
+                """
+                {"id": 1, "start_time": null, "end_time": "2026-08-16T10:30:00", "duration_ms": 0}
+                """));
+    }
+
+    [Fact]
     public async Task A_play_session_read_filtered_by_the_wrong_device_answers_with_nothing()
     {
         // The trap this endpoint sets, and it cost a probe while driving the nes record: the row
