@@ -655,6 +655,13 @@ public class SaveSyncTests
         var save = Assert.Single(fixture.Store.Saves.List());
         Assert.Equal("bizhawk:battery", save.Slot);
         Assert.Equal(12, save.RomId);
+
+        // Cleared, so the re-run negotiates for real rather than being offered the download again.
+        fixture.Stub.UnsolicitedDownloads.Clear();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal(0, again.Downloaded);
     }
 
     [Fact]
@@ -680,6 +687,10 @@ public class SaveSyncTests
         var sent = await fixture.SyncAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, sent.Uploaded);
 
+        var unchanged = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, unchanged.Uploaded);
+        Assert.Equal(0, unchanged.Downloaded);
+
         File.Delete(fixture.Resolve("saves/nes/bizhawk/StarTropics.SaveRAM"));
 
         var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
@@ -692,6 +703,12 @@ public class SaveSyncTests
         Assert.Equal(1, outcome.Restored);
         Assert.Equal("played under NesHawk", File.ReadAllText(fixture.Resolve("saves/nes/bizhawk/StarTropics.SaveRAM")));
         Assert.False(File.Exists(fixture.Resolve("saves/nes/StarTropics (USA).SaveRAM")));
+
+        // The restored file is the server's own bytes, so the next sync must not offer it back.
+        fixture.Scan();
+        var afterRestore = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, afterRestore.Uploaded);
+        Assert.Equal(0, afterRestore.Downloaded);
     }
 
     [Fact]

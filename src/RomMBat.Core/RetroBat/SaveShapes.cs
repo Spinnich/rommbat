@@ -261,8 +261,9 @@ public sealed class SaveShapes
     /// The emulator whose rule covers the loose level of every system, which is libretro.
     /// </summary>
     /// <remarks>
-    /// A fallback for a restored save whose row and server copy both name no emulator, and
-    /// nothing else. Which emulator wrote a file is <see cref="BatteryRuleFor"/>'s answer, keyed
+    /// A fallback in three places: a restored save whose row and server copy both name no
+    /// emulator, a kept server copy with no previous row, and the emulator named on a
+    /// shared-container report row. Which emulator wrote a file is <see cref="BatteryRuleFor"/>'s answer, keyed
     /// on the system, the directory and the extension: a loose <c>.sav</c> on <c>nes</c> is
     /// mesen standalone's or mednafen's, and taking this value for it would give it
     /// <c>libretro:battery</c> and collide with libretro's own <c>.srm</c> for the same ROM (#152).
