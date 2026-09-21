@@ -273,15 +273,37 @@ public sealed partial class RomMConnection : IDisposable
         };
     }
 
+    /// <summary>Sends a call whose whole answer is read into memory, body included.</summary>
+    /// <remarks>
+    /// <b>The body is buffered here so <see cref="RomMClientOptions.RequestTimeout"/> covers it.</b>
+    /// <see cref="HttpClient"/> disposes its timeout once <c>SendAsync</c> returns, so under
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> a JSON body that went silent after
+    /// the headers was never timed out and hung the call (finding 267). Every answer read this
+    /// way is JSON or an error, and none is large.
+    /// </remarks>
+    private Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
+
+    /// <summary>Sends a call whose body the caller streams through <c>CopyAsync</c>.</summary>
+    /// <remarks>
+    /// Returns at the headers, so <see cref="RomMClientOptions.RequestTimeout"/> stops there and
+    /// the copy's own <see cref="RomMClientOptions.StallTimeout"/> bounds the body.
+    /// </remarks>
+    private Task<HttpResponseMessage> SendStreamedAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
     private async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
+        HttpCompletionOption completion,
         CancellationToken cancellationToken)
     {
         try
         {
-            return await _http
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
+            return await _http.SendAsync(request, completion, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
         {
@@ -311,13 +333,21 @@ public sealed partial class RomMConnection : IDisposable
     }
 
     /// <summary>Pulls the <c>detail</c> field out of a FastAPI error body, if there is one.</summary>
-    private static async Task<string?> ReadDetailAsync(
+    /// <remarks>
+    /// Bounded by one <see cref="RomMClientOptions.StallTimeout"/>, because a streamed call
+    /// reaches here past its headers and nothing else times the body out. The detail only
+    /// improves a message, so a body that stalls costs the detail and not the call.
+    /// </remarks>
+    private async Task<string?> ReadDetailAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
+        using var bounded = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        bounded.CancelAfter(Options.StallTimeout);
+
         try
         {
-            var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var body = await response.Content.ReadAsStringAsync(bounded.Token).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(body))
             {
                 return null;
@@ -332,13 +362,17 @@ public sealed partial class RomMConnection : IDisposable
 
             return detail.ValueKind == JsonValueKind.String ? detail.GetString() : detail.ToString();
         }
-        catch (Exception ex) when (ex is JsonException or HttpRequestException)
+        catch (Exception ex) when (ex is JsonException or HttpRequestException or IOException)
+        {
+            return null;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return null;
         }
     }
 
-    private static async Task ThrowIfErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    private async Task ThrowIfErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         if (response.IsSuccessStatusCode)
         {

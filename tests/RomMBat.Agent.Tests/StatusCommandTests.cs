@@ -92,6 +92,44 @@ public sealed class StatusCommandTests
     }
 
     [Fact]
+    public async Task A_heartbeat_it_cannot_read_is_not_reachable_rather_than_a_crash()
+    {
+        // #211. A captive portal's login page answers the heartbeat 200, and so would a newer
+        // RomM whose heartbeat moved. The probe throws RomMApiException for a body it cannot
+        // read, and status used to leave the process on it, before the playtime block's own
+        // catch was ever reached.
+        using var server = CannedRomMServer.HeartbeatAnswering(
+            "<html><body>Sign in to the hotel Wi-Fi</body></html>",
+            "text/html");
+        using var tree = TempRetroBatTree.Create();
+        Pair(tree, server.Origin, RomMScopes.RomsUserRead);
+
+        var run = await AgentRunner.RunAsync(tree, "status");
+
+        Assert.Equal(ExitCode.Offline, run.ExitCode);
+        Assert.True(run.Wrote($"reachable:       no ({server.Origin})"), run.Out);
+        Assert.True(run.Wrote("not as a RomM server this client can read"), run.Out);
+        Assert.Null(server.LastPlaySessionQuery);
+    }
+
+    [Fact]
+    public async Task Pairing_against_a_heartbeat_it_cannot_read_says_what_answered()
+    {
+        // The same probe, the other caller. Offline rather than a crash, and not "did not
+        // answer within 2 seconds", because something did.
+        using var server = CannedRomMServer.HeartbeatAnswering(
+            "<html><body>Sign in to the hotel Wi-Fi</body></html>",
+            "text/html");
+        using var tree = TempRetroBatTree.Create();
+
+        var run = await AgentRunner.RunAsync(tree, "pair", "--server", server.Origin.ToString());
+
+        Assert.Equal(ExitCode.Offline, run.ExitCode);
+        Assert.Contains("not as a RomM server this client can read", run.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("did not answer within", run.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task The_playtime_block_says_when_the_pairing_was_not_granted_the_scope()
     {
         // Nothing above this line needs the token, so a narrowed pairing is an ordinary state
@@ -177,17 +215,23 @@ public sealed class StatusCommandTests
         private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource _stop = new();
         private readonly string _playSessions;
+        private readonly (string Body, string ContentType)? _heartbeat;
         private readonly Task _serving;
 
-        private CannedRomMServer(string playSessions)
+        private CannedRomMServer(string playSessions, (string Body, string ContentType)? heartbeat)
         {
             _playSessions = playSessions;
+            _heartbeat = heartbeat;
             _listener.Start();
             Origin = new Uri($"http://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}");
             _serving = ServeAsync(_stop.Token);
         }
 
-        public static CannedRomMServer Serving(string playSessions) => new(playSessions);
+        public static CannedRomMServer Serving(string playSessions) => new(playSessions, null);
+
+        /// <summary>Answers the heartbeat 200 with this body instead of RomM's.</summary>
+        public static CannedRomMServer HeartbeatAnswering(string body, string contentType) =>
+            new("[]", (body, contentType));
 
         public Uri Origin { get; }
 
@@ -233,11 +277,16 @@ public sealed class StatusCommandTests
 
                 var target = head.ToString().Split(' ').ElementAtOrDefault(1) ?? string.Empty;
                 string body;
+                var contentType = "application/json";
 
                 if (target.StartsWith("/api/play-sessions", StringComparison.Ordinal))
                 {
                     LastPlaySessionQuery = target;
                     body = _playSessions;
+                }
+                else if (_heartbeat is { } canned)
+                {
+                    (body, contentType) = canned;
                 }
                 else
                 {
@@ -247,7 +296,7 @@ public sealed class StatusCommandTests
                 var bytes = Encoding.UTF8.GetBytes(body);
                 await stream.WriteAsync(
                     Encoding.ASCII.GetBytes(
-                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                        $"HTTP/1.1 200 OK\r\nContent-Type: {contentType}\r\n"
                             + $"Content-Length: {bytes.Length}\r\nConnection: close\r\n\r\n"),
                     cancellationToken);
                 await stream.WriteAsync(bytes, cancellationToken);

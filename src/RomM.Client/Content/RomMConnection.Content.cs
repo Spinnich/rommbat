@@ -9,17 +9,6 @@ namespace RomM.Client;
 /// <summary>The content reads M3 needs: downloading a ROM, and identifying one already on disk.</summary>
 public sealed partial class RomMConnection
 {
-    /// <summary>
-    /// How long a transfer may go without a single byte arriving before it is called dead.
-    /// </summary>
-    /// <remarks>
-    /// A download has no overall deadline, because a 4 GB ROM over a slow link is a legitimate
-    /// hour. What it does have is a stall watchdog: the connection is only healthy while bytes
-    /// keep coming, and a yanked drive or a dropped Wi-Fi link shows up as silence rather than
-    /// as an error.
-    /// </remarks>
-    public static TimeSpan DownloadStallTimeout => TimeSpan.FromSeconds(60);
-
     /// <summary>How much is read at a time. Large enough to keep a fast link busy, small enough to stay off the LOH.</summary>
     private const int DownloadBufferSize = 64 * 1024;
 
@@ -206,9 +195,9 @@ public sealed partial class RomMConnection
     /// The client used for transfers, which deliberately has no overall timeout.
     /// </summary>
     /// <remarks>
-    /// <see cref="RomMClientOptions.RequestTimeout"/> bounds the response body as well as the
-    /// headers, so the 30 s that suits an API call would abort every ROM over a few hundred
-    /// megabytes. The handler is shared with the ordinary client, so
+    /// A transfer is sent with <see cref="HttpCompletionOption.ResponseHeadersRead"/>, so
+    /// <see cref="RomMClientOptions.StallTimeout"/> bounds its body, and this client drops the
+    /// 30 s <see cref="RomMClientOptions.RequestTimeout"/> so a slow first byte is not fatal either. The handler is shared with the ordinary client, so
     /// <see cref="SocketsHttpHandler.ConnectTimeout"/> still applies and an unreachable host
     /// still fails in 2 s rather than 21.
     /// </remarks>
@@ -240,7 +229,7 @@ public sealed partial class RomMConnection
     /// be checked up front because the response declared no length. Overshoot is one buffer.
     /// The caller is told nothing here: it compares the return against its own room.
     /// </param>
-    private static async Task<long> CopyAsync(
+    private async Task<long> CopyAsync(
         HttpResponseMessage response,
         Stream destination,
         long resumedFrom,
@@ -272,7 +261,7 @@ public sealed partial class RomMConnection
 
             using (var stall = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                stall.CancelAfter(DownloadStallTimeout);
+                stall.CancelAfter(Options.StallTimeout);
 
                 try
                 {
@@ -284,7 +273,7 @@ public sealed partial class RomMConnection
                     // link going away are the same exception type and must not read alike.
                     throw new RomMUnreachableException(
                         UnreachableReason.RequestTimeout,
-                        $"The download stopped receiving data for {DownloadStallTimeout.TotalSeconds:0} seconds. "
+                        $"The download stopped receiving data for {Options.StallTimeout.TotalSeconds:0} seconds. "
                             + "The server, the network or the drive went away.",
                         ex);
                 }
@@ -357,7 +346,7 @@ public sealed partial class RomMConnection
         }
     }
 
-    private static async Task<RomMResponse<RomContentResult>> DescribeContentFailureAsync(
+    private async Task<RomMResponse<RomContentResult>> DescribeContentFailureAsync(
         RomContentRequest request,
         HttpResponseMessage response,
         CancellationToken cancellationToken)

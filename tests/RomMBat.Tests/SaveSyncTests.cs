@@ -225,6 +225,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local, older");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -243,6 +244,110 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_download_over_a_save_this_device_never_sent_is_a_conflict_and_writes_nothing()
+    {
+        // #211, probe case M3 at the 5.3.0-beta.1 floor: a slot this device has no sync record
+        // for is answered "download (Server save is newer (no sync history))" whatever the
+        // device holds. Two devices playing one game offline is the ordinary case for a
+        // handheld, and the second one's first flush used to replace its save and report 1 down.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here offline, never sent");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "played on the other device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Conflicts);
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.Equal(
+            "played here offline, never sent",
+            File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        var conflict = Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal(100, conflict.ServerSaveId);
+        Assert.Contains("never sent", conflict.Reason, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(ConflictResolution.KeepLocal, "played here offline, never sent")]
+    [InlineData(ConflictResolution.KeepServer, "played on the other device")]
+    public async Task A_never_sent_save_held_as_a_conflict_is_settled_either_way(
+        ConflictResolution resolution,
+        string expected)
+    {
+        // A conflict nobody can resolve is a save stuck on the device. This one's local side has
+        // no save_slot row, since nothing ever went up, which no other conflict route produces.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "played here offline, never sent");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "played on the other device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var outcome = await fixture.ResolveAsync(
+            7,
+            "libretro:battery",
+            resolution,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal(expected, File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        fixture.Scan();
+        Assert.False(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
+    }
+
+    [Fact]
+    public async Task A_download_over_a_save_changed_since_it_was_sent_is_a_conflict()
+    {
+        // The same loss from a device that did send once and played on since. The server
+        // answers conflict here when this device synced the row it now offers; a peer's row it
+        // never synced gets the timestamp fallback, which is download.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what went up");
+        fixture.Scan();
+        fixture.MarkSent();
+
+        File.WriteAllText(fixture.Resolve("saves/gb/Tetris (World).srm"), "played on since");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "played on the other device");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Conflicts);
+        Assert.Equal("played on since", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+    }
+
+    [Fact]
+    public async Task A_download_of_the_bytes_an_unsent_save_already_holds_is_not_a_conflict()
+    {
+        // Nothing to lose, so nothing to ask: the same save copied onto two devices by hand, or
+        // a provisional slot re-keyed by the scan after a restore. It downloads as it always did,
+        // which records the slot and marks the save sent.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "the same bytes");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "the same bytes");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.False(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
+    }
+
+    [Fact]
     public async Task A_download_for_a_game_being_played_is_deferred_rather_than_written_under_it()
     {
         // The ordering issue #155 opened on, driven end to end. Before this the download landed
@@ -251,6 +356,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what the emulator has open");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -282,6 +388,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local, older");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "newer from another device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -314,6 +421,7 @@ public class SaveSyncTests
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "being played");
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "local, older");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "newer from another device");
         fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
@@ -751,6 +859,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "the local save, which must survive");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", new string('x', 4096));
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -777,6 +886,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "the local save");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "server bytes", lieAboutHash: true);
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -795,6 +905,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what was here before");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "what came down");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -815,6 +926,7 @@ public class SaveSyncTests
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "local");
         fixture.Scan();
+        fixture.MarkSent();
 
         fixture.SeedServerSave(7, "libretro:battery", "Tetris (World)", "srm", "from the other device");
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
@@ -1136,19 +1248,19 @@ public class SaveSyncTests
         // changed, and the merged copy went back over the server's. Somebody who asked to discard
         // the local side got the opposite, silently.
         using var fixture = SyncFixture.Create();
-        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"), ("extra", "a slot deleted elsewhere"));
 
         fixture.Scan();
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "upload";
         Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
 
-        // Another device replaced the archive. Without that this never downloads at all: a save
-        // whose origin_device_id is this device is recognised as its own and skipped.
-        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { OriginDeviceId = "some-other-device" };
-
-        // A third member appears locally, which is what the server's archive does not hold.
-        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/extra"), "a slot deleted elsewhere");
-        fixture.Scan();
+        // Another device deleted that slot and sent the unit without it. The local unit is as
+        // it went up, so taking the download loses nothing this device has not already sent.
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with
+        {
+            OriginDeviceId = "some-other-device",
+            Bytes = Archive(("25pacman/eeprom", "one"), ("25pacman/flash", "two")),
+        };
 
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
         Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Downloaded);
@@ -1191,11 +1303,12 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task A_bundled_unit_edited_since_it_went_up_is_still_fetched()
+    public async Task A_bundled_unit_edited_since_it_went_up_is_neither_skipped_nor_overwritten()
     {
         // The half that keeps the skip above safe. The slot's recorded digest still matches what
         // the server is offering and this device is still the uploader, so the server-vocabulary
-        // question alone would skip. The tree has moved on, so the download has to run.
+        // question alone would skip. The tree has moved on, so this is not a no-op, and the edit
+        // has never been sent, so it is not a download either: it is a conflict (#211).
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
 
@@ -1209,8 +1322,10 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "download";
         var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(1, outcome.Downloaded);
-        Assert.Equal("one", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
+        Assert.Equal(0, outcome.NoOps);
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Conflicts);
+        Assert.Equal("edited here since", File.ReadAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom")));
     }
 
     [Fact]
@@ -2415,6 +2530,21 @@ public class SaveSyncTests
         }
 
         public SaveScanOutcome Scan() => new SaveScanner(Install, Store).Scan();
+
+        /// <summary>
+        /// Records every scanned save as already sent, which is the state in which a download
+        /// replacing one loses nothing. A save that never went up is a conflict instead (#211).
+        /// </summary>
+        public void MarkSent()
+        {
+            foreach (var save in Store.Saves.List())
+            {
+                if (save.ContentHash is { } hash)
+                {
+                    Store.Saves.MarkUploaded(save.Path, save.UnitKey, hash, DateTimeOffset.UtcNow);
+                }
+            }
+        }
 
         public StateScanOutcome ScanStates() =>
             new StateScanner(Install, Store, Fixtures.LoadSaveStates()).Scan();

@@ -1452,10 +1452,12 @@ the rollout order below can be derived rather than hand-maintained.
   surface throughput and fail gracefully on a yanked drive.
 - Compare by `content_hash` first and mtime second, since exFAT and FAT32 store coarser
   timestamps than NTFS and a mtime round-trip is not bit-stable across filesystems.
-- **The download needs its own request timeout.** `RomMClientOptions.RequestTimeout` bounds
-  the whole response body, so the 30 s that suits an API call would abort every large ROM.
-  Downloads run with no overall deadline and a stall watchdog on the read loop instead, and
-  still classify the failure: a yanked drive and a user cancelling must not read alike.
+- **The download needs its own timeout.** A transfer is sent with `ResponseHeadersRead`, so
+  `RomMClientOptions.RequestTimeout` stops at the headers and a body that goes silent is never
+  timed out by it (finding 267). API calls buffer their JSON body instead, so the 30 s covers it. Every body copied to a stream, ROMs, firmware, media, saves,
+  states and screenshots alike, runs with no overall deadline and a stall watchdog
+  (`RomMClientOptions.StallTimeout`, 60 s) on the read loop instead, and still classifies the
+  failure: a yanked drive and a user cancelling must not read alike. #198.
 
 **Done when:** a set syncs to completion, a second run is a no-op **including after the
 drive letter changes**, an interrupted download resumes, exceeding the budget evicts
@@ -2037,6 +2039,12 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   second check must not ask who uploaded the row, since whether the server holds these bytes does
   not depend on who put them there. #206, finding 259.
 
+  **A `download` that would replace a local save the server has never seen is recorded as a
+  conflict instead**, the same inequality read from the other side. M3 answers `download` for a
+  slot this device holds no sync record for, whatever the device holds, which is two devices
+  playing one game offline. An unsent save, or one changed since its upload, is replaced only by
+  identical bytes. #211.
+
 - Upload: `POST /api/saves?rom_id=&slot=&emulator=&device_id=&session_id=&overwrite=` as
   `multipart/form-data` with `saveFile` and optional `screenshotFile`. **The server
   rewrites the filename** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`, so persist the
@@ -2423,6 +2431,14 @@ names the paths, and anything it does not name is reported as unknown rather tha
 Two shapes observed that the table above did not predict: **saturn writes `.bcr` _and_
 `.bkr` per game** (class B), and **megacd is B and D simultaneously**, with per-game `.brm`
 plus `.srm` alongside a shared 512 KB `4Mbit_cart.brm`.
+
+**A battery save is kept per emulator, never per core and never across emulators.** Decided by
+the maintainer on 2026-09-21. Every libretro core on a system shares `libretro:battery`, so
+switching `nestopia` to `fceumm` keeps the progress, and BizHawk's cores share `bizhawk:battery`.
+Two emulators for one game are two slots that never reconcile, because their files are named
+differently and nothing proves the bytes interchangeable in general. That BizHawk's StarTropics
+`.SaveRAM` loaded as a `nestopia` `.srm` in the #211 pass is one game, not a rule, and is not a
+reason to migrate saves between emulators.
 
 **Class B takes one slot per file, keyed `{emulator}:battery:{ext}`.** The observed sets are
 two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32 KB, megacd's

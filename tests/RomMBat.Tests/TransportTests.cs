@@ -37,8 +37,8 @@ public class TransportTests
     [Fact]
     public void The_request_timeout_is_a_different_lever_from_the_connect_timeout()
     {
-        // HttpClient.Timeout bounds the response body too, so it cannot be lowered to make
-        // reachability feel responsive without aborting large downloads.
+        // HttpClient.Timeout covers a slow server that is reachable, so it cannot be lowered to
+        // make reachability feel responsive without aborting legitimate slow answers.
         var options = new RomMClientOptions { Origin = Origin };
 
         Assert.True(options.RequestTimeout > options.ConnectTimeout);
@@ -53,6 +53,21 @@ public class TransportTests
 
         var unreachable = Assert.IsType<RomMUnreachableException>(classified);
         Assert.Equal(UnreachableReason.ConnectTimeout, unreachable.Reason);
+    }
+
+    [Fact]
+    public void HttpClients_own_timeout_is_a_request_timeout_not_a_connect_timeout()
+    {
+        // The chain M0 probe 6b measured for HttpClient.Timeout. A ConnectTimeout's
+        // TimeoutException carries nothing inside it; this one wraps the cancellation it replaced.
+        var timeout = new TaskCanceledException(
+            "The request was canceled due to the configured HttpClient.Timeout of 30 seconds elapsing.",
+            new TimeoutException("A task was canceled.", new TaskCanceledException()));
+
+        var classified = RomMTransportErrors.Classify(timeout, Origin, CancellationToken.None);
+
+        var unreachable = Assert.IsType<RomMUnreachableException>(classified);
+        Assert.Equal(UnreachableReason.RequestTimeout, unreachable.Reason);
     }
 
     [Fact]

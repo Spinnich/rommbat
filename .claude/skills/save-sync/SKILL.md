@@ -441,6 +441,10 @@ list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's 
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 mesen, mednafen, jgenesis and ares are still reported, each waiting on a rule of its own.
 
+**The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
+battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
+split a slot by core or merge two emulators' slots without a new decision.
+
 **BizHawk names a battery save after its own title for the game** (`named_after: display
 name`), so the filename join cannot match: `StarTropics (USA).zip` wrote
 `bizhawk/StarTropics.SaveRAM`, and `Phantasy Star (Brazil).zip` wrote `Phantasy Star (B).SaveRAM`,
@@ -818,8 +822,8 @@ hash, folded into one digest. The archive is transport only.
   `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
   correct themselves when the slot is next negotiated or the conflict resolved, and they are
   display-only in the meantime, since ordering compares server rows only against each other.
-- **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
-  answers has to be overruled here and a second is guarded against.** The repo's own rule is that
+- **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so two of its
+  answers have to be overruled here and a third is guarded against.** The repo's own rule is that
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, four
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
@@ -848,6 +852,15 @@ hash, folded into one digest. The archive is transport only.
     `libretro:battery` as save 344 with a **null** `origin_device_id`, because that row came down
     rather than up. Every slot whose current row arrived from a peer or from RomM's browser
     player is in that state.
+  - **A `download` over a local save the server has never seen is a conflict** (#211,
+    `SaveSync.UnsentLocalWouldBeReplaced`). M3 is the case: a slot this device has no sync record
+    for is answered "Server save is newer (no sync history)" whatever the device holds, so two
+    devices playing one game offline, the ordinary case for a handheld, had the second one's
+    save replaced on its first flush with no conflict, leaving only a copy under `replaced/` that
+    nothing points to. The test is the `no_op` rule's, from the other side: an unsent save, or one
+    changed since its upload, is evidence the server lacks. Identical bytes download as before.
+    A class C unit is a conflict even then, because its fold never equals the server's digest.
+    The restore find is untouched: it reaches the download only with no local save.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
   two ROMs, one never named by the client, and acking one dropped the next answer to 12. An
@@ -1014,7 +1027,9 @@ writers on the same slots" below.
 
 **Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
 which is worth knowing before assuming a download is safe to make silent. A resolution prunes its
-copy; a download's copy is currently never pruned.
+copy; a download's copy is currently never pruned. Since #211 a download only ever replaces
+bytes this device already sent, so that copy duplicates the server rather than being the last
+record of a save.
 
 ## Other writers on the same slots
 

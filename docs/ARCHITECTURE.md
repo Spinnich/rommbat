@@ -77,8 +77,9 @@ The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
 - Every call takes a `CancellationToken`, and **`SocketsHttpHandler.ConnectTimeout` is set
   explicitly on every handler**, because nothing sets it by default and an absent host on
   the local subnet otherwise stalls for 21 seconds (M0 probe 6b). 2 s is the interactive
-  budget. `HttpClient.Timeout` is set too, for a different reason: it bounds the body, so it
-  cannot be the reachability lever.
+  budget. `HttpClient.Timeout` is set too, for a different reason: it covers an API call and
+  its JSON body, and a slow server that is still reachable, so it cannot be the reachability
+  lever. A streamed transfer's body is bounded by the stall watchdog (`StallTimeout`) instead.
 - **A timeout and a user cancellation are the same exception type.** Both surface as
   `TaskCanceledException` and differ only in the inner exception, so every failure goes
   through `RomMTransportErrors.Classify` rather than a bare `catch`. A naive catch reports
@@ -802,6 +803,12 @@ Three rules that are not obvious:
   by driving a flush on a real install. A second guard answers an `upload` of bytes the server
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
+
+  **A `download` over a local save the server has never seen is recorded as a conflict**, the
+  same evidence read the other way. M3 answers `download` for a slot this device has no sync
+  record for whatever it holds, so a second device's offline progress was replaced on its first
+  flush. An unsent save, or one changed since its upload, is kept unless its bytes equal what is
+  offered. #211.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until

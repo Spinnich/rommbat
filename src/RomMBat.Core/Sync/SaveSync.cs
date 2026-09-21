@@ -451,6 +451,12 @@ public sealed class SaveSync
                         break;
                     }
 
+                    if (local is not null && UnsentLocalWouldBeReplaced(operation, local) is { } unsent)
+                    {
+                        conflicts.Add(RecordConflict(unsent, local));
+                        break;
+                    }
+
                     var (target, targetProblem) = ResolveTarget(operation, local);
 
                     // Negotiate is unscoped, so a device holding a subset is offered every save
@@ -1349,6 +1355,51 @@ public sealed class SaveSync
                 + $"{lastExchanged} this device last exchanged. Either the newer copy was deleted, "
                 + "which the server's per-slot prune does, or something wrote into the older one "
                 + "after it was replaced, so taking it could undo the side that was kept.",
+        };
+    }
+
+    /// <summary>
+    /// The operation restated as a conflict when taking it would replace local bytes the server
+    /// has never seen, or null when it would not.
+    /// </summary>
+    /// <remarks>
+    /// <b>Negotiate answers <c>download</c> for a slot this device has no sync record for,
+    /// whatever the device holds</b>: measured at the <c>5.3.0-beta.1</c> floor as case M3,
+    /// "Server save is newer (no sync history)", against a local save it was sent the hash of
+    /// (<c>s4-older-mtime.py</c>, #211). Two devices playing one game offline is the ordinary
+    /// case for a handheld, and the second one's first flush replaced its save with no conflict,
+    /// leaving only the copy under <c>replaced/</c>, which nothing prunes or points to.
+    /// <see cref="AlreadyHeld"/> needs the slot to name this device and
+    /// <see cref="SupersededRowReturned"/> needs a recorded save id, so neither sees it.
+    /// <para>
+    /// The test is the one the <c>no_op</c> upload uses from the other side: an unsent save,
+    /// or one changed since its upload, is evidence the server lacks. Identical bytes lose
+    /// nothing and download as before. A bundled unit's fold never equals the server's digest,
+    /// so for class C the identical case cannot be ruled out and it is a conflict too.
+    /// </para>
+    /// </remarks>
+    private static SyncOperation? UnsentLocalWouldBeReplaced(SyncOperation operation, LocalSave local)
+    {
+        if (!local.IsUnsent && !local.HasChangedSinceUpload)
+        {
+            return null;
+        }
+
+        if (local.ShapeClass != SaveShapeClass.C
+            && local.ContentHash is { } held
+            && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var what = local.IsUnsent
+            ? "a save this device has never sent"
+            : "a save this device has changed since it last sent it";
+
+        return operation with
+        {
+            Reason = $"the server offers a save for this slot, and {what} is in its place. "
+                + "Taking the download would replace it, so neither side is written until you choose.",
         };
     }
 

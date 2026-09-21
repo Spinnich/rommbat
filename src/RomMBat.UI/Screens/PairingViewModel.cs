@@ -204,15 +204,16 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
         {
             using var connection = _connect(_origin);
 
-            var contact = await ServerProbes
-                .TryContactAsync(connection, _session.Store, cancellationToken: cancellationToken)
+            var attempt = await ServerProbes
+                .ContactAsync(connection, _session.Store, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            if (contact is null)
+            if (attempt.Contact is not { } contact)
             {
                 Update(
                     PairingStage.Unreachable,
-                    $"{_origin} did not answer. Everything else RomMBat does works offline, "
+                    (attempt.Answered ? attempt.Failure + " " : $"{_origin} did not answer. ")
+                        + "Everything else RomMBat does works offline, "
                         + "and this can wait until the server is back.");
                 return;
             }

@@ -98,7 +98,7 @@ public sealed partial class RomMConnection
         });
     }
 
-    private static async Task<RomMResponse<FirmwareResult>> DescribeFirmwareFailureAsync(
+    private async Task<RomMResponse<FirmwareResult>> DescribeFirmwareFailureAsync(
         FirmwareRow firmware,
         HttpResponseMessage response,
         CancellationToken cancellationToken)
