@@ -106,3 +106,8 @@ Expected contents, arriving with the milestones that need them:
 
 Redact before checking anything in: no server hostname, no token, no personal library
 contents beyond what the test needs.
+
+**No game content, ever.** A fixture is never a ROM, a BIOS, a battery save, a save state, a screenshot, a
+framebuffer or scraped media, because each is copyrighted or carries copyrighted content. When
+a test needs a real file's shape, check in its path, size, md5 and magic bytes and generate a
+stand-in at test time.
