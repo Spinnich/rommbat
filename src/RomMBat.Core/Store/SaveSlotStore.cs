@@ -14,8 +14,10 @@ namespace RomMBat.Core.Store;
 /// <c>saves/&lt;folder&gt;/&lt;the ROM's own stem&gt;.&lt;file_extension&gt;</c>, which is the
 /// ordinary new-device restore. <b>Not <c>file_name_no_tags</c></b>: the server strips general
 /// tags rather than only its own, so a real save came back with <c>Phantasy Star</c> for a ROM
-/// called <c>Phantasy Star (Brazil)</c>, and that filename is invisible to libretro. Null only
-/// when the ROM is not held either, where there is genuinely no folder to name.
+/// called <c>Phantasy Star (Brazil)</c>, and that filename is invisible to libretro. Null when
+/// the ROM is not held either, where there is genuinely no folder to name, and for a slot a
+/// battery rule places in an emulator's own directory, whose name the ROM does not give: BizHawk's
+/// <c>StarTropics.SaveRAM</c> for <c>StarTropics (USA).zip</c> (#151). The caller builds that one.
 /// </param>
 public sealed record SaveSlotRecord(
     long RomId,
@@ -243,7 +245,10 @@ public sealed class SaveSlotStore
             // A path this device already holds, which is a path an emulator has proven it reads.
             onDisk = parsed;
         }
-        else if (romFolder is not null && romFileName is not null && extension is not null)
+        else if (romFolder is not null
+            && romFileName is not null
+            && extension is not null
+            && RetroBat.SaveShapes.Bundled.BatteryRuleForSlot(romFolder, reader.GetString(1)) is null)
         {
             var stem = Path.GetFileNameWithoutExtension(romFileName);
             var trimmed = extension.TrimStart('.');

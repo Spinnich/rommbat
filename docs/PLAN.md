@@ -2402,6 +2402,16 @@ names the paths, and anything it does not name is reported as unknown rather tha
   beside `saves/snes/libretro.snes9x/`. Battery saves and states share the parent.
 - **Loose does not mean class A.** `xbox` holds `eeprom.bin` and a 39 MB `xbox_hdd.qcow2`
   loose at the system root and both are class D.
+- **Loose does not mean libretro's, and a battery save is not always named after its ROM.**
+  On `nes`, mesen standalone and mednafen write a loose `.sav` beside libretro's `.srm`, and
+  BizHawk writes `bizhawk/<its own title>.SaveRAM` (`StarTropics (USA).zip` wrote
+  `StarTropics.SaveRAM`). So `save_rules.json` carries one battery rule per
+  `(system, emulator)`: directory, extensions, and whether the stem is the ROM file or the
+  emulator's title. The emulator is the slot, so loading refuses a table where two rules could
+  claim one file or one emulator has two rules on a system. A title is joined back to a ROM by
+  the state sidecar (`StarTropics.NesHawk`) and by a launch under that emulator, both asked
+  every scan, and **a title two ROMs answer to fails closed**, because BizHawk keeps one file
+  for every ROM it gives that title. #151, #152.
 - **Class B and class D interleave at one level.** `megacd` holds per-game `.brm` and `.srm`
   beside the shared `4Mbit_cart.brm`, so excluding class D is a named-container list, never
   a positional rule.

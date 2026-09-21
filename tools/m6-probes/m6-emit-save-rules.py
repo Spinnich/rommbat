@@ -5,11 +5,12 @@ that class, and stage 1 cannot guess: megacd's shared 4Mbit_cart.brm sits beside
 .brm files at the same level and only the name separates them, and xbox's two class-D files
 are loose under the system folder where class A normally lives.
 
-So this emits the mechanism: which extensions a loose battery save carries, and which exact
-filenames are shared containers that must never be attributed to a rom. The extension list
-comes from walking the install; the container list comes from probe 2, F18 and F19 and is
-declared here rather than inferred, because a container is recognised by being named in a
-finding and not by anything about the file.
+So this emits the mechanism: which emulator wrote a battery save, from its system, directory
+and extension, and which exact filenames are shared containers that must never be attributed to
+a rom. libretro's loose extensions come from walking the install; every other battery rule and
+the container list come from findings and are declared here rather than inferred, because a
+container is recognised by being named in a finding and not by anything about the file, and an
+emulator's own subdirectory is measured one (system, emulator) row at a time.
 
     python m6-emit-save-rules.py <retrobat-root>
 
@@ -59,6 +60,31 @@ SHARED_CONTAINERS = {
         "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
     },
 }
+
+# Battery saves outside libretro's loose level, one per (system, emulator). Declared, because
+# each is a hands-on measurement: the loose level cannot be widened to a second emulator's
+# extension without a collision on libretro's slot (#152).
+OTHER_BATTERY_RULES = [
+    {
+        "emulator": "bizhawk",
+        "systems": ["nes"],
+        "directory": "bizhawk",
+        "extensions": [".saveram"],
+        "named_after": "display name",
+        "class": "A",
+        "evidence": (
+            "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote "
+            "bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads "
+            "StarTropics.NesHawk (#151)"
+        ),
+        "not_a_save_extensions": {
+            ".bak": (
+                "BizHawk's copy of the save a new one replaced, StarTropics.SaveRAM.bak, written on "
+                "exit (#151)"
+            ),
+        },
+    },
+]
 
 # Written into the save tree by RetroArch and by RetroBat, and not a save. The .ldci is the
 # hostile one: it is small, it is JSON, and its image_path is an absolute path with a drive
@@ -122,14 +148,27 @@ document = {
         "is recognised by being named in a finding and by nothing about the file itself."
     ),
     "_retrobat_version": (root / "system" / "version.info").read_text(encoding="utf-8").strip(),
-    "_loose_emulator_note": (
-        "A file loose directly under saves/<system>/ was written by libretro. Every standalone "
-        "emulator gets its own saves/<system>/<emulator>/ subdirectory, and libretro's own state "
-        "directory is saves/<system>/libretro.<core>/, so the loose level holds battery saves "
-        "and nothing else. Measured on a real install across saturn, megacd, psx, gb and 12 more."
+    "_battery_saves_note": (
+        "Which emulator wrote a battery save, from the system, the directory it sits in and its "
+        "extension. directory is relative to saves/<system>/ and empty is the loose level; a rule "
+        "with no systems applies to every system. One rule per (system, emulator), because the "
+        "emulator is the slot, and no two rules may claim one extension in one directory, or a "
+        "file has two owners. The loose level is libretro's across saturn, megacd, psx, gb and 12 "
+        "more, but not exclusively: on nes, mesen standalone and mednafen write a loose .sav, "
+        "which is why this is not one extension list and one loose emulator (#152). named_after "
+        "is what the stem joins on: the rom file, or the emulator's own title for the game, which "
+        "has to be learned (#151)."
     ),
-    "loose_emulator": "libretro",
-    "battery_extensions": sorted(by_extension),
+    "battery_saves": [
+        {
+            "emulator": "libretro",
+            "directory": "",
+            "extensions": sorted(by_extension),
+            "named_after": "rom file",
+            "evidence": "observed loose under every system in observed below",
+        },
+        *OTHER_BATTERY_RULES,
+    ],
     "not_a_save_extensions": NOT_A_SAVE,
     "shared_containers": SHARED_CONTAINERS,
     "observed": per_system,

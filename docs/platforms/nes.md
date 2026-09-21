@@ -954,7 +954,7 @@ and neither sees the other.
 | Row                   | Battery save           | Save state          |
 | --------------------- | ---------------------- | ------------------- |
 | the three `libretro`  | synced, class A        | synced, core-scoped |
-| `bizhawk`, both cores | **deferred**           | synced, core-scoped |
+| `bizhawk`, both cores | synced, driven         | synced, core-scoped |
 | `jgenesis`            | **deferred**           | synced              |
 | `ares`                | **deferred**           | **invisible**       |
 | `mednafen`            | **no shape claims it** | **invisible**       |
@@ -970,7 +970,7 @@ not driven since.
 
 - **Deferred** is `NotInThisVersion`, defined as "The shape is understood and this build does not
   carry it. Stage 2's list." These are the emulators' own subdirectories under `saves/nes/`:
-  `bizhawk/`, `jgenesis/nes/`. Understood, planned, not carried. `ares/Famicom/` is the same
+  `jgenesis/nes/`, and `bizhawk/` until #151. Understood, planned, not carried. `ares/Famicom/` is the same
   deferral and reports under `NoStateDeclaration` instead, because it holds a save state as well
   and that is the row that does not promise states sync.
 - **No shape claims it** is `UnknownShape`. `mednafen` and `mesen` write their battery save **loose
@@ -978,12 +978,14 @@ not driven since.
   thing rejecting them is the extension: `save_rules.json` recognises `.bcr`, `.bkr`, `.brm` and
   `.srm`, and these two are `.sav`.
 
-**The cheap-looking fix is a trap.** `save_rules.json` also hard-wires `loose_emulator` to
-`libretro`, so adding `.sav` to the extension list alone would give mesen's `Crystalis (USA).sav`
-the slot `libretro:battery` for that ROM and collide with libretro's own `Crystalis (USA).srm`,
-which already syncs in that slot. This install holds both, because that game was driven under
-`nestopia` and under `mesen` standalone. The extension list and `loose_emulator` have to stop being
-independent globals first. Issue #151.
+**The cheap-looking fix was a trap.** `save_rules.json` hard-wired `loose_emulator` to
+`libretro`, so adding `.sav` to the extension list alone would have given mesen's
+`Crystalis (USA).sav` the slot `libretro:battery` for that ROM and collided with libretro's own
+`Crystalis (USA).srm`, which already syncs in that slot. This install holds both, because that game
+was driven under `nestopia` and under `mesen` standalone. **#151 replaced the two globals** with a
+`battery_saves` table of one rule per `(system, emulator)`, and loading refuses a table in which
+two rules could claim one file, so `mesen` and `mednafen` each need a rule of their own and can no
+longer be carried by accident. Neither has one yet.
 
 The battery column is a **reported** limitation and the right behaviour for this release. Nothing
 is dropped silently. The pass that drove these nine rows read one `saves` row covering all five
@@ -1001,7 +1003,8 @@ something unsyncable, under a sentence promising that "the save states beside th
 state files folded into a count whose reason is about battery saves and shared containers.
 
 Issue #150 split that row in two, on whether `es_savestates.cfg` names the emulator at all. `nes`
-now reports `bizhawk, jgenesis` under the sentence above, and `ares, mednafen, mesen` under a
+reported `bizhawk, jgenesis` under the sentence above (`jgenesis` alone since #151 carried
+BizHawk's battery save), and `ares, mednafen, mesen` under a
 `no_state_declaration` row that repeats the shape half and ends "a save state written under these
 is found only where RetroBat mirrors it into a declared path, and is otherwise not scanned, not
 uploaded and not restorable". **Which is a correct message, not a fix.** The states are still
@@ -1018,9 +1021,36 @@ Two smaller findings from the same pass:
 
 - **BizHawk names a battery save after the display name**, dropping the region tag:
   `StarTropics (USA).zip` produced `bizhawk/StarTropics.SaveRAM`. Its own state sidecar spells the
-  convention out, `StarTropics.NesHawk`, so the join key exists. Issue #151.
+  convention out, `StarTropics.NesHawk`, so the join key exists. Issue #151, which now carries it:
+  the title is joined through that sidecar or a BizHawk launch, and a title two ROMs answer to is
+  refused rather than given to either. Driven on both cores on 2026-09-21; see "BizHawk battery
+  saves, driven" below.
 - **`saves` groups two unsyncable files under `nes/libretro`**, a directory that does not exist,
   and names no filenames. Issue #152.
+
+### BizHawk battery saves, driven
+
+Driven from EmulationStation on 2026-09-21 against the build carrying #151, with the maintainer
+at the controller. **This is the one hands-on pass a save-logic change owes, not a certification
+of either `bizhawk` row**: steps other than the battery save were not re-run. Findings 262 to 266.
+
+| Pass                                               | What happened                                                                                                                                                                                                      |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The two saves already on disk, one per core        | Both attributed through their sidecars (`StarTropics.NesHawk`, and Ultima's under `quickerNES`), uploaded, and a second flush a no-op                                                                              |
+| Restore, then play                                 | `StarTropics.SaveRAM` restored under its title with the original hash, and **Continue in BizHawk showed the saved progress**. BizHawk's rewrite on exit went up under the USA ROM                                  |
+| Restore while another `nes` game runs              | Ultima's restore deferred with the display-name reason while StarTropics ran, and landed with its original hash once it quit                                                                                       |
+| No learned title                                   | With the binding forgotten, the restore refused with "Run the game once under bizhawk" and wrote nothing                                                                                                           |
+| No save state, `NesHawk`                           | Zelda wrote `Legend of Zelda, The.SaveRAM`; the launch route alone bound it and it went up                                                                                                                         |
+| In-game save, `quickerNES`                         | Ultima's changed bytes went up under the same slot and ROM, then a no-op                                                                                                                                           |
+| Europe copy of a game already saved in the USA one | **One file for both**: the Europe copy read the USA progress and wrote a new character into `StarTropics.SaveRAM`. Contested, nothing uploaded; `saves bind` settled it to USA and a restore put the USA save back |
+
+Three defects surfaced here that the suite had not caught, and each now has a test: a slot this
+device had already sent restored to the ROM's stem rather than the title (finding 266), a restored
+file was credited to whichever BizHawk session came last and contested (265), and BizHawk's
+`.SaveRAM.bak` was reported as an unknown shape (264).
+
+**Still unmeasured**: whether `NesHawk` and `quickerNES` read each other's `.SaveRAM`. Each game
+was driven on one core, and the two cores share the file and the `bizhawk:battery` slot.
 
 ### The hooks carried the whole session
 

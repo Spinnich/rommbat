@@ -471,8 +471,9 @@ RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All
 on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
 That is three rows, and the unit is `(system, emulator, core)`. It does not certify `nes`: the
-other six rows of that system are driven on two of the nine steps, none of them can sync the
-battery save it writes, and three write save states RomMBat cannot see. Wave 1's other six systems are
+other six rows of that system are driven on two of the nine steps, only the two `bizhawk` rows
+can sync the battery save they write (driven on 2026-09-21, not certified), and three write save states RomMBat
+cannot see. Wave 1's other six systems are
 not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
 
 ### Compatibility

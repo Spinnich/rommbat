@@ -622,6 +622,127 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_bizhawk_save_downloads_under_the_title_this_device_learned_for_the_rom()
+    {
+        // #151. BizHawk reads StarTropics.SaveRAM, not a file named after the ROM, so the ROM's
+        // stem is the wrong name here and only a learned binding supplies the right one.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(12, "nes", "StarTropics (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/StarTropics (USA).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes",
+            "StarTropics.SaveRAM",
+            12,
+            RelativePath.Create("roms/nes/StarTropics (USA).zip"),
+            BindingSource.Sidecar,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+
+        fixture.SeedServerSave(12, "bizhawk:battery", "StarTropics", "SaveRAM", "from the other device", emulator: "bizhawk");
+        fixture.Stub.UnsolicitedDownloads.Add((12, "bizhawk:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve("saves/nes/bizhawk/StarTropics.SaveRAM")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/StarTropics (USA).SaveRAM")));
+
+        // And the next scan reads it back as the same slot for the same ROM, not a new save.
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("bizhawk:battery", save.Slot);
+        Assert.Equal(12, save.RomId);
+
+        // Cleared, so the re-run negotiates for real rather than being offered the download again.
+        fixture.Stub.UnsolicitedDownloads.Clear();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal(0, again.Downloaded);
+    }
+
+    [Fact]
+    public async Task A_bizhawk_save_this_device_uploaded_restores_under_its_title_not_the_roms_stem()
+    {
+        // Caught on a real install, not by the test above: once this device has sent the slot,
+        // save_slot has a row, and that row derived saves/nes/StarTropics (USA).SaveRAM from the
+        // ROM's stem before the battery rule was ever asked. BizHawk never reads that file.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(12, "nes", "StarTropics (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/StarTropics (USA).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes",
+            "StarTropics.SaveRAM",
+            12,
+            RelativePath.Create("roms/nes/StarTropics (USA).zip"),
+            BindingSource.Sidecar,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.AddState("nes/bizhawk", "StarTropics.SaveRAM", "played under NesHawk");
+        fixture.Scan();
+
+        var sent = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(1, sent.Uploaded);
+
+        var unchanged = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, unchanged.Uploaded);
+        Assert.Equal(0, unchanged.Downloaded);
+
+        File.Delete(fixture.Resolve("saves/nes/bizhawk/StarTropics.SaveRAM"));
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal("saves/nes/bizhawk/StarTropics.SaveRAM", pick.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal("played under NesHawk", File.ReadAllText(fixture.Resolve("saves/nes/bizhawk/StarTropics.SaveRAM")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/StarTropics (USA).SaveRAM")));
+
+        // The restored file is the server's own bytes, so the next sync must not offer it back.
+        fixture.Scan();
+        var afterRestore = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(0, afterRestore.Uploaded);
+        Assert.Equal(0, afterRestore.Downloaded);
+    }
+
+    [Fact]
+    public async Task A_bizhawk_save_for_a_rom_with_no_learned_title_is_refused_with_its_remedy()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(12, "nes", "StarTropics (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/nes/StarTropics (USA).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(12, "bizhawk:battery", "StarTropics", "SaveRAM", "from the other device", emulator: "bizhawk");
+        fixture.Stub.UnsolicitedDownloads.Add((12, "bizhawk:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(
+            outcome.Problems,
+            problem => problem.Contains("Run the game once under bizhawk", StringComparison.Ordinal));
+        Assert.False(Directory.Exists(fixture.Resolve("saves/nes/bizhawk")));
+        Assert.False(File.Exists(fixture.Resolve("saves/nes/StarTropics (USA).SaveRAM")));
+
+        // The restore find gives the same answer at the same decision point.
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+
+        Assert.Empty(findings.Restorable);
+        var named = Assert.Single(findings.Unrestorable);
+        Assert.Equal("bizhawk:battery", named.Slot);
+        Assert.Contains("has not learned that title", named.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_download_that_dies_mid_body_leaves_the_server_not_current_and_the_file_untouched()
     {
         // The failure F1 exists to prevent. Without optimistic=false the server would already

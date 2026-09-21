@@ -483,6 +483,13 @@ public sealed class SaveSync
                         break;
                     }
 
+                    if (targetProblem == TargetProblem.TitleNotLearned)
+                    {
+                        failed++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: {TitleNotLearnedReason(operation)}");
+                        break;
+                    }
+
                     if (target is not { } destination)
                     {
                         failed++;
@@ -832,6 +839,12 @@ public sealed class SaveSync
                     slot,
                     "this is a directory save and this device holds none for that game yet, so "
                         + "there is no folder to put it in. Run the game once, then try again."));
+                continue;
+            }
+
+            if (problem == TargetProblem.TitleNotLearned)
+            {
+                unrestorable.Add(new UnrestorableSave(row.RomId, slot, TitleNotLearnedReason(operation)));
                 continue;
             }
 
@@ -1625,6 +1638,23 @@ public sealed class SaveSync
             ? $"saves/{folder}/{container}"
             : $"saves/{folder}";
 
+        // An emulator that keeps its battery saves in its own subdirectory, and one that names
+        // them after its own title for the game, which only a learned binding can supply (#151).
+        if (_shapes.BatteryRuleForSlot(folder, operation.Slot) is { } rule)
+        {
+            directory = $"saves/{folder}/{rule.Directory}";
+
+            if (rule.NamedAfter == BatteryNaming.DisplayName)
+            {
+                if (DisplayNameAttributor.LearnedTitle(_store, folder, rule, operation.RomId) is not { } title)
+                {
+                    return (null, TargetProblem.TitleNotLearned);
+                }
+
+                stem = title;
+            }
+        }
+
         return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)
             ? (derived, TargetProblem.None)
             : (null, TargetProblem.Unnameable);
@@ -1660,6 +1690,16 @@ public sealed class SaveSync
             : null;
     }
 
+    /// <summary>What to tell a person whose save cannot be placed until a title is learned.</summary>
+    private static string TitleNotLearnedReason(SyncOperation operation)
+    {
+        var emulator = operation.Slot?.Split(':', 2)[0] ?? "the emulator";
+
+        return $"{emulator} names this save after its own title for the game, not the ROM file, "
+            + $"and this device has not learned that title yet. Run the game once under {emulator}, "
+            + "then try again.";
+    }
+
     /// <summary>Why a download has nowhere to go, when it has nowhere to go.</summary>
     private enum TargetProblem
     {
@@ -1676,6 +1716,12 @@ public sealed class SaveSync
         /// The ROM is here and no name could still be built for the save, which is a fault.
         /// </summary>
         Unnameable,
+
+        /// <summary>
+        /// The emulator names this save after its own title for the game, and this device has
+        /// not learned it. Not a fault, and it has a remedy: run the game once under it.
+        /// </summary>
+        TitleNotLearned,
     }
 
     /// <summary>

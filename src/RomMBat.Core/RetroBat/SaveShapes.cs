@@ -23,6 +23,77 @@ public enum SaveShapeClass
     D,
 }
 
+/// <summary>What a battery save's file stem joins on to find its ROM.</summary>
+public enum BatteryNaming
+{
+    /// <summary>The ROM file's own stem, which the <c>(folder, stem)</c> index answers.</summary>
+    RomFile,
+
+    /// <summary>
+    /// The emulator's own title for the game, which no index answers and has to be learned.
+    /// BizHawk is the measured case: <c>StarTropics (USA).zip</c> produced
+    /// <c>StarTropics.SaveRAM</c>, and <c>Phantasy Star (Brazil).zip</c> produced
+    /// <c>Phantasy Star (B).SaveRAM</c>, so no rule over the ROM name recovers it.
+    /// </summary>
+    DisplayName,
+}
+
+/// <summary>Which files in one directory are one emulator's battery saves.</summary>
+/// <param name="Emulator">Who writes them, which is also the first half of the slot.</param>
+/// <param name="Directory">
+/// Relative to <c>saves/&lt;system&gt;/</c>, forward-slashed. Empty is the loose level.
+/// </param>
+/// <param name="Extensions">Lower-cased, with the dot.</param>
+/// <param name="Class">
+/// The class the files are, or null to take it from the system's declaration. Null only makes
+/// sense at the loose level, where megacd's per-game <c>.brm</c> is class B and nes's
+/// <c>.srm</c> is class A under one rule.
+/// </param>
+/// <param name="Systems">The systems it applies to, or null for every system with a shape.</param>
+/// <param name="NotASave">
+/// Extensions the emulator writes beside its saves that are not saves, lower-cased. BizHawk
+/// leaves <c>StarTropics.SaveRAM.bak</c>, its copy of the save a new one replaced, and counting
+/// it told a reader the directory held a shape nothing covers.
+/// </param>
+public sealed record BatteryRule(
+    string Emulator,
+    string Directory,
+    FrozenSet<string> Extensions,
+    BatteryNaming NamedAfter,
+    SaveShapeClass? Class,
+    FrozenSet<string>? Systems,
+    string Evidence,
+    FrozenSet<string> NotASave)
+{
+    /// <summary>True when the rule reads the files loose directly under the system folder.</summary>
+    public bool IsLoose => Directory.Length == 0;
+
+    public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
+
+    public bool Carries(string extension) => Extensions.Contains(extension.ToLowerInvariant());
+
+    /// <summary>
+    /// True when a binding key is one of this rule's file names, which is how a display-name save
+    /// is bound: <c>saves bind nes StarTropics.SaveRAM &lt;rom id&gt;</c>.
+    /// </summary>
+    /// <remarks>
+    /// The file name rather than a path, because <c>game_id_binding</c> refuses a key holding a
+    /// separator. The extension is what keeps it apart from a class C key under the same system,
+    /// which is a bare identifier such as <c>ULES01513</c>.
+    /// </remarks>
+    public bool IsBindingKey(string key) =>
+        Path.GetFileNameWithoutExtension(key).Length > 0 && Carries(Path.GetExtension(key));
+
+    /// <summary>True when a slot is one this rule's saves are uploaded under.</summary>
+    public bool OwnsSlot(string? slot) =>
+        slot is not null
+        && (string.Equals(slot, $"{Emulator}:battery", StringComparison.OrdinalIgnoreCase)
+            || slot.StartsWith($"{Emulator}:battery:", StringComparison.OrdinalIgnoreCase));
+
+    internal bool Overlaps(BatteryRule other) =>
+        Systems is null || other.Systems is null || Systems.Overlaps(other.Systems);
+}
+
 /// <summary>How a system's shared container can be made per-game, where it can.</summary>
 /// <param name="Option">The <c>es_settings.cfg</c> key, e.g. <c>pcsx2_slot1_memory</c>.</param>
 /// <param name="SetTo">The value to write. Null where the declaration says not to convert.</param>
@@ -94,7 +165,7 @@ public sealed record PerGameConversion(
 /// <para>
 /// <b>Nothing branches on this yet, and nothing needs to.</b> Discovery is path-based rather
 /// than shape-based, so both halves of <c>psx</c> already come out right without consulting it:
-/// a loose <c>.srm</c> is libretro's by <see cref="SaveShapes.LooseEmulator"/>, and
+/// a loose <c>.srm</c> is libretro's by its <see cref="BatteryRule"/>, and
 /// <c>saves/psx/duckstation/memcards/</c> is a subdirectory and is reported as a shape this
 /// release does not carry. The flag exists for the stage that reads a memory card, where the
 /// class alone stops being enough to know what a file is.
@@ -161,38 +232,41 @@ public sealed class SaveShapes
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     private readonly FrozenDictionary<string, SaveShape> _shapes;
-    private readonly FrozenSet<string> _batteryExtensions;
+    private readonly IReadOnlyList<BatteryRule> _batteryRules;
     private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _sharedContainers;
     private readonly FrozenSet<string> _notASaveExtensions;
 
     private SaveShapes(
         FrozenDictionary<string, SaveShape> shapes,
-        FrozenSet<string> batteryExtensions,
+        IReadOnlyList<BatteryRule> batteryRules,
         FrozenDictionary<string, FrozenDictionary<string, string>> sharedContainers,
         FrozenSet<string> notASaveExtensions,
-        string looseEmulator,
         IReadOnlyList<string> unclassified)
     {
         _shapes = shapes;
-        _batteryExtensions = batteryExtensions;
+        _batteryRules = batteryRules;
         _sharedContainers = sharedContainers;
         _notASaveExtensions = notASaveExtensions;
-        LooseEmulator = looseEmulator;
         Unclassified = unclassified;
+
+        LooseEmulator = batteryRules.FirstOrDefault(rule => rule.IsLoose && rule.Systems is null)?.Emulator
+            ?? throw new InvalidOperationException(
+                "save_rules.json declares no battery rule for the loose level of every system.");
     }
 
     /// <summary>The shipped tables, read once.</summary>
     public static SaveShapes Bundled { get; } = LoadEmbedded();
 
     /// <summary>
-    /// The emulator that wrote a file sitting loose directly under <c>saves/&lt;system&gt;/</c>.
+    /// The emulator whose rule covers the loose level of every system, which is libretro.
     /// </summary>
     /// <remarks>
-    /// A structural fact rather than a guess, and it is what makes the slot for a class A save
-    /// stable. Every standalone emulator gets its own <c>saves/&lt;system&gt;/&lt;emulator&gt;/</c>
-    /// subdirectory and libretro's own state directory is
-    /// <c>saves/&lt;system&gt;/libretro.&lt;core&gt;/</c>, so the loose level holds libretro
-    /// battery saves and nothing else. Checked across saturn, megacd, psx, gb and twelve more.
+    /// A fallback in three places: a restored save whose row and server copy both name no
+    /// emulator, a kept server copy with no previous row, and the emulator named on a
+    /// shared-container report row. Which emulator wrote a file is <see cref="BatteryRuleFor"/>'s answer, keyed
+    /// on the system, the directory and the extension: a loose <c>.sav</c> on <c>nes</c> is
+    /// mesen standalone's or mednafen's, and taking this value for it would give it
+    /// <c>libretro:battery</c> and collide with libretro's own <c>.srm</c> for the same ROM (#152).
     /// </remarks>
     public string LooseEmulator { get; }
 
@@ -212,9 +286,33 @@ public sealed class SaveShapes
     public SaveShape? For(string system) =>
         _shapes.TryGetValue(system, out var shape) ? shape : null;
 
-    /// <summary>True when the extension is one a loose battery save carries.</summary>
-    public bool IsBatteryExtension(string extension) =>
-        _batteryExtensions.Contains(extension.ToLowerInvariant());
+    /// <summary>
+    /// The rule that claims a file with this extension in this directory, or null when none does.
+    /// </summary>
+    /// <param name="directory">Relative to <c>saves/&lt;system&gt;/</c>; empty for the loose level.</param>
+    /// <remarks>
+    /// <b>At most one can answer, and loading refuses a table where two could.</b> One extension
+    /// list and one loose emulator for every system was the shape this replaced, and it is why a
+    /// second emulator's loose save could not be carried: adding mesen's <c>.sav</c> to the list
+    /// would have given it libretro's slot (#152).
+    /// </remarks>
+    public BatteryRule? BatteryRuleFor(string system, string directory, string extension) =>
+        _batteryRules.FirstOrDefault(rule =>
+            rule.AppliesTo(system)
+            && string.Equals(rule.Directory, directory, StringComparison.OrdinalIgnoreCase)
+            && rule.Carries(extension));
+
+    /// <summary>The rules for an emulator's own subdirectory under a system, in table order.</summary>
+    public IEnumerable<BatteryRule> BatteryRulesBelow(string system) =>
+        _batteryRules.Where(rule => !rule.IsLoose && rule.AppliesTo(system));
+
+    /// <summary>The subdirectory rule whose saves go up under this slot, or null.</summary>
+    /// <remarks>
+    /// Loose rules are left out, because a loose save's destination is the ROM's own folder and
+    /// stem and needs no rule to find it.
+    /// </remarks>
+    public BatteryRule? BatteryRuleForSlot(string system, string? slot) =>
+        BatteryRulesBelow(system).FirstOrDefault(rule => rule.OwnsSlot(slot));
 
     /// <summary>
     /// True when the file is something RetroBat or RetroArch writes that is not a save.
@@ -267,9 +365,15 @@ public sealed class SaveShapes
     {
         var assembly = typeof(SaveShapes).Assembly;
 
-        var shapes = JsonSerializer.Deserialize<ShapesDocument>(Read(assembly, ShapesResource), SerializerOptions)
+        return Parse(Read(assembly, ShapesResource), Read(assembly, RulesResource));
+    }
+
+    /// <summary>Reads both tables, refusing a battery table in which two rules could answer.</summary>
+    internal static SaveShapes Parse(string shapesJson, string rulesJson)
+    {
+        var shapes = JsonSerializer.Deserialize<ShapesDocument>(shapesJson, SerializerOptions)
             ?? throw new InvalidOperationException("The bundled save_shapes.json could not be read.");
-        var rules = JsonSerializer.Deserialize<RulesDocument>(Read(assembly, RulesResource), SerializerOptions)
+        var rules = JsonSerializer.Deserialize<RulesDocument>(rulesJson, SerializerOptions)
             ?? throw new InvalidOperationException("The bundled save_rules.json could not be read.");
 
         var parsed = shapes.Shapes.ToFrozenDictionary(
@@ -285,7 +389,7 @@ public sealed class SaveShapes
 
         return new SaveShapes(
             parsed,
-            rules.BatteryExtensions.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+            ParseBatteryRules(rules.BatterySaves),
             rules.SharedContainers.ToFrozenDictionary(
                 entry => entry.Key,
                 entry => entry.Value.ToFrozenDictionary(
@@ -294,9 +398,72 @@ public sealed class SaveShapes
                     StringComparer.OrdinalIgnoreCase),
                 StringComparer.OrdinalIgnoreCase),
             rules.NotASaveExtensions.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
-            rules.LooseEmulator,
             shapes.Unclassified);
     }
+
+    /// <summary>
+    /// Reads the battery rules, and refuses a table in which a file or a slot has two owners.
+    /// </summary>
+    /// <remarks>
+    /// <b>Two checks, and each is a collision this table exists to make impossible.</b> Two rules
+    /// claiming one extension in one directory of one system would give a file two emulators, and
+    /// two rules naming one emulator on one system would put two files in one slot. Both fail at
+    /// load, which every test run does, rather than surfacing as one save quietly replacing another.
+    /// </remarks>
+    private static List<BatteryRule> ParseBatteryRules(List<BatteryRuleEntry> entries)
+    {
+        var parsed = entries
+            .Select(entry => new BatteryRule(
+                Blank(entry.Emulator) ?? throw new InvalidOperationException(
+                    "A battery rule in save_rules.json names no emulator."),
+                (entry.Directory ?? string.Empty).Replace('\\', '/').Trim('/'),
+                entry.Extensions.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal),
+                ParseNaming(entry.NamedAfter),
+                Blank(entry.Class) is { } shapeClass ? ParseClasses(shapeClass)[0] : null,
+                entry.Systems?.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                entry.Evidence ?? string.Empty,
+                entry.NotASave.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal)))
+            .ToList();
+
+        for (var i = 0; i < parsed.Count; i++)
+        {
+            for (var j = i + 1; j < parsed.Count; j++)
+            {
+                var (first, second) = (parsed[i], parsed[j]);
+
+                if (!first.Overlaps(second))
+                {
+                    continue;
+                }
+
+                if (string.Equals(first.Emulator, second.Emulator, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"save_rules.json gives {first.Emulator} two battery rules on one system, "
+                            + $"so both would upload under {first.Emulator}:battery.");
+                }
+
+                if (string.Equals(first.Directory, second.Directory, StringComparison.OrdinalIgnoreCase)
+                    && first.Extensions.Overlaps(second.Extensions))
+                {
+                    throw new InvalidOperationException(
+                        $"save_rules.json lets {first.Emulator} and {second.Emulator} both claim "
+                            + $"{string.Join(", ", first.Extensions.Intersect(second.Extensions))} "
+                            + $"in saves/<system>/{first.Directory}.");
+                }
+            }
+        }
+
+        return parsed;
+    }
+
+    private static BatteryNaming ParseNaming(string? value) => value switch
+    {
+        "rom file" => BatteryNaming.RomFile,
+        "display name" => BatteryNaming.DisplayName,
+        _ => throw new InvalidOperationException(
+            $"save_rules.json names a battery save after '{value}', which this build cannot join."),
+    };
 
     /// <summary>
     /// Reads a class string, which is usually one letter and sometimes two.
@@ -458,16 +625,40 @@ public sealed class SaveShapes
 
     private sealed record RulesDocument
     {
-        [JsonPropertyName("loose_emulator")]
-        public string LooseEmulator { get; init; } = "libretro";
-
-        [JsonPropertyName("battery_extensions")]
-        public List<string> BatteryExtensions { get; init; } = [];
+        [JsonPropertyName("battery_saves")]
+        public List<BatteryRuleEntry> BatterySaves { get; init; } = [];
 
         [JsonPropertyName("not_a_save_extensions")]
         public Dictionary<string, string> NotASaveExtensions { get; init; } = [];
 
         [JsonPropertyName("shared_containers")]
         public Dictionary<string, Dictionary<string, string>> SharedContainers { get; init; } = [];
+    }
+
+    private sealed record BatteryRuleEntry
+    {
+        [JsonPropertyName("emulator")]
+        public string? Emulator { get; init; }
+
+        [JsonPropertyName("systems")]
+        public List<string>? Systems { get; init; }
+
+        [JsonPropertyName("directory")]
+        public string? Directory { get; init; }
+
+        [JsonPropertyName("extensions")]
+        public List<string> Extensions { get; init; } = [];
+
+        [JsonPropertyName("named_after")]
+        public string? NamedAfter { get; init; }
+
+        [JsonPropertyName("class")]
+        public string? Class { get; init; }
+
+        [JsonPropertyName("evidence")]
+        public string? Evidence { get; init; }
+
+        [JsonPropertyName("not_a_save_extensions")]
+        public Dictionary<string, string> NotASave { get; init; } = [];
     }
 }

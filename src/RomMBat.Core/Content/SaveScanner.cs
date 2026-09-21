@@ -150,7 +150,9 @@ public sealed class SaveScanner
         var romsByStem = RomIndex.Build(_store);
         // Built once for the whole pass rather than per system: the launch log is read once and
         // the ROM-header index is built per system on first use inside it.
-        var attributor = new GameIdAttributor(_install, _store, romsByStem, timeProvider: _time);
+        var launches = GameIdAttributor.ReadLaunches(_install);
+        var attributor = new GameIdAttributor(_install, _store, romsByStem, launches, _time);
+        var titles = new DisplayNameAttributor(_store, romsByStem, launches, _time);
 
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
         {
@@ -201,11 +203,11 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (!_shapes.IsBatteryExtension(extension))
+                if (_shapes.BatteryRuleFor(system, string.Empty, extension) is not { } rule)
                 {
-                    // No emulator. LooseEmulator is whose battery extensions those are, and a file
-                    // outside them is not known to be libretro's: measured on nes, a loose .sav
-                    // was mesen standalone's and another mednafen's (#152).
+                    // No emulator, because no rule says whose it is: measured on nes, a loose .sav
+                    // was mesen standalone's and another mednafen's, and libretro's rule does not
+                    // claim .sav there (#152).
                     report.Add(
                         system,
                         string.Empty,
@@ -216,7 +218,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                var save = Describe(system, file, romsByStem);
+                var save = Describe(system, file, rule, romsByStem);
                 if (save is null)
                 {
                     continue;
@@ -247,6 +249,9 @@ public sealed class SaveScanner
             // files this pass is carrying. Stage 2a shipped exactly this bug for save states:
             // the report counted them as unsyncable in the same pass that uploaded them.
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
+
+            // An emulator's own battery saves, before the subdirectory report for the same reason.
+            carried.UnionWith(ScanBelow(system, systemDirectory, romsByStem, titles, report, seen, now, ref found, ref attributed, ref bytes));
 
             // A converted class D container, before both reports, for the reason the class C
             // pass runs first: a file this pass carries must not also be counted as one nothing
@@ -302,7 +307,7 @@ public sealed class SaveScanner
             : $"{emulator}:battery";
     }
 
-    private LocalSave? Describe(string system, string file, RomIndex romsByStem)
+    private LocalSave? Describe(string system, string file, BatteryRule rule, RomIndex romsByStem, Attribution? attribution = null)
     {
         if (!_install.Contains(file))
         {
@@ -316,12 +321,14 @@ public sealed class SaveScanner
 
         // The class the file is, not the class the system is: megacd is declared BD, and a
         // per-game .brm there is class B while the shared cart is D and never reaches here.
-        var shapeClass = _shapes.For(system)?.Classes.FirstOrDefault(value =>
+        var shapeClass = rule.Class ?? _shapes.For(system)?.Classes.FirstOrDefault(value =>
             value is SaveShapeClass.A or SaveShapeClass.B) ?? SaveShapeClass.A;
 
         // Keyed on the folder the save was found under, so a save only ever matches a ROM in
-        // its own system.
-        var rom = romsByStem.Find(system, stem);
+        // its own system. A display-name save arrives already attributed, or not at all.
+        var rom = attribution is null
+            ? romsByStem.Find(system, stem)
+            : attribution is { RomId: { } romId, RomPath: { } romPath } ? (romId, romPath) : null;
 
         string? hash = null;
         try
@@ -338,15 +345,143 @@ public sealed class SaveScanner
         {
             Path = path,
             System = system,
-            Emulator = _shapes.LooseEmulator,
+            Emulator = rule.Emulator,
             ShapeClass = shapeClass,
-            Slot = SlotFor(_shapes.LooseEmulator, shapeClass, extension),
+            Slot = SlotFor(rule.Emulator, shapeClass, extension),
             RomId = rom?.RomId,
             RomPath = rom?.Path,
             ContentHash = hash,
             SizeBytes = info.Length,
             FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
         };
+    }
+
+    /// <summary>
+    /// Records the battery saves an emulator keeps in its own subdirectory of a system folder.
+    /// </summary>
+    /// <remarks>
+    /// <b>One directory level, from the rule, and never discovered.</b> BizHawk keeps its states
+    /// two levels further down in <c>sstates/&lt;core&gt;/</c>, which the state pass owns, so the
+    /// rule's directory is listed and nothing below it.
+    /// <para>
+    /// <b>A display-name save is attributed by what was learned, never by its stem.</b>
+    /// <c>StarTropics.SaveRAM</c> belongs to <c>StarTropics (USA).zip</c>, and a stem lookup
+    /// would find nothing or, worse, an untagged ROM that happens to share the title.
+    /// </para>
+    /// </remarks>
+    /// <returns>
+    /// Every file recorded, and every file the rule says is not a save, so the subdirectory report
+    /// does not count either as unread.
+    /// </returns>
+    private HashSet<RelativePath> ScanBelow(
+        string system,
+        string systemDirectory,
+        RomIndex romsByStem,
+        DisplayNameAttributor titles,
+        UnsyncableReport report,
+        HashSet<RelativePath> seen,
+        DateTimeOffset now,
+        ref int found,
+        ref int attributed,
+        ref long bytes)
+    {
+        var carried = new HashSet<RelativePath>();
+
+        // What each file held when it was last attributed, so a file nobody has written to since
+        // does not have its mtime read as a fresh write.
+        var known = _store.Saves
+            .List()
+            .Where(save => save.UnitKey.Length == 0
+                && string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(save => save.Path);
+
+        foreach (var rule in _shapes.BatteryRulesBelow(system))
+        {
+            var directory = Path.Combine(systemDirectory, rule.Directory.Replace('/', Path.DirectorySeparatorChar));
+
+            if (!Directory.Exists(directory))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            {
+                if (!_install.Contains(file))
+                {
+                    continue;
+                }
+
+                var extension = Path.GetExtension(file).ToLowerInvariant();
+
+                // Not synced and not unsyncable either, so it is left out of the count the
+                // subdirectory report makes, the way a loose .txt or .png is.
+                if (rule.NotASave.Contains(extension))
+                {
+                    carried.Add(_install.Relativize(file));
+                    continue;
+                }
+
+                if (!rule.Carries(extension))
+                {
+                    continue;
+                }
+
+                // A restore records the bytes it wrote with their ROM, and writes them now, so
+                // the newest launch before that mtime is a session that never touched them.
+                // Measured on a real install, where it contested every restored BizHawk save.
+                var unchanged = known.TryGetValue(_install.Relativize(file), out var previous)
+                    && previous.RomId is not null
+                    && previous.ContentHash is { } previousHash
+                    && string.Equals(previousHash, TryHash(file), StringComparison.OrdinalIgnoreCase);
+
+                var attribution = rule.NamedAfter == BatteryNaming.DisplayName
+                    ? titles.Attribute(
+                        system,
+                        rule,
+                        Path.GetFileName(file),
+                        unchanged ? null : new DateTimeOffset(File.GetLastWriteTimeUtc(file), TimeSpan.Zero))
+                    : null;
+
+                if (Describe(system, file, rule, romsByStem, attribution) is not { } save)
+                {
+                    continue;
+                }
+
+                _store.Saves.Record(save, now);
+                seen.Add(save.Path);
+                carried.Add(save.Path);
+                found++;
+                bytes += save.SizeBytes;
+
+                if (save.RomId is not null)
+                {
+                    attributed++;
+                    continue;
+                }
+
+                report.Add(
+                    system,
+                    save.Emulator,
+                    UnsyncableReason.Unattributed,
+                    attribution?.Detail ?? "matches no ROM this device holds, so there is no game to upload it against",
+                    1,
+                    save.Path.Value);
+            }
+        }
+
+        return carried;
+    }
+
+    private static string? TryHash(string file)
+    {
+        try
+        {
+            return LogicalContentHash.OfFile(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>

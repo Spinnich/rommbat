@@ -164,16 +164,29 @@ public sealed class InFlightGuard
         // a snes game.
         var system = SystemFolderOf(target, "saves");
 
-        if (system is not null
-            && launches.Any(launch => string.Equals(
+        if (system is null
+            || !launches.Any(launch => string.Equals(
                 SystemFolderOf(launch!.Value, "roms"),
                 system,
-                StringComparison.OrdinalIgnoreCase))
-            && SharedContainerHolding(system, target) is { } container)
+                StringComparison.OrdinalIgnoreCase)))
+        {
+            return InFlightVerdict.Allowed;
+        }
+
+        if (SharedContainerHolding(system, target) is { } container)
         {
             return InFlightVerdict.Defer(
                 $"a {system} game is running and {container} is shared by every {system} game, "
                     + "so it is in use");
+        }
+
+        // A file named after an emulator's title for the game is one file for every ROM given
+        // that title, so the ROM it is bound to is not the only one that can hold it open (#151).
+        if (DisplayNamedBy(system, target) is { } emulator)
+        {
+            return InFlightVerdict.Defer(
+                $"a {system} game is running, and {emulator} names this save after its own title "
+                    + "for the game, which another ROM can share, so it may be in use");
         }
 
         return InFlightVerdict.Allowed;
@@ -348,6 +361,26 @@ public sealed class InFlightGuard
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// The emulator whose display-name battery rule covers <paramref name="target"/>, or null.
+    /// </summary>
+    private string? DisplayNamedBy(string system, RelativePath target)
+    {
+        var segments = target.Value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        if (segments.Length < 3)
+        {
+            return null;
+        }
+
+        var directory = string.Join('/', segments[2..^1]);
+
+        return _shapes
+            .BatteryRuleFor(system, directory, Path.GetExtension(segments[^1])) is { NamedAfter: BatteryNaming.DisplayName } rule
+            ? rule.Emulator
+            : null;
     }
 
     /// <summary>
