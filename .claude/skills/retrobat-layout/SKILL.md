@@ -186,7 +186,9 @@ about 120 ms later while the game is still running (PPSSPP:
 `-state_file` naming the **declared** path, and the launcher hands it to the emulator, so a
 state written there is loaded. A manual save mirrors live; an autosave state appears only at
 exit. `libretro` needs no mirroring, since RetroArch is pointed at the declared path directly
-via `savestate_directory`.
+via `savestate_directory`. Nor does it take its slot from `-state_slot`: with
+`savestate_auto_index` on, RetroArch continues from the highest slot already in that directory
+(finding 261).
 
 Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
 unconditionally, and it belongs with the state. **Its contents vary by emulator and one of them

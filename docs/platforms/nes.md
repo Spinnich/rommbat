@@ -3,25 +3,27 @@
 Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which is what this
 file is named after.
 
-**`libretro`/`nestopia` is certified. The other eight rows are not.** All nine steps hold for
-that row at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, re-driven on 2026-09-20, with step 6
-N/A because `nes` has no class D. It is the first certified `(system, emulator, core)` row in the
-project.
+**Three rows are certified: all three `libretro` cores. The other six are not.** All nine steps
+hold at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, with step 6 N/A because `nes` has no class
+D. `libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
+re-driven on 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
+`fceumm` is **the row a stock install gives a user**, selected with no override. See
+"`libretro`/`fceumm` and `libretro`/`mesen`".
 
-**It certifies that row and nothing wider.** Not `nes`, not `libretro`, and not the row a stock
-install gives a user, since this one was selected by an `es_settings.cfg` override. Six of the
-other eight rows cannot sync the battery save they write and three have save states RomMBat
-cannot see at all.
+**It certifies those three rows and nothing wider.** Not `nes`, and not `libretro` on any other
+system. The six other rows can't be certified on this build: none of them can sync the battery
+save it writes, and three have save states RomMBat can't see at all.
 
 **Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
 was driven on a state made after it, and the restored screenshot was checked by its bytes rather
 than by its arrival. Step 2 changed on the same day, from requiring an exclusion this library
 cannot offer to requiring that nothing be excluded. See "Re-driven at `5.3.0-beta.1`".
 
-**This file is in two parts.** The first is `libretro`/`nestopia` in full, which is the row the
-nine steps were driven against. The second is the other eight rows, driven on steps 4 and 5 only,
-which is where the save and state shapes live and where six of the nine turn out to write
-something RomMBat does not sync. Read "The other eight rows" before trusting any sentence here
+**This file is in three parts.** The first is `libretro`/`nestopia` in full, which is the row the
+nine steps were first driven against. The second is the two other `libretro` rows, which carry
+steps 1, 2, 3 and 6 from it and drove the rest themselves. The third is the other eight rows as
+first driven, on steps 4 and 5 only, which is where the save and state shapes live and where six
+of the nine turn out to write something RomMBat does not sync. Read "The other eight rows" before trusting any sentence here
 about `nes` as a whole, because most of them are about `libretro`.
 
 ## The row
@@ -453,11 +455,13 @@ ones were made in one EmulationStation session and they are what the step now re
 | `libretro:nestopia:3` | `Legend of Zelda, The (USA) (Rev 1).state3`, 10,253 B | `d75aca69...`  |
 | `libretro:nestopia:4` | `Legend of Zelda, The (USA) (Rev 1).state4`, 10,242 B | `d75aca69...`  |
 
-**The slot is EmulationStation's choice, passed on the command line, and this file used to
-assume otherwise.** `emulatorLauncher.log` logged `-state_slot 2` on the launch, which is why the
-first state of the session landed in slot 2 rather than the slot 1 every earlier state here sits
-in. Nothing in RetroArch's own defaults decided it, so a record that reads a slot number as a
-property of the emulator is reading the wrong layer.
+**The slot is RetroArch's choice, not EmulationStation's, and this paragraph first said the
+opposite.** `emulatorLauncher.log` logged `-state_slot 2` on the launch and the first state of the
+session landed in slot 2, which was read as ES deciding it. The `libretro`/`mesen` pass on
+2026-09-21 disproved that: `-state_slot 5` on the launch line, states written as `.state1` and
+`.state2`. RetroArch runs with `savestate_auto_index` on and continues from the highest slot
+already in the core's directory, and `libretro.nestopia/` already held slot 1 here, so slot 2 was
+RetroArch's pick that happened to match. Finding 261.
 
 Slot 2 was deleted from the tree, with its `.png`, and restored:
 
@@ -737,6 +741,132 @@ own placeable.
 directory save that is not sent, with 1,531 files unsyncable for `no matching ROM`. Nothing here
 is the user's, and no MAME ROM is on the device. Same class as #83.
 
+## `libretro`/`fceumm` and `libretro`/`mesen`
+
+**Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
+and server as the re-drive above. The client was a deploy of `main` at a901af3, the merge of #210,
+made by `tools/publish.ps1 -Deploy R:\RetroBat`. So `status`'s `Playtime` block settled step 8,
+not a second token. The maintainer played; everything after the quit was checked from the agent,
+the store and the server.
+
+|              | `libretro`/`fceumm`                                                     | `libretro`/`mesen`                                                 |
+| ------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Selected by  | **Nothing: RetroBat's default.** `nes.emulator` and `nes.core` removed  | `nes.emulator = libretro`, `nes.core = mesen` in `es_settings.cfg` |
+| Confirmed by | `-emulator libretro -core fceumm`, ran `fceumm_libretro.dll`            | `-emulator libretro -core mesen`, ran `mesen_libretro.dll`         |
+| Game         | Final Fantasy III (Japan) [T-En by Chaos Rush v1.3], rom 190006, no pin | The Legend of Zelda (USA) (Rev 1), rom 158633, no pin              |
+| Save made by | Saving from the world-map menu                                          | Registering a name on the file-select screen                       |
+
+**`fceumm` is the row a stock install runs**, because with both keys absent ES falls through to
+the first emulator and core `es_systems.cfg` lists for `nes`, `libretro` then `fceumm`. It is the
+row most users will actually have. The three unrelated `nes.*` keys recorded for `nestopia` were
+still set and do not reach this core.
+
+**Neither game carries a per-game `<emulator>` in `gamelist.xml`**, which is checked because eight
+games on this install do, left by "How each row was selected" below: StarTropics and Ultima, the
+first two picks, were still pinned to `bizhawk` and would have run the wrong row. A pinned game
+overrides the system setting without a trace in `es_settings.cfg`, so read the launch line.
+
+**For a faster pass, pick a game whose battery save is quick to make.** Zelda writes one the
+moment a name is registered, where Final Fantasy III needed play to the world map.
+
+### Checklist for both
+
+Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive the same day. Step 6 is N/A
+for the same reason.
+
+| #   | `libretro`/`fceumm`                                                                    | `libretro`/`mesen`                                               |
+| --- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 1   | **Pass**, carried: `fs_slug`, the same folder                                          | **Pass**, carried                                                |
+| 2   | **Pass**, carried: 228 of 228, nothing excluded. `.zip` observed to launch on this row | **Pass**, carried. `.zip` observed to launch on this row         |
+| 3   | **Pass**, carried: RetroBat requires no BIOS for `nes`                                 | **Pass**, carried                                                |
+| 4   | **Pass, both directions.** Class A, new `.srm`, equal md5 up and down                  | **Pass, both directions.** Class A, the shared `.srm`, equal md5 |
+| 5   | **Pass**, screenshot byte-checked                                                      | **Pass**, screenshot byte-checked                                |
+| 6   | **N/A**, no class D                                                                    | **N/A**                                                          |
+| 7   | **Pass.** Box art on screen, all five media kinds and `<desc>` in the entry            | **Pass.** Box art on screen                                      |
+| 8   | **Pass.** 10:28:21Z to 10:36:59Z, 8m 37s, rom 190006                                   | **Pass.** 10:52:22Z to 10:53:36Z, 1m 14s, rom 158633             |
+| 9   | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical                       | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical |
+
+**A baseline was taken before either session**: `sync` a no-op with `gamelist.xml` unchanged, and
+`flush` with nothing queued. So everything below is the session's and not left over.
+
+### 4. Battery save on both
+
+|                      | `fceumm`                                                 | `mesen`                                                     |
+| -------------------- | -------------------------------------------------------- | ----------------------------------------------------------- |
+| On disk              | `saves/nes/Final Fantasy III (Japan) [...].srm`, 8,192 B | `saves/nes/Legend of Zelda, The (USA) (Rev 1).srm`, 8,192 B |
+| Before the session   | absent, and nothing on the server for the ROM            | `620bd047...`, `nestopia`'s save from 2026-09-20            |
+| After it             | `63c189d2...`                                            | `9136743b...`                                               |
+| Uploaded as          | save **348**, `libretro:battery`, by the `quit` pass     | save **349**, `libretro:battery`, by the `quit` pass        |
+| Deleted and restored | `63c189d2...`, **equal**                                 | `9136743b...`, **equal**                                    |
+
+**Zelda's was checked as content**: the name `SPINNICH` sits at offset 2 in Zelda's own character
+encoding and the earlier `LINK` is gone, which is what the maintainer entered. It is the same file
+`nestopia` wrote, because the three `libretro` cores share `saves/nes/<rom>.srm`, so this pass
+also shows a second core writing into a slot the first one owns: it went up as a new version of
+`libretro:battery` with no conflict. The restore named it the newest of 9 server saves and listed
+the 8 it did not restore.
+
+**Neither upload needed a terminal.** Both arrived through the detached `quit` pass, which exited 0
+each time, before anything was run by hand. A `flush` after each restore reported the restored
+files `already in step` and sent nothing.
+
+### 5. State and screenshot on both
+
+Two states each, made on different screens so each has its own image.
+
+| Row      | Slot | On the server | State md5     | Screenshot md5 |
+| -------- | ---- | ------------- | ------------- | -------------- |
+| `fceumm` | 1    | state **191** | `b46171f3...` | `96f8daa0...`  |
+| `fceumm` | 2    | state **192** | `5f97a87b...` | `a55104f5...`  |
+| `mesen`  | 1    | state **193** | `3b6d3ec2...` | `758a2549...`  |
+| `mesen`  | 2    | state **194** | `b13f8c28...` | `9f4a41bd...`  |
+
+**The declared `<directory>` is where both cores wrote**: `saves/nes/libretro.fceumm/` and
+`saves/nes/libretro.mesen/`, per `{{system}}/libretro.{{core}}`, with `{{romfilename}}.state{{slot}}`
+and its `.png` beside it. Each uploaded name carries its own core, `[libretro.fceumm]` and
+`[libretro.mesen]`, so `mesen`'s Zelda states sit on the server beside `nestopia`'s without
+touching them.
+
+On each row, slot 2's state and `.png` were deleted with the `.srm`. The preview named the
+screenshot it would bring back, and `--apply` answered `restored 1 save(s) and 1 state(s), failed
+0, ... with 1 screenshot(s)`, exit 0. **Every file came back at its own md5**, and slot 2's image
+is not slot 1's on either row, so the link is to that state and not to a neighbour.
+
+**`-state_slot` did not pick the slot**, and that corrected the `nestopia` record. `mesen` was
+launched with `-state_slot 5` and wrote slots 1 and 2, and RetroArch's log shows it choosing:
+`found_last_state_slot: #0` against the empty `libretro.mesen/`. `fceumm`'s launch carried no
+`-state_slot` at all. Finding 261.
+
+### 7. Launch on both
+
+Box art for both games was confirmed on screen in the NES game list by the maintainer. Final
+Fantasy III's entry carries `<image>`, `<thumbnail>`, `<marquee>`, `<video>` and `<manual>`, each
+pointing at a file that exists, and `<desc>`.
+
+### 8. Play session on both
+
+Read from `status` rather than inferred from the journal:
+
+```text
+Playtime
+  server holds:    24 sessions for romm device cf1cc550-5203-4697-94b5-36757ac9a334
+  last session:    2026-09-21 10:28:21Z to 2026-09-21 10:36:59Z, 8m 37s
+  its rom:         190006
+```
+
+and after the `mesen` session, `25 sessions`, `10:52:22Z to 10:53:36Z, 1m 14s`, rom 158633. Both
+starts match the launch lines in `emulatorLauncher.log`, which logs local time four hours behind.
+Each `start` and `quit` pass in `background.log` exited 0.
+
+### 9. Re-sync on both
+
+After each session, `sync` answered `nothing to do: all 228 games are already present and
+verified`, `0 downloaded, 0 written`, `889 already present` and `all 1 unchanged`, exit 0, with
+`gamelist.xml` md5'd either side and identical. Across each session it changed, and as on
+2026-09-20 the writer was EmulationStation updating `<playcount>` and `<lastplayed>`.
+
+The install was left on `libretro`/`nestopia` afterwards, which is where it was found.
+
 ## The other eight rows
 
 `nes` declares **nine** `(emulator, core)` rows, and the one above is one of them. All nine have
@@ -744,13 +874,15 @@ now been driven by hand on this install: a real player battery save and a save s
 launched from EmulationStation, with the emulator confirmed from `emulatorLauncher.log` rather
 than from configuration.
 
-**This does not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
-carry across from the row above. Six of the nine cannot sync what they wrote.
+**This did not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
+carry across from the row above. Six of the nine cannot sync what they wrote. `libretro`/`fceumm`
+and `libretro`/`mesen` have since been certified on passes of their own, in the section above;
+what follows is the earlier pass and still describes the other six.
 
-**They stand further back than the first row since 2026-09-20, and the gap is step 5.** All nine
-were driven before finding 258 was fixed. Only `libretro`/`nestopia` has been driven on a state
-made after it, so the screenshot half is **passed on that row and untested on the other eight**,
-not failing on all nine as this section said before the re-drive. What the other eight owe is
+**They stand further back than the `libretro` rows, and the gap is step 5.** All nine were driven
+before finding 258 was fixed. The three `libretro` rows have since been driven on states made
+after it, so the screenshot half is **passed on those three and untested on the other six**, not
+failing on all nine as this section said before the re-drive. What the other eight owe is
 below, under "What RomMBat does with them".
 
 ### How each row was selected
@@ -800,8 +932,8 @@ whether those five rows wrote one is a measurable fact this pass did not capture
 declare no entry at all, so there is no `<image>` template to check them against and anything they
 wrote would be in their own tree, unread for the same reason their states are. Which rows write one
 decides how wide the remaining gap is, and it needs another hands-on pass. It is no longer _this
-platform's_ open gap, because `libretro`/`nestopia` closed it on 2026-09-20; it is what the other
-eight rows owe.
+platform's_ open gap, because the three `libretro` rows closed it on 2026-09-20 and 2026-09-21; it
+is what the other six rows owe.
 
 **So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
 entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
@@ -1017,13 +1149,13 @@ anyway, because the loop it would prevent is silent.
 
 ## What this file will not claim
 
-- **Only `libretro`/`nestopia` is certified**, and only on this install at these two floors.
-  The other eight rows are driven on steps 4 and 5 and none of them is certified: steps 1, 3, 7,
-  8 and 9 were carried to them rather than driven, six of them cannot sync the battery save they
-  write, and three of those write save states RomMBat cannot see at all.
-- **Step 5 passed on `libretro`/`nestopia` and on nothing else.** The screenshot link was driven
-  on that row alone, and the fix it proves is in the upload name, which is per row by
-  construction. A second row owes its own state.
+- **Only the three `libretro` rows are certified**, and only on this install at these two floors.
+  The other six are driven on steps 4 and 5 and none of them is certified: steps 1, 3, 7, 8 and 9
+  were carried to them rather than driven, none of them can sync the battery save it writes, and
+  three write save states RomMBat cannot see at all.
+- **Step 5 passed on the three `libretro` rows and on nothing else.** Each drove its own state
+  with its screenshot byte-checked. `bizhawk` and `jgenesis` states upload, but no restore of one
+  has been driven since finding 258 changed how a restore reads the slot.
 - The conflict results are about RomMBat's handling of a divergence. Both sides were synthesized,
   so nothing here is evidence that a real two-device race produces one, or how often.
 - Six of the nine cannot sync what they wrote, so a save made on those rows exists only on the

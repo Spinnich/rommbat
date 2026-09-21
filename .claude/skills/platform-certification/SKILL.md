@@ -37,8 +37,11 @@ real games, and doing that through a terminal instead of the gamepad UI makes a 
 the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
 That launch certified nothing: it is one of nine points on one row.
 
-**One row is through, and it is the model for the rest.** `nes` under `libretro`/`nestopia`, on
-2026-09-20, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. Read
+**Three rows are through, and the first is the model for the rest.** `nes` under
+`libretro`/`nestopia` on 2026-09-20, then `libretro`/`fceumm` and `libretro`/`mesen` on
+2026-09-21, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, all nine steps with step 6 N/A. The two
+later passes took under an hour between them, which is what a `libretro` row costs once steps 1,
+2 and 3 carry. Read
 `docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
 step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
@@ -106,7 +109,7 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    so an older one stays unlinked. A null link on a fresh state is a new finding, not a
    recurrence of an old one.
 
-   **`nes` under `libretro`/`nestopia` is the one row that has passed it**, and the method is
+   **`nes` under its three `libretro` cores are the rows that have passed it**, and the method is
    worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
    run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
    bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
@@ -116,9 +119,16 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    image and cannot tell a real link from a wrong one. `docs/platforms/nes.md` has the worked
    pass.
 
-   **The state slot is EmulationStation's, not the emulator's.** `emulatorLauncher.log` logs
-   `-state_slot <n>` on the launch line and that is what decides the filename suffix, so read it
-   there rather than assuming a core's default.
+   **Under `libretro` the state slot is RetroArch's, not EmulationStation's.** RetroArch runs with
+   `savestate_auto_index` on and continues from the highest slot already in the core's state
+   directory, so `-state_slot <n>` on the `emulatorLauncher.log` line does not decide the suffix:
+   `mesen` was launched with `-state_slot 5` and wrote slots 1 and 2 (finding 261). Read the slot
+   from the `Saving state` lines in `es_launch_stdout.log`, or from the file on disk.
+
+   **Check the game's `<emulator>` in `gamelist.xml` before driving a row on it.** A per-game pin
+   overrides `<system>.emulator` and leaves no trace in `es_settings.cfg`, and on the `nes` install
+   eight games are pinned to other rows from the first pass. Pick an unpinned game whose battery
+   save is quick to make: Zelda writes one the moment a name is registered.
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.
 7. A game launches from EmulationStation after sync, with art and metadata present.
