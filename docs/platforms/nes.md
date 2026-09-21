@@ -1158,6 +1158,41 @@ copy is still there with no decision to attach to it and no mechanism that will 
 #211 a download that would replace a save this device never sent is a conflict instead, so such
 a copy now always holds bytes the server already has.
 
+### A save this device never sent, driven (#211)
+
+On `libretro`/`nestopia` with StarTropics (USA), rom 159082, on `R:\RetroBat` (RetroBat 8.2.1,
+RomM `5.3.0-beta.1`, 2026-09-21), running PR #214's build with the maintainer at the controller. It is
+the hands-on pass a save-logic change owes and re-runs no certification step. **The local side is
+real and the server side is staged**: the maintainer's two sessions wrote both saves through
+EmulationStation, and the "other device" is a slotted upload with no `device_id`, which is the only
+way to put a row in a slot this device has never synced (see "Staging one is harder than it looks"
+above).
+
+The hooks were off for the two sessions, because the quit hook's flush would otherwise have sent
+the local save first, and case M3 needs a device with no sync record for the slot. The
+game's BizHawk override was removed from `gamelist.xml` so it ran on `nes`' default core.
+
+| Step                                                 | Result                                                                              |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| New game `PEER`, quit                                | `.srm` md5 `514d2818`, copied aside as the other device's save                      |
+| Second file `LOCAL`, quit                            | md5 `33dcb0d4`, 10:56:26 local; `saves`: attributed, not sent                       |
+| The PEER-only save uploaded as the other device      | save 355, 14:58:02Z, origin null                                                    |
+| `flush`                                              | **`1 conflicted`**. The file unchanged in bytes and mtime; a copy under `replaced/` |
+| `flush` again                                        | The same one conflict, no rewrite, still one copy                                   |
+| `saves resolve 159082 libretro:battery --keep-local` | Sent, copy pruned, file unchanged                                                   |
+| `hooks install`, `flush`                             | Nothing up or down; `in step`                                                       |
+| Launched through ES                                  | Both `PEER` and `LOCAL` on the file select                                          |
+
+Before #211 the first flush took the download: `1 down`, the LOCAL file replaced by the PEER-only
+save, and the only record of LOCAL a copy nothing pointed to.
+
+**A download over a save that was sent still works.** With the slot in step, BizHawk's real
+StarTropics save bytes (md5 `970db3b8`) were uploaded as the other device, save 358. The flush
+answered `1 down` with no conflict, the file became those bytes, the next flush was a no-op, and
+the game on `nestopia` showed BizHawk's files and neither `PEER` nor `LOCAL`. Each of nestopia's
+rewrites on exit went up as `1 up` with no conflict, once through the quit hook's flush. Nothing
+else on the install conflicted in any of the passes.
+
 ## RomM's browser player, driven at `5.3.0-alpha.3`
 
 On `libretro`/`nestopia` with The Legend of Zelda (USA) (Rev 1), rom 158633, the maintainer in
