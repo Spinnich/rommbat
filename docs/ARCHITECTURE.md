@@ -77,8 +77,9 @@ The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
 - Every call takes a `CancellationToken`, and **`SocketsHttpHandler.ConnectTimeout` is set
   explicitly on every handler**, because nothing sets it by default and an absent host on
   the local subnet otherwise stalls for 21 seconds (M0 probe 6b). 2 s is the interactive
-  budget. `HttpClient.Timeout` is set too, for a different reason: it bounds the body, so it
-  cannot be the reachability lever.
+  budget. `HttpClient.Timeout` is set too, for a different reason: it covers an API call and
+  its JSON body, and a slow server that is still reachable, so it cannot be the reachability
+  lever. A streamed transfer's body is bounded by the stall watchdog (`StallTimeout`) instead.
 - **A timeout and a user cancellation are the same exception type.** Both surface as
   `TaskCanceledException` and differ only in the inner exception, so every failure goes
   through `RomMTransportErrors.Classify` rather than a bare `catch`. A naive catch reports
