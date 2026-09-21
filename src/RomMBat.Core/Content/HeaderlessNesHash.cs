@@ -16,7 +16,12 @@ namespace RomMBat.Core.Content;
 /// <b>Null rather than a guess wherever the measurement does not reach.</b> A ROM carrying a
 /// 512-byte trainer after the header, a file without the iNES magic, a zip holding anything but
 /// one file, and any archive the base class library cannot open all answer null, so a restore
-/// reports the save as unnameable instead of writing a file mednafen will not look for.
+/// reports the save as unnameable instead of writing a file mednafen will not look for. So does
+/// a header declaring no PRG, a file whose length is not the header plus the PRG and CHR banks
+/// it declares, since whether padding or an overdump is hashed is unmeasured, and a NES 2.0
+/// header whose byte 9 carries size bits. A NES 2.0 header with byte 9 clear is in reach: every
+/// one of the 232 ROMs on the install the measurement was taken on has one, the three measured
+/// among them.
 /// </para>
 /// </remarks>
 public static class HeaderlessNesHash
@@ -66,15 +71,26 @@ public static class HeaderlessNesHash
 
         if (stream.ReadAtLeast(header, HeaderBytes, throwOnEndOfStream: false) < HeaderBytes
             || !header[..4].SequenceEqual(Magic)
-            || (header[6] & 0x04) != 0)
+            || header[4] == 0
+            || (header[6] & 0x04) != 0
+            || ((header[7] & 0x0C) == 0x08 && header[9] != 0))
+        {
+            return null;
+        }
+
+        var declared = (16384L * header[4]) + (8192L * header[5]);
+        var body = new byte[declared];
+
+        if (stream.ReadAtLeast(body, body.Length, throwOnEndOfStream: false) < body.Length
+            || stream.ReadByte() != -1)
         {
             return null;
         }
 
 #pragma warning disable CA5351 // MD5, deliberately: it is the name mednafen gives the file.
-        using var md5 = MD5.Create();
+        var hash = MD5.HashData(body);
 #pragma warning restore CA5351
 
-        return Convert.ToHexString(md5.ComputeHash(stream)).ToLowerInvariant();
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

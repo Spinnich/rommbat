@@ -453,7 +453,11 @@ writes. The hash is of the `.nes` less its 16-byte iNES header (finding 274). So
 `named_after: "rom file and content md5"`, which is the one case the loader lets share an extension
 in one directory with a plain rule, the hash on the stem deciding. A plain `<rom>.sav` goes up as
 `mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
-a hashed save where a plain one would shadow it.
+a hashed save where a plain one would shadow it, including onto a path this device recorded before
+the plain one appeared. `HeaderlessNesHash` answers null outside what was measured: a trainer, a
+length other than header plus declared PRG and CHR, no PRG, or NES 2.0 size bits in byte 9. **Do
+not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 header with byte 9
+clear, the three measured ones included.
 
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
