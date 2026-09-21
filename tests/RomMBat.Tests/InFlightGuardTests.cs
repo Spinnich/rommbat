@@ -72,6 +72,25 @@ public class InFlightGuardTests
     }
 
     [Fact]
+    public void A_save_named_after_bizhawks_title_is_deferred_while_any_game_of_its_system_runs()
+    {
+        // #151. BizHawk keeps one StarTropics.SaveRAM for every ROM it titles StarTropics, so
+        // the ROM the file is bound to is not the only one that can hold it open.
+        using var fixture = GuardFixture.Create();
+        fixture.AddGame(12, "nes", "StarTropics (USA).zip");
+        fixture.AddGame(13, "nes", "StarTropics (Europe).zip");
+        fixture.Launch(13);
+
+        var verdict = fixture.Check(12, "saves/nes/bizhawk/StarTropics.SaveRAM");
+
+        Assert.False(verdict.CanWrite);
+        Assert.Contains("bizhawk names this save after its own title", verdict.Reason!, StringComparison.Ordinal);
+
+        // A save named after the ROM file is still one file per game, so it goes through.
+        Assert.True(fixture.Check(12, "saves/nes/StarTropics (USA).srm").CanWrite);
+    }
+
+    [Fact]
     public void Every_disc_of_a_multi_disc_set_counts_as_the_same_game()
     {
         // One rom id, several files. Launching disc 2 has to defer the save the set shares, and

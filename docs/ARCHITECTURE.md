@@ -742,6 +742,17 @@ identity, which is what `local_save.unit_key` exists for. Containers are declare
 `data/retrobat/save_shapes.json` and never discovered: hashing an emulator's whole data root
 took 426 s where the scoped subtree took 0.06 s.
 
+**Whose a class A or B file is comes from a rule per `(system, emulator)`**, in
+`data/retrobat/save_rules.json`: a directory under `saves/<system>/`, its extensions, and what
+the stem joins on. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
+two rules could claim one file or one emulator has two rules on a system. That is what keeps
+mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside
+libretro's own `.srm` (#152). Most rules join on the ROM file; BizHawk's joins on **its own
+title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
+`Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
+in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
+download for such a slot is placed only where a title was learned (#151).
+
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
 `StateSync` and returns a `FlushReport`; `flush` and the sync screen are both printers over it.
@@ -764,7 +775,8 @@ Four properties of that pass are rules rather than implementation, and each has 
   the `quit` hook spawns lands it. The alternative is what #155 measured, a download landing on
   a file the emulator holds open and being overwritten by the emulator's own copy on exit. The
   guard is per ROM, widened to a container the shape file declares as shared, so a `gamecube`
-  launch defers another GameCube game's `.gci` and never an `nes` save.
+  launch defers another GameCube game's `.gci` and never an `nes` save. It is widened the same
+  way for a file named after an emulator's title, which two ROMs of one system can share.
 
 Three rules that are not obvious:
 

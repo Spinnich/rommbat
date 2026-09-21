@@ -432,7 +432,58 @@ so exclude it or rewrite it on restore.
 
 ## Attribution
 
-Class A and B match by filename. Class C is keyed by **Game ID** (`UCUS98751`, a PS3
+Class A and B match by filename, **and which filename is a per-`(system, emulator)` rule, not a
+global.** `save_rules.json`'s `battery_saves` gives each rule a directory under
+`saves/<system>/`, its extensions and a `named_after`, and the emulator in it is the slot.
+Loading refuses two rules claiming one extension in one directory, and one emulator with two
+rules on a system, because either is two saves in one slot. The table replaced one extension
+list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
+would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
+mesen, mednafen, jgenesis and ares are still reported, each waiting on a rule of its own.
+
+**BizHawk names a battery save after its own title for the game** (`named_after: display
+name`), so the filename join cannot match: `StarTropics (USA).zip` wrote
+`bizhawk/StarTropics.SaveRAM`, and `Phantasy Star (Brazil).zip` wrote `Phantasy Star (B).SaveRAM`,
+so no stripping rule recovers it. `DisplayNameAttributor` asks two routes every scan: the state
+sidecar, which RetroBat writes as `<title>.<core>` (strip only the state's own core, since a title
+can hold a dot), and the newest launch of the system **under the same emulator** covering the
+mtime. The binding is cached in `game_id_binding` keyed on the **file name**
+(`StarTropics.SaveRAM`), because that table's CHECK refuses `/` and `:` in a key.
+
+- **The cache is an answer, not a short cut.** A title is not unique to a ROM, and if two
+  regions share one, BizHawk keeps one file for both. Re-asking the routes is what lets a launch
+  of the second ROM disagree with the binding the first taught, which fails closed as contested
+  until `saves bind` settles it. A binding a person made is honoured as the settlement.
+- **Two sidecars naming one title for two ROMs is contested too, not first-wins.** The class C
+  sidecar index is first-wins because two ROMs sharing a game code are a revision pair; two ROMs
+  sharing a title share a **file**.
+- **A download is placed only under a learned title.** `ResolveTarget` builds
+  `saves/<system>/<rule directory>/<title><ext>`; with no binding for that ROM, or two, the
+  operation is failed with its remedy (run the game once under the emulator), in the flush and
+  in the restore find alike. The server's tagged name is not used as a fallback: where RomM puts
+  its timestamp tag in a name like `Dr. Mario.SaveRAM` is unmeasured.
+- **The in-flight guard widens to any running game of the system** for a display-name file,
+  because the ROM it is bound to is not the only one that can hold it open.
+
+- **An unchanged file's mtime is not a write.** A restore writes now, so the newest launch
+  before that mtime is a session that never touched the bytes: driven, an Ultima launch eight
+  days earlier was credited with a restored `StarTropics.SaveRAM` and contested it. The launch
+  route is skipped when `local_save` already holds the path with the same hash and a ROM, and a
+  session ends at the next launch of anything, since ES runs one game at a time. Finding 265.
+- **`save_slot`'s derived destination is the ROM's stem, which is wrong for this rule.** Once a
+  slot has been sent, `SaveSlotStore` derived `saves/nes/StarTropics (USA).SaveRAM` and
+  `ResolveTarget` took it before asking the rule. It now derives nothing for a slot a
+  subdirectory rule owns. Finding 266.
+- **BizHawk leaves `<title>.SaveRAM.bak` on exit**, the save the new one replaced. A rule
+  declares its own `not_a_save_extensions` for that. Finding 264.
+
+**Driven on both cores on 2026-09-21** (findings 262 to 266, `docs/platforms/nes.md`): upload,
+restore into the file BizHawk loads, the in-flight deferral, the launch route alone, and the
+Europe copy of StarTropics sharing the USA copy's file, contested and then settled by
+`saves bind`. Whether `NesHawk` and `quickerNES` read each other's `.SaveRAM` is **not**
+measured; they share the file and the `bizhawk:battery` slot.
+
+Class C is keyed by **Game ID** (`UCUS98751`, a PS3
 `TITLEID`, a GameCube disc ID). This design was built around **RomM storing no serial, title ID
 or product code anywhere**, so that no API lookup existed to ask.
 

@@ -487,7 +487,7 @@ public class SaveDiscoveryTests
         // promising they were synced.
         using var fixture = SaveTree.Create();
 
-        fixture.AddSave("nes", "bizhawk/StarTropics.SaveRAM", "a battery save this release defers");
+        fixture.AddSave("nes", "jgenesis/nes/Wizardry (USA).sav", "a battery save this release defers");
         fixture.AddSave("nes", "mednafen/sstates/Final Fantasy (USA).24ae5edf.mc0", "a state nothing reads");
         fixture.AddSave("nes", "mesen/SaveStates/Crystalis (USA)_1.mss", "another");
         fixture.AddSave("nes", "ares/Famicom/Dragon Warrior IV (USA).bs1", "and another");
@@ -497,10 +497,10 @@ public class SaveDiscoveryTests
         var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "nes").ToList();
         Assert.Equal(2, rows.Count);
 
-        // bizhawk is declared, so the clause about the save states beside them holds for it.
+        // jgenesis is declared, so the clause about the save states beside them holds for it.
         var declared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.NotInThisVersion);
         Assert.Equal(1, declared.FileCount);
-        Assert.Contains("bizhawk", declared.Detail, StringComparison.Ordinal);
+        Assert.Contains("jgenesis", declared.Detail, StringComparison.Ordinal);
         Assert.Contains("the save states beside them", declared.Detail, StringComparison.Ordinal);
 
         var undeclared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.NoStateDeclaration);

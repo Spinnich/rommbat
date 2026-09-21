@@ -1,0 +1,428 @@
+using RomMBat.Core.Content;
+using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
+using RomMBat.Core.Store;
+using RomMBat.Tests.Support;
+using Xunit;
+
+namespace RomMBat.Tests;
+
+/// <summary>
+/// Battery saves an emulator names after its own title for the game, and the per-(system,
+/// emulator) rule table that says whose a battery save is.
+/// </summary>
+/// <remarks>
+/// Issue #151, measured on nes under bizhawk with both cores: <c>StarTropics (USA).zip</c> wrote
+/// <c>saves/nes/bizhawk/StarTropics.SaveRAM</c>, and the state sidecar beside
+/// <c>StarTropics (USA).QuickSave0.State</c> reads <c>StarTropics.NesHawk</c>. The trees here are
+/// that layout.
+/// </remarks>
+public class DisplayNameSaveTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void The_bundled_rules_give_each_file_one_owner_and_leave_a_loose_sav_unclaimed()
+    {
+        var shapes = SaveShapes.Bundled;
+
+        Assert.Equal("libretro", shapes.BatteryRuleFor("nes", string.Empty, ".srm")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("saturn", string.Empty, ".BKR")?.Emulator);
+
+        var bizhawk = shapes.BatteryRuleFor("nes", "bizhawk", ".SaveRAM");
+        Assert.NotNull(bizhawk);
+        Assert.Equal(BatteryNaming.DisplayName, bizhawk.NamedAfter);
+        Assert.Equal(SaveShapeClass.A, bizhawk.Class);
+        Assert.Same(bizhawk, shapes.BatteryRuleForSlot("nes", "bizhawk:battery"));
+
+        // Measured on nes only, so snes under bizhawk stays reported rather than guessed at.
+        Assert.Null(shapes.BatteryRuleFor("snes", "bizhawk", ".SaveRAM"));
+
+        // #152: mesen standalone's and mednafen's loose .sav are nobody's until their own rules
+        // exist, rather than libretro's by default.
+        Assert.Null(shapes.BatteryRuleFor("nes", string.Empty, ".sav"));
+
+        // A loose save's destination needs no rule, so the slot lookup leaves libretro out.
+        Assert.Null(shapes.BatteryRuleForSlot("nes", "libretro:battery"));
+    }
+
+    [Fact]
+    public void A_rule_table_giving_one_file_two_owners_is_refused_at_load()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm", ".sav"], "named_after": "rom file" }""",
+                """{ "emulator": "mesen", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file" }""")));
+
+        Assert.Contains("libretro and mesen both claim .sav", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_rule_table_giving_one_emulator_two_rules_on_a_system_is_refused_at_load()
+    {
+        // Both would upload under bizhawk:battery, so one file would replace the other on the server.
+        var error = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "bizhawk", "systems": ["nes"], "directory": "bizhawk", "extensions": [".saveram"], "named_after": "display name" }""",
+                """{ "emulator": "bizhawk", "systems": ["nes", "snes"], "directory": "bizhawk/other", "extensions": [".saveram"], "named_after": "display name" }""")));
+
+        Assert.Contains("two battery rules", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Two_rules_on_different_systems_do_not_collide()
+    {
+        var shapes = SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "mesen", "systems": ["nes"], "directory": "", "extensions": [".sav"], "named_after": "rom file" }""",
+                """{ "emulator": "mgba", "systems": ["gba"], "directory": "", "extensions": [".sav"], "named_after": "rom file" }"""));
+
+        Assert.Equal("mesen", shapes.BatteryRuleFor("nes", string.Empty, ".sav")?.Emulator);
+        Assert.Equal("mgba", shapes.BatteryRuleFor("gba", string.Empty, ".sav")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("snes", string.Empty, ".sav"));
+    }
+
+    [Fact]
+    public void A_bizhawk_save_is_attributed_through_the_title_its_state_sidecar_names()
+    {
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddBizHawkState("StarTropics (USA)", "NesHawk", "StarTropics.NesHawk");
+        fixture.Write("saves/nes/bizhawk/StarTropics.SaveRAM", "battery bytes");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(1, outcome.Attributed);
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("saves/nes/bizhawk/StarTropics.SaveRAM", save.Path.Value);
+        Assert.Equal("bizhawk", save.Emulator);
+        Assert.Equal("bizhawk:battery", save.Slot);
+        Assert.Equal(SaveShapeClass.A, save.ShapeClass);
+        Assert.Equal(12, save.RomId);
+
+        var binding = fixture.Store.GameIdBindings.Find("nes", "StarTropics.SaveRAM");
+        Assert.NotNull(binding);
+        Assert.Equal(12, binding.RomId);
+        Assert.Equal(BindingSource.Sidecar, binding.LearnedFrom);
+
+        // Carried, so the bizhawk directory is no longer reported as holding something deferred,
+        // and the state directory below it was never the battery pass's to count.
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
+    public void Bizhawks_backup_of_the_previous_save_is_neither_synced_nor_reported()
+    {
+        // Measured on a real install: BizHawk left StarTropics.SaveRAM.bak, the save it replaced,
+        // and counting it named bizhawk under "a shape no declaration covers".
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddBizHawkState("StarTropics (USA)", "NesHawk", "StarTropics.NesHawk");
+        fixture.Write("saves/nes/bizhawk/StarTropics.SaveRAM", "the save now");
+        fixture.Write("saves/nes/bizhawk/StarTropics.SaveRAM.bak", "the save before");
+
+        fixture.Scan();
+
+        Assert.Equal("saves/nes/bizhawk/StarTropics.SaveRAM", Assert.Single(fixture.Store.Saves.List()).Path.Value);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
+    public void A_title_two_roms_answer_to_is_refused_rather_than_given_to_either()
+    {
+        // The maintainer's case on #151: both regions played under BizHawk, one file between them.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddRom(13, "StarTropics (Europe).zip");
+        fixture.AddBizHawkState("StarTropics (USA)", "NesHawk", "StarTropics.NesHawk");
+        fixture.AddBizHawkState("StarTropics (Europe)", "NesHawk", "StarTropics.NesHawk");
+        fixture.Write("saves/nes/bizhawk/StarTropics.SaveRAM", "whichever region wrote last");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Attributed);
+        Assert.Null(Assert.Single(fixture.Store.Saves.List()).RomId);
+
+        var row = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "nes" && entry.Reason == UnsyncableReason.Unattributed);
+        Assert.Equal("bizhawk", row.Emulator);
+        Assert.Contains("more than one game answers to StarTropics.SaveRAM", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("StarTropics (USA).zip", row.Detail, StringComparison.Ordinal);
+        Assert.Contains("StarTropics (Europe).zip", row.Detail, StringComparison.Ordinal);
+
+        var binding = fixture.Store.GameIdBindings.Find("nes", "StarTropics.SaveRAM");
+        Assert.NotNull(binding);
+        Assert.Null(binding.RomId);
+        Assert.Equal(BindingSource.Contested, binding.LearnedFrom);
+    }
+
+    [Fact]
+    public void A_bizhawk_launch_covering_the_write_attributes_a_save_with_no_state()
+    {
+        using var fixture = new TitleFixture();
+        fixture.AddRom(14, "Ultima - Quest of the Avatar (USA).zip");
+
+        var attribution = fixture.Attributor(
+                Launch(Now.AddMinutes(-30), "Ultima - Quest of the Avatar (USA).zip", "bizhawk"))
+            .Attribute("nes", BizHawk, "Ultima - Quest of the Avatar.SaveRAM", Now.AddMinutes(-5));
+
+        Assert.Equal(14, attribution.RomId);
+        Assert.Equal(BindingSource.Journal, attribution.Source);
+        Assert.Contains("was running under bizhawk", attribution.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_launch_under_another_emulator_says_nothing_about_a_bizhawk_save()
+    {
+        // Only BizHawk writes a .SaveRAM, so a later libretro session of the same system cannot
+        // have written it, however well its window fits.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(14, "Ultima - Quest of the Avatar (USA).zip");
+
+        var attribution = fixture.Attributor(
+                Launch(Now.AddMinutes(-30), "Ultima - Quest of the Avatar (USA).zip", "libretro"))
+            .Attribute("nes", BizHawk, "Ultima - Quest of the Avatar.SaveRAM", Now.AddMinutes(-5));
+
+        Assert.Null(attribution.RomId);
+        Assert.Equal(AttributionOutcome.NotFound, attribution.Outcome);
+
+        // An absence is never cached, so the ROM being played later still attributes it.
+        Assert.Null(fixture.Store.GameIdBindings.Find("nes", "Ultima - Quest of the Avatar.SaveRAM"));
+    }
+
+    [Fact]
+    public void A_launch_another_launch_has_ended_does_not_claim_a_later_write()
+    {
+        // EmulationStation runs one game at a time, so the snes session starting is the bizhawk
+        // session over. Measured on a real install: without this bound the newest bizhawk launch
+        // claimed a write made eight days and many sessions later.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+
+        var bizhawk = Launch(Now.AddHours(-3), "StarTropics (USA).zip", "bizhawk");
+        var later = new LaunchRecord(
+            Now.AddHours(-2),
+            RelativePath.Create("roms/snes/ActRaiser (USA).zip"),
+            "snes",
+            "libretro",
+            "snes9x",
+            IsMenuLaunch: false,
+            "later");
+
+        var attribution = fixture.Attributor(bizhawk, later)
+            .Attribute("nes", BizHawk, "StarTropics.SaveRAM", Now.AddMinutes(-5));
+
+        Assert.Null(attribution.RomId);
+        Assert.Equal(AttributionOutcome.NotFound, attribution.Outcome);
+    }
+
+    [Fact]
+    public void A_restored_save_is_not_credited_to_whichever_bizhawk_session_came_last()
+    {
+        // The live failure. A restore writes the bytes now, so their mtime is later than every
+        // launch, and the newest bizhawk launch (Ultima here, and the last launch of all, so the
+        // session bound above cannot help) was credited with them. That contested the sidecar and
+        // stopped a correctly restored save from ever syncing again. The row the restore wrote is
+        // what says nobody has written to the file since.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddRom(14, "Ultima - Quest of the Avatar (USA).zip");
+        fixture.AddBizHawkState("StarTropics (USA)", "NesHawk", "StarTropics.NesHawk");
+
+        var played = Now.AddDays(-8);
+        fixture.WriteLaunchLog(
+            (played, "StarTropics (USA).zip", "bizhawk"),
+            (played.AddHours(1), "Ultima - Quest of the Avatar (USA).zip", "bizhawk"));
+
+        const string save = "saves/nes/bizhawk/StarTropics.SaveRAM";
+        fixture.Write(save, "played under NesHawk");
+        fixture.Touch(save, played.AddMinutes(10));
+
+        fixture.Scan();
+        Assert.Equal(12, Assert.Single(fixture.Store.Saves.List()).RomId);
+
+        // What SaveSync.RecordRestored leaves: new bytes, written now, with their ROM.
+        fixture.Write(save, "restored from the server");
+        fixture.Touch(save, Now);
+        var restored = Assert.Single(fixture.Store.Saves.List());
+        fixture.Store.Saves.Record(
+            restored with { ContentHash = LogicalContentHash.OfFile(fixture.Install.Resolve(save)) },
+            Now);
+
+        fixture.Scan();
+
+        var rescanned = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal(12, rescanned.RomId);
+        Assert.Equal(12, fixture.Store.GameIdBindings.Find("nes", "StarTropics.SaveRAM")?.RomId);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
+    public void A_second_rom_writing_a_bound_title_turns_the_binding_into_a_refusal()
+    {
+        // The cache is an answer here, not a short cut. USA teaches the binding; Europe, given
+        // the same title, writes the same file later. Short-cutting on the cache would go on
+        // uploading Europe's progress as USA's.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddRom(13, "StarTropics (Europe).zip");
+
+        var usa = Launch(Now.AddHours(-3), "StarTropics (USA).zip", "bizhawk");
+        var first = fixture.Attributor(usa).Attribute("nes", BizHawk, "StarTropics.SaveRAM", Now.AddHours(-2));
+        Assert.Equal(12, first.RomId);
+
+        var europe = Launch(Now.AddMinutes(-30), "StarTropics (Europe).zip", "bizhawk");
+        var second = fixture.Attributor(usa, europe).Attribute("nes", BizHawk, "StarTropics.SaveRAM", Now.AddMinutes(-5));
+
+        Assert.Null(second.RomId);
+        Assert.Equal(AttributionOutcome.Contested, second.Outcome);
+        Assert.Equal(BindingSource.Contested, fixture.Store.GameIdBindings.Find("nes", "StarTropics.SaveRAM")?.LearnedFrom);
+    }
+
+    [Fact]
+    public void A_binding_a_person_made_settles_a_contested_title()
+    {
+        using var fixture = new TitleFixture();
+        var usa = fixture.AddRom(12, "StarTropics (USA).zip");
+        fixture.AddRom(13, "StarTropics (Europe).zip");
+
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes", "StarTropics.SaveRAM", 12, usa, BindingSource.User, null, Now));
+
+        var attribution = fixture.Attributor(Launch(Now.AddMinutes(-30), "StarTropics (Europe).zip", "bizhawk"))
+            .Attribute("nes", BizHawk, "StarTropics.SaveRAM", Now.AddMinutes(-5));
+
+        Assert.Equal(12, attribution.RomId);
+        Assert.Equal(BindingSource.User, attribution.Source);
+    }
+
+    [Fact]
+    public void A_title_with_a_dot_of_its_own_loses_only_the_core()
+    {
+        using var fixture = new TitleFixture();
+        fixture.AddRom(15, "Dr. Mario (Japan, USA).zip");
+        fixture.AddBizHawkState("Dr. Mario (Japan, USA)", "quickerNES", "Dr. Mario.quickerNES");
+
+        new StateScanner(fixture.Install, fixture.Store, Fixtures.LoadSaveStates()).Scan();
+
+        var attribution = fixture.Attributor().Attribute("nes", BizHawk, "Dr. Mario.SaveRAM", written: null);
+
+        Assert.Equal(15, attribution.RomId);
+        Assert.Equal(BindingSource.Sidecar, attribution.Source);
+    }
+
+    [Fact]
+    public void The_learned_title_is_what_a_download_is_named_with_and_two_are_refused()
+    {
+        using var fixture = new TitleFixture();
+        var usa = fixture.AddRom(12, "StarTropics (USA).zip");
+
+        Assert.Null(DisplayNameAttributor.LearnedTitle(fixture.Store, "nes", BizHawk, 12));
+
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes", "StarTropics.SaveRAM", 12, usa, BindingSource.Sidecar, null, Now));
+
+        Assert.Equal("StarTropics", DisplayNameAttributor.LearnedTitle(fixture.Store, "nes", BizHawk, 12));
+
+        // A class C key under the same system is not a title, whatever ROM it names.
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes", "SOMEKEY", 12, usa, BindingSource.RomHeader, null, Now));
+        Assert.Equal("StarTropics", DisplayNameAttributor.LearnedTitle(fixture.Store, "nes", BizHawk, 12));
+
+        // Two titles for one ROM: only one is the file BizHawk reads, and nothing says which.
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "nes", "Star Tropics.SaveRAM", 12, usa, BindingSource.User, null, Now));
+        Assert.Null(DisplayNameAttributor.LearnedTitle(fixture.Store, "nes", BizHawk, 12));
+    }
+
+    private static BatteryRule BizHawk => SaveShapes.Bundled.BatteryRuleForSlot("nes", "bizhawk:battery")!;
+
+    private static string Rules(params string[] rules) =>
+        $$"""{ "battery_saves": [{{string.Join(", ", rules)}}] }""";
+
+    private static LaunchRecord Launch(DateTimeOffset at, string romFile, string emulator) =>
+        new(at, RelativePath.Create($"roms/nes/{romFile}"), "nes", emulator, null, IsMenuLaunch: false, $"{at:O}|{romFile}");
+
+    private sealed class TitleFixture : IDisposable
+    {
+        private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
+
+        public TitleFixture()
+        {
+            Install = _tree.Install();
+            Store = LocalStore.Open(Install);
+        }
+
+        public RetroBatInstall Install { get; }
+
+        public LocalStore Store { get; }
+
+        public RelativePath AddRom(long romId, string fileName)
+        {
+            var path = RelativePath.Create($"roms/nes/{fileName}");
+            Write(path.Value, "rom bytes");
+
+            Store.Files.Record(new LocalFile
+            {
+                Path = path,
+                Folder = "nes",
+                RomId = (int)romId,
+                Kind = LocalFileKind.Rom,
+                FileName = fileName,
+                SizeBytes = 9,
+            });
+
+            return path;
+        }
+
+        /// <summary>A state where RetroBat mirrors BizHawk's, with the sidecar it writes beside it.</summary>
+        public void AddBizHawkState(string romStem, string core, string sidecar)
+        {
+            Write($"saves/nes/bizhawk/sstates/{core}/{romStem}.QuickSave0.State", "a state");
+            Write($"saves/nes/bizhawk/sstates/{core}/{romStem}.txt", sidecar);
+        }
+
+        public void Write(string relative, string contents)
+        {
+            var absolute = Install.Resolve(RelativePath.Create(relative));
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+            File.WriteAllText(absolute, contents);
+        }
+
+        public void Touch(string relative, DateTimeOffset at) =>
+            File.SetLastWriteTimeUtc(Install.Resolve(RelativePath.Create(relative)), at.UtcDateTime);
+
+        /// <summary>Launches as emulatorLauncher.log records them, in the machine's local time.</summary>
+        public void WriteLaunchLog(params (DateTimeOffset At, string RomFile, string Emulator)[] launches) =>
+            Write(
+                LaunchLog.LivePath.Value,
+                string.Concat(launches.Select(launch =>
+                    $"{launch.At.ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [INFO]      [Startup] "
+                        + "\"X:\\RetroBat\\emulationstation\\emulatorLauncher.exe\" -system nes "
+                        + $"-emulator {launch.Emulator} -rom \"X:\\RetroBat\\roms\\nes\\{launch.RomFile}\"\r\n")));
+
+        /// <summary>States first, as the flush orders them, so the sidecar route can see them.</summary>
+        public SaveScanOutcome Scan()
+        {
+            var states = Fixtures.LoadSaveStates();
+            new StateScanner(Install, Store, states).Scan();
+            return new SaveScanner(Install, Store, states: states).Scan();
+        }
+
+        public DisplayNameAttributor Attributor(params LaunchRecord[] launches) =>
+            new(Store, RomIndex.Build(Store), launches, new TestTimeProvider(Now));
+
+        public void Dispose()
+        {
+            Store.Dispose();
+            _tree.Dispose();
+        }
+    }
+}

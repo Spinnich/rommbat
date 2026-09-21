@@ -294,14 +294,40 @@ public sealed class GameIdAttributor
     /// </remarks>
     private RouteAnswer? FromLaunchWindow(SaveUnit unit)
     {
-        if (unit.NewestMtimeUtc is not { } written)
+        if (unit.NewestMtimeUtc is not { } written
+            || CoveringLaunch(_launches, unit.System, emulator: null, written) is not { } covering
+            || _roms.Find(unit.System, Stem(covering.RomPath!.Value)) is not { } rom)
         {
             return null;
         }
 
-        var candidates = _launches
+        return new RouteAnswer(
+            BindingSource.Journal,
+            rom.RomId,
+            rom.Path,
+            $"{covering.RomPath!.Value.Name} was running when {unit.Key} was last written "
+                + $"({covering.At:u} against {written:u})");
+    }
+
+    /// <summary>
+    /// The most recent launch of a system at or before a write, or null when none or several
+    /// sessions could have made it.
+    /// </summary>
+    /// <param name="emulator">
+    /// Null for any emulator. A file only one emulator writes passes its name, so a later launch
+    /// of the same system under another emulator cannot claim it.
+    /// </param>
+    internal static LaunchRecord? CoveringLaunch(
+        IReadOnlyList<LaunchRecord> launches,
+        string system,
+        string? emulator,
+        DateTimeOffset written)
+    {
+        var candidates = launches
             .Where(launch => !launch.IsMenuLaunch && launch.RomPath is not null)
-            .Where(launch => string.Equals(launch.System, unit.System, StringComparison.OrdinalIgnoreCase))
+            .Where(launch => string.Equals(launch.System, system, StringComparison.OrdinalIgnoreCase))
+            .Where(launch => emulator is null
+                || string.Equals(launch.Emulator, emulator, StringComparison.OrdinalIgnoreCase))
             .Where(launch => launch.At <= written + LaunchAmbiguity)
             .OrderByDescending(launch => launch.At)
             .ToList();
@@ -320,17 +346,7 @@ public sealed class GameIdAttributor
             .Where(launch => covering.At - launch.At <= LaunchAmbiguity)
             .Any(launch => launch.RomPath != covering.RomPath);
 
-        if (ambiguous || _roms.Find(unit.System, Stem(covering.RomPath!.Value)) is not { } rom)
-        {
-            return null;
-        }
-
-        return new RouteAnswer(
-            BindingSource.Journal,
-            rom.RomId,
-            rom.Path,
-            $"{covering.RomPath!.Value.Name} was running when {unit.Key} was last written "
-                + $"({covering.At:u} against {written:u})");
+        return ambiguous ? null : covering;
     }
 
     /// <summary>
@@ -379,7 +395,7 @@ public sealed class GameIdAttributor
 
     private static string Stem(RelativePath path) => Path.GetFileNameWithoutExtension(path.Value);
 
-    private static IReadOnlyList<LaunchRecord> ReadLaunches(RetroBatInstall install)
+    internal static IReadOnlyList<LaunchRecord> ReadLaunches(RetroBatInstall install)
     {
         try
         {

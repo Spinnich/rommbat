@@ -1150,7 +1150,7 @@ internal static class SavesCommand
             Console.WriteLine($"  {binding.System}/{binding.GameId} -> not bound");
             Console.WriteLine($"    {binding.Detail}");
             Console.WriteLine(
-                $"    settle it with: rommbat-agent saves bind {binding.System} {binding.GameId} <rom id>");
+                $"    settle it with: rommbat-agent saves bind {binding.System} {Quoted(binding.GameId)} <rom id>");
         }
 
         if (contested.Count > MaxListedBindings)
@@ -1161,6 +1161,9 @@ internal static class SavesCommand
 
         Console.WriteLine();
     }
+
+    /// <summary>A key as it has to be typed: a BizHawk title such as <c>Ultima - Quest of the Avatar.SaveRAM</c> has spaces.</summary>
+    private static string Quoted(string key) => key.Contains(' ', StringComparison.Ordinal) ? $"\"{key}\"" : key;
 
     private static string Describe(BindingSource source) => source switch
     {
