@@ -1461,6 +1461,25 @@ the game on `nestopia` showed BizHawk's files and neither `PEER` nor `LOCAL`. Ea
 rewrites on exit went up as `1 up` with no conflict, once through the quit hook's flush. Nothing
 else on the install conflicted in any of the passes.
 
+### A recorded mednafen path a plain save now shadows, driven (#215)
+
+On Final Fantasy (USA), rom 158331, on `R:\RetroBat` (RetroBat 8.2.1, RomM `5.3.0-beta.1`,
+2026-09-21), running PR #215's build after its review round. It re-runs no certification step.
+The `mednafen:battery` slot was in step at `Final Fantasy (USA).24ae5edf....sav` (md5 `597b2790`,
+save 369). The other device was a slotted upload with no `device_id`, and the plain file was a
+byte copy of the hashed one, standing in for what mesen standalone writes (finding 273).
+
+| Step                                                  | Result                                                                                                      |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `flush`                                               | Nothing up or down                                                                                          |
+| The same save, last byte flipped, as the other device | save 378, origin null                                                                                       |
+| `Final Fantasy (USA).sav` added beside it, `flush`    | **`1 up, 1 failed`**: the plain file went up as `mesen:battery`, save 379; the download refused as shadowed |
+| After                                                 | The hashed file unchanged in bytes and mtime; `save_slot` still save 369, md5 `597b2790`                    |
+| Plain file removed, 378 and 379 deleted, `flush`      | Nothing up or down; both files `in step`                                                                    |
+
+Before #215 the refusal ran only when the path was derived, and a slot with a local save took the
+recorded path straight through: the unit test for this case received the download.
+
 ## RomM's browser player, driven at `5.3.0-alpha.3`
 
 On `libretro`/`nestopia` with The Legend of Zelda (USA) (Rev 1), rom 158633, the maintainer in
