@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba"],
+        "systems": ["nes", "megadrive", "gba", "gb"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -82,6 +82,11 @@ OTHER_BATTERY_RULES = [
             "; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
             "bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the "
             "rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says"
+            "; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow "
+            "Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote "
+            "bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all "
+            "three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version "
+            "(USA, Europe).Gambatte says"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -118,6 +123,19 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "jgenesis",
+        "systems": ["gb"],
+        "directory": "jgenesis/gb",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "gb under jgenesis on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, "
+            "Europe) (CGB+SGB Enhanced).zip wrote jgenesis/gb/<rom>.sav, 32,768 B, and no clock "
+            "file, and its states sit apart in jgenesis/states"
+        ),
+    },
+    {
+        "emulator": "jgenesis",
         "systems": ["gba"],
         "directory": "jgenesis/gba",
         "extensions": [".sav", ".rtc"],
@@ -131,7 +149,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mgba",
-        "systems": ["gba"],
+        "systems": ["gba", "gb"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file",
@@ -141,6 +159,9 @@ OTHER_BATTERY_RULES = [
             "a loose <rom>.sav, 131,088 B, the flash and a 16-byte clock footer. mesen writes the "
             "same name, 131,072 B, keeping its clock in <rom>.rtc, and mednafen opens it when "
             "present but refuses mgba's size, so the file is shared and uploads as mgba's"
+            "; gb under mgba standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu "
+            "Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.sav, 32,768 B with "
+            "no footer, and mednafen read and saved back into that file rather than its hashed name"
         ),
     },
     {
@@ -186,7 +207,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes", "megadrive", "gba"],
+        "systems": ["nes", "megadrive", "gba", "gb"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -202,6 +223,10 @@ OTHER_BATTERY_RULES = [
             "; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip "
             "wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of "
             "the whole .gba inside, once no plain <rom>.sav was present"
+            "; gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu "
+            "Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose "
+            "<rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb "
+            "inside, when no plain <rom>.sav was present"
         ),
     },
     {
@@ -231,6 +256,19 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "ares",
+        "systems": ["gb"],
+        "directory": "ares/Game Boy",
+        "extensions": [".ram"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "gb under ares, core GameBoy, on 8.2.1: Pokemon - Yellow Version - Special Pikachu "
+            "Edition (USA, Europe) (CGB+SGB Enhanced).zip read and saved ares/Game Boy/<rom>.ram, "
+            "32,768 B, beside its states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
         "systems": ["gba"],
         "directory": "ares/Game Boy Advance",
         "extensions": [".flash", ".rtc"],
@@ -254,6 +292,17 @@ NOT_A_SAVE = {
     ".jpg": "a save-state screenshot, which is stage 2",
 }
 
+# Not a save on one system only. The same file can be a save on a sibling: gbc's clock carts
+# keep a real clock in the .rtc that gb's carts leave empty.
+NOT_A_SAVE_BY_SYSTEM = {
+    "gb": {
+        ".rtc": (
+            "a clock file libretro's tgbdual, DoubleCherryGB and sameboy write for every game; no "
+            "gb cartridge in the set has a clock, so it holds only the host time at exit"
+        ),
+    },
+}
+
 lines.append("=== loose files directly under saves/<system>/, which is where class A lives")
 
 by_extension: collections.Counter[str] = collections.Counter()
@@ -273,7 +322,7 @@ for system_directory in sorted(p for p in saves.iterdir() if p.is_dir()):
         if path.name in declared:
             containers_seen.append(f"{system}/{path.name}")
             continue
-        if path.suffix.lower() in NOT_A_SAVE:
+        if path.suffix.lower() in NOT_A_SAVE or path.suffix.lower() in NOT_A_SAVE_BY_SYSTEM.get(system, {}):
             continue
         extensions[path.suffix.lower()] += 1
         by_extension[path.suffix.lower()] += 1
@@ -331,6 +380,7 @@ document = {
         *OTHER_BATTERY_RULES,
     ],
     "not_a_save_extensions": NOT_A_SAVE,
+    "not_a_save_by_system": NOT_A_SAVE_BY_SYSTEM,
     "shared_containers": SHARED_CONTAINERS,
     "observed": per_system,
 }

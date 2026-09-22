@@ -127,6 +127,33 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_gb_rules_give_each_of_yellows_saves_one_owner()
+    {
+        // Pokemon - Yellow Version, driven under every gb row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+        const string Md5 = "d9290db87b1f0a23b89f99ee4469e34b";
+
+        // The .srm six libretro cores and Mesen share, the .sav mGBA and mednafen share, and
+        // mednafen's own hashed name when no plain one is there.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mgba", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.sav")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.{Md5}.sav")?.Emulator);
+
+        Assert.Equal("ares", shapes.BatteryRuleFor("gb", "ares/Game Boy", $"{Rom}.ram")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("gb", "jgenesis/gb", $"{Rom}.sav")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("gb", "bizhawk", "Pokemon - Yellow Version (USA, Europe).SaveRAM")?.Emulator);
+
+        // No gb row keeps a clock, so a loose .rtc is no one's save there and still is on gba.
+        Assert.Null(shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.rtc"));
+        Assert.True(shapes.IsNotASave("gb", ".rtc"));
+        Assert.True(shapes.IsNotASave("GB", ".RTC"));
+        Assert.False(shapes.IsNotASave("gba", ".rtc"));
+        Assert.False(shapes.IsNotASave("gbc", ".rtc"));
+        Assert.True(shapes.IsNotASave("gbc", ".ldci"));
+    }
+
+    [Fact]
     public void One_emulator_may_hold_two_rules_on_a_system_only_where_class_b_keeps_the_slots_apart()
     {
         var shapes = SaveShapes.Parse(

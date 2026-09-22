@@ -415,6 +415,33 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_loose_rtc_on_gb_is_neither_synced_nor_reported_while_gbas_is_a_save()
+    {
+        // Measured on 8.2.1: tgbdual, DoubleCherryGB and sameboy write <rom>.rtc beside the .srm
+        // for every gb game, holding only the host time at exit because no gb cartridge in the
+        // set has a clock. On gba Mesen's .rtc is the cartridge clock.
+        using var fixture = SaveTree.Create();
+        const string Yellow = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+
+        fixture.AddRom(153392, "gb", $"{Yellow}.zip");
+        fixture.AddSave("gb", $"{Yellow}.srm", "the cores' battery save");
+        fixture.AddSave("gb", $"{Yellow}.sav", "mgba's battery save");
+        fixture.AddSave("gb", $"{Yellow}.rtc", "four bytes of host time");
+        fixture.AddRom(233631, "gba", "Pokemon - Emerald Version (USA, Europe).zip");
+        fixture.AddSave("gba", "Pokemon - Emerald Version (USA, Europe).rtc", "the cartridge clock");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List();
+        Assert.Equal(
+            ["saves/gb/" + Yellow + ".sav", "saves/gb/" + Yellow + ".srm", "saves/gba/Pokemon - Emerald Version (USA, Europe).rtc"],
+            saves.Select(save => save.Path.Value).Order(StringComparer.Ordinal));
+        Assert.Equal("mgba:battery", Assert.Single(saves, save => save.Path.Value.EndsWith(".sav", StringComparison.Ordinal)).Slot);
+        Assert.Equal("mesen:battery:rtc", Assert.Single(saves, save => save.System == "gba").Slot);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gb");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
