@@ -314,6 +314,11 @@ public sealed class SaveConflictResolver
             $"Kept this device's {save.Path} and sent it as the newest copy in the slot." + pruned);
     }
 
+    private static ConflictResolutionOutcome NotASaveKept(string reason) =>
+        ConflictResolutionOutcome.Failed(
+            $"Nothing was written, because {reason} The conflict is still open, and keeping this "
+                + "device's copy settles it.");
+
     private async Task<ConflictResolutionOutcome> KeepServerAsync(
         SaveConflictRecord conflict,
         CancellationToken cancellationToken)
@@ -347,6 +352,13 @@ public sealed class SaveConflictResolver
                     + "still says the same thing. Close the game, then resolve it again.");
         }
 
+        // A conflict can still carry one: the server's own conflict action and a 409 record it,
+        // because the local side is real and keeping it is the answer.
+        if (SaveSync.NotASave(conflict.ServerHash) is { } refused)
+        {
+            return NotASaveKept(refused);
+        }
+
         var partialDirectory = _install.Resolve(SaveSync.PartialDirectory);
         var part = Path.Combine(partialDirectory, $"resolve-{saveId}.part");
 
@@ -364,6 +376,13 @@ public sealed class SaveConflictResolver
                 {
                     return ConflictResolutionOutcome.Failed($"The download failed: {response.Message}");
                 }
+            }
+
+            if (new FileInfo(part).Length == SaveSync.NullPayload.Length
+                && SaveSync.NotASave(LogicalContentHash.OfFile(part)) is { } arrived)
+            {
+                File.Delete(part);
+                return NotASaveKept(arrived);
             }
 
             var unitRow = _store.Saves.List(conflict.RomId)

@@ -1037,6 +1037,7 @@ internal static class SavesCommand
         Console.WriteLine(
             $"restored {outcome.Restored} save(s) and {stateOutcome.Restored} state(s), "
                 + $"failed {outcome.Failed + stateOutcome.Failed}, "
+                + (outcome.Rejected > 0 ? $"refused {outcome.Rejected} as not a save, " : string.Empty)
                 + $"{ByteSize.Format(outcome.BytesTransferred + stateOutcome.BytesTransferred)}"
                 + (stateOutcome.Screenshots > 0 ? $", with {stateOutcome.Screenshots} screenshot(s)" : string.Empty));
 

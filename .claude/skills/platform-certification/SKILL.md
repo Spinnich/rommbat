@@ -49,6 +49,23 @@ checklist, and it carries the two traps that cost the most time, the screenshot 
 step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
 reads the sessions back, so step 8 no longer needs the token that record describes.
 
+**`megadrive` is second: seven of its eleven rows certified at `5.3.0` on 2026-09-21**, and
+`docs/platforms/megadrive.md` is the model for a system whose matrix does not all pass. The three
+`libretro` cores that boot the library, `bizhawk`, `jgenesis`, `mednafen` and `ares`, the last four
+on a build carrying megadrive rules. `libretro`/`fbneo` and the three `kega-fusion` rows were
+driven and are recorded as not certifiable, each with its reason, which is a result and not a
+gap. The whole system took one evening, eleven ES sessions and the agent's keyboard launches.
+
+**Three things it taught that transfer.** An emulator lays out its tree per system, not per
+emulator: `jgenesis` and `ares` name their save directory after their own name for the console
+(`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
+system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
+RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
+report rather than a tree to start scanning (finding 283). And a core can refuse the library for
+its names: FBNeo takes a console game's driver from the file name, so it boots nothing named by
+No-Intro (finding 278). **An emulator absent from `emulators/`** is installed by ES on the first
+launch under it, so check the folder holds an executable before planning its rows.
+
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
 added: one game, one emulator, one real save or state, driven through EmulationStation and
@@ -242,15 +259,20 @@ certified on the other eight steps. Driving all nine `nes` rows showed otherwise
 to `StateScanner` because it works from `es_savestates.cfg` alone. **Declaring no directory is not
 writing no state.** Look in the emulator's own tree under `saves/<system>/` before recording step 5
 for one of these rows, and record what you found there rather than what the file declares. On
-`nes` the three are carried by `data/retrobat/es_savestates.supplement.xml`, one entry each scoped
-to `nes`; a row in this family on another system needs its own entry from its own pass, plus a
-battery rule, before it can pass steps 4 and 5.
+`nes` and `megadrive` they are carried by `data/retrobat/es_savestates.supplement.xml`, each entry
+scoped to the systems it was driven on, and ares with one entry per system because its directory
+changes with it; a row in this family on another system needs its own entry from its own pass,
+plus a battery rule, before it can pass steps 4 and 5.
 
 **Find each emulator's slot keys before sitting down.** The pad's save key saves to the current
 slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `jgenesis`, `mesen`,
 `mednafen` and `ares` all step the slot on `F7` and save on `F2` with no modifier, which the agent
 can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
-`es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`).
+`es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`). Kega
+Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and needs its
+controls remapped in its own menu before the pad plays (finding 284). **When a key's effect cannot be seen,
+take a screenshot of the screen from the agent's session** rather than sending keys blind: a
+blind Start on a title screen is as likely to land during a fade as on the menu.
 
 The libretro family is the one that most needs driving rather than assumed: finding 134 measured
 two cores writing an identical `state1` filename, which survived as two server rows only because

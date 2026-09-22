@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes"],
+        "systems": ["nes", "megadrive"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -76,6 +76,9 @@ OTHER_BATTERY_RULES = [
             "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote "
             "bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads "
             "StarTropics.NesHawk (#151)"
+            "; megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 "
+            "(USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) "
+            "[!].SaveRAM, 16,384 B"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -98,6 +101,19 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "jgenesis",
+        "systems": ["megadrive"],
+        "directory": "jgenesis/md",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "megadrive under jgenesis on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) "
+            "(Lock-on Combination).zip wrote jgenesis/md/<rom>.sav, 512 B, and its states sit apart "
+            "in jgenesis/states"
+        ),
+    },
+    {
         "emulator": "mesen",
         "systems": ["nes"],
         "directory": "",
@@ -111,7 +127,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes"],
+        "systems": ["nes", "megadrive"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -120,6 +136,10 @@ OTHER_BATTERY_RULES = [
             "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose "
             "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of "
             "the .nes inside less its 16-byte iNES header"
+            "; megadrive under mednafen, core megadrive, on 8.2.1: Sonic & Knuckles + Sonic The "
+            "Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose "
+            "<rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md "
+            "inside"
         ),
     },
     {
@@ -132,6 +152,19 @@ OTHER_BATTERY_RULES = [
         "evidence": (
             "nes under ares, core Famicom, on 8.2.1: Dragon Warrior IV (USA).zip wrote "
             "ares/Famicom/Dragon Warrior IV (USA).ram, 8,192 B, beside its state .bs1"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["megadrive"],
+        "directory": "ares/Mega Drive",
+        "extensions": [".ram"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "megadrive under ares, core MegaDrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 "
+            "(USA) (Lock-on Combination).zip wrote ares/Mega Drive/<rom>.ram, 512 B, beside its "
+            "states .bs1 and .bs2"
         ),
     },
 ]

@@ -138,14 +138,25 @@ not scanned, not uploaded, not restorable. **Never read "declares no state direc
 has no states"**, which is the reading `docs/platforms/README.md` was built on for 30 of wave 1's
 81 rows. Issue #150.
 
-**On `nes` all three are declared now, by RomMBat rather than by RetroBat.**
+**On `nes` all three are declared now, by RomMBat rather than by RetroBat, and on `megadrive`
+mednafen, ares and kega-fusion are.**
 `data/retrobat/es_savestates.supplement.xml` is `es_savestates.cfg`'s own format plus a `systems`
 attribute, and `StateScanner.LoadSchema` reads the install's file with it beneath: an entry the
 install declares always wins, and a supplement entry answers only for the systems it names, so
 `saves/snes/mesen/` stays undeclared. mednafen's entry uses `{{romhash}}`, RomMBat's own token for
 the 32-hex md5 it puts in the name (finding 274). **Add a row to the supplement only from a hands-on
-pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/`, named after
-its own system, so nothing about one system's layout carries to the next.
+pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/` and
+`megadrive` under `ares/Mega Drive/`, each named after its own system, so nothing about one
+system's layout carries to the next. The supplement may carry one entry per system for the same
+emulator, `SaveStateSchema.For(emulator, system)` picks between them, and an install that declares
+the emulator itself drops every supplement entry for it (finding 281).
+
+**Kega Fusion writes its battery saves outside `saves/`.** RetroBat's template `Fusion.ini` sets
+`SRMFiles` to `emulators\kega-fusion` and `StateFiles` to `saves\megadrive\kega-fusion`, and
+`emulatorLauncher` rewrites neither per launch, so its `.srm` never reaches a tree RomMBat reads.
+Treat it as RetroBat's to fix, not as a second tree to scan, and never write the key (rule 2).
+Finding 283. RetroBat ships no Kega Fusion either: the folder holds only that template until ES
+downloads the emulator on a first launch.
 
 A row still undeclared on another system is not silent, though, and the difference matters to
 whoever fixes it. `SaveScanner.CountFiles` excludes only the directories `StateScanner.LoadSchema`

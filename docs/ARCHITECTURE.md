@@ -460,7 +460,7 @@ a drift by updating the expected number.
 | `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | M0 experiment 2, in Grout's shape                                                             |
 | `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | M0 experiment 2                                                                               |
 | `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
-| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` row at a time                                             |
+| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` or `megadrive` row at a time                              |
 | `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
@@ -860,7 +860,8 @@ not hardcode. Two things make it less easy than it looks, both measured:
   `data/retrobat/es_savestates.supplement.xml` beneath it: the same format plus a `systems`
   attribute limiting each entry to where it was measured, and a `{{romhash}}` token for mednafen's
   content hash, which a restore carries from the uploaded name. An entry in the install's own file
-  always wins.
+  always wins. An emulator may have one supplement entry per system, because its layout is its
+  own per system: ares writes `nes` under `ares/Famicom/` and `megadrive` under `ares/Mega Drive/`.
 
 Attribution for classes C and D is a real problem, because these saves are keyed by Game ID.
 Under `mame` the key is the ROM's own basename and the join is direct. Everywhere else three

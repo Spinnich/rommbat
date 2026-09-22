@@ -37,12 +37,67 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("snes"));
         }
 
-        Assert.Equal(shipped.Emulators.Count + 3, loaded.Emulators.Count);
+        // Five entries for four emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 5, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under snes is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
         Assert.Null(loaded.MatchDirectory("snes/mesen/SaveStates"));
         Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "snes", core: null));
+        Assert.Null(loaded.For("mesen", "megadrive"));
+    }
+
+    [Fact]
+    public void Kega_fusion_states_are_read_where_its_fusion_ini_sends_them_on_megadrive_only()
+    {
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+
+        var template = SaveStateTemplate.Create(loaded.For("kega-fusion", "megadrive")!, "megadrive", core: null)!;
+
+        Assert.Equal(9, template.Match($"{Rom}.gs9")?.Slot);
+        Assert.Equal(0, template.Match($"{Rom}.gs0")?.Slot);
+        Assert.Equal("kega-fusion", loaded.MatchDirectory("megadrive/kega-fusion")?.Emulator.Name);
+
+        // Fusion.ini names mastersystem and segacd state folders too, and neither was driven.
+        Assert.Null(loaded.MatchDirectory("mastersystem/kega-fusion"));
+    }
+
+    [Fact]
+    public void Ares_keeps_a_directory_per_system_and_each_is_picked_by_its_system()
+    {
+        // ares names its tree after its own system: Famicom for nes, "Mega Drive" for megadrive.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+
+        Assert.Equal("{{system}}/ares/Famicom", loaded.For("ares", "nes")!.Directory);
+        Assert.Equal("{{system}}/ares/Mega Drive", loaded.For("ares", "megadrive")!.Directory);
+        Assert.Null(loaded.For("ares", "snes"));
+
+        Assert.Equal("megadrive", loaded.MatchDirectory("megadrive/ares/Mega Drive")?.System);
+        Assert.Null(loaded.MatchDirectory("megadrive/ares/Famicom"));
+        Assert.Null(loaded.MatchDirectory("nes/ares/Mega Drive"));
+
+        var template = SaveStateTemplate.Create(loaded.For("ares", "megadrive")!, "megadrive", core: null)!;
+        Assert.Equal(2, template.Match("Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).bs2")?.Slot);
+    }
+
+    [Fact]
+    public void An_install_declaring_ares_drops_every_supplement_entry_for_it()
+    {
+        var own = SaveStateSchema.Parse(new MemoryStream(Encoding.UTF8.GetBytes(
+            """
+            <savestates>
+              <emulator name="ares">
+                <directory>{{system}}/ares/states</directory>
+                <file>{{romfilename}}.bst{{slot}}</file>
+              </emulator>
+            </savestates>
+            """)));
+
+        var loaded = own.WithSupplement(SaveStateSchema.Supplement);
+
+        Assert.Single(loaded.Emulators, entry => entry.Name == "ares");
+        Assert.Equal("{{system}}/ares/states", loaded.For("ares", "megadrive")!.Directory);
     }
 
     [Fact]

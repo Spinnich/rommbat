@@ -42,8 +42,9 @@ public enum BatteryNaming
     /// The ROM file's stem, a dot, and the md5 of the ROM's content. mednafen is the measured
     /// case: <c>Final Fantasy (USA).zip</c> wrote
     /// <c>Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav</c>, where the hash is of the
-    /// <c>.nes</c> inside with its 16-byte iNES header left off. The stem joins once the hash is
-    /// dropped, and a restore has to compute the hash from the ROM to name the file.
+    /// <c>.nes</c> inside with its 16-byte iNES header left off; on <c>megadrive</c> it is the whole
+    /// <c>.md</c>. The stem joins once the hash is dropped, and a restore has to compute the hash
+    /// from the ROM to name the file, which <see cref="Content.MednafenRomHash"/> does per system.
     /// </summary>
     RomFileAndContentMd5,
 }

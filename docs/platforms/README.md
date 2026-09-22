@@ -98,12 +98,14 @@ against 7 systems**:
 | `gb`           | 14     | 10              |
 | `gbc`          | 12     | 8               |
 | `gba`          | 10     | 5               |
-| `megadrive`    | 11     | 6               |
+| `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **54**          |
+| **Total**      | **81** | **59**          |
 
-`nes` is 9 of 9 because RomMBat's bundled supplement declares the three emulators
-`es_savestates.cfg` leaves out there; every other system counts `es_savestates.cfg` alone.
+`nes` is 9 of 9 and `megadrive` 11 of 11 because RomMBat's bundled supplement declares the
+emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on `nes`, and
+`mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`. Every other system counts
+`es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
 and 6 are redone per row, and they collapse into four families rather than 81 separate shapes:
@@ -131,9 +133,11 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   `saves` says so, which is the reporting half: a directory whose emulator the file does not name
   is reported under `no_state_declaration` rather than folded into the row that promises save
   states sync. **The fix is per system**: `data/retrobat/es_savestates.supplement.xml` declares
-  `mednafen`, `mesen` and `ares` on `nes`, where all three were driven and certified, and a row in
-  this family anywhere else needs its own supplement entry and battery rule, from its own pass,
-  before steps 4 and 5 can pass.
+  `mednafen`, `mesen` and `ares` on `nes` and `mednafen`, `ares` and `kega-fusion` on
+  `megadrive`, each where it was driven, and a row in this family anywhere else needs its own
+  supplement entry and battery rule, from its own pass, before steps 4 and 5 can pass. **The
+  layout is the emulator's per system, not per emulator**: ares keeps `nes` under `ares/Famicom/`
+  and `megadrive` under `ares/Mega Drive/`, so the supplement carries one entry per system.
 
   **Check the declaration by emulator name, not by save-directory name**, before recording a row
   as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
@@ -193,11 +197,11 @@ work. All three counts are against the 51 systems above.
   `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
   needs a supplement entry of RomMBat's own before step 5 can pass, which is how `mednafen`, `mesen`
-  and `ares` were certified on `nes`. **Outside what RetroBat declares, not outside what the
+  and `ares` were certified on `nes`, and `mednafen` and `ares` on `megadrive`. **Outside what RetroBat declares, not outside what the
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Nine rows are certified, and the gate is open
+## Sixteen rows are certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -218,11 +222,18 @@ saves, and `jgenesis`, `mesen`, `mednafen` and `ares` last, once each had a batt
 last three a state declaration in the bundled supplement. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass on
 all nine; step 6 is N/A because `nes` has no class D.
 
-**Read that as narrowly as it is written.** It certifies nine `(system, emulator, core)` rows on
-one install at one pair of floors, which is every row `nes` declares on RetroBat 8.2.1. It certifies
-none of those emulators on any other system: every rule and declaration the last four needed is
-scoped to `nes`.
-[nes.md](nes.md) is the record, gaps included.
+**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-21: the three `libretro` cores that boot the library, `genesis_plus_gx` being the stock
+row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each had a megadrive
+battery rule and the last two a state declaration. **Four were driven and are not certified**:
+`libretro`/`fbneo` boots no game named by No-Intro, since FBNeo takes its driver from the file
+name (finding 278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
+battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (finding 283).
+
+**Read both as narrowly as they are written.** They certify sixteen `(system, emulator, core)`
+rows on one install at one pair of floors. They certify none of those emulators on any other
+system: every rule and declaration the non-`libretro` rows needed is scoped to the systems it was
+measured on. [nes.md](nes.md) and [megadrive.md](megadrive.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
