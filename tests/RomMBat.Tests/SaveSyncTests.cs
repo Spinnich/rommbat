@@ -453,6 +453,68 @@ public class SaveSyncTests
         Assert.True(!Directory.Exists(partial) || !Directory.EnumerateFiles(partial).Any());
     }
 
+    [Theory]
+    [InlineData(ConflictResolution.KeepServer, false)]
+    [InlineData(ConflictResolution.KeepServer, true)]
+    [InlineData(ConflictResolution.KeepLocal, false)]
+    [InlineData(ConflictResolution.KeepLocal, true)]
+    public async Task A_conflict_over_a_null_save_whose_local_file_is_gone_closes_with_nothing_written(
+        ConflictResolution resolution,
+        bool rescanned)
+    {
+        // Measured on R:\RetroBat: Bare Knuckle III's conflict against another client's null
+        // outlived its local file, and both answers refused, so it was reported on every flush.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var local = fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm");
+        File.Delete(local);
+
+        if (rescanned)
+        {
+            fixture.Scan();
+        }
+
+        var serverSaves = fixture.Stub.Saves.Count;
+
+        var outcome = await fixture.ResolveAsync(7, "libretro:battery", resolution, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Contains("nothing written", outcome.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.False(File.Exists(local));
+        Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_conflict_whose_local_file_is_gone_still_refuses_keep_local_against_a_real_save()
+    {
+        // Nothing to keep on this side, and a real save on the other: taking it is the answer,
+        // and the message says so rather than naming a delete no command offers.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "played there");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        File.Delete(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm"));
+
+        var outcome = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepLocal, TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.Contains("Take the server's copy instead", outcome.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Delete the conflict", outcome.Message, StringComparison.Ordinal);
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+    }
+
     [Fact]
     public async Task A_restore_preview_lists_a_null_autosave_as_unrestorable()
     {

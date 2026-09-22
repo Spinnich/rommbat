@@ -388,6 +388,11 @@ old build negotiated at 22:10:14Z) and `libretro:battery`. This device's store h
 uploading the third, so another client wrote it too, and which one is not determined here. All
 four rows are left on the server until the PR merges.
 
+**The conflict it left on this install had no exit until a later fix.** Rom 189465's
+`libretro:battery` conflict outlived its local file, which went to the evidence folder; keep-local
+then had nothing to send and keep-server refused the `null`, so it was reported on every flush. A
+conflict with no save on either side now closes with nothing written, whichever answer is given.
+
 ### `--help` ran the command
 
 `rommbat-agent saves restore --help` ran a full restore preview. Any `--help` or `-h` now prints
