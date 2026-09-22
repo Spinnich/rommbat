@@ -192,8 +192,9 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 8. A play session is recorded and reaches RomM.
 
    **`rommbat-agent status` settles this step**, under its `Playtime` block: with the server
-   reachable it reads `GET /api/play-sessions` back for this device and prints the count and the
-   last session's start, end and length (#208). A token stored with `--protect` needs
+   reachable it reads `GET /api/play-sessions` back for this device and prints the count, the
+   last session's start, end and length, and the ten newest under `recent:` (#208), so a run of
+   rows played back to back can each be matched to its launch. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
    **Both of the ways this step used to be answered by hand have a trap, and they are why the

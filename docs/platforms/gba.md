@@ -259,14 +259,14 @@ before the first, `R:\rommbat-evidence\gba\es_settings.before.cfg`, when the pas
 
 ### Checklist for the seven
 
-| #   | Result on every one of the seven                                                             |
-| --- | -------------------------------------------------------------------------------------------- |
-| 4   | **Pass, both directions**, every file at its own md5 after one restore                       |
-| 5   | **Pass**, two slots each, where each emulator was found to write                             |
-| 6   | **N/A**                                                                                      |
-| 7   | **Pass**, carried: each was launched from ES on the synced ROM, art and description present  |
-| 8   | **Pass**, from the journal and the drained queue; `status` read back the last session itself |
-| 9   | **Pass.** 201 present and verified, 759 media present, gamelist byte-identical, 0 sent       |
+| #   | Result on every one of the seven                                                            |
+| --- | ------------------------------------------------------------------------------------------- |
+| 4   | **Pass, both directions**, every file at its own md5 after one restore                      |
+| 5   | **Pass**, two slots each, where each emulator was found to write                            |
+| 6   | **N/A**                                                                                     |
+| 7   | **Pass**, carried: each was launched from ES on the synced ROM, art and description present |
+| 8   | **Pass**, every session read back from RomM by `status`, under `recent:`                    |
+| 9   | **Pass.** 201 present and verified, 759 media present, gamelist byte-identical, 0 sent      |
 
 ### 4. Battery saves on the seven
 
@@ -288,8 +288,11 @@ including the zip-member name rebuilt from the ROM and the hashed one.
 **The loose `<rom>.sav` is one save for three emulators and uploads as `mgba:battery`**, by the
 maintainer's ruling, as `nes` uploads its shared plain `.sav` as `mesen:battery`. Mesen's copy went
 up first as that slot; mGBA's own, put back afterwards, went up as its next version, and the
-restore brought back the newest, mGBA's. **Whether Mesen reads mGBA's 131,088 B file is not
-measured.** mednafen does not: it refused it (below).
+restore brought back the newest, mGBA's. **Mesen reads mGBA's 131,088 B file**: launched on it,
+Emerald continued from the save with no clock message, and on exit Mesen wrote the file back at
+131,072 B, mGBA's flash byte for byte with the 16-byte footer dropped, `505a9dd2...`, and its own
+`.rtc` beside it. That went up as the next `mgba:battery` version through the `quit` pass, with
+nothing saved in the game. mednafen does not read mGBA's file: it refused it (below).
 
 **mGBA standalone and BizHawk append 16 bytes of clock to the flash**, 131,088 B against 131,072.
 Both read the 131,072 B seed and wrote their own size back. Mesen, jgenesis and ares keep the clock
@@ -348,10 +351,13 @@ says so. ares states are a fixed 530,840 B, so only the md5 tells two apart, and
 | mednafen_gba | 12:49:46 to 12:50:39 | 53s    |
 | `ares`       | 12:51:39 to 12:52:43 | 1m 4s  |
 
-Every pair is correlated in the journal, every `quit` pass exited 0, and `flush` answers `playtime:
-nothing queued`. **`status` reads back only the newest session**, so it confirmed the `nosgba`
-session after these, 12:58:48Z to 12:59:56Z; for the seven the evidence is the queue having
-drained, not a read-back of each.
+Every pair is correlated in the journal, every `quit` pass exited 0, and **every one is on the
+server**: `status` lists the ten newest sessions under `recent:`, a line this pass added because it
+printed only the newest, and the seven appear there at these times, rom 233631, alongside the
+`nosgba` session at 12:58:48Z and the refused mednafen attempt at 12:30:51Z. One more, 13:32:28Z to
+13:32:53Z, is the maintainer launching NO$GBA from RetroBat's own emulator menu to look for its
+state key; that menu writes `gba.emulator` into `es_settings.cfg`, which is why a `nosgba` key
+reappeared there after the file was put back.
 
 ## `nosgba`: driven, and not certifiable
 
@@ -371,8 +377,10 @@ cannot make this row work, since RomMBat places the ROM RomM serves and never th
 **Its saves live outside `saves/`**, in `emulators/nosgba/BATTERY/<rom>.SAV`, as Kega Fusion's do
 on `megadrive` (finding 283). NO$GBA read the raw 131,072 B seed and wrote it back in its own
 compressed format, 3,583 B headed `NocashGbaBackup`, and rewrote it on a later launch with no save
-made. **No state was made**: NO$GBA has no pad mapping for one, and in fullscreen it shows no menu
-to reach its snapshot command from. **Its pad maps Start and Select differently from every other
+made. **No state can be synced**: `F8` is NO$GBA's Write Snapshot, and it opens a Save As dialog
+in the user's `Documents` folder rather than writing anywhere fixed, so where a state lands is the
+user's choice each time and no rule can find it. The dialog was cancelled. There is no pad mapping
+for it either. **Its pad maps Start and Select differently from every other
 row**, as the maintainer found: `NO$GBA.INI` numbers them 3 and 4, and `emulatorLauncher` writes no
 mapping for it. Finding 286.
 
@@ -397,4 +405,3 @@ mapping for it. Finding 286.
 - **Nothing about another game.** Emerald is one 128 KB flash cartridge with a clock; a game with
   SRAM or EEPROM, or no clock, names and sizes its files differently on at least ares.
 - **Nothing about mednafen_gba on a bare `.gba`, or on a `.7z`.** Only a zip was driven.
-- **Nothing about Mesen reading mGBA's file**, which the shared slot can hand it.

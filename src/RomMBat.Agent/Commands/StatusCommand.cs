@@ -281,10 +281,25 @@ internal static class StatusCommand
             $"  last session:    {Describe(last.StartTime)} to {Describe(last.EndTime)}, "
                 + $"{Describe(TimeSpan.FromMilliseconds(last.DurationMs))}");
         Console.WriteLine($"  its rom:         {last.RomId?.ToString(CultureInfo.InvariantCulture) ?? "none recorded"}");
+
+        // Newest first, so a run of sessions played back to back, one per emulator, can each be
+        // matched to its launch rather than only the last of them.
+        Console.WriteLine("  recent:");
+
+        foreach (var session in sessions.OrderByDescending(session => session.EndTime).Take(RecentShown))
+        {
+            Console.WriteLine(
+                $"    {Describe(session.StartTime)} to {Describe(session.EndTime)}, "
+                    + $"{Describe(TimeSpan.FromMilliseconds(session.DurationMs))}, "
+                    + $"rom {session.RomId?.ToString(CultureInfo.InvariantCulture) ?? "none recorded"}");
+        }
     }
 
     /// <summary>How many sessions to ask for, which is the server's own default.</summary>
     private const int SessionWindow = 50;
+
+    /// <summary>How many of them to list under the newest.</summary>
+    private const int RecentShown = 10;
 
     private static string DescribeToken(DeviceRecord device)
     {
