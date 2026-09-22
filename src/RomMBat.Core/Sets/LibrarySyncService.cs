@@ -175,8 +175,10 @@ public sealed record SyncReport(SyncState State, IReadOnlyList<SyncPass> Ran, Fa
 /// EmulationStation has this as their one trigger.
 /// </para>
 /// <para>
-/// <b>BIOS goes ahead of every ROM.</b> A platform synced without its firmware is dead weight
-/// in the gallery: the games appear in EmulationStation, look right, and die on launch.
+/// <b>BIOS goes ahead of every ROM.</b> On an emulator that needs it, a platform synced without
+/// its firmware is dead weight in the gallery: the games appear in EmulationStation, look
+/// right, and die on launch. Ahead of, never gating: a file RomM lacks is reported and the
+/// ROMs still come.
 /// Fetching it after the ROMs would leave exactly that state behind on any run that was
 /// interrupted, and interrupted is the normal case for a handheld.
 /// </para>

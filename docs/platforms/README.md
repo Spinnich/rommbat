@@ -21,7 +21,8 @@ game. Three of the nine can be staged ahead of time, which is a different claim 
 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
 2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
-3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
+3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
+   listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, with the declared directory confirmed against where it really writes.
