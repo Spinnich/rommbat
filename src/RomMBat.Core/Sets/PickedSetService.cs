@@ -211,6 +211,16 @@ public sealed class PickedSetService
                     + "nowhere to go.");
         }
 
+        // A mapping or override can outlive the system it names, as in SetResolver.
+        if (!EsSystemsFile.Load(_session.Install).HasFolder(folder))
+        {
+            return new PickOutcome(
+                set,
+                null,
+                $"'{folder}' is not a system on this install, so EmulationStation would never show "
+                    + "this game.");
+        }
+
         if (!row.HasFileOnDisk)
         {
             return new PickOutcome(
@@ -228,7 +238,7 @@ public sealed class PickedSetService
                 "RomM holds this game as several files, which this version cannot sync yet.");
         }
 
-        // A folder holding a single file arrives with no extension and has_multiple_files false,
+        // A ROM held as a folder, of one file or several, arrives with no extension and has_multiple_files false,
         // so it is refused here rather than above, and named for what it is rather than as a bare dot.
         if (string.IsNullOrWhiteSpace(row.FsExtension))
         {

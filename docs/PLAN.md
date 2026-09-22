@@ -1271,8 +1271,8 @@ rather than bundled, because it reflects that machine's actual emulator configur
   for which emulator is theirs to decide.
 - The disc-image cases are the common real mismatch, where RomM holds a `.chd` and the
   configured emulator wants `.cue`/`.bin` or the reverse. Conversion is not in scope.
-- An empty `fs_extension` on a row that is not multi-file is a ROM held as a folder around one
-  file, and that **is** excluded, as `excluded_folder`, because its placement is the same
+- An empty `fs_extension` on a row that is not multi-file is a ROM held as a folder
+  (`has_nested_single_file`, one or more files), and that **is** excluded, as `excluded_folder`, because its placement is the same
   per-platform question as multi-file. It is never reported as a format.
 
 The same file also carries `<manufacturer>`, `<hardware>` and `<release>`, which is how
@@ -1302,8 +1302,8 @@ the rollout order below can be derived rather than hand-maintained.
   skipped. See finding 6 of [romm-5.3-findings.md](romm-5.3-findings.md).
 - **Multi-file and multi-disc games are in scope, unlocked per platform.** Landing them
   correctly is the main content concern, ahead of any file-format question. They keep their
-  own exclusion state (`excluded_multi_file`, and `excluded_folder` for a folder around one
-  file) until **that platform's certification** has worked out how RetroBat wants them laid
+  own exclusion state (`excluded_multi_file`, and `excluded_folder` for a ROM held as a
+  folder, of one file or several) until **that platform's certification** has worked out how RetroBat wants them laid
   out, and then that platform lands them. The shapes differ by platform and are settled as
   certification reaches them rather than all up front. The known ones:
   - several `.chd` files plus an `.m3u`, for compressed multi-disc games;

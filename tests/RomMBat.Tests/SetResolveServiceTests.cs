@@ -188,7 +188,7 @@ public sealed class SetResolveServiceTests : IDisposable
 
         for (var id = 1; id <= 600; id++)
         {
-            // Every third rom is held as a folder around one file.
+            // Every third rom is held as a folder.
             var file = id % 3 != 0;
 
             stub.Library.Add(new StubRom(

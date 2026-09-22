@@ -115,7 +115,7 @@ public sealed record SetResolution
     /// <summary>Games RomM holds as several files, which v1 does not sync.</summary>
     public int MultiFile { get; init; }
 
-    /// <summary>Games RomM holds as a folder around a single file, which v1 does not sync.</summary>
+    /// <summary>Games RomM holds as a folder, of one file or several, which v1 does not sync.</summary>
     public int Folder { get; init; }
 
     /// <summary>Games RomM has a row for but no file behind, so nothing can be downloaded.</summary>
@@ -768,7 +768,10 @@ public sealed class SetResolver
             return NeedsChoice(set, row, resolution.Candidates);
         }
 
-        if (resolution.Folder is null)
+        // A folder the live es_systems.cfg lacks counts as no folder. Overrides are checked when
+        // saved, and the file can drop the system afterwards; a member there would download into
+        // a directory EmulationStation never scans.
+        if (resolution.Folder is null || !_install.HasFolder(resolution.Folder))
         {
             Count(tally.UnmappedPlatforms, row.PlatformSlug);
             tally.Excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
@@ -795,8 +798,8 @@ public sealed class SetResolver
             return null;
         }
 
-        // A folder holding one file: an empty extension, a folder name for fs_name, and the
-        // multi-file flag false. Its placement belongs to the same per-platform work as
+        // A ROM held as a folder, of one file or several: an empty extension, a folder name for
+        // fs_name, and the multi-file flag false. Its placement belongs to the same per-platform work as
         // multi-file, so it waits with it rather than landing as a file named after a folder.
         if (string.IsNullOrWhiteSpace(row.FsExtension))
         {

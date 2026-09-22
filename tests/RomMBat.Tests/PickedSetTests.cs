@@ -169,6 +169,28 @@ public sealed class PickedSetTests : IDisposable
     }
 
     [Fact]
+    public void A_game_mapped_to_a_folder_the_install_no_longer_has_is_refused()
+    {
+        // A user mapping outlives the es_systems.cfg it was checked against: a RetroBat update or
+        // an edited custom file can drop the system afterwards.
+        _session.Store.PlatformMap.Record(
+            new RomMBat.Core.Mapping.PlatformResolver(
+                Fixtures.LoadEsSystems(),
+                new Dictionary<string, string> { ["gone"] = "nosuchsystem" })
+                .Resolve(new RomMBat.Core.Mapping.RomMPlatform(2, "gone", "gone", "Gone")),
+            Now);
+
+        var outcome = new PickedSetService(_session).Pick(
+            Row(11, "Stranded") with { PlatformId = 2, PlatformSlug = "gone", PlatformFsSlug = "gone" },
+            Now);
+
+        Assert.True(outcome.IsRefused);
+        Assert.Contains("'nosuchsystem'", outcome.Problem, StringComparison.Ordinal);
+        Assert.Contains("EmulationStation", outcome.Problem, StringComparison.Ordinal);
+        Assert.Empty(_session.Store.SyncSets.Members(outcome.Set.Id));
+    }
+
+    [Fact]
     public void A_multi_file_game_is_refused_as_multi_file_rather_than_as_a_format()
     {
         var outcome = new PickedSetService(_session).Pick(

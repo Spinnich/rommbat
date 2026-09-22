@@ -97,7 +97,9 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    DLC files that belong in other folders; and RomM's subfolder structure inside a game folder,
    most of which is ignored. Which parts are needed is the finding, not an assumption. Until a
    shape is settled here it stays excluded (`excluded_multi_file`, `excluded_folder`), and
-   settling it is what unlocks it for this platform. A system whose library is single files
+   settling it is what unlocks it for this platform. Read both states: `excluded_folder` holds
+   every folder-held ROM RomM does not flag multi-file, including a folder of several files, so
+   a game with its update files can sit there rather than under `excluded_multi_file`. A system whose library is single files
    throughout passes this step by recording so.
 
    **The step used to be an extension check, and the extension no longer gates anything.**

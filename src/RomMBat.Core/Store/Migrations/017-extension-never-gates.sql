@@ -5,8 +5,8 @@
 -- EmulationStation does not list. SetResolver no longer excludes on it and reports the second case
 -- as a note on the resolution instead.
 --
--- The one case the old gate caught that still needs a state is a rom RomM holds as a folder around
--- a single file: an empty fs_extension, a folder name for fs_name, has_multiple_files false. It
+-- The one case the old gate caught that still needs a state is a rom RomM holds as a folder, of
+-- one file or several: an empty fs_extension, a folder name for fs_name, has_multiple_files false. It
 -- was reported as an unsupported format with no extension, which sent people to fix a format that
 -- was fine. excluded_folder names it, and it waits on the same per-platform placement work as
 -- excluded_multi_file.
@@ -26,7 +26,7 @@ CREATE TABLE sync_set_member_v5 (
   sync_set_id   INTEGER NOT NULL REFERENCES sync_set (id) ON DELETE CASCADE,
   rom_id        INTEGER NOT NULL,
 
-  -- excluded_folder: RomM holds this rom as a folder around a single file. Where that file lands
+  -- excluded_folder: RomM holds this rom as a folder, of one file or several. Where its files land
   -- is a per-platform placement question, answered in certification, as for multi-file.
   --
   -- excluded_multi_file: RomM holds this rom as several files. Also waits on placement: chd sets

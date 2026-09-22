@@ -502,8 +502,8 @@ writes save states anyway, into a directory nothing reads. 016 widens
 no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from the server's
 disk is the other, and the second has been reachable since the 5.2.0 floor. 017 retires
 `'excluded_extension'` for `'excluded_folder'`, because the extension stopped gating a sync
-and the one case that gate caught which still needs a state is a ROM RomM holds as a folder
-around a single file. The schema lives
+and the one case that gate caught which still needs a state is a ROM RomM holds as a folder,
+of one file or several. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |

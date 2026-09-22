@@ -310,6 +310,32 @@ public class SyncSetTests : IDisposable
     }
 
     [Fact]
+    public async Task An_override_folder_the_install_no_longer_has_excludes_rather_than_downloads()
+    {
+        // The set's override was valid when it was saved. es_systems.cfg can lose the system
+        // afterwards, and a member then would download into a folder EmulationStation never scans.
+        using var stub = new StubRomMServer();
+        stub.Library.Add(new StubRom(1, 2, "arcade", "arcade", "Some Arcade Game", "sag.zip", "zip", 1_000));
+
+        using var connection = Connect(stub);
+        var set = Add(new SyncSetDefinition
+        {
+            Name = "stranded",
+            Scope = CatalogScopeKind.Platform,
+            ScopeValue = "2",
+            FolderOverride = "nosuchsystem",
+        });
+
+        var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(ResolutionOutcome.Resolved, resolution.Outcome);
+        Assert.Empty(resolution.Members);
+        Assert.Equal(MemberState.ExcludedUnmapped, Assert.Single(resolution.Excluded).State);
+        Assert.Equal(1, resolution.UnmappedPlatforms["arcade"]);
+        Assert.Contains("no RetroBat folder", SetResolver.Describe(resolution), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task An_uncapped_scope_that_would_hold_the_library_is_refused()
     {
         using var stub = new StubRomMServer { TotalOverride = SetResolver.UncappedScopeLimit + 1 };
@@ -355,6 +381,9 @@ public class SyncSetTests : IDisposable
         using var stub = SnesLibrary(3);
         stub.Library.Add(new StubRom(4, 1, "snes", "snes", "Foldered", "Foldered", string.Empty, 1_000));
 
+        // A format snes's <extension> omits, which is a member and must stay one without churn.
+        stub.Library.Add(new StubRom(5, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
+
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "steady", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
@@ -367,7 +396,9 @@ public class SyncSetTests : IDisposable
 
         // The no-op re-sync check, one milestone early: a second resolve over a library that
         // did not move must not depart anyone or double-count what it skipped.
-        Assert.Equal(3, _store.SyncSets.Members(set.Id).Count);
+        var members = _store.SyncSets.Members(set.Id);
+        Assert.Equal(4, members.Count);
+        Assert.Contains(members, member => member.RomId == 5);
         Assert.Empty(_store.SyncSets.Members(set.Id, MemberState.Departed));
 
         var exclusions = _store.SyncSets.Exclusions(set.Id);

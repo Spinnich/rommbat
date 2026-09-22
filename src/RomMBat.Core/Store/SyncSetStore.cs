@@ -21,17 +21,22 @@ public enum MemberState
     Departed,
 
     /// <summary>
-    /// RomM holds this ROM as a folder around a single file, which v1 does not sync.
+    /// RomM holds this ROM as a folder, which v1 does not sync.
     /// </summary>
     /// <remarks>
     /// The row carries an empty <c>fs_extension</c>, the folder's name as <c>fs_name</c>, and
-    /// <c>has_multiple_files</c> false. Where its one file lands is the same per-platform
+    /// <c>has_multiple_files</c> false. RomM flags most of these <c>has_nested_single_file</c>,
+    /// and the folder can hold one file or several: a game plus its update is the common second
+    /// case. Where its files land is the same per-platform
     /// placement question as <see cref="ExcludedMultiFile"/>, and naming it as a folder rather
     /// than as a format sends nobody to fix a format that is fine.
     /// </remarks>
     ExcludedFolder,
 
-    /// <summary>The ROM's platform has no RetroBat folder on this install.</summary>
+    /// <summary>
+    /// The ROM's platform has no RetroBat folder on this install, or its mapped or chosen folder
+    /// is no longer a system in <c>es_systems.cfg</c>.
+    /// </summary>
     ExcludedUnmapped,
 
     /// <summary>
