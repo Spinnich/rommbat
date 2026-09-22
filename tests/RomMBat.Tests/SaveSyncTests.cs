@@ -1001,6 +1001,37 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_mednafen_gba_save_downloads_under_the_zip_its_member_and_the_member_hash()
+    {
+        // libretro/mednafen_gba keeps its own save beside the .srm the other gba cores share,
+        // named for RetroArch's archive#member path, and it uploads as libretro:battery:sav.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+        fixture.AddGame(233631, "gba", Rom, ".zip", ".srm", "the other cores' save");
+        var body = NesBody("POKEMON EMER");
+        File.Delete(fixture.Resolve($"roms/gba/{Rom}.zip"));
+        using (var archive = System.IO.Compression.ZipFile.Open(fixture.Resolve($"roms/gba/{Rom}.zip"), System.IO.Compression.ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry($"{Rom}.gba").Open())
+        {
+            stream.Write(body);
+        }
+
+        fixture.Scan();
+
+        fixture.SeedServerSave(233631, "libretro:battery:sav", Rom, "sav", "mednafen_gba's", emulator: "libretro");
+        fixture.Stub.UnsolicitedDownloads.Add((233631, "libretro:battery:sav"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("mednafen_gba's", File.ReadAllText(fixture.Resolve($"saves/gba/{Rom}.zip#{Rom}.{hash}.sav")));
+        Assert.Equal("the other cores' save", File.ReadAllText(fixture.Resolve($"saves/gba/{Rom}.srm")));
+    }
+
+    [Fact]
     public async Task A_mednafen_save_for_a_rom_that_cannot_be_hashed_is_refused_rather_than_misnamed()
     {
         using var fixture = SyncFixture.Create();

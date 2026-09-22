@@ -1815,6 +1815,15 @@ public sealed class SaveSync
 
                 stem = $"{stem}.{hash}";
             }
+            else if (rule.NamedAfter == BatteryNaming.ArchiveMemberAndContentMd5)
+            {
+                if (MednafenRomHash.ArchiveMemberOf(_install.Resolve(rom.Path), folder) is not { } member)
+                {
+                    return (null, TargetProblem.Unnameable);
+                }
+
+                stem = $"{rom.FileName}#{member.MemberStem}.{member.Hash}";
+            }
         }
 
         return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)

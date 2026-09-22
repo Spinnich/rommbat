@@ -59,6 +59,32 @@ public sealed class MednafenRomHashTests : IDisposable
         Assert.Null(MednafenRomHash.Of(nes, "snes"));
     }
 
+    [Fact]
+    public void A_zipped_gba_rom_hashes_the_whole_gba_and_names_its_member()
+    {
+        // Measured on Pokemon - Emerald Version (USA, Europe): the .gba's own md5 is on both
+        // mednafen's name and mednafen_gba's, which carries the member's stem after a '#'.
+        var body = Body("POKEMON EMER");
+        var zip = Zip("Game (USA).zip", ("Game (USA, Europe).gba", body));
+
+        Assert.Equal(Md5(body), MednafenRomHash.Of(zip, "gba"));
+        Assert.Equal(("Game (USA, Europe)", Md5(body)), MednafenRomHash.ArchiveMemberOf(zip, "gba"));
+    }
+
+    [Fact]
+    public void An_archive_member_is_named_only_for_a_zipped_gba_rom()
+    {
+        var body = Body("POKEMON EMER");
+        var gba = Path.Combine(_root, "Game (USA).gba");
+        File.WriteAllBytes(gba, body);
+
+        // What mednafen_gba names a save for a bare .gba has not been driven.
+        Assert.Equal(Md5(body), MednafenRomHash.Of(gba, "gba"));
+        Assert.Null(MednafenRomHash.ArchiveMemberOf(gba, "gba"));
+        Assert.Null(MednafenRomHash.ArchiveMemberOf(Zip("Game (USA).zip", ("Game (USA).md", body)), "megadrive"));
+        Assert.Null(MednafenRomHash.ArchiveMemberOf(Zip("Two.zip", ("A.gba", body), ("B.gba", body)), "gba"));
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
 
     private string Zip(string name, params (string Entry, byte[] Body)[] entries)

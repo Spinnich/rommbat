@@ -56,7 +56,17 @@ on a build carrying megadrive rules. `libretro`/`fbneo` and the three `kega-fusi
 driven and are recorded as not certifiable, each with its reason, which is a result and not a
 gap. The whole system took one evening, eleven ES sessions and the agent's keyboard launches.
 
-**Three things it taught that transfer.** An emulator lays out its tree per system, not per
+**`gba` is third: nine of its ten rows certified at `5.3.0` on 2026-09-22**, in one morning,
+because **each row after the first was seeded with the save the one before made** rather than
+played through the intro again: copy the save to where the next emulator looks, launch, save in
+the game, so the file measured is still that emulator's. A seed an emulator refuses is a finding,
+not a failed pass: mednafen refused mGBA's 131,088 B file (finding 289). **Put an override's
+`gba.emulator` in `es_settings.cfg` only with ES closed**, and restore the file from a copy taken
+first. **A clock file is a second save file**, class B, and changes on every launch (finding 291).
+**`emulatorLauncher` can delete what you place in `roms/`**: NO$GBA's cleanup removed a bare `.gba`
+put beside its zip (finding 286), so check a hand-placed file is still there before each launch.
+
+**Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where

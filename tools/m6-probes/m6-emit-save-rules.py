@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive"],
+        "systems": ["nes", "megadrive", "gba"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -79,6 +79,9 @@ OTHER_BATTERY_RULES = [
             "; megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 "
             "(USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) "
             "[!].SaveRAM, 16,384 B"
+            "; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
+            "bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the "
+            "rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -114,6 +117,60 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "jgenesis",
+        "systems": ["gba"],
+        "directory": "jgenesis/gba",
+        "extensions": [".sav", ".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gba under jgenesis on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
+            "jgenesis/gba/<rom>.sav, 131,072 B, and <rom>.rtc, 59 B, the cartridge clock, which "
+            "changes on every launch"
+        ),
+    },
+    {
+        "emulator": "mgba",
+        "systems": ["gba"],
+        "directory": "",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "gba under mgba standalone on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
+            "a loose <rom>.sav, 131,088 B, the flash and a 16-byte clock footer. mesen writes the "
+            "same name, 131,072 B, keeping its clock in <rom>.rtc, and mednafen opens it when "
+            "present but refuses mgba's size, so the file is shared and uploads as mgba's"
+        ),
+    },
+    {
+        "emulator": "mesen",
+        "systems": ["gba"],
+        "directory": "",
+        "extensions": [".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gba under mesen standalone on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
+            "a loose <rom>.rtc, 19 B, beside the <rom>.sav mgba's rule carries, and rewrote it on "
+            "a launch with no save made"
+        ),
+    },
+    {
+        "emulator": "libretro",
+        "systems": ["gba"],
+        "directory": "",
+        "extensions": [".sav"],
+        "named_after": "archive member and content md5",
+        "class": "B",
+        "evidence": (
+            "gba under libretro, core mednafen_gba, on 8.2.1: Pokemon - Emerald Version (USA, "
+            "Europe).zip wrote a loose <rom>.zip#<rom>.605b89b67018abcea91e693a4dd25be3.sav, "
+            "131,072 B, the md5 being of the whole .gba inside, while RetroArch logged Skipping "
+            "SRAM load for the .srm the other cores share; class B gives it libretro:battery:sav"
+        ),
+    },
+    {
         "emulator": "mesen",
         "systems": ["nes"],
         "directory": "",
@@ -127,7 +184,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes", "megadrive"],
+        "systems": ["nes", "megadrive", "gba"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -140,6 +197,9 @@ OTHER_BATTERY_RULES = [
             "Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose "
             "<rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md "
             "inside"
+            "; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip "
+            "wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of "
+            "the whole .gba inside, once no plain <rom>.sav was present"
         ),
     },
     {
@@ -165,6 +225,19 @@ OTHER_BATTERY_RULES = [
             "megadrive under ares, core MegaDrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 "
             "(USA) (Lock-on Combination).zip wrote ares/Mega Drive/<rom>.ram, 512 B, beside its "
             "states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["gba"],
+        "directory": "ares/Game Boy Advance",
+        "extensions": [".flash", ".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gba under ares, core GameBoyAdvance, on 8.2.1: Pokemon - Emerald Version (USA, "
+            "Europe).zip wrote ares/Game Boy Advance/<rom>.flash, 131,072 B, and <rom>.rtc, 18 B, "
+            "beside its states .bs1 and .bs2"
         ),
     },
 ]
@@ -236,12 +309,14 @@ document = {
         "name. directory is relative to saves/<system>/ and empty is the loose level; a rule "
         "with no systems applies to every system. One rule per (system, emulator), because the "
         "emulator is the slot, and no two rules may claim one extension in one directory, or a "
-        "file has two owners, unless exactly one of the two names a content hash on the stem, "
-        "which then decides. The loose level is libretro's across saturn, megacd, psx, gb and 12 "
+        "file has two owners, unless their names differ in how narrow they are, the narrower "
+        "asked first: an archive member and a hash, then a hash, then anything. One emulator may "
+        "hold two rules on a system where class B gives each extension its own slot. The loose level is libretro's across saturn, megacd, psx, gb and 12 "
         "more, but not exclusively: on nes, mesen standalone and mednafen write a loose .sav, "
         "which is why this is not one extension list and one loose emulator (#152). named_after "
         "is what the stem joins on: the rom file, the emulator's own title for the game, which "
-        "has to be learned (#151), or the rom file and a content md5, which mednafen appends."
+        "has to be learned (#151), the rom file and a content md5, which mednafen appends, or "
+        "the zip, the file inside it and a content md5, which mednafen_gba writes."
     ),
     "battery_saves": [
         {

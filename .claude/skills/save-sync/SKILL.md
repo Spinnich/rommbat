@@ -441,7 +441,10 @@ Class A and B match by filename, **and which filename is a per-`(system, emulato
 global.** `save_rules.json`'s `battery_saves` gives each rule a directory under
 `saves/<system>/`, its extensions and a `named_after`, and the emulator in it is the slot.
 Loading refuses two rules claiming one extension in one directory, and one emulator with two
-rules on a system, because either is two saves in one slot. The table replaced one extension
+rules on a system, because either is two saves in one slot. The one exception to the second is
+class B: an emulator may hold two rules on a system when one is class B and no extension is in
+both, because then no two files share a slot. `gba` is the measured case, `libretro`'s `.srm`
+beside mednafen_gba's `libretro:battery:sav`. The table replaced one extension
 list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen and ares
@@ -455,8 +458,19 @@ is empty on the first try, so an existing plain `.sav`, mesen's included, is the
 writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES header (finding 274), on
 `megadrive` the whole `.md` (finding 280), and `MednafenRomHash` picks by system and answers null
 for any system or format not measured. So mednafen's rule is
-`named_after: "rom file and content md5"`, which is the one case the loader lets share an extension
-in one directory with a plain rule, the hash on the stem deciding. A plain `<rom>.sav` goes up as
+`named_after: "rom file and content md5"`, which may share an extension in one directory with a
+plain rule, the hash on the stem deciding. `named_after: "archive member and content md5"` is
+narrower still, `<rom>.zip#<member>.<md5>.sav` for mednafen_gba (finding 290), and the loader asks
+rules narrowest first and refuses two of one narrowness. On `gba` that is three owners for one
+loose `.sav` extension: mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which
+mGBA, Mesen and mednafen all open and which uploads as `mgba:battery`. **mednafen refuses mGBA's
+131,088 B file** (finding 289), so a device where mGBA standalone ran cannot play the game under
+mednafen until it moves; the hash is the whole `.gba` there.
+
+**A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
+in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
+with it. Each rewrites the file on every launch (finding 291), so a session uploads a version
+whether or not the game was saved. mGBA and BizHawk keep 16 bytes of clock inside the save. A plain `<rom>.sav` goes up as
 `mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
 a hashed save where a plain one would shadow it, including onto a path this device recorded before
 the plain one appeared. On `nes`, `HeaderlessNesHash` answers null outside what was measured: a trainer, a
@@ -466,7 +480,9 @@ clear, the three measured ones included.
 
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
-split a slot by core or merge two emulators' slots without a new decision.
+split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's
+`libretro:battery:sav` is not a split by core: it is a second file, which is what class B's
+per-extension slot is for (`docs/PLAN.md`, amended 2026-09-22).
 
 **BizHawk names a battery save after its own title for the game** (`named_after: display
 name`), so the filename join cannot match: `StarTropics (USA).zip` wrote

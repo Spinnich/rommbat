@@ -37,8 +37,8 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("snes"));
         }
 
-        // Five entries for four emulators, because ares keeps a directory per system.
-        Assert.Equal(shipped.Emulators.Count + 5, loaded.Emulators.Count);
+        // Seven entries for five emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 7, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under snes is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
@@ -79,6 +79,31 @@ public class SaveStateSchemaTests
 
         var template = SaveStateTemplate.Create(loaded.For("ares", "megadrive")!, "megadrive", core: null)!;
         Assert.Equal(2, template.Match("Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Gba_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Pokemon - Emerald Version (USA, Europe), driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+
+        var mgba = SaveStateTemplate.Create(loaded.For("mgba", "gba")!, "gba", core: null)!;
+        Assert.Equal(2, mgba.Match($"{Rom}.ss2")?.Slot);
+        Assert.Equal("mgba", loaded.MatchDirectory("gba/mgba/sstates")?.Emulator.Name);
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "gba")!, "gba", core: null)!;
+        Assert.Equal(1, mesen.Match($"{Rom}_1.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gba")!, "gba", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.605b89b67018abcea91e693a4dd25be3.mc1")?.Slot);
+
+        Assert.Equal("gba", loaded.MatchDirectory("gba/ares/Game Boy Advance")?.System);
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gba")!, "gba", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+
+        // mGBA's tree was driven on gba alone.
+        Assert.Null(loaded.MatchDirectory("gb/mgba/sstates"));
     }
 
     [Fact]
