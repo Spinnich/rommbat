@@ -719,7 +719,10 @@ flag. BIOS is fetched
 **before** that platform's ROMs, because on an emulator that needs it a platform without its
 BIOS is dead weight in the gallery. **It never gates a platform.** The list has no optional
 flag and the emulator decides which files it reads, so a file RomM lacks is reported and the
-platform's ROMs sync regardless.
+platform's ROMs sync regardless. Where a row reads a file the list files under another system,
+the manifest builder copies that entry onto the system with a `supplement` note saying why: `gb`
+takes `sgb`'s four Super Game Boy files and `gbc`'s boot ROM (finding 293). Every hash is still
+RetroBat's.
 
 Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
 inside `batocera-systems.exe`, so the manifest is bundled at `data/retrobat/bios.json` rather
@@ -767,7 +770,9 @@ archive member, then hash, then plain, and two of one narrowness are refused. Bi
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
-download for such a slot is placed only where a title was learned (#151).
+download for such a slot is placed only where a title was learned (#151). An extension can be
+**not a save on one system only**, through `not_a_save_by_system`: on `gb` the `.rtc` three
+`libretro` cores write holds only the host time, where on `gba` Mesen's is a real clock.
 
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and

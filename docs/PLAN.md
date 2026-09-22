@@ -1610,6 +1610,16 @@ RomMBat fetches every listed file RomM holds, reports the rest, and never holds 
 platform, its ROMs, its sync or its certification over one it does not. The words "required"
 and "requirement" below mean an entry in that list, nothing stronger.
 
+**Amended by the `gb` pass, 2026-09-22: a system can take entries the list files under a sibling.**
+On `gb`, `libretro`/`bsnes` runs a cartridge as a Super Game Boy and cannot load one without
+`SGB1.sfc`, and `bizhawk`/`GBHawk` refuses a Color-flagged cartridge without `gbc_bios.bin`;
+RetroBat's list names those under `sgb` and `gbc`, and only `gb_bios.bin` under `gb`, while its
+wiki lists the four SGB files for `gb` (finding 293). By the maintainer's ruling `bios gb` fetches
+them. `tools/build-bios-manifest.py` holds the supplement: each entry is copied from RetroBat's own
+list for its system, md5 and path unchanged, tagged with the measurement, and the build fails if
+RetroBat drops it there or starts listing it under the taking system. RetroBat stays the authority
+on every hash; the supplement only says which system's report shows it.
+
 **RetroBat ships the requirements manifest, and it is not a file.**
 `batocera-systems/Resources/batocera-systems.json` (in `emulatorlauncher`) is machine-readable
 and complete: 100 systems, 355 BIOS entries, each `{"md5": ..., "file": "bios/<name>"}` giving
