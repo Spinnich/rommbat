@@ -356,8 +356,10 @@ for the pad, `J`, `K` and `L` for A, B and C, and Right Ctrl for Start.
 
 **Remapping inside Kega made it playable.** The maintainer set the controls in Kega's own menu,
 which Kega saved into `Fusion.ini` on exit as `Joystick1Using=2` and arrow keys for
-`Player1Keys`, and then played the save above. Whether `emulatorLauncher` keeps that remap on the
-next launch or writes its own mapping back over it was not measured. Finding 284.
+`Player1Keys`, and then played the save above. **The remap survives later launches**: after an ES
+launch at 06:11:24 local on 2026-09-22 the file still held `Joystick1Using=2` and the arrow keys,
+so `emulatorLauncher` does not write its mapping back over it, and the pad played. So the fix for
+a user is one visit to Kega's menu, not a setting RetroBat has to change. Finding 284.
 
 ## What the pass turned up that is not a row
 
