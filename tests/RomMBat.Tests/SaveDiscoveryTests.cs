@@ -556,6 +556,31 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void On_megadrive_every_emulator_tree_is_carried_by_a_rule_or_a_declaration()
+    {
+        // As the megadrive pass left them on the measured install, one tree per emulator.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        const string Hash = "c5b1c655c19f462ade0ac4e17a844d10";
+
+        fixture.AddRom(203767, "megadrive", $"{Rom}.zip");
+        fixture.AddSave("megadrive", $"{Rom}.srm", "libretro battery");
+        fixture.AddSave("megadrive", $"{Rom}.{Hash}.sav", "mednafen battery");
+        fixture.AddSave("megadrive", $"mednafen/sstates/{Rom}.{Hash}.mc1", "mednafen state");
+        fixture.AddSave("megadrive", $"jgenesis/md/{Rom}.sav", "jgenesis battery");
+        fixture.AddSave("megadrive", $"jgenesis/states/{Rom}_1.jst", "jgenesis state");
+        fixture.AddSave("megadrive", $"ares/Mega Drive/{Rom}.ram", "ares battery");
+        fixture.AddSave("megadrive", $"ares/Mega Drive/{Rom}.bs2", "ares state");
+
+        fixture.ScanWithStateSchema();
+
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "megadrive");
+        Assert.Equal(
+            ["ares:battery", "jgenesis:battery", "libretro:battery", "mednafen:battery"],
+            fixture.Store.Saves.List().Where(save => save.RomId == 203767).Select(save => save.Slot).Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public void A_jgenesis_battery_save_is_found_in_its_own_directory_and_tied_to_its_rom()
     {
         // Measured on nes under jgenesis, 8.2.1: the save sits two levels down, beside nothing

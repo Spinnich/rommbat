@@ -347,6 +347,56 @@ public class SaveSyncTests
         Assert.False(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Another_clients_null_autosave_is_refused_rather_than_written_as_a_battery_save(bool omitHash)
+    {
+        // RomM's browser player uploads the four bytes "null" to slot autosave. Measured landing
+        // as saves/megadrive/<rom>.srm, and twice on nes. With the hash named it is refused before
+        // the transfer, and without one on the bytes that arrived.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "a real save, sent");
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", null);
+        fixture.Scan();
+        fixture.MarkSent();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+        fixture.Stub.OmitHash = omitHash;
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Downloaded);
+
+        // Not a failure: the server offers it again on every flush, and nothing here can fix it.
+        Assert.Equal(0, outcome.Failed);
+        Assert.Contains("refused, not a save", outcome.Summary, StringComparison.Ordinal);
+        Assert.Contains("'null'", Assert.Single(outcome.Problems), StringComparison.Ordinal);
+
+        Assert.False(File.Exists(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+        // With the hash named nothing was fetched at all, so there may be no partial directory.
+        var partial = fixture.Resolve(SaveSync.PartialDirectory.Value);
+        Assert.True(!Directory.Exists(partial) || !Directory.EnumerateFiles(partial).Any());
+    }
+
+    [Fact]
+    public async Task A_restore_preview_lists_a_null_autosave_as_unrestorable()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", null);
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+
+        var findings = (await fixture.FindRestorableAsync(TestContext.Current.CancellationToken)).Value!;
+
+        Assert.Empty(findings.Restorable);
+        Assert.Contains("'null'", Assert.Single(findings.Unrestorable).Reason, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task A_download_for_a_game_being_played_is_deferred_rather_than_written_under_it()
     {
@@ -846,6 +896,37 @@ public class SaveSyncTests
         var save = Assert.Single(fixture.Store.Saves.List());
         Assert.Equal("mednafen:battery", save.Slot);
         Assert.Equal(16, save.RomId);
+    }
+
+    [Fact]
+    public async Task A_megadrive_mednafen_save_downloads_under_the_hash_of_the_whole_md()
+    {
+        // No header to leave off on megadrive: the name carries the md5 of the .md itself.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        fixture.AddGame(203767, "megadrive", Rom, ".zip", ".srm", null);
+        var body = NesBody("SEGA MEGA DRIVE");
+        File.Delete(fixture.Resolve($"roms/megadrive/{Rom}.zip"));
+        using (var archive = System.IO.Compression.ZipFile.Open(fixture.Resolve($"roms/megadrive/{Rom}.zip"), System.IO.Compression.ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry($"{Rom}.md").Open())
+        {
+            stream.Write(body);
+        }
+
+        fixture.Scan();
+
+        fixture.SeedServerSave(203767, "mednafen:battery", Rom, "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((203767, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve($"saves/megadrive/{Rom}.{hash}.sav")));
     }
 
     [Fact]
@@ -2561,7 +2642,7 @@ public class SaveSyncTests
             string stem,
             string romExtension,
             string saveExtension,
-            string saveContents)
+            string? saveContents)
         {
             var romPath = RelativePath.Create($"roms/{folder}/{stem}{romExtension}");
             var romAbsolute = Install.Resolve(romPath);
@@ -2577,6 +2658,12 @@ public class SaveSyncTests
                 FileName = $"{stem}{romExtension}",
                 SizeBytes = 3,
             });
+
+            // Null is a game never played here, which has no save yet.
+            if (saveContents is null)
+            {
+                return;
+            }
 
             var savePath = Install.Resolve(RelativePath.Create($"saves/{folder}/{stem}{saveExtension}"));
             Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);

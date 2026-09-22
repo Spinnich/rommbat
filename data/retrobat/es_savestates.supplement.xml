@@ -11,10 +11,11 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes">
+  <emulator name="mednafen" systems="nes,megadrive">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
+    <evidence>megadrive under mednafen, core megadrive, on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote mednafen/sstates/&lt;rom&gt;.c5b1c655c19f462ade0ac4e17a844d10.mc0 and .mc1, 72,758 B and 53,086 B, the md5 being of the whole .md inside</evidence>
   </emulator>
   <emulator name="mesen" systems="nes">
     <directory>{{system}}/mesen/SaveStates</directory>
@@ -25,5 +26,15 @@
     <directory>{{system}}/ares/Famicom</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>nes under ares, core Famicom, on 8.2.1: Dragon Warrior IV (USA).zip wrote ares/Famicom/Dragon Warrior IV (USA).bs1, 21,719 B, beside its battery save .ram (#150)</evidence>
+  </emulator>
+  <emulator name="ares" systems="megadrive">
+    <directory>{{system}}/ares/Mega Drive</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>megadrive under ares, core MegaDrive, on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote ares/Mega Drive/&lt;rom&gt;.bs1 and .bs2, 212,543 B each, beside its battery save .ram</evidence>
+  </emulator>
+  <emulator name="kega-fusion" systems="megadrive">
+    <directory>{{system}}/kega-fusion</directory>
+    <file>{{romfilename}}.gs{{slot0}}</file>
+    <evidence>megadrive under kega-fusion, cores auto, genesis and megadrive (the -auto, -gen and -md flags), on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote kega-fusion/&lt;rom&gt;.gs0 and .gs9, 140,408 B each, into the StateFiles path RetroBat's Fusion.ini names. F5 saves, F7 steps the slot down and wraps from 0 to 9</evidence>
   </emulator>
 </savestates>

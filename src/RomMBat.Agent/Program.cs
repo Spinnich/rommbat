@@ -81,6 +81,14 @@ internal static class Program
     /// </remarks>
     internal static async Task<int> DispatchAsync(CommandLine command, CancellationToken cancellationToken)
     {
+        // Anywhere on the line, and before any handler runs, so asking how a command works never
+        // runs it: `saves restore --help` used to scan the tree and print a full preview.
+        if (command.Has("help") || command.Positional.Contains("-h"))
+        {
+            WriteUsage();
+            return ExitCode.Ok;
+        }
+
         try
         {
             return command.Subcommand switch
@@ -157,6 +165,7 @@ internal static class Program
         Console.Error.WriteLine("  background  start | quit: the pass an EmulationStation hook spawns. Not for typing");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");
+        Console.Error.WriteLine("  --help, -h        Print this and run nothing, whatever else is on the line");
         Console.Error.WriteLine("  --root <path>     The RetroBat root, when discovery cannot find it");
         Console.Error.WriteLine("  --server <url>    The RomM origin. Remembered after the first pairing");
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");

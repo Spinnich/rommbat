@@ -445,16 +445,21 @@ rules on a system, because either is two saves in one slot. The table replaced o
 list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen and ares
-(`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it.
+(`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it. On `megadrive`,
+jgenesis (`jgenesis/md/`) and ares (`ares/Mega Drive/*.ram`) have their own rules, since the
+directory is the emulator's name for the system, and the bizhawk and mednafen rules name both
+systems because their layout did not change (findings 279 to 282).
 
 **mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (finding 273): its `%M`
 is empty on the first try, so an existing plain `.sav`, mesen's included, is the file it reads and
-writes. The hash is of the `.nes` less its 16-byte iNES header (finding 274). So mednafen's rule is
+writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES header (finding 274), on
+`megadrive` the whole `.md` (finding 280), and `MednafenRomHash` picks by system and answers null
+for any system or format not measured. So mednafen's rule is
 `named_after: "rom file and content md5"`, which is the one case the loader lets share an extension
 in one directory with a plain rule, the hash on the stem deciding. A plain `<rom>.sav` goes up as
 `mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
 a hashed save where a plain one would shadow it, including onto a path this device recorded before
-the plain one appeared. `HeaderlessNesHash` answers null outside what was measured: a trainer, a
+the plain one appeared. On `nes`, `HeaderlessNesHash` answers null outside what was measured: a trainer, a
 length other than header plus declared PRG and CHR, no PRG, or NES 2.0 size bits in byte 9. **Do
 not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 header with byte 9
 clear, the three measured ones included.
@@ -1118,6 +1123,17 @@ reports both shapes unrestorable. A web-UI upload of a file carrying this client
 replace that row's bytes and clears its emulator. Nothing notices: `RunAsync` never reads the
 server row, so the next local change overwrites it. Do not build a state conflict route on the
 strength of this; no player write reaches it.
+
+**The browser also writes saves that are not saves: the four bytes `null`.** Measured, not read:
+it uploads the JSON literal when it has no save to send, md5 `37a6259cc0c1dae299a7866489dff0bd`,
+and the server keeps it in `autosave`, in a slotted row, or in none. Placed as a battery save it
+replaces a real one with a file no emulator loads, which this client did on `megadrive` and twice on
+`nes` (finding 276 of `retrobat-findings.md`). **`SaveSync.DownloadAsync` refuses it**, by the
+server's hash before the transfer and by the bytes after, and never acknowledges it, so the server
+keeps offering it. Count it as `Rejected`, never as `Failed`: nothing on the device can fix it, so
+a failure would exit `Partial` on every flush until someone deletes the row in RomM. The restore
+preview lists it as unrestorable with the same reason. Widen the test only from a measurement:
+the hash is the whole rule because no emulator writes a save of exactly those bytes.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;

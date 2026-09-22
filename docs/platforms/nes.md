@@ -16,8 +16,10 @@ four on a build that first gave them battery rules and, for three of them, the s
 **It certifies those nine rows and nothing wider.** Every `(emulator, core)` pair `nes` declares on
 RetroBat 8.2.1 is one of them, which is as close to "`nes` works" as this checklist lets a record
 come, and it is still one install at one pair of floors. It says nothing about any of these
-emulators on another system: every rule and declaration the last four needed is scoped to `nes`,
-because that is the only system they were measured on.
+emulators on another system: every rule and declaration the last four needed was scoped to `nes`,
+because that is the only system they were measured on. `megadrive` has since been measured and
+widened the `bizhawk` and `mednafen` rules to name it, with its own `jgenesis` and `ares` rules
+beside these; [megadrive.md](megadrive.md) is that record, and nothing here speaks for it.
 
 **Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
 was driven on a state made after it, and the restored screenshot was checked by its bytes rather
@@ -1535,8 +1537,9 @@ anyway, because the loop it would prevent is silent.
 ## What this file will not claim
 
 - **All nine rows are certified, and only on this install at these two floors.** None of the
-  rules or declarations the last four needed reaches past `nes`, so none of these emulators is
-  certified anywhere else, and each system they run on starts from nothing.
+  rules or declarations the last four needed reached past `nes` when this was measured, so none
+  of these emulators is certified anywhere else by this record, and each system they run on
+  starts from nothing, as `megadrive` did.
 - **Step 5's screenshot half was byte-checked where a screenshot exists**: as a `.png` for
   `libretro` and inside the state for `bizhawk`. `jgenesis`, `mesen`, `mednafen` and `ares` write
   none, so on those four the step is the state alone.

@@ -3802,7 +3802,12 @@ format, each entry scoped by a `systems` attribute to where it was driven, benea
 file so an entry RetroBat or the user writes always wins. With a battery rule each, all three rows
 certified on 2026-09-21. The rest of the family stays open until each row gets its own entry from
 its own pass, because the layout does not carry between systems: ares keeps `nes` under
-`ares/Famicom/`, named after its own system.
+`ares/Famicom/` and `megadrive` under `ares/Mega Drive/`, each named after its own system.
+**`megadrive` followed the same day** with entries for `mednafen`, `ares` and `kega-fusion`, the
+schema taking one supplement entry per system for an emulator, and `mednafen` and `ares` certified
+there. Kega Fusion's battery saves are the first measured outside `saves/` altogether, in
+`emulators/kega-fusion/`, where RetroBat's `Fusion.ini` sends them; that is RetroBat's to fix, and
+this plan does not widen the scan to meet it (finding 283).
 
 **Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
 `nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under

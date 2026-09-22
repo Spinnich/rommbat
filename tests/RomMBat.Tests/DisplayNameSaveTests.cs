@@ -49,6 +49,22 @@ public class DisplayNameSaveTests
         Assert.Equal("jgenesis", shapes.BatteryRuleFor("nes", "jgenesis/nes", "Wizardry (USA).sav")?.Emulator);
         Assert.Equal("ares", shapes.BatteryRuleFor("nes", "ares/Famicom", "Dragon Warrior IV (USA).ram")?.Emulator);
 
+        // megadrive, measured on Sonic & Knuckles + Sonic 3: jgenesis and ares name their own
+        // subdirectory after their own system, bizhawk and mednafen keep nes's layout.
+        const string Sonic3k = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("megadrive", "jgenesis/md", $"{Sonic3k}.sav")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("megadrive", "jgenesis/nes", $"{Sonic3k}.sav"));
+        Assert.Equal("ares", shapes.BatteryRuleFor("megadrive", "ares/Mega Drive", $"{Sonic3k}.ram")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("megadrive", "ares/Famicom", $"{Sonic3k}.ram"));
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("megadrive", "bizhawk", "Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM")?.Emulator);
+        Assert.Equal(
+            "mednafen",
+            shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.c5b1c655c19f462ade0ac4e17a844d10.sav")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.srm")?.Emulator);
+
+        // mesen standalone is not a megadrive emulator, so a plain loose .sav there has no owner.
+        Assert.Null(shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.sav"));
+
         // A loose save named after the ROM needs no rule to place it, so the slot lookup leaves
         // libretro and mesen out; mednafen's needs the hash, so it stays in.
         Assert.Null(shapes.BatteryRuleForSlot("nes", "libretro:battery"));

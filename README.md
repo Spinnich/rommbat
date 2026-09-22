@@ -20,9 +20,11 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Nine `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
+> Sixteen `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
 > declares, which is its three `libretro` cores, both `bizhawk` cores, `jgenesis`, `mesen`,
-> `mednafen` and `ares`. No other system has a certified row; see
+> `mednafen` and `ares`, and seven of `megadrive`'s eleven, which is `libretro` under
+> `genesis_plus_gx`, `genesis_plus_gx_wide` and `picodrive`, `bizhawk`, `jgenesis`, `mednafen` and
+> `ares`. No other system has a certified row; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -473,9 +475,17 @@ folder for, so it is out of scope rather than unscheduled.
 at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, and carried to
 the `5.3.0` floor with step 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
-That is nine rows on one install, and the unit is still `(system, emulator, core)`. The rules the
-last four needed are scoped to `nes`, so none of those emulators is certified anywhere else. Wave
-1's other six systems are not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
+**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-21: `libretro` under `genesis_plus_gx`, which a stock install runs, `genesis_plus_gx_wide`
+and `picodrive`, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`. `libretro`/`fbneo`
+boots nothing named by No-Intro, and the three `kega-fusion` rows fail step 4 because Kega Fusion
+writes battery saves outside `saves/`; both are recorded rather than certified.
+
+That is sixteen rows on one install, and the unit is still `(system, emulator, core)`. The rules
+the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
+emulators is certified anywhere else. Wave 1's other five systems are not started.
+[docs/platforms/nes.md](docs/platforms/nes.md) and [docs/platforms/megadrive.md](docs/platforms/megadrive.md)
+are the records, gaps included.
 
 ### Compatibility
 
