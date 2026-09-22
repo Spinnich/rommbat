@@ -235,6 +235,11 @@ rows on one install at one pair of floors. They certify none of those emulators 
 system: every rule and declaration the non-`libretro` rows needed is scoped to the systems it was
 measured on. [nes.md](nes.md) and [megadrive.md](megadrive.md) are the records, gaps included.
 
+**`gba` is staged, not certified.** Steps 1, 2 and 3 pass on all ten rows at `5.3.0`, and every
+row has been booted once without `gba_bios.bin`: three need it (`ares`, `jgenesis`, `mesen`) and
+seven do not (finding 285). `nosgba` cannot open a `.zip` (finding 286). Steps 4 to 9 wait on
+sessions with a real save. [gba.md](gba.md) has the staging.
+
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
 one real save or state, through EmulationStation and back. That is not a certification and must
