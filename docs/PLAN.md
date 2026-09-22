@@ -1575,9 +1575,19 @@ manual metadata edit survives the next sync.
 
 ### M5: BIOS and firmware
 
-A platform synced without its BIOS is dead weight in the gallery, so firmware is
-**prioritised ahead of ROM content** for any platform being synced, and driven by what
-RetroBat actually requires rather than by whatever the RomM library happens to hold.
+On an emulator that needs it, a platform synced without its BIOS is dead weight in the
+gallery, so firmware is **prioritised ahead of ROM content** for any platform being synced,
+and driven by what RetroBat lists rather than by whatever the RomM library happens to hold.
+
+**Firmware is fetched best-effort and never gates a platform.** RetroBat's list is what to
+fetch, not what a platform needs to run. `batocera-systems.json` has no optional flag, so an
+entry that only adds a feature or speeds an emulator up reads the same as one it cannot boot
+without, and it keys firmware on the system while each emulator decides which of it to read:
+on `gba` three of ten rows refuse to boot without `gba_bios.bin` and seven HLE it (finding
+285). No client-side rule can tell those apart, and the emulator already does, at launch. So
+RomMBat fetches every listed file RomM holds, reports the rest, and never holds back a
+platform, its ROMs, its sync or its certification over one it does not. The words "required"
+and "requirement" below mean an entry in that list, nothing stronger.
 
 **RetroBat ships the requirements manifest, and it is not a file.**
 `batocera-systems/Resources/batocera-systems.json` (in `emulatorlauncher`) is machine-readable
@@ -1746,10 +1756,11 @@ so the honest figures are 6 and 2. See [freegosy-findings.md](freegosy-findings.
    "is anything being fetched" would make adoption reachable only as a side effect of an
    unrelated download, and the fast path that skips re-hashing needs the row it writes.
 
-5. **Report the gap.** Required BIOS with no md5 match anywhere in RomM is the single most
-   useful thing this feature can tell a user, so surface it per platform as "needed, not
-   in your library" with the expected filename and hash. Three states, never two: matched,
-   missing from your library, and unverifiable because RetroBat names no hash.
+5. **Report the gap.** Listed BIOS with no md5 match anywhere in RomM is the single most
+   useful thing this feature can tell a user, so surface it per platform as "not in your
+   library" with the expected filename and hash. Three states, never two: matched, missing
+   from your library, and unverifiable because RetroBat names no hash. The report informs and
+   never refuses: a gap exits zero, and the platform's ROMs sync regardless.
 
    **The report is answerable offline**, from the bundled manifest plus what is on disk, which
    is what principle 1 requires of it. Without the server it splits into present and absent;
@@ -3735,7 +3746,8 @@ through, not the number of passes.
 
 1. Folder mapping resolves, and by which layer.
 2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
-3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
+3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
+   listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator** and battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, and the declared directory is confirmed to be where the emulator really writes.

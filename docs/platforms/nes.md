@@ -218,7 +218,7 @@ measured or re-measured on 2026-09-20.
 | --- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | 1   | Folder mapping resolves, layer recorded                       | **Pass**, at layer `fs_slug`. See below                                                    |
 | 2   | `<extension>` captured; every resolved ROM survives the check | **Pass.** 228 of 228 resolved, nothing excluded. The step changed on 2026-09-20, see below |
-| 3   | Required BIOS resolved against RomM by md5                    | **Pass**, carried. RetroBat requires no BIOS for `nes`                                     |
+| 3   | Listed BIOS resolved against RomM by md5                      | **Pass**, carried. RetroBat requires no BIOS for `nes`                                     |
 | 4   | Save shape classified, battery save round-trips               | **Pass, both directions.** Class A, and the md5 is equal up and down. See below            |
 | 5   | Save state round-trips with its screenshot                    | **Pass, both ways, screenshot included.** See below                                        |
 | 6   | Per-game memory card where class D applies                    | **N/A.** See below                                                                         |

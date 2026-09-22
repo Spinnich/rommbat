@@ -712,8 +712,10 @@ and RomM's `is_verified` is false on files RetroBat requires, `psxonpsp660.bin` 
 so on a real library filtering on it discards 6 of the 49 required hashes that library
 holds. A further 93 of the 156 have no RomM record at all, which is a gap and not a
 flag. BIOS is fetched
-**before** that platform's ROMs, because a platform without its BIOS is dead weight in the
-gallery.
+**before** that platform's ROMs, because on an emulator that needs it a platform without its
+BIOS is dead weight in the gallery. **It never gates a platform.** The list has no optional
+flag and the emulator decides which files it reads, so a file RomM lacks is reported and the
+platform's ROMs sync regardless.
 
 Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
 inside `batocera-systems.exe`, so the manifest is bundled at `data/retrobat/bios.json` rather

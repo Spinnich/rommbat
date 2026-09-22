@@ -111,17 +111,21 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    in one set, and over-filtering there drops real games. That is also where multi-disc and
    multi-file placement has to be settled, which is the concern this step is a poor proxy for.
 
-3. Required BIOS resolved against RomM **by md5**; gaps listed with expected filename and hash.
-   Run `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and
-   record all four states rather than a pass or fail: present, fetched, not in the library, and
-   the ones RetroBat names no hash for. A system whose whole requirement is hashless (28 of the
-   99 are) is certified on the other eight steps, and step 3 says so in those words.
+3. The BIOS RetroBat lists, resolved against RomM **by md5**; what RomM lacks listed with
+   expected filename and hash. Run `rommbat-agent bios <system>` for the report and
+   `bios <system> --apply` to fetch, and record all four states rather than a pass or fail:
+   present, fetched, not in the library, and the ones RetroBat names no hash for. A system whose
+   whole list is hashless (28 of the 99 are) is certified on the other eight steps, and step 3
+   says so in those words.
 
-   **A file RetroBat lists is not required by every row.** `batocera-systems.json` has no
-   optional flag, and RomMBat fetches every entry RomM holds, which stays. On `gba` three of ten
-   rows refuse to boot without `gba_bios.bin` and seven HLE it (finding 285). So boot each row
-   once with the file moved out of the tree, record which refuse, then put it back with
-   `bios <system> --apply`, which doubles as the fetch this step asks for.
+   **A missing file never fails this step or holds a platform back.** RetroBat's list is what
+   RomMBat fetches, not what a platform needs to run: `batocera-systems.json` has no optional
+   flag, it keys firmware on the system, and the emulator decides which files it reads. RomMBat
+   fetches every entry RomM holds, reports the rest, and leaves the verdict to the emulator. On
+   `gba` three of ten rows refuse to boot without `gba_bios.bin` and seven HLE it (finding
+   285). So boot each row once with the file moved out of the tree, record which refuse, then
+   put it back with `bios <system> --apply`, which doubles as the fetch this step asks for. A
+   row that refuses without a file is certified with it, and the record names the file.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
