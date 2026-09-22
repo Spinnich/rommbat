@@ -459,24 +459,28 @@ writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES head
 `megadrive` the whole `.md` (finding 280), and `MednafenRomHash` picks by system and answers null
 for any system or format not measured. So mednafen's rule is
 `named_after: "rom file and content md5"`, which may share an extension in one directory with a
-plain rule, the hash on the stem deciding. `named_after: "archive member and content md5"` is
-narrower still, `<rom>.zip#<member>.<md5>.sav` for mednafen_gba (finding 290), and the loader asks
-rules narrowest first and refuses two of one narrowness. On `gba` that is three owners for one
-loose `.sav` extension: mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which
-mGBA, Mesen and mednafen all open and which uploads as `mgba:battery`. **mednafen refuses mGBA's
-131,088 B file** (finding 289), so a device where mGBA standalone ran cannot play the game under
-mednafen until it moves; the hash is the whole `.gba` there.
-
-**A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
-in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
-with it. Each rewrites the file on every launch (finding 291), so a session uploads a version
-whether or not the game was saved. mGBA and BizHawk keep 16 bytes of clock inside the save. A plain `<rom>.sav` goes up as
+plain rule, the hash on the stem deciding. On `nes`, a plain `<rom>.sav` goes up as
 `mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
 a hashed save where a plain one would shadow it, including onto a path this device recorded before
-the plain one appeared. On `nes`, `HeaderlessNesHash` answers null outside what was measured: a trainer, a
+the plain one appeared. `HeaderlessNesHash` answers null outside what was measured: a trainer, a
 length other than header plus declared PRG and CHR, no PRG, or NES 2.0 size bits in byte 9. **Do
 not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 header with byte 9
 clear, the three measured ones included.
+
+`named_after: "archive member and content md5"` is narrower still,
+`<rom>.zip#<member>.<md5>.sav` for mednafen_gba (finding 290), and the loader asks rules narrowest
+first and refuses two of one narrowness. The ROM's own name may hold a `#`, so the match anchors
+on the first `.zip#` or `.7z#`. On `gba` that is three owners for one loose `.sav` extension:
+mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which mGBA, Mesen and mednafen
+all open and which uploads as `mgba:battery`. **mednafen refuses mGBA's 131,088 B file** (finding
+289), so a device where mGBA standalone ran cannot play the game under mednafen until it moves;
+the hash is the whole `.gba` there.
+
+**A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
+in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
+with it. Mesen's and jgenesis's change on every launch (finding 291), so a session uploads a
+version whether or not the game was saved; ares's was not measured. mGBA and BizHawk keep 16
+bytes of clock inside the save, and BizHawk's `.SaveRAM` changes on every launch the same way.
 
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
