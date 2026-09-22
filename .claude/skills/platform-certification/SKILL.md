@@ -269,8 +269,8 @@ slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `j
 `mednafen` and `ares` all step the slot on `F7` and save on `F2` with no modifier, which the agent
 can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
 `es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`). Kega
-Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and reads the
-keyboard as `Fusion.ini`'s `Player1Keys` says (finding 284). **When a key's effect cannot be seen,
+Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and needs its
+controls remapped in its own menu before the pad plays (finding 284). **When a key's effect cannot be seen,
 take a screenshot of the screen from the agent's session** rather than sending keys blind: a
 blind Start on a title screen is as likely to land during a fade as on the menu.
 

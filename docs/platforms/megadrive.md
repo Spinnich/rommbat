@@ -17,7 +17,8 @@ named after.
 - `kega-fusion`/`auto`, `kega-fusion`/`genesis` and `kega-fusion`/`megadrive` **fail step 4**:
   Kega Fusion writes its battery saves into `emulators/kega-fusion/`, outside `saves/`, because
   RetroBat's template `Fusion.ini` sends them there and `emulatorLauncher` never redirects them
-  (finding 283). Their states sync, and their pad does not work on this install (finding 284).
+  (finding 283). Their states sync, and the pad works only once remapped in Kega's own menu
+  (finding 284).
 
 **It certifies those seven rows and nothing wider.** The last four needed code first, as on
 `nes`: a battery rule each and, for `mednafen` and `ares`, a state declaration in RomMBat's
@@ -298,15 +299,15 @@ carry.
 which downloads it on the first launch of a game under it. **The three cores are Kega's command
 line flags** for the console's region handling, and all three write to the same places.
 
-| #   | All three rows                                                                                     |
-| --- | -------------------------------------------------------------------------------------------------- |
-| 1-3 | **Pass**, carried                                                                                  |
-| 4   | **Fail on 8.2.1.** The battery save lands in `emulators/kega-fusion/`, which RomMBat does not scan |
-| 5   | **Pass**, two slots round-tripped at their own md5                                                 |
-| 6   | **N/A**                                                                                            |
-| 7   | **Pass** on launch and art. **Not playable by pad on this install**, finding 284                   |
-| 8   | **Pass** for `auto`, 00:33:59Z to 00:34:43Z, 44s. Carried to the other two                         |
-| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                              |
+| #   | All three rows                                                                                             |
+| --- | ---------------------------------------------------------------------------------------------------------- |
+| 1-3 | **Pass**, carried                                                                                          |
+| 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, which RomMBat does not scan |
+| 5   | **Pass**, two slots round-tripped at their own md5                                                         |
+| 6   | **N/A**                                                                                                    |
+| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, finding 284               |
+| 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                         |
+| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                      |
 
 ### 4. Where Kega Fusion puts a battery save
 
@@ -318,9 +319,17 @@ and nowhere else, and core principle 2 rules out writing the key itself. **Recor
 defect, to be reported upstream, by the maintainer's ruling**, rather than widened around.
 Finding 283.
 
-**No new battery save could be made to test the rest**, and that is the input problem below: from
-the keyboard Sonic 3 & Knuckles went from the title straight into the game under both `-auto`
-and `-gen`, skipping data select, so nothing chose a slot.
+**A real save was made there, and it is the libretro cores' format.** After remapping input in
+Kega's own menu, the maintainer launched from ES under `-auto` at 01:06:41Z, chose a data-select
+slot, and Kega rewrote the file at 980 B, `9f80af5c...`. It matches Genesis Plus GX's file in
+layout and length and differs from it in 6 bytes, the slot chosen. So with `SRMFiles` pointed at
+`saves\megadrive`, Kega would read and write the same loose `.srm` the three `libretro` cores
+share, and its rows would be the libretro family's step 4. That is what the upstream report asks
+for. Until then step 4 fails on the location alone, not on the save.
+
+**The agent's own keyboard attempts never reached data select**, under `-auto` and `-gen`: a
+blind Start from the title went straight into the game. The maintainer's session did reach it, so
+that was the agent's input timing, not Kega's handling of the cartridge.
 
 ### 5. Kega Fusion's states
 
@@ -337,13 +346,18 @@ entry for it, scoped to `megadrive`. Its first flush sent both states, and both 
 `saves restore --apply` at their own md5, exit 0. No image is written. `Fusion.ini` also names
 state folders for `mastersystem` and `segacd`; neither was driven, and neither is declared.
 
-### 7. Not playable by pad on this install
+### 7. Playable by pad only after a remap in Kega's own menu
 
-**The maintainer's Xbox 360 pad did nothing in Kega Fusion.** `emulatorLauncher` logged
-`No specific mapping found for megadrive controller` and wrote `Joystick1Using=3` for player 1
-while the pad is device 0, and RetroBat ships no pad-to-key file for `kega-fusion`, so no pad
-button saves a state. The keyboard mapping in `Fusion.ini` does reach the game: numpad 8, 2, 4 and
-6 for the pad, `J`, `K` and `L` for A, B and C, and Right Ctrl for Start. Finding 284.
+**The maintainer's Xbox 360 pad did nothing in Kega Fusion as `emulatorLauncher` configured it.**
+It logged `No specific mapping found for megadrive controller` and wrote `Joystick1Using=3` for
+player 1 while the pad is device 0, and RetroBat ships no pad-to-key file for `kega-fusion`, so no
+pad button saves a state. The keyboard mapping it wrote does reach the game: numpad 8, 2, 4 and 6
+for the pad, `J`, `K` and `L` for A, B and C, and Right Ctrl for Start.
+
+**Remapping inside Kega made it playable.** The maintainer set the controls in Kega's own menu,
+which Kega saved into `Fusion.ini` on exit as `Joystick1Using=2` and arrow keys for
+`Player1Keys`, and then played the save above. Whether `emulatorLauncher` keeps that remap on the
+next launch or writes its own mapping back over it was not measured. Finding 284.
 
 ## What the pass turned up that is not a row
 
