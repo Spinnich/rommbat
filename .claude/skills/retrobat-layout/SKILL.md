@@ -69,9 +69,11 @@ ubiquitous `~\..\roms\<folder>` resolves to `<root>/roms/<folder>`. Match
 case-insensitively, and parse it as XML: `arcade` and `kodi` sit inside comments, which a
 regex over `<system>` would wrongly pick up.
 
-`<extension>` is a **sync filter**. Syncing a file the emulator cannot launch produces the
-worst failure this app has: a game that appears in ES, looks right, and dies on launch. It
-also moves between patch releases: 8.2.1 added `.decomp` to eleven systems and `.zar` to
+`<extension>` is **a note, never a sync filter**. It is a union across every emulator the
+system offers (`nes` lists `.wad`; one `psx` emulator reads `.chd` and another does not), so it
+cannot say whether the running emulator opens a file, only whether ES lists it. RomMBat syncs
+every member and reports the ones the list omits as unlisted in ES. It also moves between patch
+releases: 8.2.1 added `.decomp` to eleven systems and `.zar` to
 `ps4`, which is the concrete reason the list is read live rather than bundled. Never cache a
 per-system extension set across runs.
 

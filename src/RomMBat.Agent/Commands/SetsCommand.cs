@@ -239,14 +239,14 @@ internal static class SetsCommand
 
         foreach (var exclusion in detail.Exclusions)
         {
-            // Only the format exclusion is about the extension. Listing them beside the
-            // unmapped group reads as though the format were the problem there too.
-            var formats = exclusion.State == MemberState.ExcludedExtension && exclusion.Extensions.Count > 0
-                ? $" ({string.Join(", ", exclusion.Extensions.Select(extension => "." + extension))})"
-                : string.Empty;
-
             Console.WriteLine();
-            Console.WriteLine($"  {exclusion.Count} {SyncSetService.Describe(exclusion.State)}{formats}");
+            Console.WriteLine($"  {exclusion.Count} {SyncSetService.Describe(exclusion.State)}");
+        }
+
+        if (detail.UnlistedNote is { } unlisted)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"  {unlisted}");
         }
 
         return ExitCode.Ok;

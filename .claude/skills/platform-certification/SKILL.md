@@ -88,28 +88,27 @@ is evidence.
 
 Record results in `docs/platforms/<system>.md`, one section per `(emulator, core)`. All nine,
 or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried
-across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.**
+across emulators with a note (step 2 not where emulators disagree about a playlist); **steps 4, 5 and 6 have to be redone per emulator.**
 
 1. Folder mapping resolves, and the resolution layer is recorded.
-2. `<extension>` list captured from the live `es_systems.cfg`, and **every ROM the set resolves
-   survives the extension check**. Nothing is excluded that the user asked for.
+2. **Multi-disc and multi-file games land correctly.** Record which shapes the library holds
+   for this system and, for each, where it lands and that it launches from ES. The known shapes:
+   several `.chd` plus an `.m3u`; several `.bin`/`.cue` sets, perhaps with an `.m3u`; update and
+   DLC files that belong in other folders; and RomM's subfolder structure inside a game folder,
+   most of which is ignored. Which parts are needed is the finding, not an assumption. Until a
+   shape is settled here it stays excluded (`excluded_multi_file`, `excluded_folder`), and
+   settling it is what unlocks it for this platform. A system whose library is single files
+   throughout passes this step by recording so.
 
-   **The step used to ask for the opposite and it was testing the wrong direction.** It required
-   a known-unsupported file to be excluded and reported. Wrongly downloading one costs bytes and
-   a game that does not appear, because EmulationStation filters by `<extension>` itself; wrongly
-   **excluding** one silently drops a game the user asked for, with no error and no line in the
-   report worth questioning. `<extension>` is a per-system union across every emulator the system
-   declares (`nes` lists `.wad`, which is not a NES container at all), so the filter cannot be
-   precise per `(emulator, core)` and over-rejection is the likelier error of the two.
+   **The step used to be an extension check, and the extension no longer gates anything.**
+   `<extension>` is a per-system union across every emulator the system declares (`nes` lists
+   `.wad`, which is not a NES container at all; one `psx` emulator reads `.chd` and another does
+   not), so it cannot say what a given `(emulator, core)` opens. RomMBat syncs every member and
+   reports the ones the list omits as unlisted in ES. Capture the list in the record, note any
+   unlisted count the resolve reports, and do not manufacture a file to test either direction.
 
-   So record the list, record that the resolve kept everything, and do not manufacture a file to
-   reject. A platform whose library is one format throughout passes this step rather than being
-   held open by it.
-
-   **Where the exclusion half still earns a look is a library with mixed formats arising
-   naturally**, which is wave 2: `psx` and the CD systems carry `.chd`, `.cue`, `.bin` and `.m3u`
-   in one set, and over-filtering there drops real games. That is also where multi-disc and
-   multi-file placement has to be settled, which is the concern this step is a poor proxy for.
+   **`.m3u` support is per emulator**, so this step can differ between rows of one system: PCSX2
+   cannot use a playlist although `ps2` lists `.m3u`. Where it does, record it per emulator.
 
 3. The BIOS RetroBat lists, resolved against RomM **by md5**; what RomM lacks listed with
    expected filename and hash. Run `rommbat-agent bios <system>` for the report and
@@ -309,8 +308,8 @@ the uploaded name carries the core.
 RetroBat publishes no per-`(emulator, core)` extension data anywhere, so record what the
 certified core was **observed** to launch and treat the rest as declared and unproven.
 
-**Steps 1, 2 and 3 can be batched for a whole wave before anyone sits down**, since none of them
-needs an emulator running. Staging a wave that way means its BIOS gaps are known before a
+**Steps 1 and 3, and the inventory half of step 2, can be batched for a whole wave before
+anyone sits down**, since none of them needs an emulator running. Staging a wave that way means its BIOS gaps are known before a
 controller is picked up, and it leaves six of nine steps open per record. Steps 4 through 9
 cannot be staged.
 

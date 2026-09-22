@@ -28,13 +28,15 @@ public sealed record EsSystem(
     IReadOnlyList<string> Extensions)
 {
     /// <summary>
-    /// True when this system can launch a file with that extension.
+    /// True when EmulationStation lists files with that extension for this system.
     /// </summary>
     /// <remarks>
+    /// Not whether the file launches. The list is a union across every emulator the system
+    /// offers, so one may open a <c>.chd</c> the default cannot, and nothing here gates a sync.
     /// Takes either form, with or without the leading dot, because <c>&lt;extension&gt;</c>
     /// carries the dot and RomM's <c>fs_extension</c> does not.
     /// </remarks>
-    public bool Accepts(string? extension) =>
+    public bool Lists(string? extension) =>
         !string.IsNullOrWhiteSpace(extension)
         && Extensions.Contains(NormalizeExtension(extension), StringComparer.OrdinalIgnoreCase);
 

@@ -310,11 +310,16 @@ file is only counted once it has arrived whole. It does not run at all while a s
 saves back, and it skips anything a live transfer still holds open.
 
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
-several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server
-serves it as an archive that cannot be resumed and whose hashes describe neither the archive
-nor its contents. And on a FAT32 drive, anything over 4 GB is left out before the download
-starts, because the write would otherwise fail with an error message about disk space on a
-drive with plenty free.
+several files (a `.bin`/`.cue` set, most Xbox 360 titles), or as a folder around one file, is
+not synced yet: where each shape lands differs by platform, and it is settled platform by
+platform as each is certified. And on a FAT32 drive, anything over 4 GB is left out before the
+download starts, because the write would otherwise fail with an error message about disk space
+on a drive with plenty free.
+
+A file's format is never a reason to skip it. RetroBat's list of extensions for a system covers
+every emulator that system offers, so it cannot say whether yours opens a given file. A game
+whose extension is not on that list still syncs, and RomMBat tells you EmulationStation will
+not show it.
 
 ## Status
 

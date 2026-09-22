@@ -42,8 +42,8 @@ public class SyncSetTests : IDisposable
         // Bumped by hand with every migration, deliberately. Deriving it from the directory
         // would make this test agree with any number the migrations happen to produce, and the
         // thing worth catching is a migration added without anyone deciding to add one.
-        Assert.Equal(16, LocalStore.ExpectedSchemaVersion);
-        Assert.Equal(16, _store.SchemaVersion);
+        Assert.Equal(17, LocalStore.ExpectedSchemaVersion);
+        Assert.Equal(17, _store.SchemaVersion);
     }
 
     [Fact]
@@ -202,8 +202,11 @@ public class SyncSetTests : IDisposable
     }
 
     [Fact]
-    public async Task A_format_the_system_cannot_launch_is_excluded_and_counted()
+    public async Task A_format_the_system_does_not_list_still_syncs_and_is_noted()
     {
+        // <extension> is a union across every emulator the system offers, so it cannot say
+        // whether a file launches. The only thing it says for certain is what EmulationStation
+        // lists, and that is a note on the resolution, never a reason to drop a game.
         using var stub = new StubRomMServer();
         stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Good", "Good.sfc", "sfc", 1_000));
         stub.Library.Add(new StubRom(2, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
@@ -214,24 +217,23 @@ public class SyncSetTests : IDisposable
 
         var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
-        Assert.Single(resolution.Members);
-        Assert.Equal(2, resolution.ExcludedExtensions["chd"]);
-        Assert.Contains("format not supported by this system", resolution.Summary, StringComparison.Ordinal);
+        Assert.Equal(3, resolution.Members.Count);
+        Assert.Empty(resolution.Excluded);
+        Assert.Equal(2, resolution.UnlistedFormats["chd"]);
+        Assert.False(resolution.UnlistedFormats.ContainsKey("sfc"));
+        Assert.Contains("2 synced but not listed by EmulationStation", resolution.Summary, StringComparison.Ordinal);
         Assert.Contains(".chd", resolution.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("skipped", resolution.Summary, StringComparison.Ordinal);
 
-        // Exclusions are stored, so the reason survives to the next offline run.
         _store.SyncSets.ReplaceMembers(set.Id, [.. resolution.Members, .. resolution.Excluded], resolution.Summary, Now);
-        var exclusions = _store.SyncSets.Exclusions(set.Id);
-
-        Assert.Single(exclusions);
-        Assert.Equal(MemberState.ExcludedExtension, exclusions[0].State);
-        Assert.Equal(2, exclusions[0].Count);
-        Assert.Equal(["chd"], exclusions[0].Extensions);
+        Assert.Empty(_store.SyncSets.Exclusions(set.Id));
     }
 
     [Fact]
-    public async Task A_rom_with_no_extension_is_excluded_and_reported_as_such()
+    public async Task A_rom_held_as_a_folder_is_excluded_as_a_folder_rather_than_a_format()
     {
+        // The has_nested_single_file shape: no extension, the folder's name as fs_name, and the
+        // multi-file flag false. A real instance had 23 of these on one platform.
         using var stub = new StubRomMServer();
         stub.Library.Add(new StubRom(1, 1, "snes", "snes", "Nameless", "Nameless", string.Empty, 1_000));
 
@@ -240,12 +242,18 @@ public class SyncSetTests : IDisposable
 
         var resolution = await Resolve(set, connection, cancellationToken: TestContext.Current.CancellationToken);
 
-        // A real instance had 23 of these on one platform. Reporting the format as a bare dot
-        // would read as a bug in RomMBat rather than a gap in the library.
         Assert.Empty(resolution.Members);
-        Assert.Equal(1, resolution.ExcludedExtensions[SetResolver.NoExtension]);
-        Assert.Contains("no extension", resolution.Summary, StringComparison.Ordinal);
-        Assert.DoesNotContain("(.)", resolution.Summary, StringComparison.Ordinal);
+        Assert.Equal(1, resolution.Folder);
+        Assert.Equal(0, resolution.MultiFile);
+        Assert.Equal(MemberState.ExcludedFolder, Assert.Single(resolution.Excluded).State);
+        Assert.Contains("held as a folder", resolution.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("format", resolution.Summary, StringComparison.Ordinal);
+
+        // Stored, so the reason survives to the next offline run.
+        _store.SyncSets.ReplaceMembers(set.Id, [.. resolution.Members, .. resolution.Excluded], resolution.Summary, Now);
+        var exclusion = Assert.Single(_store.SyncSets.Exclusions(set.Id));
+        Assert.Equal(MemberState.ExcludedFolder, exclusion.State);
+        Assert.Equal(1, exclusion.Count);
     }
 
     [Fact]
@@ -345,7 +353,7 @@ public class SyncSetTests : IDisposable
     public async Task Resolving_twice_over_an_unchanged_library_changes_nothing()
     {
         using var stub = SnesLibrary(3);
-        stub.Library.Add(new StubRom(4, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
+        stub.Library.Add(new StubRom(4, 1, "snes", "snes", "Foldered", "Foldered", string.Empty, 1_000));
 
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "steady", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
@@ -371,15 +379,15 @@ public class SyncSetTests : IDisposable
     public async Task An_exclusion_stops_being_reported_once_the_rom_leaves_the_scope()
     {
         using var stub = SnesLibrary(2);
-        stub.Library.Add(new StubRom(3, 1, "snes", "snes", "Disc", "Disc.chd", "chd", 1_000));
+        stub.Library.Add(new StubRom(3, 1, "snes", "snes", "Foldered", "Foldered", string.Empty, 1_000));
 
         using var connection = Connect(stub);
         var set = Add(new SyncSetDefinition { Name = "cleaning", Scope = CatalogScopeKind.Platform, ScopeValue = "1" });
 
         await ResolveSegment(set, connection, Now, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal(MemberState.ExcludedExtension, _store.SyncSets.Exclusions(set.Id)[0].State);
+        Assert.Equal(MemberState.ExcludedFolder, _store.SyncSets.Exclusions(set.Id)[0].State);
 
-        // The user deletes the unplayable disc image in RomM. The reason it was skipped is a
+        // The user deletes the foldered copy in RomM. The reason it was skipped is a
         // fact about the last resolution, so it has to go with it rather than be reported
         // forever against a game that is no longer in the scope.
         stub.Library.RemoveAt(2);

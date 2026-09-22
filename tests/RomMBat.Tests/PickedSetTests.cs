@@ -180,7 +180,7 @@ public sealed class PickedSetTests : IDisposable
     }
 
     [Fact]
-    public void A_folder_holding_one_file_is_refused_on_its_extension_and_not_as_multi_file()
+    public void A_folder_holding_one_file_is_refused_as_a_folder_and_not_as_multi_file()
     {
         // The shape measured on 5.3.0-alpha.2 by moving a lone file into a subfolder: the folder
         // name as fs_name, no extension, and has_multiple_files false. Refused here, it never
@@ -194,6 +194,32 @@ public sealed class PickedSetTests : IDisposable
         Assert.DoesNotContain("several files", outcome.Problem, StringComparison.Ordinal);
         Assert.DoesNotContain("a . file", outcome.Problem, StringComparison.Ordinal);
         Assert.Empty(_session.Store.SyncSets.Members(outcome.Set.Id));
+    }
+
+    [Fact]
+    public void A_format_the_system_does_not_list_is_picked_and_the_set_says_so()
+    {
+        // snes's <extension> has no .chd. The pick is not refused, because an emulator may open
+        // what EmulationStation does not list, and the set's detail carries the note instead.
+        var outcome = new PickedSetService(_session).Pick(
+            Row(11, "Disc") with { FsName = "Disc.chd", FsExtension = "chd" },
+            Now);
+
+        Assert.False(outcome.IsRefused);
+        Assert.Single(_session.Store.SyncSets.Members(outcome.Set.Id));
+
+        var detail = new SyncSetService(_session).Show(outcome.Set.Name)!;
+        Assert.Equal(1, detail.Unlisted!["chd"]);
+        Assert.Contains("not listed by EmulationStation", detail.UnlistedNote, StringComparison.Ordinal);
+        Assert.Contains(".chd", detail.UnlistedNote, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_set_whose_members_are_all_listed_carries_no_note()
+    {
+        var outcome = new PickedSetService(_session).Pick(Row(11, "Chrono Trigger"), Now);
+
+        Assert.Null(new SyncSetService(_session).Show(outcome.Set.Name)!.UnlistedNote);
     }
 
     [Fact]

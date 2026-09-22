@@ -83,11 +83,11 @@ public class EsSystemsFileTests
         Assert.DoesNotContain(snes.Extensions, extension => extension.StartsWith('.'));
 
         // RomM sends fs_extension without a dot; es_systems.cfg writes it with one.
-        Assert.True(snes.Accepts("sfc"));
-        Assert.True(snes.Accepts(".sfc"));
-        Assert.True(snes.Accepts("SFC"));
-        Assert.False(snes.Accepts("chd"));
-        Assert.False(snes.Accepts(null));
+        Assert.True(snes.Lists("sfc"));
+        Assert.True(snes.Lists(".sfc"));
+        Assert.True(snes.Lists("SFC"));
+        Assert.False(snes.Lists("chd"));
+        Assert.False(snes.Lists(null));
     }
 
     [Fact]
@@ -99,15 +99,15 @@ public class EsSystemsFileTests
         Assert.True(systems.TryGetFolder("dreamcast", out var dreamcast));
         Assert.True(systems.TryGetFolder("wiiu", out var wiiu));
 
-        Assert.True(snes.Accepts("zip"));
-        Assert.False(dreamcast.Accepts("zip"));
+        Assert.True(snes.Lists("zip"));
+        Assert.False(dreamcast.Lists("zip"));
 
         // The disc-image mismatch the plan warns about, taken from the shipped file rather
         // than imagined: dreamcast launches a .chd, wiiu does not, and neither converts.
-        Assert.True(dreamcast.Accepts("chd"));
-        Assert.True(dreamcast.Accepts("cue"));
-        Assert.True(wiiu.Accepts("iso"));
-        Assert.False(wiiu.Accepts("chd"));
+        Assert.True(dreamcast.Lists("chd"));
+        Assert.True(dreamcast.Lists("cue"));
+        Assert.True(wiiu.Lists("iso"));
+        Assert.False(wiiu.Lists("chd"));
     }
 
     [Fact]

@@ -202,8 +202,18 @@ public static class SetsScreens
         rows.AddRange(detail.Exclusions.Select(exclusion => new ListRow(
             "Skipped",
             exclusion.Count.ToString(CultureInfo.CurrentCulture),
-            SyncSetService.Describe(exclusion.State) + Formats(exclusion),
+            SyncSetService.Describe(exclusion.State),
             false)));
+
+        // A note rather than a skip: these games are in the set and on disk.
+        if (detail.UnlistedNote is { } unlisted)
+        {
+            rows.Add(new ListRow(
+                "Not listed",
+                detail.Unlisted!.Values.Sum().ToString(CultureInfo.CurrentCulture),
+                unlisted,
+                false));
+        }
 
         if (detail.Departed.Count > 0)
         {
@@ -564,11 +574,6 @@ public static class SetsScreens
 
         return platform is null ? $"{text} {set.ScopeValue}" : $"{text}: {platform.Label}";
     }
-
-    private static string Formats(ExclusionSummary exclusion) =>
-        exclusion.State == MemberState.ExcludedExtension && exclusion.Extensions.Count > 0
-            ? $" ({string.Join(", ", exclusion.Extensions.Select(extension => "." + extension))})"
-            : string.Empty;
 
     /// <summary>A stored instant as the clock on the wall in front of the user.</summary>
     /// <remarks>

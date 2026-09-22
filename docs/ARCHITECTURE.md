@@ -488,7 +488,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Fifteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Sixteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -500,8 +500,10 @@ about the state half rather than a save shape: an emulator with no `es_savestate
 writes save states anyway, into a directory nothing reads. 016 widens
 `sync_set_member.state` to admit `'excluded_no_file_on_disk'`, for a ROM RomM has a row for and
 no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from the server's
-disk is the other, and the second has been reachable since the 5.2.0 floor. The
-schema lives
+disk is the other, and the second has been reachable since the 5.2.0 floor. 017 retires
+`'excluded_extension'` for `'excluded_folder'`, because the extension stopped gating a sync
+and the one case that gate caught which still needs a state is a ROM RomM holds as a folder
+around a single file. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
@@ -699,11 +701,13 @@ memory cards into per-game ones without touching an emulator config.
 
 ## 8. Two authorities that are easy to get backwards
 
-**File extensions come from RetroBat.** RomM will happily hold a file the target system
-cannot launch, and syncing it produces the worst failure this app has: a game that appears
-in EmulationStation, looks correct, and dies on launch. The `<extension>` list in the live
-`es_systems.cfg` is a **sync filter**, applied before anything is downloaded, and
-exclusions are shown to the user rather than hidden.
+**File extensions come from RetroBat, and they never gate a sync.** The `<extension>` list in
+the live `es_systems.cfg` is a union across every emulator a system offers, so it cannot say
+whether the emulator that runs opens a file: one reads `.chd` and another does not, and the
+list names the format either way. The one certain thing it says is what EmulationStation
+lists, so members it omits sync anyway and are reported as unlisted, on the resolution summary
+and on the set's detail. What does gate a game is its shape: a multi-file ROM, or one RomM holds
+as a folder, waits until its platform's certification has settled where RetroBat wants it.
 
 **Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
 entries across 99 systems as `{md5, file}`, with the exact destination path. Join it

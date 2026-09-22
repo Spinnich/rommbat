@@ -53,11 +53,15 @@ to unwind later.
 2. **Never edit an emulator INI.** `emulatorlauncher` regenerates emulator configs from ES
    options on every launch. Write `es_settings.cfg` instead, which supports a per-game
    form: `<system>["<rom filename>"].<key>`.
-3. **RetroBat is the authority on file extensions and on which BIOS to fetch**, not RomM. Read
-   `<extension>` from the live `es_systems.cfg`; join firmware against
-   `batocera-systems.json` on **md5 only**. That list is what to fetch, not what a platform
-   needs: it has no optional flag, and the emulator decides which files it reads. So a file
-   RomM lacks is reported and **never blocks a platform**, its sync or its certification.
+3. **RetroBat is the authority on file extensions and on which BIOS to fetch**, not RomM, and
+   **neither gates a sync.** Read `<extension>` from the live `es_systems.cfg` and report the
+   members it omits as unlisted in EmulationStation; never exclude on it, because it is a union
+   across every emulator a system offers and cannot say what the running one opens. The work
+   that matters is landing multi-disc and multi-file games correctly, per platform. Join
+   firmware against `batocera-systems.json` on **md5 only**. That list is what to fetch, not
+   what a platform needs: it has no optional flag, and the emulator decides which files it
+   reads. So a file RomM lacks is reported and **never blocks a platform**, its sync or its
+   certification.
 4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
    the game-launch path: they append to a local journal, exit, and start nothing. **`start`
    and `quit` are outside that path** and each spawns a detached `background <event>` pass,
