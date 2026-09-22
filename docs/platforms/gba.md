@@ -318,7 +318,7 @@ which the rule claims; a bare `.gba` gave `<rom>.605b89b6....sav`, **mednafen st
 name**, hashed although a plain `<rom>.sav` was present, so on a library of bare `.gba` files the
 two mednafens share one file and it uploads as `mednafen:battery`. A restore of
 `libretro:battery:sav` reads the member out of a zip only, so for a `.7z` it is refused as
-unnameable. Both boot writes were blank and were moved out of the tree before any flush. Finding 290.
+unnameable until RomMBat can read inside one (#221). Both boot writes were blank and were moved out of the tree before any flush. Finding 290.
 
 ### 5. States on the seven
 
