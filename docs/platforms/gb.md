@@ -361,7 +361,7 @@ normal case.
 - **On a cartridge with no clock, three cores' `.rtc` is only the host time.** `tgbdual`,
   `DoubleCherryGB` and `sameboy` write `<rom>.rtc` for every game, 4 B of Unix time for the first two
   and 32 B for `sameboy`, which read the 4 B form without complaint. It is still a save, for the
-  clock cartridge below, so on Yellow those cores upload a few bytes of new version per launch.
+  clock cartridge above, so on Yellow those cores upload a few bytes of new version per launch.
   Finding 295.
 - **The first flush after the sync pulled down a save.** The `start` pass that ran before the first
   launch wrote `Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 2).srm`, 8,192 B, the server's
