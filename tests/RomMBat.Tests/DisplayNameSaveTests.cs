@@ -87,6 +87,10 @@ public class DisplayNameSaveTests
         Assert.Equal(Rom, member.RomStemOf($"{Rom}.zip#{Rom}.{Md5}.sav"));
         Assert.Equal("libretro:battery:sav", SaveScanner.SlotFor("libretro", member.Class!.Value, ".sav"));
 
+        // A .7z is named the same way, and a bare .gba gets mednafen standalone's own name.
+        Assert.Same(member, shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.7z#{Rom}.{Md5}.sav"));
+        Assert.Equal(Rom, member.RomStemOf($"{Rom}.7z#{Rom}.{Md5}.sav"));
+
         Assert.Equal("mednafen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.{Md5}.sav")?.Emulator);
         Assert.Equal("mgba", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.sav")?.Emulator);
         Assert.Equal("libretro", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.srm")?.Emulator);

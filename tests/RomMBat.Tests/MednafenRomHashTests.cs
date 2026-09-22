@@ -78,7 +78,7 @@ public sealed class MednafenRomHashTests : IDisposable
         var gba = Path.Combine(_root, "Game (USA).gba");
         File.WriteAllBytes(gba, body);
 
-        // What mednafen_gba names a save for a bare .gba has not been driven.
+        // A bare .gba's save is mednafen standalone's hashed name, not this slot's.
         Assert.Equal(Md5(body), MednafenRomHash.Of(gba, "gba"));
         Assert.Null(MednafenRomHash.ArchiveMemberOf(gba, "gba"));
         Assert.Null(MednafenRomHash.ArchiveMemberOf(Zip("Game (USA).zip", ("Game (USA).md", body)), "megadrive"));

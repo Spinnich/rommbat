@@ -311,8 +311,14 @@ through a save with none in it, where Mesen, seeded the same way, did not compla
 file to ...srm` and then `Skipping SRAM load`, and the core kept its own file under mednafen's name
 for RetroArch's `archive#member` path. So it cannot share `libretro:battery`, and by the
 maintainer's ruling it takes `libretro:battery:sav`, class B's per-extension slot. A restore names
-the file from the zip's one member and that member's md5; a ROM that is not a zip is refused as
-unnameable, since what the core names a save for a bare `.gba` was not driven. Finding 290.
+the file from the zip's one member and that member's md5. **The other two formats were driven
+afterwards**, each booted once from `emulatorLauncher` with the real saves moved aside: a `.7z`
+built with RetroBat's own `7za.exe` gave `<rom>.7z#<rom>.605b89b6....sav`, the same form and md5,
+which the rule claims; a bare `.gba` gave `<rom>.605b89b6....sav`, **mednafen standalone's own
+name**, hashed although a plain `<rom>.sav` was present, so on a library of bare `.gba` files the
+two mednafens share one file and it uploads as `mednafen:battery`. A restore of
+`libretro:battery:sav` reads the member out of a zip only, so for a `.7z` it is refused as
+unnameable. Both boot writes were blank and were moved out of the tree before any flush. Finding 290.
 
 ### 5. States on the seven
 
@@ -404,4 +410,5 @@ mapping for it. Finding 286.
   RomM `5.3.0`.
 - **Nothing about another game.** Emerald is one 128 KB flash cartridge with a clock; a game with
   SRAM or EEPROM, or no clock, names and sizes its files differently on at least ares.
-- **Nothing about mednafen_gba on a bare `.gba`, or on a `.7z`.** Only a zip was driven.
+- **Nothing about mednafen_gba past the boot on a bare `.gba` or a `.7z`.** Each was booted once
+  to read the name it writes; no save was made or restored on either.

@@ -44,8 +44,9 @@ public static class MednafenRomHash
     /// <c>libretro</c>/<c>mednafen_gba</c> names a save after, or null for anything else.
     /// </summary>
     /// <remarks>
-    /// A ROM that is not a zip answers null rather than the plain hashed name, because what
-    /// mednafen_gba writes for a bare <c>.gba</c> has not been driven.
+    /// A ROM that is not a zip answers null. A <c>.7z</c> is named the same way but cannot be
+    /// read here, and a bare <c>.gba</c> gets mednafen standalone's own hashed name, which is the
+    /// <c>mednafen:battery</c> file rather than this slot's.
     /// </remarks>
     public static (string MemberStem, string Hash)? ArchiveMemberOf(string absolutePath, string system)
     {

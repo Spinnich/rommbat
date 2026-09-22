@@ -53,8 +53,10 @@ public enum BatteryNaming
     /// a dot, and the md5 of that file. <c>libretro</c>/<c>mednafen_gba</c> is the measured case:
     /// <c>Pokemon - Emerald Version (USA, Europe).zip</c> wrote
     /// <c>Pokemon - Emerald Version (USA, Europe).zip#Pokemon - Emerald Version (USA, Europe).605b89b67018abcea91e693a4dd25be3.sav</c>,
-    /// which is mednafen's own naming over RetroArch's <c>archive#member</c> path. Only a zip is
-    /// named this way; a restore for any other ROM is unnameable.
+    /// which is mednafen's own naming over RetroArch's <c>archive#member</c> path. A <c>.7z</c> is
+    /// named the same way, and a bare <c>.gba</c> gets mednafen standalone's hashed name, which
+    /// that rule claims. A restore reads the member out of a zip only, so any other ROM is
+    /// unnameable.
     /// </summary>
     ArchiveMemberAndContentMd5,
 }
@@ -149,7 +151,7 @@ public sealed partial record BatteryRule(
     [GeneratedRegex(@"\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ContentMd5Suffix();
 
-    [GeneratedRegex(@"^(?<archive>[^#]+\.zip)#(?<member>[^#]+)\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(?<archive>[^#]+\.(?:zip|7z))#(?<member>[^#]+)\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ArchiveMemberStem();
 
     /// <summary>

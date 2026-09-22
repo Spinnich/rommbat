@@ -167,7 +167,9 @@ OTHER_BATTERY_RULES = [
             "gba under libretro, core mednafen_gba, on 8.2.1: Pokemon - Emerald Version (USA, "
             "Europe).zip wrote a loose <rom>.zip#<rom>.605b89b67018abcea91e693a4dd25be3.sav, "
             "131,072 B, the md5 being of the whole .gba inside, while RetroArch logged Skipping "
-            "SRAM load for the .srm the other cores share; class B gives it libretro:battery:sav"
+            "SRAM load for the .srm the other cores share; class B gives it libretro:battery:sav. "
+            "A .7z of the same ROM wrote <rom>.7z#<rom>.<md5>.sav, and a bare .gba wrote "
+            "<rom>.<md5>.sav, mednafen standalone's name"
         ),
     },
     {
