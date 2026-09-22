@@ -484,7 +484,7 @@ writes battery saves outside `saves/`; both are recorded rather than certified.
 **Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
 `libretro` under `mgba`, which a stock install runs, `gpsp` and `mednafen_gba`, then `mgba`
 standalone, `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`. `nosgba` loads a zipped
-ROM only through a bare `.gba` RetroBat deletes on exit, and keeps its saves outside `saves/`, so
+ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, and keeps its saves outside `saves/`, so
 it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM has it, though only
 `ares`, `jgenesis` and `mesen` refuse to boot without it.
 
