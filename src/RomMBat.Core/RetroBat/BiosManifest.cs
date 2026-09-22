@@ -12,7 +12,11 @@ namespace RomMBat.Core.RetroBat;
 /// The hash to join RomM's firmware on, or null when RetroBat names none.
 /// </param>
 /// <param name="Path">Where the file belongs, relative to the RetroBat root.</param>
-public sealed record BiosRequirement(string System, string Folder, string? Md5, RelativePath Path)
+/// <param name="Supplement">
+/// Why RomMBat adds a file RetroBat's list names under another system, or null for one RetroBat
+/// names for this system itself.
+/// </param>
+public sealed record BiosRequirement(string System, string Folder, string? Md5, RelativePath Path, string? Supplement = null)
 {
     /// <summary>The file name RetroBat expects, which is not the name RomM serves.</summary>
     public string FileName => Path.Name;
@@ -111,7 +115,7 @@ public sealed class BiosManifest
                     continue;
                 }
 
-                files.Add(new BiosRequirement(key, folder, Normalize(file.Md5), path));
+                files.Add(new BiosRequirement(key, folder, Normalize(file.Md5), path, Blank(file.Supplement)));
             }
 
             // A system can share a folder with another (nothing does today), so the files
@@ -141,6 +145,8 @@ public sealed class BiosManifest
     public static bool IsInsideBios(string? path) =>
         path is not null
         && path.Replace('\\', '/').StartsWith(RequiredPrefix, StringComparison.OrdinalIgnoreCase);
+
+    private static string? Blank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static string? Normalize(string? md5) =>
         string.IsNullOrWhiteSpace(md5) ? null : md5.Trim().ToLowerInvariant();
@@ -178,5 +184,8 @@ public sealed class BiosManifest
 
         [JsonPropertyName("path")]
         public string Path { get; init; } = string.Empty;
+
+        [JsonPropertyName("supplement")]
+        public string? Supplement { get; init; }
     }
 }

@@ -46,6 +46,7 @@ public sealed class BiosManifestTests
         Assert.Equal(
             expected.Select(entry => (entry.System, entry.Md5, entry.Path)).Order().ToList(),
             manifest.Requirements
+                .Where(requirement => requirement.Supplement is null)
                 .Select(requirement => (requirement.System, Md5: requirement.Md5 ?? string.Empty, Path: requirement.Path.Value))
                 .Order()
                 .ToList());
@@ -57,7 +58,7 @@ public sealed class BiosManifestTests
         var manifest = Fixtures.LoadBiosManifest();
 
         Assert.Equal(100, manifest.Folders.Count);
-        Assert.Equal(348, manifest.Requirements.Count);
+        Assert.Equal(348, manifest.Requirements.Count(requirement => requirement.Supplement is null));
         Assert.Equal(7, manifest.RejectedPaths.Count);
 
         // 156, not 157. The set is built without the blank md5, which 181 of the 355 entries
@@ -65,6 +66,33 @@ public sealed class BiosManifestTests
         // added namco2x6's two entries and both are hashless, so the distinct-md5 count held.
         Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
         Assert.Equal(174, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
+    }
+
+    [Fact]
+    public void Gb_takes_the_super_game_boy_files_and_the_color_boot_rom_from_its_siblings()
+    {
+        var manifest = Fixtures.LoadBiosManifest();
+
+        var gb = manifest.For("gb");
+        var sgb = manifest.For("sgb");
+        var gbc = manifest.For("gbc");
+
+        // RetroBat's list names only the boot ROM for gb. libretro/bsnes runs a .gb as a Super
+        // Game Boy cartridge and fails to load one without SGB1.sfc, and bizhawk/GBHawk runs a
+        // Color-flagged cartridge in Color mode and refuses it without the Color boot ROM. Each
+        // is copied onto gb with the md5 RetroBat gives it on its own system.
+        Assert.Equal(
+            ["bios/gb_bios.bin", "bios/sgb_boot.bin", "bios/sgb2_boot.bin", "bios/SGB1.sfc", "bios/SGB2.sfc", "bios/gbc_bios.bin"],
+            gb.Select(requirement => requirement.Path.Value));
+        Assert.Null(gb[0].Supplement);
+        Assert.All(gb.Skip(1).Take(4), requirement => Assert.Contains("bsnes", requirement.Supplement, StringComparison.Ordinal));
+        Assert.Contains("GBHawk", gb[5].Supplement, StringComparison.Ordinal);
+        Assert.Equal(
+            sgb.Concat(gbc).Select(requirement => (requirement.Md5, requirement.Path.Value)).Order(),
+            gb.Skip(1).Select(requirement => (requirement.Md5, requirement.Path.Value)).Order());
+
+        // Supplemented only where measured: no other system takes another's entries.
+        Assert.Equal(5, manifest.Requirements.Count(requirement => requirement.Supplement is not null));
     }
 
     [Fact]
@@ -226,8 +254,13 @@ public sealed class BiosManifestTests
             .Where(group => group.Select(requirement => requirement.System).Distinct(StringComparer.Ordinal).Count() > 1)
             .ToList();
 
-        Assert.Equal(6, shared.Count);
-        Assert.Equal(5, shared.Count(group => group.Any(requirement => requirement.Md5 is not null)));
+        // Six of RetroBat's own, the four Super Game Boy files gb takes from sgb, and the Color
+        // boot ROM it takes from gbc.
+        Assert.Equal(11, shared.Count);
+        Assert.Equal(10, shared.Count(group => group.Any(requirement => requirement.Md5 is not null)));
+        Assert.Equal(
+            4,
+            shared.Count(group => group.Select(requirement => requirement.System).Order(StringComparer.Ordinal).SequenceEqual(["gb", "sgb"])));
 
         // openMSX's copy of fmpac.rom is the widest: four MSX systems name the same file.
         var fmpac = Assert.Single(

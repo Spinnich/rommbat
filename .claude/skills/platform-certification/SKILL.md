@@ -67,6 +67,16 @@ first. **A clock file is a second save file**, class B, and changes on every lau
 for its own unzip output and deleted it (finding 286), so check a hand-placed file is still there
 before each launch. Blame `emulatorLauncher` only once the emulator run by hand keeps the file.
 
+**`gb` is fourth: all fourteen rows certified at `5.3.0` on 2026-09-22**, in one afternoon, on
+the same seeding. Six `libretro` cores and Mesen share the loose `.srm`, so those seven needed no
+copying. **A boot write is not recognisably blank on every system** (finding 294): Mesen flushes
+random bytes, and a game that uses cartridge RAM as scratch space leaves real-looking ones, so
+move every boot write out before a flush. **Bring in a clock cartridge if the set has none**:
+a filter set with `--folder` put Pokemon Silver into `gb`, and it showed where each row keeps a
+real clock, which a clockless game cannot (finding 298). **BizHawk's pad key
+follows ES's `-state_slot`, which moves up as states accumulate**, and a `Ctrl+F<n>` sent by
+`keybd_event` needs the keys held about 400 ms.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
@@ -127,6 +137,12 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    285). So boot each row once with the file moved out of the tree, record which refuse, then
    put it back with `bios <system> --apply`, which doubles as the fetch this step asks for. A
    row that refuses without a file is certified with it, and the record names the file.
+
+   **Boot every row with the whole family's firmware out, not just the system's list.** A row can
+   read a file RetroBat lists under a sibling system: on `gb`, `bsnes` needs `sgb`'s `SGB1.sfc`
+   and `GBHawk` needs `gbc`'s boot ROM for a Color-flagged cartridge, and neither was on `gb`'s
+   list (finding 293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
+   system, copied from the sibling's entry, so `bios <system>` fetches it.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
