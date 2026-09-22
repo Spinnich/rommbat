@@ -337,21 +337,18 @@ public sealed class SaveShapes
     private readonly IReadOnlyList<BatteryRule> _batteryRules;
     private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _sharedContainers;
     private readonly FrozenSet<string> _notASaveExtensions;
-    private readonly FrozenDictionary<string, FrozenSet<string>> _notASaveBySystem;
 
     private SaveShapes(
         FrozenDictionary<string, SaveShape> shapes,
         IReadOnlyList<BatteryRule> batteryRules,
         FrozenDictionary<string, FrozenDictionary<string, string>> sharedContainers,
         FrozenSet<string> notASaveExtensions,
-        FrozenDictionary<string, FrozenSet<string>> notASaveBySystem,
         IReadOnlyList<string> unclassified)
     {
         _shapes = shapes;
         _batteryRules = batteryRules;
         _sharedContainers = sharedContainers;
         _notASaveExtensions = notASaveExtensions;
-        _notASaveBySystem = notASaveBySystem;
         Unclassified = unclassified;
 
         LooseEmulator = batteryRules.FirstOrDefault(rule => rule.IsLoose && rule.Systems is null)?.Emulator
@@ -434,19 +431,9 @@ public sealed class SaveShapes
     /// drive, whose <c>image_path</c> is an absolute path with a drive letter. Relaying it
     /// through RomM restores a dangling pointer on any install at a different root, so the
     /// save tree is treated as untrusted for portability rather than copied verbatim.
-    /// <para>
-    /// <b>Some are not saves on one system only.</b> On <c>gb</c> three libretro cores write a
-    /// loose <c>.rtc</c> for every game, and with no clock on the cartridge it holds nothing but
-    /// the host time the emulator closed at. On <c>gbc</c> the same file carries a real clock.
-    /// </para>
     /// </remarks>
-    public bool IsNotASave(string system, string extension)
-    {
-        var lowered = extension.ToLowerInvariant();
-
-        return _notASaveExtensions.Contains(lowered)
-            || (_notASaveBySystem.TryGetValue(system, out var scoped) && scoped.Contains(lowered));
-    }
+    public bool IsNotASave(string extension) =>
+        _notASaveExtensions.Contains(extension.ToLowerInvariant());
 
     /// <summary>
     /// Why a path is a shared container, or null when it is not one.
@@ -520,10 +507,6 @@ public sealed class SaveShapes
                     StringComparer.OrdinalIgnoreCase),
                 StringComparer.OrdinalIgnoreCase),
             rules.NotASaveExtensions.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
-            rules.NotASaveBySystem.ToFrozenDictionary(
-                entry => entry.Key,
-                entry => entry.Value.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal),
-                StringComparer.OrdinalIgnoreCase),
             shapes.Unclassified);
     }
 
@@ -766,9 +749,6 @@ public sealed class SaveShapes
 
         [JsonPropertyName("not_a_save_extensions")]
         public Dictionary<string, string> NotASaveExtensions { get; init; } = [];
-
-        [JsonPropertyName("not_a_save_by_system")]
-        public Dictionary<string, Dictionary<string, string>> NotASaveBySystem { get; init; } = [];
 
         [JsonPropertyName("shared_containers")]
         public Dictionary<string, Dictionary<string, string>> SharedContainers { get; init; } = [];

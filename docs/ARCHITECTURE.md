@@ -770,9 +770,9 @@ archive member, then hash, then plain, and two of one narrowness are refused. Bi
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
-download for such a slot is placed only where a title was learned (#151). An extension can be
-**not a save on one system only**, through `not_a_save_by_system`: on `gb` the `.rtc` three
-`libretro` cores write holds only the host time, where on `gba` Mesen's is a real clock.
+download for such a slot is placed only where a title was learned (#151). A clock file beside a
+save is class B: on `gb` the loose `.rtc` is `libretro`'s second slot, `libretro:battery:rtc`,
+because a clock cartridge keeps its clock there under the stock core, and on `gba` it is Mesen's.
 
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and

@@ -482,11 +482,12 @@ with it. Mesen's and jgenesis's change on every launch (finding 291), so a sessi
 version whether or not the game was saved; ares's was not measured. mGBA and BizHawk keep 16
 bytes of clock inside the save, and BizHawk's `.SaveRAM` changes on every launch the same way.
 
-**A clock file is not always a clock.** On `gb`, `libretro`'s `tgbdual`, `DoubleCherryGB` and
-`sameboy` write `<rom>.rtc` for every game, and with no clock on the cartridge it holds only the
-host time at exit (finding 295). It is declared not a save on `gb` alone, in `save_rules.json`'s
-`not_a_save_by_system`, which the loose-level scan asks by system. Decide a sibling's `.rtc` on
-its own measurement, since `gbc` has real clock cartridges.
+**On `gb` the loose `.rtc` is `libretro`'s, `libretro:battery:rtc`.** A clock cartridge keeps its
+clock there under the stock `gambatte` core, and Mesen writes the same name, as it does the `.srm`
+(finding 298). `tgbdual`, `DoubleCherryGB` and `sameboy` write it for every game, and with no clock
+on the cartridge it holds only the host time at exit (finding 295), so those three upload a few
+bytes of new version per launch. Measure it on a clock cartridge, not a clockless one: on a
+clockless game the file looks like noise.
 
 **On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
 as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with

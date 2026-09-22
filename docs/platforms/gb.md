@@ -15,9 +15,10 @@ The eight standalone rows needed a battery rule each for `gb`, where `mesen`'s w
 `libretro`'s, and four of them a state declaration in RomMBat's bundled supplement. Two rows read
 firmware RetroBat's list files under other systems, which `bios gb` now fetches.
 
-**This file is in six parts.** Steps 1, 2 and 3, which are the system's, with which rows need
-firmware. What the first boots wrote. The six `libretro` rows, then the eight standalone ones. Last,
-what the pass turned up that is not a row, and the upstream reports it drafted.
+**This file is in seven parts.** Steps 1, 2 and 3, which are the system's, with which rows need
+firmware. What the first boots wrote. The six `libretro` rows, then the eight standalone ones. Then
+Pokemon Silver, brought in for a clock cartridge. Last, what the pass turned up that is not a row,
+and the upstream reports it drafted.
 
 ## The install this was measured on
 
@@ -216,7 +217,8 @@ says.
 load it on its own` and `Skipping SRAM load`, and no SRAM write on exit, yet the core read the seed
 and wrote the `.srm` back with the maintainer's save in it.
 
-**Three cores write a `.rtc` beside the `.srm`**, and on `gb` it is not a save (below).
+**Three cores write a `.rtc` beside the `.srm` even for Yellow**, which has no clock; on a clock
+cartridge `gambatte` writes one too, and it syncs as `libretro:battery:rtc` (below).
 
 ## The eight standalone rows
 
@@ -312,14 +314,55 @@ screenshot `.png`; the rest have nothing to carry, and the preview says so.
 Every pair is correlated in the journal, every `quit` pass exited 0, and every one is on the server,
 rom 153392, as are the six `libretro` sessions above.
 
+## A cartridge with a clock: Pokemon Silver on `gb`
+
+**No game in the set has a clock, so one was brought in.** Pokemon - Silver Version (USA, Europe)
+(SGB Enhanced) (GB Compatible), RomM rom 275002, header type `0x10` (MBC3 with timer, RAM and
+battery) and 32 KB of RAM, is filed under `gbc` in RomM. A filter set with `--folder gb`, `gb clock
+probe`, resolved to it alone and synced it into `roms/gb`, the `.gbc` inside a zip. It was booted
+once under every row with nothing saved, and every file it wrote was moved out of the tree:
+
+| Row                                                         | Where the clock went                                |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| `libretro`/`gambatte`                                       | **`<rom>.rtc`, 8 B**, where Yellow got none         |
+| `libretro`/`sameboy`                                        | `<rom>.rtc`, 32 B                                   |
+| `libretro`/`tgbdual`, `DoubleCherryGB`                      | `<rom>.rtc`, 4 B                                    |
+| `mesen`                                                     | **`<rom>.rtc`, 13 B**, where Yellow got none        |
+| `jgenesis`                                                  | **`jgenesis/gbc/<rom>.rtc`, 38 B**, beside a `.sav` |
+| `libretro`/`bsnes`, `mgba`, `mednafen`, `bizhawk`/`SameBoy` | Inside the save, 32,816 B                           |
+| `bizhawk`/`Gambatte`                                        | Inside the save, 32,790 B                           |
+| `libretro`/`mesen-s`, `bizhawk`/`GBHawk`                    | Nowhere: 32,768 B and no clock file                 |
+| `ares`                                                      | Unknown: killed before it wrote                     |
+
+**The stock row keeps the clock only in the `.rtc`**, so by the maintainer's ruling the loose `.rtc`
+is a save on `gb`: `libretro:battery:rtc`, class B beside the `.srm`, a file the `libretro` cores and
+Mesen share as they share the `.srm`. `gambatte`'s 8 B is the Unix time at which the game clock
+reads zero.
+
+**Driven on the stock row, and the clock round-trips.** The maintainer started a new game, set the
+clock, saved and made a state. The `quit` pass sent the `.srm` as `libretro:battery` and the `.rtc`
+as `libretro:battery:rtc`, and the session, 19:55:42Z to 19:57:42Z, is on the server. The `.srm`,
+`.rtc`, state and screenshot went out of the tree and came back through `saves restore 275002
+--apply`, `restored 2 save(s) and 1 state(s), failed 0, 39.3 KB, with 1 screenshot(s)`, each at its
+own md5. Relaunched, the game showed the clock about five minutes on, the time since the save, and
+Continue loaded it. That launch saved nothing, left the `.rtc` unchanged and changed the `.srm` in
+335 bytes, 334 of them in the first 8 KB bank, which Pokemon uses as scratch, so it went up as a new
+version. Both sets then re-synced as a clean no-op. Finding 298.
+
+**`jgenesis` names its directory from the file inside the zip**: `jgenesis/gbc/` for Silver's
+`.gbc`, `jgenesis/gb/` for Yellow's `.gb`. The `gb` rule reads `jgenesis/gb/` only, and the loader
+refuses a second jgenesis `.sav` rule on one system, since a restore could not tell which directory
+a slot belongs in without reading the ROM. By the maintainer's ruling that stays a recorded gap:
+such a save is reported and not synced, and the `gbc` pass declares `jgenesis/gbc/` where it is the
+normal case.
+
 ## What the pass turned up that is not a row
 
-- **The `libretro` `.rtc` on `gb` is not a save.** `tgbdual`, `DoubleCherryGB` and `sameboy` write
-  `<rom>.rtc` for every game. With no clock on the cartridge it holds only the host time at exit:
-  4 B of Unix time for the first two, 32 B for `sameboy`, which read the 4 B form without complaint.
-  No cartridge in the set has a clock, and RomM files the clock-cart Pokemon titles under `gbc`. By
-  the maintainer's ruling it is declared not a save on `gb` alone, in `save_rules.json`'s
-  `not_a_save_by_system`, and `gbc` decides for itself against real clocks. Finding 295.
+- **On a cartridge with no clock, three cores' `.rtc` is only the host time.** `tgbdual`,
+  `DoubleCherryGB` and `sameboy` write `<rom>.rtc` for every game, 4 B of Unix time for the first two
+  and 32 B for `sameboy`, which read the 4 B form without complaint. It is still a save, for the
+  clock cartridge below, so on Yellow those cores upload a few bytes of new version per launch.
+  Finding 295.
 - **The first flush after the sync pulled down a save.** The `start` pass that ran before the first
   launch wrote `Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 2).srm`, 8,192 B, the server's
   save for a game the sync had just placed, written by another client. That is RomMBat's download
@@ -354,8 +397,9 @@ it with "Couldn't find required firmware GBC+World" unless `gbc_bios.bin` is in 
   RomM `5.3.0`.
 - **Nothing about another game.** Yellow is one MBC5 cartridge with 32 KB of RAM and no clock. A
   game with an MBC2's 512 half-bytes, or MBC3 with a clock, may be sized and named differently.
-- **Nothing about the `.rtc` on a `gb` cartridge with a clock.** None is in the set; a misfiled one
-  would lose its clock across devices on `gb`.
+- **Nothing about a clock cartridge's clock on any row but the stock one.** Silver was booted under
+  all fourteen and driven only under `libretro`/`gambatte`. Under `jgenesis` its saves sit in
+  `jgenesis/gbc/`, which the `gb` rule does not read, so they are reported and not synced.
 - **Nothing about GBHawk on the two Color-flagged games without `gbc_bios.bin`.** It refuses them,
   and `bios gb` now fetches the file.
 - **Nothing about headers beyond the 107.** RomM holds 1,776 `gb` games; only the set's headers and

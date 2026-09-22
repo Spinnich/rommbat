@@ -415,29 +415,29 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
-    public void A_loose_rtc_on_gb_is_neither_synced_nor_reported_while_gbas_is_a_save()
+    public void A_loose_rtc_on_gb_takes_its_own_libretro_slot_beside_the_srm()
     {
-        // Measured on 8.2.1: tgbdual, DoubleCherryGB and sameboy write <rom>.rtc beside the .srm
-        // for every gb game, holding only the host time at exit because no gb cartridge in the
-        // set has a clock. On gba Mesen's .rtc is the cartridge clock.
+        // Measured on 8.2.1: Pokemon Silver, an MBC3 cartridge with a clock, keeps its clock in
+        // <rom>.rtc under the stock gambatte core, a file the libretro cores and Mesen share. On
+        // gba the loose .rtc is Mesen's.
         using var fixture = SaveTree.Create();
-        const string Yellow = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+        const string Silver = "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)";
 
-        fixture.AddRom(153392, "gb", $"{Yellow}.zip");
-        fixture.AddSave("gb", $"{Yellow}.srm", "the cores' battery save");
-        fixture.AddSave("gb", $"{Yellow}.sav", "mgba's battery save");
-        fixture.AddSave("gb", $"{Yellow}.rtc", "four bytes of host time");
+        fixture.AddRom(275002, "gb", $"{Silver}.zip");
+        fixture.AddSave("gb", $"{Silver}.srm", "the cores' battery save");
+        fixture.AddSave("gb", $"{Silver}.sav", "mgba's battery save");
+        fixture.AddSave("gb", $"{Silver}.rtc", "the cartridge clock");
         fixture.AddRom(233631, "gba", "Pokemon - Emerald Version (USA, Europe).zip");
         fixture.AddSave("gba", "Pokemon - Emerald Version (USA, Europe).rtc", "the cartridge clock");
 
         fixture.Scan();
 
-        var saves = fixture.Store.Saves.List();
-        Assert.Equal(
-            ["saves/gb/" + Yellow + ".sav", "saves/gb/" + Yellow + ".srm", "saves/gba/Pokemon - Emerald Version (USA, Europe).rtc"],
-            saves.Select(save => save.Path.Value).Order(StringComparer.Ordinal));
-        Assert.Equal("mgba:battery", Assert.Single(saves, save => save.Path.Value.EndsWith(".sav", StringComparison.Ordinal)).Slot);
-        Assert.Equal("mesen:battery:rtc", Assert.Single(saves, save => save.System == "gba").Slot);
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal("libretro:battery", slots[$"saves/gb/{Silver}.srm"]);
+        Assert.Equal("libretro:battery:rtc", slots[$"saves/gb/{Silver}.rtc"]);
+        Assert.Equal("mgba:battery", slots[$"saves/gb/{Silver}.sav"]);
+        Assert.Equal("mesen:battery:rtc", slots["saves/gba/Pokemon - Emerald Version (USA, Europe).rtc"]);
+        Assert.All(fixture.Store.Saves.List().Where(save => save.System == "gb"), save => Assert.Equal(275002, save.RomId));
         Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gb");
     }
 

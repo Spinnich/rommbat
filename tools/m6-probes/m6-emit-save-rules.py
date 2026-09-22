@@ -179,6 +179,22 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "libretro",
+        "systems": ["gb"],
+        "directory": "",
+        "extensions": [".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gb under libretro on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB "
+            "Compatible).zip, an MBC3 cartridge with a clock, wrote a loose <rom>.rtc beside the "
+            ".srm under gambatte (8 B), sameboy (32 B), tgbdual and DoubleCherryGB (4 B), and mesen "
+            "standalone wrote the same name (13 B). gambatte and mesen write none for Pokemon Yellow, "
+            "which has no clock; the other three write one for every game. Shared as the .srm is, "
+            "so class B gives it libretro:battery:rtc"
+        ),
+    },
+    {
+        "emulator": "libretro",
         "systems": ["gba"],
         "directory": "",
         "extensions": [".sav"],
@@ -292,17 +308,6 @@ NOT_A_SAVE = {
     ".jpg": "a save-state screenshot, which is stage 2",
 }
 
-# Not a save on one system only. The same file can be a save on a sibling: gbc's clock carts
-# keep a real clock in the .rtc that gb's carts leave empty.
-NOT_A_SAVE_BY_SYSTEM = {
-    "gb": {
-        ".rtc": (
-            "a clock file libretro's tgbdual, DoubleCherryGB and sameboy write for every game; no "
-            "gb cartridge in the set has a clock, so it holds only the host time at exit"
-        ),
-    },
-}
-
 lines.append("=== loose files directly under saves/<system>/, which is where class A lives")
 
 by_extension: collections.Counter[str] = collections.Counter()
@@ -322,7 +327,7 @@ for system_directory in sorted(p for p in saves.iterdir() if p.is_dir()):
         if path.name in declared:
             containers_seen.append(f"{system}/{path.name}")
             continue
-        if path.suffix.lower() in NOT_A_SAVE or path.suffix.lower() in NOT_A_SAVE_BY_SYSTEM.get(system, {}):
+        if path.suffix.lower() in NOT_A_SAVE:
             continue
         extensions[path.suffix.lower()] += 1
         by_extension[path.suffix.lower()] += 1
@@ -380,7 +385,6 @@ document = {
         *OTHER_BATTERY_RULES,
     ],
     "not_a_save_extensions": NOT_A_SAVE,
-    "not_a_save_by_system": NOT_A_SAVE_BY_SYSTEM,
     "shared_containers": SHARED_CONTAINERS,
     "observed": per_system,
 }

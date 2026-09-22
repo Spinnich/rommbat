@@ -144,13 +144,13 @@ public class DisplayNameSaveTests
         Assert.Equal("jgenesis", shapes.BatteryRuleFor("gb", "jgenesis/gb", $"{Rom}.sav")?.Emulator);
         Assert.Equal("bizhawk", shapes.BatteryRuleFor("gb", "bizhawk", "Pokemon - Yellow Version (USA, Europe).SaveRAM")?.Emulator);
 
-        // No gb row keeps a clock, so a loose .rtc is no one's save there and still is on gba.
-        Assert.Null(shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.rtc"));
-        Assert.True(shapes.IsNotASave("gb", ".rtc"));
-        Assert.True(shapes.IsNotASave("GB", ".RTC"));
-        Assert.False(shapes.IsNotASave("gba", ".rtc"));
-        Assert.False(shapes.IsNotASave("gbc", ".rtc"));
-        Assert.True(shapes.IsNotASave("gbc", ".ldci"));
+        // The loose .rtc is libretro's second file on gb, beside the .srm in its own slot, and
+        // Mesen's on gba. A clock cartridge keeps its clock there under the stock core.
+        var rtc = shapes.BatteryRuleFor("gb", string.Empty, "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).rtc");
+        Assert.Equal("libretro", rtc?.Emulator);
+        Assert.Equal("libretro:battery:rtc", SaveScanner.SlotFor("libretro", rtc!.Class!.Value, ".rtc"));
+        Assert.Null(shapes.BatteryRuleForSlot("gb", "libretro:battery:rtc"));
+        Assert.Equal("mesen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.rtc")?.Emulator);
     }
 
     [Fact]

@@ -192,7 +192,7 @@ public sealed class SaveScanner
                 var name = Path.GetFileName(file);
                 var extension = Path.GetExtension(name);
 
-                if (_shapes.IsNotASave(system, extension))
+                if (_shapes.IsNotASave(extension))
                 {
                     continue;
                 }

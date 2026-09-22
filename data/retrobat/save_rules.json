@@ -78,6 +78,15 @@
     },
     {
       "emulator": "libretro",
+      "systems": ["gb"],
+      "directory": "",
+      "extensions": [".rtc"],
+      "named_after": "rom file",
+      "class": "B",
+      "evidence": "gb under libretro on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).zip, an MBC3 cartridge with a clock, wrote a loose <rom>.rtc beside the .srm under gambatte (8 B), sameboy (32 B), tgbdual and DoubleCherryGB (4 B), and mesen standalone wrote the same name (13 B). gambatte and mesen write none for Pokemon Yellow, which has no clock; the other three write one for every game. Shared as the .srm is, so class B gives it libretro:battery:rtc"
+    },
+    {
+      "emulator": "libretro",
       "systems": ["gba"],
       "directory": "",
       "extensions": [".sav"],
@@ -145,11 +154,6 @@
     ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",
     ".png": "a save-state screenshot, which is stage 2",
     ".jpg": "a save-state screenshot, which is stage 2"
-  },
-  "not_a_save_by_system": {
-    "gb": {
-      ".rtc": "a clock file libretro's tgbdual, DoubleCherryGB and sameboy write for every game; no gb cartridge in the set has a clock, so it holds only the host time at exit"
-    }
   },
   "shared_containers": {
     "megacd": {

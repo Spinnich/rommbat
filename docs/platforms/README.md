@@ -247,9 +247,9 @@ the six `libretro` cores, `gambatte` being the stock row, with `mesen-s`, `bsnes
 `GBHawk` and `SameBoy`, and `jgenesis`, the standalone rows once each had a gb battery rule and four a
 state declaration. Twelve rows boot without firmware. `libretro`/`bsnes` needs `SGB1.sfc` and
 `bizhawk`/`GBHawk` the Color boot ROM for a Color-flagged cartridge, files RetroBat's list names
-under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). The `.rtc` three
-`libretro` cores write is only the host time on `gb`, and is declared not a save there (finding
-295).
+under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). A clock cartridge,
+Pokemon Silver synced into `gb`, keeps its clock in a `.rtc` under the stock core, which syncs as
+`libretro:battery:rtc` and was driven through a restore with the clock intact (finding 298).
 
 **Read all four as narrowly as they are written.** They certify thirty-nine
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
