@@ -111,6 +111,22 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void A_zip_member_save_is_claimed_when_the_rom_name_carries_a_hash_sign()
+    {
+        // What a restore names it: the zip's file name, '#', the member's stem, the hash.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Foo #1";
+        const string Save = $"{Rom}.zip#{Rom}.605b89b67018abcea91e693a4dd25be3.sav";
+
+        var member = shapes.BatteryRuleFor("gba", string.Empty, Save);
+        Assert.Equal(BatteryNaming.ArchiveMemberAndContentMd5, member?.NamedAfter);
+        Assert.Equal(Rom, member!.RomStemOf(Save));
+
+        // A bare ROM with a '#' is still mednafen standalone's.
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.605b89b67018abcea91e693a4dd25be3.sav")?.Emulator);
+    }
+
+    [Fact]
     public void One_emulator_may_hold_two_rules_on_a_system_only_where_class_b_keeps_the_slots_apart()
     {
         var shapes = SaveShapes.Parse(

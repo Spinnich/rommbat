@@ -151,7 +151,7 @@ public sealed partial record BatteryRule(
     [GeneratedRegex(@"\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ContentMd5Suffix();
 
-    [GeneratedRegex(@"^(?<archive>[^#]+\.(?:zip|7z))#(?<member>[^#]+)\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(?<archive>.+?\.(?:zip|7z))#(?<member>.+)\.[0-9a-f]{32}$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)]
     private static partial Regex ArchiveMemberStem();
 
     /// <summary>
