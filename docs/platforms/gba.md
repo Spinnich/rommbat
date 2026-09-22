@@ -3,10 +3,10 @@
 Nintendo Game Boy Advance. RetroBat calls the folder `gba`, which is what this file is named
 after.
 
-**One of ten rows is certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22, all nine
+**Two of ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22, all nine
 steps with step 6 N/A: `libretro`/`mgba`, **the row a stock install gives a user**, selected with
-no override. Steps 1, 2 and 3 pass for every row, and every row has been booted once from
-`emulatorLauncher` with and without the BIOS. The other nine rows are open at steps 4 to 9.
+no override, and `libretro`/`gpsp`. Steps 1, 2 and 3 pass for every row, and every row has been booted once from
+`emulatorLauncher` with and without the BIOS. The other eight rows are open at steps 4 to 9.
 
 `gba` declares ten rows:
 
@@ -183,11 +183,43 @@ failed 0, 160 KB, with 1 screenshot(s)`, exit 0, **every file at its own md5**. 
 listed an older `autosave` row on the server, save 341 from 2026-09-19, written by another
 client, and left it alone.
 
+## `libretro`/`gpsp`
+
+|              |                                                                   |
+| ------------ | ----------------------------------------------------------------- |
+| Selected by  | `gba.core = gpsp`, set with ES closed and removed afterwards      |
+| Confirmed by | `-system gba -emulator libretro -core gpsp` on the ES launch line |
+| Result       | **Certified**                                                     |
+
+| #   | Result                                                                              |
+| --- | ----------------------------------------------------------------------------------- |
+| 4   | **Pass, both directions.** The shared `.srm`, 131,072 B, `bd917a0a...`              |
+| 5   | **Pass**, two slots, screenshot byte-checked                                        |
+| 6   | **N/A**                                                                             |
+| 7   | **Pass**, carried                                                                   |
+| 8   | **Pass.** 12:17:46Z to 12:19:48Z, 2m 1s, rom 233631                                 |
+| 9   | **Pass.** Nothing to do, gamelist byte-identical, 55 states already in step, 0 sent |
+
+**gpsp loaded the save mGBA made**, and the maintainer saved again in the game. The new `.srm`
+differs from mGBA's in 62,543 bytes at the same size, which fits Emerald writing each save to
+the other of its two save blocks, and went up as a new version of `libretro:battery`: the restore
+preview listed it as the newest of three server saves, mGBA's save 390 and the older `autosave`
+below it. So the two cores share one save, as the `megadrive` cores do (finding 277).
+
+| Slot | State md5     | Size     | Screenshot md5 |
+| ---- | ------------- | -------- | -------------- |
+| 1    | `bd29de09...` | 28,230 B | `9dc85359...`  |
+| 2    | `a8ca1732...` | 29,182 B | `5fc2d420...`  |
+
+**The declared `<directory>` is where the core wrote**, `saves/gba/libretro.gpsp/`, beside mGBA's
+states rather than over them. The `.srm` and slot 2's state and `.png` went out of the tree and
+came back through `saves restore 233631 --apply`, `with 1 screenshot(s)`, exit 0, **every file at
+its own md5**.
+
 ## What is left
 
 | Row                         | Needs before steps 4 and 5                                      |
 | --------------------------- | --------------------------------------------------------------- |
-| `libretro`/`gpsp`           | Nothing new: the loose `.srm` rule covers it                    |
 | `libretro`/`mednafen_gba`   | A rule for its `.zip#...md5.sav` name                           |
 | `mgba`, `mednafen`, `mesen` | Rules for the shared loose `.sav`, and a decision on the `.rtc` |
 | `bizhawk`/`mGBA`            | Its battery rule scoped to `gba`; states are declared           |

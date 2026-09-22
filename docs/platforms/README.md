@@ -235,10 +235,10 @@ rows on one install at one pair of floors. They certify none of those emulators 
 system: every rule and declaration the non-`libretro` rows needed is scoped to the systems it was
 measured on. [nes.md](nes.md) and [megadrive.md](megadrive.md) are the records, gaps included.
 
-**One of `gba`'s ten rows is certified**, `libretro`/`mgba`, the stock row, at `5.3.0` on
-2026-09-22. Steps 1, 2 and 3 pass on all ten, and every row has been booted once without
+**Two of `gba`'s ten rows are certified**, `libretro`/`mgba`, the stock row, and
+`libretro`/`gpsp`, at `5.3.0` on 2026-09-22. Steps 1, 2 and 3 pass on all ten, and every row has been booted once without
 `gba_bios.bin`: three need it (`ares`, `jgenesis`, `mesen`) and seven do not (finding 285).
-`nosgba` cannot open a `.zip` (finding 286). The other nine rows are open at steps 4 to 9.
+`nosgba` cannot open a `.zip` (finding 286). The other eight rows are open at steps 4 to 9.
 [gba.md](gba.md) is the record.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
