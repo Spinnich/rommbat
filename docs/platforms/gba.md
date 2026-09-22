@@ -3,10 +3,10 @@
 Nintendo Game Boy Advance. RetroBat calls the folder `gba`, which is what this file is named
 after.
 
-**Staged, not certified.** Steps 1, 2 and 3 pass for every row at RomM `5.3.0` and RetroBat
-8.2.1, measured on 2026-09-22, and every row has been booted once from `emulatorLauncher` with and
-without the BIOS. Steps 4 to 9 are open on all ten rows, because none has had a session with a
-real save in it yet.
+**One of ten rows is certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22, all nine
+steps with step 6 N/A: `libretro`/`mgba`, **the row a stock install gives a user**, selected with
+no override. Steps 1, 2 and 3 pass for every row, and every row has been booted once from
+`emulatorLauncher` with and without the BIOS. The other nine rows are open at steps 4 to 9.
 
 `gba` declares ten rows:
 
@@ -149,11 +149,45 @@ today. **BizHawk's 16 extra bytes** are likely its RTC, inside the one file. **`
 `libretro` rule matches. Finding 288. Each needs a rule before its row can pass step 4, as the
 `nes` and `megadrive` rows did.
 
+## `libretro`/`mgba`
+
+|              |                                                                   |
+| ------------ | ----------------------------------------------------------------- |
+| Selected by  | **Nothing: RetroBat's default**                                   |
+| Confirmed by | `-system gba -emulator libretro -core mgba` on the ES launch line |
+| Result       | **Certified**                                                     |
+
+| #   | Result                                                                                 |
+| --- | -------------------------------------------------------------------------------------- |
+| 4   | **Pass, both directions.** Class A, loose `<rom>.srm`, 131,072 B, `7d9fc2a6...`        |
+| 5   | **Pass**, two slots, screenshot byte-checked                                           |
+| 6   | **N/A.** `gba` is class A and the row wrote nothing but the game's own save            |
+| 7   | **Pass.** Launched from ES after the sync, box art and description in `gamelist.xml`   |
+| 8   | **Pass.** 12:08:58Z to 12:12:45Z, 3m 46s, rom 233631                                   |
+| 9   | **Pass.** 201 present and verified, 759 media present, gamelist byte-identical, 0 sent |
+
+**The maintainer played from the intro to Emerald's first save** and made two states, then left
+ES; the detached `quit` pass exited 0 and `saves` showed the `.srm` and both states in step as
+`libretro:battery`, `libretro:mgba:1` and `libretro:mgba:2`. **The save is real**, mixed bytes
+against the boot write's uniform `0xFF`.
+
+| Slot | State md5     | Size     | Screenshot md5 |
+| ---- | ------------- | -------- | -------------- |
+| 1    | `e4ba3d92...` | 11,780 B | `261753dd...`  |
+| 2    | `be490aac...` | 28,272 B | `680147fd...`  |
+
+**The declared `<directory>` is where the core wrote**, `saves/gba/libretro.mgba/`. The `.srm`
+and slot 2's state and `.png` were moved out of the tree; the preview named the screenshot it
+would bring back, and `saves restore 233631 --apply` answered `restored 1 save(s) and 1 state(s),
+failed 0, 160 KB, with 1 screenshot(s)`, exit 0, **every file at its own md5**. The preview also
+listed an older `autosave` row on the server, save 341 from 2026-09-19, written by another
+client, and left it alone.
+
 ## What is left
 
 | Row                         | Needs before steps 4 and 5                                      |
 | --------------------------- | --------------------------------------------------------------- |
-| `libretro`/`mgba`, `gpsp`   | Nothing new: the loose `.srm` rule covers them                  |
+| `libretro`/`gpsp`           | Nothing new: the loose `.srm` rule covers it                    |
 | `libretro`/`mednafen_gba`   | A rule for its `.zip#...md5.sav` name                           |
 | `mgba`, `mednafen`, `mesen` | Rules for the shared loose `.sav`, and a decision on the `.rtc` |
 | `bizhawk`/`mGBA`            | Its battery rule scoped to `gba`; states are declared           |
