@@ -63,8 +63,9 @@ the game, so the file measured is still that emulator's. A seed an emulator refu
 not a failed pass: mednafen refused mGBA's 131,088 B file (finding 289). **Put an override's
 `gba.emulator` in `es_settings.cfg` only with ES closed**, and restore the file from a copy taken
 first. **A clock file is a second save file**, class B, and changes on every launch (finding 291).
-**`emulatorLauncher` can delete what you place in `roms/`**: NO$GBA's cleanup removed a bare `.gba`
-put beside its zip (finding 286), so check a hand-placed file is still there before each launch.
+**An emulator can delete what you place in `roms/`**: NO$GBA took a bare `.gba` put beside its zip
+for its own unzip output and deleted it (finding 286), so check a hand-placed file is still there
+before each launch. Blame `emulatorLauncher` only once the emulator run by hand keeps the file.
 
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console

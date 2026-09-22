@@ -11,9 +11,10 @@ after.
 - `mgba`/`mgba`, `mednafen`/`gba`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and
   `ares`/`GameBoyAdvance`
 
-**One is driven and not certified.** `nosgba` loads a zipped ROM only when the bare `.gba` sits
-beside the zip, a file RetroBat deletes when NO$GBA exits, and it keeps its saves compressed in
-`emulators/nosgba/BATTERY/`, outside `saves/` (finding 286).
+**One is driven and not certified.** `nosgba` cannot open a zip, because NO$GBA unzips through an
+external `PKUNZIP.EXE` it does not ship. It loads a `.gba` placed beside the zip instead, then
+deletes it as its own temp file. It also keeps its saves compressed in `emulators/nosgba/BATTERY/`,
+outside `saves/` (finding 286).
 
 **It certifies those nine rows and nothing wider.** The two `libretro` rows that share the `.srm`
 needed nothing new. The other seven needed a battery rule each, four a state declaration in
@@ -376,9 +377,15 @@ reappeared there after the file was put back.
 **NO$GBA reads a zipped ROM only through the bare `.gba` beside it.** Launched on the zip alone it
 shows "Cartridge not found"; with `<rom>.gba` beside the zip the same launch boots. By the
 maintainer's ruling that `.gba` was placed by hand, and the maintainer's ES session loaded the save
-and played. **When NO$GBA exits, `emulatorLauncher`'s cleanup deletes that `.gba`**: it was present
-before each of two launches and gone after, so every launch after the first fails again. A sync
+and played. **NO$GBA then deletes that `.gba` itself**: present before each of two launches and
+gone after, so every launch after the first fails again. It unzips by running an external
+`PKUNZIP.EXE` (its loader prints "LOADING PKUNZIP..."), which its folder does not hold, so it takes
+a `.gba` named like the zip for PKUNZIP's output and deletes it as a temp file. Run by hand with
+`emulatorLauncher` not involved, it deleted the file while still running. Handed a bare `.gba`
+path, it keeps the file. `NosGbaGenerator` passes the zip through and never extracts it. A sync
 cannot make this row work, since RomMBat places the ROM RomM serves and never the file inside it.
+Reported upstream as
+[emulatorlauncher#1377](https://github.com/RetroBat-Official/emulatorlauncher/issues/1377).
 
 **Its saves live outside `saves/`**, in `emulators/nosgba/BATTERY/<rom>.SAV`, as Kega Fusion's do
 on `megadrive` (finding 283). NO$GBA read the raw 131,072 B seed and wrote it back in its own

@@ -235,7 +235,7 @@ battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (finding
 `libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,
 `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`, the last seven once each had a gba
 battery rule and four a state declaration. **`nosgba` was driven and is not certified**: it loads a
-zipped ROM only through a bare `.gba` beside it, which RetroBat deletes on exit, keeps its saves
+zipped ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, keeps its saves
 outside `saves/`, and writes a state only where a Save As dialog is pointed (finding 286). Three rows refuse to boot without `gba_bios.bin` and seven do not
 (finding 285), which the record tables.
 
