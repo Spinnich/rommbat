@@ -20,7 +20,8 @@ eight of nine**, and it cannot be finished from a desk: step 7 requires actually
 game. Three of the nine can be staged ahead of time, which is a different claim and is below.
 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
-2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
+2. Multi-disc and multi-file games land correctly: the shapes this library holds for the
+   system are recorded, and each lands where the emulator reads it and launches from ES.
 3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
    listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
@@ -35,15 +36,15 @@ Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried across emula
 note saying so. **Steps 4, 5 and 6 have to be redone per emulator**, and they are also the
 three where being wrong destroys data rather than costing a re-download.
 
-**Step 2 asked for the opposite until 2026-09-20 and was testing the wrong direction.** It
-required a known-unsupported file to be excluded and reported, which held `nes` open at eight of
-nine for a property of the library rather than of the software. Wrongly downloading a file costs
-bytes and a game that does not appear, since EmulationStation filters by `<extension>` itself;
-wrongly **excluding** one silently drops a game the user asked for. `<extension>` is a per-system
-union across every emulator, so the filter cannot be precise per `(emulator, core)` and
-over-rejection is the likelier error. Do not manufacture a file to reject. The exclusion half
-earns a look on a library with mixed formats arising naturally, which is wave 2, and that is also
-where multi-disc and multi-file placement has to be settled.
+**Step 2 was an extension check until the extension stopped gating a sync.** Until 2026-09-20
+it required a known-unsupported file to be excluded, which held `nes` open at eight of nine for
+a property of the library rather than of the software; it then became "every ROM survives the
+extension check". Now nothing is excluded on its extension at all: `<extension>` is a per-system
+union across every emulator, so it cannot say what a given `(emulator, core)` opens, and members
+it omits sync and are reported as unlisted in ES. What the step checks instead is the concern
+the extension check was a poor proxy for, **multi-disc and multi-file placement**. Records
+written before the change passed the old step 2 and carry that reading; the placement half is
+owed on them when a record is next touched, and a single-file library passes it by saying so.
 
 Load the `platform-certification` skill before starting. Record what failed as well as
 what passed; a record that only lists successes is not evidence.
@@ -160,13 +161,13 @@ union across every emulator the system declares, and **RetroBat publishes no per
 core)` extension data anywhere**: `es_features.cfg` mentions "extension" 28 times and every one
 is an N64 controller pak. So record which extensions the certified core was **observed** to
 launch, and treat the rest as declared and unproven rather than supported. A core refusing a
-declared extension is a real result about that row, not a RomMBat defect, and rule 3 is
-untouched: RetroBat remains the authority at the layer a sync decision is made.
+declared extension is a real result about that row, not a RomMBat defect: RomMBat does not
+police formats, and which one a user keeps in RomM is theirs to choose.
 
 ### What a wave can be staged before anyone sits down
 
 Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wave ahead of
-time: the mapping layer, the `<extension>` list from the live `es_systems.cfg`, and
+time: the mapping layer, the `<extension>` list and the library's multi-file shapes, and
 `rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
 of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
 up. Steps 4 through 9 cannot be staged and are the reason the rollout waited for M7.

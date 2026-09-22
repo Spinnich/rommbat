@@ -96,8 +96,16 @@ public sealed record SetResolution
     /// <summary>Candidates dropped because the set's byte budget is full.</summary>
     public int OverBytes { get; init; }
 
-    /// <summary>Excluded extensions and how many games each cost, for the message the user reads.</summary>
-    public IReadOnlyDictionary<string, int> ExcludedExtensions { get; init; } =
+    /// <summary>
+    /// Members whose extension the system's <c>&lt;extension&gt;</c> list omits, counted by
+    /// extension. They are still members.
+    /// </summary>
+    /// <remarks>
+    /// A note and never a gate. The list is a union across every emulator the system offers, so
+    /// passing it says nothing about whether the chosen emulator opens the file, and failing it
+    /// costs only a game EmulationStation does not list until the list grows.
+    /// </remarks>
+    public IReadOnlyDictionary<string, int> UnlistedFormats { get; init; } =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Platforms with no RetroBat folder, and how many games each cost.</summary>
@@ -106,6 +114,9 @@ public sealed record SetResolution
 
     /// <summary>Games RomM holds as several files, which v1 does not sync.</summary>
     public int MultiFile { get; init; }
+
+    /// <summary>Games RomM holds as a folder, of one file or several, which v1 does not sync.</summary>
+    public int Folder { get; init; }
 
     /// <summary>Games RomM has a row for but no file behind, so nothing can be downloaded.</summary>
     public int NoFileOnDisk { get; init; }
@@ -167,16 +178,6 @@ public sealed class SetResolver
     /// answer is a cap or a narrower scope, and saying so beats quietly using a gigabyte.
     /// </remarks>
     public const int UncappedScopeLimit = 50_000;
-
-    /// <summary>
-    /// Stands in for a ROM whose <c>fs_extension</c> is empty.
-    /// </summary>
-    /// <remarks>
-    /// A real library has these: 23 of one instance's PS2 entries carry no extension at all.
-    /// They are still excluded and still counted, but reporting a bare dot as the offending
-    /// format reads as a bug rather than a fact.
-    /// </remarks>
-    public const string NoExtension = "(none)";
 
     private readonly EsSystemsFile _install;
     private readonly PlatformResolver _platforms;
@@ -248,19 +249,12 @@ public sealed class SetResolver
         var selector = new BoundedSelection(set);
         var tally = new Tally();
         var excluded = tally.Excluded;
-        var extensionCounts = tally.ExcludedExtensions;
         var unmappedCounts = tally.UnmappedPlatforms;
         var scanned = 0;
-        var multiFile = 0;
-        var noFileOnDisk = 0;
-        var tooLarge = 0;
         RomMResponse<RomPage>? failure = null;
         var cause = FailureCause.None;
 
         CarryAll(carried, selector, tally);
-        multiFile = tally.MultiFile;
-        noFileOnDisk = tally.NoFileOnDisk;
-        tooLarge = tally.TooLarge;
 
         while (!pager.IsComplete)
         {
@@ -328,10 +322,6 @@ public sealed class SetResolver
                 }
             }
 
-            multiFile = tally.MultiFile;
-            noFileOnDisk = tally.NoFileOnDisk;
-            tooLarge = tally.TooLarge;
-
             // Per page rather than per row. A row is a few microseconds and a page is seconds,
             // so this is the granularity a person can actually see change.
             progress?.Report(new SetResolveProgress(set.Name, scanned, pager.Total ?? 0, pager.Offset));
@@ -361,11 +351,12 @@ public sealed class SetResolver
             Bytes = members.Sum(member => member.SizeBytes),
             OverCount = selector.OverCount,
             OverBytes = selector.OverBytes,
-            ExcludedExtensions = extensionCounts,
+            UnlistedFormats = UnlistedFormatsOf(_install, members),
             UnmappedPlatforms = unmappedCounts,
-            MultiFile = multiFile,
-            NoFileOnDisk = noFileOnDisk,
-            TooLargeForFilesystem = tooLarge,
+            MultiFile = tally.MultiFile,
+            Folder = tally.Folder,
+            NoFileOnDisk = tally.NoFileOnDisk,
+            TooLargeForFilesystem = tally.TooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
             Metadata = selector.MetadataFor(members),
             Problem = failure?.Message,
@@ -389,16 +380,9 @@ public sealed class SetResolver
             parts.Add("into " + string.Join(", ", resolution.Folders));
         }
 
-        var skippedExtensions = resolution.ExcludedExtensions.Values.Sum();
-        if (skippedExtensions > 0)
+        if (DescribeUnlisted(resolution.UnlistedFormats) is { } unlisted)
         {
-            var extensions = resolution.ExcludedExtensions
-                .OrderByDescending(pair => pair.Value)
-                .Select(pair => string.Equals(pair.Key, NoExtension, StringComparison.Ordinal)
-                    ? "no extension"
-                    : "." + pair.Key);
-
-            parts.Add($"{skippedExtensions} skipped, format not supported by this system ({string.Join(", ", extensions)})");
+            parts.Add(unlisted);
         }
 
         var skippedUnmapped = resolution.UnmappedPlatforms.Values.Sum();
@@ -412,6 +396,11 @@ public sealed class SetResolver
         if (resolution.MultiFile > 0)
         {
             parts.Add($"{resolution.MultiFile} skipped, held as several files which this version cannot sync yet");
+        }
+
+        if (resolution.Folder > 0)
+        {
+            parts.Add($"{resolution.Folder} skipped, held as a folder which this version cannot sync yet");
         }
 
         // Phrased as the server having nothing rather than as the game being unavailable: a
@@ -445,6 +434,59 @@ public sealed class SetResolver
         return string.Join("; ", parts);
     }
 
+    /// <summary>
+    /// The members whose extension their system's <c>&lt;extension&gt;</c> list omits, by extension.
+    /// </summary>
+    /// <remarks>
+    /// Counted over members rather than candidates, so a game the cap turned away is not
+    /// reported as one EmulationStation will hide.
+    /// </remarks>
+    public static IReadOnlyDictionary<string, int> UnlistedFormatsOf(
+        EsSystemsFile install,
+        IEnumerable<SyncSetMember> members)
+    {
+        ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(members);
+
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var member in members)
+        {
+            if (member.Folder is { } folder
+                && !string.IsNullOrWhiteSpace(member.FsExtension)
+                && install.TryGetFolder(folder, out var system)
+                && !system.Lists(member.FsExtension))
+            {
+                Count(counts, EsSystem.NormalizeExtension(member.FsExtension));
+            }
+        }
+
+        return counts;
+    }
+
+    /// <summary>The note for members EmulationStation will not list, or null when there are none.</summary>
+    public static string? DescribeUnlisted(IReadOnlyDictionary<string, int> unlisted)
+    {
+        ArgumentNullException.ThrowIfNull(unlisted);
+
+        var total = unlisted.Values.Sum();
+
+        if (total == 0)
+        {
+            return null;
+        }
+
+        var extensions = unlisted
+            .OrderByDescending(pair => pair.Value)
+            .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => "." + pair.Key);
+
+        // Worded as what EmulationStation will do, not as a verdict on the file: an emulator
+        // may well open it, and the fix, if one is wanted, is in es_systems.cfg rather than RomM.
+        return $"{total} synced but not listed by EmulationStation, whose <extension> for "
+            + $"{(total == 1 ? "its system" : "their systems")} omits {string.Join(", ", extensions)}";
+    }
+
     private (string? Folder, bool NeedsChoice, IReadOnlyList<string> Candidates) ResolveFolder(
         SyncSetDefinition set,
         RomRow row)
@@ -467,16 +509,12 @@ public sealed class SetResolver
         return (resolution.Folder, resolution.RequiresExplicitChoice && resolution.Folder is null, resolution.Candidates);
     }
 
-    private bool Accepts(string folder, string? extension) =>
-        _install.TryGetFolder(folder, out var system) && system.Accepts(extension);
-
     /// <summary>Puts a row an earlier segment of this walk produced back where it was.</summary>
     /// <returns>The state it was carried as, so the caller can keep its counts.</returns>
     private static MemberState Carry(
         SyncSetMember row,
         BoundedSelection selector,
         List<SyncSetMember> excluded,
-        Dictionary<string, int> extensionCounts,
         Dictionary<string, int> unmappedCounts)
     {
         switch (row.State)
@@ -485,17 +523,13 @@ public sealed class SetResolver
                 selector.Offer(row);
                 break;
 
-            case MemberState.ExcludedExtension:
-                Count(extensionCounts, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
-                excluded.Add(row);
-                break;
-
             case MemberState.ExcludedUnmapped:
                 Count(unmappedCounts, row.PlatformSlug);
                 excluded.Add(row);
                 break;
 
             case MemberState.ExcludedMultiFile:
+            case MemberState.ExcludedFolder:
             case MemberState.ExcludedNoFileOnDisk:
             case MemberState.ExcludedFilesystemLimit:
                 excluded.Add(row);
@@ -616,6 +650,7 @@ public sealed class SetResolver
         }
 
         var complete = failure is null && !cancellationToken.IsCancellationRequested;
+        var unlisted = UnlistedFormatsOf(_install, members);
 
         return new SetResolution
         {
@@ -630,26 +665,35 @@ public sealed class SetResolver
             Bytes = members.Sum(member => member.SizeBytes),
             OverCount = selector.OverCount,
             OverBytes = selector.OverBytes,
-            ExcludedExtensions = tally.ExcludedExtensions,
+            UnlistedFormats = unlisted,
             UnmappedPlatforms = tally.UnmappedPlatforms,
             MultiFile = tally.MultiFile,
+            Folder = tally.Folder,
             NoFileOnDisk = tally.NoFileOnDisk,
             TooLargeForFilesystem = tally.TooLarge,
             Folders = [.. members.Select(member => member.Folder!).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase)],
             Metadata = selector.MetadataFor(members),
             Problem = failure?.Message,
-            Summary = Describe(set, members.Count, missing),
+            Summary = Describe(members.Count, missing, unlisted),
         };
     }
 
     /// <summary>The one line a hydrated picked set reports.</summary>
-    private static string Describe(SyncSetDefinition set, int members, int missing)
+    private static string Describe(int members, int missing, IReadOnlyDictionary<string, int> unlisted)
     {
-        var text = $"{members} picked {(members == 1 ? "game" : "games")}";
+        var parts = new List<string> { $"{members} picked {(members == 1 ? "game" : "games")}" };
 
-        return missing == 0
-            ? text
-            : $"{text}; {missing} no longer in RomM";
+        if (missing > 0)
+        {
+            parts.Add($"{missing} no longer in RomM");
+        }
+
+        if (DescribeUnlisted(unlisted) is { } note)
+        {
+            parts.Add(note);
+        }
+
+        return string.Join("; ", parts);
     }
 
     /// <summary>
@@ -665,11 +709,11 @@ public sealed class SetResolver
     {
         public List<SyncSetMember> Excluded { get; } = [];
 
-        public Dictionary<string, int> ExcludedExtensions { get; } = new(StringComparer.OrdinalIgnoreCase);
-
         public Dictionary<string, int> UnmappedPlatforms { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public int MultiFile { get; set; }
+
+        public int Folder { get; set; }
 
         public int NoFileOnDisk { get; set; }
 
@@ -681,10 +725,13 @@ public sealed class SetResolver
     {
         foreach (var row in carried ?? [])
         {
-            switch (Carry(row, selector, tally.Excluded, tally.ExcludedExtensions, tally.UnmappedPlatforms))
+            switch (Carry(row, selector, tally.Excluded, tally.UnmappedPlatforms))
             {
                 case MemberState.ExcludedMultiFile:
                     tally.MultiFile++;
+                    break;
+                case MemberState.ExcludedFolder:
+                    tally.Folder++;
                     break;
                 case MemberState.ExcludedNoFileOnDisk:
                     tally.NoFileOnDisk++;
@@ -721,7 +768,10 @@ public sealed class SetResolver
             return NeedsChoice(set, row, resolution.Candidates);
         }
 
-        if (resolution.Folder is null)
+        // A folder the live es_systems.cfg lacks counts as no folder. Overrides are checked when
+        // saved, and the file can drop the system afterwards; a member there would download into
+        // a directory EmulationStation never scans.
+        if (resolution.Folder is null || !_install.HasFolder(resolution.Folder))
         {
             Count(tally.UnmappedPlatforms, row.PlatformSlug);
             tally.Excluded.Add(Member(row, null, MemberState.ExcludedUnmapped, resolvedAt));
@@ -739,8 +789,8 @@ public sealed class SetResolver
             return null;
         }
 
-        // Checked before the extension, because a multi-file ROM has no extension to judge and
-        // reporting it as an unsupported format would send someone to fix the wrong thing.
+        // Checked before the folder shape, because every multi-file ROM also has an empty
+        // extension and only this flag says which of the two it is.
         if (row.HasMultipleFiles)
         {
             tally.MultiFile++;
@@ -748,12 +798,20 @@ public sealed class SetResolver
             return null;
         }
 
-        if (!Accepts(resolution.Folder, row.FsExtension))
+        // A ROM held as a folder, of one file or several: an empty extension, a folder name for
+        // fs_name, and the multi-file flag false. Its placement belongs to the same per-platform work as
+        // multi-file, so it waits with it rather than landing as a file named after a folder.
+        if (string.IsNullOrWhiteSpace(row.FsExtension))
         {
-            Count(tally.ExcludedExtensions, string.IsNullOrWhiteSpace(row.FsExtension) ? NoExtension : row.FsExtension);
-            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedExtension, resolvedAt));
+            tally.Folder++;
+            tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFolder, resolvedAt));
             return null;
         }
+
+        // No extension check. <extension> is a union across every emulator the system offers,
+        // so it cannot say whether the chosen one opens this file, and over-filtering on it
+        // drops a game the user asked for. UnlistedFormatsOf reports what EmulationStation
+        // will not list instead.
 
         if (!_limits.CanHold(row.SizeBytes))
         {

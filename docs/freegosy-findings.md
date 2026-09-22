@@ -419,6 +419,10 @@ a folder that is the wrong sentence, and it is the exact failure mode M3 wrote t
 state to avoid: it sends someone to fix a format that is not the problem. Whoever picks up
 multi-file support owns a third state here, not a second.
 
+**Resolved by migration 017**: that third state is `excluded_folder`, reported as "held as a
+folder which this version cannot sync yet". The line numbers above are from the build this was
+measured on.
+
 ### F16: multi-disc sets carry no `.m3u`. **Rejected**
 
 Same probe, same 2,000-ROM sample:
