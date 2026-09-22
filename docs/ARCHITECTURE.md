@@ -748,12 +748,16 @@ took 426 s where the scoped subtree took 0.06 s.
 **Whose a class A or B file is comes from a rule per `(system, emulator)`**, in
 `data/retrobat/save_rules.json`: a directory under `saves/<system>/`, its extensions, and what
 the stem joins on. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
-two rules could claim one file or one emulator has two rules on a system. That is what keeps
+two rules could claim one file, or one emulator has two rules on a system unless class B gives
+each extension its own slot and no extension is in both. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside
 libretro's own `.srm` (#152). Most rules join on the ROM file; mednafen's on `nes` joins on the ROM
 file **and the md5 of its content less the iNES header**, which it appends only when the plain
 name is free, so a plain `<rom>.sav` there is shared with mesen standalone and a restore refuses to
-write a hashed one it would shadow. BizHawk's joins on **its own
+write a hashed one it would shadow. `libretro`/`mednafen_gba` on `gba` joins on **the zip, the
+file inside it and that file's md5**, `<rom>.zip#<member>.<md5>.sav`, under
+`libretro:battery:sav`. Rules claiming one extension in one directory are asked narrowest first,
+archive member, then hash, then plain, and two of one narrowness are refused. BizHawk's joins on **its own
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a

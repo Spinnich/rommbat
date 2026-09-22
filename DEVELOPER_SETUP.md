@@ -241,7 +241,8 @@ clone without it is unaffected.
 
 **Step 8 no longer needs it, and it is kept for the case where the paired token cannot be
 used.** `rommbat-agent status` reads `GET /api/play-sessions` back for this device and prints the
-count and the last session under a `Playtime` block (#208), which is the ordinary route now. A
+count, the last session and the ten newest under a `Playtime` block (#208), which is the
+ordinary route now. A
 token stored with `--protect` needs `--passphrase` on that run.
 
 It has to be a separate token because the approver one is a different account, and saves, states

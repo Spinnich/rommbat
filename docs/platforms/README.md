@@ -97,14 +97,15 @@ against 7 systems**:
 | `snes`         | 15     | 11              |
 | `gb`           | 14     | 10              |
 | `gbc`          | 12     | 8               |
-| `gba`          | 10     | 5               |
+| `gba`          | 10     | 9               |
 | `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **59**          |
+| **Total**      | **81** | **63**          |
 
-`nes` is 9 of 9 and `megadrive` 11 of 11 because RomMBat's bundled supplement declares the
-emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on `nes`, and
-`mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`. Every other system counts
+`nes` is 9 of 9, `megadrive` 11 of 11 and `gba` 9 of 10 because RomMBat's bundled supplement
+declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
+`nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
+`mesen` and `ares` on `gba`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -230,10 +231,19 @@ battery rule and the last two a state declaration. **Four were driven and are no
 name (finding 278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
 battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (finding 283).
 
-**Read both as narrowly as they are written.** They certify sixteen `(system, emulator, core)`
-rows on one install at one pair of floors. They certify none of those emulators on any other
-system: every rule and declaration the non-`libretro` rows needed is scoped to the systems it was
-measured on. [nes.md](nes.md) and [megadrive.md](megadrive.md) are the records, gaps included.
+**Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+`libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,
+`mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`, the last seven once each had a gba
+battery rule and four a state declaration. **`nosgba` was driven and is not certified**: it loads a
+zipped ROM only through a bare `.gba` beside it, which RetroBat deletes on exit, keeps its saves
+outside `saves/`, and writes a state only where a Save As dialog is pointed (finding 286). Three rows refuse to boot without `gba_bios.bin` and seven do not
+(finding 285), which the record tables.
+
+**Read all three as narrowly as they are written.** They certify twenty-five
+`(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
+emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
+to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md) and
+[gba.md](gba.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

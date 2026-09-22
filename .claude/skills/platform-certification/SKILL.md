@@ -56,7 +56,17 @@ on a build carrying megadrive rules. `libretro`/`fbneo` and the three `kega-fusi
 driven and are recorded as not certifiable, each with its reason, which is a result and not a
 gap. The whole system took one evening, eleven ES sessions and the agent's keyboard launches.
 
-**Three things it taught that transfer.** An emulator lays out its tree per system, not per
+**`gba` is third: nine of its ten rows certified at `5.3.0` on 2026-09-22**, in one morning,
+because **each row after the first was seeded with the save the one before made** rather than
+played through the intro again: copy the save to where the next emulator looks, launch, save in
+the game, so the file measured is still that emulator's. A seed an emulator refuses is a finding,
+not a failed pass: mednafen refused mGBA's 131,088 B file (finding 289). **Put an override's
+`gba.emulator` in `es_settings.cfg` only with ES closed**, and restore the file from a copy taken
+first. **A clock file is a second save file**, class B, and changes on every launch (finding 291).
+**`emulatorLauncher` can delete what you place in `roms/`**: NO$GBA's cleanup removed a bare `.gba`
+put beside its zip (finding 286), so check a hand-placed file is still there before each launch.
+
+**Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
@@ -105,6 +115,12 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
    record all four states rather than a pass or fail: present, fetched, not in the library, and
    the ones RetroBat names no hash for. A system whose whole requirement is hashless (28 of the
    99 are) is certified on the other eight steps, and step 3 says so in those words.
+
+   **A file RetroBat lists is not required by every row.** `batocera-systems.json` has no
+   optional flag, and RomMBat fetches every entry RomM holds, which stays. On `gba` three of ten
+   rows refuse to boot without `gba_bios.bin` and seven HLE it (finding 285). So boot each row
+   once with the file moved out of the tree, record which refuse, then put it back with
+   `bios <system> --apply`, which doubles as the fetch this step asks for.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
@@ -176,8 +192,9 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 8. A play session is recorded and reaches RomM.
 
    **`rommbat-agent status` settles this step**, under its `Playtime` block: with the server
-   reachable it reads `GET /api/play-sessions` back for this device and prints the count and the
-   last session's start, end and length (#208). A token stored with `--protect` needs
+   reachable it reads `GET /api/play-sessions` back for this device and prints the count, the
+   last session's start, end and length, and the ten newest under `recent:` (#208), so a run of
+   rows played back to back can each be matched to its launch. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
    **Both of the ways this step used to be answered by hand have a trap, and they are why the

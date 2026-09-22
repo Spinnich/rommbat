@@ -481,11 +481,18 @@ and `picodrive`, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`.
 boots nothing named by No-Intro, and the three `kega-fusion` rows fail step 4 because Kega Fusion
 writes battery saves outside `saves/`; both are recorded rather than certified.
 
-That is sixteen rows on one install, and the unit is still `(system, emulator, core)`. The rules
+**Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+`libretro` under `mgba`, which a stock install runs, `gpsp` and `mednafen_gba`, then `mgba`
+standalone, `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`. `nosgba` loads a zipped
+ROM only through a bare `.gba` RetroBat deletes on exit, and keeps its saves outside `saves/`, so
+it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM has it, though only
+`ares`, `jgenesis` and `mesen` refuse to boot without it.
+
+That is twenty-five rows on one install, and the unit is still `(system, emulator, core)`. The rules
 the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
-emulators is certified anywhere else. Wave 1's other five systems are not started.
-[docs/platforms/nes.md](docs/platforms/nes.md) and [docs/platforms/megadrive.md](docs/platforms/megadrive.md)
-are the records, gaps included.
+emulators is certified anywhere else. Wave 1's other four systems are not started.
+[docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md)
+and [docs/platforms/gba.md](docs/platforms/gba.md) are the records, gaps included.
 
 ### Compatibility
 

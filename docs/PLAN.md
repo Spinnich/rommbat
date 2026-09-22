@@ -2443,6 +2443,15 @@ differently and nothing proves the bytes interchangeable in general. That BizHaw
 `.SaveRAM` loaded as a `nestopia` `.srm` in the #211 pass is one game, not a rule, and is not a
 reason to migrate saves between emulators.
 
+**Amended by the `gba` pass, 2026-09-22: a libretro core that keeps its own file takes its own
+slot.** `libretro`/`mednafen_gba` ignores the `.srm` RetroArch hands it and writes
+`<rom>.zip#<member>.<md5>.sav` (finding 290), so it cannot share `libretro:battery` with `mgba`
+and `gpsp`. By the maintainer's ruling it uploads as `libretro:battery:sav`, class B's
+per-extension slot, rather than a slot named for the core: the grain is still per emulator, and
+the file is what differs. The loader lets one emulator hold two rules on a system only where
+class B keeps every slot apart. Where emulators write one file, it stays one slot: `gba`'s loose
+`<rom>.sav` is mGBA's, Mesen's and mednafen's, and uploads as `mgba:battery`.
+
 **Class B takes one slot per file, keyed `{emulator}:battery:{ext}`.** The observed sets are
 two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32 KB, megacd's
 `.brm` with its `.srm`), which is exactly the "small and stable" case. Bundling them would
