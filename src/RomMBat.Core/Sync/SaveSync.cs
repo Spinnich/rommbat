@@ -465,6 +465,17 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // Ahead of every route to a conflict, since "keep server" would then write it.
+                    // With no local save it waits for the skip below, so a game not here stays
+                    // quiet.
+                    if (local is not null && NotASave(operation.ServerContentHash) is { } heldOver)
+                    {
+                        rejected++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {heldOver}");
+                        break;
+                    }
+
                     if (local is not null && SupersededRowReturned(operation, saveId) is { } revived)
                     {
                         conflicts.Add(RecordConflict(revived, local));
@@ -492,6 +503,14 @@ public sealed class SaveSync
                     if (targetProblem == TargetProblem.RomNotHere)
                     {
                         skipped++;
+                        break;
+                    }
+
+                    if (NotASave(operation.ServerContentHash) is { } offered)
+                    {
+                        rejected++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {offered}");
                         break;
                     }
 

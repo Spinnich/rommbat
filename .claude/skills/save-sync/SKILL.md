@@ -1132,7 +1132,15 @@ replaces a real one with a file no emulator loads, which this client did on `meg
 server's hash before the transfer and by the bytes after, and never acknowledges it, so the server
 keeps offering it. Count it as `Rejected`, never as `Failed`: nothing on the device can fix it, so
 a failure would exit `Partial` on every flush until someone deletes the row in RomM. The restore
-preview lists it as unrestorable with the same reason. Widen the test only from a measurement:
+preview lists it as unrestorable with the same reason.
+
+**A guard in `DownloadAsync` alone is too late, because the conflict route writes too.** The
+flush's `Download` case turns an offer into a conflict before the download at three points, and
+the one that bites is `HeldByAnotherSlot`: `null` in `autosave` resolves to the `.srm` that
+`libretro:battery` keeps, and "keep server" then wrote the four bytes over it. So the case asks
+the hash ahead of those checks and records no conflict. A 409 and the server's own `conflict`
+action still record one, since the local side is real and keeping it is the answer, so
+`SaveConflictResolver.KeepServerAsync` refuses too, by the recorded hash and by the bytes. Widen the test only from a measurement:
 the hash is the whole rule because no emulator writes a save of exactly those bytes.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a

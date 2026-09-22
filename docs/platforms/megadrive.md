@@ -373,7 +373,9 @@ branch; earlier ones had landed on `nes` as Ninja Gaiden II and Super Mario Bros
 the tree to `R:\rommbat-evidence\megadrive\` rather than deleted.
 
 **The fix refuses such a save wherever a download is placed**: before the transfer when the server
-names that hash, and on the bytes when it does not. It is never acknowledged, it is counted as
+names that hash, and on the bytes when it does not. That includes "keep server" on a conflict, and
+an offer that would have become one, such as `null` in `autosave` landing on the `.srm` that
+`libretro:battery` holds; the review of this PR found those two routes. It is never acknowledged, it is counted as
 `refused, not a save` rather than failed, and it does not move the exit code, because the server
 offers it again on every flush and nothing on the device can change that. The restore preview
 lists it among the rows it cannot place, with the reason.

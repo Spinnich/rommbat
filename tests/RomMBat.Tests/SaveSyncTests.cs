@@ -383,6 +383,77 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_null_autosave_landing_on_a_save_another_slot_holds_is_refused_rather_than_a_conflict()
+    {
+        // The route that destroys a save: the autosave offer resolves to the .srm that
+        // libretro:battery keeps, and a conflict there is one "keep server" away from writing it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+    }
+
+    [Fact]
+    public async Task A_null_save_offered_over_an_unsent_local_save_is_refused_rather_than_a_conflict()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here, never sent");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Keeping_the_server_side_of_a_conflict_over_a_null_save_writes_nothing(bool omitHash)
+    {
+        // The server's own conflict action, and a 409, still record one: the local save is real
+        // and keep-local is the answer. Keep-server is refused by the hash, or by the bytes.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        fixture.Stub.OmitHash = omitHash;
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var outcome = await fixture.ResolveAsync(
+            7,
+            "libretro:battery",
+            ConflictResolution.KeepServer,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.Contains("'null'", outcome.Message, StringComparison.Ordinal);
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        var partial = fixture.Resolve(SaveSync.PartialDirectory.Value);
+        Assert.True(!Directory.Exists(partial) || !Directory.EnumerateFiles(partial).Any());
+    }
+
+    [Fact]
     public async Task A_restore_preview_lists_a_null_autosave_as_unrestorable()
     {
         using var fixture = SyncFixture.Create();
