@@ -111,7 +111,9 @@ public sealed class HookSpawnTests
 
         // The process writes its last line before returning from Main, so it is on its way out
         // rather than gone. Give the handles a moment or the tree cannot be deleted.
-        WaitFor(() => CanTake(Path.Combine(run.AgentDirectory, "e_sqlite3.dll")), TimeSpan.FromSeconds(30));
+        Assert.True(
+            WaitFor(() => CanTake(Path.Combine(run.AgentDirectory, "e_sqlite3.dll")), TimeSpan.FromSeconds(30)),
+            "the background pass still holds e_sqlite3.dll");
     }
 
     /// <summary>
