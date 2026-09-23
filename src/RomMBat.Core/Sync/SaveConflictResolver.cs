@@ -231,7 +231,8 @@ public sealed class SaveConflictResolver
             if (unit is null)
             {
                 return ConflictResolutionOutcome.Failed(
-                    $"{save.Path}/{save.UnitKey} is gone, so there is nothing to send.");
+                    $"{save.Path}/{save.UnitKey} is gone, so there is nothing to send. Take the "
+                        + "server's copy instead.");
             }
 
             bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(SaveSync.PartialDirectory));
@@ -322,12 +323,14 @@ public sealed class SaveConflictResolver
         ?? _store.Saves.List(conflict.RomId)
             .FirstOrDefault(row => row.Path == conflict.LocalPath);
 
-    private bool IsOnDisk(LocalSave save)
-    {
-        var path = _install.Resolve(save.Path);
-
-        return save.ShapeClass == RetroBat.SaveShapeClass.C ? Directory.Exists(path) : File.Exists(path);
-    }
+    /// <remarks>
+    /// A class C row is on disk when its unit is, not its container: the container is shared and
+    /// outlives every unit in it.
+    /// </remarks>
+    private bool IsOnDisk(LocalSave save) =>
+        save.ShapeClass == RetroBat.SaveShapeClass.C
+            ? SaveUnitTransfer.Find(_units, save) is not null
+            : File.Exists(_install.Resolve(save.Path));
 
     /// <summary>
     /// Closes a conflict neither side of which holds a save, whichever side was asked for.
@@ -425,7 +428,10 @@ public sealed class SaveConflictResolver
                 && SaveSync.NotASave(LogicalContentHash.OfFile(part)) is { } arrived)
             {
                 File.Delete(part);
-                return NotASaveKept(arrived);
+
+                return FindLocal(conflict) is { } local && IsOnDisk(local)
+                    ? NotASaveKept(arrived)
+                    : CloseWithNothingToKeep(conflict, ConflictResolution.KeepServer);
             }
 
             var unitRow = _store.Saves.List(conflict.RomId)

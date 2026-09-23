@@ -1169,7 +1169,10 @@ keep-server refused the `null`, and keep-local's message sent the user to a dele
 offers. Measured on the test install with Bare Knuckle III's, reported on every flush after the file
 left the tree. Now, when the device holds no save for the conflict and the server's copy is not a
 save, keep-local and keep-server both close it with nothing written, and leave the copy taken when it
-was recorded where it is, since that may be the only trace of the local side.
+was recorded where it is, since that may be the only trace of the local side. For class C "holds
+no save" means the unit is gone, not the container, which is shared and outlives it. Keep-server
+also closes when only the downloaded bytes show the `null`, the recorded hash having been real,
+because keep-local cannot know that and sends the user to keep-server.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;

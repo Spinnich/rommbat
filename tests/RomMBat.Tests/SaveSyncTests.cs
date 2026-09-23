@@ -472,6 +472,7 @@ public class SaveSyncTests
         fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
         Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
 
+        var copy = fixture.Store.SaveConflicts.Read(7, "libretro:battery")!.LocalCopyPath!.Value;
         var local = fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm");
         File.Delete(local);
 
@@ -490,6 +491,71 @@ public class SaveSyncTests
         Assert.False(File.Exists(local));
         Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
         Assert.Empty(fixture.Stub.Acknowledged);
+
+        // Once the conflict closes, saves and flush stop listing it, so this message is the only
+        // place the user is told where the copy is.
+        Assert.True(File.Exists(fixture.Resolve(copy.Value)));
+        Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(ConflictResolution.KeepServer)]
+    [InlineData(ConflictResolution.KeepLocal)]
+    public async Task A_class_c_conflict_over_a_null_save_whose_unit_is_gone_closes_with_nothing_written(
+        ConflictResolution resolution)
+    {
+        // The container outlives the unit, so it existing says nothing about the save.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(8, "mame:nvram", "25pacman", "zip", "null", emulator: "mame");
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        Directory.Delete(fixture.Resolve("saves/mame/nvram/25pacman"), recursive: true);
+        Assert.True(Directory.Exists(fixture.Resolve("saves/mame/nvram")));
+
+        var serverSaves = fixture.Stub.Saves.Count;
+
+        var outcome = await fixture.ResolveAsync(8, "mame:nvram", resolution, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Contains("nothing written", outcome.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_conflict_whose_download_arrives_as_null_with_the_local_file_gone_closes()
+    {
+        // The conflict recorded a real hash and the bytes came down as the null payload, so only
+        // the download learns the server holds no save. Keep-local sends the user there, and
+        // keep-server must not send them back.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "played there");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { Bytes = "null"u8.ToArray() };
+        File.Delete(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm"));
+
+        var local = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepLocal, TestContext.Current.CancellationToken);
+
+        Assert.False(local.Resolved);
+        Assert.Contains("Take the server's copy instead", local.Message, StringComparison.Ordinal);
+
+        var server = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepServer, TestContext.Current.CancellationToken);
+
+        Assert.True(server.Resolved, server.Message);
+        Assert.Contains("nothing written", server.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.False(File.Exists(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
     }
 
     [Fact]
