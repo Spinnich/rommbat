@@ -63,6 +63,5 @@ record: the media pass deleted every disc after it landed (finding 316).
 
 ## What is owed
 
-Steps 1 and 3 to 9 for all seven rows, a hands-on sync of both roms through RomMBat recorded here,
-and the memory card layouts `duckstation`, `swanstation`, `mednafen_psx_hw`, `pcsx_rearmed` and
-`mednafen` expose.
+Steps 1 and 3 to 9 for all seven rows, and the memory card layouts `duckstation`, `swanstation`,
+`mednafen_psx_hw`, `pcsx_rearmed` and `mednafen` expose.
