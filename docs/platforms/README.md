@@ -256,9 +256,9 @@ the four `libretro` cores, `gambatte` being the stock row, with `tgbdual`, `same
 `DoubleCherryGB`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`, `GBHawk` and
 `SameBoy`, and `jgenesis`, the standalone rows once each had a gbc battery rule and four a state
 declaration. Eleven rows boot without firmware, and `bizhawk`/`GBHawk` needs `gbc_bios.bin`, which
-is on `gbc`'s own list (finding 299). Pokemon Crystal's clock round-trips on every row, and does not
-survive a change of row, because each keeps it in its own format and the loose `.rtc` is one file
-name with four (finding 300).
+is on `gbc`'s own list (finding 299). Pokemon Crystal's clock round-trips on every row, and every change
+of row that was checked lost it, because each keeps it in its own format and the loose `.rtc` is
+one file name with four (finding 300).
 
 **Read all five as narrowly as they are written.** They certify fifty-one
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those

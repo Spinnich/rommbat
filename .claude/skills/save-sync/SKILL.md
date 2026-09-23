@@ -493,7 +493,7 @@ clockless game the file looks like noise.
 **On `gbc` the loose `.rtc` is `libretro`'s too, and it is one name with four formats**: 8 B of
 base time under `gambatte`, 4 B of host time under `tgbdual` and `DoubleCherryGB`, 32 B under
 `sameboy` and 13 B under Mesen (finding 300). Each row reads its own back, so a device that stays
-on one row keeps its clock; a device that switches row loses it, with or without RomMBat. By the
+on one row keeps its clock; a device that switches row can lose it, with or without RomMBat, and every move observed did. By the
 maintainer's ruling the slot stays one, because on disk it is one file, and nothing converts a
 clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc` and
 `jgenesis:battery:rtc`, and ares's battery save sits in `ares/Game Boy` while its states sit in

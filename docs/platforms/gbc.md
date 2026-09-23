@@ -17,7 +17,7 @@ bundled supplement. One row reads firmware, and RetroBat's `gbc` list names it.
 
 **This file is in six parts.** Steps 1, 2 and 3, which are the system's, with which rows need
 firmware. What the first boots wrote. The four `libretro` rows, then the eight standalone ones.
-Then the cartridge clock, which does not survive a change of row. Last, what the pass turned up
+Then the cartridge clock, which no change of row that was checked kept. Last, what the pass turned up
 that is not a row.
 
 ## The install this was measured on
@@ -288,11 +288,11 @@ every time, so the three BizHawk rows took slots 4 and 2. `config.ini` binds `Sa
 
 Every one is on the server, rom 274994, as are the four `libretro` sessions above.
 
-## The clock does not survive a change of row
+## No change of row that was checked kept the clock
 
 **Every row keeps Crystal's clock, and no two keep it the same way.** Each round trip above carried
 the clock file at its own md5, so a device that stays on one row keeps its clock through RomMBat.
-Moving the save between rows is what loses it:
+Moving the save between rows lost it on every move that was checked, and two were not:
 
 | Row                                    | Where the clock is                                                 | Seeded from the row before, the game showed |
 | -------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------- |
@@ -309,12 +309,15 @@ Moving the save between rows is what loses it:
 
 **The loose `.rtc` is one file name with four formats.** RetroArch writes it for every core as RAM
 type #1, and the stock core's 8 B base time, `tgbdual`'s and `DoubleCherryGB`'s 4 B host time,
-`sameboy`'s 32 B record and Mesen's 13 B are not read the same way by any other. It syncs as one
-slot, `libretro:battery:rtc`, because on disk it is one file. **Switching core on one machine loses
+`sameboy`'s 32 B record and Mesen's 13 B differ, and `tgbdual` and `sameboy` each showed a wrong
+time for the file the row before left. What Mesen made of it was not noted. It syncs as one slot,
+`libretro:battery:rtc`, because on disk it is one file. **Switching core on one machine can lose
 the clock with no RomMBat involved**, and RomMBat carries whichever file the last row left. By the
 maintainer's ruling that is recorded and not worked around. Where a seed was placed without the
 clock (ares, BizHawk, jgenesis, each given the 32 KB RAM alone) the game found no clock and asked
-for one. Finding 300.
+for one, which says only that they were given none. mednafen read and saved into mGBA's own `.sav`,
+both 32,816 B with a 48 B footer, and is the move most likely to have kept the clock; nobody looked.
+Finding 300.
 
 ## What the pass turned up that is not a row
 
