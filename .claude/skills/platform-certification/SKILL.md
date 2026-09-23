@@ -77,6 +77,20 @@ real clock, which a clockless game cannot (finding 298). **BizHawk's pad key
 follows ES's `-state_slot`, which moves up as states accumulate**, and a `Ctrl+F<n>` sent by
 `keybd_event` needs the keys held about 400 ms.
 
+**`gbc` is fifth: all twelve rows certified at `5.3.0` on 2026-09-23**, in one morning, on Pokemon
+Crystal, a clock cartridge, so every row showed its clock. **A clock does not survive a change of
+row**, because each emulator keeps it in its own format (finding 300): a seed carries the save, and
+the game then shows a wrong time or asks for one. That is the emulators, not a failed pass, so
+record what the game did and keep going. **One row can split its files across two trees**: ares
+on `gbc` saves its battery into `ares/Game Boy` and its states into `ares/Game Boy Color`, so find
+each half before declaring either. ares writes on exit only and can outlast a 15 s wait on
+`WM_CLOSE`, so end an agent launch with its `QuitEmulator` key, `Esc`, to see where the battery
+save goes. **On the
+RetroBat machine `Ctrl+F1` never reached EmuHawk from `keybd_event`**, where `Ctrl+F2` and
+`Ctrl+F4` always did, so take BizHawk's two slots on those. **ES rewrites `gamelist.xml` when it
+quits**, adding `playcount` and moving the entry, so step 9 compares against a copy taken after
+the last ES session.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next

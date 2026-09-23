@@ -98,16 +98,16 @@ against 7 systems**:
 | `nes`          | 9      | 9               |
 | `snes`         | 15     | 11              |
 | `gb`           | 14     | 14              |
-| `gbc`          | 12     | 8               |
+| `gbc`          | 12     | 12              |
 | `gba`          | 10     | 9               |
 | `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **67**          |
+| **Total**      | **81** | **71**          |
 
-`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10 and `gb` 14 of 14 because RomMBat's bundled supplement
+`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10, `gb` 14 of 14 and `gbc` 12 of 12 because RomMBat's bundled supplement
 declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
-`mesen` and `ares` on `gba`, and the same four on `gb`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`mesen` and `ares` on `gba`, and the same four on `gb` and on `gbc`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -251,11 +251,20 @@ under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). A c
 Pokemon Silver synced into `gb`, keeps its clock in a `.rtc` under the stock core, which syncs as
 `libretro:battery:rtc` and was driven through a restore with the clock intact (finding 298).
 
-**Read all four as narrowly as they are written.** They certify thirty-nine
+**All twelve of `gbc`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-23:
+the four `libretro` cores, `gambatte` being the stock row, with `tgbdual`, `sameboy` and
+`DoubleCherryGB`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`, `GBHawk` and
+`SameBoy`, and `jgenesis`, the standalone rows once each had a gbc battery rule and four a state
+declaration. Eleven rows boot without firmware, and `bizhawk`/`GBHawk` needs `gbc_bios.bin`, which
+is on `gbc`'s own list (finding 299). Pokemon Crystal's clock round-trips on every row, and every change
+of row that was checked lost it, because each keeps it in its own format and the loose `.rtc` is
+one file name with four (finding 300).
+
+**Read all five as narrowly as they are written.** They certify fifty-one
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
-[gba.md](gba.md) and [gb.md](gb.md) are the records, gaps included.
+[gba.md](gba.md), [gb.md](gb.md) and [gbc.md](gbc.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

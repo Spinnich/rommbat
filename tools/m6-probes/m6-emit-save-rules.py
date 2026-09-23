@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -87,6 +87,12 @@ OTHER_BATTERY_RULES = [
             "bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all "
             "three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version "
             "(USA, Europe).Gambatte says"
+            "; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal "
+            "Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, "
+            "Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - "
+            "Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, "
+            "each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B "
+            "with no clock under GBHawk"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -136,6 +142,20 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "jgenesis",
+        "systems": ["gbc"],
+        "directory": "jgenesis/gbc",
+        "extensions": [".sav", ".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gbc under jgenesis on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip, MBC3 "
+            "with a clock, wrote jgenesis/gbc/<rom>.sav, 32,768 B, and <rom>.rtc, 38 B, the "
+            "cartridge clock, which changes on every launch, and its states sit apart in "
+            "jgenesis/states"
+        ),
+    },
+    {
+        "emulator": "jgenesis",
         "systems": ["gba"],
         "directory": "jgenesis/gba",
         "extensions": [".sav", ".rtc"],
@@ -149,7 +169,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mgba",
-        "systems": ["gba", "gb"],
+        "systems": ["gba", "gb", "gbc"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file",
@@ -162,6 +182,9 @@ OTHER_BATTERY_RULES = [
             "; gb under mgba standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu "
             "Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.sav, 32,768 B with "
             "no footer, and mednafen read and saved back into that file rather than its hashed name"
+            "; gbc under mgba standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev "
+            "1).zip, MBC3 with a clock, wrote a loose <rom>.sav, 32,816 B, the RAM and a 48-byte "
+            "clock footer, which moves on every launch, and mednafen read and saved back into it"
         ),
     },
     {
@@ -179,7 +202,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "libretro",
-        "systems": ["gb"],
+        "systems": ["gb", "gbc"],
         "directory": "",
         "extensions": [".rtc"],
         "named_after": "rom file",
@@ -190,7 +213,9 @@ OTHER_BATTERY_RULES = [
             ".srm under gambatte (8 B), sameboy (32 B), tgbdual and DoubleCherryGB (4 B), and mesen "
             "standalone wrote the same name (13 B). gambatte and mesen write none for Pokemon Yellow, "
             "which has no clock; the other three write one for every game. Shared as the .srm is, "
-            "so class B gives it libretro:battery:rtc"
+            "so class B gives it libretro:battery:rtc; gbc under libretro on 8.2.1: Pokemon - "
+            "Crystal Version (USA, Europe) (Rev 1).zip, MBC3 with a clock, wrote the same loose "
+            "<rom>.rtc at the same four sizes under the four gbc cores, and mesen standalone 13 B"
         ),
     },
     {
@@ -223,7 +248,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes", "megadrive", "gba", "gb"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -243,6 +268,10 @@ OTHER_BATTERY_RULES = [
             "Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose "
             "<rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb "
             "inside, when no plain <rom>.sav was present"
+            "; gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev "
+            "1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the "
+            "clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was "
+            "present"
         ),
     },
     {
@@ -281,6 +310,34 @@ OTHER_BATTERY_RULES = [
             "gb under ares, core GameBoy, on 8.2.1: Pokemon - Yellow Version - Special Pikachu "
             "Edition (USA, Europe) (CGB+SGB Enhanced).zip read and saved ares/Game Boy/<rom>.ram, "
             "32,768 B, beside its states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["gb"],
+        "directory": "ares/Game Boy",
+        "extensions": [".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gb under ares, core GameBoy, on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB "
+            "Enhanced) (GB Compatible).zip, MBC3 with a clock, wrote ares/Game Boy/<rom>.rtc, 13 B, "
+            "beside its .ram, 32,768 B, on exit. Its own rule so the .ram keeps ares:battery, as "
+            "libretro's .rtc sits beside its .srm on gb"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["gbc"],
+        "directory": "ares/Game Boy",
+        "extensions": [".ram", ".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gbc under ares, core GameBoyColor, on 8.2.1: Pokemon - Crystal Version (USA, Europe) "
+            "(Rev 1).zip, MBC3 with a clock, read and saved ares/Game Boy/<rom>.ram, 32,768 B, and "
+            "<rom>.rtc, 13 B, which changes on every launch. The directory is gb's name, not "
+            "Game Boy Color, while its states .bs1 and .bs2 go to ares/Game Boy Color"
         ),
     },
     {

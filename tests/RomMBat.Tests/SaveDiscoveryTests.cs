@@ -442,6 +442,36 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Every_gbc_rows_save_and_clock_for_crystal_takes_its_own_slot()
+    {
+        // Measured on 8.2.1: Pokemon Crystal, an MBC3 cartridge with a clock, under every gbc row.
+        using var fixture = SaveTree.Create();
+        const string Crystal = "Pokemon - Crystal Version (USA, Europe) (Rev 1)";
+
+        fixture.AddRom(274994, "gbc", $"{Crystal}.zip");
+        fixture.AddSave("gbc", $"{Crystal}.srm", "the cores' battery save");
+        fixture.AddSave("gbc", $"{Crystal}.rtc", "the cores' clock");
+        fixture.AddSave("gbc", $"{Crystal}.sav", "mgba's save and clock footer");
+        fixture.AddSave("gbc", $"ares/Game Boy/{Crystal}.ram", "ares's battery save");
+        fixture.AddSave("gbc", $"ares/Game Boy/{Crystal}.rtc", "ares's clock");
+        fixture.AddSave("gbc", $"jgenesis/gbc/{Crystal}.sav", "jgenesis's battery save");
+        fixture.AddSave("gbc", $"jgenesis/gbc/{Crystal}.rtc", "jgenesis's clock");
+
+        fixture.Scan();
+
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal("libretro:battery", slots[$"saves/gbc/{Crystal}.srm"]);
+        Assert.Equal("libretro:battery:rtc", slots[$"saves/gbc/{Crystal}.rtc"]);
+        Assert.Equal("mgba:battery", slots[$"saves/gbc/{Crystal}.sav"]);
+        Assert.Equal("ares:battery:ram", slots[$"saves/gbc/ares/Game Boy/{Crystal}.ram"]);
+        Assert.Equal("ares:battery:rtc", slots[$"saves/gbc/ares/Game Boy/{Crystal}.rtc"]);
+        Assert.Equal("jgenesis:battery:sav", slots[$"saves/gbc/jgenesis/gbc/{Crystal}.sav"]);
+        Assert.Equal("jgenesis:battery:rtc", slots[$"saves/gbc/jgenesis/gbc/{Crystal}.rtc"]);
+        Assert.All(fixture.Store.Saves.List(), save => Assert.Equal(274994, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gbc");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.

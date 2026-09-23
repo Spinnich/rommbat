@@ -500,12 +500,19 @@ it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM ha
 and the Color boot ROM as well as `gb_bios.bin`, because `bsnes` and `GBHawk` refuse to boot without
 them, though RetroBat's list files them under `sgb` and `gbc`.
 
-That is thirty-nine rows on one install, and the unit is still `(system, emulator, core)`. The rules
+**Every row `gbc` declares is certified**, twelve, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-23: `libretro` under `gambatte`, which a stock install runs, `tgbdual`, `sameboy` and
+`DoubleCherryGB`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`, `GBHawk` and
+`SameBoy`, and `jgenesis`. Only `GBHawk` needs firmware, `gbc_bios.bin`, which `bios gbc` fetches. A
+cartridge clock syncs with the save on every row, but it does not survive switching rows, with or
+without RomMBat, because each emulator keeps it in its own format.
+
+That is fifty-one rows on one install, and the unit is still `(system, emulator, core)`. The rules
 the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
-emulators is certified anywhere else. Wave 1's other three systems are not started.
+emulators is certified anywhere else. Wave 1's other two systems are not started.
 [docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
-[docs/platforms/gba.md](docs/platforms/gba.md) and [docs/platforms/gb.md](docs/platforms/gb.md) are
-the records, gaps included.
+[docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md) and
+[docs/platforms/gbc.md](docs/platforms/gbc.md) are the records, gaps included.
 
 ### Compatibility
 

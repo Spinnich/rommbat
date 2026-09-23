@@ -478,9 +478,10 @@ the hash is the whole `.gba` there.
 
 **A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
 in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
-with it. Mesen's and jgenesis's change on every launch (finding 291), so a session uploads a
-version whether or not the game was saved; ares's was not measured. mGBA and BizHawk keep 16
-bytes of clock inside the save, and BizHawk's `.SaveRAM` changes on every launch the same way.
+with it. Mesen's, jgenesis's and ares's change on every launch (findings 291 and 300), so a
+session uploads a version whether or not the game was saved. mGBA and BizHawk keep the clock
+inside the save, 16 bytes on `gba`, and on `gbc` 48 under mGBA and BizHawk's SameBoy and 22 under
+its Gambatte, and those change on every launch the same way.
 
 **On `gb` the loose `.rtc` is `libretro`'s, `libretro:battery:rtc`.** A clock cartridge keeps its
 clock there under the stock `gambatte` core, and Mesen writes the same name, as it does the `.srm`
@@ -488,6 +489,16 @@ clock there under the stock `gambatte` core, and Mesen writes the same name, as 
 on the cartridge it holds only the host time at exit (finding 295), so those three upload a few
 bytes of new version per launch. Measure it on a clock cartridge, not a clockless one: on a
 clockless game the file looks like noise.
+
+**On `gbc` the loose `.rtc` is `libretro`'s too, and it is one name with four formats**: 8 B of
+base time under `gambatte`, 4 B of host time under `tgbdual` and `DoubleCherryGB`, 32 B under
+`sameboy` and 13 B under Mesen (finding 300). Each row reads its own back, so a device that stays
+on one row keeps its clock; a device that switches row can lose it, with or without RomMBat, and every move observed did. By the
+maintainer's ruling the slot stays one, because on disk it is one file, and nothing converts a
+clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc` and
+`jgenesis:battery:rtc`, and ares's battery save sits in `ares/Game Boy` while its states sit in
+`ares/Game Boy Color`. On `gb` ares's `.rtc` has a rule of its own beside the class A `.ram`, as
+`libretro`'s does beside the `.srm`, so the `.ram` kept the slot it already had (finding 302).
 
 **On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
 as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with

@@ -322,17 +322,17 @@ battery) and 32 KB of RAM, is filed under `gbc` in RomM. A filter set with `--fo
 probe`, resolved to it alone and synced it into `roms/gb`, the `.gbc` inside a zip. It was booted
 once under every row with nothing saved, and every file it wrote was moved out of the tree:
 
-| Row                                                         | Where the clock went                                |
-| ----------------------------------------------------------- | --------------------------------------------------- |
-| `libretro`/`gambatte`                                       | **`<rom>.rtc`, 8 B**, where Yellow got none         |
-| `libretro`/`sameboy`                                        | `<rom>.rtc`, 32 B                                   |
-| `libretro`/`tgbdual`, `DoubleCherryGB`                      | `<rom>.rtc`, 4 B                                    |
-| `mesen`                                                     | **`<rom>.rtc`, 13 B**, where Yellow got none        |
-| `jgenesis`                                                  | **`jgenesis/gbc/<rom>.rtc`, 38 B**, beside a `.sav` |
-| `libretro`/`bsnes`, `mgba`, `mednafen`, `bizhawk`/`SameBoy` | Inside the save, 32,816 B                           |
-| `bizhawk`/`Gambatte`                                        | Inside the save, 32,790 B                           |
-| `libretro`/`mesen-s`, `bizhawk`/`GBHawk`                    | Nowhere: 32,768 B and no clock file                 |
-| `ares`                                                      | Unknown: killed before it wrote                     |
+| Row                                                         | Where the clock went                                        |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| `libretro`/`gambatte`                                       | **`<rom>.rtc`, 8 B**, where Yellow got none                 |
+| `libretro`/`sameboy`                                        | `<rom>.rtc`, 32 B                                           |
+| `libretro`/`tgbdual`, `DoubleCherryGB`                      | `<rom>.rtc`, 4 B                                            |
+| `mesen`                                                     | **`<rom>.rtc`, 13 B**, where Yellow got none                |
+| `jgenesis`                                                  | **`jgenesis/gbc/<rom>.rtc`, 38 B**, beside a `.sav`         |
+| `libretro`/`bsnes`, `mgba`, `mednafen`, `bizhawk`/`SameBoy` | Inside the save, 32,816 B                                   |
+| `bizhawk`/`Gambatte`                                        | Inside the save, 32,790 B                                   |
+| `libretro`/`mesen-s`, `bizhawk`/`GBHawk`                    | Nowhere: 32,768 B and no clock file                         |
+| `ares`                                                      | `ares/Game Boy/<rom>.rtc`, 13 B, measured by the `gbc` pass |
 
 **The stock row keeps the clock only in the `.rtc`**, so by the maintainer's ruling the loose `.rtc`
 is a save on `gb`: `libretro:battery:rtc`, class B beside the `.srm`, a file the `libretro` cores and
@@ -354,7 +354,12 @@ version. Both sets then re-synced as a clean no-op. Finding 298.
 refuses a second jgenesis `.sav` rule on one system, since a restore could not tell which directory
 a slot belongs in without reading the ROM. By the maintainer's ruling that stays a recorded gap:
 such a save is reported and not synced, and the `gbc` pass declares `jgenesis/gbc/` where it is the
-normal case.
+normal case. The clock cartridges known here are Color titles, so on `gb` a clock lands in that
+gap, and `jgenesis/gb/` has not been seen to hold one.
+
+**ares's clock on `gb` is its own slot, `ares:battery:rtc`**, added by the `gbc` pass after a copy of
+Silver under `ares`/`GameBoy` wrote `ares/Game Boy/<rom>.rtc` beside the `.ram`; the `.ram` keeps
+`ares:battery` (`gbc.md`, finding 302).
 
 ## What the pass turned up that is not a row
 
@@ -369,8 +374,9 @@ normal case.
   path working, recorded because it is the first file to appear under `saves/gb/` on this install.
 - **Mesen rewrites the `.srm` on exit with nothing saved**, byte for byte the same, so a launch
   moves its mtime without changing it, and nothing is sent.
-- **ares closes on the pad's hotkey and ignores `WM_CLOSE`**, which is how the agent's launches end
-  it, so those were killed after their states were on disk.
+- **ares closes on the pad's hotkey and ignored `WM_CLOSE` here**, which is how the agent's launches
+  end it, so those were killed after their states were on disk. The `gbc` pass saw it close on
+  `WM_CLOSE` alone, later than the 15 s these launches allowed.
 - **A pad `Ctrl+F2` for EmuHawk needs the keys held.** `keybd_event` with 120 ms between press and
   release never reached it; 400 ms did.
 

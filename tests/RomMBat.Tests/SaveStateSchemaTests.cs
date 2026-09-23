@@ -37,8 +37,8 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("snes"));
         }
 
-        // Eight entries for five emulators, because ares keeps a directory per system.
-        Assert.Equal(shipped.Emulators.Count + 8, loaded.Emulators.Count);
+        // Nine entries for five emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 9, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under snes is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
@@ -102,8 +102,8 @@ public class SaveStateSchemaTests
         var ares = SaveStateTemplate.Create(loaded.For("ares", "gba")!, "gba", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
 
-        // mGBA's tree was driven on gba and gb, and not on gbc.
-        Assert.Null(loaded.MatchDirectory("gbc/mgba/sstates"));
+        // mGBA's tree was driven on gba, gb and gbc, and not on nes.
+        Assert.Null(loaded.MatchDirectory("nes/mgba/sstates"));
     }
 
     [Fact]
@@ -127,6 +127,30 @@ public class SaveStateSchemaTests
         Assert.Equal("gb", loaded.MatchDirectory("gb/ares/Game Boy")?.System);
         Assert.Null(loaded.MatchDirectory("gb/ares/Game Boy Advance"));
         var ares = SaveStateTemplate.Create(loaded.For("ares", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Gbc_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Pokemon - Crystal Version, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Pokemon - Crystal Version (USA, Europe) (Rev 1)";
+
+        var mgba = SaveStateTemplate.Create(loaded.For("mgba", "gbc")!, "gbc", core: null)!;
+        Assert.Equal(2, mgba.Match($"{Rom}.ss2")?.Slot);
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "gbc")!, "gbc", core: null)!;
+        Assert.Equal(1, mesen.Match($"{Rom}_1.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gbc")!, "gbc", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.301899b8087289a6436b0a241fbbb474.mc1")?.Slot);
+
+        // ares keeps gbc's states under its Color name, and its battery save under gb's.
+        Assert.Equal("gbc", loaded.MatchDirectory("gbc/ares/Game Boy Color")?.System);
+        Assert.Null(loaded.MatchDirectory("gbc/ares/Game Boy"));
+        Assert.Null(loaded.MatchDirectory("gb/ares/Game Boy Color"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gbc")!, "gbc", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
     }
 
