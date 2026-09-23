@@ -2074,7 +2074,10 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   because the inequality is evidence the server has never seen these bytes and the server has no
   way to be told so. Without it a save put back from a backup, copied off another machine or
   extracted from an archive is never sent and the flush reports nothing at all. Live at the floor
-  (M1, and driven as a flush on the `nes` install). **An `upload` for a save whose content equals
+  (M1, and driven as a flush on the `nes` install). The exception, for every shape, is an offered
+  `server_content_hash` equal to the local one: the head holds these bytes, so the save is
+  recorded as sent, acknowledging the head first when it is not the row this device last
+  exchanged. Left unacknowledged, the next edit's upload is refused 409 (M6). **An `upload` for a save whose content equals
   both `uploaded_content_hash` and the offered `server_content_hash` is a no-op without a round
   trip**, which finding 259 measured as a per-flush upload forever on `5.3.0-alpha.3` and which
   M4 shows the floor settles server-side; kept as defence, at the cost of one comparison. That
@@ -2255,8 +2258,8 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   restore on the local row's shape class, so a download for a slot this device holds nothing in
   has no container to expand and no unit key to place under. It is **refused with a reason**
   rather than falling into the single-file branch, which would write a `.zip` under the ROM's
-  stem and check it against `server_content_hash`, a digest this client cannot reproduce for an
-  archive. The slot is recognised as bundled from the shapes table rather than from the
+  stem and check it against `server_content_hash`, which for an archive is a digest over its
+  entries and never the MD5 of its bytes. The slot is recognised as bundled from the shapes table rather than from the
   filename. Closing it properly needs the container and the unit key derived from the server's
   row, which is a download-side grammar no measurement yet covers. **Still open after 2c**,
   which was expected to take it and did not: the bundled download grammar was cut from that
@@ -2513,6 +2516,14 @@ the slot stays `libretro:battery:rtc`, the loss is recorded, and nothing convert
 the clock with its save was weighed at the same time and not taken: it would make the save
 unreadable to RomM's other clients and re-upload the whole save on every launch that moves the
 clock.
+
+**Revisited 2026-09-23: bundling is where this goes, on RomM's timetable rather than ours.** RomM's
+maintainers are drafting an overhaul of save sync that moves a save and its companion files as one
+unit, with the clock excluded from change detection. No work on it has started. Both objections
+above belong to today's API: the web player cannot open a bundle, and the server has no way to
+leave the clock out of a hash. So the clock keeps its own slot until RomM ships bundled units, and
+RomMBat moves the clock into the unit when it adopts that API, not before. Bundling early would
+break the web player now and still leave the migration to guess the bundle's shape.
 
 **Amended after M6 stage 1: the batch is not built, and the cost above stands unmitigated.**
 Saves never enter the outbox at all in stage 1. `SaveSync` reads `local_save` and posts
@@ -2887,6 +2898,14 @@ functions and comparing one against the other is always false**, which also mean
 verification of downloaded bytes against `server_content_hash` is sound for class A and B and
 would fail every class C restore. See [retrobat-findings.md](retrobat-findings.md),
 measurements 148 and 149.
+
+**Amended 2026-09-23: the function is reproducible, and class C carries one hash.** RomM's
+`hash_zip_contents`, identical at the 5.2.0 and 5.3.0 tags, is the md5 of `<entry>:<md5>` lines
+sorted by name and joined with `\n`, none trailing, which fits 148's observations exactly; the
+eight reconstructions behind 149 missed it. A live upload confirmed it (finding 303). So the fold
+is that rule, it is the wire value as well as the change detector, and a class C restore is
+verified against `server_content_hash` after extraction. The two-hash reading above stands as
+the record of what was believed; the code no longer follows it.
 
 **Restores must be atomic.** A half-written directory save is a corrupt directory save.
 Extract to a temporary directory beside the target, verify, then swap, and keep the

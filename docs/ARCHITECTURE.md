@@ -814,14 +814,17 @@ Three rules that are not obvious:
   hashing the bytes would make RomMBat and Grout disagree forever on identical saves.
   Define `content_hash` over sorted relative paths plus each file's own hash. The archive
   is transport only.
-- **So a bundled save carries two hashes and they are never compared.** RomM digests an
-  archive's contents too, by a function this client cannot reproduce, so the logical fold is
-  the local change detector and the digest the server returned on the last upload is the value
-  that goes back on the wire. Sending the fold instead answers `download` forever.
+- **The fold is RomM's own archive digest**, the md5 of `<entry>:<md5>` lines sorted by name
+  (finding 303), so a bundled save carries one hash: it is the local change detector and the
+  value negotiated. A restore is checked against the server's value over the archive's raw entry
+  names, or the MD5 of the zip for a row written before RomM 5.2.0.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
   answers is overruled locally.** A `no_op` for a slot whose `content_hash` differs from
   `uploaded_content_hash` is uploaded, because that inequality is the client holding evidence the
   server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
+  The exception, for every shape, is a head that already holds the local bytes: that save is
+  recorded as sent, and the head is acknowledged first when it is not the row this device last
+  exchanged, since the server refuses the next upload against a stale device record (M6).
   Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1` and again at the
   `5.3.0` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles

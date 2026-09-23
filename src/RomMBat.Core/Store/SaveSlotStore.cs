@@ -91,14 +91,9 @@ public sealed class SaveSlotStore
     /// Records the server identity a restore just took, which no upload response will supply.
     /// </summary>
     /// <remarks>
-    /// <b>Every path that writes server bytes into a slot owes this, and for class C the next
-    /// flush uploads without it.</b> The wire hash for a bundled save that has not changed since
-    /// it was written is <c>server_content_hash</c>, because the server's digest over an archive
-    /// cannot be recomputed here. A restore that leaves this row holding the pre-download digest
-    /// therefore submits a hash the server no longer recognises, and negotiate answers
-    /// <c>upload</c> for a unit that is already in step. Found on hardware: the flush after a
-    /// class C restore reported one upload, which the server then deduplicated into an existing
-    /// row.
+    /// <b>Every path that writes server bytes into a slot owes this.</b> The recorded save id is
+    /// what recognises a superseded row returning to the head of its slot, and what scopes the
+    /// in-step rule for a stale upload record to the row this device last exchanged.
     /// <para>
     /// Class A breaks more quietly. Its wire hash is the file's own, so nothing uploads, but the
     /// row goes on naming the save the download replaced, and the file being in step means the

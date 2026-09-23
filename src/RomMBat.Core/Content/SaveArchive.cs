@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Security.Cryptography;
 using RomMBat.Core.Paths;
 
 namespace RomMBat.Core.Content;
@@ -67,10 +68,10 @@ public static class SaveArchive
 
     /// <summary>The logical content hash of a unit: sorted paths, each with its own digest.</summary>
     /// <remarks>
-    /// <b>This is the local change detector and not what goes on the wire for class C.</b> RomM
-    /// computes its own digest over an archive's contents by a function this client cannot
-    /// reproduce, measured, so the value to send back is the one the server returned on the last
-    /// upload. Comparing this against that is always false.
+    /// <b>This is both the local change detector and the wire value.</b> It is RomM's own
+    /// function for an archive's <c>content_hash</c>, over the same entry names
+    /// <see cref="Pack"/> writes, so it equals the digest the server stores for this unit's
+    /// archive. See <see cref="LogicalContentHash.Fold"/>.
     /// </remarks>
     public static string HashOf(RetroBatInstall install, SaveUnit unit)
     {
@@ -144,10 +145,9 @@ public static class SaveArchive
     /// The logical hash of what was extracted, folded the same way a unit on disk is.
     /// </summary>
     /// <remarks>
-    /// Used to verify a restore against the save that was sent, which is the one comparison the
-    /// client can make on both sides: the server's archive digest is not reproducible here, but
-    /// the fold over what came out of the archive is the same function as the fold over what
-    /// went in.
+    /// Equal to the server's <c>content_hash</c> for an archive whose entry names are already
+    /// clean, which every archive <see cref="Pack"/> writes is. <see cref="ServerHashOf"/> is
+    /// the value for any archive.
     /// </remarks>
     public static string HashOfExtracted(string directory, IEnumerable<string> entries)
     {
@@ -157,5 +157,36 @@ public static class SaveArchive
         return LogicalContentHash.Fold(entries.Select(entry => (
             entry,
             LogicalContentHash.OfFile(Path.Combine(directory, entry.Replace('/', Path.DirectorySeparatorChar))))));
+    }
+
+    /// <summary>
+    /// The <c>content_hash</c> RomM computes for an archive, over its entry names exactly as
+    /// stored.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not <see cref="HashOfExtracted"/>, which folds the names after
+    /// <see cref="RelativePath"/> has normalised them.</b> A zip another client wrote can name an
+    /// entry <c>./SAVEDATA/X/DATA.BIN</c> or with backslashes, and <c>hash_zip_contents</c> takes
+    /// <c>entry.filename</c> as it is, so only the raw name reproduces the server's value.
+    /// Directory entries are skipped on both sides.
+    /// </remarks>
+    public static string ServerHashOf(Stream source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
+
+        return LogicalContentHash.Fold(archive.Entries
+            .Where(entry => !entry.FullName.EndsWith('/'))
+            .Select(entry => (entry.FullName, HashOfEntry(entry)))
+            .ToList());
+    }
+
+    private static string HashOfEntry(ZipArchiveEntry entry)
+    {
+        using var stream = entry.Open();
+#pragma warning disable CA5351 // MD5, deliberately: it is RomM's content_hash.
+        return Convert.ToHexStringLower(MD5.HashData(stream));
+#pragma warning restore CA5351
     }
 }

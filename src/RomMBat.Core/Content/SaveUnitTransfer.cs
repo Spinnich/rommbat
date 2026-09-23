@@ -3,10 +3,19 @@ using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
 
+/// <summary>
+/// A fetched archive that unpacked cleanly but is not the save the server offered.
+/// </summary>
+/// <remarks>
+/// Its own type so a caller can say so, rather than calling a sound archive unreadable.
+/// </remarks>
+public sealed class SaveUnitMismatchException(string message) : Exception(message);
+
 /// <summary>What putting a unit back produced.</summary>
 /// <param name="ContentHash">
 /// The logical fold over what actually landed, which is what a later scan compares the tree
-/// against. Never the server's digest, which is a different function.
+/// against. It is also the server's digest, except for a row in the pre-5.2.0 form or an
+/// archive whose entry names another client wrote unnormalised.
 /// </param>
 public sealed record SaveUnitRestoreResult(string ContentHash, IReadOnlyList<string> Entries, RelativePath? CopiedAside);
 
@@ -20,12 +29,12 @@ public sealed record SaveUnitRestoreResult(string ContentHash, IReadOnlyList<str
 /// place. Both are wrong for a unit, and the hands-on pass found them one after the other, the
 /// second only because the first had already been fixed somewhere else.
 /// <para>
-/// <b>The verification asymmetry is the reason a shared helper is worth the indirection.</b> A
-/// class A download is checked against the server's hash, which for a plain file is the MD5 of
-/// the bytes. For an archive the server's hash is a digest over the contents by a function this
-/// client cannot reproduce, so that check can never pass and must not be attempted. What stands
-/// in for it is extraction validating every entry's CRC, plus refusing any entry that would
-/// escape the container. Anywhere that forgets this fails every class C restore.
+/// <b>A unit is verified against the server's own function, with one legacy form.</b> For an
+/// archive the server's <c>content_hash</c> is a digest over the entries, the same function as
+/// <see cref="LogicalContentHash.Fold"/>, taken over the names as stored
+/// (<see cref="SaveArchive.ServerHashOf"/>). A row written before RomM 5.2.0 holds the MD5 of
+/// the zip's bytes instead until an admin recomputes it, so that is accepted too. Extraction also
+/// validates every entry's CRC and refuses any entry that would escape the container.
 /// </para>
 /// </remarks>
 public static class SaveUnitTransfer
@@ -57,10 +66,9 @@ public static class SaveUnitTransfer
     /// <para>
     /// <b>A unit that already holds what arrived is left alone entirely.</b> No copy aside for a
     /// save nobody replaced, no mtime churn under <c>saves/</c>, and no window where the unit is
-    /// half swapped for no reason. It cannot be settled before the transfer, because the wire
-    /// hash for an unchanged class C unit is the digest the server returned to this device on
-    /// its own last upload and a peer's upload carries one this device has never seen: negotiate
-    /// answers <c>download</c> and the bytes have to come. Only the write is avoidable.
+    /// half swapped for no reason. Negotiate usually settles this before the transfer, since the
+    /// fold is the wire hash, and this catches the rest: a conflict resolved to the server's
+    /// side, and a unit edited back to what the server holds since the last scan.
     /// </para>
     /// <para>
     /// <b>The swap is still not one filesystem operation, and it is all-or-nothing anyway.</b>
@@ -86,6 +94,10 @@ public static class SaveUnitTransfer
     /// </para>
     /// </remarks>
     /// <param name="part">The archive already on disk, as fetched.</param>
+    /// <param name="expectedHash">
+    /// The server's <c>content_hash</c> for the archive, or null where it named none. A unit
+    /// whose fold differs is refused before the live tree is touched.
+    /// </param>
     public static SaveUnitRestoreResult Restore(
         RetroBatInstall install,
         SaveUnitScanner units,
@@ -93,7 +105,8 @@ public static class SaveUnitTransfer
         string part,
         string partialDirectory,
         RelativePath asideDirectory,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        string? expectedHash = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(units);
@@ -110,8 +123,7 @@ public static class SaveUnitTransfer
 
             using (var archive = File.OpenRead(part))
             {
-                // Validates every entry's CRC and refuses anything that would escape, which is
-                // what stands in for a byte hash the server cannot give us.
+                // Validates every entry's CRC and refuses anything that would escape.
                 entries = SaveArchive.Extract(archive, staging);
             }
 
@@ -123,17 +135,19 @@ public static class SaveUnitTransfer
 
             var restored = SaveArchive.HashOfExtracted(staging, entries);
 
+            if (expectedHash is not null && !IsOffered(part, expectedHash))
+            {
+                throw new SaveUnitMismatchException(
+                    $"what arrived does not match the hash the server offered, {expectedHash}");
+            }
+
             // Read once and used three times, since a scan of the system is what finds a unit
             // and the comparison, the copy aside and the removal below must agree on the same
             // member list.
             var existing = Find(units, local);
 
             // <b>A restore that would rewrite the tree with what it already holds does not
-            // rewrite it.</b> Class C cannot settle this before the transfer: the wire hash for
-            // an unchanged unit is the digest the server returned to THIS device on its own last
-            // upload, and a peer's upload carries a digest this device has never seen, so
-            // negotiate answers `download` and no local comparison can rule it out. The bytes
-            // have to come. The write does not.
+            // rewrite it.</b>
             //
             // Compared against the fold of what is on disk now rather than against the row,
             // because the row is only as current as the last scan and this is a question about
@@ -400,6 +414,22 @@ public static class SaveUnitTransfer
                 current = Path.GetDirectoryName(current) ?? root;
             }
         }
+    }
+
+    /// <summary>
+    /// True when a fetched archive is the one the server offered: its entry digest, or the MD5
+    /// of its bytes for a row written before RomM 5.2.0.
+    /// </summary>
+    private static bool IsOffered(string part, string expectedHash)
+    {
+        using var archive = File.OpenRead(part);
+
+        if (string.Equals(SaveArchive.ServerHashOf(archive), expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(LogicalContentHash.OfFile(part), expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Re-reads a unit off disk, since a stored row is a record and not the tree.</summary>

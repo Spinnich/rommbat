@@ -371,7 +371,7 @@ public sealed class SaveSync
                 NameFor(save),
                 save.Slot,
                 save.Emulator,
-                WireHash(save),
+                save.ContentHash,
 
                 // The file's real mtime, never the sync time. Sending the sync time makes
                 // every offline edit lose every conflict it is in.
@@ -421,6 +421,12 @@ public sealed class SaveSync
             switch (Decide(operation, local))
             {
                 case SyncAction.NoOp:
+                    if (local is not null && HoldsHead(operation, local)
+                        && await SettleOnHeadAsync(operation, local, cancellationToken).ConfigureAwait(false) is { } untold)
+                    {
+                        problems.Add(untold);
+                    }
+
                     noOps++;
                     break;
 
@@ -461,6 +467,11 @@ public sealed class SaveSync
                 case SyncAction.Download when operation.SaveId is { } saveId:
                     if (AlreadyHeld(operation, local))
                     {
+                        if (await SettleOnHeadAsync(operation, local!, cancellationToken).ConfigureAwait(false) is { } heldUntold)
+                        {
+                            problems.Add(heldUntold);
+                        }
+
                         noOps++;
                         break;
                     }
@@ -723,45 +734,6 @@ public sealed class SaveSync
         return separator > 0 && slot.AsSpan(0, separator).EndsWith(":battery", StringComparison.Ordinal)
             ? slot[..separator]
             : slot;
-    }
-
-    /// <summary>
-    /// The hash to put on the wire for a save, which is not always the one on the row.
-    /// </summary>
-    /// <remarks>
-    /// <b>Class C carries two hashes and sending the wrong one uploads forever.</b> Measured:
-    /// RomM's <c>content_hash</c> is the MD5 of the bytes for a plain file, and for an archive
-    /// it is a digest over the archive's <i>contents</i> computed by a function this client
-    /// cannot reproduce. Eight candidate reconstructions matched none of the observed values.
-    /// <para>
-    /// So the logical fold is the <b>local change detector</b> and the digest the server
-    /// returned on the last upload is the <b>wire value</b>. Driven against a live instance:
-    /// sending the server's own digest answers <c>no_op (Content is identical)</c>, while
-    /// sending the fold or the archive's MD5 answers <c>download (Server save is newer)</c>.
-    /// </para>
-    /// <para>
-    /// A unit whose fold has moved since the upload is deliberately sent with the fold, which
-    /// cannot match anything the server holds, so negotiate answers <c>upload</c>. That is the
-    /// intended outcome and not a coincidence: the client already knows the contents changed,
-    /// and the server has no way to be told so in its own vocabulary.
-    /// </para>
-    /// </remarks>
-    private string? WireHash(LocalSave save)
-    {
-        if (save.ShapeClass != SaveShapeClass.C)
-        {
-            return save.ContentHash;
-        }
-
-        var unchanged = save.ContentHash is not null
-            && string.Equals(save.ContentHash, save.UploadedContentHash, StringComparison.OrdinalIgnoreCase);
-
-        if (!unchanged)
-        {
-            return save.ContentHash;
-        }
-
-        return _store.SaveSlots.Read(save.RomId!.Value, save.Slot)?.ServerContentHash ?? save.ContentHash;
     }
 
     /// <summary>The file name a save is negotiated and uploaded under.</summary>
@@ -1195,13 +1167,11 @@ public sealed class SaveSync
             if (result.Save is { } row)
             {
                 // The server's identity, which is the tagged name, alongside the untagged one.
-                // For class C this row also carries the only value negotiate will accept back
-                // as "unchanged", since the server's archive digest cannot be recomputed here.
                 _store.SaveSlots.Record(row, _time.GetUtcNow());
             }
 
-            // The logical fold, never the server's digest. This is the local record of what was
-            // sent, and it is the value a later scan compares the tree against.
+            // The value a later scan compares the tree against. For every shape it is also the
+            // server's content_hash for what was sent.
             _store.Saves.MarkUploaded(save.Path, save.UnitKey, save.ContentHash!, _time.GetUtcNow());
             return (false, null);
         }
@@ -1259,7 +1229,7 @@ public sealed class SaveSync
     /// is rediscovering the loop if a later version stops making that comparison.
     /// </para>
     /// </remarks>
-    private SyncAction Decide(SyncOperation operation, LocalSave? local)
+    private static SyncAction Decide(SyncOperation operation, LocalSave? local)
     {
         var named = operation.Parsed;
 
@@ -1270,7 +1240,7 @@ public sealed class SaveSync
 
         if (named == SyncAction.NoOp && (local.IsUnsent || local.HasChangedSinceUpload))
         {
-            return SyncAction.Upload;
+            return HoldsHead(operation, local) ? SyncAction.NoOp : SyncAction.Upload;
         }
 
         return named == SyncAction.Upload && AlreadySent(operation, local) ? SyncAction.NoOp : named;
@@ -1293,28 +1263,86 @@ public sealed class SaveSync
     /// anyway. Any slot whose current row arrived from a peer or from RomM's browser player is
     /// in that state, which is the ordinary case rather than a corner.
     /// </para>
-    /// <para>
-    /// A bundled unit's fold and the server's digest over an archive are different functions and
-    /// never equal, so class C asks in the server's vocabulary: the digest the slot recorded on
-    /// the last exchange, against the one being offered, with
-    /// <see cref="LocalSave.HasChangedSinceUpload"/> saying the tree still holds what went up.
-    /// </para>
     /// </remarks>
-    private bool AlreadySent(SyncOperation operation, LocalSave local)
+    private static bool AlreadySent(SyncOperation operation, LocalSave local) =>
+        operation.ServerContentHash is { } offered
+            && !local.IsUnsent
+            && !local.HasChangedSinceUpload
+            && local.ContentHash is { } held
+            && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when the head of the slot holds exactly the bytes on disk, so there is nothing to
+    /// send whatever the local record says.
+    /// </summary>
+    /// <remarks>
+    /// <b>Reached when the recorded upload hash went stale without the save changing</b>, and
+    /// when a peer's row holds what this device has. Before the fold took RomM's archive rule
+    /// every class C row recorded a hash in the old form, so each unit reads as changed once and
+    /// negotiate answers <c>no_op</c> for it. Recording it as sent costs nothing; uploading it
+    /// costs a transfer the server throws away, or a 409 where the head is not the row this
+    /// device last exchanged. <see cref="SettleOnHeadAsync"/> is what makes the server's record
+    /// for the device current in that case.
+    /// </remarks>
+    private static bool HoldsHead(SyncOperation operation, LocalSave local) =>
+        operation.SaveId is not null
+            && operation.ServerContentHash is { } offered
+            && local.ContentHash is { } held
+            && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Records a save whose bytes the head of its slot already holds as in step with that head,
+    /// telling the server first when the head is not the row this device last exchanged.
+    /// </summary>
+    /// <returns>A problem to report, or null.</returns>
+    /// <remarks>
+    /// <b>The server keeps a per-device record of the last row synced, and refuses an upload
+    /// against a stale one.</b> Measured at 5.3.0 (<c>s4-older-mtime.py</c>, M6): with this
+    /// device's row gone and a peer's row holding the same bytes at the head, negotiate answers
+    /// <c>no_op (Content is identical)</c>, the next edit's upload is refused 409 "Slot has a
+    /// newer save since your last sync", and after acknowledging the peer's row the same upload
+    /// lands. So a head this device holds but never exchanged is acknowledged without a
+    /// transfer, the same call a download ends with.
+    /// </remarks>
+    private async Task<string?> SettleOnHeadAsync(
+        SyncOperation operation,
+        LocalSave local,
+        CancellationToken cancellationToken)
     {
-        if (operation.ServerContentHash is not { } offered
-            || local.ContentHash is null
-            || local.IsUnsent
-            || local.HasChangedSinceUpload)
+        var head = operation.SaveId!.Value;
+        var slot = operation.Slot ?? local.Slot;
+
+        if (_store.SaveSlots.Read(operation.RomId, slot)?.SaveId != head)
         {
-            return false;
+            try
+            {
+                var ack = await _connection.AcknowledgeSaveAsync(head, _deviceId, cancellationToken).ConfigureAwait(false);
+
+                if (!ack.IsSuccess)
+                {
+                    return $"{Describe(local)}: in step with save {head}, but the server was not told: {ack.Message}";
+                }
+            }
+            catch (RomMUnreachableException ex)
+            {
+                return $"{Describe(local)}: in step with save {head}, but the server was not told: {ex.Message}";
+            }
+
+            _store.SaveSlots.RecordRestored(
+                operation.RomId,
+                slot,
+                head,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                _time.GetUtcNow());
         }
 
-        var held = local.ShapeClass == SaveShapeClass.C
-            ? _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.ServerContentHash
-            : local.ContentHash;
+        if (local.IsUnsent || local.HasChangedSinceUpload)
+        {
+            _store.Saves.MarkUploaded(local.Path, local.UnitKey, local.ContentHash!, _time.GetUtcNow());
+        }
 
-        return held is not null && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+        return null;
     }
 
     /// <summary>
@@ -1325,58 +1353,20 @@ public sealed class SaveSync
     /// offered back is bytes this device already holds. Skipped rather than fetched, which is
     /// the cheapest saving in the protocol and the reason the field is persisted at all.
     /// <para>
-    /// <b>Two questions, and the shape decides which hash answers the first.</b> A class A or B
-    /// save's <c>content_hash</c> is the MD5 of its bytes, which is exactly what the server
-    /// holds for a plain file, so the local fold and the wire value are the same function and
-    /// comparing them settles it. For a bundled unit they are two different functions by
-    /// construction: the fold is over the unit's contents and the server's is a digest over the
-    /// archive, measured as not reproducible client-side. They are never equal, so the original
-    /// single comparison was always false for class C and the download always ran.
-    /// </para>
-    /// <para>
-    /// So a bundled unit is asked in the server's own vocabulary instead, which needs both
-    /// halves rather than one. The slot's recorded <c>server_content_hash</c> against the
-    /// operation's says the server is offering back the save this device last exchanged, and
-    /// <see cref="LocalSave.HasChangedSinceUpload"/> says the tree still holds what went up.
-    /// Either alone would skip a download that was needed: the first cannot see a unit edited
-    /// since, and the second cannot see the server moving on.
+    /// The local <c>content_hash</c> is the server's function for every shape, the MD5 of the
+    /// bytes for a plain file and the fold for a bundled unit, so one comparison settles it. A
+    /// null hash is a unit something held open, which is never evidence the tree matches.
     /// </para>
     /// <para>
     /// <see cref="AlreadySent"/> is the same question for an <c>upload</c>, and drops the origin
     /// test rather than sharing this method, for the reason recorded there.
     /// </para>
     /// </remarks>
-    private bool AlreadyHeld(SyncOperation operation, LocalSave? local)
-    {
-        if (local is null || operation.ServerContentHash is not { } offered)
-        {
-            return false;
-        }
-
-        var slot = operation.Slot ?? string.Empty;
-
-        if (local.ShapeClass == SaveShapeClass.C)
-        {
-            // A null content hash is a unit something held open, which is never evidence that
-            // the tree matches anything.
-            if (local.ContentHash is null || local.IsUnsent || local.HasChangedSinceUpload)
-            {
-                return false;
-            }
-
-            // One read answers both halves. IsOwnUpload would re-run this same query, and it
-            // carries three correlated subqueries.
-            var recorded = _store.SaveSlots.Read(operation.RomId, slot);
-
-            return recorded?.ServerContentHash is { } lastExchanged
-                && string.Equals(lastExchanged, offered, StringComparison.OrdinalIgnoreCase)
-                && recorded.IsFrom(_deviceId);
-        }
-
-        return local.ContentHash is { } held
+    private bool AlreadyHeld(SyncOperation operation, LocalSave? local) =>
+        local?.ContentHash is { } held
+            && operation.ServerContentHash is { } offered
             && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase)
-            && _store.SaveSlots.IsOwnUpload(operation.RomId, slot, _deviceId);
-    }
+            && _store.SaveSlots.IsOwnUpload(operation.RomId, operation.Slot ?? string.Empty, _deviceId);
 
     /// <summary>
     /// The operation restated as a conflict when a download names a row older than the one this
@@ -1435,8 +1425,8 @@ public sealed class SaveSync
     /// <para>
     /// The test is the one the <c>no_op</c> upload uses from the other side: an unsent save,
     /// or one changed since its upload, is evidence the server lacks. Identical bytes lose
-    /// nothing and download as before. A bundled unit's fold never equals the server's digest,
-    /// so for class C the identical case cannot be ruled out and it is a conflict too.
+    /// nothing and download as before, for a bundled unit too, since its fold is the server's
+    /// digest.
     /// </para>
     /// </remarks>
     private static SyncOperation? UnsentLocalWouldBeReplaced(SyncOperation operation, LocalSave local)
@@ -1446,8 +1436,7 @@ public sealed class SaveSync
             return null;
         }
 
-        if (local.ShapeClass != SaveShapeClass.C
-            && local.ContentHash is { } held
+        if (local.ContentHash is { } held
             && string.Equals(held, operation.ServerContentHash, StringComparison.OrdinalIgnoreCase))
         {
             return null;
@@ -1623,13 +1612,10 @@ public sealed class SaveSync
     /// beside it, the existing members are copied aside, and only then are the new ones moved
     /// in.
     /// <para>
-    /// <b>What can and cannot be verified, stated because the difference matters.</b> A class A
-    /// download is checked against <c>server_content_hash</c>, which is the MD5 of the bytes.
-    /// For an archive that field is a digest over the contents computed by a function this
-    /// client cannot reproduce, measured, so the same check is impossible and pretending
-    /// otherwise would fail every restore. What is checked instead is real but weaker:
-    /// extraction validates every entry's CRC, so a truncated or corrupted archive fails before
-    /// anything is replaced, and an entry that would escape the container is refused outright.
+    /// <b>Verified after extraction, not over the bytes.</b> For an archive
+    /// <c>server_content_hash</c> is a digest over the entries, which is the fold, so the unit
+    /// that came out is checked against it before anything is replaced. Extraction also
+    /// validates every entry's CRC and refuses an entry that would escape the container.
     /// </para>
     /// <para>
     /// The previous copy is kept under <c>replaced/</c> until the next successful sync, which is
@@ -1669,7 +1655,8 @@ public sealed class SaveSync
                 part,
                 _install.Resolve(PartialDirectory),
                 AsideDirectory,
-                _time.GetUtcNow());
+                _time.GetUtcNow(),
+                operation.ServerContentHash);
 
             var ack = await _connection.AcknowledgeSaveAsync(saveId, _deviceId, cancellationToken).ConfigureAwait(false);
 
@@ -1685,9 +1672,8 @@ public sealed class SaveSync
             // step rather than one that needs sending straight back.
             _store.Saves.MarkUploaded(local.Path, local.UnitKey, outcome.ContentHash, _time.GetUtcNow());
 
-            // And the slot's new server identity, which is the other half of being in step: the
-            // wire hash for an unchanged unit is the server's digest, so a slot still holding
-            // the pre-download one negotiates as `upload` for a unit that just came down.
+            // And the slot's new server identity, so the save id a later download is compared
+            // against is the row that just came down.
             _store.SaveSlots.RecordRestored(
                 operation.RomId,
                 operation.Slot ?? local.Slot,
@@ -1701,6 +1687,10 @@ public sealed class SaveSync
         catch (RomMUnreachableException ex)
         {
             return (0, $"{Describe(local)}: {ex.Message}");
+        }
+        catch (SaveUnitMismatchException ex)
+        {
+            return (0, $"{Describe(local)}: not written, because {ex.Message}");
         }
         catch (InvalidDataException ex)
         {

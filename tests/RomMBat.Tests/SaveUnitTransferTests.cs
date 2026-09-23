@@ -97,6 +97,110 @@ public sealed class SaveUnitTransferTests : IDisposable
         Assert.NotNull(outcome.CopiedAside);
     }
 
+    [Fact]
+    public void A_restore_whose_contents_differ_from_the_server_s_hash_is_refused_before_the_tree_is_touched()
+    {
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+
+        var refusal = Assert.Throws<SaveUnitMismatchException>(() => SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            expectedHash: new string('0', 32)));
+
+        Assert.Contains("the server offered", refusal.Message, StringComparison.Ordinal);
+        Assert.Equal("what this device had", Read("ULES01513SYSDATA/DATA.BIN"));
+        Assert.False(Directory.Exists(install.Resolve(SaveSync.AsideDirectory.Value)));
+    }
+
+    [Fact]
+    public void A_restore_matching_the_server_s_hash_lands()
+    {
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+#pragma warning disable CA5351 // MD5, deliberately: it is RomM's content_hash.
+        var member = Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData("what the server sent"u8));
+#pragma warning restore CA5351
+        var expected = LogicalContentHash.Fold([("ULES01513SYSDATA/DATA.BIN", member)]);
+
+        var outcome = SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            expected);
+
+        Assert.Equal(expected, outcome.ContentHash);
+        Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+    }
+
+    [Fact]
+    public void A_restore_of_a_row_in_the_pre_5_2_form_lands()
+    {
+        // A server row written before RomM 5.2.0 holds the MD5 of the zip's bytes until an
+        // admin recomputes it, so the entry digest never matches and that form is accepted.
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+
+        SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            LogicalContentHash.OfFile(part));
+
+        Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+    }
+
+    [Fact]
+    public void A_restore_is_checked_against_the_entry_names_as_another_client_wrote_them()
+    {
+        // RomM folds entry.filename as stored, and extraction normalises the name, so a zip
+        // naming "./ULES01513SYSDATA/DATA.BIN" is checked against the raw name's fold.
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("./ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+#pragma warning disable CA5351 // MD5, deliberately: it is RomM's content_hash.
+        var member = Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData("what the server sent"u8));
+#pragma warning restore CA5351
+        var raw = LogicalContentHash.Fold([("./ULES01513SYSDATA/DATA.BIN", member)]);
+
+        var outcome = SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            raw);
+
+        Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+        Assert.Equal(LogicalContentHash.Fold([("ULES01513SYSDATA/DATA.BIN", member)]), outcome.ContentHash);
+    }
+
     private static RelativePath SaveSyncAside => SaveSync.AsideDirectory;
 
     private static LocalSave UnitRow() => new()
