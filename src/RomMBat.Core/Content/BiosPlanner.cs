@@ -46,7 +46,7 @@ public enum BiosAction
     Blocked,
 }
 
-/// <summary>One required BIOS file, and what the pass would do about it.</summary>
+/// <summary>One BIOS file RetroBat lists, and what the pass would do about it.</summary>
 public sealed record BiosStep
 {
     public required BiosRequirement Requirement { get; init; }

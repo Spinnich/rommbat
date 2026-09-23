@@ -53,6 +53,17 @@ VSTest's, and it takes a different set of options. Run `dotnet test --help` for 
   non-zero**, because a module running zero tests is an error. Scope the run with `--project` as
   well, or the filtered run fails on the project you were not aiming at.
 
+**For per-test timings, run the test executable directly.** Built, each test project is an
+executable running xunit's own console runner, which takes `-xml <file>` and writes every
+test's duration, and `-class` or `-method` to scope the run:
+`tests/RomMBat.Tests/bin/Debug/net10.0/RomMBat.Tests.exe -xml timings.xml`. In CI, every
+`passed` line of the Test step's log carries its duration too. The rules for keeping the suite
+fast are in the `pre-pr-verification` skill.
+
+**With the two `ROMMBAT_TEST_*` variables below exported in your shell, every `dotnet test` runs
+the live suite against that server**, adding half a minute and a few pairings to each run. Keep
+them in `.env` and load them when you mean to run the live tests.
+
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
 
@@ -174,11 +185,12 @@ You will need it for:
 
 ### Pin the schema
 
-Already pinned. `src/RomM.Client/openapi/romm-5.3.0-beta.1.json` is a byte-exact
+Already pinned. `src/RomM.Client/openapi/romm-5.3.0.json` is a byte-exact
 `/openapi.json` (served at the root, not under `/api`) from a server reporting
-**5.3.0-beta.1**, the minimum RomMBat supports, so the generated DTOs describe the oldest
+**5.3.0**, the minimum RomMBat supports, so the generated DTOs describe the oldest
 server the client claims to work with. Since the floor tracks the newest stable, or a
-prerelease ahead of it as it does now, that is also the newest release RomMBat has adopted.
+prerelease ahead of it when one is adopted early, that is also the newest release RomMBat has
+adopted.
 The preferred source is the project's public demo, which anyone can
 reproduce from without an account and without a hostname to scrub; neither the 5.2.0 pin nor
 this one came from there, because the demo had not caught up either time, and a prerelease
@@ -240,7 +252,8 @@ clone without it is unaffected.
 
 **Step 8 no longer needs it, and it is kept for the case where the paired token cannot be
 used.** `rommbat-agent status` reads `GET /api/play-sessions` back for this device and prints the
-count and the last session under a `Playtime` block (#208), which is the ordinary route now. A
+count, the last session and the ten newest under a `Playtime` block (#208), which is the
+ordinary route now. A
 token stored with `--protect` needs `--passphrase` on that run.
 
 It has to be a separate token because the approver one is a different account, and saves, states

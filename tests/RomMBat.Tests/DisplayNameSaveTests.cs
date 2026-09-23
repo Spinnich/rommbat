@@ -49,11 +49,148 @@ public class DisplayNameSaveTests
         Assert.Equal("jgenesis", shapes.BatteryRuleFor("nes", "jgenesis/nes", "Wizardry (USA).sav")?.Emulator);
         Assert.Equal("ares", shapes.BatteryRuleFor("nes", "ares/Famicom", "Dragon Warrior IV (USA).ram")?.Emulator);
 
+        // megadrive, measured on Sonic & Knuckles + Sonic 3: jgenesis and ares name their own
+        // subdirectory after their own system, bizhawk and mednafen keep nes's layout.
+        const string Sonic3k = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("megadrive", "jgenesis/md", $"{Sonic3k}.sav")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("megadrive", "jgenesis/nes", $"{Sonic3k}.sav"));
+        Assert.Equal("ares", shapes.BatteryRuleFor("megadrive", "ares/Mega Drive", $"{Sonic3k}.ram")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("megadrive", "ares/Famicom", $"{Sonic3k}.ram"));
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("megadrive", "bizhawk", "Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM")?.Emulator);
+        Assert.Equal(
+            "mednafen",
+            shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.c5b1c655c19f462ade0ac4e17a844d10.sav")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.srm")?.Emulator);
+
+        // mesen standalone is not a megadrive emulator, so a plain loose .sav there has no owner.
+        Assert.Null(shapes.BatteryRuleFor("megadrive", string.Empty, $"{Sonic3k}.sav"));
+
         // A loose save named after the ROM needs no rule to place it, so the slot lookup leaves
         // libretro and mesen out; mednafen's needs the hash, so it stays in.
         Assert.Null(shapes.BatteryRuleForSlot("nes", "libretro:battery"));
         Assert.Null(shapes.BatteryRuleForSlot("nes", "mesen:battery"));
         Assert.Same(mednafen, shapes.BatteryRuleForSlot("nes", "mednafen:battery"));
+    }
+
+    [Fact]
+    public void The_bundled_gba_rules_give_each_of_emeralds_saves_one_owner()
+    {
+        // Pokemon - Emerald Version (USA, Europe), driven under every gba row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+        const string Md5 = "605b89b67018abcea91e693a4dd25be3";
+
+        // Three emulators on one loose .sav, told apart by how narrow the name is.
+        var member = shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.zip#{Rom}.{Md5}.sav");
+        Assert.Equal("libretro", member?.Emulator);
+        Assert.Equal(BatteryNaming.ArchiveMemberAndContentMd5, member!.NamedAfter);
+        Assert.Equal(Rom, member.RomStemOf($"{Rom}.zip#{Rom}.{Md5}.sav"));
+        Assert.Equal("libretro:battery:sav", SaveScanner.SlotFor("libretro", member.Class!.Value, ".sav"));
+
+        // A .7z is named the same way, and a bare .gba gets mednafen standalone's own name.
+        Assert.Same(member, shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.7z#{Rom}.{Md5}.sav"));
+        Assert.Equal(Rom, member.RomStemOf($"{Rom}.7z#{Rom}.{Md5}.sav"));
+
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.{Md5}.sav")?.Emulator);
+        Assert.Equal("mgba", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.sav")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mesen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.rtc")?.Emulator);
+
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("gba", "jgenesis/gba", $"{Rom}.rtc")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("gba", "ares/Game Boy Advance", $"{Rom}.flash")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("gba", "bizhawk", $"{Rom}.SaveRAM")?.Emulator);
+
+        // The two libretro slots on gba belong to different rules, and only the named one needs
+        // its rule to be placed.
+        Assert.Same(member, shapes.BatteryRuleForSlot("gba", "libretro:battery:sav"));
+        Assert.Null(shapes.BatteryRuleForSlot("gba", "libretro:battery"));
+
+        // A zip member is gba's alone, and mgba is not a nes emulator.
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("nes", string.Empty, $"{Rom}.zip#{Rom}.{Md5}.sav")?.Emulator);
+        Assert.Equal("mesen", shapes.BatteryRuleFor("nes", string.Empty, $"{Rom}.sav")?.Emulator);
+    }
+
+    [Fact]
+    public void A_zip_member_save_is_claimed_when_the_rom_name_carries_a_hash_sign()
+    {
+        // What a restore names it: the zip's file name, '#', the member's stem, the hash.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Foo #1";
+        const string Save = $"{Rom}.zip#{Rom}.605b89b67018abcea91e693a4dd25be3.sav";
+
+        var member = shapes.BatteryRuleFor("gba", string.Empty, Save);
+        Assert.Equal(BatteryNaming.ArchiveMemberAndContentMd5, member?.NamedAfter);
+        Assert.Equal(Rom, member!.RomStemOf(Save));
+
+        // A bare ROM with a '#' is still mednafen standalone's.
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.605b89b67018abcea91e693a4dd25be3.sav")?.Emulator);
+    }
+
+    [Fact]
+    public void The_bundled_gb_rules_give_each_of_yellows_saves_one_owner()
+    {
+        // Pokemon - Yellow Version, driven under every gb row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+        const string Md5 = "d9290db87b1f0a23b89f99ee4469e34b";
+
+        // The .srm six libretro cores and Mesen share, the .sav mGBA and mednafen share, and
+        // mednafen's own hashed name when no plain one is there.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mgba", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.sav")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gb", string.Empty, $"{Rom}.{Md5}.sav")?.Emulator);
+
+        Assert.Equal("ares", shapes.BatteryRuleFor("gb", "ares/Game Boy", $"{Rom}.ram")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("gb", "jgenesis/gb", $"{Rom}.sav")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("gb", "bizhawk", "Pokemon - Yellow Version (USA, Europe).SaveRAM")?.Emulator);
+
+        // The loose .rtc is libretro's second file on gb, beside the .srm in its own slot, and
+        // Mesen's on gba. A clock cartridge keeps its clock there under the stock core.
+        var rtc = shapes.BatteryRuleFor("gb", string.Empty, "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible).rtc");
+        Assert.Equal("libretro", rtc?.Emulator);
+        Assert.Equal("libretro:battery:rtc", SaveScanner.SlotFor("libretro", rtc!.Class!.Value, ".rtc"));
+        Assert.Null(shapes.BatteryRuleForSlot("gb", "libretro:battery:rtc"));
+        Assert.Equal("mesen", shapes.BatteryRuleFor("gba", string.Empty, $"{Rom}.rtc")?.Emulator);
+    }
+
+    [Fact]
+    public void One_emulator_may_hold_two_rules_on_a_system_only_where_class_b_keeps_the_slots_apart()
+    {
+        var shapes = SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["gba"], "directory": "", "extensions": [".sav"], "named_after": "archive member and content md5", "class": "B" }"""));
+
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gba", string.Empty, "Game.zip#Game.0123456789abcdef0123456789abcdef.sav")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("gba", string.Empty, "Game.0123456789abcdef0123456789abcdef.sav"));
+
+        // One extension in both would put two files in one slot.
+        var shared = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm", ".sav"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["gba"], "directory": "", "extensions": [".sav"], "named_after": "archive member and content md5", "class": "B" }""")));
+        Assert.Contains("two battery rules", shared.Message, StringComparison.Ordinal);
+
+        // And neither being class B puts both under libretro:battery.
+        var unslotted = Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(
+                """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""",
+                """{ "emulator": "libretro", "systems": ["gba"], "directory": "", "extensions": [".sav"], "named_after": "archive member and content md5", "class": "A" }""")));
+        Assert.Contains("two battery rules", unslotted.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_per_extension_slot_belongs_only_to_a_rule_carrying_that_extension()
+    {
+        var jgenesis = SaveShapes.Bundled.BatteryRuleFor("gba", "jgenesis/gba", "Game.sav")!;
+
+        Assert.True(jgenesis.OwnsSlot("jgenesis:battery:sav"));
+        Assert.True(jgenesis.OwnsSlot("jgenesis:battery:rtc"));
+        Assert.False(jgenesis.OwnsSlot("jgenesis:battery:srm"));
+        Assert.False(jgenesis.OwnsSlot("ares:battery:rtc"));
     }
 
     [Fact]

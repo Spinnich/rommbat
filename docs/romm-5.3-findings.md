@@ -18,7 +18,7 @@ half that was measured.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.0-beta.1`, 2026-09-18, the floor since    |
+| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.0`, 2026-09-21, the floor since           |
 | API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
@@ -922,8 +922,8 @@ playlist handling, and every streaming change. The two screenshot fixes in the n
 
 ### 12. The `alpha.3` to `beta.1` delta (`source`)
 
-`5.3.0-beta.1` was published 2026-09-18, one day after `alpha.3`, and is the floor from this
-adoption. 160 commits, and a recursive tree diff of the two tags gives 52 files added, 5 removed
+`5.3.0-beta.1` was published 2026-09-18, one day after `alpha.3`, and was the floor from that
+adoption until `5.3.0` replaced it (finding 13). 160 commits, and a recursive tree diff of the two tags gives 52 files added, 5 removed
 and 367 modified. Of those, **31 are non-test backend files and the rest is frontend v2**.
 
 **Count the files from the trees, not from the compare endpoint.** `GET /repos/{o}/{r}/compare/{a}...{b}`
@@ -984,7 +984,49 @@ Finding 1 is the folder-authority half of the same work.
 player, walkthroughs, recommendations, physical games, js-dos and PICO-8, the Steam and demoscene
 metadata sources, and the v2 UI work that is most of the 367 modified files.
 
+### 13. The `beta.1` to `5.3.0` delta (`source`)
+
+`5.3.0` was published 2026-09-21 at 15:07Z, the first stable of the line, and is the floor from
+this adoption. 14 commits across 79 files, counted by diffing blob shas from both tags'
+recursive trees, neither truncated, and the compare endpoint lists the same 79.
+
+**The contract did not move at all.** The capture is byte-identical to the `beta.1` pin once
+`info.version` is set aside: the same 246 operations and 272 schemas, none added, removed or
+changed, and `generate.sh` reproduces the committed DTOs exactly. This is the first pin move with
+no generated diff.
+
+**Most of the backend delta is one formatting commit.** #4638 moves the backend to Python 3.14's
+unparenthesised `except A, B:` and parenthesised `with` blocks, which accounts for every one-line
+change in `handler/`, `utils/`, `sync_watcher.py`, `endpoints/memory_cards.py` and the save and
+sync tests. The behaviour those tests pin is unchanged.
+
+**One change is on the authentication path, and it cannot reach this client.** #4648 stops a
+bearer or basic header from skipping the CSRF check when the request also carries a session
+cookie that resolves to a user, because the session authenticates first and the request runs as
+the cookie's owner. RomMBat authenticates by bearer token only, and `RomMConnection` builds its one
+handler with `UseCookies = false`, which every RomM request (the content download included) goes
+through. So it never sends a session cookie, and its POSTs are exempt exactly as before.
+
+**Inert here**: #4633 answers a hidden platform as a missing one on the chunked ROM upload, and
+RomMBat does not upload ROMs. #4634 budgets a zip member in the patcher, and #4636 changes only a
+comment on the inline HTML route. #4641 is the v2 gallery's sort in the URL. Nothing under
+`frontend/src/v2/views/Player/` changed, so finding 12's reading of the browser save writer stands
+at `5.3.0`.
+
+**So every measurement attributed to `beta.1` carries to `5.3.0`**, and it stays attributed to
+`beta.1`: `add_save`, `prune_slot`, negotiate and the play-session routes are byte-identical, and a
+reading is not re-labelled because the build it describes did not change.
+
 ## What the floor move costs, and what gates it
+
+**The `5.3.0` move, 2026-09-21.** The first stable of the line, adopted the day it shipped. The
+pin is sha256 `d7fa6ecb...`, 198 paths and 272 schemas, captured from a server reporting `5.3.0` at
+capture time, the instance the `Live*` tests point at. `demo.romm.app` still reported `5.2.0`, so
+the capture is self-hosted again. `refresh.sh` drifted on the RetroBat side only, four alias counts
+off by one each, all of it #204's held-back work, so the vendored files stay as committed.
+**The suffix drop's silent end closes here**: `LastTested` is a stable at last, so `5.3.1` and
+above warn, and every `5.3.0` prerelease reads **Supported** against the floor, which is safe
+because finding 13 finds no save or state change between them. Finding 13 is the delta.
 
 **The `beta.1` move, 2026-09-18.** Same procedure again, and the smallest delta of the four. The
 pin is sha256 `26ace330...`, 198 paths and 272 schemas, captured from a server reporting

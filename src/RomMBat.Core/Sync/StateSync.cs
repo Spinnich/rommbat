@@ -428,7 +428,7 @@ public sealed class StateSync
                 continue;
             }
 
-            if (SaveStateTemplate.Create(emulator, system, core) is not { } template)
+            if (SaveStateTemplate.Create(schema.For(emulatorName, system) ?? emulator, system, core) is not { } template)
             {
                 unrestorable.Add(new UnrestorableState(
                     row.RomId,

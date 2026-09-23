@@ -17,6 +17,28 @@ namespace RomMBat.Agent.Tests;
 [Collection("agent-console")]
 public sealed class SavesCommandTests
 {
+    [Theory]
+    [InlineData("saves", "restore", "--help")]
+    [InlineData("saves", "restore", "-h")]
+    [InlineData("saves", "restore", "42", "--apply", "--help")]
+    [InlineData("bios", "nes", "--apply", "--help")]
+    public async Task Help_prints_usage_and_runs_nothing(params string[] args)
+    {
+        // `saves restore --help` used to run a full restore preview, and with --apply on the line
+        // the same mistake writes. Held under the tree lock so any handler that did run would
+        // refuse, and a refusal is not exit 0.
+        using var tree = TempRetroBatTree.Create();
+
+        using (TreeLock.TryAcquire(tree.Install()))
+        {
+            var run = await AgentRunner.RunAsync(tree, args);
+
+            Assert.Equal(ExitCode.Ok, run.ExitCode);
+            Assert.True(run.Complained("rommbat-agent <subcommand> [options]"), run.Error);
+            Assert.Equal(string.Empty, run.Out);
+        }
+    }
+
     [Fact]
     public async Task Resolve_refuses_while_a_flush_holds_the_tree_lock()
     {

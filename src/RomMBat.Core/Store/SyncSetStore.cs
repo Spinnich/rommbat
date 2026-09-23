@@ -20,21 +20,33 @@ public enum MemberState
     /// </remarks>
     Departed,
 
-    /// <summary>The resolved folder cannot launch this file format.</summary>
-    ExcludedExtension,
+    /// <summary>
+    /// RomM holds this ROM as a folder, which v1 does not sync.
+    /// </summary>
+    /// <remarks>
+    /// The row carries an empty <c>fs_extension</c>, the folder's name as <c>fs_name</c>, and
+    /// <c>has_multiple_files</c> false. RomM flags most of these <c>has_nested_single_file</c>,
+    /// and the folder can hold one file or several: a game plus its update is the common second
+    /// case. Where its files land is the same per-platform
+    /// placement question as <see cref="ExcludedMultiFile"/>, and naming it as a folder rather
+    /// than as a format sends nobody to fix a format that is fine.
+    /// </remarks>
+    ExcludedFolder,
 
-    /// <summary>The ROM's platform has no RetroBat folder on this install.</summary>
+    /// <summary>
+    /// The ROM's platform has no RetroBat folder on this install, or its mapped or chosen folder
+    /// is no longer a system in <c>es_systems.cfg</c>.
+    /// </summary>
     ExcludedUnmapped,
 
     /// <summary>
-    /// RomM holds this ROM as several files, which v1 does not sync.
+    /// RomM holds this ROM as several files, which v1 does not sync yet.
     /// </summary>
     /// <remarks>
-    /// Its own state rather than <see cref="ExcludedExtension"/>, because the format is not
-    /// what is wrong with it: RomM serves it as a zip built on demand, that download cannot be
-    /// resumed by any header, and the ROM-level hashes describe neither the zip nor its
-    /// members. Telling someone their <c>.bin</c>/<c>.cue</c> set is an unsupported format
-    /// would send them to fix the wrong thing.
+    /// Waits for its platform's certification to settle placement: a <c>.chd</c> set with an
+    /// <c>.m3u</c>, <c>.bin</c>/<c>.cue</c> sets, update and DLC files bound for other folders,
+    /// and the parts of RomM's subfolder structure to ignore. RomM serves it as a zip built on
+    /// demand, and the ROM-level hashes describe neither the zip nor its members.
     /// </remarks>
     ExcludedMultiFile,
 
@@ -45,8 +57,8 @@ public enum MemberState
     /// Two causes, and the user-facing wording covers both because the server does: a physical
     /// game (5.3.0's <c>POST /roms/physical</c>) never had a file, and a ROM deleted from the
     /// server's disk no longer does. Its own state rather than <see cref="ExcludedUnmapped"/>
-    /// or <see cref="ExcludedExtension"/>, because nothing on this machine is wrong with it and
-    /// both of those send someone to change something here.
+    /// or <see cref="ExcludedFolder"/>, because nothing on this machine is wrong with it and
+    /// nothing about its shape is either.
     /// </remarks>
     ExcludedNoFileOnDisk,
 
@@ -153,7 +165,7 @@ public sealed record SyncSetMember
     /// <remarks>
     /// <b>Carried so <c>ContentSync</c> reads it rather than assuming it.</b> It hardcoded
     /// false, which is true of everything that reaches a plan today, because
-    /// <c>SetResolver</c> excludes a multi-file ROM before the extension check. That left the
+    /// <c>SetResolver</c> excludes a multi-file ROM before it reaches one. That left the
     /// client's own multi-file guard unreachable from the shipped path: the header is
     /// suppressed for one of these and the refusal a 5.2.0 server answers with is worded, and
     /// both were exercised only by tests, so re-admitting multi-file ROMs would have leaned on
@@ -180,8 +192,8 @@ public sealed record SyncSetMember
     public DateTimeOffset ResolvedAt { get; init; }
 }
 
-/// <summary>An exclusion reason with its count and the extensions that caused it.</summary>
-public sealed record ExclusionSummary(MemberState State, int Count, IReadOnlyList<string> Extensions);
+/// <summary>An exclusion reason with its count.</summary>
+public sealed record ExclusionSummary(MemberState State, int Count);
 
 /// <summary>
 /// Sync set definitions and the membership their last resolution produced.
@@ -678,19 +690,18 @@ public sealed class SyncSetStore
     }
 
     /// <summary>
-    /// The exclusions, grouped by reason, with the extensions that caused each.
+    /// The exclusions, grouped by reason.
     /// </summary>
     /// <remarks>
-    /// Exclusions are shown, never hidden. "12 games skipped, format not supported by this
-    /// system" with the offending extensions is something a user can act on in RomM; a
-    /// silently shorter set is not.
+    /// Exclusions are shown, never hidden. "12 skipped, no RetroBat folder for their platform"
+    /// is something a user can act on; a silently shorter set is not.
     /// </remarks>
     public IReadOnlyList<ExclusionSummary> Exclusions(long syncSetId)
     {
         using var command = _connection
             .Command(
                 """
-                SELECT state, COUNT(*), GROUP_CONCAT(DISTINCT COALESCE(fs_extension, ''))
+                SELECT state, COUNT(*)
                 FROM sync_set_member
                 WHERE sync_set_id = $id AND state LIKE 'excluded_%'
                 GROUP BY state
@@ -703,12 +714,7 @@ public sealed class SyncSetStore
         var summaries = new List<ExclusionSummary>();
         while (reader.Read())
         {
-            var extensions = (reader.GetStringOrNull(2) ?? string.Empty)
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Order(StringComparer.Ordinal)
-                .ToArray();
-
-            summaries.Add(new ExclusionSummary(ParseState(reader.GetString(0)), (int)reader.GetInt64(1), extensions));
+            summaries.Add(new ExclusionSummary(ParseState(reader.GetString(0)), (int)reader.GetInt64(1)));
         }
 
         return summaries;
@@ -770,7 +776,7 @@ public sealed class SyncSetStore
     {
         MemberState.Member => "member",
         MemberState.Departed => "departed",
-        MemberState.ExcludedExtension => "excluded_extension",
+        MemberState.ExcludedFolder => "excluded_folder",
         MemberState.ExcludedUnmapped => "excluded_unmapped",
         MemberState.ExcludedMultiFile => "excluded_multi_file",
         MemberState.ExcludedNoFileOnDisk => "excluded_no_file_on_disk",
@@ -783,7 +789,7 @@ public sealed class SyncSetStore
     internal static MemberState ParseState(string text) => text switch
     {
         "departed" => MemberState.Departed,
-        "excluded_extension" => MemberState.ExcludedExtension,
+        "excluded_folder" => MemberState.ExcludedFolder,
         "excluded_unmapped" => MemberState.ExcludedUnmapped,
         "excluded_multi_file" => MemberState.ExcludedMultiFile,
         "excluded_no_file_on_disk" => MemberState.ExcludedNoFileOnDisk,

@@ -165,6 +165,9 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public string? HashLie { get; set; }
 
+    /// <summary>Report no content hash on negotiate, so only the bytes can say what arrived.</summary>
+    public bool OmitHash { get; set; }
+
     /// <summary>
     /// Fail the upload for this slot, as a dropped link mid-flush would.
     /// </summary>
@@ -279,7 +282,7 @@ internal sealed partial class StubRomMServer
                 emulator = save.GetProperty("emulator").GetString(),
                 reason = action == "conflict" ? "Both changed since the last sync" : "stub",
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
-                server_content_hash = HashLie ?? existing?.ContentHash,
+                server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
         }
 
@@ -297,7 +300,7 @@ internal sealed partial class StubRomMServer
                 emulator = existing?.Emulator,
                 reason = "held on the server and not on this device",
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
-                server_content_hash = HashLie ?? existing?.ContentHash,
+                server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
         }
 
@@ -315,7 +318,7 @@ internal sealed partial class StubRomMServer
                 emulator = existing?.Emulator,
                 reason = "held on the server with no slot",
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
-                server_content_hash = HashLie ?? existing?.ContentHash,
+                server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
         }
 
@@ -333,7 +336,7 @@ internal sealed partial class StubRomMServer
                 emulator = existing?.Emulator,
                 reason = "Both changed since the last sync",
                 server_updated_at = NaiveOrNull(existing?.UpdatedAt),
-                server_content_hash = HashLie ?? existing?.ContentHash,
+                server_content_hash = OmitHash ? null : HashLie ?? existing?.ContentHash,
             });
         }
 

@@ -91,6 +91,10 @@ public sealed record SetSummary(SyncSetDefinition Set, int Games, long Bytes, lo
 /// <summary>Everything <c>sets show</c> knows about one set.</summary>
 /// <param name="Bytes">What the games weigh according to RomM. See <see cref="SetSummary"/>.</param>
 /// <param name="OnDiskBytes">What this set occupies now, artwork included.</param>
+/// <param name="Unlisted">
+/// Members whose extension their system's <c>&lt;extension&gt;</c> list omits, by extension,
+/// read against the live <c>es_systems.cfg</c>. They sync; EmulationStation does not list them.
+/// </param>
 public sealed record SetDetail(
     SyncSetDefinition Set,
     int Games,
@@ -98,9 +102,13 @@ public sealed record SetDetail(
     IReadOnlyList<SyncSetMember> Members,
     IReadOnlyList<SyncSetMember> Departed,
     IReadOnlyList<ExclusionSummary> Exclusions,
-    long OnDiskBytes = 0)
+    long OnDiskBytes = 0,
+    IReadOnlyDictionary<string, int>? Unlisted = null)
 {
     public string Policy => SyncSetService.DescribePolicy(Set);
+
+    /// <summary>The note for <see cref="Unlisted"/>, or null when every member is listed.</summary>
+    public string? UnlistedNote => Unlisted is null ? null : SetResolver.DescribeUnlisted(Unlisted);
 }
 
 /// <summary>
@@ -292,15 +300,36 @@ public sealed class SyncSetService
         }
 
         var (games, bytes) = store.MemberTotals(set.Id);
+        var members = store.Members(set.Id);
 
         return new SetDetail(
             set,
             games,
             bytes,
-            store.Members(set.Id),
+            members,
             store.Members(set.Id, MemberState.Departed),
             store.Exclusions(set.Id),
-            OnDisk(set.Id));
+            OnDisk(set.Id),
+            UnlistedOf(members));
+    }
+
+    /// <summary>
+    /// The members EmulationStation will not list, or null when <c>es_systems.cfg</c> cannot be read.
+    /// </summary>
+    /// <remarks>
+    /// A note is not worth failing a screen over. An unreadable file is reported where it
+    /// matters, by the resolve and the sync, which cannot proceed without it.
+    /// </remarks>
+    private IReadOnlyDictionary<string, int>? UnlistedOf(IReadOnlyList<SyncSetMember> members)
+    {
+        try
+        {
+            return SetResolver.UnlistedFormatsOf(EsSystemsFile.Load(_session.Install), members);
+        }
+        catch (EsSystemsException)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -552,7 +581,7 @@ public sealed class SyncSetService
     /// <summary>Why a member is not in the set, as a person would say it.</summary>
     public static string Describe(MemberState state) => state switch
     {
-        MemberState.ExcludedExtension => "skipped, format not supported by this system",
+        MemberState.ExcludedFolder => "skipped, held as a folder which this version cannot sync yet",
         MemberState.ExcludedUnmapped => "skipped, no RetroBat folder for their platform",
         MemberState.ExcludedMultiFile => "skipped, held as several files which this version cannot sync yet",
         MemberState.ExcludedNoFileOnDisk => "skipped, RomM has no file on disk for it",

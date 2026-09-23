@@ -181,15 +181,15 @@ public sealed class SetResolveServiceTests : IDisposable
     public async Task A_resumed_walk_keeps_the_exclusions_the_first_segment_found()
     {
         // The shape a real collection has: most rows sync, some are refused for a reason worth
-        // reporting. Measured on a live install, a resumed walk finished saying "1 skipped,
-        // format not supported" where the complete walk had said 92, because an earlier
-        // segment's exclusions are not carried and the completion sweep then retires them.
+        // reporting. Measured on a live install, a resumed walk finished saying "1 skipped"
+        // where the complete walk had said 92, because an earlier segment's exclusions are not
+        // carried and the completion sweep then retires them.
         using var stub = new StubRomMServer();
 
         for (var id = 1; id <= 600; id++)
         {
-            // Every third rom carries an extension this system cannot launch.
-            var supported = id % 3 != 0;
+            // Every third rom is held as a folder.
+            var file = id % 3 != 0;
 
             stub.Library.Add(new StubRom(
                 id,
@@ -197,8 +197,8 @@ public sealed class SetResolveServiceTests : IDisposable
                 "snes",
                 "snes",
                 $"Game {id:0000}",
-                supported ? $"g{id}.sfc" : $"g{id}.xyz",
-                supported ? "sfc" : "xyz",
+                file ? $"g{id}.sfc" : $"g{id}",
+                file ? "sfc" : string.Empty,
                 1024));
         }
 
@@ -233,10 +233,10 @@ public sealed class SetResolveServiceTests : IDisposable
         var members = _session.Store.SyncSets.MemberTotals(set.Id).Games;
         var skipped = _session.Store.SyncSets
             .Exclusions(set.Id)
-            .Where(e => e.State == MemberState.ExcludedExtension)
+            .Where(e => e.State == MemberState.ExcludedFolder)
             .Sum(e => e.Count);
 
-        // 400 launchable, 200 refused on format, whether or not anybody stopped it half way.
+        // 400 files, 200 refused as folders, whether or not anybody stopped it half way.
         Assert.Equal(400, members);
         Assert.Equal(200, skipped);
     }

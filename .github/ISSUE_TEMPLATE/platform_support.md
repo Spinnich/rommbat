@@ -21,7 +21,7 @@ Tick everything that applies. These follow the certification checklist in
 
 - [ ] The platform resolves to the wrong RetroBat folder, or to none
 - [ ] Games are excluded that should not be, or included that will not launch
-- [ ] Required BIOS is not found, or lands in the wrong place
+- [ ] A BIOS file RomM holds is not fetched, or lands in the wrong place
 - [ ] Battery saves do not round-trip
 - [ ] Save states do not round-trip
 - [ ] The game launches but shows no art or metadata

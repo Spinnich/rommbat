@@ -40,7 +40,7 @@ That launch certified nothing: it is one of nine points on one row.
 **All nine `nes` rows are through, and the first is the model for the rest.** `nes` under
 `libretro`/`nestopia` on 2026-09-20, then the other two `libretro` cores, both `bizhawk` cores,
 `jgenesis`, `mesen`, `mednafen` and `ares` on 2026-09-21, at RomM `5.3.0-beta.1` and RetroBat
-8.2.1, all nine steps with step 6 N/A. The two later `libretro` passes took under an hour between
+8.2.1, all nine steps with step 6 N/A, and carried to the `5.3.0` floor with step 9 re-run. The two later `libretro` passes took under an hour between
 them, which is what a row costs once steps 1, 2 and 3 carry. The last four needed code first: a
 battery rule each and, for three, a state declaration in RomMBat's bundled supplement, which is
 what a row outside `es_savestates.cfg` will need on every other system too. Read
@@ -48,6 +48,44 @@ what a row outside `es_savestates.cfg` will need on every other system too. Read
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
 step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
 reads the sessions back, so step 8 no longer needs the token that record describes.
+
+**`megadrive` is second: seven of its eleven rows certified at `5.3.0` on 2026-09-21**, and
+`docs/platforms/megadrive.md` is the model for a system whose matrix does not all pass. The three
+`libretro` cores that boot the library, `bizhawk`, `jgenesis`, `mednafen` and `ares`, the last four
+on a build carrying megadrive rules. `libretro`/`fbneo` and the three `kega-fusion` rows were
+driven and are recorded as not certifiable, each with its reason, which is a result and not a
+gap. The whole system took one evening, eleven ES sessions and the agent's keyboard launches.
+
+**`gba` is third: nine of its ten rows certified at `5.3.0` on 2026-09-22**, in one morning,
+because **each row after the first was seeded with the save the one before made** rather than
+played through the intro again: copy the save to where the next emulator looks, launch, save in
+the game, so the file measured is still that emulator's. A seed an emulator refuses is a finding,
+not a failed pass: mednafen refused mGBA's 131,088 B file (finding 289). **Put an override's
+`gba.emulator` in `es_settings.cfg` only with ES closed**, and restore the file from a copy taken
+first. **A clock file is a second save file**, class B, and changes on every launch (finding 291).
+**An emulator can delete what you place in `roms/`**: NO$GBA took a bare `.gba` put beside its zip
+for its own unzip output and deleted it (finding 286), so check a hand-placed file is still there
+before each launch. Blame `emulatorLauncher` only once the emulator run by hand keeps the file.
+
+**`gb` is fourth: all fourteen rows certified at `5.3.0` on 2026-09-22**, in one afternoon, on
+the same seeding. Six `libretro` cores and Mesen share the loose `.srm`, so those seven needed no
+copying. **A boot write is not recognisably blank on every system** (finding 294): Mesen flushes
+random bytes, and a game that uses cartridge RAM as scratch space leaves real-looking ones, so
+move every boot write out before a flush. **Bring in a clock cartridge if the set has none**:
+a filter set with `--folder` put Pokemon Silver into `gb`, and it showed where each row keeps a
+real clock, which a clockless game cannot (finding 298). **BizHawk's pad key
+follows ES's `-state_slot`, which moves up as states accumulate**, and a `Ctrl+F<n>` sent by
+`keybd_event` needs the keys held about 400 ms.
+
+**Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
+emulator: `jgenesis` and `ares` name their save directory after their own name for the console
+(`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
+system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
+RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
+report rather than a tree to start scanning (finding 283). And a core can refuse the library for
+its names: FBNeo takes a console game's driver from the file name, so it boots nothing named by
+No-Intro (finding 278). **An emulator absent from `emulators/`** is installed by ES on the first
+launch under it, so check the folder holds an executable before planning its rows.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
@@ -60,34 +98,51 @@ is evidence.
 
 Record results in `docs/platforms/<system>.md`, one section per `(emulator, core)`. All nine,
 or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried
-across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.**
+across emulators with a note (step 2 not where emulators disagree about a playlist); **steps 4, 5 and 6 have to be redone per emulator.**
 
 1. Folder mapping resolves, and the resolution layer is recorded.
-2. `<extension>` list captured from the live `es_systems.cfg`, and **every ROM the set resolves
-   survives the extension check**. Nothing is excluded that the user asked for.
+2. **Multi-disc and multi-file games land correctly.** Record which shapes the library holds
+   for this system and, for each, where it lands and that it launches from ES. The known shapes:
+   several `.chd` plus an `.m3u`; several `.bin`/`.cue` sets, perhaps with an `.m3u`; update and
+   DLC files that belong in other folders; and RomM's subfolder structure inside a game folder,
+   most of which is ignored. Which parts are needed is the finding, not an assumption. Until a
+   shape is settled here it stays excluded (`excluded_multi_file`, `excluded_folder`), and
+   settling it is what unlocks it for this platform. Read both states: `excluded_folder` holds
+   every folder-held ROM RomM does not flag multi-file, including a folder of several files, so
+   a game with its update files can sit there rather than under `excluded_multi_file`. A system whose library is single files
+   throughout passes this step by recording so.
 
-   **The step used to ask for the opposite and it was testing the wrong direction.** It required
-   a known-unsupported file to be excluded and reported. Wrongly downloading one costs bytes and
-   a game that does not appear, because EmulationStation filters by `<extension>` itself; wrongly
-   **excluding** one silently drops a game the user asked for, with no error and no line in the
-   report worth questioning. `<extension>` is a per-system union across every emulator the system
-   declares (`nes` lists `.wad`, which is not a NES container at all), so the filter cannot be
-   precise per `(emulator, core)` and over-rejection is the likelier error of the two.
+   **The step used to be an extension check, and the extension no longer gates anything.**
+   `<extension>` is a per-system union across every emulator the system declares (`nes` lists
+   `.wad`, which is not a NES container at all; one `psx` emulator reads `.chd` and another does
+   not), so it cannot say what a given `(emulator, core)` opens. RomMBat syncs every member and
+   reports the ones the list omits as unlisted in ES. Capture the list in the record, note any
+   unlisted count the resolve reports, and do not manufacture a file to test either direction.
 
-   So record the list, record that the resolve kept everything, and do not manufacture a file to
-   reject. A platform whose library is one format throughout passes this step rather than being
-   held open by it.
+   **`.m3u` support is per emulator**, so this step can differ between rows of one system: PCSX2
+   cannot use a playlist although `ps2` lists `.m3u`. Where it does, record it per emulator.
 
-   **Where the exclusion half still earns a look is a library with mixed formats arising
-   naturally**, which is wave 2: `psx` and the CD systems carry `.chd`, `.cue`, `.bin` and `.m3u`
-   in one set, and over-filtering there drops real games. That is also where multi-disc and
-   multi-file placement has to be settled, which is the concern this step is a poor proxy for.
+3. The BIOS RetroBat lists, resolved against RomM **by md5**; what RomM lacks listed with
+   expected filename and hash. Run `rommbat-agent bios <system>` for the report and
+   `bios <system> --apply` to fetch, and record all four states rather than a pass or fail:
+   present, fetched, not in the library, and the ones RetroBat names no hash for. A system whose
+   whole list is hashless (28 of the 99 are) is certified on the other eight steps, and step 3
+   says so in those words.
 
-3. Required BIOS resolved against RomM **by md5**; gaps listed with expected filename and hash.
-   Run `rommbat-agent bios <system>` for the report and `bios <system> --apply` to fetch, and
-   record all four states rather than a pass or fail: present, fetched, not in the library, and
-   the ones RetroBat names no hash for. A system whose whole requirement is hashless (28 of the
-   99 are) is certified on the other eight steps, and step 3 says so in those words.
+   **A missing file never fails this step or holds a platform back.** RetroBat's list is what
+   RomMBat fetches, not what a platform needs to run: `batocera-systems.json` has no optional
+   flag, it keys firmware on the system, and the emulator decides which files it reads. RomMBat
+   fetches every entry RomM holds, reports the rest, and leaves the verdict to the emulator. On
+   `gba` three of ten rows refuse to boot without `gba_bios.bin` and seven HLE it (finding
+   285). So boot each row once with the file moved out of the tree, record which refuse, then
+   put it back with `bios <system> --apply`, which doubles as the fetch this step asks for. A
+   row that refuses without a file is certified with it, and the record names the file.
+
+   **Boot every row with the whole family's firmware out, not just the system's list.** A row can
+   read a file RetroBat lists under a sibling system: on `gb`, `bsnes` needs `sgb`'s `SGB1.sfc`
+   and `GBHawk` needs `gbc`'s boot ROM for a Color-flagged cartridge, and neither was on `gb`'s
+   list (finding 293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
+   system, copied from the sibling's entry, so `bios <system>` fetches it.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
@@ -159,8 +214,9 @@ across emulators with a note; **steps 4, 5 and 6 have to be redone per emulator.
 8. A play session is recorded and reaches RomM.
 
    **`rommbat-agent status` settles this step**, under its `Playtime` block: with the server
-   reachable it reads `GET /api/play-sessions` back for this device and prints the count and the
-   last session's start, end and length (#208). A token stored with `--protect` needs
+   reachable it reads `GET /api/play-sessions` back for this device and prints the count, the
+   last session's start, end and length, and the ten newest under `recent:` (#208), so a run of
+   rows played back to back can each be matched to its launch. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
    **Both of the ways this step used to be answered by hand have a trap, and they are why the
@@ -191,6 +247,14 @@ carry it forward by itself.** Nor does it void it. The PR that moves a floor owe
 - **A touched step not yet re-run is owed, not passed.** The record says so against the new
   floor, and the row is not certified there until it passes, whatever it held on the build it
   was measured on. Leave the original result and its version in place beside the owed line.
+
+**A scripted replay counts as a re-run, for a row already certified by hand.** A harness that
+launches the row through `emulatorLauncher` on the real install, drives its states and reads back
+what the emulator wrote is evidence, not a test suite standing in for it, so its pass clears a
+touched step. It never clears a row's first certification, a new emulator or core, step 6, or a
+multi-disc set; those stay hands-on. The harness, the row fingerprint that decides which rows it
+runs, and the fixtures kept from each pass are designed in `docs/PLAN.md`, "Keeping
+certifications current", and tracked in #216. Until they exist, a touched step is re-run by hand.
 
 This is the middle of three options #187 weighed. Re-running all nine on every move grows with
 the wave rollout for steps nothing changed, and never re-running leaves a record attesting to a
@@ -234,15 +298,20 @@ certified on the other eight steps. Driving all nine `nes` rows showed otherwise
 to `StateScanner` because it works from `es_savestates.cfg` alone. **Declaring no directory is not
 writing no state.** Look in the emulator's own tree under `saves/<system>/` before recording step 5
 for one of these rows, and record what you found there rather than what the file declares. On
-`nes` the three are carried by `data/retrobat/es_savestates.supplement.xml`, one entry each scoped
-to `nes`; a row in this family on another system needs its own entry from its own pass, plus a
-battery rule, before it can pass steps 4 and 5.
+`nes` and `megadrive` they are carried by `data/retrobat/es_savestates.supplement.xml`, each entry
+scoped to the systems it was driven on, and ares with one entry per system because its directory
+changes with it; a row in this family on another system needs its own entry from its own pass,
+plus a battery rule, before it can pass steps 4 and 5.
 
 **Find each emulator's slot keys before sitting down.** The pad's save key saves to the current
 slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `jgenesis`, `mesen`,
 `mednafen` and `ares` all step the slot on `F7` and save on `F2` with no modifier, which the agent
 can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
-`es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`).
+`es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`). Kega
+Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and needs its
+controls remapped in its own menu before the pad plays (finding 284). **When a key's effect cannot be seen,
+take a screenshot of the screen from the agent's session** rather than sending keys blind: a
+blind Start on a title screen is as likely to land during a fade as on the menu.
 
 The libretro family is the one that most needs driving rather than assumed: finding 134 measured
 two cores writing an identical `state1` filename, which survived as two server rows only because
@@ -257,8 +326,8 @@ the uploaded name carries the core.
 RetroBat publishes no per-`(emulator, core)` extension data anywhere, so record what the
 certified core was **observed** to launch and treat the rest as declared and unproven.
 
-**Steps 1, 2 and 3 can be batched for a whole wave before anyone sits down**, since none of them
-needs an emulator running. Staging a wave that way means its BIOS gaps are known before a
+**Steps 1 and 3, and the inventory half of step 2, can be batched for a whole wave before
+anyone sits down**, since none of them needs an emulator running. Staging a wave that way means its BIOS gaps are known before a
 controller is picked up, and it leaves six of nine steps open per record. Steps 4 through 9
 cannot be staged.
 

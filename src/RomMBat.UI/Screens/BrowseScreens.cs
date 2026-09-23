@@ -103,8 +103,8 @@ public static class BrowseScreens
     /// <b>Not "added to a set, sync later".</b> Ruled with Spinnich: one press, game on disk.
     /// The set is created on the first pick and is ordinary in every other way.
     /// <para>
-    /// A refusal is a screen rather than a silent no-op. An unmapped platform, a format the
-    /// folder cannot launch and a multi-file ROM are all facts about the library that a person
+    /// A refusal is a screen rather than a silent no-op. An unmapped platform, a folder-held
+    /// ROM and a multi-file ROM are all facts about the library that a person
     /// can act on in RomM, and a press that appeared to work and produced nothing is the worse
     /// half of every one of them.
     /// </para>

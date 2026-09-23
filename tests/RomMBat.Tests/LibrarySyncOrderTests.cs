@@ -2,6 +2,7 @@ using RomM.Client;
 using RomM.Client.Catalog;
 using RomM.Client.Content;
 using RomMBat.Core;
+using RomMBat.Core.Content;
 using RomMBat.Core.Metadata;
 using RomMBat.Core.Sets;
 using RomMBat.Core.Store;
@@ -150,6 +151,38 @@ public sealed class LibrarySyncOrderTests : IDisposable
         Assert.True(
             firstArt < secondRom,
             "game one's artwork was fetched after game two's ROM, which is the pre-#102 order");
+    }
+
+    [Fact]
+    public async Task A_platform_whose_firmware_RomM_lacks_still_syncs_its_games()
+    {
+        // RetroBat's list has no optional flag and the emulator decides what it reads, so a
+        // file RomM does not hold is reported and never holds the platform back.
+        using var stub = Library(2);
+        using var connection = new RomMConnection(
+            new RomMClientOptions { Origin = new Uri("http://stub.invalid"), AccessToken = "rmm_test" },
+            stub);
+        BiosPlan? plan = null;
+
+        await new LibrarySyncService(_session).RunAsync(
+            [Set(games: 2)],
+            new SyncOptions(NoResolve: true),
+            connection,
+            new Immediate<SyncEvent>(reported =>
+            {
+                if (reported is BiosPlanned planned)
+                {
+                    plan = planned.Plan;
+                }
+            }),
+            _ => Task.CompletedTask,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(plan);
+        Assert.True(plan.Count(BiosAction.MissingFromLibrary) > 0, "psx lists no firmware RomM lacks");
+        Assert.Empty(stub.FirmwareRequests);
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "psx", "Game 1.chd")));
+        Assert.True(File.Exists(Path.Combine(_tree.Root, "roms", "psx", "Game 2.chd")));
     }
 
     [Fact]

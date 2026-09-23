@@ -614,10 +614,10 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(1, resolution.MultiFile);
         Assert.Equal(MemberState.ExcludedMultiFile, Assert.Single(resolution.Excluded).State);
 
-        // The format is not what is wrong with a .bin/.cue set, and saying so would send
-        // someone to re-import it for nothing.
+        // Every multi-file ROM also has an empty extension, which is the folder shape's marker,
+        // so the flag has to win.
         Assert.Contains("several files", resolution.Summary, StringComparison.Ordinal);
-        Assert.DoesNotContain("format not supported", resolution.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("held as a folder", resolution.Summary, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -653,10 +653,10 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(1, excluded.RomId);
         Assert.Equal(MemberState.ExcludedNoFileOnDisk, excluded.State);
 
-        // Not a format problem and not an unmapped platform, both of which send someone to
-        // change something on this machine when the row is exactly as its owner intended.
+        // Not a shape problem and not an unmapped platform, both of which send someone to
+        // change something when the row is exactly as its owner intended.
         Assert.Contains("no file on disk", resolution.Summary, StringComparison.Ordinal);
-        Assert.DoesNotContain("format not supported", resolution.Summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("held as a folder", resolution.Summary, StringComparison.Ordinal);
     }
 
     [Fact]

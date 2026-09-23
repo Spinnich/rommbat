@@ -25,6 +25,13 @@ namespace RomMBat.Agent.Tests;
 [Collection("agent-console")]
 public sealed class StatusCommandTests
 {
+    private static readonly string[] NewestFirst =
+    [
+        "2026-09-01 08:00:00Z to 2026-09-01 10:03:04Z, 2h 3m 4s, rom 33",
+        "2026-08-20 09:00:00Z to 2026-08-20 09:05:00Z, 5m 0s, rom 22",
+        "2026-08-16 10:00:00Z to 2026-08-16 10:30:00Z, 30m 0s, rom 11",
+    ];
+
     [Fact]
     public async Task The_playtime_block_reports_the_newest_session_and_not_the_first_row()
     {
@@ -59,6 +66,13 @@ public sealed class StatusCommandTests
             run.Wrote("last session:    2026-09-01 08:00:00Z to 2026-09-01 10:03:04Z, 2h 3m 4s"),
             run.Out);
         Assert.True(run.Wrote("its rom:         33"), run.Out);
+
+        // Every session in the answer, newest first, so a pass over several rows can match each.
+        var recent = run.Out[run.Out.IndexOf("recent:", StringComparison.Ordinal)..];
+        var order = NewestFirst.Select(line => recent.IndexOf(line, StringComparison.Ordinal)).ToList();
+
+        Assert.DoesNotContain(-1, order);
+        Assert.Equal(order.Order(), order);
 
         // The RomM-side id, never the local one. Asking with the local one answers 200 with
         // zero rows, which reads exactly like a session that was never written.
@@ -290,7 +304,7 @@ public sealed class StatusCommandTests
                 }
                 else
                 {
-                    body = """{"SYSTEM": {"VERSION": "5.3.0-beta.1"}}""";
+                    body = """{"SYSTEM": {"VERSION": "5.3.0"}}""";
                 }
 
                 var bytes = Encoding.UTF8.GetBytes(body);

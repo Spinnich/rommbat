@@ -7,12 +7,14 @@ using RomMBat.Core.RetroBat;
 namespace RomMBat.Agent.Commands;
 
 /// <summary>
-/// <c>bios</c>: fetch what RetroBat requires under <c>bios/</c>, and report what is missing.
+/// <c>bios</c>: fetch what RetroBat lists under <c>bios/</c>, and report what is missing.
 /// </summary>
 /// <remarks>
-/// <b>The report is the point, and it works offline.</b> Required firmware RomM does not have
-/// is the single most useful thing this feature can tell a user, because the alternative is a
-/// game that appears in EmulationStation and dies on launch. Without the server it still
+/// <b>The report is the point, and it works offline.</b> Listed firmware RomM does not have is
+/// the most useful thing this feature can tell a user, because on an emulator that needs it
+/// the game appears in EmulationStation and dies on launch. It is information, never a gate:
+/// RetroBat's list has no optional flag, and whether a missing file matters is the emulator's
+/// call, so a gap exits zero and blocks nothing. Without the server it still
 /// answers from the bundled manifest and what is on disk; with it, the absent half splits into
 /// "RomM has it" and "not in your library" for the price of one request.
 /// <para>

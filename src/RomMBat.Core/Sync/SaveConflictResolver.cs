@@ -198,30 +198,24 @@ public sealed class SaveConflictResolver
         SaveConflictRecord conflict,
         CancellationToken cancellationToken)
     {
-        // By slot first, then by the file the conflict named. A conflict recorded because another
-        // slot's download would have landed on this device's save (#205) is keyed on the slot the
-        // server offered, which this device holds no row for: its local side is the file, and
-        // without this fallback the only way out of such a conflict would be taking the server's
-        // copy.
-        var save = _store.Saves.List(conflict.RomId)
-            .FirstOrDefault(row => string.Equals(row.Slot, conflict.Slot, StringComparison.Ordinal))
-            ?? _store.Saves.List(conflict.RomId)
-                .FirstOrDefault(row => row.Path == conflict.LocalPath);
+        var save = FindLocal(conflict);
 
-        if (save is null)
+        if (save is null || !IsOnDisk(save))
         {
+            if (SaveSync.NotASave(conflict.ServerHash) is not null)
+            {
+                return CloseWithNothingToKeep(conflict, ConflictResolution.KeepLocal);
+            }
+
             return ConflictResolutionOutcome.Failed(
-                $"This device no longer holds a save in slot {conflict.Slot}, so there is nothing "
-                    + "local to keep. Delete the conflict or take the server's copy instead.");
+                save is null
+                    ? $"This device no longer holds a save in slot {conflict.Slot}, so there is "
+                        + "nothing local to keep. Take the server's copy instead."
+                    : $"{save.Path} is gone, so there is nothing to send. Take the server's copy instead.");
         }
 
         var path = _install.Resolve(save.Path);
         var isUnit = save.ShapeClass == RetroBat.SaveShapeClass.C;
-
-        if (isUnit ? !Directory.Exists(path) : !File.Exists(path))
-        {
-            return ConflictResolutionOutcome.Failed($"{save.Path} is gone, so there is nothing to send.");
-        }
 
         // <b>A class C row's path is a container, not a file.</b> Opening it as one failed with
         // "is gone, so there is nothing to send", which is both wrong and misleading, and the
@@ -237,7 +231,8 @@ public sealed class SaveConflictResolver
             if (unit is null)
             {
                 return ConflictResolutionOutcome.Failed(
-                    $"{save.Path}/{save.UnitKey} is gone, so there is nothing to send.");
+                    $"{save.Path}/{save.UnitKey} is gone, so there is nothing to send. Take the "
+                        + "server's copy instead.");
             }
 
             bundle = SaveUnitTransfer.Pack(_install, unit, _install.Resolve(SaveSync.PartialDirectory));
@@ -314,6 +309,60 @@ public sealed class SaveConflictResolver
             $"Kept this device's {save.Path} and sent it as the newest copy in the slot." + pruned);
     }
 
+    /// <summary>The local save a conflict is about, or null when this device holds none.</summary>
+    /// <remarks>
+    /// By slot first, then by the file the conflict named. A conflict recorded because another
+    /// slot's download would have landed on this device's save (#205) is keyed on the slot the
+    /// server offered, which this device holds no row for: its local side is the file, and
+    /// without this fallback the only way out of such a conflict would be taking the server's
+    /// copy.
+    /// </remarks>
+    private LocalSave? FindLocal(SaveConflictRecord conflict) =>
+        _store.Saves.List(conflict.RomId)
+            .FirstOrDefault(row => string.Equals(row.Slot, conflict.Slot, StringComparison.Ordinal))
+        ?? _store.Saves.List(conflict.RomId)
+            .FirstOrDefault(row => row.Path == conflict.LocalPath);
+
+    /// <remarks>
+    /// A class C row is on disk when its unit is, not its container: the container is shared and
+    /// outlives every unit in it.
+    /// </remarks>
+    private bool IsOnDisk(LocalSave save) =>
+        save.ShapeClass == RetroBat.SaveShapeClass.C
+            ? SaveUnitTransfer.Find(_units, save) is not null
+            : File.Exists(_install.Resolve(save.Path));
+
+    /// <summary>
+    /// Closes a conflict neither side of which holds a save, whichever side was asked for.
+    /// </summary>
+    /// <remarks>
+    /// <b>Otherwise it could never close.</b> Keeping the local side needs a file to send, and
+    /// keeping the server's refuses a copy that is not a save, so a conflict whose local file was
+    /// removed against a server <c>null</c> was reported on every flush with no answer that
+    /// worked (finding 276). The copy set aside when it was recorded is left where it is, since
+    /// it may be the only trace of the local side, and the message names it.
+    /// </remarks>
+    private ConflictResolutionOutcome CloseWithNothingToKeep(
+        SaveConflictRecord conflict,
+        ConflictResolution resolution)
+    {
+        _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, resolution, _time.GetUtcNow());
+
+        var copy = conflict.LocalCopyPath is { } kept && File.Exists(_install.Resolve(kept))
+            ? $" The copy taken when it was recorded is still at {kept}."
+            : string.Empty;
+
+        return new ConflictResolutionOutcome(
+            true,
+            $"Closed the conflict with nothing written: this device no longer holds a save in slot "
+                + $"{conflict.Slot}, and the server's copy is not a save.{copy}");
+    }
+
+    private static ConflictResolutionOutcome NotASaveKept(string reason) =>
+        ConflictResolutionOutcome.Failed(
+            $"Nothing was written, because {reason} The conflict is still open, and keeping this "
+                + "device's copy settles it.");
+
     private async Task<ConflictResolutionOutcome> KeepServerAsync(
         SaveConflictRecord conflict,
         CancellationToken cancellationToken)
@@ -347,6 +396,15 @@ public sealed class SaveConflictResolver
                     + "still says the same thing. Close the game, then resolve it again.");
         }
 
+        // A conflict can still carry one: the server's own conflict action and a 409 record it,
+        // because the local side is real and keeping it is the answer.
+        if (SaveSync.NotASave(conflict.ServerHash) is { } refused)
+        {
+            return FindLocal(conflict) is { } local && IsOnDisk(local)
+                ? NotASaveKept(refused)
+                : CloseWithNothingToKeep(conflict, ConflictResolution.KeepServer);
+        }
+
         var partialDirectory = _install.Resolve(SaveSync.PartialDirectory);
         var part = Path.Combine(partialDirectory, $"resolve-{saveId}.part");
 
@@ -364,6 +422,16 @@ public sealed class SaveConflictResolver
                 {
                     return ConflictResolutionOutcome.Failed($"The download failed: {response.Message}");
                 }
+            }
+
+            if (new FileInfo(part).Length == SaveSync.NullPayload.Length
+                && SaveSync.NotASave(LogicalContentHash.OfFile(part)) is { } arrived)
+            {
+                File.Delete(part);
+
+                return FindLocal(conflict) is { } local && IsOnDisk(local)
+                    ? NotASaveKept(arrived)
+                    : CloseWithNothingToKeep(conflict, ConflictResolution.KeepServer);
             }
 
             var unitRow = _store.Saves.List(conflict.RomId)

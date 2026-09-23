@@ -20,8 +20,10 @@ eight of nine**, and it cannot be finished from a desk: step 7 requires actually
 game. Three of the nine can be staged ahead of time, which is a different claim and is below.
 
 1. Folder mapping resolves, and the record names **which layer** resolved it.
-2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
-3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
+2. Multi-disc and multi-file games land correctly: the shapes this library holds for the
+   system are recorded, and each lands where the emulator reads it and launches from ES.
+3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
+   listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator**, and the battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, with the declared directory confirmed against where it really writes.
@@ -34,15 +36,15 @@ Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried across emula
 note saying so. **Steps 4, 5 and 6 have to be redone per emulator**, and they are also the
 three where being wrong destroys data rather than costing a re-download.
 
-**Step 2 asked for the opposite until 2026-09-20 and was testing the wrong direction.** It
-required a known-unsupported file to be excluded and reported, which held `nes` open at eight of
-nine for a property of the library rather than of the software. Wrongly downloading a file costs
-bytes and a game that does not appear, since EmulationStation filters by `<extension>` itself;
-wrongly **excluding** one silently drops a game the user asked for. `<extension>` is a per-system
-union across every emulator, so the filter cannot be precise per `(emulator, core)` and
-over-rejection is the likelier error. Do not manufacture a file to reject. The exclusion half
-earns a look on a library with mixed formats arising naturally, which is wave 2, and that is also
-where multi-disc and multi-file placement has to be settled.
+**Step 2 was an extension check until the extension stopped gating a sync.** Until 2026-09-20
+it required a known-unsupported file to be excluded, which held `nes` open at eight of nine for
+a property of the library rather than of the software; it then became "every ROM survives the
+extension check". Now nothing is excluded on its extension at all: `<extension>` is a per-system
+union across every emulator, so it cannot say what a given `(emulator, core)` opens, and members
+it omits sync and are reported as unlisted in ES. What the step checks instead is the concern
+the extension check was a poor proxy for, **multi-disc and multi-file placement**. Records
+written before the change passed the old step 2 and carry that reading; the placement half is
+owed on them when a record is next touched, and a single-file library passes it by saying so.
 
 Load the `platform-certification` skill before starting. Record what failed as well as
 what passed; a record that only lists successes is not evidence.
@@ -95,15 +97,18 @@ against 7 systems**:
 | -------------- | ------ | --------------- |
 | `nes`          | 9      | 9               |
 | `snes`         | 15     | 11              |
-| `gb`           | 14     | 10              |
+| `gb`           | 14     | 14              |
 | `gbc`          | 12     | 8               |
-| `gba`          | 10     | 5               |
-| `megadrive`    | 11     | 6               |
+| `gba`          | 10     | 9               |
+| `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **54**          |
+| **Total**      | **81** | **67**          |
 
-`nes` is 9 of 9 because RomMBat's bundled supplement declares the three emulators
-`es_savestates.cfg` leaves out there; every other system counts `es_savestates.cfg` alone.
+`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10 and `gb` 14 of 14 because RomMBat's bundled supplement
+declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
+`nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
+`mesen` and `ares` on `gba`, and the same four on `gb`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
 and 6 are redone per row, and they collapse into four families rather than 81 separate shapes:
@@ -131,9 +136,11 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   `saves` says so, which is the reporting half: a directory whose emulator the file does not name
   is reported under `no_state_declaration` rather than folded into the row that promises save
   states sync. **The fix is per system**: `data/retrobat/es_savestates.supplement.xml` declares
-  `mednafen`, `mesen` and `ares` on `nes`, where all three were driven and certified, and a row in
-  this family anywhere else needs its own supplement entry and battery rule, from its own pass,
-  before steps 4 and 5 can pass.
+  `mednafen`, `mesen` and `ares` on `nes` and `mednafen`, `ares` and `kega-fusion` on
+  `megadrive`, each where it was driven, and a row in this family anywhere else needs its own
+  supplement entry and battery rule, from its own pass, before steps 4 and 5 can pass. **The
+  layout is the emulator's per system, not per emulator**: ares keeps `nes` under `ares/Famicom/`
+  and `megadrive` under `ares/Mega Drive/`, so the supplement carries one entry per system.
 
   **Check the declaration by emulator name, not by save-directory name**, before recording a row
   as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
@@ -154,13 +161,13 @@ union across every emulator the system declares, and **RetroBat publishes no per
 core)` extension data anywhere**: `es_features.cfg` mentions "extension" 28 times and every one
 is an N64 controller pak. So record which extensions the certified core was **observed** to
 launch, and treat the rest as declared and unproven rather than supported. A core refusing a
-declared extension is a real result about that row, not a RomMBat defect, and rule 3 is
-untouched: RetroBat remains the authority at the layer a sync decision is made.
+declared extension is a real result about that row, not a RomMBat defect: RomMBat does not
+police formats, and which one a user keeps in RomM is theirs to choose.
 
 ### What a wave can be staged before anyone sits down
 
 Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wave ahead of
-time: the mapping layer, the `<extension>` list from the live `es_systems.cfg`, and
+time: the mapping layer, the `<extension>` list and the library's multi-file shapes, and
 `rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
 of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
 up. Steps 4 through 9 cannot be staged and are the reason the rollout waited for M7.
@@ -193,11 +200,11 @@ work. All three counts are against the 51 systems above.
   `es_savestates.cfg` rather than by what RetroBat can launch. An alternate outside those 13
   (`mednafen`, `ares`, `mesen`, standalone `snes9x`, `kega-fusion`, `xemu`, `raine` and the rest)
   needs a supplement entry of RomMBat's own before step 5 can pass, which is how `mednafen`, `mesen`
-  and `ares` were certified on `nes`. **Outside what RetroBat declares, not outside what the
+  and `ares` were certified on `nes`, and `mednafen` and `ares` on `megadrive`. **Outside what RetroBat declares, not outside what the
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Nine rows are certified, and the gate is open
+## Sixteen rows are certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -207,7 +214,8 @@ and came back out through the hooks. The waves finish against an M8 package.
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
-**Every row `nes` declares is certified**, at the `5.3.0-beta.1` and RetroBat 8.2.1 floors, all
+**Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
+to the `5.3.0` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
 state round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
@@ -217,11 +225,37 @@ saves, and `jgenesis`, `mesen`, `mednafen` and `ares` last, once each had a batt
 last three a state declaration in the bundled supplement. Steps 1, 2, 3, 4, 5, 7, 8 and 9 pass on
 all nine; step 6 is N/A because `nes` has no class D.
 
-**Read that as narrowly as it is written.** It certifies nine `(system, emulator, core)` rows on
-one install at one pair of floors, which is every row `nes` declares on RetroBat 8.2.1. It certifies
-none of those emulators on any other system: every rule and declaration the last four needed is
-scoped to `nes`.
-[nes.md](nes.md) is the record, gaps included.
+**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-21: the three `libretro` cores that boot the library, `genesis_plus_gx` being the stock
+row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each had a megadrive
+battery rule and the last two a state declaration. **Four were driven and are not certified**:
+`libretro`/`fbneo` boots no game named by No-Intro, since FBNeo takes its driver from the file
+name (finding 278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
+battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (finding 283).
+
+**Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+`libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,
+`mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`, the last seven once each had a gba
+battery rule and four a state declaration. **`nosgba` was driven and is not certified**: it loads a
+zipped ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, keeps its saves
+outside `saves/`, and writes a state only where a Save As dialog is pointed (finding 286). Three rows refuse to boot without `gba_bios.bin` and seven do not
+(finding 285), which the record tables.
+
+**All fourteen of `gb`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+the six `libretro` cores, `gambatte` being the stock row, with `mesen-s`, `bsnes`, `tgbdual`,
+`DoubleCherryGB` and `sameboy`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`,
+`GBHawk` and `SameBoy`, and `jgenesis`, the standalone rows once each had a gb battery rule and four a
+state declaration. Twelve rows boot without firmware. `libretro`/`bsnes` needs `SGB1.sfc` and
+`bizhawk`/`GBHawk` the Color boot ROM for a Color-flagged cartridge, files RetroBat's list names
+under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). A clock cartridge,
+Pokemon Silver synced into `gb`, keeps its clock in a `.rtc` under the stock core, which syncs as
+`libretro:battery:rtc` and was driven through a restore with the clock intact (finding 298).
+
+**Read all four as narrowly as they are written.** They certify thirty-nine
+`(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
+emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
+to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
+[gba.md](gba.md) and [gb.md](gb.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

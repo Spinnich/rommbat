@@ -44,6 +44,17 @@ public sealed record SaveSyncOutcome
     public int Deferred { get; init; }
 
     /// <summary>
+    /// Downloads refused because what the server holds is not a save, each with a line in
+    /// <see cref="Problems"/>.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, because nothing here can fix it and retrying changes nothing.</b> The
+    /// server keeps offering the row on every flush until someone deletes it, so counting it as
+    /// failed would exit <c>Partial</c> forever. See <see cref="SaveSync.NotASave"/>.
+    /// </remarks>
+    public int Rejected { get; init; }
+
+    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -63,7 +74,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0 && !SessionLeftOpen;
+        && Skipped == 0 && Deferred == 0 && Rejected == 0 && !SessionLeftOpen;
 
     public string Summary
     {
@@ -99,6 +110,11 @@ public sealed record SaveSyncOutcome
             if (Deferred > 0)
             {
                 parts.Add($"{Deferred} waiting on a running game");
+            }
+
+            if (Rejected > 0)
+            {
+                parts.Add($"{Rejected} refused, not a save");
             }
 
             if (Skipped > 0)
@@ -202,6 +218,9 @@ public sealed record SaveRestoreOutcome
     /// written and asking again once the game is closed works. See <see cref="InFlightGuard"/>.
     /// </remarks>
     public int Deferred { get; init; }
+
+    /// <summary>Saves refused because what the server holds is not a save.</summary>
+    public int Rejected { get; init; }
 
     /// <summary>Bytes fetched.</summary>
     public long BytesTransferred { get; init; }
@@ -385,6 +404,7 @@ public sealed class SaveSync
         var downloaded = 0;
         var noOps = 0;
         var deferred = 0;
+        var rejected = 0;
         var bytes = 0L;
         var conflicts = new List<SaveConflict>();
 
@@ -445,6 +465,17 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // Ahead of every route to a conflict, since "keep server" would then write it.
+                    // With no local save it waits for the skip below, so a game not here stays
+                    // quiet.
+                    if (local is not null && NotASave(operation.ServerContentHash) is { } heldOver)
+                    {
+                        rejected++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {heldOver}");
+                        break;
+                    }
+
                     if (local is not null && SupersededRowReturned(operation, saveId) is { } revived)
                     {
                         conflicts.Add(RecordConflict(revived, local));
@@ -472,6 +503,14 @@ public sealed class SaveSync
                     if (targetProblem == TargetProblem.RomNotHere)
                     {
                         skipped++;
+                        break;
+                    }
+
+                    if (NotASave(operation.ServerContentHash) is { } offered)
+                    {
+                        rejected++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {offered}");
                         break;
                     }
 
@@ -548,6 +587,12 @@ public sealed class SaveSync
                         problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
                             + $"because {waiting}. The next flush writes it.");
                     }
+                    else if (download.Rejected is { } notASave)
+                    {
+                        rejected++;
+                        problems.Add($"rom {operation.RomId} slot {operation.Slot}: not written "
+                            + $"because {notASave}");
+                    }
                     else if (download.Problem is { } downloadProblem)
                     {
                         failed++;
@@ -590,7 +635,7 @@ public sealed class SaveSync
                 .CompleteSyncSessionAsync(
                     result.SessionId,
                     uploaded + downloaded + noOps,
-                    failed + conflicts.Count,
+                    failed + rejected + conflicts.Count,
                     null,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -625,6 +670,7 @@ public sealed class SaveSync
             Failed = failed,
             Skipped = skipped,
             Deferred = deferred,
+            Rejected = rejected,
             SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
@@ -834,6 +880,12 @@ public sealed class SaveSync
                 continue;
             }
 
+            if (NotASave(row.ContentHash) is { } notASave)
+            {
+                unrestorable.Add(new UnrestorableSave(row.RomId, slot, notASave));
+                continue;
+            }
+
             // The guard the flush applies at the same decision point, and for the same reason: a
             // bundled slot this device has never held has no container to expand and no key to
             // place under, so the class A path would leave a .zip where an emulator expects a
@@ -985,6 +1037,7 @@ public sealed class SaveSync
         var restored = 0;
         var failed = 0;
         var deferred = 0;
+        var rejected = 0;
         var bytes = 0L;
         var problems = new List<string>();
 
@@ -1008,7 +1061,7 @@ public sealed class SaveSync
             // already written, so the process died with one save on disk, no row behind it and
             // the second never attempted. A restore is reached by hand and reports per line, so
             // it carries on and says what did not land.
-            (long Bytes, string? Problem, string? Deferred) outcome;
+            (long Bytes, string? Problem, string? Deferred, string? Rejected) outcome;
 
             try
             {
@@ -1037,6 +1090,13 @@ public sealed class SaveSync
                 continue;
             }
 
+            if (outcome.Rejected is { } notASave)
+            {
+                rejected++;
+                problems.Add($"{pick.Destination}: not written because {notASave}");
+                continue;
+            }
+
             if (outcome.Problem is { } problem)
             {
                 failed++;
@@ -1053,6 +1113,7 @@ public sealed class SaveSync
             Restored = restored,
             Failed = failed,
             Deferred = deferred,
+            Rejected = rejected,
             BytesTransferred = bytes,
             Problems = problems,
         };
@@ -1177,7 +1238,7 @@ public sealed class SaveSync
     /// an older timestamp reaches it: a restore from backup, a copy off another machine, an
     /// archive extraction. Uploaded rather than reported, because a replayed upload into one slot
     /// reuses the row and a 409 still lands as a conflict, so the correction cannot cost a save.
-    /// <b>Live at the 5.3.0-beta.1 floor</b>, as probe case M1 and as a flush: a 4-byte save
+    /// <b>Live at 5.3.0-beta.1</b>, as probe case M1 and as a flush, and M1 answers the same at 5.3.0: a 4-byte save
     /// given different content and an older mtime went up as <c>saves: 1 up</c> where the same
     /// flush without this said nothing at all.
     /// </para>
@@ -1190,7 +1251,7 @@ public sealed class SaveSync
     /// consecutive flushes for save 336, finding 259.
     /// </para>
     /// <para>
-    /// <b>That half does not reproduce at the 5.3.0-beta.1 floor and the guard is kept as
+    /// <b>That half does not reproduce at 5.3.0-beta.1 or 5.3.0 and the guard is kept as
     /// defence, not as a live fix.</b> Asked directly, case M4 of
     /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> answers <c>no_op (Content is
     /// identical)</c>, so the server compares the hash there and the repeat never starts. It
@@ -1364,7 +1425,7 @@ public sealed class SaveSync
     /// </summary>
     /// <remarks>
     /// <b>Negotiate answers <c>download</c> for a slot this device has no sync record for,
-    /// whatever the device holds</b>: measured at the <c>5.3.0-beta.1</c> floor as case M3,
+    /// whatever the device holds</b>: measured at <c>5.3.0-beta.1</c> and <c>5.3.0</c> as case M3,
     /// "Server save is newer (no sync history)", against a local save it was sent the hash of
     /// (<c>s4-older-mtime.py</c>, #211). Two devices playing one game offline is the ordinary
     /// case for a handheld, and the second one's first flush replaced its save with no conflict,
@@ -1423,7 +1484,7 @@ public sealed class SaveSync
     /// undone rather than left: the unit ends up wholly new or wholly as it was.
     /// </para>
     /// </remarks>
-    private async Task<(long Bytes, string? Problem, string? Deferred)> DownloadAsync(
+    private async Task<(long Bytes, string? Problem, string? Deferred, string? Rejected)> DownloadAsync(
         SyncOperation operation,
         int saveId,
         LocalSave? local,
@@ -1436,7 +1497,14 @@ public sealed class SaveSync
         // makes this the one place the question has to be asked.
         if (_inFlight.Check(operation.RomId, destination) is { CanWrite: false } verdict)
         {
-            return (0, null, verdict.Reason);
+            return (0, null, verdict.Reason, null);
+        }
+
+        // Before the transfer where the server named the hash, and again on the bytes below
+        // where it did not. Never acknowledged, so the row stays the server's to offer.
+        if (NotASave(operation.ServerContentHash) is { } refused)
+        {
+            return (0, null, null, refused);
         }
 
         var partialDirectory = _install.Resolve(PartialDirectory);
@@ -1451,7 +1519,7 @@ public sealed class SaveSync
                 var unit = await RestoreUnitAsync(operation, saveId, local, sessionId, part, cancellationToken)
                     .ConfigureAwait(false);
 
-                return (unit.Bytes, unit.Problem, null);
+                return (unit.Bytes, unit.Problem, null, null);
             }
 
             long written;
@@ -1464,7 +1532,7 @@ public sealed class SaveSync
 
                 if (!response.IsSuccess)
                 {
-                    return (0, $"{destination}: {response.Message}", null);
+                    return (0, $"{destination}: {response.Message}", null, null);
                 }
 
                 written = response.Value;
@@ -1478,8 +1546,14 @@ public sealed class SaveSync
                 {
                     SafeDelete(part);
                     return (0, $"{destination}: what arrived hashes to {found} and the server said "
-                        + $"{expected}. Nothing was written and the server was not told it arrived.", null);
+                        + $"{expected}. Nothing was written and the server was not told it arrived.", null, null);
                 }
+            }
+
+            if (written == NullPayload.Length && NotASave(LogicalContentHash.OfFile(part)) is { } arrived)
+            {
+                SafeDelete(part);
+                return (0, null, null, arrived);
             }
 
             var absolute = _install.Resolve(destination);
@@ -1497,23 +1571,45 @@ public sealed class SaveSync
                 // The file is in place and the server does not know. The next negotiate offers
                 // it again and the second download is a no-op against identical content, so
                 // this costs a transfer rather than a save.
-                return (written, $"{destination}: written, but the server was not told: {ack.Message}", null);
+                return (written, $"{destination}: written, but the server was not told: {ack.Message}", null, null);
             }
 
             RecordRestored(operation, destination, local);
-            return (written, null, null);
+            return (written, null, null, null);
         }
         catch (RomMUnreachableException ex)
         {
             SafeDelete(part);
-            return (0, $"{destination}: {ex.Message}", null);
+            return (0, $"{destination}: {ex.Message}", null, null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             SafeDelete(part);
-            return (0, $"{destination}: it could not be written: {ex.Message}", null);
+            return (0, $"{destination}: it could not be written: {ex.Message}", null, null);
         }
     }
+
+    /// <summary>The four bytes RomM's browser player uploads when it has no save to send.</summary>
+    internal static ReadOnlySpan<byte> NullPayload => "null"u8;
+
+    /// <summary>The md5 of <see cref="NullPayload"/>.</summary>
+    internal const string NullPayloadHash = "37a6259cc0c1dae299a7866489dff0bd";
+
+    /// <summary>
+    /// Why a server save with this content hash must not be written, or null when it may be.
+    /// </summary>
+    /// <remarks>
+    /// <b>RomM's browser player uploads the JSON literal <c>null</c> into slot <c>autosave</c></b>
+    /// when it has no save to send, and the server keeps those four bytes like any other save.
+    /// Placed as a battery save it replaces a real one with a file no emulator loads, measured on
+    /// <c>megadrive</c> and twice on <c>nes</c>. The hash is the whole test, since no emulator
+    /// writes a save of exactly those bytes.
+    /// </remarks>
+    internal static string? NotASave(string? contentHash) =>
+        string.Equals(contentHash, NullPayloadHash, StringComparison.OrdinalIgnoreCase)
+            ? "the server holds the four bytes 'null' there, which another client wrote in place "
+                + "of a save. Delete that save on the server to stop it being offered."
+            : null;
 
     /// <summary>
     /// Fetches a bundled unit, stages it whole, and then swaps its members in one at a time.
@@ -1705,7 +1801,7 @@ public sealed class SaveSync
             }
             else if (rule.NamedAfter == BatteryNaming.RomFileAndContentMd5)
             {
-                if (HeaderlessNesHash.Of(_install.Resolve(rom.Path)) is not { } hash)
+                if (MednafenRomHash.Of(_install.Resolve(rom.Path), folder) is not { } hash)
                 {
                     return (null, TargetProblem.Unnameable);
                 }
@@ -1718,6 +1814,15 @@ public sealed class SaveSync
                 }
 
                 stem = $"{stem}.{hash}";
+            }
+            else if (rule.NamedAfter == BatteryNaming.ArchiveMemberAndContentMd5)
+            {
+                if (MednafenRomHash.ArchiveMemberOf(_install.Resolve(rom.Path), folder) is not { } member)
+                {
+                    return (null, TargetProblem.Unnameable);
+                }
+
+                stem = $"{rom.FileName}#{member.MemberStem}.{member.Hash}";
             }
         }
 

@@ -170,7 +170,7 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// anything: two pairing tests timed out waiting for an approval that could not be asked
     /// for. A stub below the floor is a stub of a refusal.
     /// </remarks>
-    public string ServerVersion { get; set; } = "5.3.0-beta.1";
+    public string ServerVersion { get; set; } = "5.3.0";
 
     /// <summary>
     /// Whether ROM rows carry the fields 5.3.0 added, derived from <see cref="ServerVersion"/>.

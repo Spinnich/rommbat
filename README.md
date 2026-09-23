@@ -20,9 +20,11 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Nine `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
+> Sixteen `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
 > declares, which is its three `libretro` cores, both `bizhawk` cores, `jgenesis`, `mesen`,
-> `mednafen` and `ares`. No other system has a certified row; see
+> `mednafen` and `ares`, and seven of `megadrive`'s eleven, which is `libretro` under
+> `genesis_plus_gx`, `genesis_plus_gx_wide` and `picodrive`, `bizhawk`, `jgenesis`, `mednafen` and
+> `ares`. No other system has a certified row; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -69,12 +71,12 @@ and through the companion-app protocol RomM already ships.
 
 ## Requirements
 
-|          | Minimum      | Notes                                                            |
-| -------- | ------------ | ---------------------------------------------------------------- |
-| RetroBat | 8.2.1        | Checked from `system/version.info` at startup                    |
-| RomM     | 5.3.0-beta.1 | Checked from `GET /api/heartbeat` at startup                     |
-| Windows  | 10 / 11 x64  | RetroBat's own requirement                                       |
-| .NET     | none         | Published self-contained; RetroBat already ships the VC++ redist |
+|          | Minimum     | Notes                                                            |
+| -------- | ----------- | ---------------------------------------------------------------- |
+| RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
+| RomM     | 5.3.0       | Checked from `GET /api/heartbeat` at startup                     |
+| Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
+| .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
 
 Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
 it warns and continues.
@@ -308,11 +310,16 @@ file is only counted once it has arrived whole. It does not run at all while a s
 saves back, and it skips anything a live transfer still holds open.
 
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
-several files (a `.bin`/`.cue` set, most Xbox 360 titles) is not synced in v1: the server
-serves it as an archive that cannot be resumed and whose hashes describe neither the archive
-nor its contents. And on a FAT32 drive, anything over 4 GB is left out before the download
-starts, because the write would otherwise fail with an error message about disk space on a
-drive with plenty free.
+several files (a `.bin`/`.cue` set, most Xbox 360 titles), or as a folder, is
+not synced yet: where each shape lands differs by platform, and it is settled platform by
+platform as each is certified. And on a FAT32 drive, anything over 4 GB is left out before the
+download starts, because the write would otherwise fail with an error message about disk space
+on a drive with plenty free.
+
+A file's format is never a reason to skip it. RetroBat's list of extensions for a system covers
+every emulator that system offers, so it cannot say whether yours opens a given file. A game
+whose extension is not on that list still syncs, and RomMBat tells you EmulationStation will
+not show it.
 
 ## Status
 
@@ -470,21 +477,44 @@ folder for, so it is out of scope rather than unscheduled.
 
 **Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
 `bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
-at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21. All nine steps
-hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
+at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, and carried to
+the `5.3.0` floor with step 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
-That is nine rows on one install, and the unit is still `(system, emulator, core)`. The rules the
-last four needed are scoped to `nes`, so none of those emulators is certified anywhere else. Wave
-1's other six systems are not started. [docs/platforms/nes.md](docs/platforms/nes.md) is the record, gaps included.
+**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-21: `libretro` under `genesis_plus_gx`, which a stock install runs, `genesis_plus_gx_wide`
+and `picodrive`, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`. `libretro`/`fbneo`
+boots nothing named by No-Intro, and the three `kega-fusion` rows fail step 4 because Kega Fusion
+writes battery saves outside `saves/`; both are recorded rather than certified.
+
+**Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+`libretro` under `mgba`, which a stock install runs, `gpsp` and `mednafen_gba`, then `mgba`
+standalone, `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`. `nosgba` loads a zipped
+ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, and keeps its saves outside `saves/`, so
+it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM has it, though only
+`ares`, `jgenesis` and `mesen` refuse to boot without it.
+
+**Every row `gb` declares is certified**, fourteen, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-22: `libretro` under `gambatte`, which a stock install runs, `mesen-s`, `bsnes`, `tgbdual`,
+`DoubleCherryGB` and `sameboy`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under
+`Gambatte`, `GBHawk` and `SameBoy`, and `jgenesis`. `bios gb` fetches the four Super Game Boy files
+and the Color boot ROM as well as `gb_bios.bin`, because `bsnes` and `GBHawk` refuse to boot without
+them, though RetroBat's list files them under `sgb` and `gbc`.
+
+That is thirty-nine rows on one install, and the unit is still `(system, emulator, core)`. The rules
+the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
+emulators is certified anywhere else. Wave 1's other three systems are not started.
+[docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
+[docs/platforms/gba.md](docs/platforms/gba.md) and [docs/platforms/gb.md](docs/platforms/gb.md) are
+the records, gaps included.
 
 ### Compatibility
 
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
 here is part of shipping.
 
-| RomMBat    | RomM tested  | RetroBat tested    | Notes                                                                      |
-| ---------- | ------------ | ------------------ | -------------------------------------------------------------------------- |
-| unreleased | 5.3.0-beta.1 | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0-beta.1** `/openapi.json` |
+| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
+| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
+| unreleased | 5.3.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility

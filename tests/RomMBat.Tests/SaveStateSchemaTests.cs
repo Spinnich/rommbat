@@ -37,12 +37,116 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("snes"));
         }
 
-        Assert.Equal(shipped.Emulators.Count + 3, loaded.Emulators.Count);
+        // Eight entries for five emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 8, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under snes is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
         Assert.Null(loaded.MatchDirectory("snes/mesen/SaveStates"));
         Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "snes", core: null));
+        Assert.Null(loaded.For("mesen", "megadrive"));
+    }
+
+    [Fact]
+    public void Kega_fusion_states_are_read_where_its_fusion_ini_sends_them_on_megadrive_only()
+    {
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+
+        var template = SaveStateTemplate.Create(loaded.For("kega-fusion", "megadrive")!, "megadrive", core: null)!;
+
+        Assert.Equal(9, template.Match($"{Rom}.gs9")?.Slot);
+        Assert.Equal(0, template.Match($"{Rom}.gs0")?.Slot);
+        Assert.Equal("kega-fusion", loaded.MatchDirectory("megadrive/kega-fusion")?.Emulator.Name);
+
+        // Fusion.ini names mastersystem and segacd state folders too, and neither was driven.
+        Assert.Null(loaded.MatchDirectory("mastersystem/kega-fusion"));
+    }
+
+    [Fact]
+    public void Ares_keeps_a_directory_per_system_and_each_is_picked_by_its_system()
+    {
+        // ares names its tree after its own system: Famicom for nes, "Mega Drive" for megadrive.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+
+        Assert.Equal("{{system}}/ares/Famicom", loaded.For("ares", "nes")!.Directory);
+        Assert.Equal("{{system}}/ares/Mega Drive", loaded.For("ares", "megadrive")!.Directory);
+        Assert.Null(loaded.For("ares", "snes"));
+
+        Assert.Equal("megadrive", loaded.MatchDirectory("megadrive/ares/Mega Drive")?.System);
+        Assert.Null(loaded.MatchDirectory("megadrive/ares/Famicom"));
+        Assert.Null(loaded.MatchDirectory("nes/ares/Mega Drive"));
+
+        var template = SaveStateTemplate.Create(loaded.For("ares", "megadrive")!, "megadrive", core: null)!;
+        Assert.Equal(2, template.Match("Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Gba_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Pokemon - Emerald Version (USA, Europe), driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+
+        var mgba = SaveStateTemplate.Create(loaded.For("mgba", "gba")!, "gba", core: null)!;
+        Assert.Equal(2, mgba.Match($"{Rom}.ss2")?.Slot);
+        Assert.Equal("mgba", loaded.MatchDirectory("gba/mgba/sstates")?.Emulator.Name);
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "gba")!, "gba", core: null)!;
+        Assert.Equal(1, mesen.Match($"{Rom}_1.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gba")!, "gba", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.605b89b67018abcea91e693a4dd25be3.mc1")?.Slot);
+
+        Assert.Equal("gba", loaded.MatchDirectory("gba/ares/Game Boy Advance")?.System);
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gba")!, "gba", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+
+        // mGBA's tree was driven on gba and gb, and not on gbc.
+        Assert.Null(loaded.MatchDirectory("gbc/mgba/sstates"));
+    }
+
+    [Fact]
+    public void Gb_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Pokemon - Yellow Version, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+
+        var mgba = SaveStateTemplate.Create(loaded.For("mgba", "gb")!, "gb", core: null)!;
+        Assert.Equal(3, mgba.Match($"{Rom}.ss3")?.Slot);
+        Assert.Equal("mgba", loaded.MatchDirectory("gb/mgba/sstates")?.Emulator.Name);
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, mesen.Match($"{Rom}_2.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, mednafen.Match($"{Rom}.d9290db87b1f0a23b89f99ee4469e34b.mc2")?.Slot);
+
+        // ares names the directory after its own name for the console, so gba's is not gb's.
+        Assert.Equal("gb", loaded.MatchDirectory("gb/ares/Game Boy")?.System);
+        Assert.Null(loaded.MatchDirectory("gb/ares/Game Boy Advance"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void An_install_declaring_ares_drops_every_supplement_entry_for_it()
+    {
+        var own = SaveStateSchema.Parse(new MemoryStream(Encoding.UTF8.GetBytes(
+            """
+            <savestates>
+              <emulator name="ares">
+                <directory>{{system}}/ares/states</directory>
+                <file>{{romfilename}}.bst{{slot}}</file>
+              </emulator>
+            </savestates>
+            """)));
+
+        var loaded = own.WithSupplement(SaveStateSchema.Supplement);
+
+        Assert.Single(loaded.Emulators, entry => entry.Name == "ares");
+        Assert.Equal("{{system}}/ares/states", loaded.For("ares", "megadrive")!.Directory);
     }
 
     [Fact]

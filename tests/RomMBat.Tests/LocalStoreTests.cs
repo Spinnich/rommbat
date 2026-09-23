@@ -597,6 +597,62 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public void The_017_rebuild_renames_folder_exclusions_and_drops_format_exclusions()
+    {
+        // 017 retires excluded_extension. A row with no extension was a folder-held rom all
+        // along and becomes excluded_folder. A row with a real extension is a member now, and
+        // only a resolve can give it a position, so it is dropped rather than guessed at.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        using (var seed = new SqliteConnection($"Data Source={path}"))
+        {
+            seed.Open();
+
+            foreach (var migration in MigrationsUpTo(16))
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO sync_set (name, scope_kind, scope_value, created_at, updated_at)
+                VALUES ('snes', 'platform', '1', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
+                INSERT INTO sync_set_member (
+                  sync_set_id, rom_id, state, folder, platform_slug, fs_name, fs_extension,
+                  size_bytes, display_name, sort_key, position, resolved_at, has_multiple_files
+                )
+                VALUES
+                  (1, 42, 'member', 'snes', 'snes', 'Gradius 3 (USA).sfc', 'sfc', 2048,
+                   'Gradius III', 'Gradius III', 7, '2026-01-01T00:00:00Z', 0),
+                  (1, 43, 'excluded_extension', 'snes', 'snes', 'Foldered', '', 1024,
+                   'Foldered', 'Foldered', NULL, '2026-01-01T00:00:00Z', 0),
+                  (1, 44, 'excluded_extension', 'snes', 'snes', 'Disc.chd', 'chd', 1024,
+                   'Disc', 'Disc', NULL, '2026-01-01T00:00:00Z', 0);
+
+                PRAGMA user_version = 16;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var members = store.SyncSets.Members(1, state: null);
+        Assert.Equal([42, 43], members.Select(member => member.RomId).Order());
+
+        var kept = Assert.Single(members, member => member.RomId == 42);
+        Assert.Equal(MemberState.Member, kept.State);
+        Assert.Equal(7, kept.Position);
+
+        Assert.Equal(MemberState.ExcludedFolder, Assert.Single(members, member => member.RomId == 43).State);
+    }
+
+    [Fact]
     public void The_widened_state_check_accepts_the_new_exclusion_and_still_refuses_nonsense()
     {
         using var tree = TempRetroBatTree.Create();
@@ -1095,6 +1151,18 @@ public class LocalStoreTests
             ?? throw new InvalidOperationException($"Migration resource '{name}' is missing from the assembly.");
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    /// <summary>The embedded migration file names numbered up to and including <paramref name="version"/>, in order.</summary>
+    private static IEnumerable<string> MigrationsUpTo(int version)
+    {
+        const string prefix = "RomMBat.Core.Store.Migrations.";
+
+        return typeof(LocalStore).Assembly.GetManifestResourceNames()
+            .Where(name => name.StartsWith(prefix, StringComparison.Ordinal) && name.EndsWith(".sql", StringComparison.Ordinal))
+            .Select(name => name[prefix.Length..])
+            .Where(name => int.Parse(name[..3], System.Globalization.CultureInfo.InvariantCulture) <= version)
+            .Order(StringComparer.Ordinal);
     }
 
     private static void Execute(SqliteConnection connection, string sql)

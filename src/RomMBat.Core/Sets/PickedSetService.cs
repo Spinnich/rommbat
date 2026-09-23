@@ -9,8 +9,7 @@ namespace RomMBat.Core.Sets;
 /// <summary>What picking a game did, and the member row it wrote.</summary>
 /// <param name="Member">
 /// Null when the game could not join the set, which is not a failure: an unmapped platform or a
-/// format the folder cannot launch are facts about the library that a pick has to report rather
-/// than hide.
+/// multi-file ROM are facts about the library that a pick has to report rather than hide.
 /// </param>
 /// <param name="Problem">Why there is no member, or null. Never a remedy: see <see cref="SyncSetService"/>.</param>
 /// <param name="AlreadyPicked">True when the set already held this game, so nothing changed.</param>
@@ -46,8 +45,8 @@ public sealed record PickOutcome(
 /// </para>
 /// <para>
 /// <b>The same exclusion rules a resolve applies are applied here</b>, and by the same code
-/// where it exists: an unmapped platform, a format the folder cannot launch, a multi-file ROM
-/// and a file this filesystem cannot hold are all refusals with the sentence that states them.
+/// where it exists: an unmapped platform, a multi-file or folder-held ROM and a file this
+/// filesystem cannot hold are all refusals with the sentence that states them.
 /// A pick that silently wrote a member the sync would then skip would be a press that appears
 /// to work and never produces a game.
 /// </para>
@@ -196,8 +195,8 @@ public sealed class PickedSetService
     /// <remarks>
     /// The checks are the ones <c>SetResolver</c> applies and in its order, because a pick that
     /// wrote a member the sync would then skip is a press that appears to work and produces
-    /// nothing. Where the answer lives in Core already, it is asked rather than repeated:
-    /// <c>PlatformResolver</c> answers the folder and <c>EsSystemsFile</c> the extension.
+    /// nothing. The extension is not one of them: a file EmulationStation will not list is
+    /// still picked, and the set's detail says so.
     /// </remarks>
     private PickOutcome MemberFor(SyncSetDefinition set, RomRow row, DateTimeOffset now)
     {
@@ -210,6 +209,16 @@ public sealed class PickedSetService
                 null,
                 $"'{row.PlatformSlug}' has no RetroBat folder on this install, so this game has "
                     + "nowhere to go.");
+        }
+
+        // A mapping or override can outlive the system it names, as in SetResolver.
+        if (!EsSystemsFile.Load(_session.Install).HasFolder(folder))
+        {
+            return new PickOutcome(
+                set,
+                null,
+                $"'{folder}' is not a system on this install, so EmulationStation would never show "
+                    + "this game.");
         }
 
         if (!row.HasFileOnDisk)
@@ -229,7 +238,7 @@ public sealed class PickedSetService
                 "RomM holds this game as several files, which this version cannot sync yet.");
         }
 
-        // A folder holding a single file arrives with no extension and has_multiple_files false,
+        // A ROM held as a folder, of one file or several, arrives with no extension and has_multiple_files false,
         // so it is refused here rather than above, and named for what it is rather than as a bare dot.
         if (string.IsNullOrWhiteSpace(row.FsExtension))
         {
@@ -237,14 +246,6 @@ public sealed class PickedSetService
                 set,
                 null,
                 "RomM holds this game as a folder rather than a file, which this version cannot sync yet.");
-        }
-
-        if (!EsSystemsFile.Load(_session.Install).TryGetFolder(folder, out var system) || !system.Accepts(row.FsExtension))
-        {
-            return new PickOutcome(
-                set,
-                null,
-                $"'{folder}' cannot launch a .{row.FsExtension} file on this install.");
         }
 
         var limits = FilesystemLimits.Inspect(_session.Install.RootPath);

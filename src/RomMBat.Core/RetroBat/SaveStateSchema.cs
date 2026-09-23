@@ -82,9 +82,11 @@ public sealed record SaveStateEmulator(
     /// <c>es_savestates.cfg</c> is.
     /// </summary>
     /// <remarks>
-    /// Only the bundled supplement sets it, because its entries were measured on one system and
-    /// an emulator does not keep one layout across the systems it runs: ares keeps <c>nes</c>
-    /// under <c>ares/Famicom/</c>, named after its own system rather than RetroBat's.
+    /// Only the bundled supplement sets it, because its entries were measured one system at a time
+    /// and an emulator does not keep one layout across the systems it runs: ares keeps <c>nes</c>
+    /// under <c>ares/Famicom/</c> and <c>megadrive</c> under <c>ares/Mega Drive/</c>, each named
+    /// after its own system rather than RetroBat's. So the supplement may carry one entry per
+    /// layout for the same emulator, and <see cref="SaveStateSchema.For(string?, string)"/> picks.
     /// </remarks>
     public IReadOnlySet<string>? Systems { get; init; }
 
@@ -170,20 +172,36 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// </remarks>
 public sealed class SaveStateSchema
 {
-    private readonly Dictionary<string, SaveStateEmulator> _emulators;
+    private readonly List<SaveStateEmulator> _emulators;
 
-    private SaveStateSchema(Dictionary<string, SaveStateEmulator> emulators) => _emulators = emulators;
+    private SaveStateSchema(List<SaveStateEmulator> emulators) => _emulators = emulators;
 
     /// <summary>Where the file lives, relative to the RetroBat root.</summary>
     public static RelativePath ConfigPath { get; } =
         RelativePath.Create("emulationstation/.emulationstation/es_savestates.cfg");
 
-    /// <summary>Every declared emulator, in file order.</summary>
-    public IReadOnlyCollection<SaveStateEmulator> Emulators => _emulators.Values;
+    /// <summary>Every declared entry, in file order, more than one per emulator only in the supplement.</summary>
+    public IReadOnlyCollection<SaveStateEmulator> Emulators => _emulators;
 
-    /// <summary>One emulator by name, case-insensitively.</summary>
+    /// <summary>
+    /// One emulator by name, case-insensitively, for whether it is declared at all.
+    /// </summary>
+    /// <remarks>
+    /// The first entry of that name, whatever systems it is scoped to. Where the system is known,
+    /// <see cref="For(string?, string)"/> is the lookup, because a supplement emulator can keep a
+    /// different directory per system.
+    /// </remarks>
     public SaveStateEmulator? For(string? emulator) =>
-        emulator is not null && _emulators.TryGetValue(emulator, out var found) ? found : null;
+        emulator is null ? null : _emulators.FirstOrDefault(entry => Named(entry, emulator));
+
+    /// <summary>The entry of that name that applies to the system, or null when none does.</summary>
+    public SaveStateEmulator? For(string? emulator, string system) =>
+        emulator is null
+            ? null
+            : _emulators.FirstOrDefault(entry => Named(entry, emulator) && entry.AppliesTo(system));
+
+    private static bool Named(SaveStateEmulator entry, string name) =>
+        string.Equals(entry.Name, name, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Which emulator, system and core a directory under <c>saves/</c> belongs to, if any.
@@ -205,7 +223,7 @@ public sealed class SaveStateSchema
 
         var normalized = relativeToSaves.Replace('\\', '/').Trim('/');
 
-        foreach (var emulator in _emulators.Values)
+        foreach (var emulator in _emulators)
         {
             if (DirectoryPattern(emulator.Directory) is not { } pattern)
             {
@@ -291,7 +309,7 @@ public sealed class SaveStateSchema
         ArgumentNullException.ThrowIfNull(stream);
 
         var document = XDocument.Load(stream);
-        var emulators = new Dictionary<string, SaveStateEmulator>(StringComparer.OrdinalIgnoreCase);
+        var emulators = new List<SaveStateEmulator>();
 
         foreach (var element in document.Root?.Elements("emulator") ?? [])
         {
@@ -306,7 +324,7 @@ public sealed class SaveStateSchema
                 continue;
             }
 
-            emulators[name] = new SaveStateEmulator(
+            var entry = new SaveStateEmulator(
                 name,
                 directory,
                 file,
@@ -323,6 +341,12 @@ public sealed class SaveStateSchema
                         .ToHashSet(StringComparer.OrdinalIgnoreCase)
                     : null,
             };
+
+            // A later entry of the same name replaces an earlier one, as it always has, unless
+            // both are scoped to systems and the systems differ, which only the supplement writes.
+            emulators.RemoveAll(earlier => Named(earlier, name)
+                && (earlier.Systems is null || entry.Systems is null || earlier.Systems.Overlaps(entry.Systems)));
+            emulators.Add(entry);
         }
 
         return new SaveStateSchema(emulators);
@@ -345,18 +369,21 @@ public sealed class SaveStateSchema
     /// </summary>
     /// <remarks>
     /// <b>The install's own file wins.</b> An entry RetroBat or the user writes for one of these
-    /// emulators is what EmulationStation acts on, so the supplement's is dropped rather than
-    /// merged into it.
+    /// emulators is what EmulationStation acts on, so every supplement entry of that name is
+    /// dropped rather than merged into it.
     /// </remarks>
     public SaveStateSchema WithSupplement(SaveStateSchema supplement)
     {
         ArgumentNullException.ThrowIfNull(supplement);
 
-        var merged = new Dictionary<string, SaveStateEmulator>(_emulators, StringComparer.OrdinalIgnoreCase);
+        var merged = new List<SaveStateEmulator>(_emulators);
 
         foreach (var emulator in supplement.Emulators)
         {
-            merged.TryAdd(emulator.Name, emulator);
+            if (For(emulator.Name) is null)
+            {
+                merged.Add(emulator);
+            }
         }
 
         return new SaveStateSchema(merged);
@@ -804,8 +831,8 @@ public sealed record SaveStateMatch(string Stem, int? Slot, bool IsAutosave, str
     /// <c>{{romhash}}</c>.
     /// </summary>
     /// <remarks>
-    /// Only the supplement's <c>mednafen</c> entry has one: it names a <c>nes</c> state after the
-    /// md5 of the ROM less its iNES header. The hash belongs to the ROM's content, so a restore
+    /// Only the supplement's <c>mednafen</c> entry has one: it names a state after an md5 of the ROM,
+    /// on <c>nes</c> less its iNES header and on <c>megadrive</c> the whole <c>.md</c>. The hash belongs to the ROM's content, so a restore
     /// carries it from the name that was uploaded onto the ROM's stem here, and a ROM with the
     /// same id is the same content on every device.
     /// </remarks>

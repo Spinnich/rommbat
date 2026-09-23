@@ -114,9 +114,10 @@ unwind after it lands.
 - **Emulator INIs.** Any write to an emulator config file is wrong, because
   `emulatorlauncher` regenerates them on the next launch. Configuration goes through
   `es_settings.cfg`, per-game form `<system>["<rom filename>"].<key>`.
-- **Authority for extensions and BIOS.** RetroBat, not RomM. A hardcoded extension list
-  instead of `<extension>` from the live `es_systems.cfg` is a finding, as is a firmware
-  join on anything other than md5.
+- **Authority for extensions and BIOS.** RetroBat, not RomM, and neither gates a sync. A
+  hardcoded extension list instead of `<extension>` from the live `es_systems.cfg` is a
+  finding, as is anything that excludes a game on its extension, and as is a firmware join
+  on anything other than md5.
 - **Hooks never touch the network.** `game-start` and `game-end` run inside the
   game-launch path. Any HttpClient, await on I/O, or retry loop reachable from them is a
   finding, even if it looks fast. They append to the journal and exit.
@@ -188,7 +189,7 @@ which step is missing.
 
 ## Compatibility
 
-Does this move the minimum RomM (5.3.0-beta.1) or RetroBat (8.2.1) version? If so, the README table
+Does this move the minimum RomM (5.3.0) or RetroBat (8.2.1) version? If so, the README table
 moves with it and the startup check must still refuse below and warn above.
 
 ## Documentation parity

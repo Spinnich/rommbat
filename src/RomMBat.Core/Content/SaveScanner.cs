@@ -1004,7 +1004,7 @@ public sealed class SaveScanner
 
         var name = Path.GetFileName(directory);
 
-        return _states.For(DeclaredNames.GetValueOrDefault(name, name))?.AppliesTo(system) == true;
+        return _states.For(DeclaredNames.GetValueOrDefault(name, name), system) is not null;
     }
 
     /// <summary>

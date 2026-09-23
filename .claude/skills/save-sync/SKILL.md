@@ -441,17 +441,25 @@ Class A and B match by filename, **and which filename is a per-`(system, emulato
 global.** `save_rules.json`'s `battery_saves` gives each rule a directory under
 `saves/<system>/`, its extensions and a `named_after`, and the emulator in it is the slot.
 Loading refuses two rules claiming one extension in one directory, and one emulator with two
-rules on a system, because either is two saves in one slot. The table replaced one extension
+rules on a system, because either is two saves in one slot. The one exception to the second is
+class B: an emulator may hold two rules on a system when one is class B and no extension is in
+both, because then no two files share a slot. `gba` is the measured case, `libretro`'s `.srm`
+beside mednafen_gba's `libretro:battery:sav`. The table replaced one extension
 list plus one `loose_emulator`, which is the trap #152 recorded: adding mesen's loose `.sav`
 would have given it `libretro:battery` and collided with libretro's `.srm` for the same ROM.
 On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen and ares
-(`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it.
+(`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it. On `megadrive`,
+jgenesis (`jgenesis/md/`) and ares (`ares/Mega Drive/*.ram`) have their own rules, since the
+directory is the emulator's name for the system, and the bizhawk and mednafen rules name both
+systems because their layout did not change (findings 279 to 282).
 
 **mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (finding 273): its `%M`
 is empty on the first try, so an existing plain `.sav`, mesen's included, is the file it reads and
-writes. The hash is of the `.nes` less its 16-byte iNES header (finding 274). So mednafen's rule is
-`named_after: "rom file and content md5"`, which is the one case the loader lets share an extension
-in one directory with a plain rule, the hash on the stem deciding. A plain `<rom>.sav` goes up as
+writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES header (finding 274), on
+`megadrive` the whole `.md` (finding 280), and `MednafenRomHash` picks by system and answers null
+for any system or format not measured. So mednafen's rule is
+`named_after: "rom file and content md5"`, which may share an extension in one directory with a
+plain rule, the hash on the stem deciding. On `nes`, a plain `<rom>.sav` goes up as
 `mesen:battery` whoever wrote it, and a restore computes the hash from the ROM and refuses to write
 a hashed save where a plain one would shadow it, including onto a path this device recorded before
 the plain one appeared. `HeaderlessNesHash` answers null outside what was measured: a trainer, a
@@ -459,9 +467,38 @@ length other than header plus declared PRG and CHR, no PRG, or NES 2.0 size bits
 not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 header with byte 9
 clear, the three measured ones included.
 
+`named_after: "archive member and content md5"` is narrower still,
+`<rom>.zip#<member>.<md5>.sav` for mednafen_gba (finding 290), and the loader asks rules narrowest
+first and refuses two of one narrowness. The ROM's own name may hold a `#`, so the match anchors
+on the first `.zip#` or `.7z#`. On `gba` that is three owners for one loose `.sav` extension:
+mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which mGBA, Mesen and mednafen
+all open and which uploads as `mgba:battery`. **mednafen refuses mGBA's 131,088 B file** (finding
+289), so a device where mGBA standalone ran cannot play the game under mednafen until it moves;
+the hash is the whole `.gba` there.
+
+**A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
+in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
+with it. Mesen's and jgenesis's change on every launch (finding 291), so a session uploads a
+version whether or not the game was saved; ares's was not measured. mGBA and BizHawk keep 16
+bytes of clock inside the save, and BizHawk's `.SaveRAM` changes on every launch the same way.
+
+**On `gb` the loose `.rtc` is `libretro`'s, `libretro:battery:rtc`.** A clock cartridge keeps its
+clock there under the stock `gambatte` core, and Mesen writes the same name, as it does the `.srm`
+(finding 298). `tgbdual`, `DoubleCherryGB` and `sameboy` write it for every game, and with no clock
+on the cartridge it holds only the host time at exit (finding 295), so those three upload a few
+bytes of new version per launch. Measure it on a clock cartridge, not a clockless one: on a
+clockless game the file looks like noise.
+
+**On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
+as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with
+mednafen's hashed name taken only when no plain one is there. BizHawk's three cores share one
+`.SaveRAM` named after BizHawk's own title, which on `gb` is not the ROM file's.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
-split a slot by core or merge two emulators' slots without a new decision.
+split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's
+`libretro:battery:sav` is not a split by core: it is a second file, which is what class B's
+per-extension slot is for (`docs/PLAN.md`, amended 2026-09-22).
 
 **BizHawk names a battery save after its own title for the game** (`named_after: display
 name`), so the filename join cannot match: `StarTropics (USA).zip` wrote
@@ -848,7 +885,7 @@ hash, folded into one digest. The archive is transport only.
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, four
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
-  At the `5.3.0-beta.1` floor: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
+  At the `5.3.0` floor, as at `beta.1`: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
   `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded.** That inequality is the client holding evidence the server lacks: this device has
@@ -1067,8 +1104,8 @@ of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `
 into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
 this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
 its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
-**Still true at the beta.1 floor**, re-read there because the writer was rewritten around it
-(finding 12): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+**Still true at the `5.3.0` floor**, re-read at `beta.1` because the writer was rewritten around
+it (finding 12), and untouched between `beta.1` and `5.3.0` (finding 13): `preferredSlot` is byte-identical and still prefers the newest slotted save over
 `autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
 with no slotted save and not one this client syncs. What is new is a screenshot on every save
 version, which is inert here because only states carry one on this side. So
@@ -1118,6 +1155,36 @@ reports both shapes unrestorable. A web-UI upload of a file carrying this client
 replace that row's bytes and clears its emulator. Nothing notices: `RunAsync` never reads the
 server row, so the next local change overwrites it. Do not build a state conflict route on the
 strength of this; no player write reaches it.
+
+**The browser also writes saves that are not saves: the four bytes `null`.** Measured, not read:
+it uploads the JSON literal when it has no save to send, md5 `37a6259cc0c1dae299a7866489dff0bd`,
+and the server keeps it in `autosave`, in a slotted row, or in none. Placed as a battery save it
+replaces a real one with a file no emulator loads, which this client did on `megadrive` and twice on
+`nes` (finding 276 of `retrobat-findings.md`). **`SaveSync.DownloadAsync` refuses it**, by the
+server's hash before the transfer and by the bytes after, and never acknowledges it, so the server
+keeps offering it. Count it as `Rejected`, never as `Failed`: nothing on the device can fix it, so
+a failure would exit `Partial` on every flush until someone deletes the row in RomM. The restore
+preview lists it as unrestorable with the same reason.
+
+**A guard in `DownloadAsync` alone is too late, because the conflict route writes too.** The
+flush's `Download` case turns an offer into a conflict before the download at three points, and
+the one that bites is `HeldByAnotherSlot`: `null` in `autosave` resolves to the `.srm` that
+`libretro:battery` keeps, and "keep server" then wrote the four bytes over it. So the case asks
+the hash ahead of those checks and records no conflict. A 409 and the server's own `conflict`
+action still record one, since the local side is real and keeping it is the answer, so
+`SaveConflictResolver.KeepServerAsync` refuses too, by the recorded hash and by the bytes. Widen the test only from a measurement:
+the hash is the whole rule because no emulator writes a save of exactly those bytes.
+
+**Unless the local side is gone too, and then either answer closes the conflict.** A conflict
+against a `null` whose local file was later removed had no way out: keep-local had nothing to send,
+keep-server refused the `null`, and keep-local's message sent the user to a delete no command
+offers. Measured on the test install with Bare Knuckle III's, reported on every flush after the file
+left the tree. Now, when the device holds no save for the conflict and the server's copy is not a
+save, keep-local and keep-server both close it with nothing written, and leave the copy taken when it
+was recorded where it is, since that may be the only trace of the local side. For class C "holds
+no save" means the unit is gone, not the container, which is shared and outlives it. Keep-server
+also closes when only the downloaded bytes show the `null`, the recorded hash having been real,
+because keep-local cannot know that and sends the user to keep-server.
 
 **Memory card endpoints are not a save transport.** Measured with `s2-memory-card-record.py`: a
 card is scoped by `(user, emulator)` with **no ROM**, so it is a class D container by construction;

@@ -74,6 +74,23 @@ public sealed class LocalStore : IDisposable
     /// <summary>The journal mode SQLite settled on, for <c>status</c>.</summary>
     public string JournalMode { get; private set; } = "unknown";
 
+    /// <summary>Whether a commit waits for the disk. Only the test suite turns it off.</summary>
+    /// <remarks>
+    /// A test database is thrown away, and on a CI runner the flush behind every commit is most
+    /// of what the suite spends. The shipped app never touches it.
+    /// </remarks>
+    internal static bool FlushCommits { get; set; } = true;
+
+    /// <summary>
+    /// A fully migrated database that a new file starts as a copy of. Only the test suite sets it.
+    /// </summary>
+    /// <remarks>
+    /// Migrating from empty is one committed transaction per migration, and the suite opens
+    /// hundreds of fresh stores. Only a file that does not exist yet is seeded, so a test that
+    /// writes an old-version database first still runs the real migrations.
+    /// </remarks>
+    internal static string? SeedDatabase { get; set; }
+
     public DeviceStore Device { get; }
 
     public ClockStore Clock { get; }
@@ -152,6 +169,11 @@ public sealed class LocalStore : IDisposable
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
+        }
+
+        if (SeedDatabase is not null && !File.Exists(databasePath))
+        {
+            File.Copy(SeedDatabase, databasePath);
         }
 
         var builder = new SqliteConnectionStringBuilder
@@ -303,6 +325,11 @@ public sealed class LocalStore : IDisposable
         using var command = _connection.CreateCommand();
         command.CommandText = "PRAGMA journal_mode = WAL;";
         JournalMode = command.ExecuteScalar() as string ?? "unknown";
+
+        if (!FlushCommits)
+        {
+            Execute("PRAGMA synchronous = OFF;");
+        }
     }
 
     private void Migrate()

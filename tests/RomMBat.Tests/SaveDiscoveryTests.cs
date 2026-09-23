@@ -415,6 +415,33 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_loose_rtc_on_gb_takes_its_own_libretro_slot_beside_the_srm()
+    {
+        // Measured on 8.2.1: Pokemon Silver, an MBC3 cartridge with a clock, keeps its clock in
+        // <rom>.rtc under the stock gambatte core, a file the libretro cores and Mesen share. On
+        // gba the loose .rtc is Mesen's.
+        using var fixture = SaveTree.Create();
+        const string Silver = "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)";
+
+        fixture.AddRom(275002, "gb", $"{Silver}.zip");
+        fixture.AddSave("gb", $"{Silver}.srm", "the cores' battery save");
+        fixture.AddSave("gb", $"{Silver}.sav", "mgba's battery save");
+        fixture.AddSave("gb", $"{Silver}.rtc", "the cartridge clock");
+        fixture.AddRom(233631, "gba", "Pokemon - Emerald Version (USA, Europe).zip");
+        fixture.AddSave("gba", "Pokemon - Emerald Version (USA, Europe).rtc", "the cartridge clock");
+
+        fixture.Scan();
+
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal("libretro:battery", slots[$"saves/gb/{Silver}.srm"]);
+        Assert.Equal("libretro:battery:rtc", slots[$"saves/gb/{Silver}.rtc"]);
+        Assert.Equal("mgba:battery", slots[$"saves/gb/{Silver}.sav"]);
+        Assert.Equal("mesen:battery:rtc", slots["saves/gba/Pokemon - Emerald Version (USA, Europe).rtc"]);
+        Assert.All(fixture.Store.Saves.List().Where(save => save.System == "gb"), save => Assert.Equal(275002, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gb");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
@@ -553,6 +580,31 @@ public class SaveDiscoveryTests
         Assert.All(
             fixture.Store.Unsyncable.List().Where(entry => entry.System == "nes"),
             entry => Assert.Equal(UnsyncableReason.Unattributed, entry.Reason));
+    }
+
+    [Fact]
+    public void On_megadrive_every_emulator_tree_is_carried_by_a_rule_or_a_declaration()
+    {
+        // As the megadrive pass left them on the measured install, one tree per emulator.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        const string Hash = "c5b1c655c19f462ade0ac4e17a844d10";
+
+        fixture.AddRom(203767, "megadrive", $"{Rom}.zip");
+        fixture.AddSave("megadrive", $"{Rom}.srm", "libretro battery");
+        fixture.AddSave("megadrive", $"{Rom}.{Hash}.sav", "mednafen battery");
+        fixture.AddSave("megadrive", $"mednafen/sstates/{Rom}.{Hash}.mc1", "mednafen state");
+        fixture.AddSave("megadrive", $"jgenesis/md/{Rom}.sav", "jgenesis battery");
+        fixture.AddSave("megadrive", $"jgenesis/states/{Rom}_1.jst", "jgenesis state");
+        fixture.AddSave("megadrive", $"ares/Mega Drive/{Rom}.ram", "ares battery");
+        fixture.AddSave("megadrive", $"ares/Mega Drive/{Rom}.bs2", "ares state");
+
+        fixture.ScanWithStateSchema();
+
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "megadrive");
+        Assert.Equal(
+            ["ares:battery", "jgenesis:battery", "libretro:battery", "mednafen:battery"],
+            fixture.Store.Saves.List().Where(save => save.RomId == 203767).Select(save => save.Slot).Order(StringComparer.Ordinal));
     }
 
     [Fact]

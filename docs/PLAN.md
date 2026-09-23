@@ -423,7 +423,7 @@ there and does not need to: point the client at an existing instance over the LA
 ### Version compatibility is declared, checked, and visible
 
 Every RomMBat release states the minimum RomM and RetroBat versions it supports. Currently
-**RetroBat 8.2.1** and **RomM 5.3.0-beta.1**.
+**RetroBat 8.2.1** and **RomM 5.3.0**.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
@@ -1213,12 +1213,20 @@ Two consequences that reach other milestones:
   and `sfam` at `snes`). See M4, which must therefore key gamelist generation by folder
   rather than by platform.
 
-#### File extensions come from RetroBat, never from RomM
+#### File extensions come from RetroBat, and they never gate a sync
 
-RomM will happily hold a file the target system cannot launch. Syncing it produces the
-worst failure mode this app has: a game that appears in EmulationStation, looks correct,
-and dies on launch. So the accepted-extension list is a **sync filter**, not a display
-detail, and RetroBat is the only authority on it.
+RomM will happily hold a file the emulator behind a system cannot open. An extension list
+cannot prevent that, because `<extension>` is a **per-system union across every emulator the
+system offers**: one emulator for a console reads `.chd` and another does not, and the list
+names the format either way. Passing it says nothing about the emulator that actually runs.
+Failing it says one thing for certain, that EmulationStation will not list the file, and that
+costs bytes and a game that does not appear, where excluding it drops a game the user asked
+for. So **the list is a note, not a filter**: every candidate syncs whatever its extension, and
+the resolution reports the members EmulationStation will not list. RetroBat is still the only
+authority on what that list says.
+
+What RomMBat has to get right instead is **landing multi-disc and multi-file games correctly**.
+See "Multi-file and multi-disc games are in scope, unlocked per platform" in M3.
 
 **The folder is `<path>`, not `<name>`.** They are different vocabularies and the shipped
 8.2.1 file disagrees on five systems: `gw` writes to `gameandwatch`, `powerbomberman` to
@@ -1230,9 +1238,8 @@ none of them is a sync target. Match folders case-insensitively, because the fil
 
 **8.2.1 is why this is read live.** It added `.decomp` to eleven systems (`mame`, `model2`,
 `model3`, `snes`, `n64`, `gamecube`, `wii`, `psx`, `ps2`, `ps3`, `xbox`) for decompilation
-projects and `.zar` to `ps4`. A bundled list would have silently refused to sync those files
-on an install that can launch them, which is the same failure as syncing one that cannot,
-pointed the other way.
+projects and `.zar` to `ps4`. A bundled list would have reported those files as unlisted on
+an install that lists them.
 
 `es_systems.cfg` carries the extension list per system, and it is read from the live install
 rather than bundled, because it reflects that machine's actual emulator configuration:
@@ -1250,23 +1257,23 @@ rather than bundled, because it reflects that machine's actual emulator configur
 </system>
 ```
 
-- Filter every sync-set candidate against the resolved folder's `<extension>` list, using
-  RomM's `fs_extension`, and exclude non-matches from the set before anything is
-  downloaded.
-- **Passing the filter is not evidence the file will launch.** `<extension>` is the authority
+- Check every member against the resolved folder's `<extension>` list, using RomM's
+  `fs_extension`, and **report, never exclude**, the ones it omits: "2 synced but not listed
+  by EmulationStation, whose `<extension>` for their systems omits .chd". The note appears on
+  the resolution summary and on the set's detail, where it is read against the live file so
+  an edit to `es_systems.cfg` shows at once. It is a note about ES, not a verdict on the file.
+- **Passing the list is not evidence the file will launch.** `<extension>` is the authority
   on what EmulationStation indexes and offers, not on what the emulator behind the system can
   consume. The measured case is `.m3u`: `ps2` lists it, and RetroBat's wiki says "PCSX2 does
   not support m3u usage for multi-disc games". ES shows the playlist, `emulatorLauncher` hands
-  it over, and the emulator does not understand it, which is the same
-  appears-in-ES-and-dies failure this section exists to prevent. The extension list stays
-  necessary; treat per-emulator capability as a separate fact the config does not carry.
-- Show the exclusions rather than hiding them: "12 games skipped, format not supported by
-  this system" with the offending extensions, so the user can fix it in RomM.
-- Watch the disc-image cases in particular, where RomM may hold a `.chd` while the
-  configured emulator wants `.cue`/`.bin` or vice versa. This is the most common real
-  mismatch and the plan should not pretend conversion is in scope.
-- Archives (`.zip`, `.7z`) are accepted by some systems and not others, so honour the
-  per-system list rather than assuming archives are universally fine.
+  it over, and the emulator does not understand it. Per-emulator capability is a separate fact
+  the config does not carry, and RomMBat does not police it: which format a user keeps in RomM
+  for which emulator is theirs to decide.
+- The disc-image cases are the common real mismatch, where RomM holds a `.chd` and the
+  configured emulator wants `.cue`/`.bin` or the reverse. Conversion is not in scope.
+- An empty `fs_extension` on a row that is not multi-file is a ROM held as a folder
+  (`has_nested_single_file`, one or more files), and that **is** excluded, as `excluded_folder`, because its placement is the same
+  per-platform question as multi-file. It is never reported as a format.
 
 The same file also carries `<manufacturer>`, `<hardware>` and `<release>`, which is how
 the rollout order below can be derived rather than hand-maintained.
@@ -1284,7 +1291,7 @@ the rollout order below can be derived rather than hand-maintained.
   and the plain 200 is 22 bytes longer than the ranged total, so the two answers are different
   files. Do not start sending a `Range` on the strength of the refusal having gone. See
   section C of [romm-5.3-findings.md](romm-5.3-findings.md).
-- **A ROM with no file behind it gets its own exclusion state, ahead of shape and format.**
+- **A ROM with no file behind it gets its own exclusion state, ahead of shape.**
   RomM 5.3.0's physical games (`is_physical`) are one cause and a ROM deleted from the server's
   disk (`missing_from_fs`) is the other, and upstream treats them alike:
   `has_file_on_disk` is `not is_physical and not missing_from_fs`. **The second cause needs no
@@ -1293,10 +1300,24 @@ the rollout order below can be derived rather than hand-maintained.
   `GET /api/roms` can filter on `missing` and `physical`, and the server-side filter is not used,
   because a row the server filters out never reaches the resolver and could not be reported as
   skipped. See finding 6 of [romm-5.3-findings.md](romm-5.3-findings.md).
-- **Multi-file ROMs are out of scope for v1, and M3 gives them their own exclusion state**
-  rather than letting the extension filter catch them, because telling someone their
-  `.bin`/`.cue` set is the wrong _format_ sends them to fix the wrong thing. What a later
-  milestone has to build is extraction: the served zip is the only form on offer, its
+- **Multi-file and multi-disc games are in scope, unlocked per platform.** Landing them
+  correctly is the main content concern, ahead of any file-format question. They keep their
+  own exclusion state (`excluded_multi_file`, and `excluded_folder` for a ROM held as a
+  folder, of one file or several) until **that platform's certification** has worked out how RetroBat wants them laid
+  out, and then that platform lands them. The shapes differ by platform and are settled as
+  certification reaches them rather than all up front. The known ones:
+  - several `.chd` files plus an `.m3u`, for compressed multi-disc games;
+  - several `.bin`/`.cue` sets, perhaps with an `.m3u`, for CD games in their native dump
+    format;
+  - update and DLC files that land in folders other than the base game's;
+  - RomM's subfolder structure inside a game folder, most of which is ignored. What is
+    actually needed is a per-platform finding, not an assumption.
+
+  The mechanism that unlocks a platform is not built yet, because no platform has reached it;
+  the first certification that needs it defines it. Whatever it is keys on the
+  `(system, emulator, core)` row, since `.m3u` support alone differs by emulator (below).
+
+  The transport facts it inherits: the served zip is the only form on offer, its
   `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
   it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
 
@@ -1310,17 +1331,17 @@ the rollout order below can be derived rather than hand-maintained.
   `has_simple_single_file`, `has_nested_single_file`, `has_multiple_files`. An empty
   `fs_extension` covers the last two and cannot separate them.
 
-  The code was already right: `SetResolver.cs:341` keys the exclusion on `HasMultipleFiles`,
+  The code was already right: `SetResolver` keys the exclusion on `HasMultipleFiles`,
   never on the extension, so nothing mis-excludes today. Had anyone taken this plan at its
   word and simplified that check to the extension test it called equivalent, 391 of 602
   extensionless ROMs in that sample would have been wrongly excluded.
 
-  **The seam a later milestone owns is a third state, not a second.** A
-  `has_nested_single_file` ROM falls past the multi-file check into the extension check with
-  an empty `fs_extension`, matches no `<extension>` entry, and is reported as "skipped, format
-  not supported by this system" with the extension shown as `(none)`. For a Switch `.nsp`
-  sitting in a folder that is the wrong sentence, and it is exactly the failure the multi-file
-  state was added to avoid. See [freegosy-findings.md](freegosy-findings.md), F15.
+  **That seam is now a third state, `excluded_folder`** (migration 017). A
+  `has_nested_single_file` ROM used to fall past the multi-file check into the extension check
+  with an empty `fs_extension` and be reported as "skipped, format not supported by this
+  system", which for a Switch `.nsp` sitting in a folder was the wrong sentence. It is now
+  "held as a folder which this version cannot sync yet". See
+  [freegosy-findings.md](freegosy-findings.md), F15.
 
 - **A multi-disc set is not a playlist.** Across 445 multi-file ROMs in that sample, **not one
   carried a `.m3u` member**. Multi-disc titles are several images with the disc number in the
@@ -1575,9 +1596,29 @@ manual metadata edit survives the next sync.
 
 ### M5: BIOS and firmware
 
-A platform synced without its BIOS is dead weight in the gallery, so firmware is
-**prioritised ahead of ROM content** for any platform being synced, and driven by what
-RetroBat actually requires rather than by whatever the RomM library happens to hold.
+On an emulator that needs it, a platform synced without its BIOS is dead weight in the
+gallery, so firmware is **prioritised ahead of ROM content** for any platform being synced,
+and driven by what RetroBat lists rather than by whatever the RomM library happens to hold.
+
+**Firmware is fetched best-effort and never gates a platform.** RetroBat's list is what to
+fetch, not what a platform needs to run. `batocera-systems.json` has no optional flag, so an
+entry that only adds a feature or speeds an emulator up reads the same as one it cannot boot
+without, and it keys firmware on the system while each emulator decides which of it to read:
+on `gba` three of ten rows refuse to boot without `gba_bios.bin` and seven HLE it (finding
+285). No client-side rule can tell those apart, and the emulator already does, at launch. So
+RomMBat fetches every listed file RomM holds, reports the rest, and never holds back a
+platform, its ROMs, its sync or its certification over one it does not. The words "required"
+and "requirement" below mean an entry in that list, nothing stronger.
+
+**Amended by the `gb` pass, 2026-09-22: a system can take entries the list files under a sibling.**
+On `gb`, `libretro`/`bsnes` runs a cartridge as a Super Game Boy and cannot load one without
+`SGB1.sfc`, and `bizhawk`/`GBHawk` refuses a Color-flagged cartridge without `gbc_bios.bin`;
+RetroBat's list names those under `sgb` and `gbc`, and only `gb_bios.bin` under `gb`, while its
+wiki lists the four SGB files for `gb` (finding 293). By the maintainer's ruling `bios gb` fetches
+them. `tools/build-bios-manifest.py` holds the supplement: each entry is copied from RetroBat's own
+list for its system, md5 and path unchanged, tagged with the measurement, and the build fails if
+RetroBat drops it there or starts listing it under the taking system. RetroBat stays the authority
+on every hash; the supplement only says which system's report shows it.
 
 **RetroBat ships the requirements manifest, and it is not a file.**
 `batocera-systems/Resources/batocera-systems.json` (in `emulatorlauncher`) is machine-readable
@@ -1746,10 +1787,11 @@ so the honest figures are 6 and 2. See [freegosy-findings.md](freegosy-findings.
    "is anything being fetched" would make adoption reachable only as a side effect of an
    unrelated download, and the fast path that skips re-hashing needs the row it writes.
 
-5. **Report the gap.** Required BIOS with no md5 match anywhere in RomM is the single most
-   useful thing this feature can tell a user, so surface it per platform as "needed, not
-   in your library" with the expected filename and hash. Three states, never two: matched,
-   missing from your library, and unverifiable because RetroBat names no hash.
+5. **Report the gap.** Listed BIOS with no md5 match anywhere in RomM is the single most
+   useful thing this feature can tell a user, so surface it per platform as "not in your
+   library" with the expected filename and hash. Three states, never two: matched, missing
+   from your library, and unverifiable because RetroBat names no hash. The report informs and
+   never refuses: a gap exits zero, and the platform's ROMs sync regardless.
 
    **The report is answerable offline**, from the bundled manifest plus what is on disk, which
    is what principle 1 requires of it. Without the server it splits into present and absent;
@@ -2025,7 +2067,7 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   overruled before it is carried out and a second is guarded against.** That is the server
   applying the reasoning this project forbids itself: mtime never decides whether a save changed.
   `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly and is the instrument to re-run on a
-  floor move; at `5.3.0-beta.1` it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
+  floor move; at `5.3.0`, as at `beta.1`, it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
   M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
 
   **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is uploaded**,
@@ -2442,6 +2484,15 @@ Two emulators for one game are two slots that never reconcile, because their fil
 differently and nothing proves the bytes interchangeable in general. That BizHawk's StarTropics
 `.SaveRAM` loaded as a `nestopia` `.srm` in the #211 pass is one game, not a rule, and is not a
 reason to migrate saves between emulators.
+
+**Amended by the `gba` pass, 2026-09-22: a libretro core that keeps its own file takes its own
+slot.** `libretro`/`mednafen_gba` ignores the `.srm` RetroArch hands it and writes
+`<rom>.zip#<member>.<md5>.sav` (finding 290), so it cannot share `libretro:battery` with `mgba`
+and `gpsp`. By the maintainer's ruling it uploads as `libretro:battery:sav`, class B's
+per-extension slot, rather than a slot named for the core: the grain is still per emulator, and
+the file is what differs. The loader lets one emulator hold two rules on a system only where
+class B keeps every slot apart. Where emulators write one file, it stays one slot: `gba`'s loose
+`<rom>.sav` is mGBA's, Mesen's and mednafen's, and uploads as `mgba:battery`.
 
 **Class B takes one slot per file, keyed `{emulator}:battery:{ext}`.** The observed sets are
 two files with fixed extensions (saturn's `.bcr` at 512 KB with its `.bkr` at 32 KB, megacd's
@@ -3301,8 +3352,8 @@ which overloads one column with two meanings, or an unmanaged download `Eviction
 be taught to ignore, which means storing "this orphan is deliberate" and is a set by another
 name with none of a set's machinery.
 
-**`GET /api/roms` has no id-list parameter**, verified against the pinned
-`romm-5.3.0-beta.1.json`:
+**`GET /api/roms` has no id-list parameter**, verified against the
+`romm-5.3.0-beta.1.json` pin, whose contract `5.3.0` repeats exactly:
 its scoping parameters are `platform_ids`, `collection_id`, `virtual_collection_id` and
 `smart_collection_id`. That is a property of the scope rather than a defect, so
 `CatalogQuery.ToQueryString` **refuses** a picked scope instead of falling through to a query
@@ -3725,8 +3776,10 @@ through, not the number of passes.
 `docs/platforms/<system>.md` with a section per emulator:
 
 1. Folder mapping resolves, and by which layer.
-2. `<extension>` list captured, and every ROM the set resolves survives the extension check.
-3. Required BIOS from `batocera-systems.json` resolved against RomM by md5; gaps listed.
+2. Multi-disc and multi-file games land correctly: the shapes this library holds for the
+   system are recorded, and each lands where the emulator reads it and launches from ES.
+3. BIOS listed in `batocera-systems.json` resolved against RomM by md5; what RomM lacks is
+   listed, and never fails the pass.
 4. Save shape classified (A/B/C/D) **for this emulator** and battery save round-trips.
 5. Save state round-trips including its screenshot, per this emulator's `es_savestates.cfg`
    entry, and the declared directory is confirmed to be where the emulator really writes.
@@ -3735,8 +3788,8 @@ through, not the number of passes.
 8. Play session recorded and reaches RomM.
 9. Re-sync is a clean no-op.
 
-Steps 1, 2, 3, 7, 8 and 9 are largely per system; **steps 4, 5 and 6 are the per-emulator
-ones**, and they are also the three where being wrong destroys data rather than costing a
+Steps 1, 3, 7, 8 and 9 are largely per system, and step 2 is per system until an emulator
+disagrees about a playlist; **steps 4, 5 and 6 are the per-emulator ones**, and they are also the three where being wrong destroys data rather than costing a
 re-download.
 
 **When this happens.** The full checklist needs a human at the machine for every pass, so the
@@ -3802,7 +3855,12 @@ format, each entry scoped by a `systems` attribute to where it was driven, benea
 file so an entry RetroBat or the user writes always wins. With a battery rule each, all three rows
 certified on 2026-09-21. The rest of the family stays open until each row gets its own entry from
 its own pass, because the layout does not carry between systems: ares keeps `nes` under
-`ares/Famicom/`, named after its own system.
+`ares/Famicom/` and `megadrive` under `ares/Mega Drive/`, each named after its own system.
+**`megadrive` followed the same day** with entries for `mednafen`, `ares` and `kega-fusion`, the
+schema taking one supplement entry per system for an emulator, and `mednafen` and `ares` certified
+there. Kega Fusion's battery saves are the first measured outside `saves/` altogether, in
+`emulators/kega-fusion/`, where RetroBat's `Fusion.ini` sends them; that is RetroBat's to fix, and
+this plan does not widen the scan to meet it (finding 283).
 
 **Nintendo's DSi is the one platform out of scope rather than unscheduled.** RomM carries a
 `nintendo-dsi` slug and RetroBat declares no `dsi` system, because melonDS runs DSi titles under
@@ -3817,6 +3875,39 @@ whole of generation 2 as well, since RetroBat attributes those to Coleco, Emerso
 Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth
 reading when RetroBat adds a system, but which wave it belongs in is a judgement about what it
 introduces, and the table is hand-maintained.
+
+### Keeping certifications current
+
+**A floor move owes every record a mapping onto the nine steps (#187), and at wave scale that
+cannot be a person's afternoon per row.** Wave 1 is 81 rows and the floor moves within one release
+of every RomM or RetroBat stable, so the design aims hands-on time at new emulators and at rows
+whose behaviour actually moved, and carries the rest mechanically. Issue #216, in three layers:
+
+1. **A row fingerprint, with no emulator running.** Each `(system, emulator, core)` record stores a
+   hash of what the row depends on: its `es_savestates.cfg` entry and any supplement entry, the
+   system's `<extension>` list, its BIOS md5 set, the emulator's version or binary hash under
+   `emulators/`, and the save rule and bundled data it resolves through. At a floor move a report
+   names every row whose fingerprint moved and which input moved, and writes the carry-over reason
+   for every row that did not.
+2. **The shape of each pass, kept as fixtures, never its content.** A pass records what it found on
+   disk: each file's path relative to the root, size, md5, leading magic bytes and, for a container
+   such as BizHawk's `.State` zip, its member names. A test builds stand-in files from that record
+   with generated bytes, and `dotnet test` runs state discovery, shape classification and restore
+   naming against them. What RomMBat decides turns on names, directories, sizes and hashes, not on
+   what the game wrote, so the stand-ins catch a RomMBat-side regression on steps 4 and 5 without an
+   emulator, which is where findings 256 and 258 would have been caught. **The real save, state,
+   screenshot and ROM stay out of the repository**: a state is a snapshot of the running game's
+   memory and a screenshot is the game's artwork, so both carry copyrighted content, and a ROM or
+   BIOS is the copyrighted work itself.
+3. **A replay harness on the RetroBat box, for rows whose fingerprint moved.** It launches through
+   `emulatorLauncher` with the row's triple, makes states with the family's keys, quits, and runs
+   sync, restore with a byte comparison, `status` and a second sync. A failure, or a check it cannot
+   judge, goes to a person.
+
+**A harness pass counts as re-running a touched step, for a row already certified by hand.** It
+drives the real emulator and reads what the emulator wrote, which is the evidence the checklist
+asks for, not a unit test standing in for it. A row's first certification, a new emulator or core,
+and class D and multi-disc rows stay hands-on.
 
 ---
 
@@ -3867,11 +3958,11 @@ introduces, and the table is hand-maintained.
 | RetroBat changes its folder layout between releases                                                                             | Pin a tested-versions table; detect the version and refuse to write when the layout is unrecognised                                                                                                                                                                                                      |
 | Socket.IO looks tempting for live updates                                                                                       | Not usable: the socket authenticates from the `romm_session` cookie only, and `sync:*` events go to a `user:{id}` room nothing ever joins. Poll REST                                                                                                                                                     |
 | Published RomM docs disagree with the server                                                                                    | Generate from `/openapi.json` at a pinned RomM version; gate features on `GET /api/heartbeat`                                                                                                                                                                                                            |
-| Syncing a file the target emulator cannot launch: a game that appears in ES and dies                                            | Filter every candidate against the resolved system's `<extension>` list from the live `es_systems.cfg`, and show what was excluded and why                                                                                                                                                               |
+| Syncing a file the target emulator cannot launch: a game that appears in ES and dies                                            | Not policed. `<extension>` is a union across emulators and cannot say what the running one opens; members it omits are reported as unlisted in ES, never excluded. The format kept in RomM is the user's choice                                                                                          |
 | RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                                                   |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                                                        |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                                                                 |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0-beta.1), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                    |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                           |
 | Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                                                       |
 
 ---

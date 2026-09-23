@@ -89,7 +89,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_no_op_for_a_save_this_device_changed_is_uploaded_anyway()
     {
-        // #206, and live at the 5.3.0-beta.1 floor. A save restored from a backup, whose mtime
+        // #206, and live at 5.3.0-beta.1 and 5.3.0. A save restored from a backup, whose mtime
         // is older than this device's last upload, comes back no_op, "No changes since last
         // sync", and used to be believed. The client holds the evidence the server does not:
         // content_hash differs from uploaded_content_hash. Driven on a real install as well as
@@ -127,7 +127,7 @@ public class SaveSyncTests
         // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
         // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
         // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
-        // It does not reproduce at the 5.3.0-beta.1 floor, where probe case M4 answers
+        // It does not reproduce at 5.3.0-beta.1 or 5.3.0, where probe case M4 answers
         // "no_op (Content is identical)". Kept because it costs one comparison against a value
         // the operation already carries, and the loop it prevents is silent.
         using var fixture = SyncFixture.Create();
@@ -246,7 +246,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_download_over_a_save_this_device_never_sent_is_a_conflict_and_writes_nothing()
     {
-        // #211, probe case M3 at the 5.3.0-beta.1 floor: a slot this device has no sync record
+        // #211, probe case M3 at 5.3.0-beta.1 and 5.3.0: a slot this device has no sync record
         // for is answered "download (Server save is newer (no sync history))" whatever the
         // device holds. Two devices playing one game offline is the ordinary case for a
         // handheld, and the second one's first flush used to replace its save and report 1 down.
@@ -345,6 +345,255 @@ public class SaveSyncTests
         Assert.Equal(0, outcome.Conflicts);
         Assert.Equal(1, outcome.Downloaded);
         Assert.False(Assert.Single(fixture.Store.Saves.List()).IsUnsent);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Another_clients_null_autosave_is_refused_rather_than_written_as_a_battery_save(bool omitHash)
+    {
+        // RomM's browser player uploads the four bytes "null" to slot autosave. Measured landing
+        // as saves/megadrive/<rom>.srm, and twice on nes. With the hash named it is refused before
+        // the transfer, and without one on the bytes that arrived.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "a real save, sent");
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", null);
+        fixture.Scan();
+        fixture.MarkSent();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+        fixture.Stub.OmitHash = omitHash;
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Downloaded);
+
+        // Not a failure: the server offers it again on every flush, and nothing here can fix it.
+        Assert.Equal(0, outcome.Failed);
+        Assert.Contains("refused, not a save", outcome.Summary, StringComparison.Ordinal);
+        Assert.Contains("'null'", Assert.Single(outcome.Problems), StringComparison.Ordinal);
+
+        Assert.False(File.Exists(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+        Assert.Empty(fixture.Stub.Acknowledged);
+        // With the hash named nothing was fetched at all, so there may be no partial directory.
+        var partial = fixture.Resolve(SaveSync.PartialDirectory.Value);
+        Assert.True(!Directory.Exists(partial) || !Directory.EnumerateFiles(partial).Any());
+    }
+
+    [Fact]
+    public async Task A_null_autosave_landing_on_a_save_another_slot_holds_is_refused_rather_than_a_conflict()
+    {
+        // The route that destroys a save: the autosave offer resolves to the .srm that
+        // libretro:battery keeps, and a conflict there is one "keep server" away from writing it.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+        fixture.MarkSent();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+        fixture.Stub.UnsolicitedDownloads.Add((7, "autosave"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+    }
+
+    [Fact]
+    public async Task A_null_save_offered_over_an_unsent_local_save_is_refused_rather_than_a_conflict()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here, never sent");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Rejected);
+        Assert.Equal(0, outcome.Conflicts);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Keeping_the_server_side_of_a_conflict_over_a_null_save_writes_nothing(bool omitHash)
+    {
+        // The server's own conflict action, and a 409, still record one: the local save is real
+        // and keep-local is the answer. Keep-server is refused by the hash, or by the bytes.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        fixture.Stub.OmitHash = omitHash;
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var outcome = await fixture.ResolveAsync(
+            7,
+            "libretro:battery",
+            ConflictResolution.KeepServer,
+            TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.Contains("'null'", outcome.Message, StringComparison.Ordinal);
+        Assert.Equal("played here", File.ReadAllText(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        var partial = fixture.Resolve(SaveSync.PartialDirectory.Value);
+        Assert.True(!Directory.Exists(partial) || !Directory.EnumerateFiles(partial).Any());
+    }
+
+    [Theory]
+    [InlineData(ConflictResolution.KeepServer, false)]
+    [InlineData(ConflictResolution.KeepServer, true)]
+    [InlineData(ConflictResolution.KeepLocal, false)]
+    [InlineData(ConflictResolution.KeepLocal, true)]
+    public async Task A_conflict_over_a_null_save_whose_local_file_is_gone_closes_with_nothing_written(
+        ConflictResolution resolution,
+        bool rescanned)
+    {
+        // Measured on R:\RetroBat: Bare Knuckle III's conflict against another client's null
+        // outlived its local file, and both answers refused, so it was reported on every flush.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "null");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var copy = fixture.Store.SaveConflicts.Read(7, "libretro:battery")!.LocalCopyPath!.Value;
+        var local = fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm");
+        File.Delete(local);
+
+        if (rescanned)
+        {
+            fixture.Scan();
+        }
+
+        var serverSaves = fixture.Stub.Saves.Count;
+
+        var outcome = await fixture.ResolveAsync(7, "libretro:battery", resolution, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Contains("nothing written", outcome.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.False(File.Exists(local));
+        Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
+        Assert.Empty(fixture.Stub.Acknowledged);
+
+        // Once the conflict closes, saves and flush stop listing it, so this message is the only
+        // place the user is told where the copy is.
+        Assert.True(File.Exists(fixture.Resolve(copy.Value)));
+        Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(ConflictResolution.KeepServer)]
+    [InlineData(ConflictResolution.KeepLocal)]
+    public async Task A_class_c_conflict_over_a_null_save_whose_unit_is_gone_closes_with_nothing_written(
+        ConflictResolution resolution)
+    {
+        // The container outlives the unit, so it existing says nothing about the save.
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(8, "mame:nvram", "25pacman", "zip", "null", emulator: "mame");
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        Directory.Delete(fixture.Resolve("saves/mame/nvram/25pacman"), recursive: true);
+        Assert.True(Directory.Exists(fixture.Resolve("saves/mame/nvram")));
+
+        var serverSaves = fixture.Stub.Saves.Count;
+
+        var outcome = await fixture.ResolveAsync(8, "mame:nvram", resolution, TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Contains("nothing written", outcome.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Equal(serverSaves, fixture.Stub.Saves.Count);
+        Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_conflict_whose_download_arrives_as_null_with_the_local_file_gone_closes()
+    {
+        // The conflict recorded a real hash and the bytes came down as the null payload, so only
+        // the download learns the server holds no save. Keep-local sends the user there, and
+        // keep-server must not send them back.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "played there");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { Bytes = "null"u8.ToArray() };
+        File.Delete(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm"));
+
+        var local = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepLocal, TestContext.Current.CancellationToken);
+
+        Assert.False(local.Resolved);
+        Assert.Contains("Take the server's copy instead", local.Message, StringComparison.Ordinal);
+
+        var server = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepServer, TestContext.Current.CancellationToken);
+
+        Assert.True(server.Resolved, server.Message);
+        Assert.Contains("nothing written", server.Message, StringComparison.Ordinal);
+        Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
+        Assert.Empty(fixture.Stub.Acknowledged);
+        Assert.False(File.Exists(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm")));
+    }
+
+    [Fact]
+    public async Task A_conflict_whose_local_file_is_gone_still_refuses_keep_local_against_a_real_save()
+    {
+        // Nothing to keep on this side, and a real save on the other: taking it is the answer,
+        // and the message says so rather than naming a delete no command offers.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", "played here");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Old Towers (World) (Unl)", "srm", "played there");
+        fixture.Stub.NegotiateActions[(7, "libretro:battery")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        File.Delete(fixture.Resolve("saves/megadrive/Old Towers (World) (Unl).srm"));
+
+        var outcome = await fixture.ResolveAsync(7, "libretro:battery", ConflictResolution.KeepLocal, TestContext.Current.CancellationToken);
+
+        Assert.False(outcome.Resolved);
+        Assert.Contains("Take the server's copy instead", outcome.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("Delete the conflict", outcome.Message, StringComparison.Ordinal);
+        Assert.Single(fixture.Store.SaveConflicts.ListOpen());
+    }
+
+    [Fact]
+    public async Task A_restore_preview_lists_a_null_autosave_as_unrestorable()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "megadrive", "Old Towers (World) (Unl)", ".zip", ".srm", null);
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "autosave", "Old Towers (World) (Unl)", "srm", "null", emulator: "genesis_plus_gx");
+
+        var findings = (await fixture.FindRestorableAsync(TestContext.Current.CancellationToken)).Value!;
+
+        Assert.Empty(findings.Restorable);
+        Assert.Contains("'null'", Assert.Single(findings.Unrestorable).Reason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -846,6 +1095,68 @@ public class SaveSyncTests
         var save = Assert.Single(fixture.Store.Saves.List());
         Assert.Equal("mednafen:battery", save.Slot);
         Assert.Equal(16, save.RomId);
+    }
+
+    [Fact]
+    public async Task A_megadrive_mednafen_save_downloads_under_the_hash_of_the_whole_md()
+    {
+        // No header to leave off on megadrive: the name carries the md5 of the .md itself.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        fixture.AddGame(203767, "megadrive", Rom, ".zip", ".srm", null);
+        var body = NesBody("SEGA MEGA DRIVE");
+        File.Delete(fixture.Resolve($"roms/megadrive/{Rom}.zip"));
+        using (var archive = System.IO.Compression.ZipFile.Open(fixture.Resolve($"roms/megadrive/{Rom}.zip"), System.IO.Compression.ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry($"{Rom}.md").Open())
+        {
+            stream.Write(body);
+        }
+
+        fixture.Scan();
+
+        fixture.SeedServerSave(203767, "mednafen:battery", Rom, "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((203767, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve($"saves/megadrive/{Rom}.{hash}.sav")));
+    }
+
+    [Fact]
+    public async Task A_mednafen_gba_save_downloads_under_the_zip_its_member_and_the_member_hash()
+    {
+        // libretro/mednafen_gba keeps its own save beside the .srm the other gba cores share,
+        // named for RetroArch's archive#member path, and it uploads as libretro:battery:sav.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+        fixture.AddGame(233631, "gba", Rom, ".zip", ".srm", "the other cores' save");
+        var body = NesBody("POKEMON EMER");
+        File.Delete(fixture.Resolve($"roms/gba/{Rom}.zip"));
+        using (var archive = System.IO.Compression.ZipFile.Open(fixture.Resolve($"roms/gba/{Rom}.zip"), System.IO.Compression.ZipArchiveMode.Create))
+        using (var stream = archive.CreateEntry($"{Rom}.gba").Open())
+        {
+            stream.Write(body);
+        }
+
+        fixture.Scan();
+
+        fixture.SeedServerSave(233631, "libretro:battery:sav", Rom, "sav", "mednafen_gba's", emulator: "libretro");
+        fixture.Stub.UnsolicitedDownloads.Add((233631, "libretro:battery:sav"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+#pragma warning disable CA5351 // The name mednafen gives the file.
+        var hash = Convert.ToHexString(System.Security.Cryptography.MD5.HashData(body)).ToLowerInvariant();
+#pragma warning restore CA5351
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("mednafen_gba's", File.ReadAllText(fixture.Resolve($"saves/gba/{Rom}.zip#{Rom}.{hash}.sav")));
+        Assert.Equal("the other cores' save", File.ReadAllText(fixture.Resolve($"saves/gba/{Rom}.srm")));
     }
 
     [Fact]
@@ -2561,7 +2872,7 @@ public class SaveSyncTests
             string stem,
             string romExtension,
             string saveExtension,
-            string saveContents)
+            string? saveContents)
         {
             var romPath = RelativePath.Create($"roms/{folder}/{stem}{romExtension}");
             var romAbsolute = Install.Resolve(romPath);
@@ -2577,6 +2888,12 @@ public class SaveSyncTests
                 FileName = $"{stem}{romExtension}",
                 SizeBytes = 3,
             });
+
+            // Null is a game never played here, which has no save yet.
+            if (saveContents is null)
+            {
+                return;
+            }
 
             var savePath = Install.Resolve(RelativePath.Create($"saves/{folder}/{stem}{saveExtension}"));
             Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);

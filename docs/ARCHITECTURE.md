@@ -460,7 +460,7 @@ a drift by updating the expected number.
 | `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | M0 experiment 2, in Grout's shape                                                             |
 | `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | M0 experiment 2                                                                               |
 | `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
-| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` row at a time                                             |
+| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` or `megadrive` row at a time                              |
 | `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
@@ -488,7 +488,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Fifteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Sixteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -500,8 +500,10 @@ about the state half rather than a save shape: an emulator with no `es_savestate
 writes save states anyway, into a directory nothing reads. 016 widens
 `sync_set_member.state` to admit `'excluded_no_file_on_disk'`, for a ROM RomM has a row for and
 no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from the server's
-disk is the other, and the second has been reachable since the 5.2.0 floor. The
-schema lives
+disk is the other, and the second has been reachable since the 5.2.0 floor. 017 retires
+`'excluded_extension'` for `'excluded_folder'`, because the extension stopped gating a sync
+and the one case that gate caught which still needs a state is a ROM RomM holds as a folder,
+of one file or several. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
@@ -699,11 +701,13 @@ memory cards into per-game ones without touching an emulator config.
 
 ## 8. Two authorities that are easy to get backwards
 
-**File extensions come from RetroBat.** RomM will happily hold a file the target system
-cannot launch, and syncing it produces the worst failure this app has: a game that appears
-in EmulationStation, looks correct, and dies on launch. The `<extension>` list in the live
-`es_systems.cfg` is a **sync filter**, applied before anything is downloaded, and
-exclusions are shown to the user rather than hidden.
+**File extensions come from RetroBat, and they never gate a sync.** The `<extension>` list in
+the live `es_systems.cfg` is a union across every emulator a system offers, so it cannot say
+whether the emulator that runs opens a file: one reads `.chd` and another does not, and the
+list names the format either way. The one certain thing it says is what EmulationStation
+lists, so members it omits sync anyway and are reported as unlisted, on the resolution summary
+and on the set's detail. What does gate a game is its shape: a multi-file ROM, or one RomM holds
+as a folder, waits until its platform's certification has settled where RetroBat wants it.
 
 **Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
 entries across 99 systems as `{md5, file}`, with the exact destination path. Join it
@@ -712,8 +716,13 @@ and RomM's `is_verified` is false on files RetroBat requires, `psxonpsp660.bin` 
 so on a real library filtering on it discards 6 of the 49 required hashes that library
 holds. A further 93 of the 156 have no RomM record at all, which is a gap and not a
 flag. BIOS is fetched
-**before** that platform's ROMs, because a platform without its BIOS is dead weight in the
-gallery.
+**before** that platform's ROMs, because on an emulator that needs it a platform without its
+BIOS is dead weight in the gallery. **It never gates a platform.** The list has no optional
+flag and the emulator decides which files it reads, so a file RomM lacks is reported and the
+platform's ROMs sync regardless. Where a row reads a file the list files under another system,
+the manifest builder copies that entry onto the system with a `supplement` note saying why: `gb`
+takes `sgb`'s four Super Game Boy files and `gbc`'s boot ROM (finding 293). Every hash is still
+RetroBat's.
 
 Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
 inside `batocera-systems.exe`, so the manifest is bundled at `data/retrobat/bios.json` rather
@@ -748,16 +757,22 @@ took 426 s where the scoped subtree took 0.06 s.
 **Whose a class A or B file is comes from a rule per `(system, emulator)`**, in
 `data/retrobat/save_rules.json`: a directory under `saves/<system>/`, its extensions, and what
 the stem joins on. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
-two rules could claim one file or one emulator has two rules on a system. That is what keeps
+two rules could claim one file, or one emulator has two rules on a system unless class B gives
+each extension its own slot and no extension is in both. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside
 libretro's own `.srm` (#152). Most rules join on the ROM file; mednafen's on `nes` joins on the ROM
 file **and the md5 of its content less the iNES header**, which it appends only when the plain
 name is free, so a plain `<rom>.sav` there is shared with mesen standalone and a restore refuses to
-write a hashed one it would shadow. BizHawk's joins on **its own
+write a hashed one it would shadow. `libretro`/`mednafen_gba` on `gba` joins on **the zip, the
+file inside it and that file's md5**, `<rom>.zip#<member>.<md5>.sav`, under
+`libretro:battery:sav`. Rules claiming one extension in one directory are asked narrowest first,
+archive member, then hash, then plain, and two of one narrowness are refused. BizHawk's joins on **its own
 title for the game** (`StarTropics.SaveRAM` for `StarTropics (USA).zip`), which
 `Content/DisplayNameAttributor` learns from the state sidecar and the launch window and caches
 in `game_id_binding` under the file name. A title two ROMs answer to fails closed, and a
-download for such a slot is placed only where a title was learned (#151).
+download for such a slot is placed only where a title was learned (#151). A clock file beside a
+save is class B: on `gb` the loose `.rtc` is `libretro`'s second slot, `libretro:battery:rtc`,
+because a clock cartridge keeps its clock there under the stock core, and on `gba` it is Mesen's.
 
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
@@ -804,8 +819,8 @@ Three rules that are not obvious:
   answers is overruled locally.** A `no_op` for a slot whose `content_hash` differs from
   `uploaded_content_hash` is uploaded, because that inequality is the client holding evidence the
   server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
-  Confirmed at the `5.3.0-beta.1` floor both by asking the server (`s4-older-mtime.py`, M1) and
-  by driving a flush on a real install. A second guard answers an `upload` of bytes the server
+  Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1` and again at the
+  `5.3.0` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
 
@@ -860,7 +875,8 @@ not hardcode. Two things make it less easy than it looks, both measured:
   `data/retrobat/es_savestates.supplement.xml` beneath it: the same format plus a `systems`
   attribute limiting each entry to where it was measured, and a `{{romhash}}` token for mednafen's
   content hash, which a restore carries from the uploaded name. An entry in the install's own file
-  always wins.
+  always wins. An emulator may have one supplement entry per system, because its layout is its
+  own per system: ares writes `nes` under `ares/Famicom/` and `megadrive` under `ares/Mega Drive/`.
 
 Attribution for classes C and D is a real problem, because these saves are keyed by Game ID.
 Under `mame` the key is the ROM's own basename and the join is direct. Everywhere else three

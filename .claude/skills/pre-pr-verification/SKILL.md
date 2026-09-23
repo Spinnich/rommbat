@@ -29,6 +29,29 @@ reports failure.
 `verify.py` drifting means an upstream fact moved. **Revisit `docs/PLAN.md`; do not just
 update the expected number.**
 
+## Test cost
+
+**CI's Test step is the budget, not your local run.** A GitHub Windows runner ran this suite
+more than ten times slower than a dev box, and the difference was disk: until #227 the step took
+11 minutes for a suite that ran in a minute locally, almost all of it SQLite commits waiting on a
+flush, and afterwards it took 50 seconds. A test's cost on your machine says little about its
+cost there.
+
+- **Profile before you cut anything.** Rank tests by duration from the CI log, where every
+  `passed` line carries one, or locally with the test exe's `-xml` (see `DEVELOPER_SETUP.md`).
+  An audit of 1,244 test methods found almost no duplication. The number of tests was never the
+  cost; a few expensive patterns were.
+- **A store-backed test opens its store through `LocalStore.Open` or `OpenAt`.**
+  `Support/ThrowawayStores` makes both cheap for the whole suite: a new file starts as a copy of
+  one migrated seed, and commits are not flushed. A raw `SqliteConnection` skips both, so use one
+  only to write the old-version file a migration test starts from.
+- **Use `TestTimeProvider` rather than the wall clock.** A test that has to prove something
+  never happened waits its full budget, so run those waits side by side rather than one after
+  another. `HookSpawnTests` fires both no-spawn hooks and then waits once.
+- **Compare the PR's Test step with main's** (`gh run list --workflow Build --branch main`) when
+  the change adds process-level, live or waiting tests. If it grew by a minute or more, find out
+  why before merging.
+
 ## Invariants worth re-checking by hand
 
 - No absolute path reaches the database. Three layers enforce it (the `RelativePath` type,
