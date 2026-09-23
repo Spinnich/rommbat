@@ -111,9 +111,12 @@ public sealed class HookSpawnTests
 
         // The process writes its last line before returning from Main, so it is on its way out
         // rather than gone. Give the handles a moment or the tree cannot be deleted.
-        Assert.True(
-            WaitFor(() => CanTake(Path.Combine(run.AgentDirectory, "e_sqlite3.dll")), TimeSpan.FromSeconds(30)),
-            "the background pass still holds e_sqlite3.dll");
+        foreach (var held in new[] { "rommbat-agent.exe", "e_sqlite3.dll" })
+        {
+            Assert.True(
+                WaitFor(() => CanTake(Path.Combine(run.AgentDirectory, held)), TimeSpan.FromSeconds(30)),
+                $"the background pass still holds {held}");
+        }
     }
 
     /// <summary>
@@ -177,12 +180,16 @@ public sealed class HookSpawnTests
         }
     }
 
-    /// <summary>Whether a file can be opened exclusively, which means nothing else holds it.</summary>
+    /// <summary>Whether a file can be opened exclusively for writing, which means nothing else holds it.</summary>
+    /// <remarks>
+    /// Write access, because a loaded executable or DLL still opens for reading with
+    /// <see cref="FileShare.None"/> while its image is mapped, and cannot be deleted.
+    /// </remarks>
     private static bool CanTake(string path)
     {
         try
         {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
