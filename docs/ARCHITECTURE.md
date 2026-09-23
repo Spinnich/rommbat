@@ -814,10 +814,9 @@ Three rules that are not obvious:
   hashing the bytes would make RomMBat and Grout disagree forever on identical saves.
   Define `content_hash` over sorted relative paths plus each file's own hash. The archive
   is transport only.
-- **So a bundled save carries two hashes and they are never compared.** RomM digests an
-  archive's contents too, by a function this client cannot reproduce, so the logical fold is
-  the local change detector and the digest the server returned on the last upload is the value
-  that goes back on the wire. Sending the fold instead answers `download` forever.
+- **The fold is RomM's own archive digest**, the md5 of `<entry>:<md5>` lines sorted by name
+  (finding 303), so a bundled save carries one hash: it is the local change detector, the value
+  negotiated, and what a restore is verified against after extraction.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
   answers is overruled locally.** A `no_op` for a slot whose `content_hash` differs from
   `uploaded_content_hash` is uploaded, because that inequality is the client holding evidence the

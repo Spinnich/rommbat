@@ -43,6 +43,51 @@ public class PlaytimeAndHashTests
     }
 
     [Fact]
+    public void The_fold_is_RomM_s_own_archive_digest()
+    {
+        // RomM 5.3.0's hash_zip_contents, run in Python over the same two entries: the md5 of
+        // "<name>:<md5>" lines, sorted, joined by a newline with none trailing. Equal here is
+        // what makes the fold the wire value and lets a restore be verified.
+        Assert.Equal(
+            "203fee0885045134ea71f84318ecde6d",
+            LogicalContentHash.Fold(
+            [
+                ("25pacman/flash", "b8a9f715dbb64fd5c56e7783c6820a61"),
+                ("25pacman/eeprom", "f97c5d29941bfb1b2fdab0874906ab82"),
+            ]));
+    }
+
+    [Fact]
+    public void The_fold_equals_the_content_hash_a_live_RomM_stored()
+    {
+        // Measured on RomM 5.3.0 with tools/romm-5.3-probes/s5-archive-content-hash.py: a zip of
+        // these three members, mixed compression and one non-ASCII name, was stored as
+        // 4704b0bf... while the md5 of its bytes was 3c4f71d6...
+        Assert.Equal(
+            "4704b0bfadb8ab14305c3ae97a06b81c",
+            LogicalContentHash.Fold(
+            [
+                ("ULUS10064DATA00/DATA.BIN", "7c30c5482142a7a85984c32df70c2ebe"),
+                ("ULUS10064SETTINGS/PARAM.SFO", "3d959f9502f6bb7b11214ef7c9927d8a"),
+                ("ULUS10064DATA00/été.bin", "a48fcb112878f79bbebfd8ffca9b195d"),
+            ]));
+    }
+
+    [Fact]
+    public void The_fold_sorts_by_code_point_as_Python_does()
+    {
+        // U+FFFD sorts before U+1F600 by code point, and after it by UTF-16 code unit, since the
+        // emoji is a surrogate pair starting 0xD83D. Python's value for the pair.
+        Assert.Equal(
+            "dbbefadd30766f5b7ac0c7e2eda36370",
+            LogicalContentHash.Fold(
+            [
+                ("\U0001F600.bin", "f97c5d29941bfb1b2fdab0874906ab82"),
+                ("�.bin", "b8a9f715dbb64fd5c56e7783c6820a61"),
+            ]));
+    }
+
+    [Fact]
     public void Moving_a_file_within_a_directory_save_changes_its_hash()
     {
         // Paths are folded in, so a save whose files are the same bytes under different names

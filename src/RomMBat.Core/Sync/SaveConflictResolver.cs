@@ -112,7 +112,8 @@ public sealed class SaveConflictResolver
             part,
             _install.Resolve(SaveSync.PartialDirectory),
             SaveSync.AsideDirectory,
-            now);
+            now,
+            saveId == conflict.ServerSaveId ? conflict.ServerHash : null);
 
         Delete(part);
 

@@ -151,9 +151,8 @@ public class SaveArchiveTests
     [Fact]
     public void A_corrupt_archive_fails_extraction_rather_than_landing_half_a_save()
     {
-        // This is the check that replaces the byte hash for class C. RomM's archive digest is
-        // computed over the contents by a function this client cannot reproduce, so the CRC that
-        // extraction validates is what stands between a truncated download and a corrupt save.
+        // Extraction's CRC check fails a truncated download before anything is hashed or
+        // replaced, so a corrupt archive never reaches the comparison with the server's digest.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();
 

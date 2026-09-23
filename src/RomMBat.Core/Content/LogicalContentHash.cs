@@ -22,8 +22,8 @@ namespace RomMBat.Core.Content;
 /// sorted relative paths, each with its own digest, folded into one.
 /// </para>
 /// <para>
-/// <b>MD5 because RomM's <c>content_hash</c> is 32 characters.</b> Not a security boundary:
-/// the comparison it feeds is "did this change", and the server does the same.
+/// <b>MD5 because RomM's <c>content_hash</c> is.</b> Not a security boundary: the comparison
+/// it feeds is "did this change", and the server does the same.
 /// </para>
 /// <para>
 /// <b>Scope the unit before hashing it.</b> M6 measured a full hash of
@@ -34,13 +34,6 @@ namespace RomMBat.Core.Content;
 /// </remarks>
 public static class LogicalContentHash
 {
-    /// <summary>The separator between a path and its digest, and between entries.</summary>
-    /// <remarks>
-    /// A NUL and a newline, neither of which can occur in a path segment, so no filename can
-    /// make two different trees fold to the same input.
-    /// </remarks>
-    private const byte PathTerminator = 0;
-
     /// <summary>Hashes one file, which is class A and every member of class B.</summary>
     public static string OfFile(string path)
     {
@@ -79,33 +72,44 @@ public static class LogicalContentHash
     }
 
     /// <summary>
-    /// Folds a set of (relative path, digest) pairs into one digest.
+    /// Folds a set of (relative path, digest) pairs into one digest, by RomM's own rule for an
+    /// archive's <c>content_hash</c>.
     /// </summary>
     /// <remarks>
-    /// Public so a test can prove the fold is stable without touching a filesystem, and so a
-    /// caller that already has per-file digests does not have to read the bytes again.
+    /// <b>This is the server's function, so the fold is the wire value.</b> RomM hashes a zip as
+    /// the md5 of <c>&lt;entry name&gt;:&lt;entry md5&gt;</c> lines, sorted by name, joined
+    /// with <c>\n</c> and no trailing newline (<c>hash_zip_contents</c> in
+    /// <c>assets_handler.py</c>, read at the 5.3.0 tag). A unit folded here and the archive
+    /// <see cref="SaveArchive.Pack"/> makes of it therefore carry one hash on both sides.
+    /// <para>
+    /// Sorted by UTF-8 bytes, which is the code-point order Python's <c>sorted</c> gives. An
+    /// ordinal sort compares UTF-16 code units and disagrees with it once a name holds a
+    /// character outside the Basic Multilingual Plane.
+    /// </para>
+    /// <para>
+    /// Public so a test can prove the fold without touching a filesystem, and so a caller that
+    /// already has per-file digests does not have to read the bytes again.
+    /// </para>
     /// </remarks>
     public static string Fold(IEnumerable<(string RelativePath, string FileHash)> entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
-#pragma warning disable CA5351 // MD5, deliberately: RomM's content_hash is 32 characters.
-        using var folded = MD5.Create();
+        var lines = entries
+            .Select(entry => (Name: Encoding.UTF8.GetBytes(entry.RelativePath), Hash: entry.FileHash.ToLowerInvariant()))
+            .OrderBy(entry => entry.Name, Utf8Order.Instance)
+            .Select(entry => Encoding.UTF8.GetString(entry.Name) + ":" + entry.Hash);
+
+#pragma warning disable CA5351 // MD5, deliberately: it is RomM's content_hash.
+        return Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(string.Join('\n', lines))));
 #pragma warning restore CA5351
-        using var stream = new CryptoStream(Stream.Null, folded, CryptoStreamMode.Write);
+    }
 
-        foreach (var (relative, hash) in entries.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal))
-        {
-            var path = Encoding.UTF8.GetBytes(relative);
-            stream.Write(path, 0, path.Length);
-            stream.WriteByte(PathTerminator);
+    /// <summary>Byte-wise order over UTF-8, which is code-point order.</summary>
+    private sealed class Utf8Order : IComparer<byte[]>
+    {
+        public static readonly Utf8Order Instance = new();
 
-            var digest = Encoding.ASCII.GetBytes(hash.ToLowerInvariant());
-            stream.Write(digest, 0, digest.Length);
-            stream.WriteByte((byte)'\n');
-        }
-
-        stream.FlushFinalBlock();
-        return Convert.ToHexStringLower(folded.Hash!);
+        public int Compare(byte[]? x, byte[]? y) => x.AsSpan().SequenceCompareTo(y);
     }
 }

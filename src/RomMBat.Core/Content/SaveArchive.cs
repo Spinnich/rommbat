@@ -67,10 +67,10 @@ public static class SaveArchive
 
     /// <summary>The logical content hash of a unit: sorted paths, each with its own digest.</summary>
     /// <remarks>
-    /// <b>This is the local change detector and not what goes on the wire for class C.</b> RomM
-    /// computes its own digest over an archive's contents by a function this client cannot
-    /// reproduce, measured, so the value to send back is the one the server returned on the last
-    /// upload. Comparing this against that is always false.
+    /// <b>This is both the local change detector and the wire value.</b> It is RomM's own
+    /// function for an archive's <c>content_hash</c>, over the same entry names
+    /// <see cref="Pack"/> writes, so it equals the digest the server stores for this unit's
+    /// archive. See <see cref="LogicalContentHash.Fold"/>.
     /// </remarks>
     public static string HashOf(RetroBatInstall install, SaveUnit unit)
     {
@@ -144,10 +144,8 @@ public static class SaveArchive
     /// The logical hash of what was extracted, folded the same way a unit on disk is.
     /// </summary>
     /// <remarks>
-    /// Used to verify a restore against the save that was sent, which is the one comparison the
-    /// client can make on both sides: the server's archive digest is not reproducible here, but
-    /// the fold over what came out of the archive is the same function as the fold over what
-    /// went in.
+    /// Equal to the server's <c>content_hash</c> for the archive the entries came out of, so a
+    /// restore is verified against the save that was offered before anything live is touched.
     /// </remarks>
     public static string HashOfExtracted(string directory, IEnumerable<string> entries)
     {

@@ -500,6 +500,12 @@ clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc
 `ares/Game Boy Color`. On `gb` ares's `.rtc` has a rule of its own beside the class A `.ram`, as
 `libretro`'s does beside the `.srm`, so the `.ram` kept the slot it already had (finding 302).
 
+**A clock slot is a stopgap until RomM can move a save as one unit.** RomM's maintainers are
+drafting a save-sync overhaul that bundles a save with its companion files and leaves the clock out
+of change detection; no work on it has started. Do not bundle `.srm` and `.rtc` against today's
+API, since the web player cannot open a bundle. Move the clock into the unit when RomMBat adopts
+that API (`docs/PLAN.md`, revisited 2026-09-23).
+
 **On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
 as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with
 mednafen's hashed name taken only when no plain one is there. BizHawk's three cores share one
@@ -657,24 +663,23 @@ data root costs 426 s where the scoped subtree costs 0.06 s.
 
 ## Hash contents, not the archive
 
-**RomM does the same thing, by a different function, so class C carries two hashes.** Its
-`content_hash` is the MD5 of the bytes for a plain file and, for an archive, a digest over the
-archive's _contents_: the same member rebuilt at another compression level and timestamp gives a
-different zip and the same digest, and renaming the member changes it. That function is not
-reproducible client-side. So the logical fold is the **local change detector** and the digest the
-server returned on the last upload is the **wire value**; sending anything else answers
-`download` forever. It also means a downloaded archive cannot be verified against
-`server_content_hash` the way a plain file can, and the CRC that extraction validates is what
-stands in for it.
+**RomM does the same thing, and the fold is its function, so class C carries one hash.** Its
+`content_hash` is the MD5 of the bytes for a plain file and, for an archive, `hash_zip_contents`:
+the md5 of `<entry name>:<entry md5>` lines, sorted by name, joined with `
+` and none trailing,
+directory entries skipped. Identical at the 5.2.0 and 5.3.0 tags, and confirmed live by
+`s5-archive-content-hash.py` (finding 303), which withdraws 149's "not reproducible".
+`LogicalContentHash.Fold` is that rule, sorted by UTF-8 bytes because Python sorts code points,
+so the fold is the local change detector, the wire value and what a restore is verified against
+after extraction. A downloaded archive's own MD5 never matches it.
 
-**Which hash answers "have I already got this" follows from that split, and getting it wrong
-costs a transfer.** The download skip that recognises this device's own upload compares the
-local fold against the offered digest, which is the right comparison for class A and B and can
-never be true for class C. A bundled unit is asked in the server's vocabulary instead: the
-slot's recorded `server_content_hash` against the operation's says the server is offering back
-what this device last exchanged, and `uploaded_content_hash` against the fold says the tree
-still holds it. Both halves, because the first cannot see a unit edited since and the second
-cannot see the server moving on.
+**A row recorded under the old fold settles without a transfer.** Before 303 the fold was a
+different function, so every class C `uploaded_content_hash` recorded then reads as changed once.
+Negotiate answers `no_op` for it, since the hash now matches, and `SaveSync.InStepWithHead` records
+it as sent when the offered row is the one this device last exchanged. Against any other row the
+upload runs, because the server's sync record for the device may be stale. A server row written
+before RomM's own fix (upstream `edb5d1542`, 2026-05-29, in 5.2.0) holds the raw MD5 of the zip
+until an admin runs `recompute_save_content_hashes`, and uploads once.
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout
@@ -928,7 +933,6 @@ hash, folded into one digest. The archive is transport only.
     save replaced on its first flush with no conflict, leaving only a copy under `replaced/` that
     nothing points to. The test is the `no_op` rule's, from the other side: an unsent save, or one
     changed since its upload, is evidence the server lacks. Identical bytes download as before.
-    A class C unit is a conflict even then, because its fold never equals the server's digest.
     The restore find is untouched: it reaches the download only with no local save.
 - **Negotiate returns a download for every save the device has no sync record for**, including
   slots the client did not submit. An **empty** `saves` array came back with 13 downloads across
@@ -1011,11 +1015,9 @@ hash, folded into one digest. The archive is transport only.
   as changed and puts the merged copy back over the server's. Somebody who chose to discard the
   local side gets a merge instead, and it propagates.
 - **Record the slot's server identity when a bundled restore lands**, not only the local fold.
-  The wire hash for an unchanged class C unit is `server_content_hash`, since the server's digest
-  over an archive cannot be recomputed client-side. A restore that leaves the slot holding the
-  pre-download digest submits a hash the server no longer recognises, and negotiate answers
-  `upload` for a unit that is already identical. Measured: the flush after a class C restore
-  reported one upload, which the server then deduplicated into a row it already had.
+  The recorded save id is what recognises a superseded row returning and what scopes the in-step
+  rule above. Measured before 303: the flush after a class C restore reported one upload, which
+  the server then deduplicated into a row it already had.
 - **A settled conflict is settled for one server row, not for one digest.** `content_hash` is
   over an archive's contents, so a slot returning to contents it held before carries a digest
   that was already decided while being a different row. Compare the save id too, or a real

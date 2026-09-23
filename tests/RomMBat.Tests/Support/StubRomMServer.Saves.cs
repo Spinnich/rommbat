@@ -37,8 +37,7 @@ internal sealed partial class StubRomMServer
     /// <remarks>
     /// Recorded because the real server reconciles against this value and the stub does not: a
     /// client that submits a stale hash gets whatever <see cref="NegotiateActions"/> says, so
-    /// without capturing it the suite cannot see the difference. Driven on hardware, the flush
-    /// after a class C restore submitted the pre-download digest and was answered <c>upload</c>.
+    /// without capturing it the suite cannot see the difference.
     /// </remarks>
     public IDictionary<(int RomId, string Slot), string?> NegotiatedHashes { get; } =
         new Dictionary<(int, string), string?>();
@@ -694,11 +693,77 @@ internal sealed partial class StubRomMServer
     /// <summary><see cref="Naive"/> for a field the server may leave null.</summary>
     public static string? NaiveOrNull(DateTimeOffset? moment) => moment is { } at ? Naive(at) : null;
 
+    /// <summary>RomM's <c>content_hash</c>: the MD5 of a plain file, and for a zip its entries.</summary>
+    /// <remarks>
+    /// A port of <c>compute_content_hash</c> and <c>hash_zip_contents</c> at the 5.3.0 tag,
+    /// written apart from <c>LogicalContentHash</c> so a test cannot pass by comparing the
+    /// client's fold with itself. Python sorts names by code point, which is what the rune
+    /// comparison below does.
+    /// </remarks>
     private static string HashOf(byte[] bytes)
     {
 #pragma warning disable CA5351 // MD5, deliberately: it is what RomM's content_hash is.
-        return Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(bytes));
+        static string Md5(byte[] data) => Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData(data));
+
+        System.IO.Compression.ZipArchive archive;
+
+        try
+        {
+            archive = new System.IO.Compression.ZipArchive(new MemoryStream(bytes), System.IO.Compression.ZipArchiveMode.Read);
+        }
+        catch (InvalidDataException)
+        {
+            return Md5(bytes);
+        }
+
+        using (archive)
+        {
+            var lines = archive.Entries
+                .Where(entry => !entry.FullName.EndsWith('/'))
+                .OrderBy(entry => entry.FullName, CodePointOrder.Instance)
+                .Select(entry =>
+                {
+                    using var content = new MemoryStream();
+                    using (var stream = entry.Open())
+                    {
+                        stream.CopyTo(content);
+                    }
+
+                    return $"{entry.FullName}:{Md5(content.ToArray())}";
+                });
+
+            return Md5(System.Text.Encoding.UTF8.GetBytes(string.Join('\n', lines)));
+        }
 #pragma warning restore CA5351
+    }
+
+    private sealed class CodePointOrder : IComparer<string>
+    {
+        public static readonly CodePointOrder Instance = new();
+
+        public int Compare(string? x, string? y)
+        {
+            using var left = (x ?? string.Empty).EnumerateRunes().GetEnumerator();
+            using var right = (y ?? string.Empty).EnumerateRunes().GetEnumerator();
+
+            while (true)
+            {
+                var hasLeft = left.MoveNext();
+                var hasRight = right.MoveNext();
+
+                if (!hasLeft || !hasRight)
+                {
+                    return hasLeft.CompareTo(hasRight);
+                }
+
+                var order = left.Current.Value.CompareTo(right.Current.Value);
+
+                if (order != 0)
+                {
+                    return order;
+                }
+            }
+        }
     }
 
     private static int SaveIdFrom(string path, string suffix)
