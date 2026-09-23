@@ -57,7 +57,8 @@ playlist, and `.bin` is not, which is why the playlist names a `.bin` set's `.cu
 **Synced through RomMBat on 2026-09-23**, both roms from a RomM collection: the `.chd` set as two
 `rom_part` rows and its playlist, the `.bin`/`.cue` set as four and its playlist, every member at
 the size and md5 RomM lists, and the gamelist naming `./<fs_name>/<fs_name>.m3u` for each. The
-second sync was 0 downloaded, 0 written. The first attempt found a defect, fixed before this
+second sync was 0 downloaded, 0 written. Both games then launched from EmulationStation's PlayStation
+list, each entry being its playlist. The first attempt found a defect, fixed before this
 record: the media pass deleted every disc after it landed (finding 314).
 
 ## What is owed
