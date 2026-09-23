@@ -154,6 +154,37 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_gbc_rules_give_each_of_crystals_saves_and_clocks_one_owner()
+    {
+        // Pokemon - Crystal Version, an MBC3 cartridge with a clock, driven under every gbc row
+        // on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Pokemon - Crystal Version (USA, Europe) (Rev 1)";
+
+        // The .srm and .rtc four libretro cores and Mesen share, the .sav mGBA and mednafen
+        // share, and mednafen's own hashed name when no plain one is there.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gbc", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("gbc", string.Empty, $"{Rom}.rtc")?.Emulator);
+        Assert.Equal("mgba", shapes.BatteryRuleFor("gbc", string.Empty, $"{Rom}.sav")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("gbc", string.Empty, $"{Rom}.301899b8087289a6436b0a241fbbb474.sav")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("gbc", "bizhawk", "Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM")?.Emulator);
+
+        // ares and jgenesis each keep the clock in a second file, in its own slot.
+        var ares = shapes.BatteryRuleFor("gbc", "ares/Game Boy", $"{Rom}.ram")!;
+        Assert.Equal("ares", ares.Emulator);
+        Assert.True(ares.OwnsSlot("ares:battery:rtc"));
+        Assert.Equal("ares", shapes.BatteryRuleFor("gbc", "ares/Game Boy", $"{Rom}.rtc")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("gbc", "ares/Game Boy Color", $"{Rom}.ram"));
+
+        var jgenesis = shapes.BatteryRuleFor("gbc", "jgenesis/gbc", $"{Rom}.sav")!;
+        Assert.Equal("jgenesis", jgenesis.Emulator);
+        Assert.True(jgenesis.OwnsSlot("jgenesis:battery:rtc"));
+
+        // gb's jgenesis rule still reads jgenesis/gb only.
+        Assert.Null(shapes.BatteryRuleFor("gb", "jgenesis/gbc", $"{Rom}.sav"));
+    }
+
+    [Fact]
     public void One_emulator_may_hold_two_rules_on_a_system_only_where_class_b_keeps_the_slots_apart()
     {
         var shapes = SaveShapes.Parse(

@@ -11,26 +11,29 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
     <evidence>megadrive under mednafen, core megadrive, on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote mednafen/sstates/&lt;rom&gt;.c5b1c655c19f462ade0ac4e17a844d10.mc0 and .mc1, 72,758 B and 53,086 B, the md5 being of the whole .md inside</evidence>
     <evidence>gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote mednafen/sstates/&lt;rom&gt;.605b89b67018abcea91e693a4dd25be3.mc0 and .mc1, 34,059 B and 31,958 B, the md5 being of the whole .gba inside. F2 saves and F7 steps the slot</evidence>
     <evidence>gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mednafen/sstates/&lt;rom&gt;.d9290db87b1f0a23b89f99ee4469e34b.mc0 and .mc2, 6,401 B and 7,004 B, the md5 being of the whole .gb inside</evidence>
+    <evidence>gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mednafen/sstates/&lt;rom&gt;.301899b8087289a6436b0a241fbbb474.mc0 and .mc1, 5,101 B and 5,257 B, the md5 being of the whole .gbc inside. F2 saves and F7 steps the slot</evidence>
   </emulator>
-  <emulator name="mesen" systems="nes,gba,gb">
+  <emulator name="mesen" systems="nes,gba,gb,gbc">
     <directory>{{system}}/mesen/SaveStates</directory>
     <file>{{romfilename}}_{{slot}}.mss</file>
     <evidence>nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote mesen/SaveStates/Crystalis (USA)_1.mss, 9,257 B (#150)</evidence>
     <evidence>gba under mesen standalone on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 43,504 B and 44,305 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>gb under mesen standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 8,384 B and 8,427 B, from Shift+F1 and Shift+F2</evidence>
+    <evidence>gbc under mesen standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 23,484 B and 23,253 B, from Shift+F1 and Shift+F2</evidence>
   </emulator>
-  <emulator name="mgba" systems="gba,gb">
+  <emulator name="mgba" systems="gba,gb,gbc">
     <directory>{{system}}/mgba/sstates</directory>
     <file>{{romfilename}}.ss{{slot}}</file>
     <evidence>gba under mgba standalone on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote mgba/sstates/&lt;rom&gt;.ss1 and .ss2, 43,816 B and 41,895 B, from Shift+F1 and Shift+F2, into the savestatePath RetroBat's config.ini names</evidence>
     <evidence>gb under mgba standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mgba/sstates/&lt;rom&gt;.ss1 and .ss3, 6,329 B and 7,268 B</evidence>
+    <evidence>gbc under mgba standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mgba/sstates/&lt;rom&gt;.ss1 and .ss2, 5,339 B and 6,195 B, from Shift+F1 and Shift+F2</evidence>
   </emulator>
   <emulator name="ares" systems="nes">
     <directory>{{system}}/ares/Famicom</directory>
@@ -51,6 +54,11 @@
     <directory>{{system}}/ares/Game Boy</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>gb under ares, core GameBoy, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote ares/Game Boy/&lt;rom&gt;.bs1 and .bs2, 50,546 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="ares" systems="gbc">
+    <directory>{{system}}/ares/Game Boy Color</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>gbc under ares, core GameBoyColor, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote ares/Game Boy Color/&lt;rom&gt;.bs1 and .bs2, 83,328 B each, while its battery save .ram and .rtc went to ares/Game Boy. F2 saves and F7 steps the slot</evidence>
   </emulator>
   <emulator name="kega-fusion" systems="megadrive">
     <directory>{{system}}/kega-fusion</directory>
