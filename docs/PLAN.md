@@ -1324,8 +1324,9 @@ the rollout order below can be derived rather than hand-maintained.
   The `psx` layout is RomM's own: `roms/psx/<fs_name>/` holding every member, with
   `<fs_name>.m3u` beside them, which EmulationStation lists as one game with no disc shown. The
   set's own playlist is used when RomM holds one; otherwise RomMBat writes it, naming the `.cue`
-  or disc image files one per line. It is written last, so a set with a disc missing is never
-  listed. The playlist is the game's `rom` row and the discs are `rom_part` rows (migration 018),
+  or disc image files one per line, and never an image that shares its name with a `.cue` or
+  `.ccd` sheet in the set, which is that sheet's disc. It is written last, so a set with a disc
+  missing is never listed. The playlist is the game's `rom` row and the discs are `rom_part` rows (migration 018),
   so the gamelist, media and save attribution see the playlist and eviction sees everything.
 
   **Members are fetched one at a time, not as the served zip.** `GET

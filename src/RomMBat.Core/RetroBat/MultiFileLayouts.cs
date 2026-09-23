@@ -23,9 +23,34 @@ public sealed record MultiFileLayout(string System, IReadOnlyList<string> DiscEx
     /// </remarks>
     public static string PlaylistNameFor(string fsName) => fsName + ".m3u";
 
+    private static readonly string[] SheetExtensions = [".cue", ".ccd"];
+
     /// <summary>Whether a member is a disc a playlist should name.</summary>
     public bool IsDisc(string fileName) =>
         DiscExtensions.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The members a generated playlist names, in playlist order.</summary>
+    /// <remarks>
+    /// A sheet and the image it points at can both carry a disc extension (<c>.cue</c> and
+    /// <c>.img</c>, or CloneCD's <c>.ccd</c> and <c>.img</c>), and naming both would show the
+    /// cores one disc twice. An image that shares its stem with a sheet in the set is the sheet's,
+    /// so only the sheet is named.
+    /// </remarks>
+    public IReadOnlyList<string> DiscsOf(IEnumerable<string> fileNames)
+    {
+        var discs = fileNames.Where(IsDisc).ToList();
+
+        var sheetStems = discs
+            .Where(name => SheetExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase))
+            .Select(Path.GetFileNameWithoutExtension)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return discs
+            .Where(name => SheetExtensions.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
+                || !sheetStems.Contains(Path.GetFileNameWithoutExtension(name)))
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }
 
 /// <summary>

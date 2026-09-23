@@ -110,6 +110,32 @@ public sealed class MultiDiscSyncTests : IDisposable
         Assert.Equal(4, store.Files.ForRom(1).Count(row => row.Kind == LocalFileKind.RomPart));
     }
 
+    [Theory]
+    [InlineData(".cue", new[] { ".img" })]
+    [InlineData(".ccd", new[] { ".img", ".sub" })]
+    public async Task A_generated_playlist_names_the_sheet_and_not_the_image_that_shares_its_name(
+        string sheet,
+        string[] companions)
+    {
+        var files = new List<(int, string, byte[])>();
+        foreach (var disc in new[] { 1, 2 })
+        {
+            files.Add((files.Count + 1, $"X (Disc {disc}){sheet}", Bytes('s', 97)));
+            files.AddRange(companions.Select(extension =>
+                (files.Count + 1, $"X (Disc {disc}){extension}", Bytes((char)('0' + disc), 3000))));
+        }
+
+        using var stub = DiscSet([.. files]);
+        using var store = LocalStore.Open(_tree.Install());
+
+        await SyncAsync(stub, store, TestContext.Current.CancellationToken);
+
+        var game = Assert.Single(store.Files.ForRom(1), row => row.Kind == LocalFileKind.Rom);
+        Assert.Equal(
+            $"X (Disc 1){sheet}\nX (Disc 2){sheet}",
+            File.ReadAllText(_tree.Install().Resolve(game.Path)));
+    }
+
     [Fact]
     public async Task A_disc_cut_off_mid_transfer_resumes_and_the_playlist_waits_for_it()
     {

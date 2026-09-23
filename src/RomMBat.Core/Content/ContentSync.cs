@@ -679,11 +679,7 @@ public sealed class ContentSync
             return result with { Bytes = bytes + result.Bytes };
         }
 
-        var discs = members
-            .Where(file => layout.IsDisc(file.FileName))
-            .Select(file => file.FileName)
-            .Order(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var discs = layout.DiscsOf(members.Select(file => file.FileName));
 
         if (discs.Count == 0)
         {
