@@ -2502,6 +2502,18 @@ The cost is that a partial flush can land one file and not its sibling, so the t
 rows go up as one batch and a partial result is reported as one, rather than each file
 looking independently fine.
 
+**Amended by the `gbc` pass, 2026-09-23: a clock file stays one slot even where its format is not
+shared.** On `gbc` the loose `<rom>.rtc` is written by four `libretro` cores and Mesen in four
+formats (8 B of base time under `gambatte`, 4 B of host time under `tgbdual` and `DoubleCherryGB`,
+32 B under `sameboy`, 13 B under Mesen), and no row reads another's clock (finding 300). Each row's
+own clock round-trips, so a device that stays on one row keeps it. Splitting the slot by core
+would need a restore to know which core a single file on disk belongs to, and a device that
+switches core loses the clock on one machine with no RomMBat involved. By the maintainer's ruling
+the slot stays `libretro:battery:rtc`, the loss is recorded, and nothing converts a clock. Bundling
+the clock with its save was weighed at the same time and not taken: it would make the save
+unreadable to RomM's other clients and re-upload the whole save on every launch that moves the
+clock.
+
 **Amended after M6 stage 1: the batch is not built, and the cost above stands unmitigated.**
 Saves never enter the outbox at all in stage 1. `SaveSync` reads `local_save` and posts
 directly, so saturn's `.bcr` landing while its `.bkr` fails reports one up and one failed with
