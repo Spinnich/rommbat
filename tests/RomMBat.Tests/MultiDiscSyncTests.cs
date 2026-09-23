@@ -279,6 +279,39 @@ public sealed class MultiDiscSyncTests : IDisposable
     }
 
     [Fact]
+    public async Task A_set_larger_in_total_than_fat32_holds_in_one_file_is_still_a_member()
+    {
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "psx", "psx", "PlayStation"));
+        stub.Library.Add(new StubRom(1, 1, "psx", "psx", SetName, SetName, string.Empty, 6L * 700 * 1024 * 1024)
+        {
+            HasMultipleFiles = true,
+        });
+
+        using var store = LocalStore.Open(_tree.Install());
+        var systems = Fixtures.Synthesize(("psx", ".cue .chd .m3u"));
+        var resolver = new SetResolver(
+            systems,
+            new PlatformResolver(systems),
+            FilesystemLimits.For("FAT32", availableFreeBytes: 200L * 1024 * 1024 * 1024));
+
+        using var connection = Connect(stub);
+        var set = store.SyncSets.Add(
+            new SyncSetDefinition { Name = "psx", Scope = CatalogScopeKind.Platform, ScopeValue = "1" },
+            DateTimeOffset.UtcNow);
+
+        var resolution = await resolver.ResolveAsync(
+            set,
+            new RomPager(connection, SetResolver.QueryFor(set)),
+            DateTimeOffset.UtcNow,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        // Six 700 MB discs are 4.1 GB together and each fits FAT32's 4 GiB file limit.
+        Assert.Single(resolution.Members);
+        Assert.Equal(0, resolution.TooLargeForFilesystem);
+    }
+
+    [Fact]
     public void The_bundled_table_unlocks_psx_and_nothing_else()
     {
         // A system is added to multi_file.json by its own certification pass, so a second entry

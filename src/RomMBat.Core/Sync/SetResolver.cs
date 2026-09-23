@@ -824,7 +824,9 @@ public sealed class SetResolver
         // drops a game the user asked for. UnlistedFormatsOf reports what EmulationStation
         // will not list instead.
 
-        if (!_limits.CanHold(row.SizeBytes))
+        // A limit on one file. A multi-file rom's size is the total of its members, which land
+        // as separate files, so it is not tested against it.
+        if (!row.HasMultipleFiles && !_limits.CanHold(row.SizeBytes))
         {
             tally.TooLarge++;
             tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFilesystemLimit, resolvedAt));
