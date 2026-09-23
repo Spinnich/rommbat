@@ -665,21 +665,34 @@ data root costs 426 s where the scoped subtree costs 0.06 s.
 
 **RomM does the same thing, and the fold is its function, so class C carries one hash.** Its
 `content_hash` is the MD5 of the bytes for a plain file and, for an archive, `hash_zip_contents`:
-the md5 of `<entry name>:<entry md5>` lines, sorted by name, joined with `
-` and none trailing,
+the md5 of `<entry name>:<entry md5>` lines, sorted by name, joined with `\n` and none trailing,
 directory entries skipped. Identical at the 5.2.0 and 5.3.0 tags, and confirmed live by
 `s5-archive-content-hash.py` (finding 303), which withdraws 149's "not reproducible".
 `LogicalContentHash.Fold` is that rule, sorted by UTF-8 bytes because Python sorts code points,
-so the fold is the local change detector, the wire value and what a restore is verified against
-after extraction. A downloaded archive's own MD5 never matches it.
+so the fold is the local change detector and the wire value.
 
-**A row recorded under the old fold settles without a transfer.** Before 303 the fold was a
-different function, so every class C `uploaded_content_hash` recorded then reads as changed once.
-Negotiate answers `no_op` for it, since the hash now matches, and `SaveSync.InStepWithHead` records
-it as sent when the offered row is the one this device last exchanged. Against any other row the
-upload runs, because the server's sync record for the device may be stale. A server row written
-before RomM's own fix (upstream `edb5d1542`, 2026-05-29, in 5.2.0) holds the raw MD5 of the zip
-until an admin runs `recompute_save_content_hashes`, and uploads once.
+**A restore is checked against the server's value, and the server's value is over raw names.**
+`hash_zip_contents` folds `entry.filename` as stored, and extraction normalises every name through
+`RelativePath`, so a peer's zip naming `./SAVEDATA/X/DATA.BIN` or using backslashes folds
+differently once unpacked. `SaveArchive.ServerHashOf` reads the archive itself and is what
+`SaveUnitTransfer.Restore` compares; the fold over what landed is still what the row records. A
+server row written before RomM's own fix (upstream `edb5d1542`, 2026-05-29, in 5.2.0) holds the
+raw MD5 of the zip until an admin runs `recompute_save_content_hashes`, so that form is accepted
+too. Refusing it would fail that restore on every flush. A mismatch is
+`SaveUnitMismatchException`, reported as "not written", never as an archive that would not unpack.
+
+**A save whose bytes the head of its slot holds is in step, whoever wrote the head.** Before 303
+the fold was a different function, so every class C `uploaded_content_hash` recorded then reads as
+changed once, and negotiate answers `no_op` for it since the hash now matches. `SaveSync.HoldsHead`
+records it as sent rather than uploading, for every shape. When the head is not the row this
+device last exchanged, `SettleOnHeadAsync` acknowledges it first, with no transfer. **Skipping
+the acknowledgement breaks the next edit.** Measured at 5.3.0 (`s4-older-mtime.py` M6): with this
+device's row gone and a peer's row holding the same bytes, negotiate answers `no_op (Content is
+identical)`, the next edit's upload is refused 409 "Slot has a newer save since your last sync",
+and after `POST /api/saves/{id}/downloaded` for the peer's row the same upload lands. The
+`AlreadyHeld` download skip settles the same way. A peer's upload of bytes a row in the slot
+already holds does not make a new row: it comes back as that row (M5), so this case needs the
+original row gone, which slot retention does (`s3-slot-retention.py` in `romm-5.3-findings.md`).
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout
@@ -899,13 +912,18 @@ hash, folded into one digest. The archive is transport only.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so two of its
   answers have to be overruled here and a third is guarded against.** The repo's own rule is that
   mtime never decides whether a save changed, and this is the server applying that reasoning on
-  the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, four
+  the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, six
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
   At the `5.3.0` floor, as at `beta.1`: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
-  `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
+  `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`. M5 and
+  M6, added at `5.3.0`, are the peer-row cases under "Hash contents, not the archive".
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
-    uploaded.** That inequality is the client holding evidence the server lacks: this device has
-    a change the server has never seen, whatever the timestamps say. The server answers `no_op`,
+    uploaded, unless the offered `server_content_hash` equals the local `content_hash`.** That
+    exception covers every shape, not only class C: the head already holds these bytes, so the
+    save is recorded as sent, and the head acknowledged first when it is not the row this device
+    last exchanged (`SaveSync.HoldsHead`, `SettleOnHeadAsync`). Otherwise the inequality is the
+    client holding evidence the server lacks: this device has a change the server has never
+    seen, whatever the timestamps say. The server answers `no_op`,
     "No changes since last sync", for content that differs whenever the local mtime is older than
     this device's own last upload, so a save restored from a backup, copied off another machine
     or extracted from an archive was never sent and the flush said nothing at all. Uploading is

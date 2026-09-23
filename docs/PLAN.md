@@ -2074,7 +2074,10 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   because the inequality is evidence the server has never seen these bytes and the server has no
   way to be told so. Without it a save put back from a backup, copied off another machine or
   extracted from an archive is never sent and the flush reports nothing at all. Live at the floor
-  (M1, and driven as a flush on the `nes` install). **An `upload` for a save whose content equals
+  (M1, and driven as a flush on the `nes` install). The exception, for every shape, is an offered
+  `server_content_hash` equal to the local one: the head holds these bytes, so the save is
+  recorded as sent, acknowledging the head first when it is not the row this device last
+  exchanged. Left unacknowledged, the next edit's upload is refused 409 (M6). **An `upload` for a save whose content equals
   both `uploaded_content_hash` and the offered `server_content_hash` is a no-op without a round
   trip**, which finding 259 measured as a per-flush upload forever on `5.3.0-alpha.3` and which
   M4 shows the floor settles server-side; kept as defence, at the cost of one comparison. That
