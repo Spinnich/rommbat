@@ -421,10 +421,10 @@ public sealed class SaveSync
             switch (Decide(operation, local))
             {
                 case SyncAction.NoOp:
-                    if (local is { ContentHash: { } inStep } && (local.IsUnsent || local.HasChangedSinceUpload)
-                        && InStepWithHead(operation, local))
+                    if (local is not null && HoldsHead(operation, local)
+                        && await SettleOnHeadAsync(operation, local, cancellationToken).ConfigureAwait(false) is { } untold)
                     {
-                        _store.Saves.MarkUploaded(local.Path, local.UnitKey, inStep, _time.GetUtcNow());
+                        problems.Add(untold);
                     }
 
                     noOps++;
@@ -467,6 +467,11 @@ public sealed class SaveSync
                 case SyncAction.Download when operation.SaveId is { } saveId:
                     if (AlreadyHeld(operation, local))
                     {
+                        if (await SettleOnHeadAsync(operation, local!, cancellationToken).ConfigureAwait(false) is { } heldUntold)
+                        {
+                            problems.Add(heldUntold);
+                        }
+
                         noOps++;
                         break;
                     }
@@ -1224,7 +1229,7 @@ public sealed class SaveSync
     /// is rediscovering the loop if a later version stops making that comparison.
     /// </para>
     /// </remarks>
-    private SyncAction Decide(SyncOperation operation, LocalSave? local)
+    private static SyncAction Decide(SyncOperation operation, LocalSave? local)
     {
         var named = operation.Parsed;
 
@@ -1235,7 +1240,7 @@ public sealed class SaveSync
 
         if (named == SyncAction.NoOp && (local.IsUnsent || local.HasChangedSinceUpload))
         {
-            return InStepWithHead(operation, local) ? SyncAction.NoOp : SyncAction.Upload;
+            return HoldsHead(operation, local) ? SyncAction.NoOp : SyncAction.Upload;
         }
 
         return named == SyncAction.Upload && AlreadySent(operation, local) ? SyncAction.NoOp : named;
@@ -1267,24 +1272,78 @@ public sealed class SaveSync
             && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// True when the head of the slot is the row this device last exchanged and holds exactly
-    /// the bytes on disk, so there is nothing to send whatever the local record says.
+    /// True when the head of the slot holds exactly the bytes on disk, so there is nothing to
+    /// send whatever the local record says.
     /// </summary>
     /// <remarks>
-    /// <b>Reached when the recorded upload hash went stale without the save changing.</b> Before
-    /// the fold took RomM's archive rule every class C row recorded a hash in the old form, so
-    /// each unit reads as changed once and negotiate answers <c>no_op</c> for it. Recording it
-    /// as sent costs nothing; uploading it costs a transfer the server throws away. Scoped to
-    /// the row this device last exchanged, so the server's sync record for the device is
-    /// already current and nothing here can skip past a 409.
+    /// <b>Reached when the recorded upload hash went stale without the save changing</b>, and
+    /// when a peer's row holds what this device has. Before the fold took RomM's archive rule
+    /// every class C row recorded a hash in the old form, so each unit reads as changed once and
+    /// negotiate answers <c>no_op</c> for it. Recording it as sent costs nothing; uploading it
+    /// costs a transfer the server throws away, or a 409 where the head is not the row this
+    /// device last exchanged. <see cref="SettleOnHeadAsync"/> is what makes the server's record
+    /// for the device current in that case.
     /// </remarks>
-    private bool InStepWithHead(SyncOperation operation, LocalSave local) =>
-        operation.ServerContentHash is { } offered
-            && operation.SaveId is { } head
-            && local.RomId is not null
+    private static bool HoldsHead(SyncOperation operation, LocalSave local) =>
+        operation.SaveId is not null
+            && operation.ServerContentHash is { } offered
             && local.ContentHash is { } held
-            && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase)
-            && _store.SaveSlots.Read(operation.RomId, operation.Slot ?? string.Empty)?.SaveId == head;
+            && string.Equals(held, offered, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Records a save whose bytes the head of its slot already holds as in step with that head,
+    /// telling the server first when the head is not the row this device last exchanged.
+    /// </summary>
+    /// <returns>A problem to report, or null.</returns>
+    /// <remarks>
+    /// <b>The server keeps a per-device record of the last row synced, and refuses an upload
+    /// against a stale one.</b> Measured at 5.3.0 (<c>s4-older-mtime.py</c>, M6): with this
+    /// device's row gone and a peer's row holding the same bytes at the head, negotiate answers
+    /// <c>no_op (Content is identical)</c>, the next edit's upload is refused 409 "Slot has a
+    /// newer save since your last sync", and after acknowledging the peer's row the same upload
+    /// lands. So a head this device holds but never exchanged is acknowledged without a
+    /// transfer, the same call a download ends with.
+    /// </remarks>
+    private async Task<string?> SettleOnHeadAsync(
+        SyncOperation operation,
+        LocalSave local,
+        CancellationToken cancellationToken)
+    {
+        var head = operation.SaveId!.Value;
+        var slot = operation.Slot ?? local.Slot;
+
+        if (_store.SaveSlots.Read(operation.RomId, slot)?.SaveId != head)
+        {
+            try
+            {
+                var ack = await _connection.AcknowledgeSaveAsync(head, _deviceId, cancellationToken).ConfigureAwait(false);
+
+                if (!ack.IsSuccess)
+                {
+                    return $"{Describe(local)}: in step with save {head}, but the server was not told: {ack.Message}";
+                }
+            }
+            catch (RomMUnreachableException ex)
+            {
+                return $"{Describe(local)}: in step with save {head}, but the server was not told: {ex.Message}";
+            }
+
+            _store.SaveSlots.RecordRestored(
+                operation.RomId,
+                slot,
+                head,
+                operation.ServerContentHash,
+                operation.ServerUpdatedAt,
+                _time.GetUtcNow());
+        }
+
+        if (local.IsUnsent || local.HasChangedSinceUpload)
+        {
+            _store.Saves.MarkUploaded(local.Path, local.UnitKey, local.ContentHash!, _time.GetUtcNow());
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// True when the save the server is offering is one this device already has on disk.

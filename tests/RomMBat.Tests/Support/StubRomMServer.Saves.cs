@@ -101,6 +101,9 @@ internal sealed partial class StubRomMServer
     /// </remarks>
     public IList<int> Acknowledged { get; } = [];
 
+    /// <summary>When set, every acknowledgement answers this status and is not recorded.</summary>
+    public HttpStatusCode? FailAcknowledge { get; set; }
+
     /// <summary>
     /// Save ids fetched <b>without</b> <c>optimistic=false</c>.
     /// </summary>
@@ -235,6 +238,11 @@ internal sealed partial class StubRomMServer
 
         if (path.EndsWith("/downloaded", StringComparison.Ordinal))
         {
+            if (FailAcknowledge is { } refused)
+            {
+                return Json(refused, new { detail = "refused by the test" });
+            }
+
             Acknowledged.Add(SaveIdFrom(path, "downloaded"));
             return Json(HttpStatusCode.OK, new { ok = true });
         }

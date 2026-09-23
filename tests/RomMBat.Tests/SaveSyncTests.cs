@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using RomM.Client;
 using RomMBat.Core.Content;
 using RomMBat.Core.Paths;
@@ -1802,10 +1803,11 @@ public class SaveSyncTests
     }
 
     [Fact]
-    public async Task A_stale_upload_record_is_re_sent_when_the_head_is_not_the_row_this_device_exchanged()
+    public async Task A_stale_upload_record_against_a_peer_row_holding_the_same_bytes_acknowledges_it()
     {
-        // Scoped to the row this device last exchanged: against any other row the server's sync
-        // record for the device may be stale, so the upload runs and meets the 409 if there is one.
+        // The head is a peer's row with this device's bytes, which the real server answers
+        // no_op (Content is identical) for (s4 M6). Uploading would meet a 409, since the
+        // server's record for the device is at the old row, so the head is acknowledged instead.
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
 
@@ -1833,7 +1835,35 @@ public class SaveSyncTests
         fixture.Scan();
 
         fixture.Stub.NegotiateActions.Clear();
-        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Uploaded);
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Uploaded);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Empty(outcome.Problems);
+        Assert.Contains(101, fixture.Stub.Acknowledged);
+        Assert.Equal(101, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
+        Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);
+    }
+
+    [Fact]
+    public async Task A_peer_row_acknowledgement_that_fails_is_reported_and_left_for_the_next_flush()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        fixture.Stub.Saves.Clear();
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "progress", id: 101);
+        fixture.Stub.NegotiateActions.Clear();
+        fixture.Stub.FailAcknowledge = HttpStatusCode.InternalServerError;
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(outcome.Problems, problem => problem.Contains("the server was not told", StringComparison.Ordinal));
+        Assert.Equal(100, fixture.Store.SaveSlots.Read(42, "libretro:battery")!.SaveId);
     }
 
     [Fact]
@@ -1866,9 +1896,9 @@ public class SaveSyncTests
     public async Task A_peer_offering_back_identical_contents_is_not_fetched_and_does_not_rewrite_the_tree()
     {
         // The fold is RomM's archive digest, so a peer's upload of identical contents carries
-        // the hash this device already holds. The real server answers no_op for that; forced to
-        // download here, the skip still recognises the bytes and nothing moves: no transfer, no
-        // copy under replaced/ and no mtime churn.
+        // the hash this device already holds. The real server answers no_op for that (s4 M6);
+        // forced to download here, the skip still recognises the bytes and nothing moves: no
+        // transfer, no copy under replaced/ and no mtime churn.
         using var fixture = SyncFixture.Create();
         fixture.AddUnit(8, "25pacman", ("eeprom", "one"), ("flash", "two"));
 
@@ -1911,6 +1941,11 @@ public class SaveSyncTests
         Assert.True(
             !Directory.Exists(aside) || Directory.GetFileSystemEntries(aside).Length == 0,
             "a copy aside was taken for a save nobody replaced");
+
+        // The server was still told, and the slot now names the peer's row, or the next edit's
+        // upload meets a 409 against a device record left at row 100.
+        Assert.Contains(101, fixture.Stub.Acknowledged);
+        Assert.Equal(101, fixture.Store.SaveSlots.Read(8, "mame:nvram")!.SaveId);
     }
 
     [Fact]
@@ -2357,6 +2392,32 @@ public class SaveSyncTests
         Assert.Equal(0, outcome.Downloaded);
         Assert.Equal(1, outcome.NoOps);
         Assert.Empty(fixture.Stub.Acknowledged);
+    }
+
+    [Fact]
+    public async Task A_peer_row_holding_this_devices_bytes_is_acknowledged_without_a_transfer()
+    {
+        // The skip above recognises the bytes, and the head is no longer the row this device
+        // exchanged. Measured at 5.3.0 (s4 M6): left unacknowledged, the server's record for the
+        // device stays at the old row and the next edit's upload is refused 409.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
+        fixture.Scan();
+
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "upload";
+        await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        fixture.Stub.Saves.Clear();
+        fixture.SeedServerSave(42, "libretro:battery", "ActRaiser (USA)", "srm", "progress", id: 101);
+        fixture.Stub.NegotiateActions[(42, "libretro:battery")] = "download";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.BytesTransferred);
+        Assert.Equal(1, outcome.NoOps);
+        Assert.Contains(101, fixture.Stub.Acknowledged);
+        Assert.Equal(101, fixture.Store.SaveSlots.Read(42, "libretro:battery")!.SaveId);
     }
 
     [Fact]
