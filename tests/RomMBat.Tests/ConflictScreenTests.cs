@@ -255,7 +255,7 @@ public class ConflictScreenTests : IDisposable
     /// </remarks>
     private static void ClearDeviceId(string databasePath)
     {
-        using var connection = new SqliteConnection($"Data Source={databasePath}");
+        using var connection = new SqliteConnection($"Data Source={databasePath};Pooling=False");
         connection.Open();
 
         using var command = connection.CreateCommand();

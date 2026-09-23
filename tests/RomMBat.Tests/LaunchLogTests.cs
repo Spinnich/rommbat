@@ -15,8 +15,10 @@ namespace RomMBat.Tests;
 /// Every trap the M6 probe found has one line in it, so a parser regression fails here rather
 /// than on someone's handheld.
 /// </remarks>
-public class LaunchLogTests
+public sealed class LaunchLogTests : IDisposable
 {
+    private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
+
     private static string Fixture => Path.Combine(AppContext.BaseDirectory, "fixtures", "emulatorLauncher.log");
 
     [Fact]
@@ -273,12 +275,13 @@ public class LaunchLogTests
         Assert.Equal("roms/snes/Third.zip", third.RomPath?.Value);
     }
 
-    private static IReadOnlyList<LaunchRecord> Read(out LaunchLog log)
+    public void Dispose() => _tree.Dispose();
+
+    private IReadOnlyList<LaunchRecord> Read(out LaunchLog log)
     {
         // The fixture is placed as the live half, so the parser meets it exactly as it meets a
         // real file, BOM and all.
-        var tree = TempRetroBatTree.Create();
-        var install = tree.Install();
+        var install = _tree.Install();
         var live = install.Resolve(LaunchLog.LivePath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(live)!);

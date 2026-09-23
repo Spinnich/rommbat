@@ -44,7 +44,9 @@ cost there.
 - **A store-backed test opens its store through `LocalStore.Open` or `OpenAt`.**
   `Support/ThrowawayStores` makes both cheap for the whole suite: a new file starts as a copy of
   one migrated seed, and commits are not flushed. A raw `SqliteConnection` skips both, so use one
-  only to write the old-version file a migration test starts from.
+  only to write the old-version file a migration test starts from, and give it `Pooling=False`:
+  a pooled connection keeps the file open after its `using` ends, the tree's teardown cannot
+  delete it, and `TempTreeLeakCheck` fails the run.
 - **Use `TestTimeProvider` rather than the wall clock.** A test that has to prove something
   never happened waits its full budget, so run those waits side by side rather than one after
   another. `HookSpawnTests` fires both no-spawn hooks and then waits once.

@@ -164,6 +164,11 @@ public class LocalStoreTests
         var exception = Assert.Throws<LocalStoreVersionException>(() => LocalStore.Open(install));
 
         Assert.Contains("newer build", exception.Message, StringComparison.Ordinal);
+
+        // The refusal hands back no store to dispose, so it must not keep the file open. The UI
+        // outlives it, and Windows will not delete a file SQLite still holds.
+        File.Delete(install.DatabasePath);
+        Assert.False(File.Exists(install.DatabasePath));
     }
 
     [Theory]
@@ -329,7 +334,7 @@ public class LocalStoreTests
         // A v1 file with something in every table 002 rebuilds. Two of those rebuilds drop a
         // table another one references, and with foreign keys on that would cascade the
         // membership away rather than carry it across.
-        using (var seed = new SqliteConnection($"Data Source={path}"))
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             seed.Open();
             Execute(seed, ReadMigration("001-initial.sql"));
@@ -427,7 +432,7 @@ public class LocalStoreTests
                 "014-picked-scope.sql",
             ];
 
-        using (var seed = new SqliteConnection($"Data Source={path}"))
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             seed.Open();
 
@@ -483,7 +488,7 @@ public class LocalStoreTests
                 "010-save-conversions.sql",
             ];
 
-        using (var seed = new SqliteConnection($"Data Source={path}"))
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             seed.Open();
 
@@ -547,7 +552,7 @@ public class LocalStoreTests
                 "015-unsyncable-no-state-declaration.sql",
             ];
 
-        using (var seed = new SqliteConnection($"Data Source={path}"))
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             seed.Open();
 
@@ -607,7 +612,7 @@ public class LocalStoreTests
         install.EnsureAppDirectories();
         var path = install.DatabasePath;
 
-        using (var seed = new SqliteConnection($"Data Source={path}"))
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
         {
             seed.Open();
 

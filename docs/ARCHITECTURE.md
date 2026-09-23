@@ -399,7 +399,10 @@ xUnit, covering the Agent's subcommands. Its own project rather than a reference
 the one above, because the Agent is an `Exe` carrying an `app.manifest` and pulling that
 into the existing test host would put a Windows manifest behind every unit test in the
 repo. `TempRetroBatTree` is linked from `RomMBat.Tests` rather than copied, so both suites
-agree on what a RetroBat tree looks like.
+agree on what a RetroBat tree looks like. `TempTreeLeakCheck` is linked with it: an assembly
+fixture that fails either run when a tree is still in `%TEMP%\rommbat-tests` after the last
+test, because the tree's own teardown swallows a failed delete so that one open handle cannot
+fail an unrelated test.
 
 **The commands are where milestones meet**, each wiring a planner to a sync to a store to
 an exit code, and that is the layer a defect survives a full green suite in. One did:
