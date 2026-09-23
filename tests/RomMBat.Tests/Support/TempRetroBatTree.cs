@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using RomMBat.Core.Paths;
 
 namespace RomMBat.Tests.Support;
@@ -11,7 +12,16 @@ namespace RomMBat.Tests.Support;
 /// </remarks>
 internal sealed class TempRetroBatTree : IDisposable
 {
-    private TempRetroBatTree(string root) => Root = root;
+    private static readonly ConcurrentDictionary<string, byte> Created = new(StringComparer.OrdinalIgnoreCase);
+
+    private TempRetroBatTree(string root)
+    {
+        Root = root;
+        Created.TryAdd(root, 0);
+    }
+
+    /// <summary>Every tree created in this run, for <see cref="TempTreeLeakCheck"/>.</summary>
+    internal static IEnumerable<string> CreatedRoots => Created.Keys;
 
     public string Root { get; }
 
@@ -68,6 +78,7 @@ internal sealed class TempRetroBatTree : IDisposable
             // Windows reports a still-mapped native library as ERROR_ACCESS_DENIED, which
             // surfaces from RemoveDirectoryRecursive as UnauthorizedAccessException and not
             // as IOException, so catching only the latter misses the case this exists for.
+            // TempTreeLeakCheck reports the leftover once the run ends.
         }
     }
 

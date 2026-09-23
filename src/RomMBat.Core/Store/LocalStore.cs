@@ -189,8 +189,20 @@ public sealed class LocalStore : IDisposable
         connection.Open();
 
         var store = new LocalStore(connection, Path.GetFullPath(databasePath));
-        store.Configure();
-        store.Migrate();
+
+        try
+        {
+            store.Configure();
+            store.Migrate();
+        }
+        catch
+        {
+            // The caller never receives a store to dispose, and the UI outlives a refusal, so
+            // the file handle is released here rather than left to the finaliser.
+            store.Dispose();
+            throw;
+        }
+
         return store;
     }
 

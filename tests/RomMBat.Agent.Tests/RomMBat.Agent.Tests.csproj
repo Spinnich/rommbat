@@ -27,11 +27,14 @@
     Linked, not copied. TempRetroBatTree is the only fixture both suites need, and two copies
     of a helper that builds a RetroBat tree is two chances for the two suites to disagree
     about what a RetroBat tree looks like. A third shared project would carry more weight
-    than one file is worth.
+    than two files are worth. TempTreeLeakCheck comes with it, so a tree this suite leaks
+    fails this suite.
   -->
   <ItemGroup>
     <Compile Include="..\RomMBat.Tests\Support\TempRetroBatTree.cs"
              Link="Support\TempRetroBatTree.cs" />
+    <Compile Include="..\RomMBat.Tests\Support\TempTreeLeakCheck.cs"
+             Link="Support\TempTreeLeakCheck.cs" />
   </ItemGroup>
 
   <!--
