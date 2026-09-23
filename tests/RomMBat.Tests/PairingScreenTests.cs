@@ -42,8 +42,8 @@ public class PairingScreenTests
     public void The_connect_budget_is_the_short_interactive_one_and_not_the_default()
     {
         // The rule this rests on: nothing sets ConnectTimeout by default and an unreachable
-        // host then stalls for 21 seconds, which is four rows of animation into a hang.
-        Assert.Equal(TimeSpan.FromSeconds(2), RomMClientOptions.InteractiveConnectTimeout);
+        // host then stalls for 21 seconds, which is four rows of animation into a hang. The value
+        // itself is pinned in TransportTests.
         Assert.True(RomMClientOptions.InteractiveConnectTimeout < RomMClientOptions.BackgroundConnectTimeout);
     }
 

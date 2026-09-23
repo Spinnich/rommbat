@@ -482,6 +482,18 @@ with it. Mesen's and jgenesis's change on every launch (finding 291), so a sessi
 version whether or not the game was saved; ares's was not measured. mGBA and BizHawk keep 16
 bytes of clock inside the save, and BizHawk's `.SaveRAM` changes on every launch the same way.
 
+**On `gb` the loose `.rtc` is `libretro`'s, `libretro:battery:rtc`.** A clock cartridge keeps its
+clock there under the stock `gambatte` core, and Mesen writes the same name, as it does the `.srm`
+(finding 298). `tgbdual`, `DoubleCherryGB` and `sameboy` write it for every game, and with no clock
+on the cartridge it holds only the host time at exit (finding 295), so those three upload a few
+bytes of new version per launch. Measure it on a clock cartridge, not a clockless one: on a
+clockless game the file looks like noise.
+
+**On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
+as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with
+mednafen's hashed name taken only when no plain one is there. BizHawk's three cores share one
+`.SaveRAM` named after BizHawk's own title, which on `gb` is not the ROM file's.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

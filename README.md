@@ -493,11 +493,19 @@ ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, and keeps
 it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM has it, though only
 `ares`, `jgenesis` and `mesen` refuse to boot without it.
 
-That is twenty-five rows on one install, and the unit is still `(system, emulator, core)`. The rules
+**Every row `gb` declares is certified**, fourteen, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-22: `libretro` under `gambatte`, which a stock install runs, `mesen-s`, `bsnes`, `tgbdual`,
+`DoubleCherryGB` and `sameboy`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under
+`Gambatte`, `GBHawk` and `SameBoy`, and `jgenesis`. `bios gb` fetches the four Super Game Boy files
+and the Color boot ROM as well as `gb_bios.bin`, because `bsnes` and `GBHawk` refuse to boot without
+them, though RetroBat's list files them under `sgb` and `gbc`.
+
+That is thirty-nine rows on one install, and the unit is still `(system, emulator, core)`. The rules
 the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
-emulators is certified anywhere else. Wave 1's other four systems are not started.
-[docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md)
-and [docs/platforms/gba.md](docs/platforms/gba.md) are the records, gaps included.
+emulators is certified anywhere else. Wave 1's other three systems are not started.
+[docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
+[docs/platforms/gba.md](docs/platforms/gba.md) and [docs/platforms/gb.md](docs/platforms/gb.md) are
+the records, gaps included.
 
 ### Compatibility
 

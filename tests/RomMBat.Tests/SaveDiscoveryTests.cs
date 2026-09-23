@@ -415,6 +415,33 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_loose_rtc_on_gb_takes_its_own_libretro_slot_beside_the_srm()
+    {
+        // Measured on 8.2.1: Pokemon Silver, an MBC3 cartridge with a clock, keeps its clock in
+        // <rom>.rtc under the stock gambatte core, a file the libretro cores and Mesen share. On
+        // gba the loose .rtc is Mesen's.
+        using var fixture = SaveTree.Create();
+        const string Silver = "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)";
+
+        fixture.AddRom(275002, "gb", $"{Silver}.zip");
+        fixture.AddSave("gb", $"{Silver}.srm", "the cores' battery save");
+        fixture.AddSave("gb", $"{Silver}.sav", "mgba's battery save");
+        fixture.AddSave("gb", $"{Silver}.rtc", "the cartridge clock");
+        fixture.AddRom(233631, "gba", "Pokemon - Emerald Version (USA, Europe).zip");
+        fixture.AddSave("gba", "Pokemon - Emerald Version (USA, Europe).rtc", "the cartridge clock");
+
+        fixture.Scan();
+
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal("libretro:battery", slots[$"saves/gb/{Silver}.srm"]);
+        Assert.Equal("libretro:battery:rtc", slots[$"saves/gb/{Silver}.rtc"]);
+        Assert.Equal("mgba:battery", slots[$"saves/gb/{Silver}.sav"]);
+        Assert.Equal("mesen:battery:rtc", slots["saves/gba/Pokemon - Emerald Version (USA, Europe).rtc"]);
+        Assert.All(fixture.Store.Saves.List().Where(save => save.System == "gb"), save => Assert.Equal(275002, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "gb");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.

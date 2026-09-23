@@ -37,8 +37,8 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("snes"));
         }
 
-        // Seven entries for five emulators, because ares keeps a directory per system.
-        Assert.Equal(shipped.Emulators.Count + 7, loaded.Emulators.Count);
+        // Eight entries for five emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 8, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under snes is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
@@ -102,8 +102,32 @@ public class SaveStateSchemaTests
         var ares = SaveStateTemplate.Create(loaded.For("ares", "gba")!, "gba", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
 
-        // mGBA's tree was driven on gba alone.
-        Assert.Null(loaded.MatchDirectory("gb/mgba/sstates"));
+        // mGBA's tree was driven on gba and gb, and not on gbc.
+        Assert.Null(loaded.MatchDirectory("gbc/mgba/sstates"));
+    }
+
+    [Fact]
+    public void Gb_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Pokemon - Yellow Version, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced)";
+
+        var mgba = SaveStateTemplate.Create(loaded.For("mgba", "gb")!, "gb", core: null)!;
+        Assert.Equal(3, mgba.Match($"{Rom}.ss3")?.Slot);
+        Assert.Equal("mgba", loaded.MatchDirectory("gb/mgba/sstates")?.Emulator.Name);
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, mesen.Match($"{Rom}_2.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, mednafen.Match($"{Rom}.d9290db87b1f0a23b89f99ee4469e34b.mc2")?.Slot);
+
+        // ares names the directory after its own name for the console, so gba's is not gb's.
+        Assert.Equal("gb", loaded.MatchDirectory("gb/ares/Game Boy")?.System);
+        Assert.Null(loaded.MatchDirectory("gb/ares/Game Boy Advance"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "gb")!, "gb", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
     }
 
     [Fact]

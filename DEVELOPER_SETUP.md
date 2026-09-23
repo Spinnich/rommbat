@@ -53,6 +53,17 @@ VSTest's, and it takes a different set of options. Run `dotnet test --help` for 
   non-zero**, because a module running zero tests is an error. Scope the run with `--project` as
   well, or the filtered run fails on the project you were not aiming at.
 
+**For per-test timings, run the test executable directly.** Built, each test project is an
+executable running xunit's own console runner, which takes `-xml <file>` and writes every
+test's duration, and `-class` or `-method` to scope the run:
+`tests/RomMBat.Tests/bin/Debug/net10.0/RomMBat.Tests.exe -xml timings.xml`. In CI, every
+`passed` line of the Test step's log carries its duration too. The rules for keeping the suite
+fast are in the `pre-pr-verification` skill.
+
+**With the two `ROMMBAT_TEST_*` variables below exported in your shell, every `dotnet test` runs
+the live suite against that server**, adding half a minute and a few pairings to each run. Keep
+them in `.env` and load them when you mean to run the live tests.
+
 Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
 bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
 

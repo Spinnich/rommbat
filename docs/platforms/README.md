@@ -97,17 +97,17 @@ against 7 systems**:
 | -------------- | ------ | --------------- |
 | `nes`          | 9      | 9               |
 | `snes`         | 15     | 11              |
-| `gb`           | 14     | 10              |
+| `gb`           | 14     | 14              |
 | `gbc`          | 12     | 8               |
 | `gba`          | 10     | 9               |
 | `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **63**          |
+| **Total**      | **81** | **67**          |
 
-`nes` is 9 of 9, `megadrive` 11 of 11 and `gba` 9 of 10 because RomMBat's bundled supplement
+`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10 and `gb` 14 of 14 because RomMBat's bundled supplement
 declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
-`mesen` and `ares` on `gba`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`mesen` and `ares` on `gba`, and the same four on `gb`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -241,11 +241,21 @@ zipped ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, ke
 outside `saves/`, and writes a state only where a Save As dialog is pointed (finding 286). Three rows refuse to boot without `gba_bios.bin` and seven do not
 (finding 285), which the record tables.
 
-**Read all three as narrowly as they are written.** They certify twenty-five
+**All fourteen of `gb`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
+the six `libretro` cores, `gambatte` being the stock row, with `mesen-s`, `bsnes`, `tgbdual`,
+`DoubleCherryGB` and `sameboy`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`,
+`GBHawk` and `SameBoy`, and `jgenesis`, the standalone rows once each had a gb battery rule and four a
+state declaration. Twelve rows boot without firmware. `libretro`/`bsnes` needs `SGB1.sfc` and
+`bizhawk`/`GBHawk` the Color boot ROM for a Color-flagged cartridge, files RetroBat's list names
+under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). A clock cartridge,
+Pokemon Silver synced into `gb`, keeps its clock in a `.rtc` under the stock core, which syncs as
+`libretro:battery:rtc` and was driven through a restore with the clock intact (finding 298).
+
+**Read all four as narrowly as they are written.** They certify thirty-nine
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
-to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md) and
-[gba.md](gba.md) are the records, gaps included.
+to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
+[gba.md](gba.md) and [gb.md](gb.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,

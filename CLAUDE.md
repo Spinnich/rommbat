@@ -61,7 +61,9 @@ to unwind later.
    firmware against `batocera-systems.json` on **md5 only**. That list is what to fetch, not
    what a platform needs: it has no optional flag, and the emulator decides which files it
    reads. So a file RomM lacks is reported and **never blocks a platform**, its sync or its
-   certification.
+   certification. Where a row reads a file the list files under another system, the bundled
+   manifest copies that entry across with its evidence (`gb` takes `sgb`'s four and `gbc`'s
+   boot ROM); it never names a hash of its own.
 4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
    the game-launch path: they append to a local journal, exit, and start nothing. **`start`
    and `quit` are outside that path** and each spawns a detached `background <event>` pass,
@@ -138,6 +140,10 @@ checked, and visible".
 
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get
 fixtures from a real install, checked in: its layout, config and logs, never game content.
+
+**The test suite's budget is CI's Test step.** A Windows runner does disk-bound work more than
+ten times slower than a dev box, so profile before adding a slow test or trimming tests for
+speed. The rules are in the `pre-pr-verification` skill.
 
 **Docs travel with code, in the same PR.** `docs/PLAN.md` is the design of record, and it is
 not the whole of it: `README.md`, `docs/ARCHITECTURE.md`, `DEVELOPER_SETUP.md` and the skills in
