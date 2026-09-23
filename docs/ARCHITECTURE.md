@@ -465,6 +465,7 @@ a drift by updating the expected number.
 | `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
 | `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` or `megadrive` row at a time                              |
 | `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
+| `multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                 | One certification pass per system; `psx` first, driven on every row RetroBat offers           |
 
 Every one of these is a **seed, not an authority**. The live install always wins: read
 `es_systems.cfg` from the actual tree, because RetroBat adds systems every release and
@@ -491,7 +492,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Sixteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Seventeen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -506,7 +507,9 @@ no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from
 disk is the other, and the second has been reachable since the 5.2.0 floor. 017 retires
 `'excluded_extension'` for `'excluded_folder'`, because the extension stopped gating a sync
 and the one case that gate caught which still needs a state is a ROM RomM holds as a folder,
-of one file or several. The schema lives
+of one file or several. 018 lets one ROM own several files, for `psx` disc sets: `local_file`
+gains the kind `'rom_part'` for a set's discs, its playlist staying `'rom'`, and
+`content_download` is keyed on `(rom_id, file_id)` so each disc resumes on its own. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
@@ -528,7 +531,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 | `game_id_binding`  | Learned Game ID to `rom_id` bindings for class C and D attribution, with the route that taught each one, or a recorded refusal     |
 | `rom_metadata`     | Per selected ROM: the gamelist fields, already converted, and where its media lives on the server                                  |
 | `setting`          | Install-wide values the sync-set definitions do not carry: the disk budget, the free-space floor, the media policy                 |
-| `content_download` | One interrupted transfer per ROM: its `.part`, its target, the expected length and the validator to resume against                 |
+| `content_download` | One interrupted transfer per ROM, or per member of a multi-file one: its `.part`, target, expected length and resume validator     |
 | `sync_cursor`      | Per-endpoint cursors and `updated_after` watermarks                                                                                |
 | `clock`            | Singleton: last observed server `Date`, measured skew, round trip, last successful contact                                         |
 | `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before**                     |

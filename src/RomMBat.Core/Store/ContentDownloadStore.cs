@@ -13,6 +13,9 @@ public sealed record ContentDownload
 {
     public required int RomId { get; init; }
 
+    /// <summary>RomM's id for the member being fetched, or 0 for a single-file rom.</summary>
+    public int FileId { get; init; }
+
     /// <summary>The partial file, under <c>emulators/rommbat/partial/</c>.</summary>
     public required RelativePath PartPath { get; init; }
 
@@ -46,7 +49,7 @@ public sealed class ContentDownloadStore
 {
     private const string SelectColumns = """
         SELECT rom_id, part_path, target_path, expected_size, validator, started_at,
-               updated_at, attempts, last_error
+               updated_at, attempts, last_error, file_id
         FROM content_download
         """;
 
@@ -58,8 +61,8 @@ public sealed class ContentDownloadStore
     /// Opens or refreshes the record for a download.
     /// </summary>
     /// <remarks>
-    /// Keyed by ROM, so starting a second download of the same ROM replaces the first rather
-    /// than racing it. The attempt count survives, because it is what tells a caller a
+    /// Keyed by ROM and member, so starting a second download of the same file replaces the first
+    /// rather than racing it, while each disc of a set keeps its own. The attempt count survives, because it is what tells a caller a
     /// download is failing repeatedly rather than being interrupted once.
     /// </remarks>
     public ContentDownload Begin(ContentDownload download)
@@ -69,11 +72,11 @@ public sealed class ContentDownloadStore
         using var command = _connection.Command(
             """
             INSERT INTO content_download (
-              rom_id, part_path, target_path, expected_size, validator, started_at,
+              rom_id, file_id, part_path, target_path, expected_size, validator, started_at,
               updated_at, attempts, last_error
             )
-            VALUES ($romId, $part, $target, $size, $validator, $now, $now, 0, NULL)
-            ON CONFLICT (rom_id) DO UPDATE SET
+            VALUES ($romId, $fileId, $part, $target, $size, $validator, $now, $now, 0, NULL)
+            ON CONFLICT (rom_id, file_id) DO UPDATE SET
               part_path     = excluded.part_path,
               target_path   = excluded.target_path,
               expected_size = excluded.expected_size,
@@ -82,6 +85,7 @@ public sealed class ContentDownloadStore
               attempts      = content_download.attempts + 1;
             """)
             .With("$romId", download.RomId)
+            .With("$fileId", download.FileId)
             .With("$part", download.PartPath.Value)
             .With("$target", download.TargetPath.Value)
             .With("$size", SqliteValues.OrNull(download.ExpectedSize))
@@ -89,15 +93,16 @@ public sealed class ContentDownloadStore
             .With("$now", SqliteValues.ToText(download.UpdatedAt));
 
         command.ExecuteNonQuery();
-        return Find(download.RomId) ?? download;
+        return Find(download.RomId, download.FileId) ?? download;
     }
 
-    /// <summary>The in-flight download for a ROM, or null.</summary>
-    public ContentDownload? Find(int romId)
+    /// <summary>The in-flight download for a ROM, or for one member of it, or null.</summary>
+    public ContentDownload? Find(int romId, int fileId = 0)
     {
         using var command = _connection
-            .Command($"{SelectColumns} WHERE rom_id = $romId;")
-            .With("$romId", romId);
+            .Command($"{SelectColumns} WHERE rom_id = $romId AND file_id = $fileId;")
+            .With("$romId", romId)
+            .With("$fileId", fileId);
 
         using var reader = command.ExecuteReader();
         return reader.Read() ? Read(reader) : null;
@@ -127,7 +132,7 @@ public sealed class ContentDownloadStore
     /// write it to a row about to go; the row that needs it is the one an interrupted transfer
     /// leaves behind, and that transfer never reaches its own end.
     /// </remarks>
-    public void RecordValidator(int romId, string? validator, DateTimeOffset now)
+    public void RecordValidator(int romId, string? validator, DateTimeOffset now, int fileId = 0)
     {
         if (string.IsNullOrWhiteSpace(validator))
         {
@@ -139,34 +144,36 @@ public sealed class ContentDownloadStore
                 """
                 UPDATE content_download
                 SET validator = $validator, updated_at = $now
-                WHERE rom_id = $romId;
+                WHERE rom_id = $romId AND file_id = $fileId;
                 """)
             .With("$validator", validator)
             .With("$now", SqliteValues.ToText(now))
-            .With("$romId", romId);
+            .With("$romId", romId)
+            .With("$fileId", fileId);
 
         command.ExecuteNonQuery();
     }
 
     /// <summary>Records that an attempt failed, keeping the partial file for the next one.</summary>
-    public void Fail(int romId, string error, DateTimeOffset now)
+    public void Fail(int romId, string error, DateTimeOffset now, int fileId = 0)
     {
         using var command = _connection
             .Command(
                 """
                 UPDATE content_download
                 SET last_error = $error, updated_at = $now, attempts = attempts + 1
-                WHERE rom_id = $romId;
+                WHERE rom_id = $romId AND file_id = $fileId;
                 """)
             .With("$error", SqliteValues.OrNull(error))
             .With("$now", SqliteValues.ToText(now))
-            .With("$romId", romId);
+            .With("$romId", romId)
+            .With("$fileId", fileId);
 
         command.ExecuteNonQuery();
     }
 
     /// <summary>
-    /// Forgets a download.
+    /// Forgets every download of a ROM, each member of a set included.
     /// </summary>
     /// <remarks>
     /// Called on success, once the verified file has been renamed into place, and on abandon,
@@ -182,6 +189,17 @@ public sealed class ContentDownloadStore
         return command.ExecuteNonQuery() > 0;
     }
 
+    /// <summary>Forgets one member's download, leaving the rest of the set's in flight.</summary>
+    public bool Remove(int romId, int fileId)
+    {
+        using var command = _connection
+            .Command("DELETE FROM content_download WHERE rom_id = $romId AND file_id = $fileId;")
+            .With("$romId", romId)
+            .With("$fileId", fileId);
+
+        return command.ExecuteNonQuery() > 0;
+    }
+
     private static ContentDownload Read(SqliteDataReader reader) => new()
     {
         RomId = (int)reader.GetInt64(0),
@@ -193,5 +211,6 @@ public sealed class ContentDownloadStore
         UpdatedAt = reader.GetTimestampOrNull(6) ?? default,
         Attempts = (int)reader.GetInt64(7),
         LastError = reader.GetStringOrNull(8),
+        FileId = (int)reader.GetInt64(9),
     };
 }

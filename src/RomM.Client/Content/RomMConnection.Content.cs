@@ -58,7 +58,7 @@ public sealed partial class RomMConnection
                 "No access token is stored. Pair first.");
         }
 
-        if (request.IsMultiFile && request.ResumeFrom > 0)
+        if (!request.IsSingleFile && request.ResumeFrom > 0)
         {
             return RomMResponse.Failure<RomContentResult>(
                 RomMResponseStatus.ServerError,
@@ -69,6 +69,11 @@ public sealed partial class RomMConnection
         var path = $"api/roms/{request.RomId.ToString(CultureInfo.InvariantCulture)}/content/"
             + Uri.EscapeDataString(request.FsName);
 
+        if (request.FileId is { } fileId)
+        {
+            path += "?" + RomFileQuery.For(fileId);
+        }
+
         using var message = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
 
         // Single-file only. A multi-file ROM's ranged and plain responses describe different
@@ -76,7 +81,7 @@ public sealed partial class RomMConnection
         // an ETag. So sending this header is what would let a resume splice two artifacts into
         // one corrupt file that passes every check made here. RomM 5.2.0 refused it 403
         // instead; the reason changed at 5.3.0 and the answer did not. See #180.
-        if (!request.IsMultiFile)
+        if (request.IsSingleFile)
         {
             message.Headers.Range = new RangeHeaderValue(request.ResumeFrom, null);
 
@@ -120,6 +125,30 @@ public sealed partial class RomMConnection
             Resumed = resumed && request.ResumeFrom > 0,
             RestartedFromScratch = restarted,
         });
+    }
+
+    /// <summary>
+    /// The members of a multi-file rom, read from its detail row.
+    /// </summary>
+    /// <remarks>
+    /// Asked once per multi-file game when it is fetched, never during a catalog walk: the walk
+    /// sends <c>with_files=false</c> because per-file detail multiplies every page of a large
+    /// library, and a handful of per-game reads does not.
+    /// </remarks>
+    public async Task<RomMResponse<IReadOnlyList<RomFileRow>>> GetRomFilesAsync(
+        int romId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await GetAuthenticatedAsync<RomFilesDetail>(
+                "api/roms/" + romId.ToString(CultureInfo.InvariantCulture),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return response.IsSuccess
+            ? RomMResponse.Success<IReadOnlyList<RomFileRow>>(response.Value?.Files ?? [])
+            : RomMResponse.Failure<IReadOnlyList<RomFileRow>>(
+                response.Status,
+                response.Message ?? "the server did not say which files the game holds");
     }
 
     /// <summary>
@@ -366,7 +395,7 @@ public sealed partial class RomMConnection
                 // its own HTML page rather than a RomM error body. 5.3.0 serves the range
                 // instead, so this branch is the older server's answer and is kept for as long
                 // as the floor can meet one.
-                request.IsMultiFile
+                !request.IsSingleFile
                     ? $"The server refused to serve part of '{request.FsName}'. Multi-file ROMs cannot be "
                         + "downloaded in ranges, so this transfer cannot resume."
                     : detail ?? "The stored token was not granted roms.read."),

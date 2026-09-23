@@ -1,0 +1,11 @@
+{
+  "_comment": "Systems whose multi-file RomM roms RomMBat syncs, and how they land. A system is added only by its own certification pass: step 2 of the platform-certification skill. See docs/PLAN.md, 'Multi-file and multi-disc games are in scope, unlocked per platform'.",
+  "systems": {
+    "psx": {
+      "layout": "folder",
+      "playlist": "m3u",
+      "disc_extensions": [".cue", ".chd", ".pbp", ".iso", ".img", ".ccd"],
+      "evidence": "Findings 310 to 315: RetroBat's EmulationStation lists roms/psx/<fs_name>/<fs_name>.m3u as one game with no disc shown, and the three libretro cores, DuckStation and mednafen load both discs from the playlist. Both bizhawk cores are handed disc 1 by emulatorLauncher whatever the layout."
+    }
+  }
+}

@@ -126,6 +126,15 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    a game with its update files can sit there rather than under `excluded_multi_file`. A system whose library is single files
    throughout passes this step by recording so.
 
+   **Unlocking a system is one entry in `data/retrobat/multi_file.json`, made from this step's
+   measurement.** `psx` was first (`docs/platforms/psx.md`): drive every row on a set held as one
+   RomM rom, confirm what ES lists for the layout with `/systems/<system>/games` and a screenshot,
+   and record which rows read the playlist. A row that cannot is recorded, not waited on: RetroBat's
+   launcher hands both BizHawk `psx` cores disc 1 whatever the layout (finding 314). Test on a set
+   held as **one rom per release**, since that is the layout RomMBat designs for; a library holding
+   each disc as its own rom has nothing multi-file to unlock, and regrouping one set in RomM is the
+   fix, as it was for `psx`.
+
    **The step used to be an extension check, and the extension no longer gates anything.**
    `<extension>` is a per-system union across every emulator the system declares (`nes` lists
    `.wad`, which is not a NES container at all; one `psx` emulator reads `.chd` and another does
