@@ -140,15 +140,17 @@ before a flush could send it.
 | `mesen`                     | `<rom>.srm` and `<rom>.rtc`, 13 B                                           |
 | `mgba`/`mgba`               | `<rom>.sav`, 32,816 B: the RAM and a 48 B clock footer                      |
 | `mednafen`/`gbc`            | `<rom>.301899b8087289a6436b0a241fbbb474.sav`, 32,816 B                      |
-| `ares`/`GameBoyColor`       | nothing: it ignored `WM_CLOSE` and was killed                               |
+| `ares`/`GameBoyColor`       | nothing: still running 15 s after `WM_CLOSE`, it was killed                 |
 | `bizhawk`/`Gambatte`        | `bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM`, 32,790 B |
 | `bizhawk`/`GBHawk`          | nothing without `gbc_bios.bin`; the same file, 32,768 B, with it            |
 | `bizhawk`/`SameBoy`         | the same file, 32,816 B                                                     |
 | `jgenesis`                  | `jgenesis/gbc/<rom>.sav`, 32,768 B, and `<rom>.rtc`, 38 B                   |
 
-**ares quits on `Esc`**, its `QuitEmulator` key in `settings.bml`, and a second boot ended that way
-wrote `ares/Game Boy/<rom>.ram`, 32,768 B, and `<rom>.rtc`, 13 B, which is how its directory was
-found before a seed was placed.
+**ares writes on exit, so a launch that is killed writes nothing.** A second boot, ended with
+`Esc`, its `QuitEmulator` key in `settings.bml`, wrote `ares/Game Boy/<rom>.ram`, 32,768 B, and
+`<rom>.rtc`, 13 B, which is how its directory was found before a seed was placed. A later launch
+whose `Esc` went to another window closed on `WM_CLOSE` alone and wrote the same pair, so ares
+does not always ignore `WM_CLOSE`, as `gb`'s record has it; it can take longer than 15 s.
 
 ## The four `libretro` rows
 
@@ -334,3 +336,19 @@ for one. Finding 300.
   measured to keep the time.
 - **Nothing about a `gb` game in `gbc`.** Every ROM in the set is a `.gbc`; a `.gb` placed there is
   what `jgenesis/gb/` would be for, and no rule reads it on `gbc`.
+
+## Carried back to `gb`
+
+**ares on `gb` keeps a clock cartridge's clock beside its save**, measured on 2026-09-23 with a copy
+of Silver placed in `roms/gb` for one launch under `ares`/`GameBoy`: `ares/Game Boy/<rom>.ram`,
+32,768 B, and `<rom>.rtc`, 13 B, the pair it writes on `gbc`. `gb`'s ares rule read only the `.ram`,
+so the clock would not have synced. It now has its own class B rule, `ares:battery:rtc`, and the
+`.ram` keeps `ares:battery`, so nothing uploaded under it moves; a flush on the new build sent
+nothing. The copy and what it wrote were removed after the launch, and the round trip is carried
+from the `gbc` row, which syncs the same two files. Finding 302.
+
+**jgenesis on `gb` needs no clock rule.** It names its directory from the file inside the zip, and
+the clock cartridges known here are Color titles, a `.gbc`, even where they run on a mono Game Boy,
+and a mono-only one may not exist; none of the catalog's `gb` Pokemon titles has a clock. So such a
+clock lands in `jgenesis/gbc/`, the gap `gb.md` records, and `jgenesis/gb/<rom>.rtc` was not seen.
+Only the Pokemon titles' headers were read.

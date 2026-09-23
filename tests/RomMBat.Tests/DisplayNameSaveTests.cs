@@ -185,6 +185,21 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void Ares_on_gb_keeps_its_ram_slot_and_takes_a_clock_slot_beside_it()
+    {
+        // Pokemon Silver, a clock cartridge in the gb folder under ares on 8.2.1, wrote a .rtc
+        // beside the .ram. The .ram keeps the slot Yellow's went up under.
+        var shapes = SaveShapes.Bundled;
+        const string Silver = "Pokemon - Silver Version (USA, Europe) (SGB Enhanced) (GB Compatible)";
+
+        var ram = shapes.BatteryRuleFor("gb", "ares/Game Boy", $"{Silver}.ram")!;
+        var rtc = shapes.BatteryRuleFor("gb", "ares/Game Boy", $"{Silver}.rtc")!;
+
+        Assert.Equal("ares:battery", SaveScanner.SlotFor("ares", ram.Class!.Value, ".ram"));
+        Assert.Equal("ares:battery:rtc", SaveScanner.SlotFor("ares", rtc.Class!.Value, ".rtc"));
+    }
+
+    [Fact]
     public void One_emulator_may_hold_two_rules_on_a_system_only_where_class_b_keeps_the_slots_apart()
     {
         var shapes = SaveShapes.Parse(

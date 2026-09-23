@@ -497,7 +497,8 @@ on one row keeps its clock; a device that switches row loses it, with or without
 maintainer's ruling the slot stays one, because on disk it is one file, and nothing converts a
 clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc` and
 `jgenesis:battery:rtc`, and ares's battery save sits in `ares/Game Boy` while its states sit in
-`ares/Game Boy Color`.
+`ares/Game Boy Color`. On `gb` ares's `.rtc` has a rule of its own beside the class A `.ram`, as
+`libretro`'s does beside the `.srm`, so the `.ram` kept the slot it already had (finding 302).
 
 **On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
 as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with

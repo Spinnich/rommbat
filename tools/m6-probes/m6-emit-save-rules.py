@@ -314,6 +314,20 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "ares",
+        "systems": ["gb"],
+        "directory": "ares/Game Boy",
+        "extensions": [".rtc"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "gb under ares, core GameBoy, on 8.2.1: Pokemon - Silver Version (USA, Europe) (SGB "
+            "Enhanced) (GB Compatible).zip, MBC3 with a clock, wrote ares/Game Boy/<rom>.rtc, 13 B, "
+            "beside its .ram, 32,768 B, on exit. Its own rule so the .ram keeps ares:battery, as "
+            "libretro's .rtc sits beside its .srm on gb"
+        ),
+    },
+    {
+        "emulator": "ares",
         "systems": ["gbc"],
         "directory": "ares/Game Boy",
         "extensions": [".ram", ".rtc"],

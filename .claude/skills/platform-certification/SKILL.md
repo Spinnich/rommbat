@@ -83,8 +83,9 @@ row**, because each emulator keeps it in its own format (finding 300): a seed ca
 the game then shows a wrong time or asks for one. That is the emulators, not a failed pass, so
 record what the game did and keep going. **One row can split its files across two trees**: ares
 on `gbc` saves its battery into `ares/Game Boy` and its states into `ares/Game Boy Color`, so find
-each half before declaring either. ares ignores `WM_CLOSE` and writes on exit only, so end an
-agent launch with its `QuitEmulator` key, `Esc`, to see where the battery save goes. **On the
+each half before declaring either. ares writes on exit only and can outlast a 15 s wait on
+`WM_CLOSE`, so end an agent launch with its `QuitEmulator` key, `Esc`, to see where the battery
+save goes. **On the
 RetroBat machine `Ctrl+F1` never reached EmuHawk from `keybd_event`**, where `Ctrl+F2` and
 `Ctrl+F4` always did, so take BizHawk's two slots on those. **ES rewrites `gamelist.xml` when it
 quits**, adding `playcount` and moving the entry, so step 9 compares against a copy taken after
