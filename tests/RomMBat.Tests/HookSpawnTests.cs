@@ -18,7 +18,7 @@ namespace RomMBat.Tests;
 /// <para>
 /// <b>The next person to edit the hook will not have read any of that</b>, which is why the
 /// boundary is a value on <c>SpoolRecord</c> and is asserted here rather than described in a
-/// comment. The first test runs everywhere. The second drives the real binaries and proves the
+/// comment. The value tests run everywhere. The last two drive the real binaries and prove the
 /// hook actually branches on it, because a correct predicate nothing calls is worth nothing.
 /// </para>
 /// </remarks>
@@ -75,80 +75,30 @@ public sealed class HookSpawnTests
     /// </para>
     /// </remarks>
     [Theory]
-    [InlineData("start", true)]
-    [InlineData("quit", true)]
-    [InlineData("game-start", false)]
-    [InlineData("game-end", false)]
-    public void The_real_hook_starts_a_pass_for_those_two_events_and_for_no_other(string hookEvent, bool spawns)
+    [InlineData("start")]
+    [InlineData("quit")]
+    public void The_real_hook_starts_a_pass_for_the_two_events_outside_the_launch_path(string hookEvent)
     {
-        var hook = PublishedBinary("RomMBat.Hook", "rommbat-hook.exe");
-        var agent = PublishedBinary("RomMBat.Agent", "rommbat-agent.exe");
-
-        Assert.SkipWhen(
-            hook is null || agent is null,
-            "the hook and the agent have not both been published. Run: dotnet publish "
-                + "src/RomMBat.Hook -c Release -r win-x64 --self-contained, and the same for "
-                + "src/RomMBat.Agent");
-
-        using var tree = TempRetroBatTree.Create();
-        var install = tree.Install();
-
-        Assert.Equal(4, new EsHooks(install).Install(hook).Installed);
-
-        // Where the hook looks for it, derived from the same constant the hook uses.
-        var installedAgent = Path.Combine(
-            tree.Root,
-            SpoolRecord.AgentRelativePath.Replace('/', Path.DirectorySeparatorChar));
-
-        Directory.CreateDirectory(Path.GetDirectoryName(installedAgent)!);
-        CopyPublishedTree(Path.GetDirectoryName(agent!)!, Path.GetDirectoryName(installedAgent)!);
-
-        var log = Path.Combine(install.LogDirectoryPath, "background.log");
-        var spool = install.Resolve(SpoolDrain.Directory);
-
-        using (var process = System.Diagnostics.Process.Start(
-            new System.Diagnostics.ProcessStartInfo(install.Resolve(EsHooks.PathFor(hookEvent)))
-            {
-                UseShellExecute = false,
-            })!)
-        {
-            process.WaitForExit();
-            Assert.Equal(0, process.ExitCode);
-        }
+        using var run = HookRun.Fire(hookEvent);
 
         // The hook returns in milliseconds and does not wait for what it started, so the test
-        // has to. Two budgets, because the two cases fail in opposite directions: waiting longer
-        // for a spawn that is coming only delays a pass, while waiting longer for one that must
-        // not come is what makes that half slow.
-        var appeared = WaitFor(() => File.Exists(log), spawns ? SpawnBudget : NoSpawnBudget);
-
-        if (!spawns)
-        {
-            // The load-bearing half. Nothing was started, so nothing wrote a log, no database
-            // was created, and the record the hook made is still waiting for a pass that
-            // something else runs.
-            Assert.False(appeared, $"the {hookEvent} hook started a background pass and must not");
-            Assert.False(File.Exists(install.DatabasePath));
-            Assert.NotEmpty(Directory.GetFiles(spool, "*" + SpoolDrain.Extension));
-            return;
-        }
-
-        Assert.True(appeared, $"the {hookEvent} hook started no background pass");
+        // has to.
+        Assert.True(WaitFor(() => File.Exists(run.Log), SpawnBudget), $"the {hookEvent} hook started no background pass");
 
         // Wait for the pass to finish before looking at what it did, and before the tree is
         // deleted: it holds the SQLite native library open until it exits.
         Assert.True(
-            WaitFor(() => ReadShared(log).Contains($"background {hookEvent} finished", StringComparison.Ordinal),
+            WaitFor(() => ReadShared(run.Log).Contains($"background {hookEvent} finished", StringComparison.Ordinal),
                 TimeSpan.FromSeconds(120)),
             "the background pass never finished");
 
-        Assert.Contains($"background {hookEvent} started", ReadShared(log), StringComparison.Ordinal);
+        Assert.Contains($"background {hookEvent} started", ReadShared(run.Log), StringComparison.Ordinal);
 
         // It did the work rather than merely starting: the record the hook wrote moments
         // earlier has been drained into the journal.
-        Assert.Empty(Directory.GetFiles(spool, "*" + SpoolDrain.Extension));
+        Assert.Empty(Directory.GetFiles(run.Spool, "*" + SpoolDrain.Extension));
 
-        using (var store = LocalStore.OpenAt(install.DatabasePath))
+        using (var store = LocalStore.OpenAt(run.Install.DatabasePath))
         {
             var entry = Assert.Single(store.Journal.All(limit: 10));
             Assert.Equal(hookEvent, entry.Event switch
@@ -161,8 +111,32 @@ public sealed class HookSpawnTests
 
         // The process writes its last line before returning from Main, so it is on its way out
         // rather than gone. Give the handles a moment or the tree cannot be deleted.
-        WaitFor(() => CanTake(Path.Combine(Path.GetDirectoryName(installedAgent)!, "e_sqlite3.dll")),
-            TimeSpan.FromSeconds(30));
+        WaitFor(() => CanTake(Path.Combine(run.AgentDirectory, "e_sqlite3.dll")), TimeSpan.FromSeconds(30));
+    }
+
+    /// <summary>
+    /// The load-bearing half of the boundary: the two hooks inside the launch path start nothing.
+    /// </summary>
+    /// <remarks>
+    /// Both fire before the one wait, because proving an absence costs the whole budget and two
+    /// trees waiting side by side prove it for both at the price of one.
+    /// </remarks>
+    [Fact]
+    public void The_real_hook_starts_no_pass_for_the_two_events_inside_the_launch_path()
+    {
+        using var gameStart = HookRun.Fire("game-start");
+        using var gameEnd = HookRun.Fire("game-end");
+
+        WaitFor(() => File.Exists(gameStart.Log) || File.Exists(gameEnd.Log), NoSpawnBudget);
+
+        foreach (var run in new[] { gameStart, gameEnd })
+        {
+            // Nothing was started, so nothing wrote a log, no database was created, and the
+            // record the hook made is still waiting for a pass that something else runs.
+            Assert.False(File.Exists(run.Log), $"the {run.Event} hook started a background pass and must not");
+            Assert.False(File.Exists(run.Install.DatabasePath));
+            Assert.NotEmpty(Directory.GetFiles(run.Spool, "*" + SpoolDrain.Extension));
+        }
     }
 
     /// <summary>
@@ -260,5 +234,86 @@ public sealed class HookSpawnTests
         };
 
         return candidates.FirstOrDefault(File.Exists);
+    }
+
+    /// <summary>One installed tree whose hook for one event has been run to completion.</summary>
+    private sealed class HookRun : IDisposable
+    {
+        private readonly TempRetroBatTree _tree;
+
+        private HookRun(TempRetroBatTree tree, string hookEvent, string agentDirectory)
+        {
+            _tree = tree;
+            Event = hookEvent;
+            Install = tree.Install();
+            AgentDirectory = agentDirectory;
+            Log = Path.Combine(Install.LogDirectoryPath, "background.log");
+            Spool = Install.Resolve(SpoolDrain.Directory);
+        }
+
+        public string Event { get; }
+
+        public RetroBatInstall Install { get; }
+
+        public string AgentDirectory { get; }
+
+        public string Log { get; }
+
+        public string Spool { get; }
+
+        /// <summary>Installs the published hook and agent into a fresh tree and runs one hook.</summary>
+        public static HookRun Fire(string hookEvent)
+        {
+            var hook = PublishedBinary("RomMBat.Hook", "rommbat-hook.exe");
+            var agent = PublishedBinary("RomMBat.Agent", "rommbat-agent.exe");
+
+            Assert.SkipWhen(
+                hook is null || agent is null,
+                "the hook and the agent have not both been published. Run: dotnet publish "
+                    + "src/RomMBat.Hook -c Release -r win-x64 --self-contained, and the same for "
+                    + "src/RomMBat.Agent");
+
+            var tree = TempRetroBatTree.Create();
+
+            try
+            {
+                return Run(tree, hookEvent, hook!, agent!);
+            }
+            catch
+            {
+                tree.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose() => _tree.Dispose();
+
+        private static HookRun Run(TempRetroBatTree tree, string hookEvent, string hook, string agent)
+        {
+            var install = tree.Install();
+
+            Assert.Equal(4, new EsHooks(install).Install(hook).Installed);
+
+            // Where the hook looks for it, derived from the same constant the hook uses.
+            var installedAgent = Path.Combine(
+                tree.Root,
+                SpoolRecord.AgentRelativePath.Replace('/', Path.DirectorySeparatorChar));
+            var agentDirectory = Path.GetDirectoryName(installedAgent)!;
+
+            Directory.CreateDirectory(agentDirectory);
+            CopyPublishedTree(Path.GetDirectoryName(agent)!, agentDirectory);
+
+            using (var process = System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(install.Resolve(EsHooks.PathFor(hookEvent)))
+                {
+                    UseShellExecute = false,
+                })!)
+            {
+                process.WaitForExit();
+                Assert.Equal(0, process.ExitCode);
+            }
+
+            return new HookRun(tree, hookEvent, agentDirectory);
+        }
     }
 }

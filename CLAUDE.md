@@ -141,6 +141,10 @@ checked, and visible".
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get
 fixtures from a real install, checked in: its layout, config and logs, never game content.
 
+**The test suite's budget is CI's Test step.** A Windows runner does disk-bound work more than
+ten times slower than a dev box, so profile before adding a slow test or trimming tests for
+speed. The rules are in the `pre-pr-verification` skill.
+
 **Docs travel with code, in the same PR.** `docs/PLAN.md` is the design of record, and it is
 not the whole of it: `README.md`, `docs/ARCHITECTURE.md`, `DEVELOPER_SETUP.md` and the skills in
 `.claude/skills/` are what a user, an operator and the next agent read instead. A statement in
