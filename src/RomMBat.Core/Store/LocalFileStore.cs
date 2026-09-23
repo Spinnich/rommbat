@@ -38,7 +38,21 @@ public enum HashScope
 public enum LocalFileKind
 {
     /// <summary>The game itself. What every row was before M4.</summary>
+    /// <remarks>
+    /// For a multi-file game this is the playlist, which is what EmulationStation launches and so
+    /// what every reader meaning "the game" wants. Its discs are <see cref="RomPart"/>.
+    /// </remarks>
     Rom,
+
+    /// <summary>
+    /// One member of a multi-file game other than its playlist: a disc, or a <c>.cue</c> and the
+    /// <c>.bin</c> it names.
+    /// </summary>
+    /// <remarks>
+    /// Skipped by everything that reads a game's own row (the gamelist, media naming, save
+    /// attribution), and counted by everything that counts a game's rows (the budget, eviction).
+    /// </remarks>
+    RomPart,
 
     /// <summary>The large cover, which the gamelist calls <c>image</c>.</summary>
     Image,
@@ -62,6 +76,22 @@ public enum LocalFileKind
     /// considers rows that have one.
     /// </remarks>
     Firmware,
+}
+
+/// <summary>Questions about a kind that more than one reader asks.</summary>
+public static class LocalFileKinds
+{
+    /// <summary>
+    /// True for the five kinds of artwork a gamelist references, and false for the game's own
+    /// files and for firmware.
+    /// </summary>
+    /// <remarks>
+    /// Anything that removes files by kind asks this rather than excluding the game's kinds one
+    /// by one, so a kind added later is kept by default rather than deleted by default.
+    /// </remarks>
+    public static bool IsMedia(this LocalFileKind kind) => kind is
+        LocalFileKind.Image or LocalFileKind.Thumbnail or LocalFileKind.Marquee
+        or LocalFileKind.Video or LocalFileKind.Manual;
 }
 
 /// <summary>Which check a file last passed.</summary>
@@ -609,6 +639,7 @@ public sealed class LocalFileStore
 
     internal static string KindText(LocalFileKind kind) => kind switch
     {
+        LocalFileKind.RomPart => "rom_part",
         LocalFileKind.Image => "image",
         LocalFileKind.Thumbnail => "thumbnail",
         LocalFileKind.Marquee => "marquee",
@@ -620,6 +651,7 @@ public sealed class LocalFileStore
 
     internal static LocalFileKind ParseKind(string? text) => text switch
     {
+        "rom_part" => LocalFileKind.RomPart,
         "image" => LocalFileKind.Image,
         "thumbnail" => LocalFileKind.Thumbnail,
         "marquee" => LocalFileKind.Marquee,

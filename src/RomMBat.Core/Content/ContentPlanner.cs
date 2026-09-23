@@ -1,5 +1,6 @@
 using System.Globalization;
 using RomMBat.Core.Paths;
+using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
@@ -159,7 +160,12 @@ public sealed class ContentPlanner
         _limits = limits ?? FilesystemLimits.Inspect(install.RootPath);
     }
 
-    /// <summary>Where a member's file belongs.</summary>
+    /// <summary>Where a member's file belongs, or for a multi-file game where its playlist does.</summary>
+    /// <remarks>
+    /// A multi-file game lands in a folder named after the rom, which is RomM's own layout, and
+    /// what EmulationStation launches is the playlist inside it: <c>roms/psx/Metal Gear Solid (USA)
+    /// (Rev 1)/Metal Gear Solid (USA) (Rev 1).m3u</c>. ES lists that as one game and shows no disc.
+    /// </remarks>
     public static RelativePath TargetFor(SyncSetMember member)
     {
         ArgumentNullException.ThrowIfNull(member);
@@ -168,6 +174,16 @@ public sealed class ContentPlanner
         {
             throw new ArgumentException($"'{member.FsName}' has no resolved folder, so it has no target.", nameof(member));
         }
+
+        return member.IsMultiFile
+            ? RelativePath.Create($"roms/{member.Folder}/{member.FsName}/{MultiFileLayout.PlaylistNameFor(member.FsName)}")
+            : RelativePath.Create($"roms/{member.Folder}/{member.FsName}");
+    }
+
+    /// <summary>The folder a multi-file game's members land in.</summary>
+    public static RelativePath FolderFor(SyncSetMember member)
+    {
+        ArgumentNullException.ThrowIfNull(member);
 
         return RelativePath.Create($"roms/{member.Folder}/{member.FsName}");
     }
@@ -180,6 +196,13 @@ public sealed class ContentPlanner
     /// </remarks>
     public static RelativePath PartFor(int romId) =>
         RetroBatInstall.PartialDirectory.Combine($"{romId.ToString(CultureInfo.InvariantCulture)}.part");
+
+    /// <summary>Where an interrupted transfer of one member of a multi-file game is kept.</summary>
+    public static RelativePath PartFor(int romId, int fileId) =>
+        fileId == 0
+            ? PartFor(romId)
+            : RetroBatInstall.PartialDirectory.Combine(
+                $"{romId.ToString(CultureInfo.InvariantCulture)}-{fileId.ToString(CultureInfo.InvariantCulture)}.part");
 
     /// <summary>Works out what syncing this set would do.</summary>
     public ContentPlan Plan(SyncSetDefinition set, IReadOnlyList<SyncSetMember> members)
@@ -268,9 +291,90 @@ public sealed class ContentPlanner
         return total;
     }
 
+    /// <summary>
+    /// Decides what a multi-file game needs, which is present or not as a whole.
+    /// </summary>
+    /// <remarks>
+    /// Present means the playlist and every member recorded with it are on disk at their recorded
+    /// sizes. Which members a game has is the server's to say, and only <see cref="ContentSync"/>
+    /// asks, so anything short of that is a download and the transfer skips the members already
+    /// there. The bytes counted are what is still missing, so the budget is not charged twice.
+    /// </remarks>
+    private ContentStep InspectSet(SyncSetMember member)
+    {
+        var target = TargetFor(member);
+        var step = new ContentStep
+        {
+            Member = member,
+            Action = ContentAction.Download,
+            TargetPath = target,
+            BytesToTransfer = member.SizeBytes,
+        };
+
+        var rows = _store.Files.ForRom(member.RomId)
+            .Where(file => file.Kind is LocalFileKind.Rom or LocalFileKind.RomPart)
+            .ToList();
+
+        var onDisk = rows
+            .Where(file =>
+            {
+                var info = new FileInfo(_install.Resolve(file.Path));
+                return info.Exists && info.Length == file.SizeBytes;
+            })
+            .ToList();
+
+        var playlist = onDisk.Any(file => file.Kind == LocalFileKind.Rom && file.Path.Equals(target));
+
+        if (playlist && onDisk.Count == rows.Count && EveryDiscNamedIsHere(target, onDisk))
+        {
+            return step with { Action = ContentAction.AlreadyPresent, BytesToTransfer = 0 };
+        }
+
+        var held = onDisk.Where(file => file.Kind == LocalFileKind.RomPart).Sum(file => file.SizeBytes);
+
+        return step with
+        {
+            BytesToTransfer = Math.Max(0, member.SizeBytes - held),
+            Reason = held > 0 ? $"{ByteSize.Format(held)} of its files already here" : null,
+        };
+    }
+
+    /// <summary>
+    /// True when every file the playlist names is on disk and recorded as this game's.
+    /// </summary>
+    /// <remarks>
+    /// Rows alone cannot answer it: a disc whose file and row were both removed leaves a set
+    /// whose remaining rows all agree with the disk, and a playlist naming a file that is gone.
+    /// That is the state a media sweep left on a real install, and without this check no later
+    /// sync would have repaired it.
+    /// </remarks>
+    private bool EveryDiscNamedIsHere(RelativePath playlist, IReadOnlyList<LocalFile> onDisk)
+    {
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(_install.Resolve(playlist));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        var folder = playlist.Value[..playlist.Value.LastIndexOf('/')];
+        var held = onDisk.Select(file => file.Path.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var named = lines.Select(line => line.Trim()).Where(line => line.Length > 0).ToList();
+
+        return named.Count > 0 && named.All(name => held.Contains($"{folder}/{name.Replace('\\', '/')}"));
+    }
+
     /// <summary>Decides what one member needs, doing the least I/O that can answer.</summary>
     private ContentStep Inspect(SyncSetMember member)
     {
+        if (member.IsMultiFile)
+        {
+            return InspectSet(member);
+        }
+
         var target = TargetFor(member);
         var absolute = _install.Resolve(target);
         var step = new ContentStep

@@ -20,6 +20,18 @@ public sealed record RomContentRequest
     /// </remarks>
     public bool IsMultiFile { get; init; }
 
+    /// <summary>
+    /// One member of a multi-file rom to fetch alone, by RomM's file id, or null for the whole rom.
+    /// </summary>
+    /// <remarks>
+    /// With it set the request names that member and is served as one file, so it takes a
+    /// <c>Range</c> and resumes whatever <see cref="IsMultiFile"/> says.
+    /// </remarks>
+    public int? FileId { get; init; }
+
+    /// <summary>True when the response is one file, which is what makes a resume safe.</summary>
+    public bool IsSingleFile => !IsMultiFile || FileId is not null;
+
     /// <summary>How many bytes are already on disk, so the request asks only for the rest.</summary>
     public long ResumeFrom { get; init; }
 

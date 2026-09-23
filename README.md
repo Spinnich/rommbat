@@ -311,8 +311,9 @@ saves back, and it skips anything a live transfer still holds open.
 
 Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
 several files (a `.bin`/`.cue` set, most Xbox 360 titles), or as a folder, is
-not synced yet: where each shape lands differs by platform, and it is settled platform by
-platform as each is certified. And on a FAT32 drive, anything over 4 GB is left out before the
+not synced yet except on PlayStation: where each shape lands differs by platform, and it is
+settled platform by platform as each is certified. A PlayStation disc set lands in a folder
+named after the game, beside a playlist EmulationStation lists as one game. And on a FAT32 drive, anything over 4 GB is left out before the
 download starts, because the write would otherwise fail with an error message about disk space
 on a drive with plenty free.
 

@@ -182,6 +182,7 @@ public sealed class SetResolver
     private readonly EsSystemsFile _install;
     private readonly PlatformResolver _platforms;
     private readonly FilesystemLimits _limits;
+    private readonly MultiFileLayouts _layouts;
     private readonly Dictionary<int, PlatformResolution> _resolutionCache = [];
 
     /// <param name="limits">
@@ -189,7 +190,15 @@ public sealed class SetResolver
     /// ROM FAT32 cannot store is not a member of the set: counting it towards the budget and
     /// then refusing it would leave a set that never reaches its own target.
     /// </param>
-    public SetResolver(EsSystemsFile install, PlatformResolver platforms, FilesystemLimits? limits = null)
+    /// <param name="layouts">
+    /// The systems whose multi-file roms are members rather than exclusions. The bundled table
+    /// when not given.
+    /// </param>
+    public SetResolver(
+        EsSystemsFile install,
+        PlatformResolver platforms,
+        FilesystemLimits? limits = null,
+        MultiFileLayouts? layouts = null)
     {
         ArgumentNullException.ThrowIfNull(install);
         ArgumentNullException.ThrowIfNull(platforms);
@@ -197,6 +206,7 @@ public sealed class SetResolver
         _install = install;
         _platforms = platforms;
         _limits = limits ?? FilesystemLimits.Unconstrained;
+        _layouts = layouts ?? MultiFileLayouts.Bundled;
     }
 
     /// <summary>Builds the query one set resolves through.</summary>
@@ -790,8 +800,9 @@ public sealed class SetResolver
         }
 
         // Checked before the folder shape, because every multi-file ROM also has an empty
-        // extension and only this flag says which of the two it is.
-        if (row.HasMultipleFiles)
+        // extension and only this flag says which of the two it is. A system whose certification
+        // settled the layout takes it as a member; every other system still waits.
+        if (row.HasMultipleFiles && _layouts.For(resolution.Folder) is null)
         {
             tally.MultiFile++;
             tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedMultiFile, resolvedAt));
@@ -801,7 +812,7 @@ public sealed class SetResolver
         // A ROM held as a folder, of one file or several: an empty extension, a folder name for
         // fs_name, and the multi-file flag false. Its placement belongs to the same per-platform work as
         // multi-file, so it waits with it rather than landing as a file named after a folder.
-        if (string.IsNullOrWhiteSpace(row.FsExtension))
+        if (!row.HasMultipleFiles && string.IsNullOrWhiteSpace(row.FsExtension))
         {
             tally.Folder++;
             tally.Excluded.Add(Member(row, resolution.Folder, MemberState.ExcludedFolder, resolvedAt));

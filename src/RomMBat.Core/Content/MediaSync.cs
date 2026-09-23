@@ -398,8 +398,10 @@ public sealed class MediaSync
 
         foreach (var file in _store.Files.ForRom(romId))
         {
-            if (file.Kind == LocalFileKind.Rom
-                || file.Kind == LocalFileKind.Firmware
+            // Asked as "is this artwork", never as "is this not the game": a multi-file game's
+            // discs are rom_part rows, and the second form deleted every disc straight after it
+            // landed, leaving the playlist naming files that were gone.
+            if (!file.Kind.IsMedia()
                 || file.Origin != FileOrigin.Synced
                 || keep.Contains(file.Kind))
             {

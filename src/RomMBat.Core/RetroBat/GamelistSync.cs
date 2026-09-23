@@ -242,7 +242,7 @@ public sealed class GamelistSync
 
         foreach (var file in present)
         {
-            var entryPath = "./" + file.FileName;
+            var entryPath = EntryPathFor(file, folder);
             var existed = document.Contains(entryPath);
             var game = metadata.GetValueOrDefault(file.RomId!.Value);
 
@@ -270,7 +270,7 @@ public sealed class GamelistSync
         // scraper put there, which are carried through untouched and counted so a run can say
         // so rather than leaving the user to wonder. The document does the matching, so an
         // entry spelled without its "./" is not miscounted as somebody else's.
-        var foreign = document.CountExcept(present.Select(file => "./" + file.FileName));
+        var foreign = document.CountExcept(present.Select(file => EntryPathFor(file, folder)));
 
         return new GamelistFolderResult
         {
@@ -296,20 +296,46 @@ public sealed class GamelistSync
     private int RemoveDeparted(GamelistDocument document, string folder, IReadOnlyList<LocalFile> present)
     {
         var here = present
-            .Select(file => "./" + file.FileName)
+            .Select(file => EntryPathFor(file, folder))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var removed = 0;
 
         foreach (var owned in _store.Metadata.ForFolder(folder))
         {
-            if (!here.Contains(owned.GamelistPath) && document.Remove(owned.GamelistPath))
+            // A multi-file game's entry is its playlist inside a folder of the same name, which
+            // GamelistPath, built from fs_name alone, cannot tell from a single file named
+            // like the folder. Trying both removes whichever this game was listed as.
+            var playlist = owned.GamelistPath + "/" + MultiFileLayout.PlaylistNameFor(owned.FsName);
+
+            if (here.Contains(owned.GamelistPath) || here.Contains(playlist))
+            {
+                continue;
+            }
+
+            if (document.Remove(owned.GamelistPath) || document.Remove(playlist))
             {
                 removed++;
             }
         }
 
         return removed;
+    }
+
+    /// <summary>
+    /// The gamelist path for a game's own file, relative to its system folder.
+    /// </summary>
+    /// <remarks>
+    /// The file's own name for a game held as one file, and <c>./&lt;set&gt;/&lt;set&gt;.m3u</c> for
+    /// one held as a folder, which is the path EmulationStation itself reports for it.
+    /// </remarks>
+    internal static string EntryPathFor(LocalFile file, string folder)
+    {
+        var prefix = $"roms/{folder}/";
+
+        return file.Path.Value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? "./" + file.Path.Value[prefix.Length..]
+            : "./" + file.FileName;
     }
 
     /// <summary>The gamelist references for one folder's media, keyed by ROM.</summary>

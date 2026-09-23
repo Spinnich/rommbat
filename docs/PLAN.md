@@ -1313,11 +1313,27 @@ the rollout order below can be derived rather than hand-maintained.
   - RomM's subfolder structure inside a game folder, most of which is ignored. What is
     actually needed is a per-platform finding, not an assumption.
 
-  The mechanism that unlocks a platform is not built yet, because no platform has reached it;
-  the first certification that needs it defines it. Whatever it is keys on the
-  `(system, emulator, core)` row, since `.m3u` support alone differs by emulator (below).
+  **Built for `psx`, the first certification that needed it.** `data/retrobat/multi_file.json`
+  names each unlocked system and its layout, and `SetResolver` takes a multi-file ROM there as a
+  member. It keys on the system, not the row, because the layout is chosen before anyone knows
+  which emulator will run a game, and on `psx` no layout could serve every row: RetroBat's
+  launcher hands both BizHawk cores disc 1 of a playlist whatever the files look like. So the
+  layout is the one every row that reads a playlist uses, and the rows that do not are recorded
+  against the system (findings 308 to 313).
 
-  The transport facts it inherits: the served zip is the only form on offer, its
+  The `psx` layout is RomM's own: `roms/psx/<fs_name>/` holding every member, with
+  `<fs_name>.m3u` beside them, which EmulationStation lists as one game with no disc shown. The
+  set's own playlist is used when RomM holds one; otherwise RomMBat writes it, naming the `.cue`
+  or disc image files one per line. It is written last, so a set with a disc missing is never
+  listed. The playlist is the game's `rom` row and the discs are `rom_part` rows (migration 018),
+  so the gamelist, media and save attribution see the playlist and eviction sees everything.
+
+  **Members are fetched one at a time, not as the served zip.** `GET
+/api/roms/{id}/content/{name}?file_ids=<id>` with one id makes RomM 5.3.0 serve that file
+  through nginx, measured ranged with an `ETag`, so each disc resumes and is checked against its
+  own `md5_hash` from `files[]`, which the rom's detail row carries.
+
+  The transport facts the zip route still has: its
   `Content-Length` is stable on GET but wrong on HEAD, the ROM-level hashes describe neither
   it nor its members, and per-member `md5_hash` values do exist on `files[]`. See finding 83.
 

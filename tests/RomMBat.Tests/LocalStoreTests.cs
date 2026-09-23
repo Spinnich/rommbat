@@ -658,6 +658,77 @@ public class LocalStoreTests
     }
 
     [Fact]
+    public void The_018_rebuild_keeps_a_download_in_flight_and_the_inventory_it_found()
+    {
+        // 018 re-keys content_download on (rom_id, file_id) and widens local_file's kind for a
+        // multi-file game's members. A partial transfer a user is part way through must survive
+        // it as file 0, so the next run still resumes it, and the inventory must survive whole.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            seed.Open();
+
+            foreach (var migration in MigrationsUpTo(17))
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO content_download (
+                  rom_id, part_path, target_path, expected_size, validator, started_at, updated_at
+                )
+                VALUES (42, 'emulators/rommbat/partial/42.part', 'roms/snes/Gradius 3 (USA).sfc', 2048,
+                        '"abc-800"', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z');
+
+                INSERT INTO local_file (relative_path, folder, rom_id, kind, file_name, size_bytes, verified_by)
+                VALUES ('roms/snes/ActRaiser (USA).sfc', 'snes', 7, 'rom', 'ActRaiser (USA).sfc', 1024, 'md5');
+
+                PRAGMA user_version = 17;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var download = store.Downloads.Find(42);
+        Assert.NotNull(download);
+        Assert.Equal(0, download.FileId);
+        Assert.Equal("\"abc-800\"", download.Validator);
+
+        var file = Assert.Single(store.Files.ForRom(7));
+        Assert.Equal(LocalFileKind.Rom, file.Kind);
+
+        // The new kind is accepted, and a part with no game behind it is not.
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/psx/Set/Set (Disc 1).chd"),
+            Folder = "psx",
+            RomId = 9,
+            Kind = LocalFileKind.RomPart,
+            FileName = "Set (Disc 1).chd",
+            SizeBytes = 1,
+        });
+
+        Assert.Equal(LocalFileKind.RomPart, Assert.Single(store.Files.ForRom(9)).Kind);
+        Assert.Throws<SqliteException>(() => store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/psx/Set/Set (Disc 2).chd"),
+            Folder = "psx",
+            RomId = null,
+            Kind = LocalFileKind.RomPart,
+            FileName = "Set (Disc 2).chd",
+            SizeBytes = 1,
+        }));
+    }
+
+    [Fact]
     public void The_widened_state_check_accepts_the_new_exclusion_and_still_refuses_nonsense()
     {
         using var tree = TempRetroBatTree.Create();

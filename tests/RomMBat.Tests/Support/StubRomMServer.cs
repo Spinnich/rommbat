@@ -37,6 +37,11 @@ internal sealed record StubRom(
     /// <summary>True to serve this ROM the way RomM serves a multi-file one: no ranges, ever.</summary>
     public bool HasMultipleFiles { get; init; }
 
+    /// <summary>
+    /// The members of a multi-file rom, on its detail row and served one at a time by id.
+    /// </summary>
+    public IReadOnlyList<StubRomFile> Files { get; init; } = [];
+
     /// <summary>True for a row whose backing file has gone from the server's filesystem.</summary>
     /// <remarks>Reachable at the 5.2.0 floor, where the field is already declared required.</remarks>
     public bool MissingFromFs { get; init; }
@@ -54,6 +59,14 @@ internal sealed record StubRom(
     /// testing a client nobody ships.
     /// </remarks>
     public StubRomMetadata? Metadata { get; init; }
+}
+
+/// <summary>One member of a multi-file rom, as <c>files[]</c> describes it.</summary>
+internal sealed record StubRomFile(int Id, string FileName, byte[] Bytes, string? Category = "game")
+{
+#pragma warning disable CA5351 // MD5, deliberately: it is what RomM publishes.
+    public string Md5Hash => Convert.ToHexString(System.Security.Cryptography.MD5.HashData(Bytes)).ToLowerInvariant();
+#pragma warning restore CA5351
 }
 
 /// <summary>What a ROM row carries beyond what sync-set resolution reads.</summary>
@@ -345,6 +358,11 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
     /// exercised against a server that always finishes.
     /// </remarks>
     public int? DropContentAfterBytes { get; set; }
+
+    /// <summary>
+    /// Cuts one member of a multi-file rom off after this many bytes, once, when it is fetched.
+    /// </summary>
+    public (int FileId, int Bytes)? DropMemberAfterBytes { get; set; }
 
     /// <summary>What the content endpoint reports as its <c>ETag</c>. Change it to go stale.</summary>
     public string ContentETag { get; set; } = "\"6a45147a-1009\"";
@@ -654,6 +672,41 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
         ContentRequests.Add($"{romId} {range?.ToString() ?? "-"} if-range={validator ?? "-"}");
 
         var rom = Library.FirstOrDefault(candidate => candidate.Id == romId);
+
+        // file_ids naming one member serves that file alone, through nginx, the way upstream's
+        // get_rom_content does at 5.3.0: ranged, with an ETag, like a single-file rom.
+        var fileIds = System.Web.HttpUtility.ParseQueryString(request.RequestUri?.Query ?? string.Empty)["file_ids"];
+
+        if (rom is not null
+            && fileIds is not null
+            && int.TryParse(fileIds, NumberStyles.Integer, CultureInfo.InvariantCulture, out var fileId))
+        {
+            ContentRequests[^1] = $"{romId}#{fileId} {range?.ToString() ?? "-"} if-range={validator ?? "-"}";
+
+            if (rom.Files.FirstOrDefault(file => file.Id == fileId) is not { } member)
+            {
+                return Detail(HttpStatusCode.NotFound, $"No files found for ROM {romId}");
+            }
+
+            if (DropMemberAfterBytes is { } drop && drop.FileId == fileId)
+            {
+                DropMemberAfterBytes = null;
+                DropContentAfterBytes = drop.Bytes;
+            }
+
+            var start = range?.Ranges.FirstOrDefault()?.From ?? 0;
+            var staleMember = validator is not null && !string.Equals(validator, ContentETag, StringComparison.Ordinal);
+
+            if (staleMember || start == 0 || range is null)
+            {
+                return Body(member.Bytes, 0, partial: range is not null && !staleMember && start > 0);
+            }
+
+            return start >= member.Bytes.Length
+                ? new HttpResponseMessage(HttpStatusCode.RequestedRangeNotSatisfiable)
+                : Body(member.Bytes, (int)start, partial: true);
+        }
+
         if (rom is null || !Content.TryGetValue(romId, out var body))
         {
             return Detail(HttpStatusCode.NotFound, "Not Found");
@@ -872,6 +925,15 @@ internal sealed partial class StubRomMServer : HttpMessageHandler
             md5_hash = rom.Md5Hash ?? string.Empty,
             sha1_hash = rom.Sha1Hash ?? string.Empty,
             has_multiple_files = rom.HasMultipleFiles,
+            files = rom.Files.Select(file => new
+            {
+                id = file.Id,
+                file_name = file.FileName,
+                file_size_bytes = (long)file.Bytes.Length,
+                md5_hash = file.Md5Hash,
+                category = file.Category,
+                is_top_level = true,
+            }).ToArray(),
             missing_from_fs = rom.MissingFromFs,
             is_physical = rom.IsPhysical,
             has_file_on_disk = !rom.IsPhysical && !rom.MissingFromFs,

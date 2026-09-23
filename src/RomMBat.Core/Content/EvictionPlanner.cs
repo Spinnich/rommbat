@@ -365,6 +365,8 @@ public sealed class EvictionPlanner
                     problems.Add($"{media.FileName}: left behind ({ex.Message}).");
                 }
             }
+
+            RemoveEmptyGameFolder(candidate.File, install);
         }
 
         return new EvictionOutcome
@@ -378,6 +380,37 @@ public sealed class EvictionPlanner
             // gamelist writer stays the one thing that writes gamelists.
             FoldersToRewrite = [.. folders.Order(StringComparer.OrdinalIgnoreCase)],
         };
+    }
+
+    /// <summary>
+    /// Removes the folder a multi-file game lived in, once nothing is left in it.
+    /// </summary>
+    /// <remarks>
+    /// Only a folder below the system's own, which only a multi-file game has, and only when
+    /// empty: a file the user put there, or a member that could not be deleted, keeps it.
+    /// </remarks>
+    private static void RemoveEmptyGameFolder(LocalFile game, RetroBatInstall install)
+    {
+        if (game.Folder is not { } folder
+            || !game.Path.Value.StartsWith($"roms/{folder}/", StringComparison.OrdinalIgnoreCase)
+            || game.Path.Value[$"roms/{folder}/".Length..].IndexOf('/') < 0)
+        {
+            return;
+        }
+
+        var directory = Path.GetDirectoryName(install.Resolve(game.Path));
+
+        try
+        {
+            if (directory is not null && Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // An empty folder left behind lists nothing in EmulationStation and costs nothing.
+        }
     }
 
     /// <summary>Removes one file and its row, and reports what that freed.</summary>

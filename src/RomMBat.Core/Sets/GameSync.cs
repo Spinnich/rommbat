@@ -404,14 +404,34 @@ public sealed class GameSync
                 freed += file.SizeBytes;
             }
 
-            // The interrupted transfer itself, which carries no local_file row because a row is
-            // only written on commit. Kept on a failure: see Resume.
-            var part = _install.Resolve(ContentPlanner.PartFor(romId));
+            // The interrupted transfers themselves, which carry no local_file row because a row is
+            // only written on commit. One for a single-file game, and one per member of a set
+            // that was part way through. Kept on a failure: see Resume.
+            var inFlight = _store.Downloads.List()
+                .Where(download => download.RomId == romId)
+                .Select(download => (download.FileId, Part: download.PartPath))
+                .ToList();
 
-            if (resume == Resume.Discard || NothingToResume(part))
+            if (inFlight.All(download => download.FileId != 0))
             {
-                Delete(part);
-                _store.Downloads.Remove(romId);
+                inFlight.Add((0, ContentPlanner.PartFor(romId)));
+            }
+
+            foreach (var (fileId, partPath) in inFlight)
+            {
+                var part = _install.Resolve(partPath);
+
+                if (resume == Resume.Discard || NothingToResume(part))
+                {
+                    Delete(part);
+                    _store.Downloads.Remove(romId, fileId);
+                }
+            }
+
+            // A set's own folder, once the members it held are gone.
+            if (step.Member.IsMultiFile)
+            {
+                RemoveIfEmpty(_install.Resolve(ContentPlanner.FolderFor(step.Member)));
             }
         }
 
@@ -449,6 +469,22 @@ public sealed class GameSync
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
+        }
+    }
+
+    /// <summary>Removes a directory that holds nothing, and leaves one that holds anything.</summary>
+    private static void RemoveIfEmpty(string directory)
+    {
+        try
+        {
+            if (Directory.Exists(directory) && !Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // An empty folder left behind lists nothing in EmulationStation and costs nothing.
         }
     }
 
