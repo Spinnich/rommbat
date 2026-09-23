@@ -1319,7 +1319,7 @@ the rollout order below can be derived rather than hand-maintained.
   which emulator will run a game, and on `psx` no layout could serve every row: RetroBat's
   launcher hands both BizHawk cores disc 1 of a playlist whatever the files look like. So the
   layout is the one every row that reads a playlist uses, and the rows that do not are recorded
-  against the system (findings 308 to 313).
+  against the system (findings 310 to 315).
 
   The `psx` layout is RomM's own: `roms/psx/<fs_name>/` holding every member, with
   `<fs_name>.m3u` beside them, which EmulationStation lists as one game with no disc shown. The

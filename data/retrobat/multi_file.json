@@ -5,7 +5,7 @@
       "layout": "folder",
       "playlist": "m3u",
       "disc_extensions": [".cue", ".chd", ".pbp", ".iso", ".img", ".ccd"],
-      "evidence": "Findings 308 to 313: RetroBat's EmulationStation lists roms/psx/<fs_name>/<fs_name>.m3u as one game with no disc shown, and the three libretro cores, DuckStation and mednafen load both discs from the playlist. Both bizhawk cores are handed disc 1 by emulatorLauncher whatever the layout."
+      "evidence": "Findings 310 to 315: RetroBat's EmulationStation lists roms/psx/<fs_name>/<fs_name>.m3u as one game with no disc shown, and the three libretro cores, DuckStation and mednafen load both discs from the playlist. Both bizhawk cores are handed disc 1 by emulatorLauncher whatever the layout."
     }
   }
 }

@@ -30,9 +30,9 @@ multi-file `psx` rows of 9,196, every disc its own rom.
 ## 2. Multi-file games and extensions
 
 **A disc set lands as RomM holds it: `roms/psx/<fs_name>/` with every disc and `<fs_name>.m3u`.**
-EmulationStation lists that folder as one game and shows no disc (finding 308). The unlock is
+EmulationStation lists that folder as one game and shows no disc (finding 310). The unlock is
 `data/retrobat/multi_file.json`, and each disc is fetched on its own through `file_ids` so it
-resumes and verifies against its own md5 (finding 313).
+resumes and verifies against its own md5 (finding 315).
 
 | Row                          | Reads the playlist                   | States named after                               |
 | ---------------------------- | ------------------------------------ | ------------------------------------------------ |
@@ -45,7 +45,7 @@ resumes and verifies against its own md5 (finding 313).
 | `bizhawk`/`Octoshock`        | **no**: the launcher hands it disc 1 | disc 1's file                                    |
 
 **The two BizHawk rows boot disc 1 only, whatever the layout.** `emulatorLauncher` replaces the
-`.m3u` with the first disc's `.cue` before EmuHawk starts (finding 312), so no arrangement of files
+`.m3u` with the first disc's `.cue` before EmuHawk starts (finding 314), so no arrangement of files
 reaches disc 2 from the game entry. That is RetroBat's behaviour to report upstream, and it is why
 the layout serves the five rows that read a playlist rather than waiting on a layout none could
 find.
@@ -59,7 +59,7 @@ playlist, and `.bin` is not, which is why the playlist names a `.bin` set's `.cu
 the size and md5 RomM lists, and the gamelist naming `./<fs_name>/<fs_name>.m3u` for each. The
 second sync was 0 downloaded, 0 written. Both games then launched from EmulationStation's PlayStation
 list, each entry being its playlist. The first attempt found a defect, fixed before this
-record: the media pass deleted every disc after it landed (finding 314).
+record: the media pass deleted every disc after it landed (finding 316).
 
 ## What is owed
 
