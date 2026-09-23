@@ -3,10 +3,19 @@ using RomMBat.Core.Store;
 
 namespace RomMBat.Core.Content;
 
+/// <summary>
+/// A fetched archive that unpacked cleanly but is not the save the server offered.
+/// </summary>
+/// <remarks>
+/// Its own type so a caller can say so, rather than calling a sound archive unreadable.
+/// </remarks>
+public sealed class SaveUnitMismatchException(string message) : Exception(message);
+
 /// <summary>What putting a unit back produced.</summary>
 /// <param name="ContentHash">
 /// The logical fold over what actually landed, which is what a later scan compares the tree
-/// against, and the server's digest for the archive it came from.
+/// against. It is also the server's digest, except for a row in the pre-5.2.0 form or an
+/// archive whose entry names another client wrote unnormalised.
 /// </param>
 public sealed record SaveUnitRestoreResult(string ContentHash, IReadOnlyList<string> Entries, RelativePath? CopiedAside);
 
@@ -20,10 +29,11 @@ public sealed record SaveUnitRestoreResult(string ContentHash, IReadOnlyList<str
 /// place. Both are wrong for a unit, and the hands-on pass found them one after the other, the
 /// second only because the first had already been fixed somewhere else.
 /// <para>
-/// <b>A unit is verified after extraction, never over the archive's bytes.</b> For an archive
-/// the server's <c>content_hash</c> is a digest over the entries, the same function as
-/// <see cref="LogicalContentHash.Fold"/>, so the check is the fold of what came out against
-/// the hash that was offered. An MD5 of the downloaded zip can never match it. Extraction also
+/// <b>A unit is verified against the server's own function, with one legacy form.</b> For an
+/// archive the server's <c>content_hash</c> is a digest over the entries, the same function as
+/// <see cref="LogicalContentHash.Fold"/>, taken over the names as stored
+/// (<see cref="SaveArchive.ServerHashOf"/>). A row written before RomM 5.2.0 holds the MD5 of
+/// the zip's bytes instead until an admin recomputes it, so that is accepted too. Extraction also
 /// validates every entry's CRC and refuses any entry that would escape the container.
 /// </para>
 /// </remarks>
@@ -125,10 +135,10 @@ public static class SaveUnitTransfer
 
             var restored = SaveArchive.HashOfExtracted(staging, entries);
 
-            if (expectedHash is not null && !string.Equals(expectedHash, restored, StringComparison.OrdinalIgnoreCase))
+            if (expectedHash is not null && !IsOffered(part, expectedHash))
             {
-                throw new InvalidDataException(
-                    $"what it unpacked hashes to {restored}, and the server offered {expectedHash}");
+                throw new SaveUnitMismatchException(
+                    $"what arrived does not match the hash the server offered, {expectedHash}");
             }
 
             // Read once and used three times, since a scan of the system is what finds a unit
@@ -404,6 +414,22 @@ public static class SaveUnitTransfer
                 current = Path.GetDirectoryName(current) ?? root;
             }
         }
+    }
+
+    /// <summary>
+    /// True when a fetched archive is the one the server offered: its entry digest, or the MD5
+    /// of its bytes for a row written before RomM 5.2.0.
+    /// </summary>
+    private static bool IsOffered(string part, string expectedHash)
+    {
+        using var archive = File.OpenRead(part);
+
+        if (string.Equals(SaveArchive.ServerHashOf(archive), expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return string.Equals(LogicalContentHash.OfFile(part), expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>Re-reads a unit off disk, since a stored row is a record and not the tree.</summary>

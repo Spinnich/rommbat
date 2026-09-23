@@ -1629,6 +1629,10 @@ public sealed class SaveSync
         {
             return (0, $"{Describe(local)}: {ex.Message}");
         }
+        catch (SaveUnitMismatchException ex)
+        {
+            return (0, $"{Describe(local)}: not written, because {ex.Message}");
+        }
         catch (InvalidDataException ex)
         {
             // A corrupt archive, or one naming an entry that would escape the container. The

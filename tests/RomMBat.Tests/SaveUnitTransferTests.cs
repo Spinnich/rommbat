@@ -106,7 +106,7 @@ public sealed class SaveUnitTransferTests : IDisposable
 
         var part = PackArchive(("ULES01513SYSDATA/DATA.BIN", "what the server sent"));
 
-        var refusal = Assert.Throws<InvalidDataException>(() => SaveUnitTransfer.Restore(
+        var refusal = Assert.Throws<SaveUnitMismatchException>(() => SaveUnitTransfer.Restore(
             install,
             new SaveUnitScanner(install),
             UnitRow(),
@@ -146,6 +146,59 @@ public sealed class SaveUnitTransferTests : IDisposable
 
         Assert.Equal(expected, outcome.ContentHash);
         Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+    }
+
+    [Fact]
+    public void A_restore_of_a_row_in_the_pre_5_2_form_lands()
+    {
+        // A server row written before RomM 5.2.0 holds the MD5 of the zip's bytes until an
+        // admin recomputes it, so the entry digest never matches and that form is accepted.
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+
+        SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            LogicalContentHash.OfFile(part));
+
+        Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+    }
+
+    [Fact]
+    public void A_restore_is_checked_against_the_entry_names_as_another_client_wrote_them()
+    {
+        // RomM folds entry.filename as stored, and extraction normalises the name, so a zip
+        // naming "./ULES01513SYSDATA/DATA.BIN" is checked against the raw name's fold.
+        var install = _tree.Install();
+
+        Write("ULES01513SYSDATA/DATA.BIN", "what this device had");
+
+        var part = PackArchive(("./ULES01513SYSDATA/DATA.BIN", "what the server sent"));
+#pragma warning disable CA5351 // MD5, deliberately: it is RomM's content_hash.
+        var member = Convert.ToHexStringLower(System.Security.Cryptography.MD5.HashData("what the server sent"u8));
+#pragma warning restore CA5351
+        var raw = LogicalContentHash.Fold([("./ULES01513SYSDATA/DATA.BIN", member)]);
+
+        var outcome = SaveUnitTransfer.Restore(
+            install,
+            new SaveUnitScanner(install),
+            UnitRow(),
+            part,
+            install.Resolve(SaveSync.PartialDirectory),
+            SaveSyncAside,
+            DateTimeOffset.UnixEpoch,
+            raw);
+
+        Assert.Equal("what the server sent", Read("ULES01513SYSDATA/DATA.BIN"));
+        Assert.Equal(LogicalContentHash.Fold([("ULES01513SYSDATA/DATA.BIN", member)]), outcome.ContentHash);
     }
 
     private static RelativePath SaveSyncAside => SaveSync.AsideDirectory;

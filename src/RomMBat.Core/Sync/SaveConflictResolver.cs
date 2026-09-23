@@ -137,8 +137,8 @@ public sealed class SaveConflictResolver
             now);
 
         // The slot's new server identity travels with the unit, for the same reason the
-        // download path records it: the wire hash for an unchanged bundled save is the server's
-        // digest, and a slot left holding the old one negotiates as `upload` next flush.
+        // download path records it: the save id a later download is compared against is the
+        // row that just came down.
         _store.SaveSlots.RecordRestored(
             conflict.RomId,
             conflict.Slot,
@@ -442,14 +442,12 @@ public sealed class SaveConflictResolver
 
             if (unitRow is not null)
             {
-                // <b>A bundled save cannot be verified the way a file is, and trying is a
-                // guaranteed failure rather than a safety net.</b> The server's content_hash for
-                // an archive is a digest over its contents by a function this client cannot
-                // reproduce, so comparing it against the MD5 of the bytes never matches. Driven:
-                // the first real PSP conflict refused itself with "what arrived hashes to
-                // 0391c0a9 and the conflict recorded 174b2e82", and nothing was written.
+                // <b>A bundled save is not verified the way a file is.</b> The server's
+                // content_hash for an archive is a digest over its entries, not the MD5 of the
+                // bytes. Driven: the first real PSP conflict refused itself with "what arrived
+                // hashes to 0391c0a9 and the conflict recorded 174b2e82", and nothing was written.
                 //
-                // The shared restore verifies what can be verified, by CRC per entry, and swaps
+                // The shared restore checks the entry digest and every entry's CRC, and swaps
                 // the unit in with the previous members copied aside. Per member rather than
                 // whole, since the container is shared, and rolled back if it fails partway.
                 return await FinishUnitAsync(conflict, unitRow, saveId, part, cancellationToken)
@@ -531,6 +529,13 @@ public sealed class SaveConflictResolver
         {
             Delete(part);
             return ConflictResolutionOutcome.Failed($"{destination}: it could not be written: {ex.Message}");
+        }
+        catch (Exception ex) when (ex is SaveUnitMismatchException or InvalidDataException)
+        {
+            // A unit that is not the save offered, or an archive that would not unpack. The live
+            // tree is untouched, since the restore checks both before replacing anything.
+            Delete(part);
+            return ConflictResolutionOutcome.Failed($"{destination}: {ex.Message}. Nothing was written.");
         }
     }
 
