@@ -297,13 +297,12 @@ After each row its save and one state went out of the tree and came back through
 **`mesen`, `mednafen` and `ares` declare no state directory**, and each wrote to the one above,
 which the supplement now declares for `mastersystem`. **The maintainer's second mednafen slot was 9,
 not 1**: the slot stepped down from 0 and wrapped, where the agent's `F7` in the probe stepped up to
-
-1. Both are valid slots and both synced. **ares keeps its states beside its battery save**, `F2`
-   saving and `F7` stepping the slot, which on `snes` it did not. BizHawk took ES's `-state_slot 4` for
-   the pad's key and `Ctrl+F2` wrote slot 2, and its two frames, `Framebuffer.bmp` inside each state,
-   differ (`c3b18e20...`, `af8b9ac2...`). jgenesis writes its states to
-   `emulators/jgenesis/states/sms/` and `emulatorLauncher` mirrors them into the declared directory, as
-   on the systems before. **None of the five writes a screenshot file**, which the preview says: `no
+slot 1. Both are valid slots and both synced. **ares keeps its states beside its battery save**, `F2`
+saving and `F7` stepping the slot, which on `snes` it did not. BizHawk took ES's `-state_slot 4` for
+the pad's key and `Ctrl+F2` wrote slot 2, and its two frames, `Framebuffer.bmp` inside each state,
+differ (`c3b18e20...`, `af8b9ac2...`). jgenesis writes its states to
+`emulators/jgenesis/states/sms/` and `emulatorLauncher` mirrors them into the declared directory, as
+on the systems before. **None of the five writes a screenshot file**, which the preview says: `no
 screenshot: the server links none to this state`.
 
 ### 8. Sessions
