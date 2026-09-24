@@ -512,10 +512,10 @@ without RomMBat, because each emulator keeps it in its own format.
 2026-09-24: `libretro` under `snes9x`, which a stock install runs, `bsnes-jg`, `bsnes`,
 `bsnes_hd_beta`, `mednafen_snes`, `mesen-s` and `snes9x2005`, then `mesen`, `mednafen`, `snes9x`,
 `ares`, `bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. RetroBat lists no firmware
-for `snes`, so a game with a DSP chip will not start under `mesen-s`, `mesen` or `jgenesis`
-unless you supply the chip's file yourself: `dsp1b.rom` in `bios\` for `mesen-s`, the same file in
-`emulators\mesen\Firmware\` for Mesen, and `dsp1_rom_path` in `jgenesis-config.toml` for jgenesis
-([docs/platforms/snes.md](docs/platforms/snes.md)).
+for `snes`, so a DSP-1 game such as Super Mario Kart will not start under `mesen-s`, `mesen` or
+`jgenesis` unless you supply the chip's file yourself: `dsp1b.rom` in `bios\` for `mesen-s`, the
+same file in `emulators\mesen\Firmware\` for Mesen, and `dsp1_rom_path` in `jgenesis-config.toml`
+for jgenesis ([docs/platforms/snes.md](docs/platforms/snes.md)).
 
 That is sixty-six rows on one install, and the unit is still `(system, emulator, core)`. The rules
 the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those

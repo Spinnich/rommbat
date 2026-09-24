@@ -250,16 +250,16 @@ RetroBat's installer put `snes9x-x64.exe` in place in about three seconds.
 
 ### 4. Battery saves on the eight
 
-| Row        | File under `saves/snes/`                                             | Slot               | After the row |
-| ---------- | -------------------------------------------------------------------- | ------------------ | ------------- |
-| `mesen`    | `<rom>.srm`, the file the `libretro` cores share                     | `libretro:battery` | `05c99057...` |
-| `mednafen` | `<rom>.srm` when one is there, else `<rom>.<md5>.srm`                | `libretro:battery` | `425acf6b...` |
-| `snes9x`   | `<rom>.srm`, the same file                                           | `libretro:battery` | `d12f5187...` |
-| `ares`     | `ares/Super Famicom/<rom>.ram`, and `<rom>.dram` for a DSP cartridge | `ares:battery:ram` | `97929108...` |
-| `BSNES`    | `bizhawk/<rom>.SaveRAM`, one file for all three cores                | `bizhawk:battery`  | `71480f98...` |
-| `Faust`    | the same file                                                        | `bizhawk:battery`  | `74b45e5b...` |
-| `Snes9x`   | the same file                                                        | `bizhawk:battery`  | `cd78b59f...` |
-| `jgenesis` | `jgenesis/sfc/<rom>.sav`                                             | `jgenesis:battery` | `b6cbf7aa...` |
+| Row        | File under `saves/snes/`                                             | Slot                                        | After the row |
+| ---------- | -------------------------------------------------------------------- | ------------------------------------------- | ------------- |
+| `mesen`    | `<rom>.srm`, the file the `libretro` cores share                     | `libretro:battery`                          | `05c99057...` |
+| `mednafen` | `<rom>.srm` when one is there, else `<rom>.<md5>.srm`                | `libretro:battery`, else `mednafen:battery` | `425acf6b...` |
+| `snes9x`   | `<rom>.srm`, the same file                                           | `libretro:battery`                          | `d12f5187...` |
+| `ares`     | `ares/Super Famicom/<rom>.ram`, and `<rom>.dram` for a DSP cartridge | `ares:battery:ram`                          | `97929108...` |
+| `BSNES`    | `bizhawk/<rom>.SaveRAM`, one file for all three cores                | `bizhawk:battery`                           | `71480f98...` |
+| `Faust`    | the same file                                                        | `bizhawk:battery`                           | `74b45e5b...` |
+| `Snes9x`   | the same file                                                        | `bizhawk:battery`                           | `cd78b59f...` |
+| `jgenesis` | `jgenesis/sfc/<rom>.sav`                                             | `jgenesis:battery`                          | `b6cbf7aa...` |
 
 **Mesen and Snes9x write the loose `.srm` the `libretro` cores share**, so they needed no rule, and
 their saves upload as `libretro:battery`. Mesen's `.srm` above is the one after the agent's own

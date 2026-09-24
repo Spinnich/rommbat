@@ -511,14 +511,15 @@ as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mg
 mednafen's hashed name taken only when no plain one is there. BizHawk's three cores share one
 `.SaveRAM` named after BizHawk's own title, which on `gb` is not the ROM file's.
 
-**On `snes` the loose `<rom>.srm` is shared by eleven rows**: the seven `libretro` cores, Mesen,
-standalone Snes9x, and mednafen, which reads and saves into it when it is there and otherwise
-writes `<rom>.<md5>.srm`, a `.srm` and not the `.sav` of its other systems, the md5 being of the
-whole `.sfc` (finding 318). All upload as `libretro:battery`. BizHawk's `.SaveRAM` is named after
-the ROM file on `snes`, and ares keeps a DSP-1 cartridge's data RAM as `<rom>.dram` beside the
-`.ram`, class B, `ares:battery:dram`. `libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` on
-every exit, and `empty_not_a_save` in `save_rules.json` passes over an empty one per system and
-extension, while one with content is still reported (finding 319). Zelda, the test game, writes
+**On `snes` the loose `<rom>.srm` is shared by ten rows**: the seven `libretro` cores, Mesen,
+standalone Snes9x, and mednafen, and uploads as `libretro:battery`. mednafen reads and saves into
+it when it is there and otherwise writes `<rom>.<md5>.srm`, a `.srm` and not the `.sav` of its
+other systems, the md5 being of the whole `.sfc` (finding 318), which uploads as
+`mednafen:battery`. BizHawk's `.SaveRAM` is named after the ROM file on `snes`, and ares keeps a
+DSP-1 cartridge's data RAM as `<rom>.dram` beside the `.ram`, class B, `ares:battery:dram`.
+`libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` on every exit, and `empty_not_a_save` in
+`save_rules.json` passes over an empty one per system and extension, while one with content is
+still reported (finding 319). Zelda, the test game, writes
 its SRAM at boot, so any launch uploads a new `.srm` version whether or not the game was saved.
 
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
