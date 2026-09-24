@@ -411,6 +411,18 @@ NOT_A_SAVE = {
     ".jpg": "a save-state screenshot, which is stage 2",
 }
 
+# An empty file of these extensions, loose under these systems, holds nothing and is not a save.
+# One with content is still reported, since nothing measured says whose it would be.
+EMPTY_NOT_A_SAVE = {
+    "snes": {
+        ".rtc": (
+            "snes under libretro, core mednafen_snes, on 8.2.1: Legend of Zelda, The - A Link to "
+            "the Past (USA).zip and Super Mario Kart (USA).zip each left a loose <rom>.rtc of 0 B "
+            "beside the .srm on every exit, which no other snes row wrote or touched"
+        ),
+    },
+}
+
 lines.append("=== loose files directly under saves/<system>/, which is where class A lives")
 
 by_extension: collections.Counter[str] = collections.Counter()
@@ -487,6 +499,7 @@ document = {
         },
         *OTHER_BATTERY_RULES,
     ],
+    "empty_not_a_save": EMPTY_NOT_A_SAVE,
     "not_a_save_extensions": NOT_A_SAVE,
     "shared_containers": SHARED_CONTAINERS,
     "observed": per_system,

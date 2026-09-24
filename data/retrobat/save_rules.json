@@ -203,6 +203,11 @@
       "evidence": "snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/<rom>.ram, 8,192 B, on exit, beside its states .bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, 2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the second file its own slot"
     }
   ],
+  "empty_not_a_save": {
+    "snes": {
+      ".rtc": "snes under libretro, core mednafen_snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip and Super Mario Kart (USA).zip each left a loose <rom>.rtc of 0 B beside the .srm on every exit, which no other snes row wrote or touched"
+    }
+  },
   "not_a_save_extensions": {
     ".ldci": "RetroArch's record of which disc is in the drive; holds an absolute path (F18)",
     ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",

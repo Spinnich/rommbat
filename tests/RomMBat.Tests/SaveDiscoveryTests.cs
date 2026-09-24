@@ -504,6 +504,28 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void An_empty_rtc_on_snes_is_not_a_save_and_one_with_content_is_still_reported()
+    {
+        // libretro/mednafen_snes leaves a 0 B loose .rtc on every exit, measured on 8.2.1.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(1, "snes", "Zelda (USA).zip");
+        fixture.AddRom(2, "snes", "Kart (USA).zip");
+        fixture.AddSave("snes", "Zelda (USA).srm", "the cores' battery save");
+        fixture.AddSave("snes", "Zelda (USA).rtc", string.Empty);
+        fixture.AddSave("snes", "Kart (USA).rtc", "a clock nobody measured");
+        fixture.AddSave("nes", "Empty (USA).rtc", string.Empty);
+
+        fixture.Scan();
+
+        Assert.Equal("libretro:battery", Assert.Single(fixture.Store.Saves.List()).Slot);
+        var snes = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
+        Assert.Equal(1, snes.FileCount);
+        Assert.Contains("Kart (USA).rtc", snes.Detail, StringComparison.Ordinal);
+        Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
