@@ -278,6 +278,43 @@ public class PlatformMappingTests
         Assert.Equal("fbneo", row.Folder);
     }
 
+    [Fact]
+    public void A_platform_whose_fs_slug_changed_only_in_case_keeps_its_row_and_its_choice()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
+        store.PlatformMap.SetOverride("snes", "snes-msu1", now, "snes", 7);
+
+        // RomM 5.3.1 (#4676): a rescan finds platform 7 by its folder ignoring case and
+        // rewrites its fs_slug with the folder's own casing.
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems(), store.PlatformMap.Overrides());
+        store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(7, "snes", "SNES", "Super Nintendo")), now);
+
+        var row = Assert.Single(store.PlatformMap.List());
+        Assert.Equal("SNES", row.FsSlug);
+        Assert.Equal(7, row.PlatformId);
+        Assert.Equal(MappingSource.User, row.ResolvedBy);
+        Assert.Equal("snes-msu1", row.Folder);
+        Assert.NotNull(store.PlatformMap.Find("SNES"));
+    }
+
+    [Fact]
+    public void Two_platforms_whose_fs_slugs_differ_only_in_case_stay_two_rows()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems());
+
+        // A case-sensitive filesystem on the server can hold both folders as two platforms.
+        store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(7, "snes", "snes", "Super Nintendo")), now);
+        store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(8, "snes", "SNES", "Super Nintendo")), now);
+
+        Assert.Equal(["SNES", "snes"], store.PlatformMap.List().Select(row => row.FsSlug).Order(StringComparer.Ordinal));
+    }
+
     [Theory]
     [InlineData("action-max", "actionmax")]
     [InlineData("TI-99", "ti99")]

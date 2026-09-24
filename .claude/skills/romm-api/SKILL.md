@@ -6,7 +6,7 @@ description: Calling the RomM API from RomMBat - device pairing auth, the endpoi
 # RomM API
 
 The backend is the contract. DTOs are generated from `/openapi.json` (served at the
-**root**, not under `/api`) and **committed**, pinned to RomM 5.3.0, the minimum supported
+**root**, not under `/api`) and **committed**, pinned to RomM 5.3.1, the minimum supported
 version. The floor tracks the newest RomM stable, or a prerelease ahead of it when one is
 adopted early, so the pin moves with it and the two are one decision. The published docs at docs.romm.app have drifted from the server on exactly the
 payloads this client needs most, so never code from them.
@@ -229,7 +229,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 - **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
   a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
-- **`with_rom_id_index=false` under every scope, from the `5.3.0` floor.** Under a
+- **`with_rom_id_index=false` under every scope, from `5.3.0`.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
   `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
   every page. **Measured on 5.3.0-alpha.2 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB

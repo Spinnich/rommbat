@@ -1,17 +1,17 @@
 # The pinned RomM schema
 
-`romm-5.3.0.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
-not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.0`. The generated DTOs
+`romm-5.3.1.json` is a byte-exact copy of `GET /openapi.json` (served at the root,
+not under `/api`) from a RomM instance reporting `SYSTEM.VERSION = 5.3.1`. The generated DTOs
 in [`../Generated/RomMApiSchema.g.cs`](../Generated/RomMApiSchema.g.cs) come from it and
 are committed, so an upstream deploy cannot change the contract mid-session.
 
 |                |                                                                    |
 | -------------- | ------------------------------------------------------------------ |
-| RomM version   | 5.3.0, the minimum RomMBat supports                                |
-| Source         | a self-hosted 5.3.0 instance, host redacted                        |
-| Pulled         | 2026-09-21                                                         |
-| `info.version` | 5.3.0                                                              |
-| sha256         | `d7fa6ecbcc0e9badb1c0986097800bf890a9f7d36bedc8a19e76a29bf1546171` |
+| RomM version   | 5.3.1, the minimum RomMBat supports                                |
+| Source         | a self-hosted 5.3.1 instance, host redacted                        |
+| Pulled         | 2026-09-24                                                         |
+| `info.version` | 5.3.1                                                              |
+| sha256         | `fe182c0ad052f855b470ae9be0fb5931d23e97dbf8752b5b6949784714d8e210` |
 | Paths          | 198                                                                |
 | Schemas        | 272                                                                |
 
@@ -22,13 +22,13 @@ adopted: moving the floor and moving the pin are one decision.
 
 **Prefer the public demo at `demo.romm.app` as the source**, because anyone can reproduce the
 file from it without an account, a token or a hostname that would have to be scrubbed. The
-5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2, 5.3.0-alpha.3 or 5.3.0-beta.1 pins
-nor this one did: the demo reported 5.1.0 on 2026-08-25, and 5.2.0 on 2026-09-14 and again on
-2026-09-21, hours after 5.3.0 shipped, so each was pulled from a self-hosted instance of the
-pinned version instead.
+5.1.0 pin came from there. None of the 5.2.0, 5.3.0-alpha.2, 5.3.0-alpha.3, 5.3.0-beta.1 or 5.3.0 pins
+nor this one did: the demo reported 5.1.0 on 2026-08-25, 5.2.0 on 2026-09-14 and again on
+2026-09-21, hours after 5.3.0 shipped, and still 5.2.0 on 2026-09-24, a day after 5.3.1, so each
+was pulled from a self-hosted instance of the pinned version instead.
 
 The sha256 above is how the capture is checked rather than trusted; a `/openapi.json` from any
-stock 5.3.0 hashes to it. That holds because `backend/main.py` registers every router
+stock 5.3.1 hashes to it. That holds because `backend/main.py` registers every router
 unconditionally at this tag, so the served schema is decided by the version and not by the
 instance's configuration. **`SYSTEM.VERSION` was read at capture time rather than assumed**: a
 live library can be upgraded underneath the work, which is how upstream's own tag moved from
@@ -97,6 +97,13 @@ is four lines.
 The 5.3.0-beta.1 to 5.3.0 move is **the first with no generated diff at all.** The capture is
 byte-identical to the `beta.1` pin apart from `info.version`, and `generate.sh` reproduces the
 committed DTOs exactly. `docs/romm-5.3-findings.md`, section 13.
+
+The 5.3.0 to 5.3.1 move **generates no diff either**, though the capture does change: every
+`/api/music/*` page caps `limit` at 1,000 where it took 10,000, and
+`POST /api/streaming/sessions/{platform}/heartbeat` gains an optional `container` query
+parameter. Neither reaches a DTO, since both are operation parameters and NSwag generates
+types here, not a client, and RomMBat calls neither route. The 272 schemas are identical.
+`docs/romm-5.3-findings.md`, section 14.
 
 ## Why the generated file disables four doc-comment warnings
 

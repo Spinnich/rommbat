@@ -828,8 +828,8 @@ Three rules that are not obvious:
   The exception, for every shape, is a head that already holds the local bytes: that save is
   recorded as sent, and the head is acknowledged first when it is not the row this device last
   exchanged, since the server refuses the next upload against a stale device record (M6).
-  Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1` and again at the
-  `5.3.0` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
+  Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1`, at `5.3.0` and
+  again at the `5.3.1` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
   already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
 
@@ -899,8 +899,8 @@ The design assumed no fourth route existed, because RomM stored no serial, title
 code anywhere. **That was true at the 5.2.0 floor and is not true at 5.3.0**, which carries
 `title_id`, `save_target` and `save_target_layout` per ROM, measured answering for the systems
 the header route reaches none of. It joins the three as a fourth rather than replacing any of
-them; `save-sync` holds the rules, including that `save_target` is computed from `title_id` and
-that neither is unique per ROM.
+them; `save-sync` holds the rules, including that `save_target` is computed from `title_id`,
+that neither is unique per ROM, and that GameCube's has two shapes from 5.3.1.
 
 **Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
 games bind nothing and record the refusal, because picking a side uploads one game's save under

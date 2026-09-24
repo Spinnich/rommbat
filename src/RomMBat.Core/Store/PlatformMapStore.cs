@@ -191,10 +191,35 @@ public sealed class PlatformMapStore
     /// A resolution whose source is not <see cref="MappingSource.User"/> never overwrites a
     /// row that is, so re-resolving after a RetroBat upgrade cannot quietly undo a decision
     /// somebody made.
+    /// <para>
+    /// A platform whose <c>fs_slug</c> changed only in case keeps its row, choice included.
+    /// From RomM 5.3.1 a rescan matches a folder case-insensitively and rewrites the same
+    /// platform id with the folder's on-disk casing (rommapp/romm#4676), so <c>psx</c> can come
+    /// back as <c>PSX</c>. Keyed exactly, that left the old row behind as a second platform.
+    /// The rekey needs the id to match as well, because a case-sensitive filesystem can hold
+    /// <c>psx</c> and <c>PSX</c> as two platforms.
+    /// </para>
     /// </remarks>
     public void Record(PlatformResolution resolution, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(resolution);
+
+        if (resolution.PlatformId is { } platformId)
+        {
+            using var rekey = _connection
+                .Command(
+                    """
+                    UPDATE platform_map SET romm_fs_slug = $fsSlug
+                    WHERE romm_platform_id = $platformId
+                      AND romm_fs_slug <> $fsSlug
+                      AND lower(romm_fs_slug) = lower($fsSlug)
+                      AND NOT EXISTS (SELECT 1 FROM platform_map WHERE romm_fs_slug = $fsSlug);
+                    """)
+                .With("$fsSlug", resolution.FsSlug)
+                .With("$platformId", platformId);
+
+            rekey.ExecuteNonQuery();
+        }
 
         using var command = _connection.Command(
             """

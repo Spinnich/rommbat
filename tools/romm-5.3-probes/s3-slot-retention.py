@@ -7,9 +7,9 @@ then `id`. RomMBat sends `autocleanup=true&autocleanup_limit=10` on every save u
 its own retention and always was; the server cap governs writers that ask for no cleanup, which
 is what `upload()` below deliberately imitates.
 
-`add_save` and `prune_slot` are byte-identical from alpha.3 through 5.3.0, the floor now: the
+`add_save` and `prune_slot` are byte-identical from alpha.3 through 5.3.1, the floor now: the
 only save change in that span projects ids for `GET /api/saves/identifiers`, at beta.1. So the
-run recorded against alpha.3 describes the code 5.3.0 ships, and a re-run would be a
+run recorded against alpha.3 describes the code 5.3.1 ships, and a re-run would be a
 re-measurement of the same source rather than of a change.
 
 Two cases against one ROM and a throwaway slot, in the order they run:

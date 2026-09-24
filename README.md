@@ -72,7 +72,7 @@ and through the companion-app protocol RomM already ships.
 |          | Minimum     | Notes                                                            |
 | -------- | ----------- | ---------------------------------------------------------------- |
 | RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
-| RomM     | 5.3.0       | Checked from `GET /api/heartbeat` at startup                     |
+| RomM     | 5.3.1       | Checked from `GET /api/heartbeat` at startup                     |
 | Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
 | .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
 
@@ -476,8 +476,8 @@ folder for, so it is out of scope rather than unscheduled.
 
 **Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
 `bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
-at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, and carried to
-the `5.3.0` floor with step 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
+at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, carried to
+`5.3.0` with step 9 re-run, and to the `5.3.1` floor with steps 1 and 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
 
 **Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-21: `libretro` under `genesis_plus_gx`, which a stock install runs, `genesis_plus_gx_wide`
@@ -533,6 +533,9 @@ were measured on, so none of those emulators is certified anywhere else.
 [docs/platforms/gbc.md](docs/platforms/gbc.md), [docs/platforms/snes.md](docs/platforms/snes.md) and
 [docs/platforms/mastersystem.md](docs/platforms/mastersystem.md) are the records, gaps included.
 
+Every one of those rows is carried to the RomM `5.3.1` floor. Steps 1 and 9 were re-run there on
+2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise.
+
 ### Compatibility
 
 Every release names the RomM and RetroBat versions it was tested against. Adding a row
@@ -540,7 +543,7 @@ here is part of shipping.
 
 | RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
 | ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
-| unreleased | 5.3.0       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.0** `/openapi.json` |
+| unreleased | 5.3.1       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.1** `/openapi.json` |
 
 The pinned schema is the minimum supported version on purpose, so the generated DTOs
 describe the oldest server the client claims to work with. Moving the pin is a compatibility
@@ -579,8 +582,8 @@ docs/{freegosy,argosy}-findings.md
                       One ledger per mined reference implementation, recording what
                       survived verification and what did not. Both are closed
 docs/romm-5.3-findings.md
-                      What RomM 5.3.0 changes for RomMBat, what it falsifies here, and
-                      what the 5.3.0 floor measured as
+                      What the RomM 5.3 line changes for RomMBat, what it falsifies here,
+                      and what each floor on it measured as
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
