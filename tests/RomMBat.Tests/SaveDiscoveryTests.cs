@@ -472,6 +472,60 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Every_snes_rows_battery_save_for_zelda_takes_its_own_slot()
+    {
+        // Measured on 8.2.1: Legend of Zelda, The - A Link to the Past under every snes row, and
+        // Super Mario Kart, a DSP-1 cartridge, under ares.
+        using var fixture = SaveTree.Create();
+        const string Zelda = "Legend of Zelda, The - A Link to the Past (USA)";
+        const string Kart = "Super Mario Kart (USA)";
+
+        fixture.AddRom(1, "snes", $"{Zelda}.zip");
+        fixture.AddRom(2, "snes", $"{Kart}.zip");
+        fixture.AddSave("snes", $"{Zelda}.srm", "the cores' battery save");
+        fixture.AddSave("snes", $"{Zelda}.608c22b8ff930c62dc2de54bcd6eba72.srm", "mednafen's battery save");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Zelda}.ram", "ares's battery save");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Kart}.ram", "ares's battery save");
+        fixture.AddSave("snes", $"ares/Super Famicom/{Kart}.dram", "the DSP's data RAM");
+        fixture.AddSave("snes", $"jgenesis/sfc/{Zelda}.sav", "jgenesis's battery save");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal("libretro:battery", saves[$"saves/snes/{Zelda}.srm"].Slot);
+        Assert.Equal("mednafen:battery", saves[$"saves/snes/{Zelda}.608c22b8ff930c62dc2de54bcd6eba72.srm"].Slot);
+        Assert.Equal("ares:battery:ram", saves[$"saves/snes/ares/Super Famicom/{Zelda}.ram"].Slot);
+        Assert.Equal("ares:battery:ram", saves[$"saves/snes/ares/Super Famicom/{Kart}.ram"].Slot);
+        Assert.Equal("ares:battery:dram", saves[$"saves/snes/ares/Super Famicom/{Kart}.dram"].Slot);
+        Assert.Equal("jgenesis:battery", saves[$"saves/snes/jgenesis/sfc/{Zelda}.sav"].Slot);
+        Assert.Equal(2, saves[$"saves/snes/ares/Super Famicom/{Kart}.dram"].RomId);
+        Assert.Equal(1, saves[$"saves/snes/jgenesis/sfc/{Zelda}.sav"].RomId);
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
+    }
+
+    [Fact]
+    public void An_empty_rtc_on_snes_is_not_a_save_and_one_with_content_is_still_reported()
+    {
+        // libretro/mednafen_snes leaves a 0 B loose .rtc on every exit, measured on 8.2.1.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(1, "snes", "Zelda (USA).zip");
+        fixture.AddRom(2, "snes", "Kart (USA).zip");
+        fixture.AddSave("snes", "Zelda (USA).srm", "the cores' battery save");
+        fixture.AddSave("snes", "Zelda (USA).rtc", string.Empty);
+        fixture.AddSave("snes", "Kart (USA).rtc", "a clock nobody measured");
+        fixture.AddSave("nes", "Empty (USA).rtc", string.Empty);
+
+        fixture.Scan();
+
+        Assert.Equal("libretro:battery", Assert.Single(fixture.Store.Saves.List()).Slot);
+        var snes = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "snes");
+        Assert.Equal(1, snes.FileCount);
+        Assert.Contains("Kart (USA).rtc", snes.Detail, StringComparison.Ordinal);
+        Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "nes");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.
@@ -567,13 +621,13 @@ public class SaveDiscoveryTests
         // they were measured, so the split is exercised on a system it does not reach.
         using var fixture = SaveTree.Create();
 
-        fixture.AddSave("snes", "jgenesis/snes/Super Metroid (USA).sav", "a battery save no rule covers here");
-        fixture.AddSave("snes", "mednafen/sstates/Super Metroid (USA).0123456789abcdef0123456789abcdef.mc0", "a state nothing reads");
-        fixture.AddSave("snes", "mesen/SaveStates/Super Metroid (USA)_1.mss", "another");
+        fixture.AddSave("pcengine", "jgenesis/pce/Bonk's Adventure (USA).sav", "a battery save no rule covers here");
+        fixture.AddSave("pcengine", "mednafen/sstates/Bonk's Adventure (USA).0123456789abcdef0123456789abcdef.mc0", "a state nothing reads");
+        fixture.AddSave("pcengine", "mesen/SaveStates/Bonk's Adventure (USA)_1.mss", "another");
 
         fixture.ScanWithStateSchema();
 
-        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "snes").ToList();
+        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "pcengine").ToList();
         Assert.Equal(2, rows.Count);
 
         // jgenesis is declared, so the clause about the save states beside them holds for it.

@@ -12,12 +12,12 @@
     },
     {
       "emulator": "bizhawk",
-      "systems": ["nes", "megadrive", "gba", "gb", "gbc"],
+      "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes"],
       "directory": "bizhawk",
       "extensions": [".saveram"],
       "named_after": "display name",
       "class": "A",
-      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk",
+      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the rom file, one file for all three cores",
       "not_a_save_extensions": {
         ".bak": "BizHawk's copy of the save a new one replaced, StarTropics.SaveRAM.bak, written on exit (#151)"
       }
@@ -66,6 +66,15 @@
       "named_after": "rom file",
       "class": "B",
       "evidence": "gba under jgenesis on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote jgenesis/gba/<rom>.sav, 131,072 B, and <rom>.rtc, 59 B, the cartridge clock, which changes on every launch"
+    },
+    {
+      "emulator": "jgenesis",
+      "systems": ["snes"],
+      "directory": "jgenesis/sfc",
+      "extensions": [".sav"],
+      "named_after": "rom file",
+      "class": "A",
+      "evidence": "snes under jgenesis on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip, holding a .sfc, wrote jgenesis/sfc/<rom>.sav, 8,192 B, and its states sit apart in jgenesis/states"
     },
     {
       "emulator": "mgba",
@@ -122,6 +131,15 @@
       "evidence": "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of the .nes inside less its 16-byte iNES header; megadrive under mednafen, core megadrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose <rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md inside; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of the whole .gba inside, once no plain <rom>.sav was present; gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb inside, when no plain <rom>.sav was present; gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was present"
     },
     {
+      "emulator": "mednafen",
+      "systems": ["snes"],
+      "directory": "",
+      "extensions": [".srm"],
+      "named_after": "rom file and content md5",
+      "class": "A",
+      "evidence": "snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote a loose <rom>.608c22b8ff930c62dc2de54bcd6eba72.srm, 8,192 B, the md5 being of the whole .sfc inside, when no plain <rom>.srm was present, and read and saved back into the plain .srm the libretro cores share when one was. Its own rule because on snes mednafen writes .srm, not the .sav its other systems' rule reads"
+    },
+    {
       "emulator": "ares",
       "systems": ["nes"],
       "directory": "ares/Famicom",
@@ -174,8 +192,22 @@
       "named_after": "rom file",
       "class": "B",
       "evidence": "gba under ares, core GameBoyAdvance, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote ares/Game Boy Advance/<rom>.flash, 131,072 B, and <rom>.rtc, 18 B, beside its states .bs1 and .bs2"
+    },
+    {
+      "emulator": "ares",
+      "systems": ["snes"],
+      "directory": "ares/Super Famicom",
+      "extensions": [".ram", ".dram"],
+      "named_after": "rom file",
+      "class": "B",
+      "evidence": "snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/<rom>.ram, 8,192 B, on exit, beside its states .bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, 2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the second file its own slot"
     }
   ],
+  "empty_not_a_save": {
+    "snes": {
+      ".rtc": "snes under libretro, core mednafen_snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip and Super Mario Kart (USA).zip each left a loose <rom>.rtc of 0 B beside the .srm on every exit, which no other snes row wrote or touched"
+    }
+  },
   "not_a_save_extensions": {
     ".ldci": "RetroArch's record of which disc is in the drive; holds an absolute path (F18)",
     ".txt": "RetroBat's name-mapping sidecar; belongs with a state, which is stage 2",

@@ -337,18 +337,21 @@ public sealed class SaveShapes
     private readonly IReadOnlyList<BatteryRule> _batteryRules;
     private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _sharedContainers;
     private readonly FrozenSet<string> _notASaveExtensions;
+    private readonly FrozenDictionary<string, FrozenSet<string>> _emptyNotASave;
 
     private SaveShapes(
         FrozenDictionary<string, SaveShape> shapes,
         IReadOnlyList<BatteryRule> batteryRules,
         FrozenDictionary<string, FrozenDictionary<string, string>> sharedContainers,
         FrozenSet<string> notASaveExtensions,
+        FrozenDictionary<string, FrozenSet<string>> emptyNotASave,
         IReadOnlyList<string> unclassified)
     {
         _shapes = shapes;
         _batteryRules = batteryRules;
         _sharedContainers = sharedContainers;
         _notASaveExtensions = notASaveExtensions;
+        _emptyNotASave = emptyNotASave;
         Unclassified = unclassified;
 
         LooseEmulator = batteryRules.FirstOrDefault(rule => rule.IsLoose && rule.Systems is null)?.Emulator
@@ -436,6 +439,18 @@ public sealed class SaveShapes
         _notASaveExtensions.Contains(extension.ToLowerInvariant());
 
     /// <summary>
+    /// True when an empty file of this extension on this system is something an emulator writes
+    /// that holds nothing, rather than a save.
+    /// </summary>
+    /// <remarks>
+    /// <c>libretro</c>/<c>mednafen_snes</c> leaves a 0 B loose <c>&lt;rom&gt;.rtc</c> on every exit.
+    /// Only the empty file is meant: one with content on the same system is still reported, since
+    /// nothing measured says whose it would be.
+    /// </remarks>
+    public bool IsEmptyNotASave(string system, string extension) =>
+        _emptyNotASave.TryGetValue(system, out var extensions) && extensions.Contains(extension.ToLowerInvariant());
+
+    /// <summary>
     /// Why a path is a shared container, or null when it is not one.
     /// </summary>
     /// <param name="system">The RetroBat system folder.</param>
@@ -507,6 +522,10 @@ public sealed class SaveShapes
                     StringComparer.OrdinalIgnoreCase),
                 StringComparer.OrdinalIgnoreCase),
             rules.NotASaveExtensions.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+            rules.EmptyNotASave.ToFrozenDictionary(
+                entry => entry.Key,
+                entry => entry.Value.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal),
+                StringComparer.OrdinalIgnoreCase),
             shapes.Unclassified);
     }
 
@@ -749,6 +768,9 @@ public sealed class SaveShapes
 
         [JsonPropertyName("not_a_save_extensions")]
         public Dictionary<string, string> NotASaveExtensions { get; init; } = [];
+
+        [JsonPropertyName("empty_not_a_save")]
+        public Dictionary<string, Dictionary<string, string>> EmptyNotASave { get; init; } = [];
 
         [JsonPropertyName("shared_containers")]
         public Dictionary<string, Dictionary<string, string>> SharedContainers { get; init; } = [];

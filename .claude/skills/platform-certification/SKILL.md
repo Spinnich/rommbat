@@ -91,6 +91,17 @@ RetroBat machine `Ctrl+F1` never reached EmuHawk from `keybd_event`**, where `Ct
 quits**, adding `playcount` and moving the entry, so step 9 compares against a copy taken after
 the last ES session.
 
+**`snes` is sixth: all fifteen rows certified at `5.3.0` on 2026-09-24**, in one morning, on Zelda: A
+Link to the Past, with `docs/platforms/snes.md` the record. **Boot a coprocessor game for step 3**,
+not only the test game: RetroBat lists no `snes` firmware, and on Super Mario Kart, a DSP-1
+cartridge, three rows refused for want of `dsp1b.rom` while Zelda booted everywhere (finding 317).
+A title screen does not exercise the chip, so claim no more than the title. **A row whose emulator
+is not installed asks to install it on its first launch**, standalone Snes9x here; the maintainer
+decides whether to accept. **ares shows nothing when a state is saved or its slot steps**, so the
+agent drives ares's states from its own session and checks the files, rather than asking for keys
+pressed blind. **The server may already hold the test game's save**, from another client: the first
+flush then records a conflict rather than overwrite, and which side wins is the maintainer's call.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
@@ -166,6 +177,14 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    and `GBHawk` needs `gbc`'s boot ROM for a Color-flagged cartridge, and neither was on `gb`'s
    list (finding 293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
    system, copied from the sibling's entry, so `bios <system>` fetches it.
+
+   **Expect the list to cover the default emulator only.** By the RetroBat team's account, relayed
+   by the maintainer on 2026-09-24, that is by design. So a row RetroBat does not run by default
+   can need a file no list names, and the supplement has nothing to copy. On `snes` the default,
+   `libretro`/`snes9x`, runs a DSP-1 cartridge without firmware and the list is empty, while
+   `mesen-s`, Mesen and jgenesis refuse one without `dsp1b.rom` (finding 317). Record where each
+   such row reads the file, since it need not be `bios\`: Mesen reads its own `Firmware\` folder
+   and jgenesis a config key RetroBat never sets.
 
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as

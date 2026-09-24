@@ -197,6 +197,11 @@ public sealed class SaveScanner
                     continue;
                 }
 
+                if (_shapes.IsEmptyNotASave(system, extension) && new FileInfo(file).Length == 0)
+                {
+                    continue;
+                }
+
                 if (_shapes.SharedContainerReason(system, name) is { } container)
                 {
                     report.Add(system, _shapes.LooseEmulator, UnsyncableReason.SharedContainer, container, 1, Named(file));

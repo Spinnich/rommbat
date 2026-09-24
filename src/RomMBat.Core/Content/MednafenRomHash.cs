@@ -15,11 +15,14 @@ namespace RomMBat.Core.Content;
 /// <c>&lt;rom&gt;.c5b1c655c19f462ade0ac4e17a844d10.sav</c>. On <c>gba</c> it is the whole <c>.gba</c>,
 /// measured on Pokemon - Emerald Version (USA, Europe): <c>605b89b6...</c> on the standalone's
 /// name and on mednafen_gba's, which carries the zip's member too (<see cref="ArchiveMemberOf"/>).
+/// On <c>snes</c> it is the whole <c>.sfc</c>, measured on Legend of Zelda, The - A Link to the
+/// Past (USA): <c>608c22b8...</c>, on a loose <c>.srm</c> rather than a <c>.sav</c>.
 /// <para>
 /// <b>Null for anything unmeasured</b>, so a restore reports the save as unnameable rather than
 /// writing a file mednafen will not look for: every other system, and on <c>megadrive</c> any
 /// format but a plain <c>.md</c>, since an interleaved <c>.smd</c> is decoded before it is hashed
-/// and a <c>.bin</c> or <c>.gen</c> has not been driven.
+/// and a <c>.bin</c> or <c>.gen</c> has not been driven. On <c>snes</c> only a <c>.sfc</c>, since a
+/// <c>.smc</c> can carry a 512-byte copier header and none has been driven.
 /// </para>
 /// </remarks>
 public static class MednafenRomHash
@@ -35,6 +38,7 @@ public static class MednafenRomHash
             "nes" => HeaderlessNesHash.Of(absolutePath),
             "megadrive" => WholeRom(absolutePath, ".md")?.Hash,
             "gba" => WholeRom(absolutePath, ".gba")?.Hash,
+            "snes" => WholeRom(absolutePath, ".sfc")?.Hash,
             _ => null,
         };
     }

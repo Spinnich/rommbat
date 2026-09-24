@@ -56,7 +56,24 @@ public sealed class MednafenRomHashTests : IDisposable
 
         Assert.Equal(HeaderlessNesHash.Of(nes), MednafenRomHash.Of(nes, "nes"));
         Assert.Equal(Md5(body), MednafenRomHash.Of(nes, "nes"));
-        Assert.Null(MednafenRomHash.Of(nes, "snes"));
+        Assert.Null(MednafenRomHash.Of(nes, "pcengine"));
+    }
+
+    [Fact]
+    public void A_zipped_snes_rom_hashes_the_whole_sfc_inside()
+    {
+        // Measured on Legend of Zelda, The - A Link to the Past (USA): the .sfc's own md5 is the
+        // one on mednafen's .srm and on its states.
+        var body = Body("THE LEGEND OF ZELDA");
+        var zip = Zip("Game (USA).zip", ("Game (USA).sfc", body));
+
+        Assert.Equal(Md5(body), MednafenRomHash.Of(zip, "snes"));
+    }
+
+    [Fact]
+    public void An_smc_answers_null_because_it_can_carry_a_copier_header_nobody_measured()
+    {
+        Assert.Null(MednafenRomHash.Of(Zip("Game (USA).zip", ("Game (USA).smc", Body("x"))), "snes"));
     }
 
     [Fact]
