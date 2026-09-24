@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -93,6 +93,9 @@ OTHER_BATTERY_RULES = [
             "Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, "
             "each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B "
             "with no clock under GBHawk"
+            "; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - "
+            "A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the "
+            "rom file, one file for all three cores"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -165,6 +168,19 @@ OTHER_BATTERY_RULES = [
             "gba under jgenesis on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote "
             "jgenesis/gba/<rom>.sav, 131,072 B, and <rom>.rtc, 59 B, the cartridge clock, which "
             "changes on every launch"
+        ),
+    },
+    {
+        "emulator": "jgenesis",
+        "systems": ["snes"],
+        "directory": "jgenesis/sfc",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "snes under jgenesis on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip, "
+            "holding a .sfc, wrote jgenesis/sfc/<rom>.sav, 8,192 B, and its states sit apart in "
+            "jgenesis/states"
         ),
     },
     {
@@ -275,6 +291,21 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "mednafen",
+        "systems": ["snes"],
+        "directory": "",
+        "extensions": [".srm"],
+        "named_after": "rom file and content md5",
+        "class": "A",
+        "evidence": (
+            "snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past "
+            "(USA).zip wrote a loose <rom>.608c22b8ff930c62dc2de54bcd6eba72.srm, 8,192 B, the md5 "
+            "being of the whole .sfc inside, when no plain <rom>.srm was present, and read and "
+            "saved back into the plain .srm the libretro cores share when one was. Its own rule "
+            "because on snes mednafen writes .srm, not the .sav its other systems' rule reads"
+        ),
+    },
+    {
         "emulator": "ares",
         "systems": ["nes"],
         "directory": "ares/Famicom",
@@ -351,6 +382,21 @@ OTHER_BATTERY_RULES = [
             "gba under ares, core GameBoyAdvance, on 8.2.1: Pokemon - Emerald Version (USA, "
             "Europe).zip wrote ares/Game Boy Advance/<rom>.flash, 131,072 B, and <rom>.rtc, 18 B, "
             "beside its states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["snes"],
+        "directory": "ares/Super Famicom",
+        "extensions": [".ram", ".dram"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the "
+            "Past (USA).zip wrote ares/Super Famicom/<rom>.ram, 8,192 B, on exit, beside its states "
+            ".bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, "
+            "2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the "
+            "second file its own slot"
         ),
     },
 ]

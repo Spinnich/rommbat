@@ -34,16 +34,16 @@ public class SaveStateSchemaTests
         {
             Assert.Null(shipped.For(name));
             Assert.True(loaded.For(name)!.AppliesTo("nes"));
-            Assert.False(loaded.For(name)!.AppliesTo("snes"));
+            Assert.False(loaded.For(name)!.AppliesTo("mastersystem"));
         }
 
-        // Nine entries for five emulators, because ares keeps a directory per system.
-        Assert.Equal(shipped.Emulators.Count + 9, loaded.Emulators.Count);
+        // Eleven entries for six emulators, because ares keeps a directory per system.
+        Assert.Equal(shipped.Emulators.Count + 11, loaded.Emulators.Count);
 
-        // Measured on nes, so the same tree under snes is nobody's state directory.
+        // Measured on nes, so the same tree under mastersystem is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
-        Assert.Null(loaded.MatchDirectory("snes/mesen/SaveStates"));
-        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "snes", core: null));
+        Assert.Null(loaded.MatchDirectory("mastersystem/mesen/SaveStates"));
+        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "mastersystem", core: null));
         Assert.Null(loaded.For("mesen", "megadrive"));
     }
 
@@ -71,7 +71,7 @@ public class SaveStateSchemaTests
 
         Assert.Equal("{{system}}/ares/Famicom", loaded.For("ares", "nes")!.Directory);
         Assert.Equal("{{system}}/ares/Mega Drive", loaded.For("ares", "megadrive")!.Directory);
-        Assert.Null(loaded.For("ares", "snes"));
+        Assert.Null(loaded.For("ares", "mastersystem"));
 
         Assert.Equal("megadrive", loaded.MatchDirectory("megadrive/ares/Mega Drive")?.System);
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Famicom"));
@@ -152,6 +152,33 @@ public class SaveStateSchemaTests
         Assert.Null(loaded.MatchDirectory("gb/ares/Game Boy Color"));
         var ares = SaveStateTemplate.Create(loaded.For("ares", "gbc")!, "gbc", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Snes_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Legend of Zelda, The - A Link to the Past, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Legend of Zelda, The - A Link to the Past (USA)";
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "snes")!, "snes", core: null)!;
+        Assert.Equal(2, mesen.Match($"{Rom}_2.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "snes")!, "snes", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.608c22b8ff930c62dc2de54bcd6eba72.mc1")?.Slot);
+
+        // ares keeps its states beside its battery save, under its own name for the console.
+        Assert.Equal("snes", loaded.MatchDirectory("snes/ares/Super Famicom")?.System);
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "snes")!, "snes", core: null)!;
+        Assert.Equal(1, ares.Match($"{Rom}.bs1")?.Slot);
+
+        // Snes9x's ten slots are .000 to .009, Shift+F10 being slot 0.
+        var snes9x = SaveStateTemplate.Create(loaded.For("snes9x", "snes")!, "snes", core: null)!;
+        Assert.Equal("saves/snes/snes9x/sstates", snes9x.Directory.Value);
+        Assert.Equal(1, snes9x.Match($"{Rom}.001")?.Slot);
+        Assert.Equal(0, snes9x.Match($"{Rom}.000")?.Slot);
+        Assert.Null(snes9x.Match($"{Rom}.010"));
+        Assert.Null(loaded.For("snes9x", "nes"));
     }
 
     [Fact]

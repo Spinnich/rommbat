@@ -35,8 +35,8 @@ public class DisplayNameSaveTests
         Assert.Equal(SaveShapeClass.A, bizhawk.Class);
         Assert.Same(bizhawk, shapes.BatteryRuleForSlot("nes", "bizhawk:battery"));
 
-        // Measured on nes only, so snes under bizhawk stays reported rather than guessed at.
-        Assert.Null(shapes.BatteryRuleFor("snes", "bizhawk", "Super Metroid.SaveRAM"));
+        // Not measured on pcengine, so pcengine under bizhawk stays reported rather than guessed at.
+        Assert.Null(shapes.BatteryRuleFor("pcengine", "bizhawk", "Bonk's Adventure.SaveRAM"));
 
         // #152, and the two names measured on nes: the hash on the stem is what makes a loose
         // .sav mednafen's, and without one it is mesen standalone's. Never libretro's.
@@ -182,6 +182,29 @@ public class DisplayNameSaveTests
 
         // gb's jgenesis rule still reads jgenesis/gb only.
         Assert.Null(shapes.BatteryRuleFor("gb", "jgenesis/gbc", $"{Rom}.sav"));
+    }
+
+    [Fact]
+    public void The_bundled_snes_rules_give_each_of_zeldas_saves_one_owner()
+    {
+        // Legend of Zelda, The - A Link to the Past, driven under every snes row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Legend of Zelda, The - A Link to the Past (USA)";
+
+        // The .srm seven libretro cores, Mesen and Snes9x share, and mednafen's own hashed name
+        // for it when no plain one is there.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("snes", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("snes", string.Empty, $"{Rom}.608c22b8ff930c62dc2de54bcd6eba72.srm")?.Emulator);
+        Assert.Null(shapes.BatteryRuleFor("snes", string.Empty, $"{Rom}.608c22b8ff930c62dc2de54bcd6eba72.sav"));
+
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("snes", "bizhawk", $"{Rom}.SaveRAM")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("snes", "jgenesis/sfc", $"{Rom}.sav")?.Emulator);
+
+        // ares keeps a DSP cartridge's data RAM in a second file, in its own slot.
+        var ares = shapes.BatteryRuleFor("snes", "ares/Super Famicom", $"{Rom}.ram")!;
+        Assert.Equal("ares", ares.Emulator);
+        Assert.True(ares.OwnsSlot("ares:battery:dram"));
+        Assert.Equal("ares", shapes.BatteryRuleFor("snes", "ares/Super Famicom", "Super Mario Kart (USA).dram")?.Emulator);
     }
 
     [Fact]

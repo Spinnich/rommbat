@@ -11,7 +11,7 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
@@ -19,14 +19,16 @@
     <evidence>gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote mednafen/sstates/&lt;rom&gt;.605b89b67018abcea91e693a4dd25be3.mc0 and .mc1, 34,059 B and 31,958 B, the md5 being of the whole .gba inside. F2 saves and F7 steps the slot</evidence>
     <evidence>gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mednafen/sstates/&lt;rom&gt;.d9290db87b1f0a23b89f99ee4469e34b.mc0 and .mc2, 6,401 B and 7,004 B, the md5 being of the whole .gb inside</evidence>
     <evidence>gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mednafen/sstates/&lt;rom&gt;.301899b8087289a6436b0a241fbbb474.mc0 and .mc1, 5,101 B and 5,257 B, the md5 being of the whole .gbc inside. F2 saves and F7 steps the slot</evidence>
+    <evidence>snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mednafen/sstates/&lt;rom&gt;.608c22b8ff930c62dc2de54bcd6eba72.mc0 and .mc1, 110,345 B and 110,365 B, the md5 being of the whole .sfc inside. F2 saves and F7 steps the slot</evidence>
   </emulator>
-  <emulator name="mesen" systems="nes,gba,gb,gbc">
+  <emulator name="mesen" systems="nes,gba,gb,gbc,snes">
     <directory>{{system}}/mesen/SaveStates</directory>
     <file>{{romfilename}}_{{slot}}.mss</file>
     <evidence>nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote mesen/SaveStates/Crystalis (USA)_1.mss, 9,257 B (#150)</evidence>
     <evidence>gba under mesen standalone on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 43,504 B and 44,305 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>gb under mesen standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 8,384 B and 8,427 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>gbc under mesen standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 23,484 B and 23,253 B, from Shift+F1 and Shift+F2</evidence>
+    <evidence>snes under mesen standalone on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 111,256 B and 111,077 B, from Shift+F1 and Shift+F2, into the SaveStateFolder RetroBat's settings.json names</evidence>
   </emulator>
   <emulator name="mgba" systems="gba,gb,gbc">
     <directory>{{system}}/mgba/sstates</directory>
@@ -59,6 +61,16 @@
     <directory>{{system}}/ares/Game Boy Color</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>gbc under ares, core GameBoyColor, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote ares/Game Boy Color/&lt;rom&gt;.bs1 and .bs2, 83,328 B each, while its battery save .ram and .rtc went to ares/Game Boy. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="ares" systems="snes">
+    <directory>{{system}}/ares/Super Famicom</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/&lt;rom&gt;.bs1 and .bs2, 274,141 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="snes9x" systems="snes">
+    <directory>{{system}}/snes9x/sstates</directory>
+    <file>{{romfilename}}.00{{slot0}}</file>
+    <evidence>snes under snes9x standalone on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote snes9x/sstates/&lt;rom&gt;.001 and .002, 89,184 B and 88,368 B, from Shift+F1 and Shift+F2, into the Dir:Savestates RetroBat's snes9x.conf names. Shift+F10 is slot 0, so the ten slots are .000 to .009</evidence>
   </emulator>
   <emulator name="kega-fusion" systems="megadrive">
     <directory>{{system}}/kega-fusion</directory>
