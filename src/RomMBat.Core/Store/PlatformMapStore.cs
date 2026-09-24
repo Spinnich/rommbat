@@ -100,29 +100,39 @@ public sealed class PlatformMapStore
     }
 
     /// <summary>
-    /// The user's overrides, <c>fs_slug</c> to folder, which is layer 1 of the chain.
+    /// The user's overrides, <c>fs_slug</c> to folder, keyed exactly.
+    /// </summary>
+    /// <remarks>
+    /// Exact, because two platforms can differ only in case. Resolve with
+    /// <see cref="Choices"/>, which carries the ids that tell such a pair apart.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string> Overrides() =>
+        Choices().ToDictionary(choice => choice.FsSlug, choice => choice.Folder, StringComparer.Ordinal);
+
+    /// <summary>
+    /// The user's choices with their platform ids, which is layer 1 of the chain.
     /// </summary>
     /// <remarks>
     /// Read before every resolve and fed back into <see cref="PlatformResolver"/>, so an
     /// override survives a re-resolution that would otherwise overwrite it with a guess.
     /// </remarks>
-    public IReadOnlyDictionary<string, string> Overrides()
+    public IReadOnlyList<PlatformOverride> Choices()
     {
         using var command = _connection.Command(
             """
-            SELECT romm_fs_slug, folder FROM platform_map
+            SELECT romm_fs_slug, folder, romm_platform_id FROM platform_map
             WHERE resolved_by = 'user' AND folder IS NOT NULL;
             """);
 
         using var reader = command.ExecuteReader();
 
-        var overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var choices = new List<PlatformOverride>();
         while (reader.Read())
         {
-            overrides[reader.GetString(0)] = reader.GetString(1);
+            choices.Add(new PlatformOverride(reader.GetString(0), reader.GetString(1), (int?)reader.GetInt64OrNull(2)));
         }
 
-        return overrides;
+        return choices;
     }
 
     /// <summary>
@@ -191,10 +201,35 @@ public sealed class PlatformMapStore
     /// A resolution whose source is not <see cref="MappingSource.User"/> never overwrites a
     /// row that is, so re-resolving after a RetroBat upgrade cannot quietly undo a decision
     /// somebody made.
+    /// <para>
+    /// A platform whose <c>fs_slug</c> changed only in case keeps its row, choice included.
+    /// From RomM 5.3.1 a rescan matches a folder case-insensitively and rewrites the same
+    /// platform id with the folder's on-disk casing (rommapp/romm#4676), so <c>psx</c> can come
+    /// back as <c>PSX</c>. Keyed exactly, that left the old row behind as a second platform.
+    /// The rekey needs the id to match as well, because a case-sensitive filesystem can hold
+    /// <c>psx</c> and <c>PSX</c> as two platforms.
+    /// </para>
     /// </remarks>
     public void Record(PlatformResolution resolution, DateTimeOffset now)
     {
         ArgumentNullException.ThrowIfNull(resolution);
+
+        if (resolution.PlatformId is { } platformId)
+        {
+            using var rekey = _connection
+                .Command(
+                    """
+                    UPDATE platform_map SET romm_fs_slug = $fsSlug
+                    WHERE romm_platform_id = $platformId
+                      AND romm_fs_slug <> $fsSlug
+                      AND lower(romm_fs_slug) = lower($fsSlug)
+                      AND NOT EXISTS (SELECT 1 FROM platform_map WHERE romm_fs_slug = $fsSlug);
+                    """)
+                .With("$fsSlug", resolution.FsSlug)
+                .With("$platformId", platformId);
+
+            rekey.ExecuteNonQuery();
+        }
 
         using var command = _connection.Command(
             """

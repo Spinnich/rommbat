@@ -105,7 +105,7 @@ Guardrails that follow from this:
 - Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
   Each of those sidecars scans the whole library.
 
-  **`with_rom_id_index=false` too, under every scope, from the `5.3.0` floor.** Under a
+  **`with_rom_id_index=false` too, under every scope, from `5.3.0`.** Under a
   scoping parameter the index spans the scope rather than the library, and on 5.2.0 it was what
   let the server serve a scoped page by primary key: measured at 88,331 roms, turning it off cost
   **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a page) to save 63 KiB, so
@@ -2084,7 +2084,7 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
   overruled before it is carried out and a second is guarded against.** That is the server
   applying the reasoning this project forbids itself: mtime never decides whether a save changed.
   `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly and is the instrument to re-run on a
-  floor move; at `5.3.0`, as at `beta.1`, it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
+  floor move; at `5.3.1`, as at `5.3.0` and `beta.1`, it answers M1 `no_op (No changes since last sync)`, M2 `upload`,
   M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`.
 
   **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is uploaded**,
@@ -4010,7 +4010,7 @@ and class D and multi-disc rows stay hands-on.
 | RomM's `is_verified` misses 93 of RetroBat's 156 required BIOS hashes                                                           | Join firmware on md5 against `batocera-systems.json`, ignore filenames and `is_verified`, and report required files RomM does not have                                                                                                                                                                   |
 | Dev writes land in a production RomM with 85,000 games                                                                          | A dedicated non-admin account, its own scoped token and device on that instance; destructive tests only against a disposable RomM                                                                                                                                                                        |
 | Users over-grant scopes at the pairing screen                                                                                   | Publish the scope-to-feature table and name what RomMBat never needs (`users.*`, `roms.write`, `tasks.run`, `logs.read`)                                                                                                                                                                                 |
-| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.0), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                           |
+| Client silently misbehaves against an untested RomM or RetroBat version                                                         | Declare minimum versions (RetroBat 8.2.1, RomM 5.3.1), track the newest stable or a prerelease ahead of it, check both at startup, refuse below and warn above                                                                                                                                           |
 | Building all platforms at once buries per-platform edge cases                                                                   | Certify one system at a time against the checklist, in the wave order above, `RetroArch` counted per core rather than as one thing                                                                                                                                                                       |
 
 ---

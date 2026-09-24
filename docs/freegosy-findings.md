@@ -14,7 +14,7 @@ rows that no route settled are labelled open rather than quietly promoted.
 | Source read        | `abduznik/Freegosy` at `8a76f69`, v0.5.11, Dart/Flutter, MIT             |
 | Source targets     | RomM 4.9, standalone desktop emulators, EmuDeck, RetroDECK               |
 | RomM under test    | `5.1.1-beta.1`, read from `GET /api/heartbeat` -> `SYSTEM.VERSION`       |
-| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.0.json` now |
+| Schema cross-check | `romm-5.1.0.json`, the pin at the time; the pin is `romm-5.3.1.json` now |
 | RetroBat           | `8.2.0-stable-win64`                                                     |
 | Date               | 2026-08-10 and 2026-08-11                                                |
 

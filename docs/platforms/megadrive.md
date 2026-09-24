@@ -30,12 +30,40 @@ anyone sat down. Then the four `libretro` rows, the four rows that needed code, 
 `kega-fusion` rows. Last, what the pass turned up that is not a row: the fix for another client's
 `null` save, which landed in the same PR.
 
+## The move to `5.3.1`
+
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
+`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+`src/` and `data/` diff across the move, which is the two version constants and
+`PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
+single row exercises moved.
+
+| #   | At `5.3.1`  | Why                                                                                                               |
+| --- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | **Touched** | RomM #4676 lets an `fs_slug` change case and `platform_map` now rekeys for it. **Pass**, see below                |
+| 2   | Carried     | `GET /api/roms` takes the same parameters, and `roms/files.py` changed only in typing                             |
+| 3   | Carried     | `endpoints/firmware.py` is byte-identical, `firmware_handler.py` changed only in typing, and `data/` is unchanged |
+| 4   | Carried     | `saves.py` and `sync.py` are byte-identical, and `s4-older-mtime.py` answers all six cases as at `5.3.0`          |
+| 5   | Carried     | `states.py` is byte-identical, and `screenshots_handler.py` changed only in a type annotation                     |
+| 6   | N/A         | Unchanged: `megadrive` has no class D                                                                             |
+| 7   | Carried     | The game list's query is unchanged; the Player changes are gamepad focus in RomM's own web UI                     |
+| 8   | Carried     | `play_sessions.py` is byte-identical, and its handler changed only in how it counts rows                          |
+| 9   | **Touched** | Always touched on a move. **Pass**, see below                                                                     |
+
+**Both were re-run on a deploy of the adoption branch**, made by `tools/publish.ps1 -Deploy`, with
+`status` reading the server as `5.3.1`, Supported. `platforms list` was identical either side of
+the deploy, with `megadrive` resolved by `fs_slug` as before. `sync` answered `nothing to do: 252
+games already present, 0 downloaded, 0 written` for `Spinnich's Sega Genesis Favorites`, and `gamelists: all 8 unchanged`,
+with every `gamelist.xml` md5'd either side and identical, and a `flush` moved no save or state.
+One re-sync covers every row, because none of them owns anything a sync touches that another does
+not.
+
 ## The install this was measured on
 
 |           |                                                                       |
 | --------- | --------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                             |
-| RomM      | `5.3.0`, the supported floor, read back by `status` as Supported      |
+| RomM      | `5.3.0`, the floor then, read back by `status` as Supported           |
 | Root      | `R:\RetroBat`, found by walking up from the executable                |
 | Store     | schema 16 of 16, WAL                                                  |
 | Client    | a deploy of the `certify-megadrive` branch by `tools/publish.ps1`     |

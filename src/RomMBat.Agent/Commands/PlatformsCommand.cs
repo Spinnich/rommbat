@@ -119,7 +119,7 @@ internal static class PlatformsCommand
         }
 
         var install = EsSystemsFile.Load(context.Install);
-        var resolver = new PlatformResolver(install, context.Store.PlatformMap.Overrides());
+        var resolver = new PlatformResolver(install, context.Store.PlatformMap.Choices());
         var now = DateTimeOffset.UtcNow;
 
         context.Store.InTransaction(() =>

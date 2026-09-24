@@ -304,7 +304,7 @@ public sealed class StatusCommandTests
                 }
                 else
                 {
-                    body = """{"SYSTEM": {"VERSION": "5.3.0"}}""";
+                    body = """{"SYSTEM": {"VERSION": "5.3.1"}}""";
                 }
 
                 var bytes = Encoding.UTF8.GetBytes(body);

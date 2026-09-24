@@ -713,7 +713,7 @@ public class SyncSetTests : IDisposable
         CancellationToken cancellationToken = default)
     {
         var install = Fixtures.LoadEsSystems();
-        var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
+        var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Choices()));
 
         return await resolver.ResolveAsync(
             set,
@@ -747,7 +747,7 @@ public class SyncSetTests : IDisposable
             : [];
 
         var install = Fixtures.LoadEsSystems();
-        var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Overrides()));
+        var resolver = new SetResolver(install, new PlatformResolver(install, _store.PlatformMap.Choices()));
         var pager = new RomPager(connection, SetResolver.QueryFor(set), pageSize, startOffset);
 
         var resolution = await resolver.ResolveAsync(

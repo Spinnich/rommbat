@@ -18,7 +18,7 @@ half that was measured.
 
 |                        |                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------ |
-| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.0`, 2026-09-21, the floor since           |
+| Release                | `5.3.0-alpha.2`, 2026-09-13, adopted; `5.3.1`, 2026-09-23, the floor since           |
 | API read at            | tag `5.3.0-alpha.1`, plus the `alpha.1` to `alpha.2` delta, see below                |
 | Vendored files read at | `master`, because `reference/refresh.sh` fetches the default branch and takes no ref |
 | Floor before this      | RomM `5.2.0`, pin `romm-5.2.0.json`, RetroBat `8.2.1`                                |
@@ -986,8 +986,8 @@ metadata sources, and the v2 UI work that is most of the 367 modified files.
 
 ### 13. The `beta.1` to `5.3.0` delta (`source`)
 
-`5.3.0` was published 2026-09-21 at 15:07Z, the first stable of the line, and is the floor from
-this adoption. 14 commits across 79 files, counted by diffing blob shas from both tags'
+`5.3.0` was published 2026-09-21 at 15:07Z, the first stable of the line, and was the floor from
+that adoption until `5.3.1` replaced it (finding 14). 14 commits across 79 files, counted by diffing blob shas from both tags'
 recursive trees, neither truncated, and the compare endpoint lists the same 79.
 
 **The contract did not move at all.** The capture is byte-identical to the `beta.1` pin once
@@ -1017,7 +1017,71 @@ at `5.3.0`.
 `beta.1`: `add_save`, `prune_slot`, negotiate and the play-session routes are byte-identical, and a
 reading is not re-labelled because the build it describes did not change.
 
+### 14. The `5.3.0` to `5.3.1` delta (`source`, then `measured`)
+
+`5.3.1` was published 2026-09-23 at 03:05Z, a patch release two days after `5.3.0`, and is the
+floor from this adoption. 161 commits across 225 files, counted by diffing blob shas from both
+tags' recursive trees, neither truncated: 42 added, 1 removed, 182 modified. The compare endpoint
+lists the same 225, under its 300 cap. 57 are non-test backend files and 111 are frontend.
+**No migration is added.**
+
+**The contract moves in two operation parameters and no schema.** Every `/api/music/*` page caps
+`limit` at 1,000 where it took 10,000 (#4716), and `POST /api/streaming/sessions/{platform}/heartbeat`
+gains an optional `container` query parameter (#4596). The 198 paths and 272 schemas are otherwise
+identical, and `generate.sh` reproduces the committed DTOs exactly, because NSwag emits types here
+and not a client. RomMBat calls neither route.
+
+**Every route this client depends on is byte-identical**: `endpoints/saves.py`, `sync.py`,
+`states.py`, `screenshots.py`, `play_sessions.py`, `device.py`, `firmware.py`, `platform.py`,
+`collections.py`, `auth.py`, `activity.py` and `heartbeat.py`. `endpoints/roms/__init__.py`
+changed, and only in typing: `CustomLimitOffsetPage` now extends a `TypedLimitOffsetPage` whose
+`create` is cast for mypy, `total` keeps its nullable type, and `RomFiltersDict` moves module.
+Most of the backend delta is that kind of change, a run of mypy PRs (#4655, #4709, #4711, #4713,
+#4718, #4719, #4723) that swap `type: ignore` comments for types and route DML row counts through
+one `affected_rows` helper.
+
+**Two changes reach something RomMBat reads, and neither is on a route it calls differently.**
+
+- **#4676 lets a platform's `fs_slug` change case on a rescan.** `get_platform_by_fs_slug` falls
+  back to a case-insensitive match, and `scan_platform` writes the folder's on-disk spelling where
+  it wrote the lowercased `config.yml` key. The platform keeps its id. RomMBat keys `platform_map`
+  on the exact `fs_slug`, so a case change left the old row behind as a second platform, and
+  `PlatformMapStore.Record` now rekeys a row whose id matches and whose key differs only in case.
+  Sync sets store the platform id and are unaffected. **From source, not driven**: all 125
+  platforms on the live library have a lowercase `fs_slug`, so nothing moved there.
+- **#4687 changes GameCube's `save_target` to the ASCII game code.** The sigil pin moves, and
+  `save_target` becomes `GAFE` where it was `47414645`; `title_id` stays hex. Only a rescan writes
+  it: the 50 most recently updated GameCube rows on the live library, last written 2026-09-14,
+  still carried hex in both fields on 2026-09-24. Nothing in RomMBat reads `save_target`, so this
+  corrects a sentence in `save-sync` (finding 2's route 4 must accept both shapes) and changes no
+  code.
+
+**Inert here**: #4653 revokes an account's Redis sessions on a credential change and stops an
+in-flight request resurrecting one, and RomMBat holds no session, only a bearer token. #4694
+checks ownership on the RetroAchievements refresh, consumes invites atomically, and passes `--`
+before a 7-Zip member name; none is on this client's path. The frontend delta includes
+`views/Player/`, but only gamepad focus (#4681, #4707) and the streaming heartbeat: the browser
+save writer and its `preferredSlot` are untouched, so finding 12's reading stands at `5.3.1`.
+
+**Measured at `5.3.1`**: `s4-older-mtime.py` answers all six cases as at `5.3.0`, M1
+`no_op (No changes since last sync)`, M2 `upload`, M3 `download (Server save is newer (no sync
+history))`, M4 `no_op (Content is identical)`, M5 returning the existing row for a peer's identical
+upload, and M6 refusing the edit 409 until the peer's row is acknowledged. A deploy of the adoption
+branch, with `status` reading `5.3.1` as Supported, resolved every platform mapping identically,
+answered `nothing to do` for all eight sets, left all eight gamelists byte-identical, and flushed
+nothing in either direction.
+
 ## What the floor move costs, and what gates it
+
+**The `5.3.1` move, 2026-09-24.** The first patch release of the line, adopted the day after it
+shipped. The pin is sha256 `fe182c0a...`, 198 paths and 272 schemas, captured from a server
+reporting `5.3.1` at capture time, the instance the `Live*` tests point at. `demo.romm.app` still
+reported `5.2.0`, so the capture is self-hosted again. `refresh.sh` drifted on the RetroBat side
+only, the same four alias counts as at `5.3.0`, all of it #204's held-back work, so those vendored
+files stay as committed. The RomM side moved one file, `romm-platform_aliases.py`, which gains
+#4676's `resolve_fs_folder` and changes no alias; it matches the `5.3.1` tag and is vendored, and
+`verify.py` is clean. **`5.3.0` and every prerelease of it are now refused**, because
+`ProductVersion` drops the suffix and each reads as `5.3.0`. Finding 14 is the delta.
 
 **The `5.3.0` move, 2026-09-21.** The first stable of the line, adopted the day it shipped. The
 pin is sha256 `d7fa6ecb...`, 198 paths and 272 schemas, captured from a server reporting `5.3.0` at

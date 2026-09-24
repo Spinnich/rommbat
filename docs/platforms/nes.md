@@ -5,7 +5,8 @@ file is named after.
 
 **All nine rows `nes` declares are certified.** All nine steps hold on each at RomM
 `5.3.0-beta.1` and RetroBat 8.2.1, with step 6 N/A because `nes` has no class D. The move to
-the `5.3.0` floor touched step 9 alone, and it was re-run; see "The move to `5.3.0`".
+`5.3.0` touched step 9 alone, and it was re-run; see "The move to `5.3.0`". The move to the
+`5.3.1` floor touched steps 1 and 9, and both were re-run; see "The move to `5.3.1`".
 `libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
 re-driven on 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
 `fceumm` is **the row a stock install gives a user**, selected with no override. The two `bizhawk`
@@ -207,10 +208,38 @@ does not.
 **#4648 is the one change on an authentication path, and it cannot reach this client**: a bearer
 request carrying a session cookie now keeps the CSRF check, and `RomMConnection` sends no cookie.
 
+## The move to `5.3.1`
+
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
+`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+`src/` and `data/` diff across the move, which is the two version constants and
+`PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
+single row exercises moved.
+
+| #   | At `5.3.1`  | Why                                                                                                               |
+| --- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | **Touched** | RomM #4676 lets an `fs_slug` change case and `platform_map` now rekeys for it. **Pass**, see below                |
+| 2   | Carried     | `GET /api/roms` takes the same parameters, and `roms/files.py` changed only in typing                             |
+| 3   | Carried     | `endpoints/firmware.py` is byte-identical, `firmware_handler.py` changed only in typing, and `data/` is unchanged |
+| 4   | Carried     | `saves.py` and `sync.py` are byte-identical, and `s4-older-mtime.py` answers all six cases as at `5.3.0`          |
+| 5   | Carried     | `states.py` is byte-identical, and `screenshots_handler.py` changed only in a type annotation                     |
+| 6   | N/A         | Unchanged: `nes` has no class D                                                                                   |
+| 7   | Carried     | The game list's query is unchanged; the Player changes are gamepad focus in RomM's own web UI                     |
+| 8   | Carried     | `play_sessions.py` is byte-identical, and its handler changed only in how it counts rows                          |
+| 9   | **Touched** | Always touched on a move. **Pass**, see below                                                                     |
+
+**Both were re-run on a deploy of the adoption branch**, made by `tools/publish.ps1 -Deploy`, with
+`status` reading the server as `5.3.1`, Supported. `platforms list` was identical either side of
+the deploy, with `nes` resolved by `fs_slug` as before. `sync` answered `nothing to do: 227
+games already present, 0 downloaded, 0 written` for `Spinnich's Nintendo Entertainment System Favorites`, and `gamelists: all 8 unchanged`,
+with every `gamelist.xml` md5'd either side and identical, and a `flush` moved no save or state.
+One re-sync covers every row, because none of them owns anything a sync touches that another does
+not.
+
 ## Checklist
 
 All nine were stated at `5.3.0-beta.1`, the floor the client declared then, and hold at `5.3.0`
-by the table above. Step 3 is
+and `5.3.1` by the tables above. Step 3 is
 carried from the 5.2.0 measurement for the reason the move tables give; the other eight were
 measured or re-measured on 2026-09-20.
 

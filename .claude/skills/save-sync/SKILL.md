@@ -588,7 +588,7 @@ Class C is keyed by **Game ID** (`UCUS98751`, a PS3
 `TITLEID`, a GameCube disc ID). This design was built around **RomM storing no serial, title ID
 or product code anywhere**, so that no API lookup existed to ask.
 
-**That held at the 5.2.0 floor and stopped holding at 5.3.0**, which is now the floor. RomM
+**That held at the 5.2.0 floor and stopped holding at 5.3.0**, and still does not hold at the 5.3.1 floor. RomM
 declares `title_id`, `save_target` and `save_target_layout` as ROM columns, and **measured on a
 live library it answers for the systems this repo reads 0% of**: 3 of 4 psx `.chd`, 4 of 4 ps2
 `.chd`, 4 of 4 psp `.cso`, 4 of 4 ps3, 3 of 3 each for 3ds, dreamcast, xbox and xbox360. The
@@ -604,9 +604,16 @@ since the feature landed, and the rule below about asking every route is what it
   lower-cases the tail. **Read `save_target` with `save_target_layout`, never `title_id`**, when
   the question is where a save lives. `title_id` is what came out of the binary.
 - **Where both routes answer they agree exactly.** Route 2 reads `head[0x58..0x5C]` as four ASCII
-  bytes; RomM stores the same four hex encoded. All 1,601 distinct GameCube ids on a real library
+  bytes; RomM's `title_id` holds the same four hex encoded. All 1,601 distinct GameCube ids on a real library
   decode to printable `A-Z0-9` codes, `47553459` being `GU4Y`. So this route corroborates rather
   than competes, which is what the disagreement rule needs to be worth anything.
+- **GameCube's `save_target` has two shapes from 5.3.1, and a library holds both.** RomM
+  5.3.1's sigil pin (rommapp/romm#4687) makes it the ASCII code, `GAFE`, which is what a
+  Dolphin `.gci` name carries; `title_id` stays hex. Only a rescan writes the new form, so a
+  row scanned before it still holds the hex id in both fields, as the 50 most recently updated
+  GameCube rows on a live library did the day after the upgrade, all last written 2026-09-14.
+  A consumer of `save_target` for GameCube accepts either, decoding eight hex digits to four ASCII characters. Nothing
+  reads the field yet (finding 14 of `romm-5.3-findings.md`).
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game
@@ -936,9 +943,10 @@ hash, folded into one digest. The archive is transport only.
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, six
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
-  At the `5.3.0` floor, as at `beta.1`: M1 `no_op (No changes since last sync)`, M2 `upload`, M3
-  `download (Server save is newer (no sync history))`, M4 `no_op (Content is identical)`. M5 and
-  M6, added at `5.3.0`, are the peer-row cases under "Hash contents, not the archive".
+  At `beta.1`, `5.3.0` and the `5.3.1` floor alike: M1 `no_op (No changes since last sync)`, M2
+  `upload`, M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is
+  identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are the peer-row
+  cases under "Hash contents, not the archive".
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded, unless the offered `server_content_hash` equals the local `content_hash`.** That
     exception covers every shape, not only class C: the head already holds these bytes, so the
@@ -1157,8 +1165,8 @@ of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `
 into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
 this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
 its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
-**Still true at the `5.3.0` floor**, re-read at `beta.1` because the writer was rewritten around
-it (finding 12), and untouched between `beta.1` and `5.3.0` (finding 13): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+**Still true at the `5.3.1` floor**, re-read at `beta.1` because the writer was rewritten around
+it (finding 12), and untouched from `beta.1` through `5.3.1` (findings 13 and 14): `preferredSlot` is byte-identical and still prefers the newest slotted save over
 `autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
 with no slotted save and not one this client syncs. What is new is a screenshot on every save
 version, which is inert here because only states carry one on this side. So

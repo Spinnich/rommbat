@@ -28,6 +28,10 @@ public enum MappingSource
     Unmapped,
 }
 
+/// <summary>A user's choice of folder for one platform, which is layer 1 of the chain.</summary>
+/// <param name="PlatformId">Null when the choice was made before RomM reported the platform.</param>
+public sealed record PlatformOverride(string FsSlug, string Folder, int? PlatformId = null);
+
 /// <summary>The RomM side of one platform, as much of it as mapping needs.</summary>
 /// <param name="Slug">
 /// RomM's platform slug, which is what the bundled table is looked up by. <b>Not unique.</b>
@@ -88,22 +92,37 @@ public sealed class PlatformResolver
 {
     private readonly EsSystemsFile _install;
     private readonly BundledPlatformMap _bundled;
-    private readonly IReadOnlyDictionary<string, string> _overrides;
+    private readonly Dictionary<string, PlatformOverride> _overrides;
     private readonly Lazy<IReadOnlyDictionary<string, string>> _normalizedFolders;
 
     /// <param name="install">The live <c>es_systems.cfg</c>, which is the authority on what folders exist.</param>
-    /// <param name="userOverrides">RomM <c>fs_slug</c> to folder, from the mapping table. Case-insensitive.</param>
+    /// <param name="userOverrides">RomM <c>fs_slug</c> to folder, with no platform ids.</param>
     /// <param name="bundled">The shipped table. Defaults to the embedded one.</param>
     public PlatformResolver(
         EsSystemsFile install,
         IReadOnlyDictionary<string, string>? userOverrides = null,
         BundledPlatformMap? bundled = null)
+        : this(
+            install,
+            (userOverrides ?? new Dictionary<string, string>()).Select(pair => new PlatformOverride(pair.Key, pair.Value)),
+            bundled)
+    {
+    }
+
+    /// <param name="install">The live <c>es_systems.cfg</c>, which is the authority on what folders exist.</param>
+    /// <param name="userOverrides">The user's choices, from <see cref="Store.PlatformMapStore.Choices"/>.</param>
+    /// <param name="bundled">The shipped table. Defaults to the embedded one.</param>
+    public PlatformResolver(
+        EsSystemsFile install,
+        IEnumerable<PlatformOverride> userOverrides,
+        BundledPlatformMap? bundled = null)
     {
         ArgumentNullException.ThrowIfNull(install);
+        ArgumentNullException.ThrowIfNull(userOverrides);
 
         _install = install;
         _bundled = bundled ?? BundledPlatformMap.Bundled;
-        _overrides = userOverrides ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _overrides = userOverrides.ToDictionary(choice => choice.FsSlug, StringComparer.Ordinal);
         _normalizedFolders = new Lazy<IReadOnlyDictionary<string, string>>(BuildNormalizedFolders);
     }
 
@@ -139,7 +158,7 @@ public sealed class PlatformResolver
 
         // 1. User override. Always wins, including over a slug that would otherwise demand a
         //    choice, because making the choice is exactly what setting an override is.
-        if (_overrides.TryGetValue(platform.Key, out var chosen) && !string.IsNullOrWhiteSpace(chosen))
+        if (ChosenFolder(platform) is { } chosen && !string.IsNullOrWhiteSpace(chosen))
         {
             var missing = !_install.HasFolder(chosen);
             return new PlatformResolution(
@@ -292,6 +311,27 @@ public sealed class PlatformResolver
 
         folder = string.Empty;
         return false;
+    }
+
+    /// <remarks>
+    /// An exact key wins. Failing that, a choice whose key differs only in case applies when it
+    /// belongs to the same platform id, because RomM 5.3.1 can rewrite an <c>fs_slug</c> in the
+    /// folder's casing (rommapp/romm#4676) and a sync resolves before anything rekeys the row.
+    /// A choice with no id matches too, since it cannot say which platform it meant.
+    /// </remarks>
+    private string? ChosenFolder(RomMPlatform platform)
+    {
+        if (_overrides.TryGetValue(platform.Key, out var exact))
+        {
+            return exact.Folder;
+        }
+
+        var sameId = _overrides.Values
+            .Where(choice => string.Equals(choice.FsSlug, platform.Key, StringComparison.OrdinalIgnoreCase)
+                && (choice.PlatformId is null || choice.PlatformId == platform.Id))
+            .ToList();
+
+        return sameId.Count == 1 ? sameId[0].Folder : null;
     }
 
     private Dictionary<string, string> BuildNormalizedFolders()

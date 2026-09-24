@@ -14,12 +14,20 @@ RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 - `mednafen`/`psx`, which `es_systems.cfg` marks incompatible with `.chd`
 - `bizhawk`/`Nymashock` and `Octoshock`, marked the same
 
+## The move to `5.3.1`
+
+**Step 2, the one step this record holds, carries.** `GET /api/roms` takes the same parameters,
+`roms/files.py` changed only in typing, and nothing under `src/` that places a multi-disc set
+moved (finding 14 of `docs/romm-5.3-findings.md`). The `Metal Gear Solid` set answered `nothing to
+do: 2 games already present, 0 downloaded, 0 written` on a deploy of the adoption branch, with
+`status` reading `5.3.1` as Supported. Steps 1 and 3 to 9 stay owed, now at `5.3.1`.
+
 ## The install this was measured on
 
 |           |                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                                                                                                         |
-| RomM      | `5.3.0`, the supported floor                                                                                                                      |
+| RomM      | `5.3.0`, the floor then                                                                                                                           |
 | Root      | `R:\RetroBat`                                                                                                                                     |
 | Test game | Metal Gear Solid, as two RomM roms: (USA) (Rev 1), rom 320306, two `.chd` and an `.m3u`; (USA), rom 320307, two `.bin`/`.cue` pairs and an `.m3u` |
 

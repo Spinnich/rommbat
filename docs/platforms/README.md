@@ -215,7 +215,7 @@ and came back out through the hooks. The waves finish against an M8 package.
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
 
 **Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
-to the `5.3.0` floor, all
+to `5.3.0` and then the `5.3.1` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
 state round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
@@ -275,6 +275,10 @@ battery rule and three with a state declaration. `libretro`/`fbneo` and both `ke
 driven and not certified, for `megadrive`'s reasons (findings 325 and 283). `SMSHawk` refuses to
 start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat cannot fetch it
 (finding 322).
+
+**All seventy-three are carried to the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on
+2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; each record's
+"The move to `5.3.1`" maps the steps.
 
 **Read all seven as narrowly as they are written.** They certify seventy-three
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
