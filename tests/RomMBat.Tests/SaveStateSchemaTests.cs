@@ -34,21 +34,21 @@ public class SaveStateSchemaTests
         {
             Assert.Null(shipped.For(name));
             Assert.True(loaded.For(name)!.AppliesTo("nes"));
-            Assert.False(loaded.For(name)!.AppliesTo("mastersystem"));
+            Assert.False(loaded.For(name)!.AppliesTo("pcengine"));
         }
 
-        // Eleven entries for six emulators, because ares keeps a directory per system.
-        Assert.Equal(shipped.Emulators.Count + 11, loaded.Emulators.Count);
+        // Thirteen entries for six emulators, because ares and kega-fusion keep one per system.
+        Assert.Equal(shipped.Emulators.Count + 13, loaded.Emulators.Count);
 
-        // Measured on nes, so the same tree under mastersystem is nobody's state directory.
+        // Measured on nes, so the same tree under pcengine is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
-        Assert.Null(loaded.MatchDirectory("mastersystem/mesen/SaveStates"));
-        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "mastersystem", core: null));
+        Assert.Null(loaded.MatchDirectory("pcengine/mesen/SaveStates"));
+        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "pcengine", core: null));
         Assert.Null(loaded.For("mesen", "megadrive"));
     }
 
     [Fact]
-    public void Kega_fusion_states_are_read_where_its_fusion_ini_sends_them_on_megadrive_only()
+    public void Kega_fusion_states_are_read_where_its_fusion_ini_sends_them_on_each_system_driven()
     {
         var loaded = Fixtures.LoadSaveStatesAsLoaded();
         const string Rom = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
@@ -59,8 +59,14 @@ public class SaveStateSchemaTests
         Assert.Equal(0, template.Match($"{Rom}.gs0")?.Slot);
         Assert.Equal("kega-fusion", loaded.MatchDirectory("megadrive/kega-fusion")?.Emulator.Name);
 
-        // Fusion.ini names mastersystem and segacd state folders too, and neither was driven.
-        Assert.Null(loaded.MatchDirectory("mastersystem/kega-fusion"));
+        // A Master System state is .ss, not .gs, under SMSStateFiles.
+        var sms = SaveStateTemplate.Create(loaded.For("kega-fusion", "mastersystem")!, "mastersystem", core: null)!;
+        Assert.Equal(9, sms.Match("Golden Axe Warrior (USA, Europe, Brazil) (En).ss9")?.Slot);
+        Assert.Null(sms.Match("Golden Axe Warrior (USA, Europe, Brazil) (En).gs9"));
+        Assert.Equal("mastersystem", loaded.MatchDirectory("mastersystem/kega-fusion")?.System);
+
+        // Fusion.ini names a segacd state folder too, and it was not driven.
+        Assert.Null(loaded.MatchDirectory("segacd/kega-fusion"));
     }
 
     [Fact]
@@ -71,7 +77,7 @@ public class SaveStateSchemaTests
 
         Assert.Equal("{{system}}/ares/Famicom", loaded.For("ares", "nes")!.Directory);
         Assert.Equal("{{system}}/ares/Mega Drive", loaded.For("ares", "megadrive")!.Directory);
-        Assert.Null(loaded.For("ares", "mastersystem"));
+        Assert.Null(loaded.For("ares", "pcengine"));
 
         Assert.Equal("megadrive", loaded.MatchDirectory("megadrive/ares/Mega Drive")?.System);
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Famicom"));
@@ -179,6 +185,26 @@ public class SaveStateSchemaTests
         Assert.Equal(0, snes9x.Match($"{Rom}.000")?.Slot);
         Assert.Null(snes9x.Match($"{Rom}.010"));
         Assert.Null(loaded.For("snes9x", "nes"));
+    }
+
+    [Fact]
+    public void Mastersystem_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Golden Axe Warrior, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "mastersystem")!, "mastersystem", core: null)!;
+        Assert.Equal(2, mesen.Match($"{Rom}_2.mss")?.Slot);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "mastersystem")!, "mastersystem", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.d46e40bbb729ba233f171ad7bf6169f5.mc1")?.Slot);
+
+        // ares keeps its states beside its battery save, under its own name for the console.
+        Assert.Equal("mastersystem", loaded.MatchDirectory("mastersystem/ares/Master System")?.System);
+        Assert.Null(loaded.MatchDirectory("megadrive/ares/Master System"));
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "mastersystem")!, "mastersystem", core: null)!;
+        Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
     }
 
     [Fact]

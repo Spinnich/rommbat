@@ -208,6 +208,28 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_mastersystem_rules_give_each_of_golden_axe_warriors_saves_one_owner()
+    {
+        // Golden Axe Warrior, driven under every mastersystem row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Rom = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+
+        // The .srm the libretro cores share, and two loose .sav names told apart by the hash on
+        // the stem: mednafen's with one, Mesen's without.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("mastersystem", string.Empty, $"{Rom}.srm")?.Emulator);
+        Assert.Equal("mednafen", shapes.BatteryRuleFor("mastersystem", string.Empty, $"{Rom}.d46e40bbb729ba233f171ad7bf6169f5.sav")?.Emulator);
+        Assert.Equal("mesen", shapes.BatteryRuleFor("mastersystem", string.Empty, $"{Rom}.sav")?.Emulator);
+
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("mastersystem", "bizhawk", "Golden Axe Warrior (UE).SaveRAM")?.Emulator);
+        Assert.Equal("jgenesis", shapes.BatteryRuleFor("mastersystem", "jgenesis/sms", $"{Rom}.sav")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("mastersystem", "ares/Master System", $"{Rom}.ram")?.Emulator);
+
+        // Each directory is the system's own, so megadrive's names own nothing here.
+        Assert.Null(shapes.BatteryRuleFor("mastersystem", "jgenesis/md", $"{Rom}.sav"));
+        Assert.Null(shapes.BatteryRuleFor("mastersystem", "ares/Mega Drive", $"{Rom}.ram"));
+    }
+
+    [Fact]
     public void Ares_on_gb_keeps_its_ram_slot_and_takes_a_clock_slot_beside_it()
     {
         // Pokemon Silver, a clock cartridge in the gb folder under ares on 8.2.1, wrote a .rtc

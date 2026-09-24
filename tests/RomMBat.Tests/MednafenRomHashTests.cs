@@ -71,6 +71,18 @@ public sealed class MednafenRomHashTests : IDisposable
     }
 
     [Fact]
+    public void A_zipped_mastersystem_rom_hashes_the_whole_sms_inside()
+    {
+        // Measured on Golden Axe Warrior (USA, Europe, Brazil) (En): the .sms's own md5 is the one
+        // on mednafen's .sav and on its states.
+        var body = Body("TMR SEGA");
+        var zip = Zip("Game (USA).zip", ("Game (USA).sms", body));
+
+        Assert.Equal(Md5(body), MednafenRomHash.Of(zip, "mastersystem"));
+        Assert.Null(MednafenRomHash.Of(Zip("Other (USA).zip", ("Other (USA).bin", body)), "mastersystem"));
+    }
+
+    [Fact]
     public void An_smc_answers_null_because_it_can_carry_a_copier_header_nobody_measured()
     {
         Assert.Null(MednafenRomHash.Of(Zip("Game (USA).zip", ("Game (USA).smc", Body("x"))), "snes"));

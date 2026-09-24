@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -96,6 +96,10 @@ OTHER_BATTERY_RULES = [
             "; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - "
             "A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the "
             "rom file, one file for all three cores"
+            "; mastersystem under bizhawk, SMSHawk, on 8.2.1: Golden Axe Warrior (USA, Europe, "
+            "Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after "
+            "BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with "
+            "the SMS+Export firmware in bios"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -184,6 +188,19 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "jgenesis",
+        "systems": ["mastersystem"],
+        "directory": "jgenesis/sms",
+        "extensions": [".sav"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "mastersystem under jgenesis on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) "
+            "(En).zip, holding a .sms, wrote jgenesis/sms/<rom>.sav, 32,768 B, and its states sit "
+            "apart in jgenesis/states"
+        ),
+    },
+    {
         "emulator": "mgba",
         "systems": ["gba", "gb", "gbc"],
         "directory": "",
@@ -252,7 +269,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mesen",
-        "systems": ["nes"],
+        "systems": ["nes", "mastersystem"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file",
@@ -260,11 +277,14 @@ OTHER_BATTERY_RULES = [
         "evidence": (
             "nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote a loose "
             "Crystalis (USA).sav, 8,192 B, beside libretro's .srm files"
+            "; mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, "
+            "Brazil) (En).zip wrote a loose <rom>.sav, 8,192 B, beside the .srm the libretro cores "
+            "share, which it neither reads nor writes"
         ),
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -288,6 +308,9 @@ OTHER_BATTERY_RULES = [
             "1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the "
             "clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was "
             "present"
+            "; mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, "
+            "Europe, Brazil) (En).zip wrote a loose <rom>.d46e40bbb729ba233f171ad7bf6169f5.sav, "
+            "32,768 B, the md5 being of the whole .sms inside"
         ),
     },
     {
@@ -397,6 +420,19 @@ OTHER_BATTERY_RULES = [
             ".bs1 and .bs2. Super Mario Kart (USA).zip, a DSP-1 cartridge, wrote <rom>.ram, "
             "2,048 B, and <rom>.dram, 512 B, the coprocessor's data RAM, so class B gives the "
             "second file its own slot"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["mastersystem"],
+        "directory": "ares/Master System",
+        "extensions": [".ram"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, "
+            "Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its "
+            "states .bs1 and .bs2"
         ),
     },
 ]
