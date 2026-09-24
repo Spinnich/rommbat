@@ -667,7 +667,7 @@ public sealed class MediaSyncTests : IDisposable
             DateTimeOffset.UtcNow);
 
         var install = Fixtures.Synthesize(("snes", ".sfc .smc"));
-        var resolver = new SetResolver(install, new PlatformResolver(install, store.PlatformMap.Overrides()));
+        var resolver = new SetResolver(install, new PlatformResolver(install, store.PlatformMap.Choices()));
         var resolvedAt = DateTimeOffset.UtcNow;
 
         var resolution = await resolver.ResolveAsync(

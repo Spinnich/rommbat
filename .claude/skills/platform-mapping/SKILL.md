@@ -93,6 +93,17 @@ across a rescan" predates this. It needs the id as well, because a case-sensitiv
 filesystem can hold `psx` and `PSX` as two platforms. No platform on the live library carries
 a mixed-case `fs_slug` (125 of 125 lowercase, 2026-09-24), so this is from source, not driven.
 
+Only `platforms` records, so a sync resolves a renamed platform before anything rekeys its row,
+and the override lookup has to follow the rename by itself. `PlatformResolver` takes an exact
+`fs_slug` first, then a choice whose key differs only in case **and whose id is the platform's
+or null**. Plain case-insensitive matching kept a choice across a rename but handed `psx`'s
+folder to a separate `PSX`; plain ordinal matching sent a renamed platform's games to the
+default folder until someone ran `platforms`. Resolve with `PlatformMap.Choices()`, which
+carries the ids; `Overrides()` is the exact-keyed dictionary that roams. One gap is accepted: a
+choice written by `platforms map` before any refresh has no id, so it never rekeys and it
+matches either spelling. On a server with a case pair, that choice reaches both platforms until
+a refresh records its id. Matching null ids in the rekey would reopen the same leak there.
+
 **`es_systems.cfg` `<name>` is not the folder. `<path>` is.** Five systems disagree in the
 shipped 8.2.1 file: `gw` writes to `gameandwatch`, `powerbomberman` to `pb`, `casloopy` to
 `loopy`, `Windows` to `windows`, and `starship` is used **twice**, for `ghostship` and

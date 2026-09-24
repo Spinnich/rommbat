@@ -1,6 +1,7 @@
 using System.Text.Json;
 using RomMBat.Core.Mapping;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 using RomMBat.Tests.Support;
 using Xunit;
 
@@ -289,7 +290,7 @@ public class PlatformMappingTests
 
         // RomM 5.3.1 (#4676): a rescan finds platform 7 by its folder ignoring case and
         // rewrites its fs_slug with the folder's own casing.
-        var resolver = new PlatformResolver(Fixtures.LoadEsSystems(), store.PlatformMap.Overrides());
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems(), store.PlatformMap.Choices());
         store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(7, "snes", "SNES", "Super Nintendo")), now);
 
         var row = Assert.Single(store.PlatformMap.List());
@@ -301,18 +302,70 @@ public class PlatformMappingTests
     }
 
     [Fact]
+    public void A_choice_follows_a_case_change_before_anything_rekeys_its_row()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
+        store.PlatformMap.SetOverride("snes", "snes-msu1", now, "snes", 7);
+
+        // A sync resolves from the overrides and never records, so only `platforms` rekeys.
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems(), store.PlatformMap.Choices());
+        var resolution = resolver.Resolve(new RomMPlatform(7, "snes", "SNES", "Super Nintendo"));
+
+        Assert.Equal("snes-msu1", resolution.Folder);
+        Assert.Equal(MappingSource.User, resolution.ResolvedBy);
+    }
+
+    [Fact]
     public void Two_platforms_whose_fs_slugs_differ_only_in_case_stay_two_rows()
     {
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
         var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
-        var resolver = new PlatformResolver(Fixtures.LoadEsSystems());
+
+        store.PlatformMap.SetOverride("snes", "snes-msu1", now, "snes", 7);
 
         // A case-sensitive filesystem on the server can hold both folders as two platforms.
+        var resolver = new PlatformResolver(Fixtures.LoadEsSystems(), store.PlatformMap.Choices());
         store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(7, "snes", "snes", "Super Nintendo")), now);
-        store.PlatformMap.Record(resolver.Resolve(new RomMPlatform(8, "snes", "SNES", "Super Nintendo")), now);
+        var other = resolver.Resolve(new RomMPlatform(8, "snes", "SNES", "Super Nintendo"));
+        store.PlatformMap.Record(other, now);
 
         Assert.Equal(["SNES", "snes"], store.PlatformMap.List().Select(row => row.FsSlug).Order(StringComparer.Ordinal));
+        Assert.NotEqual(MappingSource.User, other.ResolvedBy);
+        Assert.NotEqual("snes-msu1", other.Folder);
+        Assert.Equal("snes-msu1", store.PlatformMap.Find("snes")!.Folder);
+    }
+
+    [Fact]
+    public void A_choice_made_before_romm_reported_the_platform_still_follows_a_case_change()
+    {
+        var resolver = new PlatformResolver(
+            Fixtures.LoadEsSystems(),
+            [new PlatformOverride("snes", "snes-msu1")]);
+
+        var resolution = resolver.Resolve(new RomMPlatform(7, "snes", "SNES", "Super Nintendo"));
+
+        Assert.Equal("snes-msu1", resolution.Folder);
+        Assert.Equal(MappingSource.User, resolution.ResolvedBy);
+    }
+
+    [Fact]
+    public void Two_choices_whose_keys_differ_only_in_case_both_roam()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+        var now = new DateTimeOffset(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
+
+        store.PlatformMap.SetOverride("snes", "snes-msu1", now, "snes", 7);
+        store.PlatformMap.SetOverride("SNES", "sfc", now, "snes", 8);
+
+        var roaming = RoamingSyncConfig.FromStore(store, now).PlatformOverrides;
+
+        Assert.Equal("snes-msu1", roaming["snes"]);
+        Assert.Equal("sfc", roaming["SNES"]);
     }
 
     [Theory]

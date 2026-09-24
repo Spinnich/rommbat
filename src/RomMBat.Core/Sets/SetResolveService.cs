@@ -117,7 +117,7 @@ public sealed class SetResolveService
         var install = EsSystemsFile.Load(_session.Install);
         var resolver = new SetResolver(
             install,
-            new PlatformResolver(install, _session.Store.PlatformMap.Overrides()));
+            new PlatformResolver(install, _session.Store.PlatformMap.Choices()));
 
         var reports = new List<ResolveReport>(sets.Count);
 
