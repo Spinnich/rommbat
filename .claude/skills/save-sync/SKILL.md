@@ -522,6 +522,17 @@ DSP-1 cartridge's data RAM as `<rom>.dram` beside the `.ram`, class B, `ares:bat
 still reported (finding 319). Zelda, the test game, writes
 its SRAM at boot, so any launch uploads a new `.srm` version whether or not the game was saved.
 
+**On `mastersystem` only the two `libretro` cores share the loose `<rom>.srm`**, Genesis Plus GX
+trimming it to the last used byte and PicoDrive keeping 32 KB. Mesen writes its own loose
+`<rom>.sav`, `mesen:battery`, and rewrites it only when the SRAM changes; mednafen writes
+`<rom>.<md5>.sav`, the md5 of the whole `.sms`, and **will not start the game while Mesen's 8 KB
+`.sav` is beside the ROM**, since it opens the plain name and expects 32 KB (finding 324). A restore
+that brings Mesen's save back therefore stops mednafen for that game, which is the emulators and not
+something to route around. BizHawk names its `.SaveRAM` after its own title, `Golden Axe Warrior
+(UE)`, bound through the state sidecar. Kega Fusion's `.ssm` stays outside `saves/` (findings 283,
+323). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
+Warrior does (finding 326), so on such a game a changed file is not new progress.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

@@ -102,6 +102,19 @@ agent drives ares's states from its own session and checks the files, rather tha
 pressed blind. **The server may already hold the test game's save**, from another client: the first
 flush then records a conflict rather than overwrite, and which side wins is the maintainer's call.
 
+**`mastersystem` is seventh, and closes wave 1: seven of its ten rows certified at `5.3.0` on
+2026-09-24**, in one day, on Golden Axe Warrior, with `docs/platforms/mastersystem.md` the record.
+FBNeo and both Kega Fusion rows are recorded as not certifiable for `megadrive`'s reasons. **Pick a
+test game whose save point you know.** Golden Axe Warrior commits its save once, at the first
+character, and after that rewrites only a working copy, so every later row's file changed without
+new progress (finding 326); diff the SRAM against the boot write before trusting "a save was made".
+**Mesen rewrites its save only when the SRAM changes**, so an unchanged file after a session means
+no save was made, not that Mesen writes elsewhere. **A seed can block the next row**: mednafen
+refuses to start while another emulator's smaller plain save sits beside the ROM (finding 324), so
+hold it out for mednafen's row and put it back after. **Keep RomM's web player closed during a
+pass**: a launch there writes a save with no device, which the next flush takes as the newer
+(finding 327).
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
