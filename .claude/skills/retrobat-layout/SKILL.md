@@ -143,11 +143,12 @@ has no states"**, which is the reading `docs/platforms/README.md` was built on f
 81 rows. Issue #150.
 
 **On `nes` all three are declared now, by RomMBat rather than by RetroBat, and on `megadrive`
-mednafen, ares and kega-fusion are.**
+mednafen, ares and kega-fusion are. On `snes` so are mednafen, mesen, ares and standalone `snes9x`, whose
+slots are `.000` to `.009` under `snes9x/sstates/` (finding 318).**
 `data/retrobat/es_savestates.supplement.xml` is `es_savestates.cfg`'s own format plus a `systems`
 attribute, and `StateScanner.LoadSchema` reads the install's file with it beneath: an entry the
 install declares always wins, and a supplement entry answers only for the systems it names, so
-`saves/snes/mesen/` stays undeclared. mednafen's entry uses `{{romhash}}`, RomMBat's own token for
+`saves/mastersystem/mesen/` stays undeclared. mednafen's entry uses `{{romhash}}`, RomMBat's own token for
 the 32-hex md5 it puts in the name (finding 274). **Add a row to the supplement only from a hands-on
 pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/` and
 `megadrive` under `ares/Mega Drive/`, each named after its own system, so nothing about one

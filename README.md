@@ -508,12 +508,19 @@ them, though RetroBat's list files them under `sgb` and `gbc`.
 cartridge clock syncs with the save on every row, but it does not survive switching rows, with or
 without RomMBat, because each emulator keeps it in its own format.
 
-That is fifty-one rows on one install, and the unit is still `(system, emulator, core)`. The rules
+**Every row `snes` declares is certified**, fifteen, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-24: `libretro` under `snes9x`, which a stock install runs, `bsnes-jg`, `bsnes`,
+`bsnes_hd_beta`, `mednafen_snes`, `mesen-s` and `snes9x2005`, then `mesen`, `mednafen`, `snes9x`,
+`ares`, `bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. RetroBat lists no firmware
+for `snes`, so a game with a DSP chip will not start under `mesen-s`, `mesen` or `jgenesis`
+unless you supply the chip's file yourself.
+
+That is sixty-six rows on one install, and the unit is still `(system, emulator, core)`. The rules
 the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
-emulators is certified anywhere else. Wave 1's other two systems are not started.
+emulators is certified anywhere else. Wave 1's last system, `mastersystem`, is not started.
 [docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
-[docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md) and
-[docs/platforms/gbc.md](docs/platforms/gbc.md) are the records, gaps included.
+[docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md),
+[docs/platforms/gbc.md](docs/platforms/gbc.md) and [docs/platforms/snes.md](docs/platforms/snes.md) are the records, gaps included.
 
 ### Compatibility
 

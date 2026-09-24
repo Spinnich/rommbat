@@ -96,18 +96,18 @@ against 7 systems**:
 | System         | Rows   | Can sync states |
 | -------------- | ------ | --------------- |
 | `nes`          | 9      | 9               |
-| `snes`         | 15     | 11              |
+| `snes`         | 15     | 15              |
 | `gb`           | 14     | 14              |
 | `gbc`          | 12     | 12              |
 | `gba`          | 10     | 9               |
 | `megadrive`    | 11     | 11              |
 | `mastersystem` | 10     | 5               |
-| **Total**      | **81** | **71**          |
+| **Total**      | **81** | **75**          |
 
-`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10, `gb` 14 of 14 and `gbc` 12 of 12 because RomMBat's bundled supplement
+`nes` is 9 of 9, `megadrive` 11 of 11, `gba` 9 of 10, `gb` 14 of 14, `gbc` 12 of 12 and `snes` 15 of 15 because RomMBat's bundled supplement
 declares the emulators `es_savestates.cfg` leaves out there: `mednafen`, `mesen` and `ares` on
 `nes`, `mednafen`, `ares` and `kega-fusion`'s three rows on `megadrive`, and `mgba`, `mednafen`,
-`mesen` and `ares` on `gba`, and the same four on `gb` and on `gbc`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
+`mesen` and `ares` on `gba`, the same four on `gb` and on `gbc`, and `mednafen`, `mesen`, `snes9x` and `ares` on `snes`. `nosgba` writes states nowhere RomMBat was shown. Every other system counts
 `es_savestates.cfg` alone.
 
 **Steps 1, 2, 3, 7, 8 and 9 are per system and carry across the rows with a note.** Only 4, 5
@@ -204,7 +204,7 @@ work. All three counts are against the 51 systems above.
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Sixteen rows are certified, and the gate is open
+## Sixty-six rows are certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -260,11 +260,19 @@ is on `gbc`'s own list (finding 299). Pokemon Crystal's clock round-trips on eve
 of row that was checked lost it, because each keeps it in its own format and the loose `.rtc` is
 one file name with four (finding 300).
 
-**Read all five as narrowly as they are written.** They certify fifty-one
+**All fifteen of `snes`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-24:
+the seven `libretro` cores, `snes9x` being the stock row, with `bsnes-jg`, `bsnes`, `bsnes_hd_beta`,
+`mednafen_snes`, `mesen-s` and `snes9x2005`, then `mesen`, `mednafen`, `snes9x` standalone, `ares`,
+`bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. Mesen and Snes9x share `libretro`'s
+loose `.srm`; the other standalone rows needed a snes battery rule, and four rows a state declaration.
+RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's, which
+nothing RomMBat fetches (finding 317).
+
+**Read all six as narrowly as they are written.** They certify sixty-six
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
-[gba.md](gba.md), [gb.md](gb.md) and [gbc.md](gbc.md) are the records, gaps included.
+[gba.md](gba.md), [gb.md](gb.md), [gbc.md](gbc.md) and [snes.md](snes.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
