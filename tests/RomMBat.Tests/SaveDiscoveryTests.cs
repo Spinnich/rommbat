@@ -526,6 +526,32 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Every_mastersystem_rows_battery_save_for_golden_axe_warrior_takes_its_own_slot()
+    {
+        // Measured on 8.2.1: Golden Axe Warrior under every mastersystem row.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+
+        fixture.AddRom(1, "mastersystem", $"{Rom}.zip");
+        fixture.AddSave("mastersystem", $"{Rom}.srm", "the cores' battery save");
+        fixture.AddSave("mastersystem", $"{Rom}.sav", "Mesen's battery save");
+        fixture.AddSave("mastersystem", $"{Rom}.d46e40bbb729ba233f171ad7bf6169f5.sav", "mednafen's battery save");
+        fixture.AddSave("mastersystem", $"ares/Master System/{Rom}.ram", "ares's battery save");
+        fixture.AddSave("mastersystem", $"jgenesis/sms/{Rom}.sav", "jgenesis's battery save");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value);
+        Assert.Equal("libretro:battery", saves[$"saves/mastersystem/{Rom}.srm"].Slot);
+        Assert.Equal("mesen:battery", saves[$"saves/mastersystem/{Rom}.sav"].Slot);
+        Assert.Equal("mednafen:battery", saves[$"saves/mastersystem/{Rom}.d46e40bbb729ba233f171ad7bf6169f5.sav"].Slot);
+        Assert.Equal("ares:battery", saves[$"saves/mastersystem/ares/Master System/{Rom}.ram"].Slot);
+        Assert.Equal("jgenesis:battery", saves[$"saves/mastersystem/jgenesis/sms/{Rom}.sav"].Slot);
+        Assert.All(saves.Values, save => Assert.Equal(1, save.RomId));
+        Assert.DoesNotContain(fixture.Store.Unsyncable.List(), entry => entry.System == "mastersystem");
+    }
+
+    [Fact]
     public void Loose_sav_files_on_nes_go_to_mesen_or_mednafen_by_the_hash_on_the_stem()
     {
         // The two files measured on nes, 8.2.1, each tied to its ROM and neither to libretro.

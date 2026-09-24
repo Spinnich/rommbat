@@ -20,13 +20,11 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Sixteen `(system, emulator, core)` rows are certified against a real emulator: every row `nes`
-> declares, which is its three `libretro` cores, both `bizhawk` cores, `jgenesis`, `mesen`,
-> `mednafen` and `ares`, and seven of `megadrive`'s eleven, which is `libretro` under
-> `genesis_plus_gx`, `genesis_plus_gx_wide` and `picodrive`, `bizhawk`, `jgenesis`, `mednafen` and
-> `ares`. No other system has a certified row; see
-> [Platform certification](#platform-certification) for what that means and where the rollout
-> stands.
+> Seventy-three `(system, emulator, core)` rows are certified against a real emulator, across
+> wave 1's seven systems: every row `nes`, `snes`, `gb` and `gbc` declare, seven of `megadrive`'s
+> eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten. No other system has a certified
+> row; see [Platform certification](#platform-certification) for what that means and where the
+> rollout stands.
 > The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
@@ -465,16 +463,16 @@ Every system named here is a folder in RetroBat's `es_systems.cfg`, which is the
 record files are named in. Nintendo's DSi is the one platform RomM carries that RetroBat has no
 folder for, so it is out of scope rather than unscheduled.
 
-| Wave | Systems                                                                                                  | Status      |
-| ---- | -------------------------------------------------------------------------------------------------------- | ----------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | In progress |
-| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started |
-| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started |
-| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started |
-| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started |
-| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started |
-| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started |
+| Wave | Systems                                                                                                  | Status           |
+| ---- | -------------------------------------------------------------------------------------------------------- | ---------------- |
+| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Every row driven |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started      |
+| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started      |
+| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started      |
+| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started      |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started      |
+| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started      |
+| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started      |
 
 **Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
 `bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
@@ -517,12 +515,23 @@ for `snes`, so a DSP-1 game such as Super Mario Kart will not start under `mesen
 same file in `emulators\mesen\Firmware\` for Mesen, and `dsp1_rom_path` in `jgenesis-config.toml`
 for jgenesis ([docs/platforms/snes.md](docs/platforms/snes.md)).
 
-That is sixty-six rows on one install, and the unit is still `(system, emulator, core)`. The rules
-the non-`libretro` rows needed are scoped to the systems they were measured on, so none of those
-emulators is certified anywhere else. Wave 1's last system, `mastersystem`, is not started.
+**Seven of `mastersystem`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
+2026-09-24: `libretro` under `genesis_plus_gx`, which a stock install runs, and `picodrive`, then
+`mesen`, `mednafen`, `ares`, `bizhawk`/`SMSHawk` and `jgenesis`. As on `megadrive`, `libretro`/`fbneo`
+boots nothing named by No-Intro and both `kega-fusion` rows fail step 4, so they are recorded rather
+than certified. `bizhawk`/`SMSHawk` will not start a game without the US/EU Master System BIOS in
+`bios\`, which RetroBat lists without a hash, so RomMBat cannot fetch it and you supply it yourself.
+mednafen will not start a game while Mesen's save for it is beside the ROM
+([docs/platforms/mastersystem.md](docs/platforms/mastersystem.md)).
+
+That is seventy-three rows on one install. Every row wave 1's seven systems declare has now been
+driven, and the eight not certified say why in their records. The unit is still
+`(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
+were measured on, so none of those emulators is certified anywhere else.
 [docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
 [docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md),
-[docs/platforms/gbc.md](docs/platforms/gbc.md) and [docs/platforms/snes.md](docs/platforms/snes.md) are the records, gaps included.
+[docs/platforms/gbc.md](docs/platforms/gbc.md), [docs/platforms/snes.md](docs/platforms/snes.md) and
+[docs/platforms/mastersystem.md](docs/platforms/mastersystem.md) are the records, gaps included.
 
 ### Compatibility
 

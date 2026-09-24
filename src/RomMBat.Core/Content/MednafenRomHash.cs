@@ -16,13 +16,16 @@ namespace RomMBat.Core.Content;
 /// measured on Pokemon - Emerald Version (USA, Europe): <c>605b89b6...</c> on the standalone's
 /// name and on mednafen_gba's, which carries the zip's member too (<see cref="ArchiveMemberOf"/>).
 /// On <c>snes</c> it is the whole <c>.sfc</c>, measured on Legend of Zelda, The - A Link to the
-/// Past (USA): <c>608c22b8...</c>, on a loose <c>.srm</c> rather than a <c>.sav</c>.
+/// Past (USA): <c>608c22b8...</c>, on a loose <c>.srm</c> rather than a <c>.sav</c>. On
+/// <c>mastersystem</c> it is the whole <c>.sms</c>, measured on Golden Axe Warrior (USA, Europe,
+/// Brazil) (En): <c>d46e40bb...</c>.
 /// <para>
 /// <b>Null for anything unmeasured</b>, so a restore reports the save as unnameable rather than
 /// writing a file mednafen will not look for: every other system, and on <c>megadrive</c> any
 /// format but a plain <c>.md</c>, since an interleaved <c>.smd</c> is decoded before it is hashed
 /// and a <c>.bin</c> or <c>.gen</c> has not been driven. On <c>snes</c> only a <c>.sfc</c>, since a
-/// <c>.smc</c> can carry a 512-byte copier header and none has been driven.
+/// <c>.smc</c> can carry a 512-byte copier header and none has been driven. On <c>mastersystem</c>
+/// only a <c>.sms</c>, the one format the measured library holds.
 /// </para>
 /// </remarks>
 public static class MednafenRomHash
@@ -39,6 +42,7 @@ public static class MednafenRomHash
             "megadrive" => WholeRom(absolutePath, ".md")?.Hash,
             "gba" => WholeRom(absolutePath, ".gba")?.Hash,
             "snes" => WholeRom(absolutePath, ".sfc")?.Hash,
+            "mastersystem" => WholeRom(absolutePath, ".sms")?.Hash,
             _ => null,
         };
     }

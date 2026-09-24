@@ -11,7 +11,7 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
@@ -20,8 +20,9 @@
     <evidence>gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mednafen/sstates/&lt;rom&gt;.d9290db87b1f0a23b89f99ee4469e34b.mc0 and .mc2, 6,401 B and 7,004 B, the md5 being of the whole .gb inside</evidence>
     <evidence>gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mednafen/sstates/&lt;rom&gt;.301899b8087289a6436b0a241fbbb474.mc0 and .mc1, 5,101 B and 5,257 B, the md5 being of the whole .gbc inside. F2 saves and F7 steps the slot</evidence>
     <evidence>snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mednafen/sstates/&lt;rom&gt;.608c22b8ff930c62dc2de54bcd6eba72.mc0 and .mc1, 110,345 B and 110,365 B, the md5 being of the whole .sfc inside. F2 saves and F7 steps the slot</evidence>
+    <evidence>mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mednafen/sstates/&lt;rom&gt;.d46e40bbb729ba233f171ad7bf6169f5.mc0 and .mc1, 9,875 B and 9,749 B, the md5 being of the whole .sms inside. F2 saves and F7 steps the slot</evidence>
   </emulator>
-  <emulator name="mesen" systems="nes,gba,gb,gbc,snes">
+  <emulator name="mesen" systems="nes,gba,gb,gbc,snes,mastersystem">
     <directory>{{system}}/mesen/SaveStates</directory>
     <file>{{romfilename}}_{{slot}}.mss</file>
     <evidence>nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote mesen/SaveStates/Crystalis (USA)_1.mss, 9,257 B (#150)</evidence>
@@ -29,6 +30,7 @@
     <evidence>gb under mesen standalone on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 8,384 B and 8,427 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>gbc under mesen standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 23,484 B and 23,253 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>snes under mesen standalone on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 111,256 B and 111,077 B, from Shift+F1 and Shift+F2, into the SaveStateFolder RetroBat's settings.json names</evidence>
+    <evidence>mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 41,396 B and 41,272 B, from Shift+F1 and Shift+F2</evidence>
   </emulator>
   <emulator name="mgba" systems="gba,gb,gbc">
     <directory>{{system}}/mgba/sstates</directory>
@@ -67,6 +69,11 @@
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>snes under ares, core SuperFamicom, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote ares/Super Famicom/&lt;rom&gt;.bs1 and .bs2, 274,141 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
   </emulator>
+  <emulator name="ares" systems="mastersystem">
+    <directory>{{system}}/ares/Master System</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/&lt;rom&gt;.bs1 and .bs2, 58,231 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
   <emulator name="snes9x" systems="snes">
     <directory>{{system}}/snes9x/sstates</directory>
     <file>{{romfilename}}.00{{slot0}}</file>
@@ -76,5 +83,10 @@
     <directory>{{system}}/kega-fusion</directory>
     <file>{{romfilename}}.gs{{slot0}}</file>
     <evidence>megadrive under kega-fusion, cores auto, genesis and megadrive (the -auto, -gen and -md flags), on 8.2.1: Sonic &amp; Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote kega-fusion/&lt;rom&gt;.gs0 and .gs9, 140,408 B each, into the StateFiles path RetroBat's Fusion.ini names. F5 saves, F7 steps the slot down and wraps from 0 to 9</evidence>
+  </emulator>
+  <emulator name="kega-fusion" systems="mastersystem">
+    <directory>{{system}}/kega-fusion</directory>
+    <file>{{romfilename}}.ss{{slot0}}</file>
+    <evidence>mastersystem under kega-fusion, core mastersystem (the -sms flag), on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote kega-fusion/&lt;rom&gt;.ss0 and .ss9, 32,958 B each, into the SMSStateFiles path RetroBat's Fusion.ini names. F5 saves, F7 steps the slot down and wraps from 0 to 9</evidence>
   </emulator>
 </savestates>
