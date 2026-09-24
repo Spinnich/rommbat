@@ -178,6 +178,14 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    list (finding 293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
    system, copied from the sibling's entry, so `bios <system>` fetches it.
 
+   **Expect the list to cover the default emulator only.** By the RetroBat team's account, relayed
+   by the maintainer on 2026-09-24, that is by design. So a row RetroBat does not run by default
+   can need a file no list names, and the supplement has nothing to copy. On `snes` the default,
+   `libretro`/`snes9x`, runs a DSP-1 cartridge without firmware and the list is empty, while
+   `mesen-s`, Mesen and jgenesis refuse one without `dsp1b.rom` (finding 317). Record where each
+   such row reads the file, since it need not be `bios\`: Mesen reads its own `Firmware\` folder
+   and jgenesis a config key RetroBat never sets.
+
    Three answers, not two, and the difference matters when a system name is mistyped.
    `RetroBat requires no BIOS for <system>` is a real system with nothing to fetch and counts as
    step 3 passing. A name the install's `es_systems.cfg` does not declare is refused with a

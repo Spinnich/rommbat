@@ -132,6 +132,26 @@ title" is all the eleven are claimed to do. RomM's own known-files list names th
 while Mesen asks for a single `dsp1b.rom`. Zelda has no coprocessor and boots on all fifteen.
 Finding 317.
 
+**With the firmware, all four that refused or warned reach the title.** The split pair from the
+maintainer's RetroBat 8.1.2 BIOS pack matched RomM's md5s, `d10f4468...` for the program and
+`1e3f5686...` for the data, and `dsp1b.rom` was made by joining them, program first, 8,192 B,
+`332273cc...`. The pack's `dsp1b.zip` holds a 10,240 B `dsp1b.bin`, MAME's and FBNeo's form, which
+none of these rows reads.
+
+| Row                  | Reads                          | From                                                                                       |
+| -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `libretro`/`mesen-s` | `dsp1b.rom`                    | `bios\`, RetroArch's system directory                                                      |
+| `bizhawk`/`BSNES`    | `SNES+DSP1b`                   | `bios\`, with no warning once the files are there                                          |
+| `mesen`              | `dsp1b.rom`                    | `emulators\mesen\Firmware\`, not `bios\`; RetroBat puts none there                         |
+| `jgenesis`           | whatever `dsp1_rom_path` names | a key in `jgenesis-config.toml` RetroBat's launcher never sets, and keeps when set by hand |
+
+So on a stock install `mesen` and `jgenesis` refuse a DSP-1 game even with the firmware in
+`bios\`. **By the RetroBat team's account, relayed by the maintainer on 2026-09-24, RetroBat's
+firmware list covers only a system's default emulator, by design**, and `snes`'s default,
+`libretro`/`snes9x`, runs the DSP without firmware, which is why `snes` lists none. The
+maintainer's install keeps the three files in `bios\`, the copy in Mesen's folder and the added
+key; the config as it was is `R:\rommbat-evidence\snes\dsp-with-fw\jgenesis-config.before.toml`.
+
 ## What the boot launches wrote
 
 **Not steps 4 or 5.** No one saved in any of these launches; each ran about 25 seconds from
