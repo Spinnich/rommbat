@@ -2680,6 +2680,40 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_duckstation_card_2_restores_under_the_title_card_1_taught()
+    {
+        using var fixture = SyncFixture.Create();
+        const string Title = "Metal Gear Solid (USA)";
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA) (Rev 1)", ".chd", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psx",
+            $"{Title}_1.mcd",
+            7,
+            RelativePath.Create("roms/psx/Metal Gear Solid (USA) (Rev 1).chd"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "duckstation:battery:2", $"{Title}_2", "mcd", "saved to port 2");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal($"saves/psx/duckstation/memcards/{Title}_2.mcd", pick.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+        Assert.Equal(1, outcome.Restored);
+
+        // The next scan attributes the card it never saw written, through card 1's binding.
+        fixture.Scan();
+        var card = Assert.Single(fixture.Store.Saves.List(), save => save.Path.Value.EndsWith("_2.mcd", StringComparison.Ordinal));
+        Assert.Equal(7, card.RomId);
+        Assert.Equal("duckstation:battery:2", card.Slot);
+    }
+
+    [Fact]
     public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
     {
         // A first boot on a second device writes an empty card before anything could restore,

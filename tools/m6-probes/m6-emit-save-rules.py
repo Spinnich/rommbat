@@ -435,6 +435,22 @@ OTHER_BATTERY_RULES = [
             "states .bs1 and .bs2"
         ),
     },
+    {
+        "emulator": "duckstation",
+        "systems": ["psx"],
+        "directory": "duckstation/memcards",
+        "extensions": [".mcd"],
+        "named_after": "display name",
+        "class": "A",
+        "stem_suffixes": {"_1": "", "_2": "2"},
+        "evidence": (
+            "psx under duckstation, PerGameTitle for both ports, on 8.2.1: Castlevania - Symphony of "
+            "the Night (USA).chd wrote duckstation/memcards/<saveName>_1.mcd, 131,072 B, on exit, "
+            "where saveName is gamedb.yaml's for the serial and not the rom file; Metal Gear Solid "
+            "(USA) (Rev 1) also wrote _2.mcd, a formatted empty card, for port 2. Each port takes "
+            "its own slot"
+        ),
+    },
 ]
 
 # Written into the save tree by RetroArch and by RetroBat, and not a save. The .ldci is the

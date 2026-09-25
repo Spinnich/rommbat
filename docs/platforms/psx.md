@@ -101,6 +101,69 @@ Selected by default and confirmed from `emulatorLauncher.log`: `-system psx -emu
 | 8   | **Pass.** `status` reads both sessions back against rom 280632: 10:44:49Z for 1m 45s, and 13:17:26Z for 11m 42s                                                                                                                                                                                                                                                   |
 | 9   | **Pass.** After the restore, `flush` uploaded nothing for the game and `sync "psx certification" --dry-run` answered nothing to do                                                                                                                                                                                                                                |
 
+**The Metal Gear Solid card was blank too.** Its 131,072 B `.srm`, sent as save 441 during the
+multi-disc pass on 2026-09-23, has all fifteen frames never used. On the fixed build the scan
+passes over it, and the count of loose saves fell from 65 to 64 with nothing else changed.
+
+### `libretro`/`swanstation`
+
+Selected with `psx.emulator` `libretro` and `psx.core` `swanstation` in `es_settings.cfg`, set with
+ES closed, and confirmed from `emulatorLauncher.log`. ES passed `-state_slot 3`; RetroArch wrote
+slots 1 and 2, as finding 261 describes. **It shares the loose `.srm` with the other `libretro`
+cores**, so it was seeded by the card `mednafen_psx_hw` left, loaded it, and saved at the same
+save room.
+
+| #   | Result                                                                                                                                                                                                                                              |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2   | Carried from the multi-disc pass above                                                                                                                                                                                                              |
+| 3   | Owed: boot with `psxonpsp660.bin` moved out                                                                                                                                                                                                         |
+| 4   | **Pass, class A.** The card changed in 392 bytes, all inside block 1, SotN's, and went up as save 513, `d822fc83...` on both sides. Deleted and restored, it came back byte for byte, the newest of saves 511, 512 and 513                          |
+| 5   | **Pass.** Slots 1 and 2 in `saves/psx/libretro.swanstation/`, the declared directory. `state2` and its `.png` deleted and restored came back byte for byte, `9b386a94...` and `b7dd97e3...`, and the image differs from `state1.png`, `d75b4e1d...` |
+| 6   | Owed: `swanstation_memcard1` `Shared`, `PerGame` and `PerGameTitle`                                                                                                                                                                                 |
+| 7   | Carried: the same entry and media as the stock row                                                                                                                                                                                                  |
+| 8   | Owed: read back with `status` at the end of the pass                                                                                                                                                                                                |
+| 9   | **Pass.** After the restore, `flush` uploaded nothing and the sync preview answered nothing to do                                                                                                                                                   |
+
+### `libretro`/`pcsx_rearmed`
+
+Selected with `psx.core` `pcsx_rearmed`, set with ES closed, and confirmed from
+`emulatorLauncher.log`. Seeded by swanstation's card in the shared loose `.srm`, loaded, and saved
+at the same save room. ES passed `-state_slot 3` and RetroArch wrote slots 1 and 2.
+
+| #   | Result                                                                                                                                                                                                                                               |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2   | Carried from the multi-disc pass above                                                                                                                                                                                                               |
+| 3   | Owed: boot with `psxonpsp660.bin` moved out                                                                                                                                                                                                          |
+| 4   | **Pass, class A.** 424 bytes changed, all inside block 1, and went up as save 514, `46b9337c...` on both sides. Deleted and restored, it came back byte for byte, the newest of four server saves                                                    |
+| 5   | **Pass.** Slots 1 and 2 in `saves/psx/libretro.pcsx_rearmed/`, the declared directory. `state1` and its `.png` deleted and restored came back byte for byte, `90e2673e...` and `4d847e47...`, and the image differs from `state2.png`, `36b6486e...` |
+| 6   | Owed: `pcsx_rearmed_memcard2`                                                                                                                                                                                                                        |
+| 7   | Carried: the same entry and media as the stock row                                                                                                                                                                                                   |
+| 8   | Owed: read back with `status` at the end of the pass                                                                                                                                                                                                 |
+| 9   | **Pass.** After the restore, `flush` uploaded nothing and the sync preview answered nothing to do                                                                                                                                                    |
+
+### `duckstation`
+
+Selected with `psx.emulator` `duckstation` and no `psx.core`, set with ES closed, and confirmed
+from `emulatorLauncher.log`: `-system psx -emulator duckstation -core` with an empty core.
+DuckStation keeps both ports at RetroBat's `PerGameTitle`, so its card for SotN is
+`saves/psx/duckstation/memcards/<saveName>_1.mcd`, where `saveName` is `gamedb.yaml`'s for
+`SLUS-00067`: `Castlevania - Symphony of the Night (USA)`, which happens to equal the rom's stem.
+Seeded by copying `pcsx_rearmed`'s `.srm` there, since the raw card is the same 128 KB image; the
+game loaded it and saved at the same save room. SotN never touched port 2, so no `_2.mcd` was
+written. **Steps 4 and 5 needed code first** (finding 329): no rule covered `duckstation/memcards/`,
+so the card was reported rather than synced until the `duckstation` battery rule landed.
+
+| #   | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2   | Carried from the multi-disc pass above                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 3   | Owed: boot with `psxonpsp660.bin` moved out                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 4   | **Pass, class A per port.** 432 bytes changed, all inside block 1. Attributed to rom 280632 by the launch route, `learned_from` `journal`, and sent as save 515 in `duckstation:battery`, `42117720...` on both sides. Deleted and restored, it came back byte for byte into `memcards/`                                                                                                                                                                                                                                                               |
+| 5   | **Byte half passes; the load half is owed.** DuckStation writes `emulators/duckstation/savestates/SLUS-00067_<slot>.sav`, keyed by serial, and keeps the state a new one replaced as `.bak`. `emulatorLauncher` mirrors all three into the declared `saves/psx/duckstation/<rom>_NN.sav` incrementally: `_01` is slot 1's `.bak`, `_02` slot 1 and `_03` slot 2, equal by md5. Each uploaded as `duckstation::1` to `::3`. `_02` deleted and restored came back byte for byte. No `.png` is written: DuckStation keeps the screenshot inside the state |
+| 6   | Owed: `duckstation_memcardtype` `Shared`, `PerGameFileTitle` and `PerGame`                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 7   | Carried: the same entry and media as the stock row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 8   | Owed: read back with `status` at the end of the pass                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| 9   | **Pass.** After the restore, `flush` uploaded nothing and the sync preview answered nothing to do                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
 ## What is owed
 
 Step 3's boot check and step 6 on every row, and steps 3 to 9 on the six rows after the stock

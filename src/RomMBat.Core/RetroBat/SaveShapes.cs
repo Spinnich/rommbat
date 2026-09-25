@@ -97,9 +97,62 @@ public sealed partial record BatteryRule(
     /// </summary>
     public bool NeedsRuleToPlace => !IsLoose || NamedAfter != BatteryNaming.RomFile;
 
+    /// <summary>
+    /// Stem suffixes that tell one game's files apart, each with the slot qualifier it uploads
+    /// under, empty for the bare slot. Empty when the rule keeps one file per game.
+    /// </summary>
+    /// <remarks>
+    /// DuckStation is the measured case: under <c>PerGameTitle</c> it writes
+    /// <c>&lt;title&gt;_1.mcd</c> and <c>&lt;title&gt;_2.mcd</c>, one card per console port, and a
+    /// game can save to either. The suffix is not part of the title, so a title learned from one
+    /// card names the other.
+    /// </remarks>
+    public FrozenDictionary<string, string> StemSuffixes { get; init; } =
+        FrozenDictionary<string, string>.Empty;
+
     public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
 
     public bool Carries(string extension) => Extensions.Contains(extension.ToLowerInvariant());
+
+    /// <summary>The emulator's title for the game, which is the stem less any stem suffix.</summary>
+    public string TitleOf(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        return SuffixOf(stem) is { } suffix ? stem[..^suffix.Length] : stem;
+    }
+
+    /// <summary>The slot a file this rule claims uploads under.</summary>
+    public string SlotOf(string fileName, SaveShapeClass shapeClass)
+    {
+        if (StemSuffixes.Count > 0
+            && SuffixOf(Path.GetFileNameWithoutExtension(fileName)) is { } suffix
+            && StemSuffixes[suffix] is { Length: > 0 } qualifier)
+        {
+            return $"{Emulator}:battery:{qualifier}";
+        }
+
+        return Content.SaveScanner.SlotFor(Emulator, shapeClass, Path.GetExtension(fileName));
+    }
+
+    /// <summary>The stem suffix a save under this slot is written with, or empty for none.</summary>
+    public string StemSuffixFor(string? slot)
+    {
+        foreach (var (suffix, qualifier) in StemSuffixes)
+        {
+            var owned = qualifier.Length == 0 ? $"{Emulator}:battery" : $"{Emulator}:battery:{qualifier}";
+
+            if (string.Equals(slot, owned, StringComparison.OrdinalIgnoreCase))
+            {
+                return suffix;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private string? SuffixOf(string stem) =>
+        StemSuffixes.Keys.FirstOrDefault(suffix =>
+            stem.Length > suffix.Length && stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>True when a file of this name is one of this rule's saves.</summary>
     /// <remarks>
@@ -111,6 +164,11 @@ public sealed partial record BatteryRule(
     public bool Claims(string fileName)
     {
         var stem = Path.GetFileNameWithoutExtension(fileName);
+
+        if (StemSuffixes.Count > 0 && SuffixOf(stem) is null)
+        {
+            return false;
+        }
 
         return Carries(Path.GetExtension(fileName)) && NamedAfter switch
         {
@@ -130,7 +188,7 @@ public sealed partial record BatteryRule(
             BatteryNaming.RomFileAndContentMd5 when ContentMd5Suffix().IsMatch(stem) => stem[..^33],
             BatteryNaming.ArchiveMemberAndContentMd5 when ArchiveMemberStem().Match(stem) is { Success: true } match =>
                 Path.GetFileNameWithoutExtension(match.Groups["archive"].Value),
-            _ => stem,
+            _ => TitleOf(fileName),
         };
     }
 
@@ -164,7 +222,9 @@ public sealed partial record BatteryRule(
     /// which is a bare identifier such as <c>ULES01513</c>.
     /// </remarks>
     public bool IsBindingKey(string key) =>
-        Path.GetFileNameWithoutExtension(key).Length > 0 && Carries(Path.GetExtension(key));
+        Path.GetFileNameWithoutExtension(key).Length > 0
+        && Carries(Path.GetExtension(key))
+        && (StemSuffixes.Count == 0 || SuffixOf(Path.GetFileNameWithoutExtension(key)) is not null);
 
     /// <summary>True when a slot is one this rule's saves are uploaded under.</summary>
     /// <remarks>
@@ -179,6 +239,11 @@ public sealed partial record BatteryRule(
         if (slot is null)
         {
             return false;
+        }
+
+        if (StemSuffixes.Count > 0)
+        {
+            return StemSuffixFor(slot).Length > 0;
         }
 
         if (string.Equals(slot, $"{Emulator}:battery", StringComparison.OrdinalIgnoreCase))
@@ -550,7 +615,10 @@ public sealed class SaveShapes
                 Blank(entry.Class) is { } shapeClass ? ParseClasses(shapeClass)[0] : null,
                 entry.Systems?.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
                 entry.Evidence ?? string.Empty,
-                entry.NotASave.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal)))
+                entry.NotASave.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal))
+            {
+                StemSuffixes = entry.StemSuffixes.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
+            })
             .ToList();
 
         for (var i = 0; i < parsed.Count; i++)
@@ -801,5 +869,8 @@ public sealed class SaveShapes
 
         [JsonPropertyName("not_a_save_extensions")]
         public Dictionary<string, string> NotASave { get; init; } = [];
+
+        [JsonPropertyName("stem_suffixes")]
+        public Dictionary<string, string> StemSuffixes { get; init; } = [];
     }
 }

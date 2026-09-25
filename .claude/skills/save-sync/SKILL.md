@@ -541,6 +541,15 @@ absent, so a second device's first boot neither uploads it nor blocks the server
 reads the format, not the system or extension. A card whose saves were deleted in the game marks
 those frames `0xA1` to `0xA3` and still syncs.
 
+**DuckStation's per-game cards are a display-name rule with a slot per port** (finding 329):
+`duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
+`duckstation:battery:2`, from the rule's `stem_suffixes`. The title is the stem less the suffix, so
+one title names both cards: a restore places card 2 under the title card 1 taught, and the next
+scan attributes it through card 1's binding rather than leaving it unattributed. `saveName` comes
+from `gamedb.yaml` by serial and is not the rom's stem in general (`Metal Gear Solid (USA)` for the
+`(Rev 1)` rom), so it is learned from the launch route; DuckStation's state sidecar is a bare serial
+and answers nothing here. A card with no `_<port>` suffix is not claimed.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

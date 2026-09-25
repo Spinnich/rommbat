@@ -227,6 +227,16 @@
       "named_after": "rom file",
       "class": "A",
       "evidence": "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its states .bs1 and .bs2"
+    },
+    {
+      "emulator": "duckstation",
+      "systems": ["psx"],
+      "directory": "duckstation/memcards",
+      "extensions": [".mcd"],
+      "named_after": "display name",
+      "class": "A",
+      "stem_suffixes": { "_1": "", "_2": "2" },
+      "evidence": "psx under duckstation, PerGameTitle for both ports, on 8.2.1: Castlevania - Symphony of the Night (USA).chd wrote duckstation/memcards/<saveName>_1.mcd, 131,072 B, on exit, where saveName is gamedb.yaml's for the serial and not the rom file; Metal Gear Solid (USA) (Rev 1) also wrote _2.mcd, a formatted empty card, for port 2. Each port takes its own slot"
     }
   ],
   "empty_not_a_save": {

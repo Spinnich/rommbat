@@ -357,7 +357,7 @@ public sealed class SaveScanner
             System = system,
             Emulator = rule.Emulator,
             ShapeClass = shapeClass,
-            Slot = SlotFor(rule.Emulator, shapeClass, extension),
+            Slot = rule.SlotOf(Path.GetFileName(file), shapeClass),
             RomId = rom?.RomId,
             RomPath = rom?.Path,
             ContentHash = hash,

@@ -230,6 +230,62 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_psx_rule_gives_each_of_duckstations_cards_its_own_slot()
+    {
+        // Symphony of the Night under DuckStation on 8.2.1, PerGameTitle for both ports.
+        var shapes = SaveShapes.Bundled;
+        const string Title = "Castlevania - Symphony of the Night (USA)";
+
+        var card1 = shapes.BatteryRuleFor("psx", "duckstation/memcards", $"{Title}_1.mcd");
+        var card2 = shapes.BatteryRuleFor("psx", "duckstation/memcards", $"{Title}_2.mcd");
+
+        Assert.Equal("duckstation", card1?.Emulator);
+        Assert.Same(card1, card2);
+        Assert.Equal("duckstation:battery", card1!.SlotOf($"{Title}_1.mcd", SaveShapeClass.A));
+        Assert.Equal("duckstation:battery:2", card1.SlotOf($"{Title}_2.mcd", SaveShapeClass.A));
+
+        // One title for both, so a title learned from either card names the other.
+        Assert.Equal(Title, card1.TitleOf($"{Title}_1.mcd"));
+        Assert.Equal(Title, card1.TitleOf($"{Title}_2.mcd"));
+        Assert.Equal("_2", card1.StemSuffixFor("duckstation:battery:2"));
+        Assert.Equal("_1", card1.StemSuffixFor("duckstation:battery"));
+        Assert.True(card1.OwnsSlot("duckstation:battery:2"));
+        Assert.False(card1.OwnsSlot("duckstation:battery:mcd"));
+
+        // A card with no port suffix is not one DuckStation writes per game, and nothing
+        // outside its memcards directory is its.
+        Assert.Null(shapes.BatteryRuleFor("psx", "duckstation/memcards", "shared_card_1.mcr"));
+        Assert.Null(shapes.BatteryRuleFor("psx", "duckstation/memcards", $"{Title}.mcd"));
+        Assert.Null(shapes.BatteryRuleFor("psx", "duckstation", $"{Title}_1.mcd"));
+    }
+
+    [Fact]
+    public void A_duckstation_card_is_attributed_by_its_launch_and_the_other_card_follows_it()
+    {
+        using var fixture = new TitleFixture();
+        fixture.AddRom(280632, "Castlevania - Symphony of the Night (USA).chd", "psx");
+        var rule = SaveShapes.Bundled.BatteryRuleForSlot("psx", "duckstation:battery")!;
+
+        var first = fixture.Attributor(
+                Launch(Now.AddMinutes(-30), "Castlevania - Symphony of the Night (USA).chd", "duckstation", "psx"))
+            .Attribute("psx", rule, "Castlevania - Symphony of the Night (USA)_1.mcd", Now.AddMinutes(-5));
+
+        Assert.Equal(280632, first.RomId);
+        Assert.Equal(BindingSource.Journal, first.Source);
+
+        // Card 2 restored from the server: no launch wrote it, and its own key was never bound.
+        var second = fixture.Attributor()
+            .Attribute("psx", rule, "Castlevania - Symphony of the Night (USA)_2.mcd", written: null);
+
+        Assert.Equal(280632, second.RomId);
+        Assert.Contains("the other card of", second.Detail, StringComparison.Ordinal);
+
+        Assert.Equal(
+            "Castlevania - Symphony of the Night (USA)",
+            DisplayNameAttributor.LearnedTitle(fixture.Store, "psx", rule, 280632));
+    }
+
+    [Fact]
     public void Ares_on_gb_keeps_its_ram_slot_and_takes_a_clock_slot_beside_it()
     {
         // Pokemon Silver, a clock cartridge in the gb folder under ares on 8.2.1, wrote a .rtc
@@ -608,8 +664,8 @@ public class DisplayNameSaveTests
     private static string Rules(params string[] rules) =>
         $$"""{ "battery_saves": [{{string.Join(", ", rules)}}] }""";
 
-    private static LaunchRecord Launch(DateTimeOffset at, string romFile, string emulator) =>
-        new(at, RelativePath.Create($"roms/nes/{romFile}"), "nes", emulator, null, IsMenuLaunch: false, $"{at:O}|{romFile}");
+    private static LaunchRecord Launch(DateTimeOffset at, string romFile, string emulator, string system = "nes") =>
+        new(at, RelativePath.Create($"roms/{system}/{romFile}"), system, emulator, null, IsMenuLaunch: false, $"{at:O}|{romFile}");
 
     private sealed class TitleFixture : IDisposable
     {
@@ -625,15 +681,15 @@ public class DisplayNameSaveTests
 
         public LocalStore Store { get; }
 
-        public RelativePath AddRom(long romId, string fileName)
+        public RelativePath AddRom(long romId, string fileName, string folder = "nes")
         {
-            var path = RelativePath.Create($"roms/nes/{fileName}");
+            var path = RelativePath.Create($"roms/{folder}/{fileName}");
             Write(path.Value, "rom bytes");
 
             Store.Files.Record(new LocalFile
             {
                 Path = path,
-                Folder = "nes",
+                Folder = folder,
                 RomId = (int)romId,
                 Kind = LocalFileKind.Rom,
                 FileName = fileName,

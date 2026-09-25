@@ -72,7 +72,7 @@ public sealed class DisplayNameAttributor
         ArgumentNullException.ThrowIfNull(rule);
 
         var key = fileName;
-        var title = Path.GetFileNameWithoutExtension(fileName);
+        var title = rule.TitleOf(fileName);
         var cached = _store.GameIdBindings.Find(system, key);
 
         if (cached is { LearnedFrom: BindingSource.User, RomId: not null })
@@ -108,6 +108,24 @@ public sealed class DisplayNameAttributor
         if (cached is { RomId: { } boundId, RomPath: { } boundPath })
         {
             answers.Add(new RouteAnswer(cached.LearnedFrom, boundId, boundPath, cached.Detail ?? $"{key} was bound to {boundPath.Name}"));
+        }
+        else if (cached is null && rule.StemSuffixes.Count > 0)
+        {
+            // The game's other card, since one title names both: a restore can place a card this
+            // device never wrote, and its own key has nothing bound to it yet.
+            answers.AddRange(_store.GameIdBindings
+                .List()
+                .Where(binding =>
+                    binding is { RomId: not null, RomPath: not null }
+                    && string.Equals(binding.System, system, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(binding.GameId, key, StringComparison.OrdinalIgnoreCase)
+                    && rule.IsBindingKey(binding.GameId)
+                    && string.Equals(rule.TitleOf(binding.GameId), title, StringComparison.OrdinalIgnoreCase))
+                .Select(binding => new RouteAnswer(
+                    binding.LearnedFrom,
+                    binding.RomId!.Value,
+                    binding.RomPath!.Value,
+                    $"{key} is the other card of {binding.GameId}, bound to {binding.RomPath!.Value.Name}")));
         }
 
         if (answers.Count == 0)
@@ -187,7 +205,7 @@ public sealed class DisplayNameAttributor
                 binding.RomId == romId
                 && string.Equals(binding.System, system, StringComparison.OrdinalIgnoreCase)
                 && rule.IsBindingKey(binding.GameId))
-            .Select(binding => Path.GetFileNameWithoutExtension(binding.GameId))
+            .Select(binding => rule.TitleOf(binding.GameId))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

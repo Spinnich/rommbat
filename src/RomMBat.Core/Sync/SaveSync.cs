@@ -1790,7 +1790,7 @@ public sealed class SaveSync
                     return (null, TargetProblem.TitleNotLearned);
                 }
 
-                stem = title;
+                stem = title + rule.StemSuffixFor(operation.Slot);
             }
             else if (rule.NamedAfter == BatteryNaming.RomFileAndContentMd5)
             {
