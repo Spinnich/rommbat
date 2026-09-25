@@ -202,6 +202,11 @@ public sealed class SaveScanner
                     continue;
                 }
 
+                if (Ps1MemoryCard.IsBlank(file))
+                {
+                    continue;
+                }
+
                 if (_shapes.SharedContainerReason(system, name) is { } container)
                 {
                     report.Add(system, _shapes.LooseEmulator, UnsyncableReason.SharedContainer, container, 1, Named(file));
@@ -428,6 +433,12 @@ public sealed class SaveScanner
 
                 if (!rule.Claims(Path.GetFileName(file)))
                 {
+                    continue;
+                }
+
+                if (Ps1MemoryCard.IsBlank(file))
+                {
+                    carried.Add(_install.Relativize(file));
                     continue;
                 }
 

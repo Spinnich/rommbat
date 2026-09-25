@@ -825,6 +825,43 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_blank_memory_card_is_neither_recorded_nor_reported()
+    {
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(280632, "psx", "Castlevania - Symphony of the Night (USA).chd");
+        fixture.AddSaveBytes("psx", "Castlevania - Symphony of the Night (USA).srm", Ps1MemoryCardTests.BlankCard());
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Found);
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.Empty(fixture.Store.Unsyncable.List());
+
+        // The same file once the game has saved to it is the game's save.
+        fixture.AddSaveBytes("psx", "Castlevania - Symphony of the Night (USA).srm", Ps1MemoryCardTests.CardWithOneSave());
+        fixture.Scan();
+
+        Assert.Equal(280632, Assert.Single(fixture.Store.Saves.List()).RomId);
+    }
+
+    [Fact]
+    public void A_blank_memory_card_under_an_emulators_own_directory_is_carried_rather_than_reported()
+    {
+        // The recogniser reads the format, not the system, so the rule that claims the file is
+        // incidental here. What matters is that the subdirectory report does not count it.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddSaveBytes("snes", "jgenesis/sfc/ActRaiser (USA).sav", Ps1MemoryCardTests.BlankCard());
+
+        fixture.Scan();
+
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.Empty(fixture.Store.Unsyncable.List());
+    }
+
+    [Fact]
     public void Rescanning_keeps_what_is_known_about_the_upload_and_forgets_a_deleted_save()
     {
         using var fixture = SaveTree.Create();
@@ -1008,6 +1045,13 @@ public class SaveDiscoveryTests
             var absolute = Install.Resolve(RelativePath.Create($"saves/{system}/{relative}"));
             Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
             File.WriteAllText(absolute, contents);
+        }
+
+        public void AddSaveBytes(string system, string relative, byte[] contents)
+        {
+            var absolute = Install.Resolve(RelativePath.Create($"saves/{system}/{relative}"));
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+            File.WriteAllBytes(absolute, contents);
         }
 
         public SaveScanOutcome Scan() => new SaveScanner(Install, Store).Scan();

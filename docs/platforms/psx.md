@@ -2,9 +2,9 @@
 
 Sony PlayStation. RetroBat calls the folder `psx`, which is what this file is named after.
 
-**Not certified.** This record holds step 2 only, taken first because a multi-disc game could not
-be synced at all until it was settled. Steps 1 and 3 to 9 are owed for every row, and the memory
-card options five of the rows expose are not driven yet.
+**Not certified.** Step 2 was taken first, because a multi-disc game could not be synced at all
+until it was settled. The certification pass is under way: step 1 holds for every row and the
+stock row has passed steps 4, 5, 8 and 9. What is owed is listed at the end.
 
 RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 
@@ -69,7 +69,41 @@ second sync was 0 downloaded, 0 written. Both games then launched from Emulation
 list, each entry being its playlist. The first attempt found a defect, fixed before this
 record: the media pass deleted every disc after it landed (finding 316).
 
+## The certification pass, at `5.3.1`
+
+**In progress, started 2026-09-25**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
+`psx-certification` branch. The test game is **Castlevania: Symphony of the Night (USA)**, rom
+280632, one `.chd`, pulled through a filter set named `psx certification` (search "Symphony of
+the Night", region USA) rather than the whole library. Its gamelist entry pins no emulator, and
+`es_settings.cfg` sets no `psx.emulator`, so ES runs the stock row. **Creating the name writes
+nothing to the card**: SotN first saves at the first save room in the castle, which takes a while
+to reach, so later rows are seeded with this row's card rather than replayed.
+
+**Step 1 passes for every row.** RomM's `psx` platform resolves to the `psx` folder on the
+`fs_slug` layer: `RomM's fs_slug 'psx' is already a folder in this install`.
+
+**Step 3, the inventory half.** RetroBat lists one file, `bios/psxonpsp660.bin`, md5
+`c53ca590...`, and `bios psx` reports it present. Which rows refuse to boot without it is owed.
+
+### `libretro`/`mednafen_psx_hw`
+
+Selected by default and confirmed from `emulatorLauncher.log`: `-system psx -emulator libretro
+-core mednafen_psx_hw`.
+
+| #   | Result                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2   | Carried from the multi-disc pass above                                                                                                                                                                                                                                                                                                                            |
+| 3   | Owed: boot with `psxonpsp660.bin` moved out                                                                                                                                                                                                                                                                                                                       |
+| 4   | **Pass, class A.** A loose `saves/psx/<rom>.srm`, a whole 131,072 B card, uploaded as save 512 with md5 `46b61dd3...` equal on both sides. Its one used frame is `0x51`, `BASLUS-00067DRAX00`, SotN's USA serial. Deleted from the tree, `saves restore 280632 --apply` brought it back byte for byte, choosing 512 over the empty card sent as 511 (finding 328) |
+| 5   | **Pass.** Two states in `saves/psx/libretro.mednafen_psx_hw/`, the declared directory, slots 1 and 2 with screenshots of 118,638 B and 14,187 B. `state1` and its `.png` deleted and restored came back byte for byte, `93acce93...` and `0b3b025c...`, and the image differs from `state2.png`, so the link is to this state                                     |
+| 6   | Owed: the shared card option                                                                                                                                                                                                                                                                                                                                      |
+| 7   | Launched from ES with image, thumbnail, marquee, video and manual synced                                                                                                                                                                                                                                                                                          |
+| 8   | **Pass.** `status` reads both sessions back against rom 280632: 10:44:49Z for 1m 45s, and 13:17:26Z for 11m 42s                                                                                                                                                                                                                                                   |
+| 9   | **Pass.** After the restore, `flush` uploaded nothing for the game and `sync "psx certification" --dry-run` answered nothing to do                                                                                                                                                                                                                                |
+
 ## What is owed
 
-Steps 1 and 3 to 9 for all seven rows, and the memory card layouts `duckstation`, `swanstation`,
-`mednafen_psx_hw`, `pcsx_rearmed` and `mednafen` expose.
+Step 3's boot check and step 6 on every row, and steps 3 to 9 on the six rows after the stock
+one. Step 6 drives every card mode the rows expose: DuckStation's `PerGameTitle`, `Shared`,
+`PerGameFileTitle` and `PerGame`; `swanstation`'s `Shared`, `PerGame` and `PerGameTitle`;
+`mednafen_psx_hw`'s shared card; `pcsx_rearmed`'s second card; and mednafen's card count.

@@ -533,6 +533,14 @@ something to route around. BizHawk names its `.SaveRAM` after its own title, `Go
 323). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
 Warrior does (finding 326), so on such a game a changed file is not new progress.
 
+**On `psx` a `libretro` core writes a formatted, empty memory card on exit whether or not the game
+saved** (finding 328): a 128 KB loose `<rom>.srm` whose fifteen directory frames are all `0xA0`,
+never used. It went up as the game's save until `Ps1MemoryCard.IsBlank` made the scanner pass over
+it, at the loose level and under an emulator's own directory alike, and made a restore treat it as
+absent, so a second device's first boot neither uploads it nor blocks the server's save. The test
+reads the format, not the system or extension. A card whose saves were deleted in the game marks
+those frames `0xA1` to `0xA3` and still syncs.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

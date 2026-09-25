@@ -2680,6 +2680,34 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
+    {
+        // A first boot on a second device writes an empty card before anything could restore,
+        // and that card must not stand in for the save the server holds.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "placeholder");
+        var card = fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA).srm");
+        File.WriteAllBytes(card, Ps1MemoryCardTests.BlankCard());
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Castlevania - Symphony of the Night (USA)", "srm", "the real save");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        var outcome = await fixture.RestoreAsync([pick], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal("the real save", File.ReadAllText(card));
+
+        // Copied aside like any file a restore replaces.
+        var aside = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal(Ps1MemoryCardTests.BlankCard(), File.ReadAllBytes(aside));
+    }
+
+    [Fact]
     public async Task A_save_for_a_game_this_device_does_not_hold_is_skipped_without_a_word()
     {
         // The ordinary case on a device carrying a subset of the library, and the reason the

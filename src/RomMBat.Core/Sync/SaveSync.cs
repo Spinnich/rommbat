@@ -890,8 +890,11 @@ public sealed class SaveSync
 
             // The scan above rebuilt the store from the tree, so a row missing there should mean
             // a file missing here. Checked anyway, because restoring over a file nobody asked
-            // about is the one outcome this feature must never produce.
-            if (File.Exists(_install.Resolve(destination)))
+            // about is the one outcome this feature must never produce. A blank memory card is
+            // not such a file: an emulator writes one on a first boot before any restore could
+            // run, and the write copies it aside like anything else it replaces.
+            var existing = _install.Resolve(destination);
+            if (File.Exists(existing) && !Ps1MemoryCard.IsBlank(existing))
             {
                 continue;
             }
