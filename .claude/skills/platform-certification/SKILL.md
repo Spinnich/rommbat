@@ -115,8 +115,12 @@ hold it out for mednafen's row and put it back after. **Keep RomM's web player c
 pass**: a launch there writes a save with no device, which the next flush takes as the newer
 (finding 327).
 
-**`psx` opens wave 2: two of seven rows certified at `5.3.1` on 2026-09-26**, both BizHawk cores,
-and the other five pass all but step 6, with `docs/platforms/psx.md` the record. **Pick a test game
+**`psx` opens wave 2: all seven rows certified at `5.3.1` on 2026-09-26**, with
+`docs/platforms/psx.md` the record. **Step 6 is the long step on a memory card system**: drive every
+card type the rows expose, boot each through `emulatorLauncher` first to learn the file it writes,
+seed it with the game's save, and uninstall the hooks for the sessions so nothing flushes before the
+scan has been read. A shared card needs two games saving to it, and a card type change leaves two
+files for one game in one slot (finding 333). **Pick a test game
 that saves early, and know where.** SotN's first save is at the first save room, well into the
 castle, and creating the name writes nothing; Metal Gear Solid saves only through Mei Ling, 140.96,
 after the opening. Seed every later row from that save. **A `libretro` core writes a formatted empty

@@ -84,13 +84,13 @@ SHARED_CONTAINERS = {
             "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
         ),
         "duckstation_shared_card_1.mcd": (
-            "swanstation's shared card for port 1, one file every game writes to under the Shared card type"
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
         ),
         "duckstation_shared_card_2.mcd": (
-            "swanstation's shared card for port 2, one file every game writes to under the Shared card type"
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
         ),
         "pcsx-card2.mcd": (
-            "pcsx_rearmed's second card, one file every game writes to when pcsx_rearmed_memcard2 is on"
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
         ),
     },
 }

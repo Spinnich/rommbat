@@ -280,14 +280,7 @@ start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat ca
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; each record's
 "The move to `5.3.1`" maps the steps.
 
-**Wave 2 has begun with `psx`: two of its seven rows certified at RomM `5.3.1`** on 2026-09-26,
-`bizhawk`/`Nymashock` and `Octoshock`, with step 6 N/A. The other five, the three `libretro` cores,
-DuckStation and standalone mednafen, pass every step but 6, the memory card modes they expose.
-Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's
-cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's
-files to the set (findings 329, 331 and 332). Six of the seven refuse to boot without
-`psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (330).
-[psx.md](psx.md) is the record.
+**Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and five declared shared cards (findings 328 to 335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (330). [psx.md](psx.md) is the record.
 
 **Read all seven as narrowly as they are written.** They certify seventy-three
 `(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
