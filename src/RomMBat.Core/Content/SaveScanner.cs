@@ -187,6 +187,8 @@ public sealed class SaveScanner
                 continue;
             }
 
+            var knownLoose = KnownSaves(system);
+
             foreach (var file in Directory.EnumerateFiles(systemDirectory).Order(StringComparer.Ordinal))
             {
                 var name = Path.GetFileName(file);
@@ -228,7 +230,11 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                var save = Describe(system, file, rule, romsByStem);
+                // A loose display-name file, as swanstation's SLUS-00067_1.mcd is, needs the title
+                // routes: its stem is no ROM's, and a stem lookup finds nothing or the wrong game.
+                var looseAttribution = AttributeByTitle(system, file, rule, titles, knownLoose);
+
+                var save = Describe(system, file, rule, romsByStem, looseAttribution);
                 if (save is null)
                 {
                     continue;
@@ -249,7 +255,7 @@ public sealed class SaveScanner
                         system,
                         save.Emulator,
                         UnsyncableReason.Unattributed,
-                        "matches no ROM this device holds, so there is no game to upload it against",
+                        looseAttribution?.Detail ?? "matches no ROM this device holds, so there is no game to upload it against",
                         1,
                         save.Path.Value);
                 }
@@ -399,11 +405,7 @@ public sealed class SaveScanner
 
         // What each file held when it was last attributed, so a file nobody has written to since
         // does not have its mtime read as a fresh write.
-        var known = _store.Saves
-            .List()
-            .Where(save => save.UnitKey.Length == 0
-                && string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(save => save.Path);
+        var known = KnownSaves(system);
 
         foreach (var rule in _shapes.BatteryRulesBelow(system))
         {
@@ -451,21 +453,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                // A restore records the bytes it wrote with their ROM, and writes them now, so
-                // the newest launch before that mtime is a session that never touched them.
-                // Measured on a real install, where it contested every restored BizHawk save.
-                var unchanged = known.TryGetValue(_install.Relativize(file), out var previous)
-                    && previous.RomId is not null
-                    && previous.ContentHash is { } previousHash
-                    && string.Equals(previousHash, TryHash(file), StringComparison.OrdinalIgnoreCase);
-
-                var attribution = rule.NamedAfter == BatteryNaming.DisplayName
-                    ? titles.Attribute(
-                        system,
-                        rule,
-                        Path.GetFileName(file),
-                        unchanged ? null : new DateTimeOffset(File.GetLastWriteTimeUtc(file), TimeSpan.Zero))
-                    : null;
+                var attribution = AttributeByTitle(system, file, rule, titles, known);
 
                 if (Describe(system, file, rule, romsByStem, attribution) is not { } save)
                 {
@@ -495,6 +483,47 @@ public sealed class SaveScanner
         }
 
         return carried;
+    }
+
+    /// <summary>What each of a system's single-file saves held when it was last attributed.</summary>
+    private Dictionary<RelativePath, LocalSave> KnownSaves(string system) =>
+        _store.Saves
+            .List()
+            .Where(save => save.UnitKey.Length == 0
+                && string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(save => save.Path);
+
+    /// <summary>
+    /// Attributes a file a display-name rule claims through the title routes, or null for any
+    /// other rule, which joins on the ROM's stem instead.
+    /// </summary>
+    /// <remarks>
+    /// A restore records the bytes it wrote with their ROM, and writes them now, so the newest
+    /// launch before that mtime is a session that never touched them. Measured on a real install,
+    /// where it contested every restored BizHawk save, so an unchanged file offers no mtime.
+    /// </remarks>
+    private Attribution? AttributeByTitle(
+        string system,
+        string file,
+        BatteryRule rule,
+        DisplayNameAttributor titles,
+        Dictionary<RelativePath, LocalSave> known)
+    {
+        if (rule.NamedAfter != BatteryNaming.DisplayName)
+        {
+            return null;
+        }
+
+        var unchanged = known.TryGetValue(_install.Relativize(file), out var previous)
+            && previous.RomId is not null
+            && previous.ContentHash is { } previousHash
+            && string.Equals(previousHash, TryHash(file), StringComparison.OrdinalIgnoreCase);
+
+        return titles.Attribute(
+            system,
+            rule,
+            Path.GetFileName(file),
+            unchanged ? null : new DateTimeOffset(File.GetLastWriteTimeUtc(file), TimeSpan.Zero));
     }
 
     private static string? TryHash(string file)

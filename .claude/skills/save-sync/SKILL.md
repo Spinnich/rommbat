@@ -555,6 +555,12 @@ file written most recently and reports the rest as superseded, and `LearnedTitle
 whose file is newest for a rule with `stem_suffixes`. DuckStation's `shared_card_<n>.mcd` names are
 declared shared containers, and `ScanBelow` asks that list before any rule claims a file, since
 `shared_card_1.mcd` matches the per-game `_1`.
+**The `libretro` cores' other `psx` cards are class B slots beside the `.srm`** (finding 335):
+swanstation's loose `<serial or title>_1.mcd` and `_2.mcd` take `libretro:battery:mcd` and `:mcd2`,
+and mednafen_psx_hw's `<rom>.1.mcr` takes `libretro:battery:mcr`. **Each port can be named its own
+way**, so `LearnedTitle` takes the slot, prefers a title learned from the same port, and weighs only
+that port's files of that rule. The loose scan attributes a display-name file through the title
+routes as `ScanBelow` does.
 
 **Standalone mednafen on `psx` names its cards `<rom>.<layout md5>.<port-1>.mcr`, loose** (finding
 331), under a `rom file and content md5` rule with `stem_suffixes` `.0` and `.1`, port 2 taking

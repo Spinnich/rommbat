@@ -2809,6 +2809,43 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_swanstation_port_2_card_restores_under_the_name_its_own_port_taught()
+    {
+        // Port 1 under PerGameTitle and port 2 under PerGame, with the .srm beside them, whose
+        // stem is the title: measured, the first restore put port 2 under the title.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "the default card");
+        var rom = RelativePath.Create("roms/psx/Castlevania - Symphony of the Night (USA).chd");
+
+        foreach (var name in new[] { "Castlevania - Symphony of the Night (USA)_1.mcd", "SLUS-00067_2.mcd" })
+        {
+            fixture.Store.GameIdBindings.Record(new GameIdBinding(
+                "psx", name, 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+        }
+
+        File.WriteAllText(fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA)_1.mcd"), "port 1");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery:mcd2", "SLUS-00067_2", "mcd", "port 2", id: 102);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable, candidate => candidate.Slot == "libretro:battery:mcd2");
+
+        Assert.Equal("saves/psx/SLUS-00067_2.mcd", pick.Destination.Value);
+
+        // A second name learned for port 2, with no port 2 file to say which is live, is refused
+        // rather than settled by port 1's file, which strips to the same title.
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psx", "Castlevania - Symphony of the Night (USA)_2.mcd", 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+
+        var refound = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var refindings = Assert.IsType<SaveRestoreFindings>(refound.Value);
+        Assert.DoesNotContain(refindings.Restorable, candidate => candidate.Slot == "libretro:battery:mcd2");
+        Assert.Contains(refindings.Unrestorable, entry => entry.Slot == "libretro:battery:mcd2");
+    }
+
+    [Fact]
     public async Task A_mednafen_psx_hw_port_2_card_restores_under_the_roms_name_and_its_port()
     {
         using var fixture = SyncFixture.Create();

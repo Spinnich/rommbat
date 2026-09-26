@@ -1821,7 +1821,7 @@ public sealed class SaveSync
 
             if (rule.NamedAfter == BatteryNaming.DisplayName)
             {
-                if (DisplayNameAttributor.LearnedTitle(_store, folder, rule, operation.RomId) is not { } title)
+                if (DisplayNameAttributor.LearnedTitle(_store, folder, rule, operation.RomId, operation.Slot) is not { } title)
                 {
                     return (null, TargetProblem.TitleNotLearned);
                 }

@@ -314,6 +314,27 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void A_loose_swanstation_card_named_by_serial_is_attributed_by_its_launch()
+    {
+        // SLUS-00067_2.mcd is no ROM's stem, so only the launch that wrote it can say whose it is.
+        using var fixture = new TitleFixture();
+        fixture.AddRom(280632, "Castlevania - Symphony of the Night (USA).chd", "psx");
+        fixture.Write("saves/psx/SLUS-00067_2.mcd", "port 2");
+        fixture.Touch("saves/psx/SLUS-00067_2.mcd", Now.AddMinutes(-5));
+        fixture.Write(
+            LaunchLog.LivePath.Value,
+            $"{Now.AddMinutes(-20).ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [INFO]      [Startup] "
+                + "\"X:\\RetroBat\\emulationstation\\emulatorLauncher.exe\" -system psx -emulator libretro "
+                + "-core swanstation -rom \"X:\\RetroBat\\roms\\psx\\Castlevania - Symphony of the Night (USA).chd\"\r\n");
+
+        fixture.Scan();
+
+        var card = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal(280632, card.RomId);
+        Assert.Equal("libretro:battery:mcd2", card.Slot);
+    }
+
+    [Fact]
     public void A_duckstation_card_is_attributed_by_its_launch_and_the_other_card_follows_it()
     {
         using var fixture = new TitleFixture();

@@ -194,18 +194,38 @@ public sealed class DisplayNameAttributor
     /// has nowhere to put the save. Two titles bound to one ROM is refused rather than chosen
     /// between, because only one of them is the file the emulator reads.
     /// </remarks>
-    public static string? LearnedTitle(LocalStore store, string system, BatteryRule rule, long romId)
+    public static string? LearnedTitle(LocalStore store, string system, BatteryRule rule, long romId, string? slot = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(rule);
 
-        var titles = store.GameIdBindings
+        var portSuffix = slot is not null && rule.StemSuffixes.Count > 0 ? rule.StemSuffixFor(slot) : string.Empty;
+
+        var keys = store.GameIdBindings
             .List()
             .Where(binding =>
                 binding.RomId == romId
                 && string.Equals(binding.System, system, StringComparison.OrdinalIgnoreCase)
                 && rule.IsBindingKey(binding.GameId))
-            .Select(binding => rule.TitleOf(binding.GameId))
+            .Select(binding => binding.GameId)
+            .ToList();
+
+        // A port's own card first: swanstation names each port its own way, so port 1 can be
+        // <title>_1.mcd while port 2 is SLUS-00067_2.mcd. Another port's title is the fallback.
+        if (portSuffix.Length > 0)
+        {
+            var samePort = keys
+                .Where(key => Path.GetFileNameWithoutExtension(key).EndsWith(portSuffix, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (samePort.Count > 0)
+            {
+                keys = samePort;
+            }
+        }
+
+        var titles = keys
+            .Select(rule.TitleOf)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -216,11 +236,15 @@ public sealed class DisplayNameAttributor
 
         // Two titles for one ROM under a rule that names files several ways, as DuckStation's
         // card types do: the file written most recently is the one the emulator reads now. Only
-        // where every title still has a file here, so an unanswerable pair stays refused.
+        // files this rule claims in its own directory count, since a .srm beside a loose card
+        // strips to the same title.
+        var directory = rule.IsLoose ? $"saves/{system}/" : $"saves/{system}/{rule.Directory}/";
         var written = store.Saves.List(romId)
             .Where(save => string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(save.Emulator, rule.Emulator, StringComparison.OrdinalIgnoreCase)
-                && save.FileMtimeUtc is not null)
+                && save.FileMtimeUtc is not null
+                && rule.Claims(save.Path.Name)
+                && Path.GetFileNameWithoutExtension(save.Path.Name).EndsWith(portSuffix, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(save.Path.Value[..^save.Path.Name.Length], directory, StringComparison.OrdinalIgnoreCase))
             .GroupBy(save => rule.TitleOf(save.Path.Name), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Max(save => save.FileMtimeUtc!.Value), StringComparer.OrdinalIgnoreCase);
 
