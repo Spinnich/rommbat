@@ -104,6 +104,34 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_state_whose_row_cannot_be_recorded_is_removed_and_counted_failed()
+    {
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.AddState("snes/libretro.snes9x", "ActRaiser (USA).state1", "progress");
+        fixture.Scan();
+        await fixture.PushAsync(TestContext.Current.CancellationToken);
+
+        var onDisk = fixture.Install.Resolve(
+            RelativePath.Create("saves/snes/libretro.snes9x/ActRaiser (USA).state1"));
+        File.Delete(onDisk);
+        fixture.Scan();
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        fixture.Execute(
+            "CREATE TRIGGER refuse_state BEFORE INSERT ON local_state BEGIN SELECT RAISE(ABORT, 'refused by test'); END;");
+
+        var outcome = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Failed);
+        Assert.Contains(outcome.Problems, p => p.Contains("refused by test", StringComparison.Ordinal));
+        Assert.False(File.Exists(onDisk));
+    }
+
+    [Fact]
     public async Task A_restored_state_is_not_sent_straight_back_by_the_next_flush()
     {
         // The headline case: a state made on another device has no local row at all, so without
@@ -707,6 +735,39 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_bizhawk_state_named_after_disc_1_of_a_set_restores_under_that_disc()
+    {
+        // RetroBat hands BizHawk disc 1 rather than the playlist (finding 314), so the state is
+        // named after a disc of the set, which is on disk, and never after the .m3u.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(320307, "psx", "Metal Gear Solid (USA).m3u");
+        fixture.Store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/psx/Metal Gear Solid (USA) (Disc 1).cue"),
+            Folder = "psx",
+            RomId = 320307,
+            Kind = LocalFileKind.RomPart,
+            FileName = "Metal Gear Solid (USA) (Disc 1).cue",
+            SizeBytes = 90,
+        });
+        fixture.Stub.States[701] = new StubRomMServer.StubState
+        {
+            Id = 701,
+            RomId = 320307,
+            Emulator = "bizhawk.Nymashock",
+            FileName = "Metal Gear Solid (USA) (Disc 1).QuickSave0 [bizhawk.Nymashock].State",
+            Bytes = "progress"u8.ToArray(),
+        };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/psx/bizhawk/sstates/Nymashock/Metal Gear Solid (USA) (Disc 1).QuickSave0.State",
+            candidate.Destination.Value);
+    }
+
+    [Fact]
     public void The_sent_name_is_recovered_only_where_the_scope_group_is_where_the_upload_put_it()
     {
         Assert.Equal(
@@ -1025,6 +1086,13 @@ public class StateSyncTests
             IReadOnlyList<RestorableState> picks,
             CancellationToken cancellationToken = default) =>
             new StateSync(Install, Store, _connection).RestoreAsync(picks, cancellationToken);
+
+        /// <summary>Runs a statement against the store, for a test that has to break it.</summary>
+        public void Execute(string sql)
+        {
+            using var command = Store.Connection.Command(sql);
+            command.ExecuteNonQuery();
+        }
 
         public void Dispose()
         {

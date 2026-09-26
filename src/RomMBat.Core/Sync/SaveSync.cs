@@ -55,6 +55,16 @@ public sealed record SaveSyncOutcome
     public int Rejected { get; init; }
 
     /// <summary>
+    /// Saves not sent because a newer file holds the same game's slot, each with a line in
+    /// <see cref="Problems"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not a failure: the newer file is the one sent, and the older one is what an emulator left
+    /// behind when it changed how it names the game's file (finding 333).
+    /// </remarks>
+    public int Superseded { get; init; }
+
+    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -74,7 +84,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0 && Rejected == 0 && !SessionLeftOpen;
+        && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && !SessionLeftOpen;
 
     public string Summary
     {
@@ -115,6 +125,11 @@ public sealed record SaveSyncOutcome
             if (Rejected > 0)
             {
                 parts.Add($"{Rejected} refused, not a save");
+            }
+
+            if (Superseded > 0)
+            {
+                parts.Add($"{Superseded} superseded by a newer file for the same game");
             }
 
             if (Skipped > 0)
@@ -344,24 +359,33 @@ public sealed class SaveSync
 
         // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
         // negotiate between them: the server would be told about the slot twice and answer
-        // once. Reported and skipped rather than thrown on, because discovering an attribution
-        // fault must not take the rest of the library's saves down with it.
+        // once. The newest file is the one sent, since an emulator that changed how it names a
+        // game's file writes only the new one from then on: DuckStation switched from
+        // PerGameTitle to PerGame left the title card behind and saved to SLUS-00067_1.mcd
+        // (finding 333). The other is reported as superseded, not failed, since nothing is lost.
         var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
         var problems = new List<string>();
         var failed = 0;
         var skipped = 0;
+        var superseded = 0;
 
-        foreach (var save in saves)
+        foreach (var group in saves.GroupBy(save => (save.RomId!.Value, save.Slot)))
         {
-            if (byKey.TryAdd((save.RomId!.Value, save.Slot), save))
-            {
-                continue;
-            }
+            var ordered = group
+                .OrderByDescending(save => save.FileMtimeUtc ?? DateTimeOffset.MinValue)
+                .ThenBy(save => save.Path.Value, StringComparer.Ordinal)
+                .ToList();
 
-            failed++;
-            problems.Add(
-                $"{save.Path}: slot {save.Slot} on rom {save.RomId} is already held by "
-                    + $"{byKey[(save.RomId!.Value, save.Slot)].Path}, so it was not sent.");
+            byKey[group.Key] = ordered[0];
+
+            foreach (var older in ordered.Skip(1))
+            {
+                superseded++;
+                problems.Add(
+                    $"{older.Path}: slot {older.Slot} on rom {older.RomId} is held by "
+                        + $"{ordered[0].Path}, written more recently, so it was not sent. Remove it "
+                        + "once the newer file is the one the emulator reads.");
+            }
         }
 
         var request = new NegotiateRequest(
@@ -680,6 +704,7 @@ public sealed class SaveSync
             NoOps = noOps,
             Failed = failed,
             Skipped = skipped,
+            Superseded = superseded,
             Deferred = deferred,
             Rejected = rejected,
             SessionLeftOpen = leftOpen,
@@ -890,8 +915,11 @@ public sealed class SaveSync
 
             // The scan above rebuilt the store from the tree, so a row missing there should mean
             // a file missing here. Checked anyway, because restoring over a file nobody asked
-            // about is the one outcome this feature must never produce.
-            if (File.Exists(_install.Resolve(destination)))
+            // about is the one outcome this feature must never produce. A blank memory card is
+            // not such a file: an emulator writes one on a first boot before any restore could
+            // run, and the write copies it aside like anything else it replaces.
+            var existing = _install.Resolve(destination);
+            if (File.Exists(existing) && !Ps1MemoryCard.IsBlank(existing))
             {
                 continue;
             }
@@ -1545,6 +1573,17 @@ public sealed class SaveSync
                 return (0, null, null, arrived);
             }
 
+            // The scan passes over a blank card, so a slot holding one reads as empty and would
+            // fetch the same blank card back on every restore (finding 328).
+            if (written == Ps1MemoryCard.CardBytes && Ps1MemoryCard.IsBlank(part))
+            {
+                SafeDelete(part);
+                return (0, null, null,
+                    "the server holds a formatted memory card with no save on it, which an emulator "
+                        + "writes on exit whether or not the game saved. Delete that save on the server "
+                        + "to stop it being offered.");
+            }
+
             var absolute = _install.Resolve(destination);
             Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
 
@@ -1782,12 +1821,12 @@ public sealed class SaveSync
 
             if (rule.NamedAfter == BatteryNaming.DisplayName)
             {
-                if (DisplayNameAttributor.LearnedTitle(_store, folder, rule, operation.RomId) is not { } title)
+                if (DisplayNameAttributor.LearnedTitle(_store, folder, rule, operation.RomId, operation.Slot) is not { } title)
                 {
                     return (null, TargetProblem.TitleNotLearned);
                 }
 
-                stem = title;
+                stem = title + rule.StemSuffixFor(operation.Slot);
             }
             else if (rule.NamedAfter == BatteryNaming.RomFileAndContentMd5)
             {
@@ -1798,12 +1837,12 @@ public sealed class SaveSync
 
                 // mednafen fills %M only when the name without it is absent, so an existing
                 // <rom>.sav, mesen standalone's or its own from before, is the file it reads.
-                if (File.Exists(_install.Resolve(RelativePath.Create($"{directory}/{stem}{extension}"))))
+                if (File.Exists(_install.Resolve(RelativePath.Create($"{directory}/{stem}{rule.StemSuffixFor(operation.Slot)}{extension}"))))
                 {
                     return (null, TargetProblem.ShadowedByUnhashedName);
                 }
 
-                stem = $"{stem}.{hash}";
+                stem = $"{stem}.{hash}{rule.StemSuffixFor(operation.Slot)}";
             }
             else if (rule.NamedAfter == BatteryNaming.ArchiveMemberAndContentMd5)
             {
@@ -1813,6 +1852,11 @@ public sealed class SaveSync
                 }
 
                 stem = $"{rom.FileName}#{member.MemberStem}.{member.Hash}";
+            }
+            else
+            {
+                // A rom-named file that carries a port, as mednafen_psx_hw's <rom>.1.mcr does.
+                stem += rule.StemSuffixFor(operation.Slot);
             }
         }
 
@@ -1843,8 +1887,10 @@ public sealed class SaveSync
         var name = segments[^1];
         var stem = rule.RomStemOf(name);
 
-        return stem != Path.GetFileNameWithoutExtension(name)
-            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{Path.GetExtension(name)}", out var plain)
+        var suffix = rule.StemSuffixFor(slot);
+
+        return stem != rule.TitleOf(name)
+            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{suffix}{Path.GetExtension(name)}", out var plain)
             && File.Exists(_install.Resolve(plain));
     }
 

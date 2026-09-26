@@ -114,7 +114,66 @@ public sealed class MednafenRomHashTests : IDisposable
         Assert.Null(MednafenRomHash.ArchiveMemberOf(Zip("Two.zip", ("A.gba", body), ("B.gba", body)), "gba"));
     }
 
+    [Fact]
+    public void The_psx_layout_hash_reproduces_what_mednafen_wrote_for_a_two_disc_set()
+    {
+        // Metal Gear Solid (USA): discs of 705,614,112 B and 731,911,824 B, one MODE2/2352 track
+        // each, and mednafen named its cards and states 2f876f49...
+        Assert.Equal(
+            "2f876f4966ab9a14472349c43b3d64a4",
+            MednafenRomHash.LayoutHash([(1, 705_614_112 / 2352), (1, 731_911_824 / 2352)]));
+
+        // The set, not the disc it booted.
+        Assert.NotEqual(
+            "2f876f4966ab9a14472349c43b3d64a4",
+            MednafenRomHash.LayoutHash([(1, 705_614_112 / 2352)]));
+    }
+
+    [Fact]
+    public void A_psx_playlist_hashes_every_disc_it_names_in_order()
+    {
+        Cue("Game (Disc 1)", sectors: 10);
+        Cue("Game (Disc 2)", sectors: 12);
+        var m3u = Path.Combine(_root, "Game.m3u");
+        File.WriteAllLines(m3u, ["Game (Disc 1).cue", "Game (Disc 2).cue"]);
+
+        Assert.Equal(MednafenRomHash.LayoutHash([(1, 10), (1, 12)]), MednafenRomHash.Of(m3u, "psx"));
+        Assert.Equal(
+            MednafenRomHash.LayoutHash([(1, 10)]),
+            MednafenRomHash.Of(Path.Combine(_root, "Game (Disc 1).cue"), "psx"));
+    }
+
+    [Theory]
+    [InlineData("FILE \"Game.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n  TRACK 02 AUDIO\n    INDEX 01 01:00:00\n")]
+    [InlineData("FILE \"Game.bin\" BINARY\n  TRACK 01 MODE2/2352\n    PREGAP 00:02:00\n    INDEX 01 00:00:00\n")]
+    [InlineData("FILE \"Game.bin\" BINARY\n  TRACK 01 MODE1/2048\n    INDEX 01 00:00:00\n")]
+    public void A_psx_cue_beyond_the_measured_shape_answers_null(string cue)
+    {
+        File.WriteAllBytes(Path.Combine(_root, "Game.bin"), new byte[2352 * 4]);
+        var path = Path.Combine(_root, "Game.cue");
+        File.WriteAllText(path, cue);
+
+        Assert.Null(MednafenRomHash.Of(path, "psx"));
+    }
+
+    [Fact]
+    public void A_psx_chd_answers_null()
+    {
+        var chd = Path.Combine(_root, "Game.chd");
+        File.WriteAllBytes(chd, Body("MComprHD"));
+
+        Assert.Null(MednafenRomHash.Of(chd, "psx"));
+    }
+
     public void Dispose() => Directory.Delete(_root, recursive: true);
+
+    private void Cue(string stem, int sectors)
+    {
+        File.WriteAllBytes(Path.Combine(_root, $"{stem}.bin"), new byte[2352 * sectors]);
+        File.WriteAllText(
+            Path.Combine(_root, $"{stem}.cue"),
+            $"FILE \"{stem}.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n");
+    }
 
     private string Zip(string name, params (string Entry, byte[] Body)[] entries)
     {

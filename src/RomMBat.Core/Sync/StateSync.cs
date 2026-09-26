@@ -463,7 +463,7 @@ public sealed class StateSync
                 && SentNameFor(serverName, scope) is { } sent
                 && template.Match(sent) is { } sentMatch)
             {
-                name = template.FileFor(sentMatch with { Stem = stem });
+                name = template.FileFor(sentMatch with { Stem = DiscStemOf(row.RomId, sentMatch.Stem) ?? stem });
                 earlierScreenshotName = template.ImageFor(sentMatch) is { Length: > 0 } sentImage
                     ? UploadNameFor(sentImage, emulator.Name, core)
                     : null;
@@ -629,7 +629,25 @@ public sealed class StateSync
                 // in the window between would be destroyed with nothing written down anywhere.
                 File.Move(part, absolute, overwrite: false);
 
-                RecordRestored(pick, absolute);
+                try
+                {
+                    RecordRestored(pick, absolute);
+                }
+                catch
+                {
+                    // The move did not overwrite, so the file is this restore's own, and a state on
+                    // disk with no row behind it would be offered again under another name.
+                    try
+                    {
+                        File.Delete(absolute);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // The record failure is the one to report, not the cleanup's.
+                    }
+
+                    throw;
+                }
 
                 restored++;
                 bytes += written;
@@ -959,4 +977,17 @@ public sealed class StateSync
             return null;
         }
     }
+
+    /// <summary>
+    /// The stem of one of the ROM's own disc files when the sent name was taken from it, or null.
+    /// </summary>
+    /// <remarks>
+    /// RetroBat's launcher hands BizHawk disc 1 of a <c>psx</c> set rather than the playlist
+    /// (finding 314), so its states are named after that disc and not the ROM. The stem still
+    /// comes from a file on disk, which is what keeps a tag RomM strips from mattering.
+    /// </remarks>
+    private string? DiscStemOf(int romId, string sentStem) =>
+        _store.Files.ForRom(romId, LocalFileKind.RomPart)
+            .Select(part => Path.GetFileNameWithoutExtension(part.FileName))
+            .FirstOrDefault(part => string.Equals(part, sentStem, StringComparison.OrdinalIgnoreCase));
 }

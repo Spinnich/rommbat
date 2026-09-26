@@ -2680,6 +2680,216 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_duckstation_card_2_restores_under_the_title_card_1_taught()
+    {
+        using var fixture = SyncFixture.Create();
+        const string Title = "Metal Gear Solid (USA)";
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA) (Rev 1)", ".chd", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psx",
+            $"{Title}_1.mcd",
+            7,
+            RelativePath.Create("roms/psx/Metal Gear Solid (USA) (Rev 1).chd"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "duckstation:battery:2", $"{Title}_2", "mcd", "saved to port 2");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+        Assert.Equal($"saves/psx/duckstation/memcards/{Title}_2.mcd", pick.Destination.Value);
+
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+        Assert.Equal(1, outcome.Restored);
+
+        // The next scan attributes the card it never saw written, through card 1's binding.
+        fixture.Scan();
+        var card = Assert.Single(fixture.Store.Saves.List(), save => save.Path.Value.EndsWith("_2.mcd", StringComparison.Ordinal));
+        Assert.Equal(7, card.RomId);
+        Assert.Equal("duckstation:battery:2", card.Slot);
+    }
+
+    [Fact]
+    public async Task A_mednafen_port_2_card_restores_under_the_layout_hash_of_the_whole_set()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA)", ".m3u", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA).srm"));
+
+        foreach (var (disc, sectors) in new[] { ("Disc 1", 10), ("Disc 2", 12) })
+        {
+            var stem = $"Metal Gear Solid (USA) ({disc})";
+            File.WriteAllBytes(fixture.Resolve($"roms/psx/{stem}.bin"), new byte[2352 * sectors]);
+            File.WriteAllText(
+                fixture.Resolve($"roms/psx/{stem}.cue"),
+                $"FILE \"{stem}.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n");
+        }
+
+        File.WriteAllLines(
+            fixture.Resolve("roms/psx/Metal Gear Solid (USA).m3u"),
+            ["Metal Gear Solid (USA) (Disc 1).cue", "Metal Gear Solid (USA) (Disc 2).cue"]);
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "mednafen:battery:2", "Metal Gear Solid (USA)", "mcr", "port 2", emulator: "mednafen");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        var hash = MednafenRomHash.LayoutHash([(1, 10), (1, 12)]);
+        Assert.Equal($"saves/psx/Metal Gear Solid (USA).{hash}.1.mcr", pick.Destination.Value);
+    }
+
+    [Fact]
+    public async Task Two_cards_for_one_game_in_one_slot_send_the_newer_and_name_the_older()
+    {
+        // DuckStation switched from PerGameTitle to PerGame writes SLUS-00067_1.mcd and leaves the
+        // title card behind; both are SotN's and both are duckstation:battery.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "placeholder");
+        File.Delete(fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA).srm"));
+
+        var rom = RelativePath.Create("roms/psx/Castlevania - Symphony of the Night (USA).chd");
+        var cards = new[]
+        {
+            ("Castlevania - Symphony of the Night (USA)_1.mcd", "the old card", DateTime.UtcNow.AddHours(-2)),
+            ("SLUS-00067_1.mcd", "the new card", DateTime.UtcNow.AddMinutes(-5)),
+        };
+
+        foreach (var (name, contents, written) in cards)
+        {
+            var path = fixture.Resolve($"saves/psx/duckstation/memcards/{name}");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, contents);
+            File.SetLastWriteTimeUtc(path, written);
+            fixture.Store.GameIdBindings.Record(new GameIdBinding(
+                "psx", name, 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+        }
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "duckstation:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Superseded);
+        Assert.Equal("SLUS-00067_1", Assert.Single(fixture.Stub.Saves.Values).FileNameNoTags);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("Castlevania - Symphony of the Night (USA)_1.mcd", StringComparison.Ordinal));
+
+        // A restore names the card after the title whose file was written last.
+        var rule = SaveShapes.Bundled.BatteryRuleForSlot("psx", "duckstation:battery")!;
+        Assert.Equal("SLUS-00067", DisplayNameAttributor.LearnedTitle(fixture.Store, "psx", rule, 7));
+    }
+
+    [Fact]
+    public async Task A_blank_memory_card_the_server_holds_is_refused_rather_than_restored()
+    {
+        // Sent before the scanner passed over blank cards: save 441 on a real install.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA) (Rev 1)", ".chd", ".srm", "placeholder");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Metal Gear Solid (USA) (Rev 1)", "srm", "placeholder");
+        var blank = Ps1MemoryCardTests.BlankCard();
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { Bytes = blank };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Rejected);
+        Assert.False(File.Exists(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm")));
+    }
+
+    [Fact]
+    public async Task A_swanstation_port_2_card_restores_under_the_name_its_own_port_taught()
+    {
+        // Port 1 under PerGameTitle and port 2 under PerGame, with the .srm beside them, whose
+        // stem is the title: measured, the first restore put port 2 under the title.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "the default card");
+        var rom = RelativePath.Create("roms/psx/Castlevania - Symphony of the Night (USA).chd");
+
+        foreach (var name in new[] { "Castlevania - Symphony of the Night (USA)_1.mcd", "SLUS-00067_2.mcd" })
+        {
+            fixture.Store.GameIdBindings.Record(new GameIdBinding(
+                "psx", name, 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+        }
+
+        File.WriteAllText(fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA)_1.mcd"), "port 1");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery:mcd2", "SLUS-00067_2", "mcd", "port 2", id: 102);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable, candidate => candidate.Slot == "libretro:battery:mcd2");
+
+        Assert.Equal("saves/psx/SLUS-00067_2.mcd", pick.Destination.Value);
+
+        // A second name learned for port 2, with no port 2 file to say which is live, is refused
+        // rather than settled by port 1's file, which strips to the same title.
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "psx", "Castlevania - Symphony of the Night (USA)_2.mcd", 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+
+        var refound = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var refindings = Assert.IsType<SaveRestoreFindings>(refound.Value);
+        Assert.DoesNotContain(refindings.Restorable, candidate => candidate.Slot == "libretro:battery:mcd2");
+        Assert.Contains(refindings.Unrestorable, entry => entry.Slot == "libretro:battery:mcd2");
+    }
+
+    [Fact]
+    public async Task A_mednafen_psx_hw_port_2_card_restores_under_the_roms_name_and_its_port()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "port 1");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery:mcr", "Castlevania - Symphony of the Night (USA).1", "mcr", "port 2", id: 101);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        Assert.Equal("saves/psx/Castlevania - Symphony of the Night (USA).1.mcr", pick.Destination.Value);
+    }
+
+    [Fact]
+    public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
+    {
+        // A first boot on a second device writes an empty card before anything could restore,
+        // and that card must not stand in for the save the server holds.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "placeholder");
+        var card = fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA).srm");
+        File.WriteAllBytes(card, Ps1MemoryCardTests.BlankCard());
+        fixture.Scan();
+        Assert.Empty(fixture.Store.Saves.List());
+
+        fixture.SeedServerSave(7, "libretro:battery", "Castlevania - Symphony of the Night (USA)", "srm", "the real save");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        var outcome = await fixture.RestoreAsync([pick], TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Restored);
+        Assert.Equal("the real save", File.ReadAllText(card));
+
+        // Copied aside like any file a restore replaces.
+        var aside = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal(Ps1MemoryCardTests.BlankCard(), File.ReadAllBytes(aside));
+    }
+
+    [Fact]
     public async Task A_save_for_a_game_this_device_does_not_hold_is_skipped_without_a_word()
     {
         // The ordinary case on a device carrying a subset of the library, and the reason the

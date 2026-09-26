@@ -11,7 +11,7 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem,psx">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
@@ -21,6 +21,7 @@
     <evidence>gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mednafen/sstates/&lt;rom&gt;.301899b8087289a6436b0a241fbbb474.mc0 and .mc1, 5,101 B and 5,257 B, the md5 being of the whole .gbc inside. F2 saves and F7 steps the slot</evidence>
     <evidence>snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mednafen/sstates/&lt;rom&gt;.608c22b8ff930c62dc2de54bcd6eba72.mc0 and .mc1, 110,345 B and 110,365 B, the md5 being of the whole .sfc inside. F2 saves and F7 steps the slot</evidence>
     <evidence>mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mednafen/sstates/&lt;rom&gt;.d46e40bbb729ba233f171ad7bf6169f5.mc0 and .mc1, 9,875 B and 9,749 B, the md5 being of the whole .sms inside. F2 saves and F7 steps the slot</evidence>
+    <evidence>psx under mednafen, core psx, on 8.2.1: Metal Gear Solid (USA).m3u, two .cue discs, wrote mednafen/sstates/&lt;rom&gt;.2f876f4966ab9a14472349c43b3d64a4.mc0 and .mc1, 1,328,938 B and 1,899,888 B, the md5 being the layout hash over both discs, not any file's content</evidence>
   </emulator>
   <emulator name="mesen" systems="nes,gba,gb,gbc,snes,mastersystem">
     <directory>{{system}}/mesen/SaveStates</directory>

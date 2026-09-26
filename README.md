@@ -20,11 +20,12 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Seventy-three `(system, emulator, core)` rows are certified against a real emulator, across
-> wave 1's seven systems: every row `nes`, `snes`, `gb` and `gbc` declare, seven of `megadrive`'s
-> eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten. No other system has a certified
-> row; see [Platform certification](#platform-certification) for what that means and where the
-> rollout stands.
+> Eighty `(system, emulator, core)` rows are certified against a real emulator: seventy-three
+> across wave 1's seven systems, every row `nes`, `snes`, `gb` and `gbc` declare, seven of
+> `megadrive`'s eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten, and all seven of
+> `psx`'s, which opens wave 2. No other system has a certified row; see
+> [Platform certification](#platform-certification) for what that means and where the rollout
+> stands.
 > The repository also holds the design of record
 > ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
@@ -466,7 +467,7 @@ folder for, so it is out of scope rather than unscheduled.
 | Wave | Systems                                                                                                  | Status           |
 | ---- | -------------------------------------------------------------------------------------------------------- | ---------------- |
 | 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Every row driven |
-| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | Not started      |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | `psx` certified  |
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started      |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started      |
 | 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started      |
@@ -524,7 +525,17 @@ than certified. `bizhawk`/`SMSHawk` will not start a game without the US/EU Mast
 mednafen will not start a game while Mesen's save for it is beside the ROM
 ([docs/platforms/mastersystem.md](docs/platforms/mastersystem.md)).
 
-That is seventy-three rows on one install. Every row wave 1's seven systems declare has now been
+**Every row `psx` declares is certified**, seven, at RomM `5.3.1` and RetroBat 8.2.1 on
+2026-09-26: `libretro` under `mednafen_psx_hw`, which a stock install runs, `swanstation` and
+`pcsx_rearmed`, then DuckStation, standalone mednafen, and `bizhawk` under `Nymashock` and
+`Octoshock`, with every memory card type the rows expose driven. A per-game card syncs whichever
+type makes it; a shared card, DuckStation's, swanstation's or pcsx_rearmed's second, is reported and
+never sent. Six rows refuse to start without `psxonpsp660.bin`, which RomMBat fetches. Standalone
+mednafen emulates no memory card at RetroBat's default, so set its card count to keep a save
+there, and both BizHawk rows are handed disc 1 of a set whatever the layout
+([docs/platforms/psx.md](docs/platforms/psx.md)).
+
+That is eighty rows on one install. Every row wave 1's seven systems and `psx` declare has now been
 driven, and the eight not certified say why in their records. The unit is still
 `(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
 were measured on, so none of those emulators is certified anywhere else.

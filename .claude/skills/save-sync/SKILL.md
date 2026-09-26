@@ -533,6 +533,51 @@ something to route around. BizHawk names its `.SaveRAM` after its own title, `Go
 323). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
 Warrior does (finding 326), so on such a game a changed file is not new progress.
 
+**On `psx` a `libretro` core writes a formatted, empty memory card on exit whether or not the game
+saved** (finding 328): a 128 KB loose `<rom>.srm` whose fifteen directory frames are all `0xA0`,
+never used. It went up as the game's save until `Ps1MemoryCard.IsBlank` made the scanner pass over
+it, at the loose level and under an emulator's own directory alike, and made a restore treat it as
+absent, so a second device's first boot neither uploads it nor blocks the server's save. The test
+reads the format, not the system or extension. A card whose saves were deleted in the game marks
+those frames `0xA1` to `0xA3` and still syncs. A download refuses a blank card too (finding 334),
+or a slot the scan leaves empty fetches the server's blank copy back on every restore.
+
+**DuckStation's per-game cards are a display-name rule with a slot per port** (finding 329):
+`duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
+`duckstation:battery:2`, from the rule's `stem_suffixes`. The title is the stem less the suffix, so
+one title names both cards: a restore places card 2 under the title card 1 taught, and the next
+scan attributes it through card 1's binding rather than leaving it unattributed. `saveName` comes
+from `gamedb.yaml` by serial and is not the rom's stem in general (`Metal Gear Solid (USA)` for the
+`(Rev 1)` rom), so it is learned from the launch route; DuckStation's state sidecar is a bare serial
+and answers nothing here. A card with no `_<port>` suffix is not claimed.
+**A card type change leaves two files for one game in one slot** (finding 333). The flush sends the
+file written most recently and reports the rest as superseded, and `LearnedTitle` picks the title
+whose file is newest for a rule with `stem_suffixes`. DuckStation's `shared_card_<n>.mcd` names are
+declared shared containers, and `ScanBelow` asks that list before any rule claims a file, since
+`shared_card_1.mcd` matches the per-game `_1`.
+**The `libretro` cores' other `psx` cards are class B slots beside the `.srm`** (finding 335):
+swanstation's loose `<serial or title>_1.mcd` and `_2.mcd` take `libretro:battery:mcd` and `:mcd2`,
+and mednafen_psx_hw's `<rom>.1.mcr` takes `libretro:battery:mcr`. **Each port can be named its own
+way**, so `LearnedTitle` takes the slot, prefers a title learned from the same port, and weighs only
+that port's files of that rule. The loose scan attributes a display-name file through the title
+routes as `ScanBelow` does.
+
+**Standalone mednafen on `psx` names its cards `<rom>.<layout md5>.<port-1>.mcr`, loose** (finding
+331), under a `rom file and content md5` rule with `stem_suffixes` `.0` and `.1`, port 2 taking
+`mednafen:battery:2`; the pattern is asked of the stem less the port. The md5 is not a file's: it
+is mednafen's hash of every disc's table of contents in playlist order, which
+`MednafenRomHash.CdLayout` computes for a `.cue` or a `.m3u` of cues with one file and one data
+track each, and answers null for anything else, so such a card is unnameable on restore. **At
+RetroBat's default the row emulates no card** (finding 330): `mednafen_psx_memcards` unset writes
+every port as `0`, so there is nothing to sync until a user sets it.
+
+**A disc of a set answers for the set** (finding 332). BizHawk on `psx` is handed disc 1 rather than
+the playlist, so its states are `<disc 1 stem>.QuickSave<n>.State`. `RomIndex` maps a `RomPart`
+file's stem to its set after every ROM, so a ROM of that name keeps it, and never adds a disc to
+`InFolder`. A state restore keeps its stem-from-disk rule but takes the sent name's stem when it is
+one of the ROM's own disc files. BizHawk's `.SaveRAM` on `psx` is Nymashock's one raw card or
+Octoshock's card plus 128 KB, one `bizhawk:battery` slot for both.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

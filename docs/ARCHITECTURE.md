@@ -779,6 +779,14 @@ in `game_id_binding` under the file name. A title two ROMs answer to fails close
 download for such a slot is placed only where a title was learned (#151). A clock file beside a
 save is class B: on `gb` the loose `.rtc` is `libretro`'s second slot, `libretro:battery:rtc`,
 because a clock cartridge keeps its clock there under the stock core, and on `gba` it is Mesen's.
+A rule can carry **stem suffixes**, one per memory card port, each with its own slot: DuckStation's
+`<title>_1.mcd` and `_2.mcd` on `psx` are `duckstation:battery` and `duckstation:battery:2`, and the
+title is the stem less the suffix. mednafen's `psx` hash is of no file but of every disc's table of
+contents in playlist order, and a disc of a set answers for the set in `Content/RomIndex`, since
+BizHawk names its `psx` files after disc 1. Where two files hold one `(rom_id, slot)`, as a changed
+card type leaves, the flush sends the one written last and reports the other as superseded. A PS1
+card with no save on it, which an emulator writes on exit regardless, is neither scanned nor
+downloaded.
 
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and

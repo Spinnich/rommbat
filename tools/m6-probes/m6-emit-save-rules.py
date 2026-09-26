@@ -58,6 +58,40 @@ SHARED_CONTAINERS = {
     "ps2": {
         "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
         "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
+    },    "psx": {
+        "duckstation/memcards/shared_card_1.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_2.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_3.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_4.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_5.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_6.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_7.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation/memcards/shared_card_8.mcd": (
+            "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
+        ),
+        "duckstation_shared_card_1.mcd": (
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
+        ),
+        "duckstation_shared_card_2.mcd": (
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
+        ),
+        "pcsx-card2.mcd": (
+            "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
+        ),
     },
 }
 
@@ -67,7 +101,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem", "psx"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -433,6 +467,68 @@ OTHER_BATTERY_RULES = [
             "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, "
             "Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its "
             "states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "duckstation",
+        "systems": ["psx"],
+        "directory": "duckstation/memcards",
+        "extensions": [".mcd"],
+        "named_after": "display name",
+        "class": "A",
+        "stem_suffixes": {"_1": "", "_2": "2"},
+        "evidence": (
+            "psx under duckstation, PerGameTitle for both ports, on 8.2.1: Castlevania - Symphony of "
+            "the Night (USA).chd wrote duckstation/memcards/<saveName>_1.mcd, 131,072 B, on exit, "
+            "where saveName is gamedb.yaml's for the serial and not the rom file; Metal Gear Solid "
+            "(USA) (Rev 1) also wrote _2.mcd, a formatted empty card, for port 2. Each port takes "
+            "its own slot"
+        ),
+    },
+    {
+        "emulator": "mednafen",
+        "systems": ["psx"],
+        "directory": "",
+        "extensions": [".mcr"],
+        "named_after": "rom file and content md5",
+        "class": "A",
+        "stem_suffixes": {".0": "", ".1": "2"},
+        "evidence": (
+            "psx under mednafen, core psx, with mednafen_psx_memcards 2, on 8.2.1: Metal Gear Solid "
+            "(USA).m3u, two .cue discs, wrote loose <rom>.2f876f4966ab9a14472349c43b3d64a4.0.mcr for "
+            "port 1 and .1.mcr for port 2, 131,072 B each, the md5 being mednafen's layout hash over "
+            "both discs' tables of contents. Each port takes its own slot. RetroBat's default leaves "
+            "every port without a card"
+        ),
+    },
+    {
+        "emulator": "libretro",
+        "systems": ["psx"],
+        "directory": "",
+        "extensions": [".mcd"],
+        "named_after": "display name",
+        "class": "B",
+        "stem_suffixes": {"_1": "mcd", "_2": "mcd2"},
+        "evidence": (
+            "psx under libretro, core swanstation, on 8.2.1: with swanstation_memcard1 PerGame it "
+            "wrote loose SLUS-00067_1.mcd, and with PerGameTitle Castlevania - Symphony of the Night "
+            "(USA)_1.mcd, 131,072 B, named from its database as DuckStation's cards are; "
+            "swanstation_memcard2 names port 2 the same way with _2. Class B gives each its own slot "
+            "beside the .srm the default writes"
+        ),
+    },
+    {
+        "emulator": "libretro",
+        "systems": ["psx"],
+        "directory": "",
+        "extensions": [".mcr"],
+        "named_after": "rom file",
+        "class": "B",
+        "stem_suffixes": {".1": "mcr"},
+        "evidence": (
+            "psx under libretro, core mednafen_psx_hw, on 8.2.1: with beetle_psx_hw_enable_memcard1 "
+            "on it wrote loose Castlevania - Symphony of the Night (USA).1.mcr, 131,072 B, for port "
+            "2 beside the .srm it keeps for port 1. Class B gives it its own slot"
         ),
     },
 ]
