@@ -421,6 +421,15 @@ public sealed class SaveScanner
                     continue;
                 }
 
+                // Before any rule, since a shared card can match a per-game name: DuckStation's
+                // shared_card_1.mcd ends in the _1 its per-game cards do. AddSharedContainers has
+                // already reported it.
+                if (_shapes.SharedContainerReason(system, $"{rule.Directory}/{Path.GetFileName(file)}") is not null)
+                {
+                    carried.Add(_install.Relativize(file));
+                    continue;
+                }
+
                 var extension = Path.GetExtension(file).ToLowerInvariant();
 
                 // Not synced and not unsyncable either, so it is left out of the count the

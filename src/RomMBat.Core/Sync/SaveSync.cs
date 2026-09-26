@@ -55,6 +55,16 @@ public sealed record SaveSyncOutcome
     public int Rejected { get; init; }
 
     /// <summary>
+    /// Saves not sent because a newer file holds the same game's slot, each with a line in
+    /// <see cref="Problems"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not a failure: the newer file is the one sent, and the older one is what an emulator left
+    /// behind when it changed how it names the game's file (finding 333).
+    /// </remarks>
+    public int Superseded { get; init; }
+
+    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -74,7 +84,7 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0 && Rejected == 0 && !SessionLeftOpen;
+        && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && !SessionLeftOpen;
 
     public string Summary
     {
@@ -115,6 +125,11 @@ public sealed record SaveSyncOutcome
             if (Rejected > 0)
             {
                 parts.Add($"{Rejected} refused, not a save");
+            }
+
+            if (Superseded > 0)
+            {
+                parts.Add($"{Superseded} superseded by a newer file for the same game");
             }
 
             if (Skipped > 0)
@@ -344,24 +359,33 @@ public sealed class SaveSync
 
         // Slots are the pairing key, so two rows on one (rom_id, slot) have nothing to
         // negotiate between them: the server would be told about the slot twice and answer
-        // once. Reported and skipped rather than thrown on, because discovering an attribution
-        // fault must not take the rest of the library's saves down with it.
+        // once. The newest file is the one sent, since an emulator that changed how it names a
+        // game's file writes only the new one from then on: DuckStation switched from
+        // PerGameTitle to PerGame left the title card behind and saved to SLUS-00067_1.mcd
+        // (finding 333). The other is reported as superseded, not failed, since nothing is lost.
         var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
         var problems = new List<string>();
         var failed = 0;
         var skipped = 0;
+        var superseded = 0;
 
-        foreach (var save in saves)
+        foreach (var group in saves.GroupBy(save => (save.RomId!.Value, save.Slot)))
         {
-            if (byKey.TryAdd((save.RomId!.Value, save.Slot), save))
-            {
-                continue;
-            }
+            var ordered = group
+                .OrderByDescending(save => save.FileMtimeUtc ?? DateTimeOffset.MinValue)
+                .ThenBy(save => save.Path.Value, StringComparer.Ordinal)
+                .ToList();
 
-            failed++;
-            problems.Add(
-                $"{save.Path}: slot {save.Slot} on rom {save.RomId} is already held by "
-                    + $"{byKey[(save.RomId!.Value, save.Slot)].Path}, so it was not sent.");
+            byKey[group.Key] = ordered[0];
+
+            foreach (var older in ordered.Skip(1))
+            {
+                superseded++;
+                problems.Add(
+                    $"{older.Path}: slot {older.Slot} on rom {older.RomId} is held by "
+                        + $"{ordered[0].Path}, written more recently, so it was not sent. Remove it "
+                        + "once the newer file is the one the emulator reads.");
+            }
         }
 
         var request = new NegotiateRequest(
@@ -680,6 +704,7 @@ public sealed class SaveSync
             NoOps = noOps,
             Failed = failed,
             Skipped = skipped,
+            Superseded = superseded,
             Deferred = deferred,
             Rejected = rejected,
             SessionLeftOpen = leftOpen,

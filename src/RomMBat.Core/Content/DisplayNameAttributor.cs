@@ -209,7 +209,24 @@ public sealed class DisplayNameAttributor
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return titles.Count == 1 ? titles[0] : null;
+        if (titles.Count <= 1)
+        {
+            return titles.Count == 1 ? titles[0] : null;
+        }
+
+        // Two titles for one ROM under a rule that names files several ways, as DuckStation's
+        // card types do: the file written most recently is the one the emulator reads now. Only
+        // where every title still has a file here, so an unanswerable pair stays refused.
+        var written = store.Saves.List(romId)
+            .Where(save => string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(save.Emulator, rule.Emulator, StringComparison.OrdinalIgnoreCase)
+                && save.FileMtimeUtc is not null)
+            .GroupBy(save => rule.TitleOf(save.Path.Name), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Max(save => save.FileMtimeUtc!.Value), StringComparer.OrdinalIgnoreCase);
+
+        return rule.StemSuffixes.Count > 0 && titles.All(written.ContainsKey)
+            ? titles.OrderByDescending(title => written[title]).First()
+            : null;
     }
 
     /// <summary>

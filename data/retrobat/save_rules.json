@@ -281,6 +281,16 @@
     "ps2": {
       "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
       "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)"
+    },
+    "psx": {
+      "duckstation/memcards/shared_card_1.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_2.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_3.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_4.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_5.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_6.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_7.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary",
+      "duckstation/memcards/shared_card_8.mcd": "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
     }
   },
   "observed": {

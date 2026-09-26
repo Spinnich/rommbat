@@ -2745,6 +2745,48 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Two_cards_for_one_game_in_one_slot_send_the_newer_and_name_the_older()
+    {
+        // DuckStation switched from PerGameTitle to PerGame writes SLUS-00067_1.mcd and leaves the
+        // title card behind; both are SotN's and both are duckstation:battery.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "placeholder");
+        File.Delete(fixture.Resolve("saves/psx/Castlevania - Symphony of the Night (USA).srm"));
+
+        var rom = RelativePath.Create("roms/psx/Castlevania - Symphony of the Night (USA).chd");
+        var cards = new[]
+        {
+            ("Castlevania - Symphony of the Night (USA)_1.mcd", "the old card", DateTime.UtcNow.AddHours(-2)),
+            ("SLUS-00067_1.mcd", "the new card", DateTime.UtcNow.AddMinutes(-5)),
+        };
+
+        foreach (var (name, contents, written) in cards)
+        {
+            var path = fixture.Resolve($"saves/psx/duckstation/memcards/{name}");
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, contents);
+            File.SetLastWriteTimeUtc(path, written);
+            fixture.Store.GameIdBindings.Record(new GameIdBinding(
+                "psx", name, 7, rom, BindingSource.Journal, null, DateTimeOffset.UnixEpoch));
+        }
+
+        fixture.Scan();
+        fixture.Stub.NegotiateActions[(7, "duckstation:battery")] = "upload";
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Uploaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.Superseded);
+        Assert.Equal("SLUS-00067_1", Assert.Single(fixture.Stub.Saves.Values).FileNameNoTags);
+        Assert.Contains(outcome.Problems, problem => problem.Contains("Castlevania - Symphony of the Night (USA)_1.mcd", StringComparison.Ordinal));
+
+        // A restore names the card after the title whose file was written last.
+        var rule = SaveShapes.Bundled.BatteryRuleForSlot("psx", "duckstation:battery")!;
+        Assert.Equal("SLUS-00067", DisplayNameAttributor.LearnedTitle(fixture.Store, "psx", rule, 7));
+    }
+
+    [Fact]
     public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
     {
         // A first boot on a second device writes an empty card before anything could restore,

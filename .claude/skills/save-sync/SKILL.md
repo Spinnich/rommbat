@@ -549,6 +549,11 @@ scan attributes it through card 1's binding rather than leaving it unattributed.
 from `gamedb.yaml` by serial and is not the rom's stem in general (`Metal Gear Solid (USA)` for the
 `(Rev 1)` rom), so it is learned from the launch route; DuckStation's state sidecar is a bare serial
 and answers nothing here. A card with no `_<port>` suffix is not claimed.
+**A card type change leaves two files for one game in one slot** (finding 333). The flush sends the
+file written most recently and reports the rest as superseded, and `LearnedTitle` picks the title
+whose file is newest for a rule with `stem_suffixes`. DuckStation's `shared_card_<n>.mcd` names are
+declared shared containers, and `ScanBelow` asks that list before any rule claims a file, since
+`shared_card_1.mcd` matches the per-game `_1`.
 
 **Standalone mednafen on `psx` names its cards `<rom>.<layout md5>.<port-1>.mcr`, loose** (finding
 331), under a `rom file and content md5` rule with `stem_suffixes` `.0` and `.1`, port 2 taking
