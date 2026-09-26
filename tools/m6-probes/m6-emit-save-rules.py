@@ -67,7 +67,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem", "psx"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",

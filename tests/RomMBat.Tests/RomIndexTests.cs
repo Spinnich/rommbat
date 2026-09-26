@@ -97,14 +97,38 @@ public sealed class RomIndexTests : IDisposable
             RomIndex.Build(_store).InFolder("psp").Select(entry => entry.Path.Value));
     }
 
-    private void Add(int romId, string folder, string fileName) =>
+    [Fact]
+    public void A_disc_of_a_set_answers_for_the_set_and_a_rom_of_its_name_keeps_it()
+    {
+        // BizHawk names a psx state after disc 1's file, since the launcher hands it that disc.
+        Add(320307, "psx", "Metal Gear Solid (USA)/Metal Gear Solid (USA).m3u");
+        Add(320307, "psx", "Metal Gear Solid (USA)/Metal Gear Solid (USA) (Disc 1).cue", LocalFileKind.RomPart);
+        Add(320307, "psx", "Metal Gear Solid (USA)/Metal Gear Solid (USA) (Disc 1).bin", LocalFileKind.RomPart);
+        Add(5, "psx", "Other (Disc 1).chd");
+        Add(6, "psx", "Set/Other (Disc 1).cue", LocalFileKind.RomPart);
+
+        var index = RomIndex.Build(_store);
+
+        Assert.Equal(
+            (320307L, RelativePath.Create("roms/psx/Metal Gear Solid (USA)/Metal Gear Solid (USA).m3u")),
+            index.Find("psx", "Metal Gear Solid (USA) (Disc 1)"));
+        Assert.Equal(5, index.Find("psx", "Other (Disc 1)")?.RomId);
+        Assert.Null(index.Find("nes", "Metal Gear Solid (USA) (Disc 1)"));
+
+        // One row per game in the folder list, never a disc.
+        Assert.Equal(
+            ["roms/psx/Metal Gear Solid (USA)/Metal Gear Solid (USA).m3u", "roms/psx/Other (Disc 1).chd"],
+            index.InFolder("psx").Select(entry => entry.Path.Value));
+    }
+
+    private void Add(int romId, string folder, string fileName, LocalFileKind kind = LocalFileKind.Rom) =>
         _store.Files.Record(new LocalFile
         {
             Path = RelativePath.Create($"roms/{folder}/{fileName}"),
             Folder = folder,
             RomId = romId,
-            Kind = LocalFileKind.Rom,
-            FileName = fileName,
+            Kind = kind,
+            FileName = Path.GetFileName(fileName),
             SizeBytes = 1024,
         });
 

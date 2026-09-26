@@ -280,6 +280,9 @@ public class DisplayNameSaveTests
 
         // The libretro .srm beside it keeps its owner.
         Assert.Equal("libretro", shapes.BatteryRuleFor("psx", string.Empty, "Metal Gear Solid (USA).srm")?.Emulator);
+
+        // BizHawk's two cores share one SaveRAM named after its own title for disc 1.
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("psx", "bizhawk", "Metal Gear Solid (USA) (Disc 1) (v1.0).SaveRAM")?.Emulator);
     }
 
     [Fact]

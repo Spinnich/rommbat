@@ -19,7 +19,8 @@
         "gb",
         "gbc",
         "snes",
-        "mastersystem"
+        "mastersystem",
+        "psx"
       ],
       "directory": "bizhawk",
       "extensions": [".saveram"],

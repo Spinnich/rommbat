@@ -707,6 +707,39 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_bizhawk_state_named_after_disc_1_of_a_set_restores_under_that_disc()
+    {
+        // RetroBat hands BizHawk disc 1 rather than the playlist (finding 314), so the state is
+        // named after a disc of the set, which is on disk, and never after the .m3u.
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(320307, "psx", "Metal Gear Solid (USA).m3u");
+        fixture.Store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/psx/Metal Gear Solid (USA) (Disc 1).cue"),
+            Folder = "psx",
+            RomId = 320307,
+            Kind = LocalFileKind.RomPart,
+            FileName = "Metal Gear Solid (USA) (Disc 1).cue",
+            SizeBytes = 90,
+        });
+        fixture.Stub.States[701] = new StubRomMServer.StubState
+        {
+            Id = 701,
+            RomId = 320307,
+            Emulator = "bizhawk.Nymashock",
+            FileName = "Metal Gear Solid (USA) (Disc 1).QuickSave0 [bizhawk.Nymashock].State",
+            Bytes = "progress"u8.ToArray(),
+        };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+
+        Assert.Equal(
+            "saves/psx/bizhawk/sstates/Nymashock/Metal Gear Solid (USA) (Disc 1).QuickSave0.State",
+            candidate.Destination.Value);
+    }
+
+    [Fact]
     public void The_sent_name_is_recovered_only_where_the_scope_group_is_where_the_upload_put_it()
     {
         Assert.Equal(

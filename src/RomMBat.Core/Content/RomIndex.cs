@@ -72,6 +72,25 @@ public sealed class RomIndex
             inFolder.Add((romId, file.Path));
         }
 
+        // A disc of a multi-file set answers for the set, after every ROM so a ROM of the same
+        // name keeps it, and never in the folder list, which is one row per game. BizHawk names
+        // its psx states after disc 1's file, since RetroBat's launcher hands it that disc rather
+        // than the playlist (finding 314).
+        var setPaths = index.Values
+            .GroupBy(value => value.Item1)
+            .ToDictionary(group => group.Key, group => group.First().Item2);
+
+        foreach (var file in store.Files.List())
+        {
+            if (file.Kind == LocalFileKind.RomPart
+                && file.RomId is { } partOf
+                && file.Folder is { } folder
+                && setPaths.TryGetValue(partOf, out var setPath))
+            {
+                index.TryAdd(Key(folder, Path.GetFileNameWithoutExtension(file.FileName)), (partOf, setPath));
+            }
+        }
+
         var sealedByFolder =
             new Dictionary<string, IReadOnlyList<(long RomId, RelativePath Path)>>(
                 StringComparer.OrdinalIgnoreCase);

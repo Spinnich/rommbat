@@ -559,6 +559,13 @@ track each, and answers null for anything else, so such a card is unnameable on 
 RetroBat's default the row emulates no card** (finding 330): `mednafen_psx_memcards` unset writes
 every port as `0`, so there is nothing to sync until a user sets it.
 
+**A disc of a set answers for the set** (finding 332). BizHawk on `psx` is handed disc 1 rather than
+the playlist, so its states are `<disc 1 stem>.QuickSave<n>.State`. `RomIndex` maps a `RomPart`
+file's stem to its set after every ROM, so a ROM of that name keeps it, and never adds a disc to
+`InFolder`. A state restore keeps its stem-from-disk rule but takes the sent name's stem when it is
+one of the ROM's own disc files. BizHawk's `.SaveRAM` on `psx` is Nymashock's one raw card or
+Octoshock's card plus 128 KB, one `bizhawk:battery` slot for both.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's
