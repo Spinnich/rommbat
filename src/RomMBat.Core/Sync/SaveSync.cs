@@ -1573,6 +1573,17 @@ public sealed class SaveSync
                 return (0, null, null, arrived);
             }
 
+            // The scan passes over a blank card, so a slot holding one reads as empty and would
+            // fetch the same blank card back on every restore (finding 328).
+            if (written == Ps1MemoryCard.CardBytes && Ps1MemoryCard.IsBlank(part))
+            {
+                SafeDelete(part);
+                return (0, null, null,
+                    "the server holds a formatted memory card with no save on it, which an emulator "
+                        + "writes on exit whether or not the game saved. Delete that save on the server "
+                        + "to stop it being offered.");
+            }
+
             var absolute = _install.Resolve(destination);
             Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
 

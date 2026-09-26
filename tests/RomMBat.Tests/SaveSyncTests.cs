@@ -2787,6 +2787,28 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_blank_memory_card_the_server_holds_is_refused_rather_than_restored()
+    {
+        // Sent before the scanner passed over blank cards: save 441 on a real install.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA) (Rev 1)", ".chd", ".srm", "placeholder");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery", "Metal Gear Solid (USA) (Rev 1)", "srm", "placeholder");
+        var blank = Ps1MemoryCardTests.BlankCard();
+        fixture.Stub.Saves[100] = fixture.Stub.Saves[100] with { Bytes = blank };
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var outcome = await fixture.RestoreAsync(findings.Restorable, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, outcome.Restored);
+        Assert.Equal(1, outcome.Rejected);
+        Assert.False(File.Exists(fixture.Resolve("saves/psx/Metal Gear Solid (USA) (Rev 1).srm")));
+    }
+
+    [Fact]
     public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
     {
         // A first boot on a second device writes an empty card before anything could restore,
