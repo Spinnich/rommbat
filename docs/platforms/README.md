@@ -282,12 +282,13 @@ start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat ca
 
 **Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and five declared shared cards (findings 328 to 335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (330). [psx.md](psx.md) is the record.
 
-**Read all seven as narrowly as they are written.** They certify seventy-three
-`(system, emulator, core)` rows on one install at one pair of floors. They certify none of those
+**Read all eight as narrowly as they are written.** They certify eighty
+`(system, emulator, core)` rows on one install, wave 1's seventy-three and `psx`'s seven, each at the
+floors its record names. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
-[gba.md](gba.md), [gb.md](gb.md), [gbc.md](gbc.md), [snes.md](snes.md) and [mastersystem.md](mastersystem.md) are the
-records, gaps included.
+[gba.md](gba.md), [gb.md](gb.md), [gbc.md](gbc.md), [snes.md](snes.md), [mastersystem.md](mastersystem.md) and
+[psx.md](psx.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
 three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
