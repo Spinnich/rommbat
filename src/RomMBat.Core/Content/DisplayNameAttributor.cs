@@ -224,8 +224,13 @@ public sealed class DisplayNameAttributor
             .GroupBy(save => rule.TitleOf(save.Path.Name), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Max(save => save.FileMtimeUtc!.Value), StringComparer.OrdinalIgnoreCase);
 
-        return rule.StemSuffixes.Count > 0 && titles.All(written.ContainsKey)
-            ? titles.OrderByDescending(title => written[title]).First()
+        // A title with no file here is one the emulator no longer writes, or a file of the same
+        // name another emulator keeps elsewhere: swanstation's loose SLUS-00067_1.mcd shares its
+        // key with DuckStation's in memcards/.
+        var held = titles.Where(written.ContainsKey).ToList();
+
+        return rule.StemSuffixes.Count > 0 && held.Count > 0
+            ? held.OrderByDescending(title => written[title]).First()
             : null;
     }
 

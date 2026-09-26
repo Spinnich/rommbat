@@ -95,7 +95,7 @@ public sealed partial record BatteryRule(
     /// True when a restore needs this rule to name the file, because the ROM's folder and stem
     /// alone would put it somewhere else or call it something else.
     /// </summary>
-    public bool NeedsRuleToPlace => !IsLoose || NamedAfter != BatteryNaming.RomFile;
+    public bool NeedsRuleToPlace => !IsLoose || NamedAfter != BatteryNaming.RomFile || StemSuffixes.Count > 0;
 
     /// <summary>
     /// Stem suffixes that tell one game's files apart, each with the slot qualifier it uploads

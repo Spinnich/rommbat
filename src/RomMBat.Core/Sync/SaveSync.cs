@@ -1853,6 +1853,11 @@ public sealed class SaveSync
 
                 stem = $"{rom.FileName}#{member.MemberStem}.{member.Hash}";
             }
+            else
+            {
+                // A rom-named file that carries a port, as mednafen_psx_hw's <rom>.1.mcr does.
+                stem += rule.StemSuffixFor(operation.Slot);
+            }
         }
 
         return RelativePath.TryCreate($"{directory}/{stem}{extension}", out var derived)

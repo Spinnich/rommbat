@@ -286,6 +286,34 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_psx_rules_give_the_libretro_cores_other_cards_their_own_slots()
+    {
+        var shapes = SaveShapes.Bundled;
+        const string Title = "Castlevania - Symphony of the Night (USA)";
+
+        // swanstation's PerGame and PerGameTitle cards, loose and named like DuckStation's.
+        var swan = shapes.BatteryRuleFor("psx", string.Empty, "SLUS-00067_1.mcd");
+        Assert.Equal("libretro", swan?.Emulator);
+        Assert.Equal("libretro:battery:mcd", swan!.SlotOf($"{Title}_1.mcd", SaveShapeClass.B));
+        Assert.Equal("libretro:battery:mcd2", swan.SlotOf($"{Title}_2.mcd", SaveShapeClass.B));
+        Assert.Same(swan, shapes.BatteryRuleForSlot("psx", "libretro:battery:mcd"));
+
+        // mednafen_psx_hw's port 2, named after the rom; mednafen standalone keeps the hashed name.
+        var beetle = shapes.BatteryRuleFor("psx", string.Empty, $"{Title}.1.mcr");
+        Assert.Equal("libretro", beetle?.Emulator);
+        Assert.Equal("libretro:battery:mcr", beetle!.SlotOf($"{Title}.1.mcr", SaveShapeClass.B));
+        Assert.Equal(Title, beetle.RomStemOf($"{Title}.1.mcr"));
+        Assert.Equal(
+            "mednafen",
+            shapes.BatteryRuleFor("psx", string.Empty, "Metal Gear Solid (USA).2f876f4966ab9a14472349c43b3d64a4.1.mcr")?.Emulator);
+
+        // The .srm keeps the plain slot, and the shared cards are declared rather than claimed.
+        Assert.Equal("libretro:battery", shapes.BatteryRuleFor("psx", string.Empty, $"{Title}.srm")!.SlotOf($"{Title}.srm", SaveShapeClass.A));
+        Assert.NotNull(shapes.SharedContainerReason("psx", "duckstation_shared_card_1.mcd"));
+        Assert.NotNull(shapes.SharedContainerReason("psx", "pcsx-card2.mcd"));
+    }
+
+    [Fact]
     public void A_duckstation_card_is_attributed_by_its_launch_and_the_other_card_follows_it()
     {
         using var fixture = new TitleFixture();

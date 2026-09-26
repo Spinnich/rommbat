@@ -2809,6 +2809,22 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_mednafen_psx_hw_port_2_card_restores_under_the_roms_name_and_its_port()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Castlevania - Symphony of the Night (USA)", ".chd", ".srm", "port 1");
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "libretro:battery:mcr", "Castlevania - Symphony of the Night (USA).1", "mcr", "port 2", id: 101);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        Assert.Equal("saves/psx/Castlevania - Symphony of the Night (USA).1.mcr", pick.Destination.Value);
+    }
+
+    [Fact]
     public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
     {
         // A first boot on a second device writes an empty card before anything could restore,

@@ -863,6 +863,23 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_loose_libretro_shared_card_is_reported_as_shared_and_never_claimed()
+    {
+        // duckstation_shared_card_1.mcd ends in the _1 swanstation's per-game cards do.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(280632, "psx", "Castlevania - Symphony of the Night (USA).chd");
+        fixture.AddSaveBytes("psx", "duckstation_shared_card_1.mcd", Ps1MemoryCardTests.CardWithOneSave());
+        fixture.AddSaveBytes("psx", "pcsx-card2.mcd", Ps1MemoryCardTests.CardWithOneSave());
+
+        fixture.Scan();
+
+        Assert.Empty(fixture.Store.Saves.List());
+        Assert.All(fixture.Store.Unsyncable.List(), entry => Assert.Equal(UnsyncableReason.SharedContainer, entry.Reason));
+        Assert.Equal(2, fixture.Store.Unsyncable.List().Sum(entry => entry.FileCount));
+    }
+
+    [Fact]
     public void A_blank_memory_card_under_an_emulators_own_directory_is_carried_rather_than_reported()
     {
         // The recogniser reads the format, not the system, so the rule that claims the file is
