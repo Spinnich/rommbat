@@ -115,6 +115,19 @@ hold it out for mednafen's row and put it back after. **Keep RomM's web player c
 pass**: a launch there writes a save with no device, which the next flush takes as the newer
 (finding 327).
 
+**`psx` opens wave 2: two of seven rows certified at `5.3.1` on 2026-09-26**, both BizHawk cores,
+and the other five pass all but step 6, with `docs/platforms/psx.md` the record. **Pick a test game
+that saves early, and know where.** SotN's first save is at the first save room, well into the
+castle, and creating the name writes nothing; Metal Gear Solid saves only through Mei Ling, 140.96,
+after the opening. Seed every later row from that save. **A `libretro` core writes a formatted empty
+card on exit whether or not the game saved** (finding 328), so read the card's directory frames
+before believing a save was made. **Three rows cannot open `.chd`**, standalone mednafen and both
+BizHawk cores, so keep a `.bin`/`.cue` set in the pass. **Check the row's card option before
+playing**: standalone mednafen has no card at RetroBat's default (330). **A restored DuckStation
+state loads only from ES's save-state menu**, which passes `-state_file`; a plain launch copies
+nothing back into DuckStation's own directory. **BizHawk names everything after disc 1 of a set**,
+so attribution and a restore both have to know the set's discs (332).
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
