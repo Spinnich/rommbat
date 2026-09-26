@@ -2714,6 +2714,37 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_mednafen_port_2_card_restores_under_the_layout_hash_of_the_whole_set()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(7, "psx", "Metal Gear Solid (USA)", ".m3u", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/psx/Metal Gear Solid (USA).srm"));
+
+        foreach (var (disc, sectors) in new[] { ("Disc 1", 10), ("Disc 2", 12) })
+        {
+            var stem = $"Metal Gear Solid (USA) ({disc})";
+            File.WriteAllBytes(fixture.Resolve($"roms/psx/{stem}.bin"), new byte[2352 * sectors]);
+            File.WriteAllText(
+                fixture.Resolve($"roms/psx/{stem}.cue"),
+                $"FILE \"{stem}.bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n");
+        }
+
+        File.WriteAllLines(
+            fixture.Resolve("roms/psx/Metal Gear Solid (USA).m3u"),
+            ["Metal Gear Solid (USA) (Disc 1).cue", "Metal Gear Solid (USA) (Disc 2).cue"]);
+        fixture.Scan();
+
+        fixture.SeedServerSave(7, "mednafen:battery:2", "Metal Gear Solid (USA)", "mcr", "port 2", emulator: "mednafen");
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var findings = Assert.IsType<SaveRestoreFindings>(found.Value);
+        var pick = Assert.Single(findings.Restorable);
+
+        var hash = MednafenRomHash.LayoutHash([(1, 10), (1, 12)]);
+        Assert.Equal($"saves/psx/Metal Gear Solid (USA).{hash}.1.mcr", pick.Destination.Value);
+    }
+
+    [Fact]
     public async Task A_blank_memory_card_in_the_tree_does_not_stop_a_restore()
     {
         // A first boot on a second device writes an empty card before anything could restore,

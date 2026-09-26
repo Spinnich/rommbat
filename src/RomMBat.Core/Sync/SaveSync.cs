@@ -1801,12 +1801,12 @@ public sealed class SaveSync
 
                 // mednafen fills %M only when the name without it is absent, so an existing
                 // <rom>.sav, mesen standalone's or its own from before, is the file it reads.
-                if (File.Exists(_install.Resolve(RelativePath.Create($"{directory}/{stem}{extension}"))))
+                if (File.Exists(_install.Resolve(RelativePath.Create($"{directory}/{stem}{rule.StemSuffixFor(operation.Slot)}{extension}"))))
                 {
                     return (null, TargetProblem.ShadowedByUnhashedName);
                 }
 
-                stem = $"{stem}.{hash}";
+                stem = $"{stem}.{hash}{rule.StemSuffixFor(operation.Slot)}";
             }
             else if (rule.NamedAfter == BatteryNaming.ArchiveMemberAndContentMd5)
             {
@@ -1846,8 +1846,10 @@ public sealed class SaveSync
         var name = segments[^1];
         var stem = rule.RomStemOf(name);
 
-        return stem != Path.GetFileNameWithoutExtension(name)
-            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{Path.GetExtension(name)}", out var plain)
+        var suffix = rule.StemSuffixFor(slot);
+
+        return stem != rule.TitleOf(name)
+            && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{suffix}{Path.GetExtension(name)}", out var plain)
             && File.Exists(_install.Resolve(plain));
     }
 

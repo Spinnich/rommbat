@@ -260,6 +260,29 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_psx_rule_gives_each_of_mednafens_cards_its_own_slot()
+    {
+        // Metal Gear Solid (USA) under mednafen on 8.2.1, with two cards emulated.
+        var shapes = SaveShapes.Bundled;
+        const string Stem = "Metal Gear Solid (USA).2f876f4966ab9a14472349c43b3d64a4";
+
+        var port1 = shapes.BatteryRuleFor("psx", string.Empty, $"{Stem}.0.mcr");
+        Assert.Equal("mednafen", port1?.Emulator);
+        Assert.Same(port1, shapes.BatteryRuleFor("psx", string.Empty, $"{Stem}.1.mcr"));
+        Assert.Equal("mednafen:battery", port1!.SlotOf($"{Stem}.0.mcr", SaveShapeClass.A));
+        Assert.Equal("mednafen:battery:2", port1.SlotOf($"{Stem}.1.mcr", SaveShapeClass.A));
+        Assert.Equal("Metal Gear Solid (USA)", port1.RomStemOf($"{Stem}.1.mcr"));
+        Assert.Equal(".1", port1.StemSuffixFor("mednafen:battery:2"));
+
+        // The hash and the port are both part of the name mednafen writes.
+        Assert.Null(shapes.BatteryRuleFor("psx", string.Empty, "Metal Gear Solid (USA).0.mcr"));
+        Assert.Null(shapes.BatteryRuleFor("psx", string.Empty, $"{Stem}.mcr"));
+
+        // The libretro .srm beside it keeps its owner.
+        Assert.Equal("libretro", shapes.BatteryRuleFor("psx", string.Empty, "Metal Gear Solid (USA).srm")?.Emulator);
+    }
+
+    [Fact]
     public void A_duckstation_card_is_attributed_by_its_launch_and_the_other_card_follows_it()
     {
         using var fixture = new TitleFixture();

@@ -550,6 +550,15 @@ from `gamedb.yaml` by serial and is not the rom's stem in general (`Metal Gear S
 `(Rev 1)` rom), so it is learned from the launch route; DuckStation's state sidecar is a bare serial
 and answers nothing here. A card with no `_<port>` suffix is not claimed.
 
+**Standalone mednafen on `psx` names its cards `<rom>.<layout md5>.<port-1>.mcr`, loose** (finding
+331), under a `rom file and content md5` rule with `stem_suffixes` `.0` and `.1`, port 2 taking
+`mednafen:battery:2`; the pattern is asked of the stem less the port. The md5 is not a file's: it
+is mednafen's hash of every disc's table of contents in playlist order, which
+`MednafenRomHash.CdLayout` computes for a `.cue` or a `.m3u` of cues with one file and one data
+track each, and answers null for anything else, so such a card is unnameable on restore. **At
+RetroBat's default the row emulates no card** (finding 330): `mednafen_psx_memcards` unset writes
+every port as `0`, so there is nothing to sync until a user sets it.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

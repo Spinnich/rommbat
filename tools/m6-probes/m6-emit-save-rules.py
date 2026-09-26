@@ -451,6 +451,22 @@ OTHER_BATTERY_RULES = [
             "its own slot"
         ),
     },
+    {
+        "emulator": "mednafen",
+        "systems": ["psx"],
+        "directory": "",
+        "extensions": [".mcr"],
+        "named_after": "rom file and content md5",
+        "class": "A",
+        "stem_suffixes": {".0": "", ".1": "2"},
+        "evidence": (
+            "psx under mednafen, core psx, with mednafen_psx_memcards 2, on 8.2.1: Metal Gear Solid "
+            "(USA).m3u, two .cue discs, wrote loose <rom>.2f876f4966ab9a14472349c43b3d64a4.0.mcr for "
+            "port 1 and .1.mcr for port 2, 131,072 B each, the md5 being mednafen's layout hash over "
+            "both discs' tables of contents. Each port takes its own slot. RetroBat's default leaves "
+            "every port without a card"
+        ),
+    },
 ]
 
 # Written into the save tree by RetroArch and by RetroBat, and not a save. The .ldci is the

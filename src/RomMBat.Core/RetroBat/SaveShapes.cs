@@ -114,7 +114,10 @@ public sealed partial record BatteryRule(
 
     public bool Carries(string extension) => Extensions.Contains(extension.ToLowerInvariant());
 
-    /// <summary>The emulator's title for the game, which is the stem less any stem suffix.</summary>
+    /// <summary>
+    /// The stem less any stem suffix: the emulator's title for the game under a display-name rule,
+    /// and the part a hash rule's pattern is asked of.
+    /// </summary>
     public string TitleOf(string fileName)
     {
         var stem = Path.GetFileNameWithoutExtension(fileName);
@@ -163,12 +166,14 @@ public sealed partial record BatteryRule(
     /// </remarks>
     public bool Claims(string fileName)
     {
-        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var whole = Path.GetFileNameWithoutExtension(fileName);
 
-        if (StemSuffixes.Count > 0 && SuffixOf(stem) is null)
+        if (StemSuffixes.Count > 0 && SuffixOf(whole) is null)
         {
             return false;
         }
+
+        var stem = TitleOf(fileName);
 
         return Carries(Path.GetExtension(fileName)) && NamedAfter switch
         {
@@ -181,14 +186,14 @@ public sealed partial record BatteryRule(
     /// <summary>The part of a save's stem that is the ROM file's stem.</summary>
     public string RomStemOf(string fileName)
     {
-        var stem = Path.GetFileNameWithoutExtension(fileName);
+        var stem = TitleOf(fileName);
 
         return NamedAfter switch
         {
             BatteryNaming.RomFileAndContentMd5 when ContentMd5Suffix().IsMatch(stem) => stem[..^33],
             BatteryNaming.ArchiveMemberAndContentMd5 when ArchiveMemberStem().Match(stem) is { Success: true } match =>
                 Path.GetFileNameWithoutExtension(match.Groups["archive"].Value),
-            _ => TitleOf(fileName),
+            _ => stem,
         };
     }
 
