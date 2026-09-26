@@ -539,7 +539,8 @@ never used. It went up as the game's save until `Ps1MemoryCard.IsBlank` made the
 it, at the loose level and under an emulator's own directory alike, and made a restore treat it as
 absent, so a second device's first boot neither uploads it nor blocks the server's save. The test
 reads the format, not the system or extension. A card whose saves were deleted in the game marks
-those frames `0xA1` to `0xA3` and still syncs.
+those frames `0xA1` to `0xA3` and still syncs. A download refuses a blank card too (finding 334),
+or a slot the scan leaves empty fetches the server's blank copy back on every restore.
 
 **DuckStation's per-game cards are a display-name rule with a slot per port** (finding 329):
 `duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
