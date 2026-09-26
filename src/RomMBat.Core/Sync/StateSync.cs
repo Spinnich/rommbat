@@ -637,7 +637,15 @@ public sealed class StateSync
                 {
                     // The move did not overwrite, so the file is this restore's own, and a state on
                     // disk with no row behind it would be offered again under another name.
-                    File.Delete(absolute);
+                    try
+                    {
+                        File.Delete(absolute);
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    {
+                        // The record failure is the one to report, not the cleanup's.
+                    }
+
                     throw;
                 }
 
