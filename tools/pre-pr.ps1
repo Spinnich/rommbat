@@ -6,19 +6,19 @@
 
 .DESCRIPTION
     The gates, in CI's order: a Release build with -warnaserror and --no-incremental, the
-    hook and agent publish the process-level tests need, the test suite, trunk check through
-    WSL, the docs checker's own tests and the docs check, reference/verify.py and the two
-    generator --check runs, and the LF check on *.sh. Every gate runs even after one fails,
-    apart from the tests, which need the build.
+    hook and agent publish the process-level tests need, the test suite, the install package
+    tools/publish.ps1 builds, trunk check through WSL, the docs checker's own tests and the
+    docs check, reference/verify.py and the two generator --check runs, and the LF check on
+    *.sh. Every gate runs even after one fails, apart from the tests, which need the build.
 
     --no-incremental is the point of the build line: an incremental build after a failed one
     can report 0 errors and leave the tests running against stale binaries
     (pre-pr-verification, "Always").
 
 .PARAMETER Skip
-    Gates to leave out, by name: build, publish, test, trunk, docs, reference,
-    line-endings. A skipped gate is reported as skipped, never as passed. Skipping build runs
-    the tests against whatever binaries are already there.
+    Gates to leave out, by name: build, publish, test, package, trunk, docs, reference,
+    line-endings. A skipped gate is reported as skipped, never as passed. Skipping build
+    runs the tests against whatever binaries are already there.
 
 .PARAMETER Fix
     Run trunk fmt before trunk check.
@@ -33,7 +33,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('build', 'publish', 'test', 'trunk', 'docs', 'reference', 'line-endings')]
+    [ValidateSet('build', 'publish', 'test', 'package', 'trunk', 'docs', 'reference', 'line-endings')]
     [string[]] $Skip = @(),
     [switch] $Fix,
     [string] $WslDistro = 'Ubuntu'
@@ -71,7 +71,7 @@ $python = foreach ($candidate in 'python3', 'python') {
     $cmd = Get-Command $candidate -ErrorAction SilentlyContinue
     if ($cmd -and (& $cmd.Source --version 2>$null) -match '^Python 3') { $cmd.Source; break }
 }
-if (-not $python) { throw 'No Python 3 on PATH. The docs and reference gates need one.' }
+$needPython = { if (-not $python) { throw 'no Python 3 on PATH' } }
 
 Invoke-Gate build {
     dotnet build -c Release -warnaserror --no-incremental
@@ -94,6 +94,11 @@ else {
     }
 }
 
+Invoke-Gate package {
+    # CI's publish-check job: all three projects, the seven-file set, and the zip.
+    pwsh -NoProfile -File tools/publish.ps1
+}
+
 Invoke-Gate trunk {
     # Trunk has no Windows CLI. D:\a b becomes /mnt/d/a b inside WSL.
     $wslRoot = '/mnt/' + $root.Substring(0, 1).ToLowerInvariant() + ($root.Substring(2) -replace '\\', '/')
@@ -102,11 +107,13 @@ Invoke-Gate trunk {
 }
 
 Invoke-Gate docs {
+    & $needPython
     & $python -m unittest discover -s tools/docs
     if ($LASTEXITCODE -eq 0) { & $python tools/docs/check.py }
 }
 
 Invoke-Gate reference {
+    & $needPython
     Push-Location reference
     try { & $python verify.py } finally { Pop-Location }
     if ($LASTEXITCODE -eq 0) { & $python tools/build-platform-map.py --check }

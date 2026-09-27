@@ -8,7 +8,7 @@ description: The checks that must pass before committing, opening a PR, or telli
 ## Always
 
 `pwsh -File tools/pre-pr.ps1` runs every gate below, plus the hook and agent publish CI does
-so the process-level tests run, and prints which failed. `-Fix` runs `trunk fmt` first. By hand:
+so the process-level tests run and CI's `tools/publish.ps1` package, and prints which failed. `-Fix` runs `trunk fmt` first. By hand:
 
 ```bash
 dotnet build -c Release -warnaserror --no-incremental   # what CI builds
