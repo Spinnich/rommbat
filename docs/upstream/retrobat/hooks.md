@@ -52,7 +52,8 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: a hook echoing its arguments, on game
 are empty. Batocera documents `$3` as the system; on RetroBat it is the display name. The
 launcher's `[Startup]` line in `emulationstation/emulatorLauncher.log` carries `-system`,
 `-emulator`, `-core` and `-rom` with a millisecond stamp, so RomMBat takes launch facts from that
-log and relativises `$1` at the hook boundary (rule 1).
+log. The hook spools `$1` verbatim, and the drain relativises it before anything is journalled
+(rule 1).
 
 ## RB-349. `game-end` gets no arguments, and can fire with no `game-start`
 
