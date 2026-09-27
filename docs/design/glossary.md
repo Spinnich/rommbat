@@ -43,8 +43,9 @@ startup, newer warns. See `CLAUDE.md`, "Version floor".
 **Resolve.** Asking the server which games a set holds now. Reaches the network; a sync is a
 resolve followed by downloads.
 
-**Budget.** The install-wide cap on bytes RomMBat may place on the device. A sync that reaches it
-stops and says so. Removing content to make room is always a separate decision a person makes.
+**Budget.** The install-wide cap on bytes RomMBat may place on the device. A sync skips each game
+that would go over it and names it. Removing content to make room is always a separate decision a
+person makes.
 
 **Unlisted.** A file in a game whose extension the live `es_systems.cfg` does not list for its
 system. Reported, never excluded (`CLAUDE.md` rule 3).

@@ -15,8 +15,9 @@ The subcommand table, with which ones reach the network, is in
   (`CLAUDE.md` rule 4). `background` serves only `start` and `quit`.
 - **Anything destructive previews by default and writes on `--apply`** (`bios`, `evict`,
   `saves restore`). `sync --dry-run` is the one exception to the naming.
-- **`saves resolve` is the only caller of `overwrite=true`** in the codebase. Nothing reached
-  from a flush picks a side in a conflict.
+- **Core's `SaveConflictResolver` is the only caller of `overwrite=true`**, reached from
+  `saves resolve` here and from the UI's conflict screens. Nothing reached from a flush picks a
+  side in a conflict.
 - **Help text is user documentation.** Changing a flag or an exit code owes the docs that
   describe it (`pre-pr-verification`, "Documentation parity").
 - Tests go in `tests/RomMBat.Agent.Tests` and drive `Program.DispatchAsync`, not the command

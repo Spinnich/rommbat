@@ -492,8 +492,8 @@ truth for every measured number and supersedes any figure quoted elsewhere in th
 hardware, not effort: `bizhawk` needs a gamepad attached, and `bigpemu` and `openmsx` need
 Jaguar and MSX roms. Findings amended this document in thirty-six places;
 the amendments are inline below and in the sections they affect, and the findings document
-carries the full contradiction table. Reproduce any of it with the scripts in
-`tools/m0-probes/`.
+carries the full contradiction table. Reproduce any of it from `tools/m0-probes/`, or for a script
+no longer in the tree, from git: `git log --diff-filter=D -- tools/m0-probes` finds it.
 
 The six results that moved the design most:
 

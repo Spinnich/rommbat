@@ -89,8 +89,8 @@ primary path is careful to pass.
 | **source**    | A fact about Argosy's own code. Settles nothing about RomM or RetroBat                   |
 | **dropped**   | Cut at triage because nothing in RomMBat would change if it were true. Never got a probe |
 
-Probe scripts are in `tools/argosy-probes/` and are checked in. Their output goes to
-`probe-output/argosy/`, which is gitignored.
+Probe scripts are in git, not the tree: `git log --diff-filter=D -- tools/argosy-probes` finds
+them. Their output goes to `probe-output/argosy/`, which is gitignored.
 
 **One number here has no script: A3's `neogeo.zip` container hash.** It was a hand-run
 `GET /api/firmware/{id}/content/` followed by a local hash of the bytes, and the transcript

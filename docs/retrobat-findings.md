@@ -1,8 +1,9 @@
 # RetroBat findings (M0)
 
 Measurements from a real RetroBat install and a real network. **Every number here is only
-true for the versions named below.** Re-run the probes in `tools/m0-probes/` before trusting
-any of it against a different build.
+true for the versions named below.** Re-run the probes before trusting any of it against a
+different build. Most scripts named below are in git, not the tree:
+`git log --diff-filter=D -- tools/` finds the commit that deleted them.
 
 |                    |                                                                   |
 | ------------------ | ----------------------------------------------------------------- |
@@ -2188,8 +2189,8 @@ state. And the hook-spawn cost is still outstanding.
 
 Spinnich authorised every probe: the live RomM instance, a read-only sweep of the real
 `E:\RetroBat` install (the one probe 2 measured), and the `K:` development stick. Probe
-artifacts are under `probe-output/m6/`, which is gitignored; the scripts are checked in under
-`tools/m6-probes/`. **Fourteen results, and five of them refute something this document or
+artifacts are under `probe-output/m6/`, which is gitignored; the scripts are in git (see
+the header). **Fourteen results, and five of them refute something this document or
 `docs/PLAN.md` currently asserts.**
 
 | #   | Previously                                                                         | Measurement says                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

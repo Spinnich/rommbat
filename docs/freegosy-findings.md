@@ -159,9 +159,9 @@ Nothing here got a probe, because nothing in RomMBat changes if it is true.
 
 ## Experiments
 
-Nothing below is a fact until it carries a route and a quotation. Re-run any of it with the
-scripts in `tools/freegosy-probes/`, which read the server and token from the environment and
-never print the host.
+Nothing below is a fact until it carries a route and a quotation. The scripts are in git, not the
+tree (`git log --diff-filter=D -- tools/freegosy-probes`). They read the server and token from the
+environment and never print the host.
 
 ### F5b: fetching one BIOS by md5. **Confirmed**, plus a claim of mine that was **retracted**
 
