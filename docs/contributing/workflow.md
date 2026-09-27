@@ -80,4 +80,6 @@ are unproven without one.
 ```
 
 The commands the loop runs most are allowed in `.claude/settings.json`, so they do not prompt.
-Merging and closing issues are left off that list on purpose.
+Merging and closing issues are left off that list on purpose, so
+the merges and closes above still raise a permission prompt: that prompt is the last check before
+something leaves the branch.

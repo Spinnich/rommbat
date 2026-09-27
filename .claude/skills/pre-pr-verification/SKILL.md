@@ -14,8 +14,12 @@ so the process-level tests run, and prints which failed. `-Fix` runs `trunk fmt`
 dotnet build -c Release -warnaserror --no-incremental   # what CI builds
 dotnet test -c Release --no-build                       # full suite green, only after that build
 trunk fmt && trunk check        # never commit with --no-verify
+python3 -m unittest discover -s tools/docs   # the docs checker's own tests
 python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
 cd reference && python3 verify.py
+python3 tools/build-platform-map.py --check     # bundled data is what its generator emits
+python3 tools/build-bios-manifest.py --check
+git ls-files --eol -- '*.sh'    # every line must start i/lf
 ```
 
 **Build with `--no-incremental`, because an incremental build can hide an error the previous one

@@ -38,7 +38,15 @@
       "Bash(gh api -X GET *)",
       "Bash(gh api -X PATCH repos/*/issues/comments/*)"
     ],
-    "deny": ["Bash(git push --force *)", "Bash(git push -f *)"]
+    "deny": [
+      "Bash(git push *--force)",
+      "Bash(git push *--force *)",
+      "Bash(git push *-f)",
+      "Bash(git push *-f *)",
+      "Bash(git push *-uf*)",
+      "Bash(git push *-fu*)",
+      "Bash(git push *+*)"
+    ]
   },
   "hooks": {
     "PostToolUse": [

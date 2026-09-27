@@ -55,8 +55,8 @@ new branch off `origin/main`. Never work on main; the pre-push hook refuses it a
 5. Docs travel with the code: work `pre-pr-verification`'s "Documentation parity" table and
    correct every sentence the change falsifies.
 6. **A save-logic change owes a hands-on pass** of the shape it touches, on every emulator and
-   save option that writes it. Schedule it with `/certify <system> --hands-on` once the PR is
-   open. That stops for play. If it cannot happen, the PR body names which claims are unproven.
+   save option that writes it. Schedule it with `/certify <system> --hands-on <PR>` once the PR
+   is open. That stops for play. If it cannot happen, the PR body names which claims are unproven.
 7. `pwsh -File tools/pre-pr.ps1`. Every gate green.
 
 ## PR

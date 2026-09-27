@@ -89,6 +89,7 @@ and the row says what that evidence was.
    `tools/pre-pr.ps1`, commit naming the finding IDs, push, update the ledger.
 8. **Decide the next step.**
    - Anything FIXED this round changed the code, so go to 3 for the next round.
+   - An open MAINTAINER row: **needs the maintainer**, whatever else holds.
    - Nothing blocking left unruled, nothing FIXED this round, CI green: **merge-ready**.
    - A third round would be needed: stop and escalate. Three rounds means the design is wrong,
      not the code. State the design question.

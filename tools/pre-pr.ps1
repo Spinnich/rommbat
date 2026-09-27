@@ -7,16 +7,18 @@
 .DESCRIPTION
     The gates, in CI's order: a Release build with -warnaserror and --no-incremental, the
     hook and agent publish the process-level tests need, the test suite, trunk check through
-    WSL, the docs check, and reference/verify.py. Every gate runs even after one fails, apart
-    from the tests, which need the build.
+    WSL, the docs checker's own tests and the docs check, reference/verify.py and the two
+    generator --check runs, and the LF check on *.sh. Every gate runs even after one fails,
+    apart from the tests, which need the build.
 
     --no-incremental is the point of the build line: an incremental build after a failed one
     can report 0 errors and leave the tests running against stale binaries
     (pre-pr-verification, "Always").
 
 .PARAMETER Skip
-    Gates to leave out, by name: build, publish, test, trunk, docs, reference. A skipped gate
-    is reported as skipped, never as passed.
+    Gates to leave out, by name: build, publish, test, trunk, docs, reference,
+    line-endings. A skipped gate is reported as skipped, never as passed. Skipping build runs
+    the tests against whatever binaries are already there.
 
 .PARAMETER Fix
     Run trunk fmt before trunk check.
@@ -31,7 +33,7 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('build', 'publish', 'test', 'trunk', 'docs', 'reference')]
+    [ValidateSet('build', 'publish', 'test', 'trunk', 'docs', 'reference', 'line-endings')]
     [string[]] $Skip = @(),
     [switch] $Fix,
     [string] $WslDistro = 'Ubuntu'
@@ -83,7 +85,7 @@ Invoke-Gate publish {
     }
 }
 
-if ($results.Contains('build') -and $results['build'] -ne 'passed') {
+if ($results['build'] -notin 'passed', 'skipped') {
     $results['test'] = 'not run (build failed)'
 }
 else {
@@ -100,12 +102,22 @@ Invoke-Gate trunk {
 }
 
 Invoke-Gate docs {
-    & $python tools/docs/check.py
+    & $python -m unittest discover -s tools/docs
+    if ($LASTEXITCODE -eq 0) { & $python tools/docs/check.py }
 }
 
 Invoke-Gate reference {
     Push-Location reference
     try { & $python verify.py } finally { Pop-Location }
+    if ($LASTEXITCODE -eq 0) { & $python tools/build-platform-map.py --check }
+    if ($LASTEXITCODE -eq 0) { & $python tools/build-bios-manifest.py --check }
+}
+
+Invoke-Gate line-endings {
+    # CI's check: every shell script is LF in the index, whatever the working tree holds.
+    $crlf = git ls-files --eol -- '*.sh' | Where-Object { $_ -notmatch '^i/(lf|none) ' }
+    $crlf | ForEach-Object { Write-Host "CRLF in $(($_ -split "`t")[-1])" }
+    $global:LASTEXITCODE = [int] [bool] $crlf
 }
 
 Write-Host "`n==> Summary" -ForegroundColor Cyan
@@ -114,6 +126,6 @@ foreach ($gate in $results.Keys) {
     $state = $results[$gate]
     $colour = switch -Wildcard ($state) { 'passed' { 'Green' } 'skipped' { 'Yellow' } default { 'Red' } }
     if ($colour -eq 'Red') { $failed = $true }
-    Write-Host ('  {0,-10} {1}' -f $gate, $state) -ForegroundColor $colour
+    Write-Host ('  {0,-13} {1}' -f $gate, $state) -ForegroundColor $colour
 }
 exit ([int] $failed)
