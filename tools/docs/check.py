@@ -274,7 +274,8 @@ def defined_fact_ids(files: list[str]) -> set[str]:
     ids: set[str] = set()
     for rel in files:
         if rel.endswith(".md"):
-            for line in (read_text(rel) or "").splitlines():
+            # An example heading inside a code fence defines nothing.
+            for _, line in prose_lines(read_text(rel) or ""):
                 match = FACT_HEADING.match(line)
                 if match:
                     ids.add(match.group(1))

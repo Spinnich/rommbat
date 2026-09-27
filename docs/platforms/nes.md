@@ -100,7 +100,7 @@ re-runs no step. Mapped onto the nine steps per the
 | --- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Owed**           | `data/retrobat/platforms.json` was re-sourced from upstream's alias table (#166)                                                        |
 | 2   | **Owed**           | The resolver gained a no-file-on-disk exclusion ahead of the extension check (#167), and the index flag on a scoped page changed (#188) |
-| 3   | Carried            | No firmware code or bundled BIOS data changed, and the findings doc records no firmware route change                                    |
+| 3   | Carried            | No firmware code or bundled BIOS data changed, and no upstream fact records a firmware route change                                     |
 | 4   | **Owed**           | `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` changed to refuse a superseded row the browser's writer revives (#170)           |
 | 5   | **Owed**           | A restore fetches a linked screenshot (#158), and RB-258 renamed the uploaded screenshot and changed how a restore reads the slot       |
 | 6   | N/A                | Unchanged: `nes` has no class D                                                                                                         |

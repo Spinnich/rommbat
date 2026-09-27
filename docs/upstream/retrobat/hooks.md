@@ -353,7 +353,7 @@ parser must read both rotated files and tolerate a rotation happening between re
 (2026-08-09). Filed there rather than on `RetroBat-Official/emulationstation`, which has issues
 disabled. Closed on 2026-08-21 as an upstream issue and refiled at
 [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196).
-Its state is tracked in [upstream-issues.md](../issues.md).
+Its state is tracked in [issues.md](../issues.md).
 
 A first reading of this attributed the inconsistency to hook concurrency, since the sessions
 also differed in whether ES was restarted between launches. The crossover ruled that out:
