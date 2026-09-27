@@ -35,8 +35,9 @@ so it stays on.
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: sleeping hooks in every event folder appending to one log.
 A `quit` fired 2.1 s after a `game-end` while that hook was mid-sleep, and their appends
-interleaved. Three `game-end` hooks were in flight at once. So RomMBat's hooks take a lock, and
-the journal survives interleaved appends from separate processes.
+interleaved. Three `game-end` hooks were in flight at once. So each RomMBat hook writes its own
+spool file and renames it into place, sharing nothing, and the flush that drains the spool takes
+`TreeLock`.
 
 ## RB-350. ES runs every script in an event folder
 
@@ -124,7 +125,8 @@ Verified: RetroBat 8.2.0, 2026-08-09. How: the three-form install on a second PC
 All four events fired and the `.exe` recorded each, while neither the `.bat` nor the `.ps1` ran
 for any event, including the three that pass no arguments. ES was started by `RetroBat.exe` with
 `--home` on the stick, and the volume was writable. RomMBat's hooks are executables for this
-reason as much as RB-396's, and RomMBat reports when play data arrives with no hook activity.
+reason as much as RB-396's, and `saves` prints when a hook last recorded ES starting, or that
+none ever has.
 
 ## RB-399. An ordinary application can take the `.bat` association
 
@@ -144,7 +146,7 @@ storage policy was set on that host, so this is one strict setting, not all of t
 
 ## RB-382. A hook reaches the RetroBat root four levels up
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: read the shipped `scripts/start/updatestores.bat` and resolved it after a drive-letter move.
+Verified: RetroBat 8.2.0, 2026-08-09. How: read the shipped `scripts/start/updatestores.bat`; probe hooks resolved four levels to the root after a drive-letter move.
 Hooks live at `emulationstation/.emulationstation/scripts/<event>/`. `%~dp0..\..\..\` reaches
 `emulationstation/`, which is where the shipped script's `emulatorLauncher.exe` sits, and the
 root needs `%~dp0..\..\..\..\`. RomMBat's hooks resolve from their own module path, so nothing
@@ -153,8 +155,8 @@ depends on the count at runtime.
 ## RB-400. A hook's working directory depends on its form
 
 Verified: RetroBat 8.2.0, 2026-08-09. How: the three-form install from RB-396, logging the working directory.
-A `.bat` and an `.exe` start in their own folder, a `.ps1` in ES's home, so RomMBat reads no
-path from the working directory. ES finds its scripts under the `--home` that `RetroBat.exe`
+A `.bat` and an `.exe` start in their own folder, a `.ps1` in ES's home, so a RomMBat hook
+resolves the root from its own module path, never the working directory. ES finds its scripts under the `--home` that `RetroBat.exe`
 passes (`RetroBat.log` records it); no `HOME` variable is set, so ES started directly resolves
 its scripts under `%USERPROFILE%`. `HKCU\Software\RetroBat\LatestKnownInstallPath` records, per
 user, whether `RetroBat.exe` has run there.
