@@ -16,7 +16,7 @@ FAIL = []
 
 def check(label, got, expected):
     ok = got == expected
-    print(f"  {'ok ' if ok else 'DRIFT'}  {label:52} {got}" + ("" if ok else f"  (plan says {expected})"))
+    print(f"  {'ok ' if ok else 'DRIFT'}  {label:52} {got}" + ("" if ok else f"  (docs say {expected})"))
     if not ok:
         FAIL.append(label)
 
