@@ -69,8 +69,8 @@ RB-346 to RB-352. The load-bearing results:
 - **They do run concurrently**, with each other and across events. Three `game-end` hooks
   were seen in flight at once, interleaving writes to one file. A lock file is mandatory and
   the journal must survive interleaved appends from separate processes.
-- **`game-start` fires for every game**, contrary to an earlier reading. It is the `.bat`
-  that never starts when the display name contains a space. An exe hook is unaffected.
+- **`game-start` fires for every game.** It is the `.bat` that never starts when the display
+  name contains a space. An exe hook is unaffected.
 - **Take the launch facts from `emulationstation/emulatorLauncher.log` anyway**, with
   `game-end` as the trigger. It carries rom path, `-system`, `-emulator` and `-core` with a
   millisecond timestamp and rotates across two files, and the hook is told none of those
