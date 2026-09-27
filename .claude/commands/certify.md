@@ -13,8 +13,8 @@ on that PR, and stop there. It is never recorded as a certification.
 
 The maintainer's one job here is to play. You plan, launch, send keys, watch the files, record
 and open the PR ([workflow](../../docs/contributing/workflow.md)). Load `platform-certification`
-before anything else: it holds the checklist, the traps each system taught, and how the agent
-launches rows and sends keys. `docs/platforms/nes.md` is the worked example.
+before anything else: `SKILL.md` holds the checklist, `passes.md` the traps each system taught,
+and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes.md` is the worked example.
 
 ## The install
 
