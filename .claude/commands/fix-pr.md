@@ -70,6 +70,9 @@ Three buckets. Give me the counts before you change a line.
   divergences are line endings against `.gitattributes` (`reference/**` and
   `tests/**/fixtures/**` are byte-exact `-text`; `.bat`, `.cmd`, `.ps1` are crlf), path
   casing, and python3.12.
+- `docs-check` runs `tools/docs/check.py` on ubuntu. Locally it accepts a link to a file that
+  is untracked but not ignored, so a new doc you never `git add`ed passes here and fails
+  there. Reproduce with `python3 tools/docs/check.py --quiet`.
 - `reference-verify` failing means an upstream fact moved. Never edit a vendored file or an
   expected number to make it pass. Work out which fact moved, and bring it to me as a
   `docs/PLAN.md` question.

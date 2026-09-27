@@ -737,8 +737,10 @@ cd reference && python3 verify.py
 
 `tools/docs/check.py` fails on a broken relative link or anchor, an em-dash, or a fact ID cited
 but defined nowhere, and prints reports for the rules the docs overhaul (#242) is bringing the
-tree into line with. Claude Code runs it on every Markdown file it writes, through the hook in
-`.claude/settings.json`.
+tree into line with. Claude Code runs it on every file it writes, through the hook in
+`.claude/settings.json`; the em-dash check covers every file, the link checks Markdown only.
+Links resolve against what git would publish, in exact case, so a miscased link fails on
+Windows as it does on GitHub. Its own tests run with `python3 -m unittest discover -s tools/docs`.
 
 **Trunk has no Windows-native CLI, so run it from WSL**, which is what its own install
 instructions assume. From PowerShell:
