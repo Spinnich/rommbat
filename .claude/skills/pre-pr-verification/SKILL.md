@@ -7,12 +7,21 @@ description: The checks that must pass before committing, opening a PR, or telli
 
 ## Always
 
+`pwsh -File tools/pre-pr.ps1` runs every gate below, plus the hook and agent publish CI does
+so the process-level tests run and CI's `tools/publish.ps1` package, and prints which failed.
+In a git worktree it skips trunk, which cannot read one from WSL; CI's trunk check covers it.
+`-Fix` runs `trunk fmt` first. By hand:
+
 ```bash
 dotnet build -c Release -warnaserror --no-incremental   # what CI builds
 dotnet test -c Release --no-build                       # full suite green, only after that build
 trunk fmt && trunk check        # never commit with --no-verify
+python3 -m unittest discover -s tools/docs   # the docs checker's own tests
 python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
 cd reference && python3 verify.py
+python3 tools/build-platform-map.py --check     # bundled data is what its generator emits
+python3 tools/build-bios-manifest.py --check
+git ls-files --eol -- '*.sh'    # every line must start i/lf
 ```
 
 **Build with `--no-incremental`, because an incremental build can hide an error the previous one

@@ -47,8 +47,8 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
 | A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
-| Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it                                                                             |
-| Reviewing or fixing a PR                                                               | `/review-pr <n>`, `/fix-pr <n>`                                                                              |
+| Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it, then `tools/pre-pr.ps1`                                                    |
+| Picking up an issue, driving or reviewing a PR, certifying a system                    | [docs/contributing/workflow.md](docs/contributing/workflow.md), then `/start-issue`, `/drive-pr`, `/certify` |
 
 ## Six rules that override intuition
 
