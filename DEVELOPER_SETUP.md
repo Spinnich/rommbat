@@ -746,6 +746,9 @@ python3 tools/docs/check.py
 cd reference && python3 verify.py
 ```
 
+`pwsh -File tools/pre-pr.ps1` runs these three, the Release build and the tests in one go, trunk
+through WSL, and prints a pass or fail line per gate.
+
 `tools/docs/check.py` fails on a broken relative link or anchor, an em-dash, or a fact ID cited
 but defined nowhere, and prints reports for the rules the docs overhaul (#242) is bringing the
 tree into line with. Claude Code runs it on every file it writes, through the hook in

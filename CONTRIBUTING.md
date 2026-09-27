@@ -61,7 +61,8 @@ Documentation for RomMBat lives in this repository, under [docs/](docs/). Docume
 - Use clear and descriptive titles and descriptions for your pull requests.
 - **Disclose AI assistance.** See above.
 
-Before opening a PR:
+Before opening a PR, run `pwsh -File tools/pre-pr.ps1`, which runs all of these the way CI does
+and says which failed:
 
 ```bash
 dotnet build                    # no new warnings

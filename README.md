@@ -594,11 +594,15 @@ data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this
 tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
+tools/pre-pr.ps1      Runs every CI gate locally and says which failed
 tools/m0-probes/      Generators for the bundled save data, and the scripts that drive
 tools/m6-probes/      emulators on a live install to re-check a save rule
 tools/romm-5.3-probes/
                       Re-checks for the RomM behaviour the skills and code cite
 .claude/skills/       Task-scoped guides for agents working in this repository
+.claude/commands/     The agent's process commands: /next, /start-issue, /drive-pr,
+                      /review-pr, /certify (docs/contributing/workflow.md)
+.claude/agents/       The PR reviewer each review round runs
 ```
 
 ## Building

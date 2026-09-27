@@ -527,3 +527,6 @@ openapi-normalized.tmp.json
 # emulatorLauncher.log: the tests passed locally against an untracked file and CI, cloning
 # fresh, had nothing to read.
 !tests/RomMBat.Tests/fixtures/**
+
+# Claude Code worktrees made by /start-issue and /certify
+.claude/worktrees/
