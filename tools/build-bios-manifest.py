@@ -4,7 +4,7 @@
 RetroBat ships this data, and ships it in a form nothing can read. A real 8.2.0 install
 carries no batocera-systems.json at all: the manifest is a .NET string resource inside
 emulationstation/batocera-systems.exe, byte-identical to the vendored copy apart from a
-trailing newline (tools/m5-probes/m5-probe1-manifest-in-install.py). So unlike
+trailing newline. So unlike
 es_systems.cfg, there is no live copy to prefer, and RomMBat bundles the manifest instead.
 
 The transform is deliberately thin, because the vendored file is the authority and a

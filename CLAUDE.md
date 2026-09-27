@@ -5,48 +5,54 @@ RomMBat syncs a self-hosted [RomM](https://github.com/rommapp/romm) library with
 subset of ROMs, metadata, media and BIOS into RetroBat's native folder layout, and pushes
 saves, states and play sessions back. RomM is the authority, RetroBat is the player.
 
-Name: a portmanteau of RomM and RetroBat, landing near "wombat". Mascot: a wombat.
-
-**Read `docs/PLAN.md` before starting anything.** It is the design of record, and this file
-is only its index.
-
----
+Read first: the core principles in [docs/PLAN.md](docs/PLAN.md#core-principles). Then find
+your task in the routing table below and load what it names, and nothing more.
 
 ## The stack at a glance
 
-|             |                                                               |
-| ----------- | ------------------------------------------------------------- |
-| Language    | C# / .NET 10 (LTS, supported to Nov 2028)                     |
-| Ships as    | Self-contained `win-x64`, no .NET install required            |
-| Local state | SQLite, inside the RetroBat tree                              |
-| UI          | Full-screen gamepad-navigable, launched from EmulationStation |
-| Agent       | Short-lived console process invoked by ES `.bat` hooks        |
-| Lint        | Trunk (`trunk fmt && trunk check`)                            |
-| Licence     | GPL-3.0                                                       |
+|             |                                                                |
+| ----------- | -------------------------------------------------------------- |
+| Language    | C# / .NET 10 (LTS, supported to Nov 2028)                      |
+| Ships as    | Self-contained `win-x64`, no .NET install required             |
+| Local state | SQLite, inside the RetroBat tree                               |
+| UI          | Full-screen gamepad-navigable, launched from EmulationStation  |
+| Agent       | Short-lived console process invoked by ES hooks                |
+| Lint        | Trunk (`trunk fmt && trunk check`), plus `tools/docs/check.py` |
+| Licence     | GPL-3.0                                                        |
 
-| Project         | Role                                                                                                             |
-| --------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `RomM.Client`   | API client. DTOs generated from `/openapi.json`, plus hand-written pairing, resumable download, sync negotiation |
-| `RomMBat.Core`  | Local state and everything that knows RetroBat's disk layout                                                     |
-| `RomMBat.Agent` | Console exe: `pair`, `sync`, `game-start`, `game-end`, `flush`, `status`                                         |
-| `RomMBat.UI`    | Gamepad-navigable front end                                                                                      |
-| `*.Tests`       | xUnit                                                                                                            |
+Five projects under `src/` and two test projects under `tests/`, each with its own `CLAUDE.md`
+naming what lives there and its traps. Dependencies run one way: Agent and UI depend on Core,
+Core on `RomM.Client`, and the hook compiles three Core files rather than referencing it.
 
-**"Self-contained" is not "one file", and an install is seven of them.** Only the hook is a
-true single file. The agent publishes as two, the exe plus `e_sqlite3.dll`, and `RomMBat.exe`
-publishes as **five**: the exe plus Avalonia's three native libraries and its own identical
-`e_sqlite3.dll`, because `IncludeNativeLibrariesForSelfExtract` unpacks natives into the
-**host's** temp directory rather than the tree, which core principle 4 forbids. Deduplicating
-the shared sqlite native leaves seven, and losing one breaks the app at launch.
-`tools/publish.ps1` assembles them and refuses to package an incomplete set.
-`docs/ARCHITECTURE.md` has the sizes.
+An install is seven files, not one, and `tools/publish.ps1` refuses to package an incomplete set.
+Why is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#srcrommbatui).
 
----
+## Routing table
+
+Find the task, load the first column's target, then the section it names. Terms such as row,
+shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/glossary.md).
+
+| Task                                                                                   | Load                                                                                                         |
+| -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Calling RomM: `RomM.Client`, pairing, scopes, a 401, 403 or 409                        | `romm-api`: "Traps", "Scopes"                                                                                |
+| Reading or writing inside RetroBat: `es_*.cfg`, hooks, the ES menu, `gamelist.xml`     | `retrobat-layout`: the section named after the file                                                          |
+| BIOS and firmware                                                                      | `retrobat-layout`: "bios/ is a shared tree", then `platform-mapping` for the manifest's names                |
+| A RomM platform landing in the wrong folder, or unmapped                               | `platform-mapping`: "Resolution chain", "Adding or fixing a mapping"                                         |
+| Saves, states, slots, conflicts, memory cards: `SaveSync`, `SaveFlushService`, `Save*` | `save-sync`: "Where the flush passes live", then "The four shapes" or "Protocol rules"                       |
+| Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                       |
+| Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                  |
+| Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes.md` as the worked example                    |
+| How RetroBat or RomM behaves, and the evidence                                         | `docs/retrobat-findings.md`, `docs/romm-5.3-findings.md`, `docs/upstream-issues.md` (grep, never read whole) |
+| How RomMBat's code is laid out and why                                                 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the section for the area                                       |
+| Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
+| Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
+| Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it                                                                             |
+| Reviewing or fixing a PR                                                               | `/review-pr <n>`, `/fix-pr <n>`                                                                              |
 
 ## Six rules that override intuition
 
-Each of these is a decision an agent will otherwise get backwards, and each is expensive
-to unwind later.
+Each of these is a decision an agent will otherwise get backwards, and each is expensive to
+unwind later. Code cites them by number, so the numbers do not change.
 
 1. **Never persist an absolute path.** RetroBat is portable and the drive letter changes.
    Store paths relative to the RetroBat root and resolve at point of use.
@@ -70,151 +76,94 @@ to unwind later.
    which is what drains the journal on a machine where nobody opens a terminal. The set is
    `SpoolRecord.BackgroundEvents` and a test asserts it, because the hook itself cannot say
    which of the four it is serving until it reads the folder it was installed into.
-
-Two more that only bite once there is code:
-
 5. **Set `SocketsHttpHandler.ConnectTimeout` on every handler.** Nothing sets it by default
    and an unreachable LAN host stalls for 21 s. Then classify the failure: a timeout and a
    user cancellation are both `TaskCanceledException` and differ only in the inner exception.
 6. **Generated DTOs are committed, never generated at build time.** Regenerate only when
    deliberately moving the pinned schema version, and review the diff.
 
----
+## Docs describe the present
 
-## Skills: load the guide that matches the task
+Nothing in the tree records how something used to be: no milestone narratives, no superseded
+measurements, no version-move sections, no fixed-and-adopted upstream issues, no "an earlier
+revision said". When something stops being true, the PR that changes it edits or deletes the
+text. `git log` and `git blame` are the history.
 
-| Skill                    | When                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `romm-api`               | Anything calling RomM: auth, pairing, endpoints, scopes, the API's traps                          |
-| `retrobat-layout`        | The folder tree, `es_systems.cfg`, `es_savestates.cfg`, `es_settings.cfg`, hooks, ES menu entries |
-| `platform-mapping`       | Resolving a RomM platform to a RetroBat folder, or adding/fixing a mapping                        |
-| `save-sync`              | Saves, states, slots, the four save shapes, attribution, bundling                                 |
-| `offline-and-portable`   | The outbox, relative paths, clock skew, filesystem constraints, portability                       |
-| `platform-certification` | Certifying a new platform end to end                                                              |
-| `pre-pr-verification`    | Before committing, opening a PR, or claiming done                                                 |
-
----
-
-## Reference data
-
-`reference/` vendors the upstream files the design depends on, so the numbers in the plan
-are reproducible offline and drift shows up in a diff.
-
-```bash
-cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check the generated data
-```
-
-`verify.py` fails loudly when a value moves. **A drift there is a signal to revisit
-`docs/PLAN.md`, not to update the expected number.** Never hand-edit the vendored files.
-
----
+Docs travel with code, in the same PR. A statement in `README.md`, `docs/`, `DEVELOPER_SETUP.md`
+or a skill that the merged code contradicts is a defect, and the PR that changed the behaviour
+owes the correction. What a given change owes is tabulated in `pre-pr-verification`. A rule
+that exists only because something was measured belongs in the skill for that area.
 
 ## Repo-wide rules
 
-**This project is developed primarily by Claude Code, and that must be disclosed.**
-RomM requires AI-assistance disclosure in pull requests, and RomMBat inherits the norm.
-State that AI was used and to what extent. This is non-negotiable.
+**AI assistance is disclosed.** This project is developed primarily by Claude Code. RomM
+requires AI-assistance disclosure in pull requests and RomMBat inherits the norm: state that AI
+was used and to what extent.
 
-**Assume this lands under `rommapp`.** Match their conventions from the start:
-GPL-3.0, Trunk for linting, `rommapp/template-repo`'s `.github` layout (issue templates,
-`CODE_OF_CONDUCT.md`, `SECURITY.md`), and the Playnite plugin as the structural analogue
-for a C# repo in the org.
+**Assume this lands under `rommapp`.** GPL-3.0, Trunk, `rommapp/template-repo`'s `.github`
+layout, and the Playnite plugin as the structural analogue for a C# repo in the org.
 
-**Declare compatibility, and track the newest stable or a prerelease ahead of it.** Every
-release names its minimum RomM and RetroBat versions. Currently RetroBat 8.2.1 and RomM
-5.3.1, both the newest stable, so RomM 5.3.0 and everything before it are refused. Check both at
-startup, refuse below, warn above.
+**Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.2.1
+and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
+warns. The floor moves forward: adopt a new stable (or a prerelease ahead of it) within one
+release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, reading
+the upstream changelog for anything touching a measured rule, moving the floor and the tested
+row together, and re-checking every entry in `docs/upstream-issues.md`. Moving the RomM floor
+also moves the pinned OpenAPI schema. Details are in
+[docs/PLAN.md](docs/PLAN.md#version-compatibility-is-declared-checked-and-visible).
 
-**The floor moves forward, it does not sit still.** RomMBat adopts a new RomM or RetroBat
-stable within one release of it appearing and raises the minimum with it, rather than
-supporting the oldest version that happens to work. Every rule in `docs/retrobat-findings.md`
-is a measurement of one build, and a supported range means owning that measurement on every
-version in it, across a `(system, emulator, core)` matrix that is already two to four passes
-per row. Adopting one means: re-run `reference/refresh.sh` and resolve the drift, read the
-upstream changelog for anything touching a measured rule, move the floor and the tested row
-together, and re-check every entry in `docs/upstream-issues.md`. Moving the RomM floor
-also moves the pinned OpenAPI schema, which is the minimum version on purpose. A prerelease
-is adoptable, and then the target is the newest prerelease of that version when the work
-starts, re-checked before the PR opens; `docs/PLAN.md`, "Version compatibility is declared,
-checked, and visible".
-
-**Tests travel with code.** New logic gets a test. Save-shape and mapping logic get
-fixtures from a real install, checked in: its layout, config and logs, never game content.
-
-**The test suite's budget is CI's Test step.** A Windows runner does disk-bound work more than
-ten times slower than a dev box, so profile before adding a slow test or trimming tests for
-speed. The rules are in the `pre-pr-verification` skill.
-
-**Docs travel with code, in the same PR.** `docs/PLAN.md` is the design of record, and it is
-not the whole of it: `README.md`, `docs/ARCHITECTURE.md`, `DEVELOPER_SETUP.md` and the skills in
-`.claude/skills/` are what a user, an operator and the next agent read instead. A statement in
-any of them that the merged code contradicts is a defect and not a tidy-up, and the PR that
-changed the behaviour owes the correction, because a follow-up PR means everyone reading in
-between was told something false. What a given change owes is tabulated in the
-`pre-pr-verification` skill. A rule that exists only because something was measured belongs in
-the skill for that area, or the next session re-derives it from nothing.
+**Tests travel with code.** New logic gets a test. Save-shape and mapping logic get fixtures
+from a real install, checked in: its layout, config and logs, never game content. The suite's
+budget is CI's Test step, where disk-bound work runs ten times slower than on a dev box, so
+profile before adding a slow test (`pre-pr-verification`: "Test cost").
 
 **Verify before handoff.** Never claim a platform works without running the
-`platform-certification` checklist against it. **The unit is `(system, emulator, core)`**: two
-emulators for one console differ on save shape, state directory and BIOS needs, and `libretro`
-and `bizhawk` are core-scoped on top of that, so "snes works" is not a claim. The wave rollout
-starts after M7; a change to save logic before then owes one hands-on pass of the shape it
-touches, and a session that cannot take one says which claims are unproven rather than letting
-the test suite stand in for evidence.
+`platform-certification` checklist against it. The unit is `(system, emulator, core)`, so "snes
+works" is not a claim. A change to save logic owes one hands-on pass of the shape it touches,
+and a session that cannot take one says which claims are unproven rather than letting the test
+suite stand in for evidence.
 
-**Ask the maintainer questions as multiple choice.** When a decision is the user's to make, ask
-it with the multiple-choice question tool (`AskUserQuestion`), never as prose tucked into a
-reply, where it is easy to miss and slow to answer. Put the recommended option first, batch
-related decisions into one call rather than asking serially, and allow multi-select when the
-choices are not mutually exclusive. This holds for the whole session, including questions that
-come up mid-task or at handoff. A choice with a conventional default, or a fact the code can
-answer, is not a question: make the call and say which way it went.
+**Ask the maintainer as multiple choice.** A decision that is the maintainer's goes through
+`AskUserQuestion`, never prose in a reply. Recommended option first, related decisions batched
+into one call, multi-select when the choices are not exclusive. A choice with a conventional
+default, or a fact the code can answer, is not a question: make the call and say which way it
+went.
 
-**English only** outside of localisation files.
+**Reference data is vendored.** `reference/` holds the upstream files the design depends on.
+Never hand-edit them. A drift reported by `reference/verify.py` is a signal to revisit the
+design, not to update the expected number.
 
-**No em-dashes** in comments, docs, or commit messages. Use commas, parentheses, or
-separate sentences.
+**Never commit secrets.** Tokens live in the local store, never in the repo or a committed
+config file.
 
-**Keep comments short** and focused on _why_, not _what_. Don't narrate the code, and
-don't explain why a change was made; describe how the code behaves now.
+**Never commit copyrighted game content**: no ROM, BIOS or firmware, and nothing an emulator
+derived from one (battery saves, save states, framebuffers, scraped media). A test that needs
+one records its name, size, md5 and magic bytes and builds a stand-in from generated bytes. The
+one carve-out is UI screenshots in the docs, which may show game art.
 
-**Hyphenated `dry-run` names `sync`'s flag and nothing else.** `bios` and `evict` preview
-by default and write on `--apply`, so "the dry-run" used as a generic word for a preview
-reads as a flag those commands do not have. Say "preview". "A dry run", two words, is
-ordinary English and is fine.
-
-**Never commit secrets.** Tokens live in the local store, never in the repo, never in a
-config file committed to git.
-
-**Never commit copyrighted game content.** No ROM, BIOS or firmware file, and nothing an
-emulator derived from one: a battery save is memory the game wrote, a save state is a snapshot
-of all of it, and screenshots,
-framebuffers and scraped media are the game's artwork. The Zelda ROM testing leans on is the
-example: name it in a doc, never check it in. A test that needs one of these files records its
-name, size, md5 and magic bytes and builds a stand-in from generated bytes.
-
----
+**Writing.** English only outside localisation files. Comments are short and say why, not what,
+and describe how the code behaves now. The rest of the house style, and the mechanical rules
+`tools/docs/check.py` enforces, are in [docs/contributing/writing.md](docs/contributing/writing.md).
 
 ## Quick commands
 
 ```bash
 dotnet build
 dotnet test
-
-cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
-trunk fmt && trunk check        # lint
 python3 tools/docs/check.py     # docs: links, anchors, fact citations, budgets
+trunk fmt && trunk check        # lint
+cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check generated data
 
 # Only when deliberately moving the pinned RomM schema version. Needs `dotnet tool restore`.
 cd src/RomM.Client/openapi && ./generate.sh
 ```
 
-Packaging is PowerShell, and does not run from Git Bash.
+Packaging is PowerShell and does not run from Git Bash:
 
 ```powershell
 ./tools/publish.ps1                          # publish, assemble the seven files, zip
 ./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
 
-Setup, including how to point at a RomM instance and stand up a throwaway RetroBat, is in
-`DEVELOPER_SETUP.md`.
+Setup, including pointing at a RomM instance and standing up a throwaway RetroBat, is in
+[DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).
