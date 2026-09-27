@@ -38,7 +38,8 @@ filesystem:
 `5.3.0-alpha.3` was published 2026-09-17, 319 commits and 67 non-test backend files after
 `alpha.2`. It was this adoption's target until RM-12 retargeted it at `beta.1`, which is the
 floor. Read at both tags, and the served schema diffed against the pin it replaces. Nothing in
-this section is measured yet; the three questions it opens are at the end of this document.
+this section is measured yet. Of the three questions it opened, two were answered live and one
+was read from source.
 
 **The contract barely moves where this client reads.** One operation leaves, the streaming
 `state-frame` route, and none arrive. On a route RomMBat calls, the only change is `slot` on
@@ -146,7 +147,7 @@ and file routes at them. `GET /api/saves/identifiers` was building a `Save` per 
 **That lands on RM-9, and nothing here is re-measured.** The identifiers walk, 200 after
 176.7 s for 95,993 ids, is the reading most likely to have moved, and it is `alpha.2`'s. It is
 left exactly as written, because a measurement is attributed to the build it was taken on and
-editing it would invent a number. Re-measuring it is owed and is in the open table below.
+editing it would invent a number. Re-measuring it is owed, #263.
 
 **The per-slot cap that RM-11 measured is byte-identical here.** `add_save` and `prune_slot`
 are untouched between the tags; the only save-side change is the ids projection. So the `alpha.3`
