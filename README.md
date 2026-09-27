@@ -594,13 +594,10 @@ data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this
 tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
-tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
-                      number is reproducible
-tools/{freegosy,argosy}-probes/
-                      The same, for the probes that verified a mined reference
-                      implementation's claims
+tools/m0-probes/      Generators for the bundled save data, and the scripts that drive
+tools/m6-probes/      emulators on a live install to re-check a save rule
 tools/romm-5.3-probes/
-                      The same, for the measurements taken to adopt RomM 5.3.0
+                      Re-checks for the RomM behaviour the skills and code cite
 .claude/skills/       Task-scoped guides for agents working in this repository
 ```
 

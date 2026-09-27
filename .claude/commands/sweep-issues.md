@@ -138,9 +138,9 @@ Verify all of this rather than inheriting it. It is what I know, not what is tru
   5.1.1-beta.2, with `autocleanup` unsent and a different `device_id`, so neither variable was held.
   **The `save-sync` skill and `StubRomMServer.Saves.cs` both encode the opposite**, and a stub that
   models the server wrongly cannot catch the divergence. The issue specifies the probe:
-  `tools/m6-probes/`, alongside probe 6, four postings into one slot with `autocleanup` off. Taking
-  that probe is the highest-value thing in this sweep, because it either corrects two artefacts or
-  retires the doubt.
+  a script in `tools/m6-probes/` modelled on probe 6 (in git history), four postings into one slot
+  with `autocleanup` off. Taking that probe is the highest-value thing in this sweep, because it
+  either corrects two artefacts or retires the doubt.
 - `#40` the own-upload download skip can never fire for a bundled save, because the fold and the
   server digest are different functions by construction. Costs a transfer, not a save. Depends on
   `dcc2dbb` having made the slot row current after a restore, so check that first.

@@ -100,6 +100,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | A milestone or stage changing state                          | The stage tables in `README.md` and `docs/PLAN.md`, which are separate and both go stale             |
 | A minimum RomM or RetroBat version                           | The whole version-move checklist below                                                               |
 | A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/ARCHITECTURE.md` §2 and §3                                      |
+| A folder, type or trap a nested `CLAUDE.md` names            | That project's `CLAUDE.md`, and the routing table in the root `CLAUDE.md`                            |
 
 Three rules that keep this from becoming its own scope creep:
 

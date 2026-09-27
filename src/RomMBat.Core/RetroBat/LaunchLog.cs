@@ -56,7 +56,7 @@ public sealed record LaunchLogPosition(
 /// trigger and this file is the data.
 /// <para>
 /// <b>Seven things about the real file decide the parser, and six of them are traps.</b> All
-/// measured on a live install with five months of history (<c>tools/m6-probes/</c>):
+/// measured on a live install with five months of history:
 /// </para>
 /// <list type="number">
 /// <item>The file rotates at roughly <b>1 MiB</b> into <c>.log.old</c>, and the two halves do
