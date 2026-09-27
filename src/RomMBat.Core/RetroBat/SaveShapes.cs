@@ -110,6 +110,75 @@ public sealed partial record BatteryRule(
     public FrozenDictionary<string, string> StemSuffixes { get; init; } =
         FrozenDictionary<string, string>.Empty;
 
+    /// <summary>
+    /// Other emulators that write the same files, whose launches count as covering a write.
+    /// </summary>
+    /// <remarks>
+    /// RMG and simple64 on <c>n64</c> are the measured case: both are mupen64plus with RetroBat's
+    /// <c>SaveSRAMPath</c>, and both wrote <c>sram/Legend of Zelda, The - Ocarina o-5BD1FE10.sra</c>.
+    /// </remarks>
+    public FrozenSet<string> AlsoWrittenBy { get; init; } = FrozenSet<string>.Empty;
+
+    /// <summary>
+    /// What a title must look like, or null for any. Two display-name rules on one system that
+    /// carry one extension keep their binding keys apart by it.
+    /// </summary>
+    public Regex? TitlePattern { get; init; }
+
+    /// <summary>
+    /// True when each game's files sit in a directory of their own under <see cref="Directory"/>,
+    /// named with the title, and each file is named with the part of the title before its last
+    /// <c>-</c>.
+    /// </summary>
+    /// <remarks>
+    /// Project64 is the measured case: <c>project64/THE LEGEND OF ZELDA-AA3911F5.../THE LEGEND OF
+    /// ZELDA.sra</c>, the header's name and an md5 of the ROM. The directory name is the title,
+    /// and a file is known by <see cref="GameFileName"/>, which the binding key is.
+    /// </remarks>
+    public bool PerGameDirectory { get; init; }
+
+    /// <summary>
+    /// What a per-game directory's file of an extension adds to the header name, lower-cased
+    /// extension to suffix. Project64 names its first Controller Pak <c>&lt;header&gt;_Cont_1.mpk</c>.
+    /// </summary>
+    public FrozenDictionary<string, string> ExtensionStems { get; init; } =
+        FrozenDictionary<string, string>.Empty;
+
+    /// <summary>Every emulator whose launch can have written one of these files.</summary>
+    public IEnumerable<string> Writers => AlsoWrittenBy.Prepend(Emulator);
+
+    /// <summary>
+    /// The name a file in a per-game directory is known by, <c>&lt;directory&gt;&lt;ext&gt;</c>, or
+    /// null when the file is not one this rule names there.
+    /// </summary>
+    public string? GameFileName(string directoryName, string fileName)
+    {
+        if (!PerGameDirectory || HeaderOf(directoryName) is not { } header)
+        {
+            return null;
+        }
+
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var expected = header + ExtensionStems.GetValueOrDefault(extension, string.Empty);
+
+        return string.Equals(Path.GetFileNameWithoutExtension(fileName), expected, StringComparison.OrdinalIgnoreCase)
+            ? directoryName + extension
+            : null;
+    }
+
+    /// <summary>Where a per-game directory's file of an extension goes, under the rule's directory.</summary>
+    public string? GamePathOf(string title, string extension) =>
+        HeaderOf(title) is { } header
+            ? $"{title}/{header}{ExtensionStems.GetValueOrDefault(extension.ToLowerInvariant(), string.Empty)}{extension}"
+            : null;
+
+    private string? HeaderOf(string title)
+    {
+        var dash = title.LastIndexOf('-');
+
+        return dash > 0 && (TitlePattern?.IsMatch(title) ?? true) ? title[..dash] : null;
+    }
+
     public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
 
     public bool Carries(string extension) => Extensions.Contains(extension.ToLowerInvariant());
@@ -175,12 +244,14 @@ public sealed partial record BatteryRule(
 
         var stem = TitleOf(fileName);
 
-        return Carries(Path.GetExtension(fileName)) && NamedAfter switch
-        {
-            BatteryNaming.RomFileAndContentMd5 => ContentMd5Suffix().IsMatch(stem),
-            BatteryNaming.ArchiveMemberAndContentMd5 => ArchiveMemberStem().IsMatch(stem),
-            _ => true,
-        };
+        return Carries(Path.GetExtension(fileName))
+            && (TitlePattern?.IsMatch(stem) ?? true)
+            && NamedAfter switch
+            {
+                BatteryNaming.RomFileAndContentMd5 => ContentMd5Suffix().IsMatch(stem),
+                BatteryNaming.ArchiveMemberAndContentMd5 => ArchiveMemberStem().IsMatch(stem),
+                _ => true,
+            };
     }
 
     /// <summary>The part of a save's stem that is the ROM file's stem.</summary>
@@ -229,6 +300,7 @@ public sealed partial record BatteryRule(
     public bool IsBindingKey(string key) =>
         Path.GetFileNameWithoutExtension(key).Length > 0
         && Carries(Path.GetExtension(key))
+        && (TitlePattern?.IsMatch(TitleOf(key)) ?? true)
         && (StemSuffixes.Count == 0 || SuffixOf(Path.GetFileNameWithoutExtension(key)) is not null);
 
     /// <summary>True when a slot is one this rule's saves are uploaded under.</summary>
@@ -487,6 +559,13 @@ public sealed class SaveShapes
     public IEnumerable<BatteryRule> BatteryRulesBelow(string system) =>
         _batteryRules.Where(rule => !rule.IsLoose && rule.AppliesTo(system));
 
+    /// <summary>An emulator's display-name rule on a system, whose titles a state entry may borrow.</summary>
+    public BatteryRule? TitleRuleFor(string system, string emulator) =>
+        _batteryRules.FirstOrDefault(rule =>
+            rule.NamedAfter == BatteryNaming.DisplayName
+            && rule.AppliesTo(system)
+            && string.Equals(rule.Emulator, emulator, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>The rule a restore needs to name a save going up under this slot, or null.</summary>
     /// <remarks>
     /// A loose rule named after the ROM file is left out, because that save's destination is the
@@ -623,6 +702,15 @@ public sealed class SaveShapes
                 entry.NotASave.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal))
             {
                 StemSuffixes = entry.StemSuffixes.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
+                AlsoWrittenBy = entry.AlsoWrittenBy.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                TitlePattern = Blank(entry.TitlePattern) is { } pattern
+                    ? new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)
+                    : null,
+                PerGameDirectory = entry.PerGameDirectory,
+                ExtensionStems = entry.ExtensionStems.ToFrozenDictionary(
+                    pair => pair.Key.ToLowerInvariant(),
+                    pair => pair.Value,
+                    StringComparer.Ordinal),
             })
             .ToList();
 
@@ -877,5 +965,17 @@ public sealed class SaveShapes
 
         [JsonPropertyName("stem_suffixes")]
         public Dictionary<string, string> StemSuffixes { get; init; } = [];
+
+        [JsonPropertyName("also_written_by")]
+        public List<string> AlsoWrittenBy { get; init; } = [];
+
+        [JsonPropertyName("title_pattern")]
+        public string? TitlePattern { get; init; }
+
+        [JsonPropertyName("per_game_directory")]
+        public bool PerGameDirectory { get; init; }
+
+        [JsonPropertyName("extension_stems")]
+        public Dictionary<string, string> ExtensionStems { get; init; } = [];
     }
 }

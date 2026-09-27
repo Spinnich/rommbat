@@ -101,7 +101,7 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem", "psx"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem", "psx", "n64"],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -134,6 +134,11 @@ OTHER_BATTERY_RULES = [
             "Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after "
             "BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with "
             "the SMS+Export firmware in bios"
+            "; n64 under bizhawk, Ares64 and Mupen64Plus, on 8.2.1: Legend of Zelda, The - Ocarina of "
+            "Time (USA).zip wrote bizhawk/<rom>.SaveRAM, named after the rom file, one file for both "
+            "cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, "
+            "which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro "
+            "cores do"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -467,6 +472,58 @@ OTHER_BATTERY_RULES = [
             "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, "
             "Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its "
             "states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["n64"],
+        "directory": "ares/Nintendo 64",
+        "extensions": [".ram", ".eeprom", ".pak"],
+        "named_after": "rom file",
+        "class": "B",
+        "evidence": (
+            "n64 under ares, core Nintendo64, on 8.2.1: Legend of Zelda, The - Ocarina of Time "
+            "(USA).zip wrote ares/Nintendo 64/<rom>.ram, 32,768 B of SRAM, on exit; Mario Kart 64 "
+            "(USA).zip wrote <rom>.eeprom, 512 B, and <rom>.pak, 32,768 B, its Controller Pak, so "
+            "class B gives each file its own slot"
+        ),
+    },
+    {
+        "emulator": "mupen64",
+        "systems": ["n64"],
+        "directory": "sram",
+        "extensions": [".sra", ".eep", ".mpk"],
+        "named_after": "display name",
+        "class": "B",
+        "also_written_by": ["simple64"],
+        "title_pattern": "-[0-9a-f]{8}$",
+        "evidence": (
+            "n64 under mupen64 (RMG) and simple64 alike, on 8.2.1: both are mupen64plus with "
+            "RetroBat's SaveSRAMPath and SaveFilenameFormat 1, and both wrote sram/Legend of Zelda, "
+            "The - Ocarina o-5BD1FE10.sra, 32,768 B, for Legend of Zelda, The - Ocarina of Time "
+            "(USA).zip. The stem is the first 32 characters of mupen64plus.ini's GoodName for the "
+            "ROM, a dash and the first 8 hex digits of the .z64's md5: Mario Kart 64 (USA).zip wrote "
+            "Mario Kart 64 (U) [!]-3A67D998.eep, 512 B, and with mupen64_pak1 at 0, a memory pak, .mpk, "
+            "131,072 B, all four Controller Paks in one file. One file for both emulators, so one slot"
+        ),
+    },
+    {
+        "emulator": "project64",
+        "systems": ["n64"],
+        "directory": "project64",
+        "extensions": [".sra", ".eep", ".mpk"],
+        "named_after": "display name",
+        "class": "B",
+        "title_pattern": "-[0-9a-f]{32}$",
+        "per_game_directory": True,
+        "extension_stems": {".mpk": "_Cont_1"},
+        "evidence": (
+            "n64 under project64, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote "
+            "project64/THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36/THE LEGEND OF ZELDA.sra, "
+            "a directory per game named with the ROM header's name and the md5 of the ROM in 32-bit "
+            "little-endian word order, the file named with the header's name alone; Mario Kart 64 "
+            "(USA).zip wrote MARIOKART64-E3880AD6.../MARIOKART64.eep, 512 B, and "
+            "MARIOKART64_Cont_1.mpk, 32,768 B, player 1's Controller Pak"
         ),
     },
     {

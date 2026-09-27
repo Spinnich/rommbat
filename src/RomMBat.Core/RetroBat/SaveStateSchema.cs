@@ -90,6 +90,32 @@ public sealed record SaveStateEmulator(
     /// </remarks>
     public IReadOnlySet<string>? Systems { get; init; }
 
+    /// <summary>
+    /// The emulator of the display-name battery rule whose title <c>{{romfilename}}</c> stands for,
+    /// or null where it is the ROM's stem.
+    /// </summary>
+    /// <remarks>
+    /// Only the supplement sets it. simple64 on <c>n64</c> names a state
+    /// <c>Legend of Zelda, The - Ocarina o-5BD1FE10.st0</c>, the title its battery save
+    /// <c>sram/Legend of Zelda, The - Ocarina o-5BD1FE10.sra</c> carries, so the binding that save
+    /// taught is what joins the state to its ROM and names it on a restore.
+    /// </remarks>
+    public string? TitledBy { get; init; }
+
+    /// <summary>
+    /// True when each game's states sit in a directory of their own under <see cref="Directory"/>,
+    /// named with the title <see cref="TitledBy"/>'s rule learned, and the file's stem is the
+    /// emulator's own name for the game rather than anything this device can derive.
+    /// </summary>
+    /// <remarks>
+    /// Project64 on <c>n64</c> is the measured case:
+    /// <c>project64/sstates/THE LEGEND OF ZELDA-AA3911F5.../The Legend of Zelda - Ocarina of Time
+    /// (U) (V1.0).pj.zip</c>, the directory being the one its battery save sits in and the stem
+    /// its own database's name. The directory joins the state to its ROM, and a restore keeps the
+    /// stem it was uploaded with.
+    /// </remarks>
+    public bool PerGameDirectory { get; init; }
+
     /// <summary>True when the entry says where this emulator's states live for this system.</summary>
     public bool AppliesTo(string system) => Systems is null || Systems.Contains(system);
 
@@ -340,6 +366,9 @@ public sealed class SaveStateSchema
                         .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                         .ToHashSet(StringComparer.OrdinalIgnoreCase)
                     : null,
+                TitledBy = (string?)element.Attribute("titled_by") is { Length: > 0 } titledBy ? titledBy : null,
+                PerGameDirectory = string.Equals(
+                    (string?)element.Attribute("per_game_directory"), "true", StringComparison.OrdinalIgnoreCase),
             };
 
             // A later entry of the same name replaces an earlier one, as it always has, unless

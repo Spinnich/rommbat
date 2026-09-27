@@ -185,6 +185,26 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_project64_state_in_its_game_directory_is_not_counted_as_uncovered()
+    {
+        // Project64 keeps each game's states one level below the declared directory.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave(
+            "n64",
+            "project64/sstates/THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36/The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip",
+            "a state");
+        fixture.AddSave("n64", "project64/cache/nobody-declared.bin", "an unrecognised file");
+
+        fixture.ScanWithStateSchema();
+
+        var rest = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "n64" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, rest.FileCount);
+    }
+
+    [Fact]
     public void A_state_beside_a_shared_container_still_leaves_the_container_named_on_its_own()
     {
         // The two exclusions have to compose: pcsx2/ holds both the shared cards and the save

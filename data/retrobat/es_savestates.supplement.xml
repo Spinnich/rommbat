@@ -7,6 +7,11 @@
   {{romhash}} is RomMBat's, not RetroBat's: 32 lower-case hex digits, carried from the name a
   state was uploaded under onto the ROM's stem when it is restored.
 
+  titled_by is RomMBat's too: it names the emulator of a display-name battery rule, and says
+  {{romfilename}} stands for the title that rule learned for the game rather than the ROM's stem.
+  With per_game_directory="true" the title is instead a directory under <directory>, one per
+  game, and the stem is whatever the emulator wrote, kept from the name a state was sent under.
+
   No slot bounds are declared. What was observed is recorded in the evidence, and a bound nobody
   measured would report real states as outside it.
 -->
@@ -74,6 +79,21 @@
     <directory>{{system}}/ares/Master System</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/&lt;rom&gt;.bs1 and .bs2, 58,231 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="ares" systems="n64">
+    <directory>{{system}}/ares/Nintendo 64</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>n64 under ares, core Nintendo64, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote ares/Nintendo 64/&lt;rom&gt;.bs1 and .bs2, 8,472,517 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="simple64" systems="n64" titled_by="mupen64">
+    <directory>{{system}}/state</directory>
+    <file>{{romfilename}}.st{{slot0}}</file>
+    <evidence>n64 under simple64 on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote state/Legend of Zelda, The - Ocarina o-5BD1FE10.st0 and .st1, 1,957,429 B and 1,937,982 B, where RetroBat's SaveStatePath sends them, with no mirror and no screenshot. The stem is the title its battery save in sram/ carries, so titled_by joins it through that save's binding. F5 saves</evidence>
+  </emulator>
+  <emulator name="project64" systems="n64" titled_by="project64" per_game_directory="true">
+    <directory>{{system}}/project64/sstates</directory>
+    <file>{{romfilename}}.pj{{slot}}.zip</file>
+    <evidence>n64 under project64 on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote project64/sstates/THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36/The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip, 1,627,840 B, where RetroBat's Instant Save Directory sends it, with no mirror and no screenshot. The directory is the one its battery save sits in, and the stem is Project64's own database name. F2 saves; the shortcut file RetroBat writes binds no slot key and ES's -state_slot is not passed on, so only slot 0 was reached. Project64.exe carries .pj%d for the others, which the free slot token reads</evidence>
   </emulator>
   <emulator name="snes9x" systems="snes">
     <directory>{{system}}/snes9x/sstates</directory>

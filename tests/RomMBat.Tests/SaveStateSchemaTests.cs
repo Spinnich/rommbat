@@ -37,8 +37,8 @@ public class SaveStateSchemaTests
             Assert.False(loaded.For(name)!.AppliesTo("pcengine"));
         }
 
-        // Thirteen entries for six emulators, because ares and kega-fusion keep one per system.
-        Assert.Equal(shipped.Emulators.Count + 13, loaded.Emulators.Count);
+        // Sixteen entries for eight emulators, because ares and kega-fusion keep one per system.
+        Assert.Equal(shipped.Emulators.Count + 16, loaded.Emulators.Count);
 
         // Measured on nes, so the same tree under pcengine is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
@@ -205,6 +205,36 @@ public class SaveStateSchemaTests
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Master System"));
         var ares = SaveStateTemplate.Create(loaded.For("ares", "mastersystem")!, "mastersystem", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void N64_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Ocarina of Time, driven under each row on 8.2.1.
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+
+        Assert.Equal("n64", loaded.MatchDirectory("n64/ares/Nintendo 64")?.System);
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "n64")!, "n64", core: null)!;
+        Assert.Equal(2, ares.Match("Legend of Zelda, The - Ocarina of Time (USA).bs2")?.Slot);
+
+        // simple64 names its states with the title its battery save carries, not the ROM.
+        var simple64 = SaveStateTemplate.Create(loaded.For("simple64", "n64")!, "n64", core: null)!;
+        Assert.Equal("saves/n64/state", simple64.Directory.Value);
+        Assert.Equal("mupen64", simple64.Emulator.TitledBy);
+        var match = simple64.Match("Legend of Zelda, The - Ocarina o-5BD1FE10.st1")!;
+        Assert.Equal(1, match.Slot);
+        Assert.Equal("Legend of Zelda, The - Ocarina o-5BD1FE10", match.Stem);
+        Assert.Null(loaded.For("simple64", "nes"));
+
+        // Project64 keeps a directory per game and names the file from its own database.
+        var pj64 = SaveStateTemplate.Create(loaded.For("project64", "n64")!, "n64", core: null)!;
+        Assert.True(pj64.Emulator.PerGameDirectory);
+        Assert.Equal("saves/n64/project64/sstates", pj64.Directory.Value);
+        var slot0 = pj64.Match("The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip")!;
+        Assert.Equal(0, slot0.Slot);
+        Assert.Equal("The Legend of Zelda - Ocarina of Time (U) (V1.0)", slot0.Stem);
+        Assert.Equal(3, pj64.Match("The Legend of Zelda - Ocarina of Time (U) (V1.0).pj3.zip")?.Slot);
+        Assert.Equal("The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip", pj64.FileFor(slot0));
     }
 
     [Fact]

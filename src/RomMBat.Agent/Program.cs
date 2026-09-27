@@ -183,6 +183,7 @@ internal static class Program
         Console.Error.WriteLine("  --no-scan         saves: report what is recorded without rescanning the tree");
         Console.Error.WriteLine("  --check-files     status: report recorded files and saves whose copy is gone from the tree");
         Console.Error.WriteLine("  --repair-files    status: drop those file rows, so the budget stops counting them. Saves stay");
+        Console.Error.WriteLine("  --all-sessions    status: list every session read back, up to 50, not only the newest ten");
         Console.Error.WriteLine("  --keep-local      saves resolve: send this device's copy over the server's");
         Console.Error.WriteLine("  --keep-server     saves resolve: take the server's copy over this device's");
     }

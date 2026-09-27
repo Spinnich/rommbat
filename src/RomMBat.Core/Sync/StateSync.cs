@@ -446,6 +446,33 @@ public sealed class StateSync
             // keep it in the extension: bizhawk, jgenesis, pcsx2 and a libretro autosave keep it
             // in the stem. A name this client did not upload falls back to the extension.
             var stem = Path.GetFileNameWithoutExtension(roms[0].FileName);
+            string? gameDirectory = null;
+
+            // simple64 names a state with the title its battery save carries, and Project64 puts
+            // it in a directory of that title, which only a binding this device learned can supply.
+            if (template.Emulator.TitledBy is { } titledBy)
+            {
+                if (SaveShapes.Bundled.TitleRuleFor(system, titledBy) is not { } titleRule
+                    || DisplayNameAttributor.LearnedTitle(_store, system, titleRule, row.RomId) is not { } title)
+                {
+                    unrestorable.Add(new UnrestorableState(
+                        row.RomId,
+                        scope,
+                        $"{emulatorName} names its states after its own title for the game, and this "
+                            + $"device has not learned it yet. Run the game once under {emulatorName} "
+                            + "and save in the game, then restore again."));
+                    continue;
+                }
+
+                if (template.Emulator.PerGameDirectory)
+                {
+                    gameDirectory = title;
+                }
+                else
+                {
+                    stem = title;
+                }
+            }
 
             if (string.IsNullOrEmpty(stem))
             {
@@ -463,12 +490,16 @@ public sealed class StateSync
                 && SentNameFor(serverName, scope) is { } sent
                 && template.Match(sent) is { } sentMatch)
             {
-                name = template.FileFor(sentMatch with { Stem = DiscStemOf(row.RomId, sentMatch.Stem) ?? stem });
+                // In a per-game directory the stem is the emulator's own name for the game, which
+                // only the name it was sent under carries.
+                name = template.FileFor(gameDirectory is not null
+                    ? sentMatch
+                    : sentMatch with { Stem = DiscStemOf(row.RomId, sentMatch.Stem) ?? stem });
                 earlierScreenshotName = template.ImageFor(sentMatch) is { Length: > 0 } sentImage
                     ? UploadNameFor(sentImage, emulator.Name, core)
                     : null;
             }
-            else if (Path.GetExtension(onDisk) is { Length: > 0 } extension)
+            else if (gameDirectory is null && Path.GetExtension(onDisk) is { Length: > 0 } extension)
             {
                 name = stem + extension;
             }
@@ -494,7 +525,9 @@ public sealed class StateSync
                 continue;
             }
 
-            var destination = template.Directory.Combine(name);
+            var destination = gameDirectory is null
+                ? template.Directory.Combine(name)
+                : template.Directory.Combine(gameDirectory).Combine(name);
 
             if (File.Exists(_install.Resolve(destination)))
             {
@@ -511,7 +544,7 @@ public sealed class StateSync
                     ? linked.Id
                     : null;
             var imagePath = screenshotId is not null && template.ImageFor(match) is { Length: > 0 } imageName
-                ? template.Directory.Combine(imageName)
+                ? (gameDirectory is null ? template.Directory : template.Directory.Combine(gameDirectory)).Combine(imageName)
                 : (RelativePath?)null;
 
             found.Add(new RestorableState(
