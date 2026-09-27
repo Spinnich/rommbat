@@ -152,7 +152,8 @@ emulator: `jgenesis` and `ares` name their save directory after their own name f
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
-report rather than a tree to start scanning (finding 283). And a core can refuse the library for
+report rather than a tree to start scanning (finding 283, emulatorlauncher#1390). Every issue raised
+upstream is tracked in `docs/upstream-issues.md` until RomMBat adopts the release that fixes it. And a core can refuse the library for
 its names: FBNeo takes a console game's driver from the file name, so it boots nothing named by
 No-Intro (finding 278). **An emulator absent from `emulators/`** is installed by ES on the first
 launch under it, so check the folder holds an executable before planning its rows.

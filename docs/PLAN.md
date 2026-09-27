@@ -2339,7 +2339,7 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
     RetroBat's mirror races the emulator writing the image and a zero-byte result was measured,
     the client has to suppress the empty case, because nothing downstream will.
 
-  One thing worth reporting upstream rather than working around: **the `emulator` query
+  One thing reported upstream rather than worked around, as rommapp/romm#4839: **the `emulator` query
   parameter is not sanitised.** It becomes a directory segment in the stored state's
   `file_path`, and `libretro/evil` was accepted and became two segments. RomMBat's own schema
   refuses a separator in that column, so it cannot send one.
