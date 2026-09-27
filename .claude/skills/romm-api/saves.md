@@ -75,7 +75,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   for were all `now_playing=true`, one of them played two days earlier, against a rom it had
   never reported reading false. **Clear it with `PUT /api/roms/{id}/props`**, per rom rather
   than per session, and only for the entries the batch's result array says were accepted.
-  See the Presence section for why the heartbeat is not the answer.
+  See [Presence](SKILL.md#presence-post-apiactivityheartbeat) for why the heartbeat is not the answer.
 - **`PUT /api/roms/{id}/props` with a partial body leaves the other seven properties alone.**
   Measured, not read off the schema: the schema declares all eight nullable with none
   required, which is equally consistent with "an omitted field is set to null", and a wrong
