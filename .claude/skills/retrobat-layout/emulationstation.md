@@ -124,16 +124,16 @@ using it requires no change to the user's configuration.
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
 
-**A 200 from this API is never evidence the action happened**, and that now covers every route
-that does something. `/quit` and `/emukill` are ignored while a game is running; `/reloadgames`
-is too, and answers in 1-2 ms before doing the work either way; and **`POST /launch` does not
-launch anything at all**.
+**A 200 from this API is never evidence the action happened**, on any route that does
+something. `/quit` and `/emukill` do nothing while a game is running; `/reloadgames` has no
+effect while one runs, and answers in 1-2 ms before doing the work either way; and **`POST
+/launch` does not launch anything at all**.
 
 **"Ignored" is the wrong word for `/reloadgames`, and the difference decides a design.** It is
 **deferred, not discarded**: a reload issued while an app is in front of ES is queued and
 applied when that app exits. Measured on 8.2.1 with RomMBat itself as the app in front, which
-is the case that matters because an ES-menu launch is suspended exactly as a game is (finding
-233):
+is the case that matters because an ES-menu launch is suspended exactly as a game is
+(RB-233):
 
 | With RomMBat in front                               | `totalGames`                               |
 | --------------------------------------------------- | ------------------------------------------ |
@@ -158,7 +158,7 @@ bytes, so a game that was taken back is simply never written. Verified on the li
 sync stopped mid-transfer left no row without a file, nothing under `partial/`, and the store
 byte-identical to before the run.
 
-The control reload worked with **ES unfocused**, so ES's own reload does not depend on focus.
+A reload works with **ES unfocused**, so ES's own reload does not depend on focus (RB-233).
 
 **`POST /launch` answers 200 and launches nothing.** Driven twice with the exact path
 `/systems/<system>/games` reports and an explicit `text/plain` body: an empty response,
