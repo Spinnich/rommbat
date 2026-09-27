@@ -122,7 +122,7 @@ measurement was taken on and must not.
 3. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
    table and the compatibility row. A test asserts the first three agree.
-4. Re-check every open issue in `docs/retrobat-findings.md`. A fix upstream changes what
+4. Re-check every entry in `docs/upstream-issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
    behaviour.** A changelog line is upstream's belief, not a measurement.
 5. Leave provenance alone. `docs/retrobat-findings.md`'s header, `data/retrobat/*.json`'s

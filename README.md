@@ -407,17 +407,12 @@ silence.
 
 ### Known upstream issues
 
-M0 filed three RetroBat bugs rather than facts to design around. Two are now resolved and
-one is still open. Each is re-checked every release, because a fix upstream changes what
-RomMBat should do rather than just closing a ticket. A workaround comes out only once the fix
-is in a release the compatibility gate accepts **and** a hands-on pass has seen the fixed
-behaviour: a changelog line is what upstream believes, not what lands on disk.
-
-| Issue                                                                                                     | State                       | What it costs                                                                       |
-| --------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196) | Open                        | ES event scripts do not run once an argument is quoted, so **hooks must be `.exe`** |
-| [emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336)                | **Fixed in RetroBat 8.2.1** | Flycast wrote save states to a different directory than the one declared            |
-| [emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)                | Closed, will not be fixed   | BizHawk crashes unless the launcher is passed `-core`                               |
+Every issue RomMBat has raised upstream, and the ones judged upstream's but not yet filed, are
+tracked in [docs/upstream-issues.md](docs/upstream-issues.md) with their state. An entry stays
+there until RomMBat has adopted a release carrying the fix: upstream closing an issue is not
+enough, and a workaround comes out only once the fix is in a release the compatibility gate
+accepts **and** a hands-on pass has seen the fixed behaviour. The three M0 filed shaped the design,
+and two still do.
 
 **#2196 moved repository, not status.** It was filed as `RetroBat-Official/retrobat#249` and
 closed there on 2026-08-21 as an EmulationStation issue; RetroBat's own ES fork has issues
@@ -604,6 +599,9 @@ docs/{freegosy,argosy}-findings.md
 docs/romm-5.3-findings.md
                       What the RomM 5.3 line changes for RomMBat, what it falsifies here,
                       and what each floor on it measured as
+docs/upstream-issues.md
+                      Every issue raised upstream, and each one's state, until RomMBat has
+                      adopted the release that fixes it
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number
