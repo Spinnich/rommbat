@@ -51,7 +51,7 @@ a restart.
 
 ## RB-386. ES serves an HTTP API on `127.0.0.1:1234`, with no setting changed
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: called each route against a running ES with `PublicWebAccess` absent from `es_settings.cfg`.
+Verified: RetroBat 8.2.0, 2026-08-08. How: called every route but `/launch`, listed from ES's own page at `/`, against a running ES with `PublicWebAccess` absent from `es_settings.cfg`; read `emulatorLauncher`'s switches and ES's startup options.
 
 | Route                     | Method | Returns                                             |
 | ------------------------- | ------ | --------------------------------------------------- |
