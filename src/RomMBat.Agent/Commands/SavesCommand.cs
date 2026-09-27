@@ -978,8 +978,8 @@ internal static class SavesCommand
         // something to check it with.
         //
         // The version line is what makes this not a silent restore. save-sync/states.md and
-        // PLAN.md:3656 both say never restore across an emulator version change, and neither side
-        // can perform that comparison: a state is uploaded scoped to emulator and core with no
+        // PLAN.md's risk table both say never restore across an emulator version change, and
+        // neither side can perform that comparison: a state is uploaded scoped to emulator and core with no
         // version, and StateScanner.ReadEmulatorVersion declines on every emulator measured, so
         // the local column is null too. Saying so is the whole of what "never silently" can mean
         // here.
