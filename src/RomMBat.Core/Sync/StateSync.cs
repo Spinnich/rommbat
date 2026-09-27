@@ -503,6 +503,16 @@ public sealed class StateSync
             {
                 name = stem + extension;
             }
+            else if (gameDirectory is not null)
+            {
+                unrestorable.Add(new UnrestorableState(
+                    row.RomId,
+                    scope,
+                    $"{emulatorName} names a state in its game directory after its own name for the "
+                        + "game, which only the name the state was uploaded under carries, and the "
+                        + "server's name is not one this client sent."));
+                continue;
+            }
             else
             {
                 unrestorable.Add(new UnrestorableState(

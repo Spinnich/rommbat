@@ -765,6 +765,18 @@ public class StateSyncTests
 
         fixture.Scan();
         Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        // A name RomMBat did not send has an extension but not Project64's stem for the game.
+        File.Delete(state);
+        fixture.Scan();
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { FileName = Name };
+
+        var foreign = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(foreign.Value!.Restorable);
+        var reason = Assert.Single(foreign.Value.Unrestorable).Reason;
+        Assert.Contains("uploaded under", reason, StringComparison.Ordinal);
+        Assert.DoesNotContain("no extension", reason, StringComparison.Ordinal);
     }
 
     [Fact]

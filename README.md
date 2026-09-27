@@ -417,8 +417,8 @@ and two still do.
 **#2196 moved repository, not status.** It was filed as `RetroBat-Official/retrobat#249` and
 closed there on 2026-08-21 as an EmulationStation issue; RetroBat's own ES fork has issues
 disabled, so it now lives upstream at `batocera-linux/batocera-emulationstation`. The
-mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **This is
-the one that still constrains the design**: the hooks stay `.exe`.
+mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **It still
+constrains the design**: the hooks stay `.exe`.
 
 **#1336 is fixed, and the workaround is out.** 8.2.1 pointed Flycast's save-state watcher at
 the directory Flycast actually writes, so a state is mirrored into the declared
