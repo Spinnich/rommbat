@@ -69,3 +69,15 @@ verified and what was not. A save-logic change also has its hands-on pass, or sa
 are unproven without one.
 
 `tools/pre-pr.ps1` runs every CI gate locally: `pwsh -File tools/pre-pr.ps1`.
+
+## One-time setup
+
+`/certify` needs to know where the RetroBat test install is. Add it to your own
+`.claude/settings.local.json`, which git ignores, beside the test server:
+
+```json
+{ "env": { "ROMMBAT_RETROBAT_ROOT": "R:\\RetroBat" } }
+```
+
+The commands the loop runs most are allowed in `.claude/settings.json`, so they do not prompt.
+Merging and closing issues are left off that list on purpose.
