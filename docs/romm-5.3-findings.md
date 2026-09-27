@@ -102,7 +102,7 @@ fails against a live `5.3.0-alpha.2`, which is the job that test was written to 
 a test rather than as prose "so a server that changes its mind is noticed here instead of in the
 field". The server changed its mind.
 
-The rule it encodes is a 5.2.0 measurement, recorded at `PLAN.md:1226` and in the `romm-api`
+The rule it encodes is a 5.2.0 measurement, recorded at [`docs/PLAN.md:1226`](https://github.com/Spinnich/rommbat/blob/09246f5/docs/PLAN.md#L1226) and in the `romm-api`
 skill: **any `Range` on a multi-file ROM is refused 403 by nginx**, so multi-file is not
 resumable by any header. Re-measured on one multi-file ROM, `neogeocd`, repeated and stable:
 
@@ -248,7 +248,7 @@ the falsified premise below standing unqualified.
 
 **This falsifies a claim this repo repeats in four places.** "RomM stores no serial, title ID
 or product code anywhere, so no API lookup exists" appears in
-[save-sync](../.claude/skills/save-sync/SKILL.md) and at `PLAN.md` lines 2602, 3699 and 3957.
+[save-sync](../.claude/skills/save-sync/SKILL.md) and at [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/09246f5/docs/PLAN.md) lines 2602, 3699 and 3957.
 It was true at 5.2.0 and it is the premise the whole attribution design rests on. **All four now
 carry a one-line qualifier naming this finding**, because `save-sync` is the file a later session
 loads and this document is linked from nothing.
@@ -445,7 +445,7 @@ calls as an ordinary web login sends it, and deletes every row and device afterw
 
 **The conflict route recognises the browser writer, with one exception, and the exception is a
 rule this repo wrote down as a dependency.** A, B and C are the answers a client wants. E is the
-case `docs/PLAN.md` described as "were negotiate ever to volunteer a superseded row, the resolution
+case [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/09246f5/docs/PLAN.md) described as "were negotiate ever to volunteer a superseded row, the resolution
 would be undone by the next flush", and it is what happens: with no sync record for the revived row
 negotiate compares timestamps, the browser's write is newer, and the next flush would overwrite the
 save a person chose to keep with a continuation of the one they rejected. **Acted on in stage 4**:
@@ -667,7 +667,7 @@ RomMBat writes. Of the three deliberate divergences, region/lang and genre are u
 
 **One divergence ends, per row rather than outright.** The exporter now reads
 `primary_developer` and `primary_publisher`, which is this repo's own upstream follow up 3
-(`PLAN.md` "Optional follow ups to RomM itself") implemented upstream. But each property
+([`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/09246f5/docs/PLAN.md) "Optional follow ups to RomM itself") implemented upstream. But each property
 falls back to the indexing it replaced:
 
 ```python
@@ -863,7 +863,7 @@ upload, retries included. `prune_slot` keeps the newest by `updated_at` then `id
 rest with their files and screenshots. Before, pruning ran only when a client asked.
 **RomMBat has always asked**: `UploadSaveAsync` sends `autocleanup=true&autocleanup_limit=10` on
 every save upload (`src/RomM.Client/Saves/RomMConnection.Saves.cs`, `AutoCleanupLimit`), which
-`docs/PLAN.md` records as the M6 decision. So its own slots were bounded at 10 before alpha.3 and
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/09246f5/docs/PLAN.md) records as the M6 decision. So its own slots were bounded at 10 before alpha.3 and
 are bounded at 10 now, and #4540 changes nothing for what it uploads itself. What the server cap
 governs is every **other** writer on those slots, which asks for no cleanup: a peer, and RomM's
 browser player.

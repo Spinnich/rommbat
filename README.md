@@ -577,7 +577,8 @@ docs/design/          The design of record: principles, integration seams, versi
                       decision under decisions/. Read principles.md before anything else
 docs/retrobat-findings.md
                       What a real RetroBat install actually does, measured, plus the
-                      contradiction table naming every place the plan was wrong
+                      contradiction table naming every place the retired PLAN.md was
+                      wrong
 docs/{freegosy,argosy}-findings.md
                       One ledger per mined reference implementation, recording what
                       survived verification and what did not. Both are closed
