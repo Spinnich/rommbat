@@ -68,7 +68,8 @@ CI green, every finding ruled, docs corrected in the same PR, and a plain statem
 verified and what was not. A save-logic change also has its hands-on pass, or says which claims
 are unproven without one.
 
-`tools/pre-pr.ps1` runs every CI gate locally: `pwsh -File tools/pre-pr.ps1`.
+`tools/pre-pr.ps1` runs every CI gate locally: `pwsh -File tools/pre-pr.ps1`. In a git
+worktree it skips trunk, which cannot read one from WSL, and CI's trunk check covers it.
 
 ## One-time setup
 

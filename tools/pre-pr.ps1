@@ -11,6 +11,9 @@
     docs check, reference/verify.py and the two generator --check runs, and the LF check on
     *.sh. Every gate runs even after one fails, apart from the tests, which need the build.
 
+    In a linked git worktree the trunk gate is reported as skipped: trunk in WSL cannot read
+    one, and CI's trunk check covers it.
+
     --no-incremental is the point of the build line: an incremental build after a failed one
     can report 0 errors and leave the tests running against stale binaries
     (pre-pr-verification, "Always").
@@ -33,7 +36,6 @@
 
 [CmdletBinding()]
 param(
-    [ValidateSet('build', 'publish', 'test', 'package', 'trunk', 'docs', 'reference', 'line-endings')]
     [string[]] $Skip = @(),
     [switch] $Fix,
     [string] $WslDistro = 'Ubuntu'
@@ -41,6 +43,13 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Under pwsh -File, -Skip a,b arrives as the one string 'a,b', so split it here rather than
+# relying on ValidateSet.
+$gates = 'build', 'publish', 'test', 'package', 'trunk', 'docs', 'reference', 'line-endings'
+$Skip = @($Skip -split ',' | ForEach-Object Trim | Where-Object { $_ })
+$unknown = $Skip | Where-Object { $_ -notin $gates }
+if ($unknown) { throw "Unknown gate in -Skip: $($unknown -join ', '). The gates: $($gates -join ', ')." }
 
 $root = Split-Path -Parent $PSScriptRoot
 $results = [ordered]@{}
@@ -99,11 +108,18 @@ Invoke-Gate package {
     pwsh -NoProfile -File tools/publish.ps1
 }
 
-Invoke-Gate trunk {
-    # Trunk has no Windows CLI. D:\a b becomes /mnt/d/a b inside WSL.
-    $wslRoot = '/mnt/' + $root.Substring(0, 1).ToLowerInvariant() + ($root.Substring(2) -replace '\\', '/')
-    $steps = if ($Fix) { 'trunk fmt && trunk check' } else { 'trunk check' }
-    wsl -d $WslDistro -- bash -lc "cd '$wslRoot' && $steps"
+# A linked worktree's .git file and its back-pointer both hold Windows paths, which trunk's
+# git inside WSL cannot follow, and neither GIT_DIR nor relative worktree paths get it there.
+if ((Test-Path (Join-Path $root '.git') -PathType Leaf) -and $Skip -notcontains 'trunk') {
+    $results['trunk'] = "skipped (a git worktree, which trunk in WSL cannot read; CI's trunk check covers it)"
+}
+else {
+    Invoke-Gate trunk {
+        # Trunk has no Windows CLI. D:\a b becomes /mnt/d/a b inside WSL.
+        $wslRoot = '/mnt/' + $root.Substring(0, 1).ToLowerInvariant() + ($root.Substring(2) -replace '\\', '/')
+        $steps = if ($Fix) { 'trunk fmt && trunk check' } else { 'trunk check' }
+        wsl -d $WslDistro -- bash -lc "cd '$wslRoot' && $steps"
+    }
 }
 
 Invoke-Gate docs {
@@ -131,7 +147,7 @@ Write-Host "`n==> Summary" -ForegroundColor Cyan
 $failed = $false
 foreach ($gate in $results.Keys) {
     $state = $results[$gate]
-    $colour = switch -Wildcard ($state) { 'passed' { 'Green' } 'skipped' { 'Yellow' } default { 'Red' } }
+    $colour = switch -Wildcard ($state) { 'passed' { 'Green' } 'skipped*' { 'Yellow' } default { 'Red' } }
     if ($colour -eq 'Red') { $failed = $true }
     Write-Host ('  {0,-13} {1}' -f $gate, $state) -ForegroundColor $colour
 }

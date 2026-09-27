@@ -594,7 +594,8 @@ data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this
 tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
-tools/pre-pr.ps1      Runs every CI gate locally and says which failed
+tools/pre-pr.ps1      Runs every CI gate locally and says which failed (trunk only
+                      outside a git worktree)
 tools/m0-probes/      Generators for the bundled save data, and the scripts that drive
 tools/m6-probes/      emulators on a live install to re-check a save rule
 tools/romm-5.3-probes/

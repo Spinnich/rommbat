@@ -71,10 +71,11 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
 
 ## 4. Record and ship
 
-- **Certification**: the record goes in `docs/platforms/<SYSTEM>.md`, one section per row, all
-  nine steps, in `nes.md`'s shape. Then every doc `pre-pr-verification` names for a platform
-  changing state. Branch with `EnterWorktree` (`certify-<SYSTEM>`), run `pwsh -File
-tools/pre-pr.ps1`, open the PR on the template, and run `/drive-pr` on it.
+- **Certification**: branch first, with `EnterWorktree` (`certify-<SYSTEM>`), so the record
+  lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>.md`, one section per
+  row, all nine steps, in `nes.md`'s shape. Then every doc `pre-pr-verification` names for a
+  platform changing state. Run `pwsh -File tools/pre-pr.ps1`, open the PR on the template, and
+  run `/drive-pr` on it.
 - **`--hands-on <PR>`**: post the result on that PR as one comment: each row and option driven,
   what the emulator wrote, what RomMBat did with it, and anything not driven with the reason.
   Add a line to that PR's ledger, then return to its `/drive-pr`.

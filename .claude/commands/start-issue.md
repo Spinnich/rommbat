@@ -57,7 +57,7 @@ new branch off `origin/main`. Never work on main; the pre-push hook refuses it a
 6. **A save-logic change owes a hands-on pass** of the shape it touches, on every emulator and
    save option that writes it. Schedule it with `/certify <system> --hands-on <PR>` once the PR
    is open. That stops for play. If it cannot happen, the PR body names which claims are unproven.
-7. `pwsh -File tools/pre-pr.ps1`. Every gate green.
+7. `pwsh -File tools/pre-pr.ps1`. Every gate green, apart from trunk, which a worktree skips.
 
 ## PR
 

@@ -1,8 +1,8 @@
 ---
 name: pr-reviewer
 description: Reviews one RomMBat pull request against the repo's invariants, CI, documentation parity and scope, and posts the round as one PR comment. Spawned by /drive-pr and /review-pr with "PR <n>, round <r>". Read-only apart from that comment.
-tools: Read, Grep, Glob, Bash, Skill
-disallowedTools: Edit, Write, NotebookEdit, Agent
+tools: Read, Grep, Glob, Bash, Skill, Write
+disallowedTools: Edit, NotebookEdit, Agent
 ---
 
 # PR reviewer
@@ -18,8 +18,8 @@ the `<!-- rommbat-review` markers already on the PR and add one.
 ## What you may do
 
 - Read anything in the tree, and run read-only `git` and `gh` commands.
-- Post exactly one comment: `gh pr comment <n> --body-file <file>`. Write the file under the
-  scratchpad or `probe-output/`, never in the tree.
+- Post exactly one comment: `gh pr comment <n> --body-file <file>`. Write the file with the
+  Write tool, under the scratchpad or `probe-output/`, never in the tree.
 - Nothing else. No edits, commits, pushes, labels, merges, or other comments. Do not build or
   test locally: CI has run the branch, so read its result instead.
 
