@@ -160,9 +160,9 @@ is installed by ES on the first launch under it, so check the folder holds an ex
 planning its rows.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
-rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
-added: one game, one emulator, one real save or state, driven through EmulationStation and
-back. That is not a certification and must not be recorded as one, but "the tests pass" and
+rather than costing a re-download. A change to save logic owes a hands-on pass of the shape it
+touches, driven through EmulationStation and back on every emulator the system offers and every
+save option that writes it (`pre-pr-verification`). That is not a certification and must not be recorded as one, but "the tests pass" and
 "an emulator wrote this and RomMBat handled it" are different claims and only the second one
 is evidence.
 

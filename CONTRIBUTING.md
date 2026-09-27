@@ -100,7 +100,7 @@ RomMBat supports platforms one certified system at a time, not in bulk.
 
 If you are adding or fixing a platform, run the full checklist in the `platform-certification` skill and record the result in `docs/platforms/<system>.md`, in a section for that emulator. A pass is not done at eight of nine. Never claim a platform works without having launched a game on it.
 
-**The wave rollout starts after M7**, because every pass needs a person at the machine launching real games and the gamepad UI is what makes that bearable. Save-shape changes landing before then owe one hands-on check of the shape they add rather than a full certification; see `docs/platforms/README.md`.
+A change to save logic owes a hands-on pass of the shape it touches rather than a full certification, on every emulator the system offers and every save option that writes it; see the `pre-pr-verification` skill.
 
 ## Code Style
 

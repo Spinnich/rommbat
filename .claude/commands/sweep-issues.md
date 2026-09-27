@@ -202,8 +202,8 @@ cd reference && python3 verify.py
 ```
 
 Also build and test from a fresh clone, which is what catches a `.gitignore`-swallowed fixture
-locally instead of in CI. If anything touched save logic, take one hands-on pass on the shape it
-touches, per `docs/platforms/README.md`, and if you cannot, name the claims that are unproven for
+locally instead of in CI. If anything touched save logic, take a hands-on pass on the shape it
+touches, on every emulator and save option that writes it, per `pre-pr-verification`, and if you cannot, name the claims that are unproven for
 that reason rather than letting the suite stand in for evidence.
 
 Walk the `pre-pr-verification` doc-parity trigger table before pushing. This branch is unusually

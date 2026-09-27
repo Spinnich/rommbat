@@ -292,9 +292,10 @@ to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md
 [gba.md](gba.md), [gb.md](gb.md), [gbc.md](gbc.md), [snes.md](snes.md), [mastersystem.md](mastersystem.md),
 [psx.md](psx.md) and [n64.md](n64.md) are the records, gaps included.
 
-**One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps, and M6 ships them across
-three stages. Each stage owes one hands-on pass of the shape it added: one game, one emulator,
-one real save or state, through EmulationStation and back. That is not a certification and must
+**One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps. A change to save logic
+owes a hands-on pass of the shape it touches, through EmulationStation and back on every emulator
+the system offers and every save option that writes it; the `pre-pr-verification` skill has the
+procedure. That is not a certification and must
 not be filed as one, but "the tests pass" and "an emulator wrote this and RomMBat handled it"
 are different claims, and only the second is evidence.
 
