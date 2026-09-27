@@ -47,7 +47,7 @@ public sealed record EsSetting(string Name, EsSettingGroup Group, string Value);
 /// ES loads this file at startup and serialises that model on every write, so a key present at
 /// load survives, ones ES cannot understand included, and a key that appears afterwards does
 /// not. Merging and atomicity do not help: both were done and the write still vanished. M0's
-/// nonsense key survived because it predated the load. Findings 178 and 179.</item>
+/// nonsense key survived because it predated the load. RB-178 and RB-179.</item>
 /// <item>ES writes <b>twice a session</b>, during launch as well as on exit, so the safe window
 /// is strictly while ES is not running. <see cref="EmulationStationProcess"/> is what decides
 /// that, and a caller re-reads afterwards rather than trusting the rename.</item>
@@ -56,7 +56,7 @@ public sealed record EsSetting(string Name, EsSettingGroup Group, string Value);
 /// <see cref="Value"/> returning null must never be read as the user having reverted
 /// something. Absence and revert are different states and this file cannot tell them apart.</item>
 /// <item>It also <b>adds keys on its own</b>: <c>Language</c> appeared unprompted on two
-/// installs, so presence is not evidence of authorship either. Finding 170.</item>
+/// installs, so presence is not evidence of authorship either. RB-170.</item>
 /// </list>
 /// <para>
 /// Rendered tab-indented with LF endings, no BOM, and a bare <c>&lt;?xml version="1.0"?&gt;</c>,

@@ -702,7 +702,7 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
                 break;
 
             case GamelistsWritten:
-                // Called exactly as the agent calls it. Finding 233 measured that a reload
+                // Called exactly as the agent calls it. RB-233 measured that a reload
                 // issued while RomMBat is in front of EmulationStation is deferred rather than
                 // discarded, and that ES does not rescan on resume by itself, so the games
                 // appear the moment the user leaves. Nothing here tells them to restart it.

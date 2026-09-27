@@ -56,7 +56,7 @@ public enum SlotToken
 /// costs nothing.
 /// <para>
 /// <b><c>bigpemu</c>'s <c>001</c>/<c>999</c> against a two-digit template is not the
-/// contradiction #34 read it as</b>, which measurement 166 settled by driving six real states.
+/// contradiction #34 read it as</b>, which RB-166 settled by driving six real states.
 /// The bounds describe BigPEmu's own three-digit naming under
 /// <c>emulators/bigpemu/userdata/</c>; the template describes RetroBat's two-digit mirror under
 /// <c>saves/jaguar/bigpemu/</c>, which is the path this client reads and the one that came back
@@ -181,7 +181,7 @@ public sealed record SaveStateCore(string Name, bool Enabled, string? System, st
 /// empty string at slot zero.
 /// </para>
 /// <para>
-/// <b><c>bigpemu</c> reads as a contradiction and is not one</b>, which measurement 166 settled
+/// <b><c>bigpemu</c> reads as a contradiction and is not one</b>, which RB-166 settled
 /// by driving it. Its <c>001</c>/<c>999</c> bounds describe the slots <b>BigPEmu itself</b>
 /// writes, three-digit and keyed by an internal game id under
 /// <c>emulators/bigpemu/userdata/</c>; the two-digit <c>&lt;file&gt;</c> template describes the

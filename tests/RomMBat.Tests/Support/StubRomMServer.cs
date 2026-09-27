@@ -148,7 +148,7 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 /// <para>
 /// When unreachable it throws exactly what <see cref="SocketsHttpHandler"/> throws on a
 /// connect timeout: a <see cref="TaskCanceledException"/> wrapping a
-/// <see cref="TimeoutException"/>. That shape is the whole point, because M0 probe 6b
+/// <see cref="TimeoutException"/>. That shape is the whole point, because RB-353
 /// measured it as indistinguishable by type from a user cancellation.
 /// </para>
 /// </remarks>

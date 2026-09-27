@@ -340,7 +340,7 @@ public sealed class SaveConflictResolver
     /// <b>Otherwise it could never close.</b> Keeping the local side needs a file to send, and
     /// keeping the server's refuses a copy that is not a save, so a conflict whose local file was
     /// removed against a server <c>null</c> was reported on every flush with no answer that
-    /// worked (finding 276). The copy set aside when it was recorded is left where it is, since
+    /// worked (RB-276). The copy set aside when it was recorded is left where it is, since
     /// it may be the only trace of the local side, and the message names it.
     /// </remarks>
     private ConflictResolutionOutcome CloseWithNothingToKeep(

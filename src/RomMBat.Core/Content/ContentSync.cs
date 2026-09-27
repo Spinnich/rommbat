@@ -513,7 +513,7 @@ public sealed class ContentSync
             }
 
             // No sha1 branch. It is a second number the same server published rather than an
-            // independent check, and finding 180 measured it being wrong outright on two ps2
+            // independent check, and RB-180 measured it being wrong outright on two ps2
             // rows served byte-correct, so the strongest check available is what made those
             // downloads unusable. Computing one cost 43% of the hashing throughput on every
             // download. How many rows carry a sha1 and no md5 is unsettled and is #112. See
@@ -529,7 +529,7 @@ public sealed class ContentSync
     /// </summary>
     /// <remarks>
     /// A damaged or truncated download almost never lands on exactly the promised length, so a
-    /// hash mismatch at a confirmed size points at the record. Finding 180 is that case: RomM
+    /// hash mismatch at a confirmed size points at the record. RB-180 is that case: RomM
     /// served one file and recorded the hash of another, and retrying could never have worked.
     /// </remarks>
     internal static string HashMismatch(string? found, string expected, bool sizeMatched) =>

@@ -62,7 +62,7 @@ four. The agent is four levels up plus `emulators\rommbat\`. Do not rely on the 
 directory; it differs by hook form.
 
 **M0 measured the hook behaviour; do not assume the Batocera convention.** See
-`docs/retrobat-findings.md` probe 1. The load-bearing results:
+RB-346 to RB-352. The load-bearing results:
 
 - **Hooks do not block game launch.** The launcher starts ~30 ms after the hook fires,
   regardless of how long the hook runs. They are fire-and-forget.
@@ -94,7 +94,7 @@ directory; it differs by hook form.
   carrying nothing. M0's "no preceding `game-start`" came from three launches driven by calling
   `emulatorLauncher.exe` directly, two of which failed. **So never key the discard on a missing
   `game-start`**: key it on the launcher log's `-system retrobat` with a rom under
-  `system\es_menu\`, and discard the paired `game-start` with it. Findings 221 and 222.
+  `system\es_menu\`, and discard the paired `game-start` with it. RB-221 and RB-222.
 - **Every script in an event folder runs**, alphabetically, so install beside
   `updatestores.bat` rather than replacing it.
 - **`start` and `quit` may start a process; `game-start` and `game-end` may not.** That is

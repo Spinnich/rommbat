@@ -3,7 +3,7 @@
 What was taken from reading [`rommapp/argosy-launcher`](https://github.com/rommapp/argosy-launcher),
 what survived verification against a primary source, and what did not. Written in the shape of
 [freegosy-findings.md](freegosy-findings.md), which is in turn in the shape of
-[retrobat-findings.md](retrobat-findings.md).
+[the upstream reference](upstream/README.md).
 
 **Argosy is a hypothesis generator, never evidence.** It clears four of the five bars Freegosy
 failed, which changes how likely a lead is to be worth chasing and changes nothing about what
@@ -142,7 +142,7 @@ re-walks the same dead ends.
 | A25 | Their floor warns rather than refuses below `MIN_SUPPORTED_VERSION`          | We refuse below our declared minimum by decision. Nothing moves                                                                                           |
 | A26 | `RomMCapabilities` version gates                                             | Every gate sits at 4.9.0 or 5.0.0, below our floor. All would evaluate true                                                                               |
 | A27 | Promoting a full-length `.tmp` instead of requesting a `Range` a server 416s | Real, tiny, and with no doc or plan consequence                                                                                                           |
-| A28 | `file_name_no_tags` and the server's filename rewrite                        | Settled already, and settled further than Argosy: measurement 152 and finding F6                                                                          |
+| A28 | `file_name_no_tags` and the server's filename rewrite                        | Settled already, and settled further than Argosy: RB-152 and finding F6                                                                                   |
 | A29 | Their negotiate payload and response field list                              | Matches ours field for field. Recorded as prose below, not as a row with an experiment                                                                    |
 | A30 | `LaunchWithSyncUseCase` and the pre-launch state sync                        | Their constraint is inverted: in-process and free to sync on the launch path. Ours must not touch the network                                             |
 | A31 | `verification-guard.py`, `smell-guard.py`, `coupling-guard.py`, `AGENTS.md`  | Repo process, explicitly out of scope for this branch. Noted as a proposal at the end                                                                     |
@@ -155,7 +155,7 @@ re-walks the same dead ends.
 **A 5.2.0 reading, and it does not hold at the `5.3.0-alpha.2` floor.** Re-measured there, the
 scoped penalty is gone, and `CatalogQuery` sends the index off under every scope again. The
 readings below stay as they were taken; #188 and
-[romm-5.3-findings.md](romm-5.3-findings.md), finding 9.
+RM-9.
 
 `CatalogQuery.ToQueryString` sends `with_rom_id_index=false` on every page, reasoning that the
 index is "whole-library index metadata, not per-page data, and the server resends it in full each
@@ -501,7 +501,7 @@ answer today, and rewriting a generated file's schema on that basis would be inv
 ## A10: `GET /api/roms/identifiers` still does not scale. **Rejected, and the decision holds**
 
 Argosy reconciles deletions through this endpoint and builds real safety machinery on top of it.
-`retrobat-findings.md` measurement 81 recorded it at **504 after 300 s** on 83,131 roms, which is
+RB-81 recorded it at **504 after 300 s** on 83,131 roms, which is
 why [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md) rules it out in both the core-principle guardrails and M3, and the `romm-api` skill says so twice.
 
 Re-measured on 5.2.0, with the library now at 88,331 roms:

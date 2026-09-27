@@ -159,7 +159,7 @@ public sealed class PendingConfigTests : IDisposable
     [Fact]
     public void Removing_a_key_and_writing_an_empty_one_are_not_the_same_request()
     {
-        // Finding 170: "the key was absent" and "the key held the stock value" are different
+        // RB-170: "the key was absent" and "the key held the stock value" are different
         // files to restore, so a null value is refused rather than read as a removal.
         Assert.Throws<ArgumentException>(() => _store.PendingConfig.Queue(Request() with
         {

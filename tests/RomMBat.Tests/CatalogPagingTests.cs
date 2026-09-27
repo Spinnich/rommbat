@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 /// Paged browsing: the sidecars, the page size, and what happens when a walk is cut short.
 /// </summary>
 /// <remarks>
-/// M0 probe 5 measured the three costly sidecar flags at a flat 841 KB resent on every
+/// RB-354 measured the three costly sidecar flags at a flat 841 KB resent on every
 /// request, 65% of the response body at the default page size. Walking 83k ROMs with them
 /// on would resend about 1.4 GB of identical data, so their absence is asserted on the wire
 /// rather than trusted.

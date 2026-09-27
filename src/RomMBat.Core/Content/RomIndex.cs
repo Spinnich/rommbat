@@ -75,7 +75,7 @@ public sealed class RomIndex
         // A disc of a multi-file set answers for the set, after every ROM so a ROM of the same
         // name keeps it, and never in the folder list, which is one row per game. BizHawk names
         // its psx states after disc 1's file, since RetroBat's launcher hands it that disc rather
-        // than the playlist (finding 314).
+        // than the playlist (RB-314).
         var setPaths = index.Values
             .GroupBy(value => value.Item1)
             .ToDictionary(group => group.Key, group => group.First().Item2);

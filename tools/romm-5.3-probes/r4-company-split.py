@@ -1,6 +1,6 @@
 """R4: whether developers and publishers are populated, and what indexing companies costs (#186).
 
-Finding 7 and RomRow.Developers cite a sample of 3,000 rows over ten platforms: 398 of 400
+RM-7 and RomRow.Developers cite a sample of 3,000 rows over ten platforms: 398 of 400
 rows carrying the split on the one platform rescanned since 5.3.0, 0 of 300 on each of nine
 that were not, and companies[0] naming someone other than the developer on 41% of split rows.
 No script recorded how that sample was drawn, so this walks every platform instead. A whole

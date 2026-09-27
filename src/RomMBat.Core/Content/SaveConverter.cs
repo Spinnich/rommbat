@@ -260,7 +260,7 @@ public sealed class SaveConverter
         }
 
         // Do not take over a setting somebody else made. Presence alone does not establish
-        // that: ES adds keys on its own (finding 170), so the test is whether the value is one
+        // that: ES adds keys on its own (RB-170), so the test is whether the value is one
         // RomMBat wrote. Anything else is the user's, or an ES default, and is left alone.
         if (current is not null && current != conversion.SetTo && recorded?.AppliedValue != current)
         {

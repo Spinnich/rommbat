@@ -13,12 +13,12 @@ named after.
 **Four are driven and not certified**, and each says why in its own section:
 
 - `libretro`/`fbneo` **never boots this library.** FBNeo finds a Mega Drive game by its own set
-  name, taken from the file name, and every ROM here carries its No-Intro name (finding 278).
+  name, taken from the file name, and every ROM here carries its No-Intro name (RB-278).
 - `kega-fusion`/`auto`, `kega-fusion`/`genesis` and `kega-fusion`/`megadrive` **fail step 4**:
   Kega Fusion writes its battery saves into `emulators/kega-fusion/`, outside `saves/`, because
   RetroBat's template `Fusion.ini` sends them there and `emulatorLauncher` never redirects them
-  (finding 283). Their states sync, and the pad works only once remapped in Kega's own menu
-  (finding 284).
+  (RB-283). Their states sync, and the pad works only once remapped in Kega's own menu
+  (RB-284).
 
 **It certifies those seven rows and nothing wider.** The last four needed code first, as on
 `nes`: a battery rule each and, for `mednafen` and `ares`, a state declaration in RomMBat's
@@ -32,8 +32,8 @@ anyone sat down. Then the four `libretro` rows, the four rows that needed code, 
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -181,7 +181,7 @@ earlier slots showed as used on its data-select screen. Its 16,384 B file matche
 all but the 12 bytes of the new slot, and is zero from byte 980 on: Genesis Plus GX trims the
 file at the last used byte (979), and PicoDrive keeps the whole SRAM window. So the three cores
 share one save across two sizes, each switch uploads a new version, and that is right, since the
-bytes change. Finding 277.
+bytes change. RB-277.
 
 ### 5. States on the three
 
@@ -196,7 +196,7 @@ bytes change. Finding 277.
 
 **The declared `<directory>` is where each core wrote**, `saves/megadrive/libretro.<core>/`, and
 RetroArch's log shows it choosing the slot, `found_last_state_slot: #0` against an empty
-directory, as finding 261 describes. On each row slot 2's state and `.png` were moved out with the
+directory, as RB-261 describes. On each row slot 2's state and `.png` were moved out with the
 `.srm`; the preview named the screenshot it would bring back, the apply answered `with 1
 screenshot(s)`, and **every file came back at its own md5**, slot 2's image differing from slot
 1's on every row.
@@ -220,7 +220,7 @@ are its own dat's, and RomM hands out the library's names. **Recorded as not cer
 No-Intro library, by the maintainer's ruling**, rather than as a failure owed a fix. The one
 lock-on driver in this core that could be the test game is `md_sks3`, a two-ROM lock-on set rather
 than No-Intro's combined file. Nothing was written under `saves/`; the ES launch left two empty
-directories, `saves/megadrive/fbneo/` and `saves/megadrive/libretro.fbneo/`. Finding 278.
+directories, `saves/megadrive/fbneo/` and `saves/megadrive/libretro.fbneo/`. RB-278.
 
 ## `bizhawk`, `jgenesis`, `mednafen` and `ares`
 
@@ -260,28 +260,28 @@ from each other, so the maintainer's data select was new on each.
 
 **Each keeps its own file, at its own size.** How much of the cartridge's SRAM window an emulator
 keeps is its own choice, and none of these four reads another's file or the `libretro` one, since
-each keeps it in its own place. Finding 277 records the sizes beside the two `libretro` ones.
+each keeps it in its own place. RB-277 records the sizes beside the two `libretro` ones.
 
 **`bizhawk` names the save after its own title for the game**, `Sonic and Knuckles & Sonic 3 (W)
 [!]`, and the state sidecar reads `Sonic and Knuckles & Sonic 3 (W) [!].Genplus-gx`, which is what
 binds it (#151). The title is unique on this install. **Unlike `nes`, a boot did not change the
-save**: the agent's launch left a `.SaveRAM.bak` at the same md5, where finding 272 measured NES
+save**: the agent's launch left a `.SaveRAM.bak` at the same md5, where RB-272 measured NES
 games rewriting theirs on boot.
 
 **`jgenesis` keeps megadrive saves under `jgenesis/md/`**, where `nes` used `jgenesis/nes/`: it
 names the directory after its own system. `emulatorLauncher` rewrites `custom_save_path` in
 `jgenesis-config.toml` per launch, from `saves\nes\jgenesis` to `saves\megadrive\jgenesis`.
-Finding 279.
+RB-279.
 
-**`mednafen` hashed the name because the plain one was free**, which is finding 273 again: no
+**`mednafen` hashed the name because the plain one was free**, which is RB-273 again: no
 `<rom>.sav` existed, the `libretro` file being `.srm`. **The hash is of the whole `.md`**, which the
 file inside the zip hashes to; there is no header to leave off as there is on `nes`. A restore onto
 a device that never held the file computes it from the ROM, through `MednafenRomHash`, and this
-pass is what drove that: the restore below placed the save under the computed name. Finding 280.
+pass is what drove that: the restore below placed the save under the computed name. RB-280.
 
 **`ares` names its directory `Mega Drive`, with a space**, where `nes` used `Famicom`. So one
 supplement entry per emulator could not describe `ares` any more, and the schema now takes one per
-system. Finding 281.
+system. RB-281.
 
 All four went up through the flush on the second deploy, were moved out of the tree with both of
 their states, and came back through one `saves restore 203767 --apply`: `restored 4 save(s) and 8
@@ -297,7 +297,7 @@ reported `49 already in step` and sent nothing.
 | `mednafen` | `mednafen/sstates/`                | `.mc0`, `e36f9e9a...`       | `.mc1`, `718b43dc...`       | `F7`, `F2` |
 | `ares`     | `ares/Mega Drive/`                 | `.bs1`, `08654beb...`       | `.bs2`, `f03ee96e...`       | `F7`, `F2` |
 
-**`bizhawk` took ES's slot and the other three did not**, as on `nes` (findings 269 and 275).
+**`bizhawk` took ES's slot and the other three did not**, as on `nes` (RB-269 and RB-275).
 The maintainer's pad key wrote `QuickSave3` twice, the second replacing the first as a `.bak`, and
 `Ctrl+F2` wrote slot 2. `jgenesis` and `bizhawk` write in their own trees and `emulatorLauncher`
 mirrors the file into `saves/` in the same second, with a `.txt` sidecar; the other two write
@@ -333,7 +333,7 @@ line flags** for the console's region handling, and all three write to the same 
 | 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, which RomMBat does not scan |
 | 5   | **Pass**, two slots round-tripped at their own md5                                                         |
 | 6   | **N/A**                                                                                                    |
-| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, finding 284               |
+| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, RB-284                    |
 | 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                         |
 | 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                      |
 
@@ -347,7 +347,7 @@ and nowhere else, and core principle 2 rules out writing the key itself. **Recor
 defect, reported upstream as
 [emulatorlauncher#1390](https://github.com/RetroBat-Official/emulatorlauncher/issues/1390), by the
 maintainer's ruling**, rather than widened around.
-Finding 283.
+RB-283.
 
 **A real save was made there, and it is the libretro cores' format.** After remapping input in
 Kega's own menu, the maintainer launched from ES under `-auto` at 01:06:41Z, chose a data-select
@@ -389,11 +389,11 @@ which Kega saved into `Fusion.ini` on exit as `Joystick1Using=2` and arrow keys 
 `Player1Keys`, and then played the save above. **The remap survives later launches**: after an ES
 launch at 06:11:24 local on 2026-09-22 the file still held `Joystick1Using=2` and the arrow keys,
 so `emulatorLauncher` does not write its mapping back over it, and the pad played. So the fix for
-a user is one visit to Kega's menu, not a setting RetroBat has to change. Finding 284.
+a user is one visit to Kega's menu, not a setting RetroBat has to change. RB-284.
 
 ## What the pass turned up that is not a row
 
-### Another client's `null` save, refused (finding 276)
+### Another client's `null` save, refused (RB-276)
 
 **RomMBat downloaded four bytes reading `null` and wrote them as a battery save.** RomM's browser
 player uploads the JSON literal when it has no save to send, and the server keeps it as a save.

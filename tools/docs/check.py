@@ -63,8 +63,9 @@ HISTORY_PATTERNS = (
 )
 
 EM_DASH = "\u2014"
-FACT_ID = re.compile(r"\b(RB|RM)-(\d+)\b")
-FACT_HEADING = re.compile(r"^#{2,6}\s+((?:RB|RM)-\d+)\.\s")
+# A letter suffix (RB-9b) is an ID the findings ledgers had already split before IDs were fixed.
+FACT_ID = re.compile(r"\b(RB|RM)-(\d+[a-z]?)\b")
+FACT_HEADING = re.compile(r"^#{2,6}\s+((?:RB|RM)-\d+[a-z]?)\.\s")
 LEGACY_CITATION = re.compile(r"\bfindings? \d+", re.IGNORECASE)
 # `dry-run` names sync's flag and nothing else; a generic preview is a "preview".
 GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")

@@ -23,8 +23,8 @@ Last, what the pass turned up that is not a row.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -125,7 +125,7 @@ so `snes` has no multi-disc or multi-file shape to settle. `.zip` holding a `.sf
 launch on all fifteen rows. 275 zips hold a `.sfc`. **One holds a patch and no game**:
 `Dark Law - Meaning of Death (Japan) [T-En by AGTP v1.00].zip` is a single 177,786 B `.bps`, a
 translation patch for a ROM the library does not carry. It syncs like any other member, and what
-is in RomM is the user's to keep (finding 320).
+is in RomM is the user's to keep (RB-320).
 
 ### 3. BIOS
 
@@ -158,7 +158,7 @@ row was launched on Super Mario Kart (USA) with no coprocessor firmware anywhere
 title" is all the eleven are claimed to do. RomM's own known-files list names the chip firmware for
 `snes` (`dsp1b.data.rom`, `dsp1b.program.rom`, `st010.*`), in the split form bsnes and ares read,
 while Mesen asks for a single `dsp1b.rom`. Zelda has no coprocessor and boots on all fifteen.
-Finding 317.
+RB-317.
 
 **With the firmware, all four that refused or warned reach the title.** The split pair from the
 maintainer's RetroBat 8.1.2 BIOS pack matched RomM's md5s, `d10f4468...` for the program and
@@ -246,7 +246,7 @@ slot's, distinct from slot 1's.
 **The declared `<directory>` is where every core wrote**, `saves/snes/libretro.<core>/`. ES passed
 `-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as finding
 261 says. **`mednafen_snes` leaves an empty `<rom>.rtc` on every exit**, which RomMBat now passes
-over without reporting (finding 319).
+over without reporting (RB-319).
 
 ## The eight standalone rows
 
@@ -360,7 +360,7 @@ from 13:26:57, jgenesis's first launch, which closed on its own (below).
   from its own command line, or on the exact seed it was given, in a scratch folder with a copy of
   its config. The maintainer's next launch from ES ran normally. Exit code 1 is an error jgenesis
   returned, not a panic, and `emulatorLauncher` discards its stderr, so the reason was not seen.
-  That launch was the first of the pass to report the pad as an Xbox 360 Controller. Finding 321.
+  That launch was the first of the pass to report the pad as an Xbox 360 Controller. RB-321.
 - **A server state RomMBat cannot place is skipped on every restore**: `<rom>.state` under emulator
   `snes9x`, from before this pass, matches no declaration now that standalone Snes9x has one, and
   is reported and left alone, as it was before.

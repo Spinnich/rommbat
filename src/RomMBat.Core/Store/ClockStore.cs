@@ -24,7 +24,7 @@ public static class ClockSkew
     /// How far into the future a file's mtime may sit before it means anything.
     /// </summary>
     /// <remarks>
-    /// M0 probe 7 measured FAT32 <b>and exFAT</b> storing mtimes to 2 seconds and rounding
+    /// RB-393 measured FAT32 <b>and exFAT</b> storing mtimes to 2 seconds and rounding
     /// <b>up</b>, so a file written at 08:03:16.097 is stamped 08:03:18.000: up to 2 seconds
     /// ahead of the clock that wrote it. Any "this timestamp is in the future, suspect a bad
     /// RTC" check without this tolerance trips on every FAT install.

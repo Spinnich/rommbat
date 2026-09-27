@@ -55,7 +55,7 @@
 --
 -- No table for the .txt sidecar some emulators write beside a state. Most states have none:
 -- libretro wrote one under neither core driven, so the column is null far more often than not
--- (finding 136). Where there is one its content is a short string (UCES00995_1.00, SLUS-00404,
+-- (RB-136). Where there is one its content is a short string (UCES00995_1.00, SLUS-00404,
 -- GW7E69), carried as a column because it is the mapping between RetroBat's ROM-filename
 -- scheme and the emulator's own Game-ID scheme.
 -- Stage 2b's class C and D attribution wants exactly those identifiers, so it is collected

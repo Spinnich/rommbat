@@ -21,8 +21,8 @@
 -- being free and starts being the thing that doubles a sync.
 --
 -- Dropping the sha1 *comparison* is a second decision. A sample of 1,616 rom rows from three
--- platforms found no row carrying a sha1 without also carrying an md5, and finding 85's 91.0% md5
--- against 96.3% sha1 said otherwise. **Finding 257 settles it for the sample**: a walk of every
+-- platforms found no row carrying a sha1 without also carrying an md5, and RB-85's 91.0% md5
+-- against 96.3% sha1 said otherwise. **RB-257 settles it for the sample**: a walk of every
 -- platform, 94,472 single-file roms on 5.3.0-alpha.2, sets all three hashes on the same 99.4% and
 -- leaves all three `''` on the same 0.6%, with no sha1 anywhere an md5 is missing. So no row that
 -- used to verify by sha1 now verifies by length.
@@ -31,7 +31,7 @@
 -- the argument this migration actually stands on. **sha1 is a second number the same server
 -- published, not an independent check.** It catches a transfer that went wrong in flight, which
 -- is what the length check catches too, and it cannot catch a server whose record is wrong:
--- finding 180 measured exactly that, two ps2 `.chd` files served byte-correct against sha1
+-- RB-180 measured exactly that, two ps2 `.chd` files served byte-correct against sha1
 -- values that describe some other file, so the strongest check available made the download
 -- unusable rather than safe. A row with only a sha1 now adopts by length and `VerificationOf`
 -- records `VerifiedBy.Size`, so it is honestly recorded as weakly verified rather than silently

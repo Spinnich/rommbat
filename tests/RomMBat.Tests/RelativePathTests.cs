@@ -100,7 +100,7 @@ public class RelativePathTests
     [Fact]
     public void A_stored_path_survives_the_tree_moving_to_a_different_location()
     {
-        // Standing in for the drive letter changing, which M0 probe 7 did for real: the
+        // Standing in for the drive letter changing, which RB-391 did for real: the
         // stick went G: to D: to K: and nothing was allowed to notice.
         using var original = TempRetroBatTree.Create();
         using var moved = original.CopyToNewLocation();

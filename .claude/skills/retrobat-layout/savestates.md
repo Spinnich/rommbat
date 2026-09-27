@@ -64,25 +64,25 @@ has no states"**, which is the reading `docs/platforms/README.md` was built on f
 
 **On `nes` all three are declared now, by RomMBat rather than by RetroBat, and on `megadrive`
 mednafen, ares and kega-fusion are. On `snes` so are mednafen, mesen, ares and standalone `snes9x`, whose
-slots are `.000` to `.009` under `snes9x/sstates/` (finding 318). On `mastersystem` so are mednafen, mesen,
+slots are `.000` to `.009` under `snes9x/sstates/` (RB-318). On `mastersystem` so are mednafen, mesen,
 ares under `ares/Master System/`, and kega-fusion as `.ss<slot>` rather than `megadrive`'s `.gs`
-(finding 323).**
+(RB-323).**
 `data/retrobat/es_savestates.supplement.xml` is `es_savestates.cfg`'s own format plus a `systems`
 attribute, and `StateScanner.LoadSchema` reads the install's file with it beneath: an entry the
 install declares always wins, and a supplement entry answers only for the systems it names, so
 `saves/pcengine/mesen/` stays undeclared. mednafen's entry uses `{{romhash}}`, RomMBat's own token for
-the 32-hex md5 it puts in the name (finding 274). **Add a row to the supplement only from a hands-on
+the 32-hex md5 it puts in the name (RB-274). **Add a row to the supplement only from a hands-on
 pass**, scoped to the system it was driven on: ares keeps `nes` under `ares/Famicom/` and
 `megadrive` under `ares/Mega Drive/`, each named after its own system, so nothing about one
 system's layout carries to the next. The supplement may carry one entry per system for the same
 emulator, `SaveStateSchema.For(emulator, system)` picks between them, and an install that declares
-the emulator itself drops every supplement entry for it (finding 281).
+the emulator itself drops every supplement entry for it (RB-281).
 
 **Kega Fusion writes its battery saves outside `saves/`.** RetroBat's template `Fusion.ini` sets
 `SRMFiles` to `emulators\kega-fusion` and `StateFiles` to `saves\megadrive\kega-fusion`, and
 `emulatorLauncher` rewrites neither per launch, so its `.srm` never reaches a tree RomMBat reads.
 Treat it as RetroBat's to fix, not as a second tree to scan, and never write the key (rule 2).
-Finding 283. RetroBat ships no Kega Fusion either: the folder holds only that template until ES
+RB-283. RetroBat ships no Kega Fusion either: the folder holds only that template until ES
 downloads the emulator on a first launch.
 
 A row still undeclared on another system is not silent, though, and the difference matters to
@@ -101,11 +101,11 @@ the emulator is very much declared.
 
 **The directory name is not always the declared name, so it goes through a map first.**
 `es_savestates.cfg` declares `name="dolphin"` with `<directory>{{system}}/dolphin</directory>`,
-and the save tree RetroBat writes beside it is `dolphin-emu` (finding 740, and `save_shapes.json`
+and the save tree RetroBat writes beside it is `dolphin-emu` (RB-361, and `save_shapes.json`
 carries `dolphin-emu` for both the gamecube and wii `unit_paths`). Asking `For("dolphin-emu")`
 returns null, so without the map `saves/gamecube/dolphin-emu/` and `saves/wii/dolphin-emu/` would
 be reported under `no_state_declaration` on every install, for the one emulator whose save states
-are measured working (finding 971). `SaveScanner.DeclaredNames` is that map and has one entry;
+are measured working (RB-368). `SaveScanner.DeclaredNames` is that map and has one entry;
 `mame`, `ppsspp` and `rpcs3` were checked against all 13 declared names and need none. **Add to
 it whenever a new row's save directory is spelled differently from its `es_savestates.cfg`
 name**, because nothing upstream publishes the correspondence.
@@ -136,8 +136,8 @@ state written there is loaded. A manual save mirrors live; an autosave state app
 exit. `libretro` needs no mirroring, since RetroArch is pointed at the declared path directly
 via `savestate_directory`. Nor does it take its slot from `-state_slot`: with
 `savestate_auto_index` on, RetroArch continues from the highest slot already in that directory
-(finding 261). `bizhawk` is the reverse: `emulatorLauncher` writes `-state_slot` into EmuHawk's
-`config.ini` as `SaveSlot`, and the pad's save key writes to that slot (finding 269).
+(RB-261). `bizhawk` is the reverse: `emulatorLauncher` writes `-state_slot` into EmuHawk's
+`config.ini` as `SaveSlot`, and the pad's save key writes to that slot (RB-269).
 
 Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
 unconditionally, and it belongs with the state. **Its contents vary by emulator and one of them

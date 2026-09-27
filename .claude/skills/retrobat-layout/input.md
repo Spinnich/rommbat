@@ -26,7 +26,7 @@ Three traps, all measured rather than reasoned about:
   Xbox-layout pad, but `x` maps to the button printed **Y** and `y` to the button printed **X**.
   So the file is the authority on _which physical input_ a name refers to, and **not** on what
   to print in a button prompt: a footer hint that says "X" and runs on `es_input`'s `x` sends
-  the user to the wrong button, which is how this was found. Finding 225.
+  the user to the wrong button, which is how this was found. RB-225.
 - **One press can mean two things.** `select` and `hotkey` are the **same button** on both the
   8BitDo and the Xbox pad. A lookup that returns the first match silently drops the hotkey, so
   resolve to **every** name a reading satisfies.
@@ -61,10 +61,10 @@ where a different SDL build enumerating some pad differently would mis-map **sil
 `SDL_Init(SDL_INIT_JOYSTICK)` alone is enough, with no video subsystem and no SDL event loop.
 **It does need a Win32 message pump, which is a different thing**, and the failure is silent:
 SDL 2.32.8 defaults to the RAWINPUT backend, and in a console process with no pumped window
-`SDL_NumJoysticks()` returns **0** while three controllers are attached (finding 226). Avalonia
+`SDL_NumJoysticks()` returns **0** while three controllers are attached (RB-226). Avalonia
 pumps, so the shipped UI is unaffected; **a console probe of controller state is not**, and has
 to set `SDL_JOYSTICK_RAWINPUT=0`, which then changes the GUID it reads and makes it
-incomparable to the file (finding 227). If the library is missing or the pad has no
+incomparable to the file (RB-227). If the library is missing or the pad has no
 `inputConfig`, say so and name the fix
 (configure the controller in EmulationStation first) rather than inventing a default map: a pad
 ES cannot drive is one the user's own front end cannot drive either.
@@ -72,7 +72,7 @@ ES cannot drive is one the user's own front end cannot drive either.
 **EmulationStation has already answered the on-screen keyboard, and RomMBat now copies it
 rather than resembling it.** `GuiTextEditPopupKeyboard` binds **A** to press the highlighted key,
 **Start** to OK, **B** to BACK, **L (`pageup`) to DELETE**, **R (`pagedown`) to SPACE**,
-**`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. Findings 228 and 234:
+**`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. RB-228 and RB-234:
 read off a live 8.2.1 session, corroborated in
 `resources/locale/*/LC_MESSAGES/emulationstation2.po`, and then settled against upstream's own
 source, which is the only place the layout exists.
@@ -102,7 +102,7 @@ so it falls back to ES's `Settings` and reads `Language` from `es_settings.cfg`.
 is absent on the live install, which agrees. `InstallSession.EmulationStationLanguage` is the one
 place that reads it: **the UI may not name `EsSettingsFile`** and a structural test says so.
 **Absent is the ordinary answer** and means ES's default, because ES prunes any setting equal to
-one (finding 170), so never read a null here as "nobody chose". Finding 235.
+one (RB-170), so never read a null here as "nobody chose". RB-235.
 
 **Never print a button letter in a prompt; draw its position.** The bottom face button is A on
 an Xbox pad, Cross on a DualSense and B on a Switch Pro, so any letter is wrong on two layouts
@@ -110,7 +110,7 @@ out of three, and a stock RetroBat `es_input.cfg` routinely has all three config
 four-dot diamond with one dot filled, naming a **position**, which is what `es_input.cfg` already
 encodes: `a` is the bottom button, `b` the right, `y` the left, `x` the top. In RomMBat a
 `FooterHint` therefore carries a `NavAction` and never a string, so a screen **cannot** name a
-button and there is one place to be wrong. Finding 230.
+button and there is one place to be wrong. RB-230.
 
 **Closing the hint channel is not the whole rule, because prose is a second channel.** The
 first build with position glyphs in its footer still had "Press A to pair" in a status row and
@@ -140,7 +140,7 @@ Measured with a stamping hook on `game-selected`: ES fired **zero** navigation e
 resumed 0.64 s after the app exited with its selection unchanged. ES suspends a `.menu` app
 exactly as it suspends a game. `emulatorLauncher` does not compete either: an ES-menu launch
 carries **no `-p1*` controller arguments**, so `PadToKey` loads its config and attaches to
-nothing. Findings 218 to 220, 223.
+nothing. RB-218 to RB-220, RB-223.
 
 **`es_padtokey.cfg` is not a navigation mechanism.** 153 apps, and 156 of about 170 mappings are
 `hotkey start` to close or kill; exactly one maps directions to arrow keys. There is no default

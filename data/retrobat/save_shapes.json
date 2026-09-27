@@ -94,7 +94,7 @@
           "emulator": "mame",
           "key": "name",
           "slot": "nvram",
-          "evidence": "1231 unit directories, 1531 files, 137.3 MB, 8.02 s for the whole tree. The short name is the rom basename, so this is the one class C system needing no game-id attribution. Unprovable on the measured install, which holds 3 mame roms against 1231 units (measurement 153)"
+          "evidence": "1231 unit directories, 1531 files, 137.3 MB, 8.02 s for the whole tree. The short name is the rom basename, so this is the one class C system needing no game-id attribution. Unprovable on the measured install, which holds 3 mame roms against 1231 units (RB-153)"
         }
       ]
     },
@@ -172,7 +172,7 @@
           "emulator": "ppsspp",
           "key": "title_id",
           "slot": "savedata",
-          "evidence": "UCES01011 and ULES01513SYSDATA measured side by side, so the key is a prefix and one game can own several directories. PARAM.SFO adds nothing the directory name does not (measurement 144)"
+          "evidence": "UCES01011 and ULES01513SYSDATA measured side by side, so the key is a prefix and one game can own several directories. PARAM.SFO adds nothing the directory name does not (RB-144)"
         }
       ]
     },
@@ -226,7 +226,7 @@
     }
   },
   "_unit_paths": {
-    "_comment": "Where a class C save unit lives, added in M6 stage 2b from a read-only sweep of a real install. A unit is a (container, key) pair and NOT a directory: ps3 keeps three directories under one title id and gamecube keeps two files and no directory at all (measurements 140 and 141). Paths are relative to <retrobat root>/saves/ and contain no absolute component. A '*' matches exactly one path segment. Anything no container names is reported unknown and never read, so a shape that named an emulator data root would cost 426 s per sync (142) and no shape names one.",
+    "_comment": "Where a class C save unit lives, added in M6 stage 2b from a read-only sweep of a real install. A unit is a (container, key) pair and NOT a directory: ps3 keeps three directories under one title id and gamecube keeps two files and no directory at all (RB-140 and RB-141). Paths are relative to <retrobat root>/saves/ and contain no absolute component. A '*' matches exactly one path segment. Anything no container names is reported unknown and never read, so a shape that named an emulator data root would cost 426 s per sync (142) and no shape names one.",
     "_key_kinds": {
       "title_id": "the entry is a directory and the key is a leading 4-letter 5-digit title id; the rest of the segment is the game's own suffix (UCES01011 bare, ULES01513SYSDATA suffixed, BLUS30187GAMEDAT9ZLDR0F5K7M4000)",
       "name": "the entry is a directory and the key is the whole segment (mame short names)",

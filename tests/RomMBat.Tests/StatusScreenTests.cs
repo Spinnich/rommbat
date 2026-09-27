@@ -82,7 +82,7 @@ public class StatusScreenTests
     /// routinely has all three configured, so "Press A" reaches a Switch Pro user as the button
     /// that closes RomMBat. <see cref="FooterHint"/> closed that off for the footer by carrying
     /// a <see cref="NavAction"/> and never a string; nothing was stopping a detail line doing it,
-    /// and one was. Finding 230.
+    /// and one was. RB-230.
     /// </remarks>
     private static void AssertNamesNoButton(StatusViewModel model)
     {

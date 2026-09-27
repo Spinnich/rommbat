@@ -49,7 +49,7 @@ public sealed record EsHookOutcome(IReadOnlyList<EsHookStep> Steps)
 /// Installs and removes the EmulationStation event hooks.
 /// </summary>
 /// <remarks>
-/// <b>Executables, not scripts, and that is measured rather than preferred.</b> M0 probe 7b
+/// <b>Executables, not scripts, and that is measured rather than preferred.</b> RB-396
 /// drove a <c>.bat</c>, a <c>.ps1</c> and an <c>.exe</c> side by side through the same three
 /// launches. The <c>.bat</c> never started once an argument carried a space, because ES quotes
 /// such arguments and cmd's quote-stripping mangles the resulting line; the <c>.ps1</c> lost
@@ -76,7 +76,7 @@ public sealed record EsHookOutcome(IReadOnlyList<EsHookStep> Steps)
 /// The 75.9 MB agent reaches <c>Main</c> in 34 ms while the 11.0 MB pre-R2R hook took 59.8 ms
 /// just to start, because what dominates a trimmed app's start is JIT rather than bytes read.
 /// That is why <c>PublishReadyToRun</c> is on: it costs 1.8 MB a copy and took one whole
-/// invocation from 111 ms to 49 ms. See finding 195.
+/// invocation from 111 ms to 49 ms. See RB-195.
 /// </para>
 /// </para>
 /// </remarks>

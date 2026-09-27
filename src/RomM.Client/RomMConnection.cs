@@ -13,7 +13,7 @@ namespace RomM.Client;
 /// <remarks>
 /// The handler is owned here rather than taken from a factory, because
 /// <see cref="SocketsHttpHandler.ConnectTimeout"/> has to be set explicitly on every
-/// instance and nothing sets it by default. See M0 probe 6b.
+/// instance and nothing sets it by default. See RB-353.
 /// </remarks>
 public sealed partial class RomMConnection : IDisposable
 {
@@ -278,7 +278,7 @@ public sealed partial class RomMConnection : IDisposable
     /// <b>The body is buffered here so <see cref="RomMClientOptions.RequestTimeout"/> covers it.</b>
     /// <see cref="HttpClient"/> disposes its timeout once <c>SendAsync</c> returns, so under
     /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> a JSON body that went silent after
-    /// the headers was never timed out and hung the call (finding 267). Every answer read this
+    /// the headers was never timed out and hung the call (RB-267). Every answer read this
     /// way is JSON or an error, and none is large.
     /// </remarks>
     private Task<HttpResponseMessage> SendAsync(

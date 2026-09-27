@@ -116,7 +116,7 @@ Guardrails that follow from this:
   `5.3.0-alpha.2` that penalty does not reproduce**, and the bytes do: 63 KiB a 250-row page on a
   9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, with index off inside the
   noise or ahead on both. With no supported server left that pays the latency, it is off
-  everywhere. #188, and [romm-5.3-findings.md](../romm-5.3-findings.md) finding 9.
+  everywhere. #188, and RM-9.
 
   `with_total` stays on and is what keeps `total` non-null with the index off. It is not free
   that way (`resolve_total()` returns `len(rom_id_index)` when the index is built, A2), but
@@ -131,7 +131,7 @@ Guardrails that follow from this:
   rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters, so it
   can be neither scoped nor paged, and 5.3.0-alpha.2 spends 176.7 s answering it, while its
   platform and collection siblings answer in under 1.5 s (5.2.0 answered 504 after 300 s).
-  Deletion of content is reconciled through set re-resolution instead; see M3 and finding 81.
+  Deletion of content is reconciled through set re-resolution instead; see M3 and RB-81.
   **Nothing calls it, including tests and probes**: an abandoned call keeps loading the whole
   library server-side, and repeated ones took a live instance to 20.9 GiB (rommapp/romm#4577).
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
@@ -145,7 +145,7 @@ Guardrails that follow from this:
   is principle 3's argument and already exists. M4 reports a folder that grows past a
   threshold rather than truncating it. `ParseGamelistOnly` would make the gamelist
   authoritative and give a cap teeth, but it is a global ES setting affecting systems
-  RomMBat does not manage, so RomMBat does not touch it. See finding 111.
+  RomMBat does not manage, so RomMBat does not touch it. See RB-111.
 
 - Warn before a set resolves to more than a configurable game count or byte size.
 
@@ -192,7 +192,7 @@ a drive-letter change and a move to a different PC.**
   entry resolves its executable path under `emulators\`, and `emulatorLauncher` refuses
   `..\` escapes outright (`[Generator] Failed. path is null`, exit 204). An app installed
   anywhere else cannot be launched from the ES menu at all. See
-  [retrobat-findings.md](../retrobat-findings.md), probe 4.
+  RB-384.
 
 - **Never persist an absolute path.** The local file index, sync-set definitions and
   outbox entries all store paths **relative to the RetroBat root**. Resolve to absolute

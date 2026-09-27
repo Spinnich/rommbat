@@ -330,7 +330,7 @@ public sealed class ContentSyncTests : IDisposable
     [Fact]
     public async Task A_hash_mismatch_names_both_hashes_and_points_at_the_record_when_the_size_was_exact()
     {
-        // Finding 180: RomM served one file and recorded the hash of another. Without both numbers
+        // RB-180: RomM served one file and recorded the hash of another. Without both numbers
         // that is indistinguishable from a damaged transfer, and it took Range requests to tell.
         var served = Encoding.UTF8.GetBytes(new string('S', 4096));
         var recordedFor = Encoding.UTF8.GetBytes(new string('T', 4096));

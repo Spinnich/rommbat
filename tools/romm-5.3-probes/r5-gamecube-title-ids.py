@@ -1,6 +1,6 @@
 """R5: how unique a GameCube title_id is across a scanned platform (#186).
 
-Finding 2 and save-sync reason from this reading: 1,793 GameCube rows carrying an id, 1,601
+RM-2 and save-sync reason from this reading: 1,793 GameCube rows carrying an id, 1,601
 distinct, 167 ids shared by 359 rows, and 101 groups over 222 rows once each disc set is
 folded back into one game. Folding matters because a library holding multi-disc releases as
 loose files has a row per disc, and two discs sharing a memory card sharing an id is not the

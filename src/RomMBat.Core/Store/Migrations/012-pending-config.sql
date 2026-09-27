@@ -3,7 +3,7 @@
 --
 -- `saves convert --apply` refuses while EmulationStation is running, because ES loads
 -- es_settings.cfg at startup and serialises that model on every write, so a key that appears
--- afterwards is discarded (findings 178 and 179). That refusal is correct and it is also a
+-- afterwards is discarded (RB-178 and RB-179). That refusal is correct and it is also a
 -- dead end for the thing M7 is building: **the UI is launched from the ES menu, so it always
 -- runs under a live ES.** It can never write that file. Without somewhere to put the intent,
 -- the only per-game setting RomMBat has is unreachable from the only interface it ships.
@@ -49,7 +49,7 @@
 --
 -- 4. desired_state carries 'remove' as a first-class case, not as a NULL value.
 --
---    Reverting a conversion means putting the key back to its prior state, and finding 170
+--    Reverting a conversion means putting the key back to its prior state, and RB-170
 --    established that "absent" and "present at the stock value" are different files to
 --    restore. A queued revert of a conversion whose prior state was absent must remove the
 --    key, and a NULL desired_value on its own cannot be told from a bug.

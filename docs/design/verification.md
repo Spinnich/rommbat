@@ -57,4 +57,4 @@ read-when: Adding a test suite, deciding what a change must be tested against, o
   leaves a gamelist byte-identical when it has nothing to change, so the test is meaningful;
   but once a game has been played, ES reorders the entries, rewrites that entry's children
   into its own order and drops every comment, so the second write has to be a no-op against
-  that file rather than against its own previous output. See findings 103 to 105.
+  that file rather than against its own previous output. See RB-103 to RB-105.

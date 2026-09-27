@@ -7,7 +7,7 @@ namespace RomMBat.Core.Paths;
 /// </summary>
 /// <remarks>
 /// This is the only path shape any persisted record ever holds. RetroBat is portable, so
-/// the drive letter changes: an install that moved G: to D: to K: during M0 probe 7 must
+/// the drive letter changes: an install that moved G: to D: to K: (RB-391) must
 /// treat that as a non-event. Construction rejects anything rooted, drive-relative, UNC, or
 /// carrying a <c>..</c> segment that would climb out of the tree, so an absolute path
 /// cannot reach the database through a typed API.

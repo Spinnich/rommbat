@@ -13,10 +13,10 @@ on 2026-09-24, all nine steps with step 6 N/A because `mastersystem` has no clas
 **Three are driven and not certified**, as on `megadrive` and for the same reasons:
 
 - `libretro`/`fbneo` **never boots this library.** FBNeo takes a Master System game's set from the
-  file name, and every ROM here carries its No-Intro name (finding 325).
+  file name, and every ROM here carries its No-Intro name (RB-325).
 - `kega-fusion`/`auto` and `kega-fusion`/`mastersystem` **fail step 4**: Kega Fusion writes its
   battery save as `<rom>.ssm` into `emulators/kega-fusion/`, outside `saves/`, because RetroBat's
-  template `Fusion.ini` sends it there (finding 283). Their states sync.
+  template `Fusion.ini` sends it there (RB-283). Their states sync.
 
 **It certifies those seven rows and nothing wider.** The two `libretro` rows needed nothing. The five
 standalone rows each needed a battery rule for `mastersystem`, and `mesen`, `mednafen` and `ares` a
@@ -31,8 +31,8 @@ is not a row.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -149,7 +149,7 @@ Master System BIOS anywhere in the tree:
 | Row                                          | With no firmware                                                                 |
 | -------------------------------------------- | -------------------------------------------------------------------------------- |
 | `libretro`/`genesis_plus_gx` and `picodrive` | Reaches the intro                                                                |
-| `libretro`/`fbneo`                           | "Romset is unknown", for the name (finding 325)                                  |
+| `libretro`/`fbneo`                           | "Romset is unknown", for the name (RB-325)                                       |
 | `mednafen`, `mesen`, `ares`, `jgenesis`      | Reach the intro                                                                  |
 | `kega-fusion`, both cores                    | Reach the intro                                                                  |
 | `bizhawk`/`SMSHawk`                          | **Refuses**: "No BIOS found. Open the firmware manager now?", then fails to load |
@@ -162,7 +162,7 @@ US/EU file**: with it alone SMSHawk starts, and with the Japanese file alone it 
 
 **Kega Fusion looks for different names.** RetroBat's `Fusion.ini` sets `SMSUSABIOS`, `SMSJAPBIOS`
 and `SMSEURBIOS` to `bios_U.sms`, `bios_J.sms` and `bios_E.sms`, which RetroBat's list does not name,
-and Kega boots the cartridge without them. Finding 322.
+and Kega boots the cartridge without them. RB-322.
 
 So `bizhawk`/`SMSHawk` is certified with the US/EU file present, **which a user supplies**: RetroBat
 names it without a hash, and RomMBat fetches only by md5. By the maintainer's decision the two files
@@ -185,7 +185,7 @@ stay in this install's `bios\`.
 | `jgenesis`                   | `jgenesis/sms/<rom>.sav`, 32,768 B                                      |
 | `kega-fusion`, both cores    | `emulators/kega-fusion/<rom>.ssm`, 8,191 B, outside `saves/`            |
 
-**Four sizes for one cartridge's SRAM**, as on `megadrive` (finding 277): Genesis Plus GX and Kega
+**Four sizes for one cartridge's SRAM**, as on `megadrive` (RB-277): Genesis Plus GX and Kega
 trim it at the last used byte, 8,191 B; Mesen and BizHawk keep 8 KB; PicoDrive, mednafen, ares and
 jgenesis keep a 32 KB window. **mednafen's md5 is of the whole `.sms` inside the zip.**
 
@@ -204,7 +204,7 @@ The stock row's session changed `0x1000` onward from the boot write. **No later 
 `0x1000`-`0x11FF`**, including one on `ares` where the maintainer started a new game and named a new
 character. Mesen, ares and the others changed only the working area, and mednafen and jgenesis wrote
 it back to the stock row's bytes, as a game repairing its copy from the committed save would. Where
-the game commits a save after the first character was not found. Finding 326.
+the game commits a save after the first character was not found. RB-326.
 
 **So after the stock row, step 4 rests on each emulator's own write, not on new progress.** Every
 row below wrote its own file, which went up and came back at its own md5, which is what step 4 asks.
@@ -247,7 +247,7 @@ screenshot(s)`, exit 0, every file at its own md5, the image that slot's own.
 **PicoDrive read the file Genesis Plus GX wrote and wrote it back at 32 KB**: its 32,768 B are
 Genesis Plus GX's 8,191 B followed by zeros, as on `megadrive`. **The declared `<directory>` is where
 both cores wrote**, `saves/mastersystem/libretro.<core>/`, and RetroArch chose slots 1 onward from
-`found_last_state_slot: #0` whatever ES passed (finding 261).
+`found_last_state_slot: #0` whatever ES passed (RB-261).
 
 ### `libretro`/`fbneo`: driven, and not certifiable on this library
 
@@ -263,7 +263,7 @@ CRC `c7ded988`, the same bytes. Started directly on two copies of the zip, outsi
 
 So the row boots none of a No-Intro set, which is what RomM serves, and is **recorded as not
 certifiable by the maintainer's ruling**, without an ES session. Nothing was written under `saves/`.
-Finding 325.
+RB-325.
 
 ## The five standalone rows
 
@@ -301,7 +301,7 @@ only when the game changes the SRAM**: an agent boot with the seed in place left
 and timestamp. Its first session wrote nothing, and a second, 15:37:54Z to 15:38:51Z, rewrote it.
 **mednafen will not start the game while Mesen's `.sav` is there**: it opens the plain `<rom>.sav`,
 finds 8,192 B where it keeps 32 KB, and stops with "Error reading from opened file ... Unexpected
-EOF" (finding 324). For its row the Mesen file was held out and mednafen's own hashed name seeded;
+EOF" (RB-324). For its row the Mesen file was held out and mednafen's own hashed name seeded;
 **the restore placed that hashed save under the name `MednafenRomHash` computes from the `.sms`**,
 the first time that path was driven end to end. **BizHawk names the save after its own title**,
 `Golden Axe Warrior (UE)`, and the sidecar beside its states reads `Golden Axe Warrior (UE).SMSHawk`,
@@ -382,7 +382,7 @@ is written. `Fusion.ini` held `Joystick1Using=255` for player 1 before and after
 
 ## What the pass turned up that is not a row
 
-- **RomM's browser player rewrote the save mid-pass** (finding 327). During the Mesen session the
+- **RomM's browser player rewrote the save mid-pass** (RB-327). During the Mesen session the
   maintainer launched the game in RomM's EmulatorJS by accident. At 15:28:26Z the server gained save
   496 in `libretro:battery`, with no device, named after PicoDrive's upload
   (`[2026-09-24_15-26-38]`) and holding 8,191 B, `b98e4e38...`: PicoDrive's 32 KB save as Genesis
@@ -390,7 +390,7 @@ is written. `Fusion.ini` held `Joystick1Using=255` for player 1 before and after
   was last in step and the server's newer, took the server's, and kept the file it displaced in
   `emulators/rommbat/replaced/`. Same save data, and the right behaviour.
 - **Every flush refused one save that is not `mastersystem`'s**: rom 189465 on `megadrive`, where
-  the server holds the four bytes `null` another client wrote in July (finding 276).
+  the server holds the four bytes `null` another client wrote in July (RB-276).
 - **ES rewrote `gamelist.xml` on its own exit**, so step 9 compares against a copy taken after the
   last ES session: the re-sync left that copy byte-identical and said `gamelists: all 1 unchanged`.
 

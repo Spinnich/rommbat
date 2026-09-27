@@ -80,7 +80,7 @@ public class RootDiscoveryTests
     [Fact]
     public void The_app_directory_is_under_emulators_because_the_ES_menu_forces_it()
     {
-        // M0 probe 4: a .menu executable path resolves under emulators\ and emulatorLauncher
+        // RB-384: a .menu executable path resolves under emulators\ and emulatorLauncher
         // refuses ..\ escapes outright, so anywhere else cannot be menu-launched at all.
         using var tree = TempRetroBatTree.Create();
         var install = tree.Install();

@@ -187,7 +187,7 @@ public sealed class StatusViewModel : IScreen
         if (device is null || !device.IsPaired)
         {
             // Worded as the footer's own label rather than a button, because the letter differs
-            // per pad layout and "Press A" reaches a Switch Pro user as back. Finding 230.
+            // per pad layout and "Press A" reaches a Switch Pro user as back. RB-230.
             return new StatusSection("RomM", [
                 new StatusRow("Paired", "no", "Pair with RomM to sync your games, saves and play time."),
             ]);

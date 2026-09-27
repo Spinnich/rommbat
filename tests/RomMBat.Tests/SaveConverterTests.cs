@@ -201,7 +201,7 @@ public class SaveConverterTests
     [Fact]
     public void A_setting_RomMBat_did_not_write_is_not_taken_over()
     {
-        // Presence is not authorship. ES adds keys on its own (finding 170), so the only sound
+        // Presence is not authorship. ES adds keys on its own (RB-170), so the only sound
         // test is whether the value is one RomMBat wrote, and anything else is left alone.
         using var fixture = ConvertTree.Create();
         fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");

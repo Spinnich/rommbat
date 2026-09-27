@@ -27,7 +27,7 @@
                   <file> template. The fix works. Remove "flycast" from
                   StateScanner.WrongDeclaredDirectories, drop the correction from
                   tools/m0-probes/probe2-emit-data.py, and record the pass in
-                  docs/platforms/ and docs/retrobat-findings.md.
+                  docs/platforms/ and docs/upstream/.
 
     not mirrored  only reicast/states got the state. The changelog line does not describe
                   what lands on disk. Keep the workaround, and reopen upstream with this

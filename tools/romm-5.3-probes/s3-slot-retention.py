@@ -1,4 +1,4 @@
-"""S3: what 5.3.0-alpha.3's per-slot cap does to a device that was away (finding 11, #4540).
+"""S3: what 5.3.0-alpha.3's per-slot cap does to a device that was away (RM-11, #4540).
 
 Read at tag 5.3.0-alpha.3, `backend/endpoints/saves.py` `add_save` prunes a slot past the
 tighter of `MAX_SAVES_PER_SLOT` (env, default 50) and a client's `autocleanup_limit`, on every

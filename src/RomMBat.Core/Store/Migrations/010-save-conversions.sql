@@ -25,7 +25,7 @@
 --        stock value disappears on ES's next write. Absence is not evidence of a revert.
 --      - ES also ADDS keys on its own. `Language` was absent from a real install's file on one
 --        day and present at `en_US` the next, on two independent installs, written by ES at
---        startup with nothing else changed (finding 170). **So presence is not evidence
+--        startup with nothing else changed (RB-170). **So presence is not evidence
 --        either**, and "the key holds the stock value" must never be read as "the user chose
 --        this". A user browsing PCSX2's options in the ES menu can materialise the key without
 --        intending anything by it.

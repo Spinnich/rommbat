@@ -26,18 +26,18 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   renames the upload to carry a `[YYYY-MM-DD_HH-MM-SS]` tag and then looks the row up by
   **that** name, at one-second resolution, so two postings into one slot inside one second are
   one row and two a second apart are two. **`overwrite=true` never replaces a row.** What it
-  does is suppress the 409 checks **and** the identical-content dedup. Measurement 160.
+  does is suppress the 409 checks **and** the identical-content dedup. RB-160.
 - **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
   `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
-  `--keep-local` not. Measurement 161. `autocleanup` defaults to **false** and
+  `--keep-local` not. RB-161. `autocleanup` defaults to **false** and
   `autocleanup_limit` to 10, so a slot grew unboundedly unless you asked it not to, up to
   5.3.0-alpha.2. **From alpha.3 the server prunes on each slotted upload whatever the client
   sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and the
   client's own `autocleanup_limit`. RomMBat sends `autocleanup=true&autocleanup_limit=10`, so its
   cap is 10 and the server's bites only on other writers' versions. `slot` is capped at 255
-  characters, a 422 past it. Read in source; `romm-5.3-findings.md` finding 11.
+  characters, a 422 past it. Read in source; RM-11.
 - **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
-  a client cannot dodge the 409 path by sending an id the server does not know. Measurement 162.
+  a client cannot dodge the 409 path by sending an id the server does not know. RB-162.
 - **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
 last sync"}`, with no save id and no timestamps. Fetch the save row separately to show the
   user anything. It fires when **this device's** record is stale, so the device that wrote the
@@ -102,7 +102,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   for one ROM collapse into a single row. Two names differing only in a bracketed tag do produce
   two rows, so tagging works. `PUT /api/states/{id}` exists and is unnecessary, and no frontend
   path at 5.3.0-alpha.2 calls it either. The browser rewrites a state only through this upsert,
-  from the console view's fixed `state.save` name (finding 4).
+  from the console view's fixed `state.save` name (RM-4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
   never sends it. At 5.3.0-alpha.2 RomM's browser player did, for the save it loaded and on every
@@ -123,7 +123,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   with an **empty** `saves` array is the inventory pass a fresh device needs. It answers a
   `download` for every slot the device has no current sync record for, and stays quiet about a
   slot the device did sync and no longer sends, which it reads as a deliberate local delete.
-  Measurement 151, which withdraws 132.
+  RB-151, which withdraws 132.
 - **What negotiate pairs on is the newest row per `(rom_id, slot)`, and only that row.** Read
   from `backend/endpoints/sync.py` at both `5.1.0` and `5.1.1-beta.2`, which are identical
   here: the server folds its slotted saves to one row per slot by `updated_at` before matching
@@ -131,11 +131,11 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   in a slot is history and is never offered as an operation while it stays superseded.** That no
   longer makes an appending upload safe on its own: the in-place `PUT` above puts one back at the
   head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
-  what keeps a keep-local from being undone (`save-sync`). Measurement 163, read from source and then driven against
+  what keeps a keep-local from being undone (`save-sync`). RB-163, read from source and then driven against
   a slot holding a superseded row.
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
   that earlier one answers **400** `Session is already cancelled`. Complete a session before
-  negotiating again, or accept that the first one can never be tidied up. Measurement 164.
+  negotiating again, or accept that the first one can never be tidied up. RB-164.
   Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
   `SaveSync` reads it and reports every refusal except `already COMPLETED`, which means the
   close landed. A 403 there otherwise reads as a clean sync with the session left open (#90), so

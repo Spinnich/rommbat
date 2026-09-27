@@ -8,7 +8,7 @@ read-when: Changing class B slots, the rtc slot, or adopting a RomM save-bundle 
 **Amended by the `gbc` pass, 2026-09-23: a clock file stays one slot even where its format is not
 shared.** On `gbc` the loose `<rom>.rtc` is written by four `libretro` cores and Mesen in four
 formats (8 B of base time under `gambatte`, 4 B of host time under `tgbdual` and `DoubleCherryGB`,
-32 B under `sameboy`, 13 B under Mesen), and every move between them that was observed lost the clock (finding 300). Each row's
+32 B under `sameboy`, 13 B under Mesen), and every move between them that was observed lost the clock (RB-300). Each row's
 own clock round-trips, so a device that stays on one row keeps it. Splitting the slot by core
 would need a restore to know which core a single file on disk belongs to, and a device that
 switches core can lose the clock on one machine with no RomMBat involved. By the maintainer's ruling

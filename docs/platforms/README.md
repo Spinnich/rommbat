@@ -115,7 +115,7 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
 
 - **libretro, 30 of the 81.** One `es_savestates.cfg` entry, `{{system}}/libretro.{{core}}`,
   differing only in a path segment, and class A loose `.srm` throughout. This is the family that
-  makes the matrix affordable, and it is the one that most needs driving: finding 134 measured
+  makes the matrix affordable, and it is the one that most needs driving: RB-134 measured
   two libretro cores writing an identical `state1` filename, which became two server rows only
   because the uploaded name carries the core.
 - **bizhawk, 14.** One entry, core-scoped as `{{system}}/bizhawk/sstates/{{core}}`.
@@ -145,7 +145,7 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   **Check the declaration by emulator name, not by save-directory name**, before recording a row
   as declaring none. RetroBat does not spell the two the same way everywhere: Dolphin is declared
   as `dolphin` and writes its save tree to `dolphin-emu/`, and its save states are measured
-  working (finding 971). `SaveScanner.DeclaredNames` carries the correspondence for the one row
+  working (RB-368). `SaveScanner.DeclaredNames` carries the correspondence for the one row
   where it diverges, so a new row whose directory name is not in `es_savestates.cfg` needs that
   checked before the record says the emulator declares nothing.
 
@@ -153,7 +153,7 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
 is not the row a stock install gives a user, and a record that does not distinguish them is
 claiming something it did not test. Confirm what actually ran from
 `emulationstation/emulatorLauncher.log`, which logs the emulator and core per launch. Never
-infer it from `retroarch.cfg`: finding 217 measured that the file describes only the last game
+infer it from `retroarch.cfg`: RB-217 measured that the file describes only the last game
 launched and is regenerated per launch.
 
 **`<extension>` is a property of the system, not of the row.** The list in `es_systems.cfg` is a
@@ -217,7 +217,7 @@ and came back out through the hooks. The waves finish against an M8 package.
 **Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
 to `5.3.0` and then the `5.3.1` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
-state round-tripping with its screenshot, which had been blocked on findings 138, 256 and 258
+state round-tripping with its screenshot, which had been blocked on RB-138, RB-256 and RB-258
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
 row a stock install gives a user, selected with no override. **`nes` under both `bizhawk` cores,
 `NesHawk` and `quickerNES`, followed later on 2026-09-21**, once #151 carried BizHawk's battery
@@ -230,16 +230,16 @@ all nine; step 6 is N/A because `nes` has no class D.
 row, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`, once each had a megadrive
 battery rule and the last two a state declaration. **Four were driven and are not certified**:
 `libretro`/`fbneo` boots no game named by No-Intro, since FBNeo takes its driver from the file
-name (finding 278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
-battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (finding 283).
+name (RB-278), and the three `kega-fusion` rows fail step 4, because Kega Fusion writes its
+battery saves outside `saves/` where RetroBat's `Fusion.ini` sends them (RB-283).
 
 **Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
 `libretro` under `mgba`, the stock row, `gpsp` and `mednafen_gba`, then `mgba` standalone,
 `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`, the last seven once each had a gba
 battery rule and four a state declaration. **`nosgba` was driven and is not certified**: it loads a
 zipped ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, keeps its saves
-outside `saves/`, and writes a state only where a Save As dialog is pointed (finding 286). Three rows refuse to boot without `gba_bios.bin` and seven do not
-(finding 285), which the record tables.
+outside `saves/`, and writes a state only where a Save As dialog is pointed (RB-286). Three rows refuse to boot without `gba_bios.bin` and seven do not
+(RB-285), which the record tables.
 
 **All fourteen of `gb`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
 the six `libretro` cores, `gambatte` being the stock row, with `mesen-s`, `bsnes`, `tgbdual`,
@@ -247,18 +247,18 @@ the six `libretro` cores, `gambatte` being the stock row, with `mesen-s`, `bsnes
 `GBHawk` and `SameBoy`, and `jgenesis`, the standalone rows once each had a gb battery rule and four a
 state declaration. Twelve rows boot without firmware. `libretro`/`bsnes` needs `SGB1.sfc` and
 `bizhawk`/`GBHawk` the Color boot ROM for a Color-flagged cartridge, files RetroBat's list names
-under `sgb` and `gbc`, so `bios gb` is supplemented with them (finding 293). A clock cartridge,
+under `sgb` and `gbc`, so `bios gb` is supplemented with them (RB-293). A clock cartridge,
 Pokemon Silver synced into `gb`, keeps its clock in a `.rtc` under the stock core, which syncs as
-`libretro:battery:rtc` and was driven through a restore with the clock intact (finding 298).
+`libretro:battery:rtc` and was driven through a restore with the clock intact (RB-298).
 
 **All twelve of `gbc`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-23:
 the four `libretro` cores, `gambatte` being the stock row, with `tgbdual`, `sameboy` and
 `DoubleCherryGB`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`, `GBHawk` and
 `SameBoy`, and `jgenesis`, the standalone rows once each had a gbc battery rule and four a state
 declaration. Eleven rows boot without firmware, and `bizhawk`/`GBHawk` needs `gbc_bios.bin`, which
-is on `gbc`'s own list (finding 299). Pokemon Crystal's clock round-trips on every row, and every change
+is on `gbc`'s own list (RB-299). Pokemon Crystal's clock round-trips on every row, and every change
 of row that was checked lost it, because each keeps it in its own format and the loose `.rtc` is
-one file name with four (finding 300).
+one file name with four (RB-300).
 
 **All fifteen of `snes`'s rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-24:
 the seven `libretro` cores, `snes9x` being the stock row, with `bsnes-jg`, `bsnes`, `bsnes_hd_beta`,
@@ -266,23 +266,23 @@ the seven `libretro` cores, `snes9x` being the stock row, with `bsnes-jg`, `bsne
 `bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. Mesen and Snes9x share `libretro`'s
 loose `.srm`; the other standalone rows needed a snes battery rule, and four rows a state declaration.
 RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's, which
-nothing RomMBat fetches (finding 317).
+nothing RomMBat fetches (RB-317).
 
 **Seven of `mastersystem`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-24: `libretro` under `genesis_plus_gx`, the stock row, and `picodrive`, then `mesen`,
 `mednafen`, `ares`, `bizhawk`/`SMSHawk` and `jgenesis`, each standalone row with a `mastersystem`
 battery rule and three with a state declaration. `libretro`/`fbneo` and both `kega-fusion` rows are
-driven and not certified, for `megadrive`'s reasons (findings 325 and 283). `SMSHawk` refuses to
+driven and not certified, for `megadrive`'s reasons (RB-325 and RB-283). `SMSHawk` refuses to
 start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat cannot fetch it
-(finding 322).
+(RB-322).
 
 **All seventy-three are carried to the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; each record's
 "The move to `5.3.1`" maps the steps.
 
-**Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and eleven declared shared cards, five of them observed (findings 328 to 335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (330). [psx.md](psx.md) is the record.
+**Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and eleven declared shared cards, five of them observed (RB-328 to RB-335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (330). [psx.md](psx.md) is the record.
 
-**`n64` follows: eight of its nine rows certified at RomM `5.3.1`** on 2026-09-27, both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64` is driven and not certifiable, its battery saves being outside `saves/` (#239). Findings 336 to 341; [n64.md](n64.md) is the record.
+**`n64` follows: eight of its nine rows certified at RomM `5.3.1`** on 2026-09-27, both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64` is driven and not certifiable, its battery saves being outside `saves/` (#239). RB-336 to RB-341; [n64.md](n64.md) is the record.
 
 **Read all nine as narrowly as they are written.** They certify eighty-eight
 `(system, emulator, core)` rows on one install, wave 1's seventy-three, `psx`'s seven and `n64`'s eight, each at the
@@ -306,8 +306,7 @@ are different claims, and only the second is evidence.
 | 2c       | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
 
 **2c, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
-system, steps 4, 6 and 9 only. Results are findings 182 to 188 in
-`docs/retrobat-findings.md`.
+system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
 
 | Step                                       | Result                                                                                  |
 | ------------------------------------------ | --------------------------------------------------------------------------------------- |
@@ -334,11 +333,11 @@ system, steps 4, 6 and 9 only. Results are findings 182 to 188 in
   their measured reasons and neither refusal was exercised against a real emulator, and
   `folder`, PCSX2's third choice, is declared and unmeasured.
 - **The ROM was adopted, then re-downloaded, and neither is the ordinary case for a converted
-  game.** The first attempt failed verification against a stale server hash (finding 180),
+  game.** The first attempt failed verification against a stale server hash (RB-180),
   which is fixed on the instance now but shaped how this pass ran.
 
 **2b, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
-system, steps 4 and 9 only. Results are findings 154 to 159 in `docs/retrobat-findings.md`.
+system, steps 4 and 9 only. Results are RB-154 to RB-159.
 
 | Step                                  | Result                                                                      |
 | ------------------------------------- | --------------------------------------------------------------------------- |
@@ -363,8 +362,7 @@ was synthetic, so the emulator-loads-it result rests on that plus the fold rathe
 untouched round trip.
 
 **2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
-one game, one system, steps 4 and 5 only. Results are findings 134 to 139 in
-`docs/retrobat-findings.md`.
+one game, one system, steps 4 and 5 only. Results are RB-134 to RB-139.
 
 | Emulator                     | On disk                                      | Slot                         | Landed |
 | ---------------------------- | -------------------------------------------- | ---------------------------- | ------ |
@@ -376,4 +374,4 @@ one game, one system, steps 4 and 5 only. Results are findings 134 to 139 in
 The two libretro cores wrote the **identical** filename and became two server rows, which is
 the collision the scoped upload name exists to prevent, proven rather than argued. What did
 **not** work is the screenshot: uploaded, stored against the ROM, and not linked to the state.
-See finding 138.
+See RB-138.

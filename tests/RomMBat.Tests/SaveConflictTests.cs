@@ -98,7 +98,7 @@ public class SaveConflictTests
         // The server now holds this device's bytes. One row here only because the fixture holds
         // the server clock still, so the upload carries the same datetime tag as the row it is
         // overwriting and updates it. A resolution taken a second later appends instead, which
-        // the test below drives. Measurement 160.
+        // the test below drives. RB-160.
         var stored = Assert.Single(fixture.Stub.Saves.Values);
         Assert.Equal("what this device did", System.Text.Encoding.UTF8.GetString(stored.Bytes));
 
@@ -123,7 +123,7 @@ public class SaveConflictTests
         // clock. A person deciding a conflict is never inside the same second as the save they are
         // deciding against, so the real answer for the only caller of overwrite=true is: it
         // appends, and autocleanup bounds the slot at ten rather than the resolution bounding it
-        // at one. Measurement 160.
+        // at one. RB-160.
         using var fixture = ConflictFixture.Create();
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 

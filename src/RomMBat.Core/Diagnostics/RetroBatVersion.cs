@@ -6,7 +6,7 @@ namespace RomMBat.Core.Diagnostics;
 /// Version compatibility with the RetroBat install.
 /// </summary>
 /// <remarks>
-/// Read from <c>system/version.info</c>, which M0 probe 4 confirmed is the only version
+/// Read from <c>system/version.info</c>, which RB-377 confirmed is the only version
 /// file in the tree: there is no <c>build.ini</c>. The value carries a channel and an
 /// architecture suffix (<c>8.2.1-stable-win64</c>), so it has to be split before it can be
 /// compared. <see cref="ProductVersion"/> does that, and deliberately ignores the suffix

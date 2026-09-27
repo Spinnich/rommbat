@@ -28,7 +28,7 @@ files beside it, by section:
 
 The target is a handheld Windows gaming PC away from the server for days. Local SQLite is
 the source of truth; the network is optional, probed with a short-timeout
-`GET /api/heartbeat` (budget from `docs/retrobat-findings.md`).
+`GET /api/heartbeat` (budget from RB-353).
 
 - **`game-start` and `game-end` are journal-only.** Those two run inside the game-launch
   path: append and exit in milliseconds, never open a socket, never start a process.
@@ -73,7 +73,7 @@ the source of truth; the network is optional, probed with a short-timeout
   terminal work; before it, `sync` and a typed `flush` were the whole trigger set and an
   install that was never synced spooled events forever. The reason recorded for the delay was
   an 11 MB process start inside the game-launch path, and **that measurement went the other
-  way** (findings 195 and 197): ES does not wait for a hook, and the 75.9 MB agent starts
+  way** (RB-195 and RB-197): ES does not wait for a hook, and the 75.9 MB agent starts
   faster than the 11 MB hook because trimming without `PublishReadyToRun` discards the
   framework's precompiled code. Cost was never the reason to refuse a spawn. **Rule 4 was**,
   and 7a narrowed it to the two events that are not in the launch path rather than bending it.
@@ -129,7 +129,7 @@ RetroBat runs from a USB drive and moves between machines.
 - **Identity follows the drive.** A GUID in the tree sent as `client_device_identifier`.
   Never MAC or hostname. See `romm-api`.
 - **The filesystem may be exFAT or FAT32.** All of this is measured, not assumed; see
-  `docs/retrobat-findings.md`, probe 7.
+  RB-393.
   - FAT32 cannot hold a file over 4 GB, which excludes many PS2/GameCube/Wii images. Detect
     and refuse cleanly rather than failing mid-write. The write fails with Win32 112
     `ERROR_DISK_FULL`, **"There is not enough space on the disk"**, on a volume with plenty

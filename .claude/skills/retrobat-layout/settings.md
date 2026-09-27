@@ -71,12 +71,12 @@ Dolphin starts, and it reconciles `saves/gamecube/dolphin-emu/User/GC/<REGION>/`
 **`Card A/` subdirectory of that same folder**, newest wins, loser renamed `.old`, every failure
 swallowed. A `.gci` in `Card A` with nothing beside it is copied **back out**, so a save removed
 from the region root reappears one session stale. `DolphinSaveSync` detects and reports it and
-never acts on it. Finding 189.
+never acts on it. RB-189.
 
 **GameCube's save class is set by `dolphin_slotA`, which the menu calls SAVE FORMAT.** `8` is
 the GCI folder RomMBat treats as class C; `1` is one shared raw `SRAM.<REGION>.raw`, class D.
 Slot B is never rewritten by RetroBat, so it stays at Dolphin's stock relative default in
-top-level `saves/dolphin/`, outside every declared container. Finding 193.
+top-level `saves/dolphin/`, outside every declared container. RB-193.
 
 **Never write this file while EmulationStation is running. The write is discarded.** ES loads
 `es_settings.cfg` at startup and serialises that model on every write, so a key present at load

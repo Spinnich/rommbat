@@ -15,7 +15,7 @@ public sealed record RomMClientOptions
     /// How long the TCP handshake may take.
     /// </summary>
     /// <remarks>
-    /// M0 probe 6b: an absent host on the local subnet takes <b>21 seconds</b> to fail and a
+    /// RB-353: an absent host on the local subnet takes <b>21 seconds</b> to fail and a
     /// default <see cref="HttpClient"/> inherits every millisecond. This is the only lever
     /// that caps it; <see cref="RequestTimeout"/> also covers a slow server that is reachable,
     /// so lowering that instead would abort legitimate slow answers.
@@ -52,7 +52,7 @@ public sealed record RomMClientOptions
     public string? AccessToken { get; init; }
 
     /// <summary>
-    /// The interactive budget from M0 probe 6b: orders of magnitude above LAN RTT (39 ms
+    /// The interactive budget from RB-353: orders of magnitude above LAN RTT (39 ms
     /// measured against a healthy instance), and inside the window where a spinner still
     /// reads as responsive.
     /// </summary>

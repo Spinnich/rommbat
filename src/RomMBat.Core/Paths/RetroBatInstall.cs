@@ -37,7 +37,7 @@ public sealed class RetroBatInstall
     /// Where RomMBat lives inside the tree.
     /// </summary>
     /// <remarks>
-    /// Not a free choice. M0 probe 4 measured that a <c>system/es_menu/*.menu</c> entry
+    /// Not a free choice. RB-384 measured that a <c>system/es_menu/*.menu</c> entry
     /// resolves its executable under <c>emulators\</c> and that <c>emulatorLauncher</c>
     /// refuses <c>..\</c> escapes outright, so an app installed anywhere else cannot be
     /// launched from the ES menu at all.
@@ -63,7 +63,7 @@ public sealed class RetroBatInstall
     /// </remarks>
     public static RelativePath PartialDirectory { get; } = AppDirectory.Combine("partial");
 
-    /// <summary>The single-line version file. There is no <c>build.ini</c>; M0 probe 4 confirmed it.</summary>
+    /// <summary>The single-line version file. There is no <c>build.ini</c>; RB-377 confirmed it.</summary>
     public static RelativePath VersionFile { get; } = RelativePath.Create("system/version.info");
 
     public RetroBatInstall(string rootPath, RootDiscoverySource source)

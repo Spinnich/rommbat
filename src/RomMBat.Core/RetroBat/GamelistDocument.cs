@@ -291,7 +291,7 @@ public sealed class GamelistDocument
     /// installs is no BOM and LF, 42 of 42, and the stock <c>system/es_menu/gamelist.xml</c> is
     /// the one gamelist RetroBat ships with a BOM and CRLF. Writing the default over it would
     /// rewrite all 96 of its entries in order to add one, which is the opposite of merging into
-    /// a file somebody else owns. See <c>docs/retrobat-findings.md</c>, 204.
+    /// a file somebody else owns. See RB-204.
     /// </remarks>
     public string Render()
     {

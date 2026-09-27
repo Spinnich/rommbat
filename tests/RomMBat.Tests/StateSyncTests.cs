@@ -208,7 +208,7 @@ public class StateSyncTests
     [Fact]
     public async Task A_state_the_server_links_no_screenshot_to_restores_without_one_and_says_nothing_failed()
     {
-        // The upstream half of #158, finding 138: the image was uploaded and not linked, so the
+        // The upstream half of #158, RB-138: the image was uploaded and not linked, so the
         // state row reads screenshot: null. The state still comes back and counts.
         using var fixture = StateFixture.Create();
         fixture.Stub.DropScreenshots = true;
@@ -584,7 +584,7 @@ public class StateSyncTests
     [Fact]
     public void The_earlier_screenshot_name_never_attached_where_the_image_is_the_state_name_plus_png()
     {
-        // Finding 138's "a third", explained. RomM binds by name, and scoping the image's own name
+        // RB-138's "a third", explained. RomM binds by name, and scoping the image's own name
         // put the group after .state1 for every emulator whose <image> is <file>.png, while an
         // emulator whose <image> replaces the extension happened to line up.
         Assert.False(StubRomMServer.Binds(
@@ -830,7 +830,7 @@ public class StateSyncTests
     [Fact]
     public async Task A_bizhawk_state_named_after_disc_1_of_a_set_restores_under_that_disc()
     {
-        // RetroBat hands BizHawk disc 1 rather than the playlist (finding 314), so the state is
+        // RetroBat hands BizHawk disc 1 rather than the playlist (RB-314), so the state is
         // named after a disc of the set, which is on disk, and never after the .m3u.
         using var fixture = StateFixture.Create();
         fixture.AddRom(320307, "psx", "Metal Gear Solid (USA).m3u");

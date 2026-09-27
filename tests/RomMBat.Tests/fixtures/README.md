@@ -36,7 +36,7 @@ compares to this. Re-capture it when a parser trap moves, not when a version doe
 `emulatorLauncher.log` is twelve lines cut verbatim out of a real install's five months and
 424 launches, with only the Windows user profile path replaced. It is assembled by trap
 rather than chronologically, so it is not a slice of the file, and each line is one of the
-things the M6 probe found (findings 112 to 118):
+things the M6 probe found (RB-112 to RB-118):
 
 | Line     | What it is                                                                              |
 | -------- | --------------------------------------------------------------------------------------- |

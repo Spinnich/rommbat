@@ -14,7 +14,7 @@ after.
 **One is driven and not certified.** `nosgba` cannot open a zip, because NO$GBA unzips through an
 external `PKUNZIP.EXE` it does not ship. It loads a `.gba` placed beside the zip instead, then
 deletes it as its own temp file. It also keeps its saves compressed in `emulators/nosgba/BATTERY/`,
-outside `saves/` (finding 286).
+outside `saves/` (RB-286).
 
 **It certifies those nine rows and nothing wider.** The two `libretro` rows that share the `.srm`
 needed nothing new. The other seven needed a battery rule each, four a state declaration in
@@ -26,8 +26,8 @@ did, then `nosgba`. Last, what the pass turned up that is not a row.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -166,7 +166,7 @@ copy anywhere else in it:
 the file from `bios/` without anything RomMBat writes. Mesen copies it into
 `emulators/mesen/Firmware/gba_bios.bin` on first use. So a gap report for `gba` is right for three
 rows and overstated for seven, and the report cannot tell which because RomMBat does not read
-`<system>.emulator`. Finding 285.
+`<system>.emulator`. RB-285.
 
 ## What the boot launches wrote
 
@@ -190,14 +190,14 @@ battery save before one is made, and because every one of them wrote a file.
 **Every 131,072 B file is the same 128 KB of `0xFF`**, md5 `41d2e2c0...`: an unwritten flash
 chip, flushed at boot. That is freegosy finding F20 on a second system, and the reason a first
 save seen with no baseline is not evidence of play. All of them were moved to
-`R:\rommbat-evidence\gba\` before any flush could send them. Finding 287.
+`R:\rommbat-evidence\gba\` before any flush could send them. RB-287.
 
 **Three rows share the loose `<rom>.sav`**: `mgba` and `mesen` name it after the ROM, and
-`mednafen` opens the plain name when it exists (finding 273). **Two keep the clock in an `.rtc`
+`mednafen` opens the plain name when it exists (RB-273). **Two keep the clock in an `.rtc`
 beside the save** here, `jgenesis` and `mesen`, and `ares` a third, measured later. **BizHawk's 16
 extra bytes** are the clock inside the one file, as standalone mGBA's turned out to be.
 **`libretro`/`mednafen_gba` names its save after the zip and the file inside it**, `#` included,
-which no `libretro` rule matched. Finding 288. Each needed a rule before its row could pass step 4,
+which no `libretro` rule matched. RB-288. Each needed a rule before its row could pass step 4,
 as the `nes` and `megadrive` rows did.
 
 ## `libretro`/`mgba`
@@ -255,7 +255,7 @@ client, and left it alone.
 differs from mGBA's in 62,543 bytes at the same size, which fits Emerald writing each save to
 the other of its two save blocks, and went up as a new version of `libretro:battery`: the restore
 preview listed it as the newest of three server saves, mGBA's save 390 and the older `autosave`
-below it. So the two cores share one save, as the `megadrive` cores do (finding 277).
+below it. So the two cores share one save, as the `megadrive` cores do (RB-277).
 
 | Slot | State md5     | Size     | Screenshot md5 |
 | ---- | ------------- | -------- | -------------- |
@@ -330,11 +330,11 @@ in an `.rtc` instead, and each `.rtc` is its own class B slot, so the clock trav
 **mednafen refused mGBA's file and cannot be given its own while it is there.** The first
 mednafen session found the loose `.sav` mGBA had written and logged `Save game memory file ... is
 an incorrect size(131088 bytes). The correct size is 65536 or 131072 bytes.`, and the game did not
-load. mednafen opens the plain name whenever it exists (finding 273), so on a device where mGBA
+load. mednafen opens the plain name whenever it exists (RB-273), so on a device where mGBA
 standalone has run, mednafen cannot play Emerald until that file moves. The session that passed
 ran with mGBA's file out of the tree and the 131,072 B seed under mednafen's hashed name. **The
 game then said its internal battery had run dry**: mednafen does not carry the cartridge clock
-through a save with none in it, where Mesen, seeded the same way, did not complain. Finding 289.
+through a save with none in it, where Mesen, seeded the same way, did not complain. RB-289.
 
 **mednafen_gba ignores the `.srm` its two sibling cores share.** RetroArch logged `Redirecting save
 file to ...srm` and then `Skipping SRAM load`, and the core kept its own file under mednafen's name
@@ -347,7 +347,7 @@ which the rule claims; a bare `.gba` gave `<rom>.605b89b6....sav`, **mednafen st
 name**, hashed although a plain `<rom>.sav` was present, so on a library of bare `.gba` files the
 two mednafens share one file and it uploads as `mednafen:battery`. A restore of
 `libretro:battery:sav` reads the member out of a zip only, so for a `.7z` it is refused as
-unnameable until RomMBat can read inside one (#221). Both boot writes were blank and were moved out of the tree before any flush. Finding 290.
+unnameable until RomMBat can read inside one (#221). Both boot writes were blank and were moved out of the tree before any flush. RB-290.
 
 ### 5. States on the seven
 
@@ -364,7 +364,7 @@ unnameable until RomMBat can read inside one (#221). Both boot writes were blank
 **`mgba`, `mednafen`, `mesen` and `ares` declare no state directory**, and each wrote to the one
 above, which the supplement now declares for `gba`: mGBA where RetroBat's `config.ini` sets
 `savestatePath`, the other three as on `nes` and `megadrive`. `bizhawk` took ES's `-state_slot 3`
-and the others did not (findings 269 and 275). `jgenesis` and `bizhawk` wrote in their own trees
+and the others did not (RB-269 and RB-275). `jgenesis` and `bizhawk` wrote in their own trees
 and were mirrored into `saves/` with a `.txt` sidecar, which for BizHawk reads `Pokemon - Emerald
 Version (USA, Europe).mGBA`: here it names the game after the ROM file, having no title of its own.
 
@@ -416,25 +416,25 @@ Reported upstream as
 [emulatorlauncher#1377](https://github.com/RetroBat-Official/emulatorlauncher/issues/1377).
 
 **Its saves live outside `saves/`**, in `emulators/nosgba/BATTERY/<rom>.SAV`, as Kega Fusion's do
-on `megadrive` (finding 283). NO$GBA read the raw 131,072 B seed and wrote it back in its own
+on `megadrive` (RB-283). NO$GBA read the raw 131,072 B seed and wrote it back in its own
 compressed format, 3,583 B headed `NocashGbaBackup`, and rewrote it on a later launch with no save
 made. **No state can be synced**: `F8` is NO$GBA's Write Snapshot, and it opens a Save As dialog
 in the user's `Documents` folder rather than writing anywhere fixed, so where a state lands is the
 user's choice each time and no rule can find it. The dialog was cancelled. There is no pad mapping
 for it either. **Its pad maps Start and Select differently from every other
 row**, as the maintainer found: `NO$GBA.INI` numbers them 3 and 4, and `emulatorLauncher` writes no
-mapping for it. Finding 286.
+mapping for it. RB-286.
 
 ## What the pass turned up that is not a row
 
 - **Clock files change on every launch.** Mesen's `.rtc`, jgenesis's `.rtc` and BizHawk's
   `.SaveRAM` all changed on a launch in which nothing was saved, since each records the host time.
   So a session under one of those rows uploads a new version of that slot even when the game was
-  not saved, which is small and correct. Finding 291.
+  not saved, which is small and correct. RB-291.
 - **mednafen keeps rotating backups of a save it loads** in
   `saves/gba/mednafen/backup/<rom>.<md5>/`, `0.sav` to `2.sav` beside a one-byte counter `C.sav`.
   They are not saves, and `saves` lists the four files as `not in this release` under `gba`.
-  Finding 292.
+  RB-292.
 - **Standalone mGBA is killed, not closed, by the pad's exit.** `es_padtokey.cfg` maps
   Hotkey+Start to `(%{KILL})` for mGBA, and a kill may beat mGBA's write of a save made just
   before. The maintainer waited a few seconds after saving and the save was intact.

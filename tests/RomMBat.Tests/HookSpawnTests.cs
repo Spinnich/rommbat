@@ -151,7 +151,7 @@ public sealed class HookSpawnTests
     /// Not arbitrary and not generous for its own sake. <c>Process.Start</c> creates the child
     /// before the hook can return, and the hook has already exited by the time this is
     /// measured, so a pass that has written nothing by now does not exist. The agent reaches
-    /// <c>Main</c> in 34 ms on a USB stick (finding 195) and opens the log immediately after.
+    /// <c>Main</c> in 34 ms on a USB stick (RB-195) and opens the log immediately after.
     /// </remarks>
     private static TimeSpan NoSpawnBudget => TimeSpan.FromSeconds(15);
 

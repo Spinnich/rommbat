@@ -60,7 +60,7 @@ public sealed record SaveSyncOutcome
     /// </summary>
     /// <remarks>
     /// Not a failure: the newer file is the one sent, and the older one is what an emulator left
-    /// behind when it changed how it names the game's file (finding 333).
+    /// behind when it changed how it names the game's file (RB-333).
     /// </remarks>
     public int Superseded { get; init; }
 
@@ -362,7 +362,7 @@ public sealed class SaveSync
         // once. The newest file is the one sent, since an emulator that changed how it names a
         // game's file writes only the new one from then on: DuckStation switched from
         // PerGameTitle to PerGame left the title card behind and saved to SLUS-00067_1.mcd
-        // (finding 333). The other is reported as superseded, not failed, since nothing is lost.
+        // (RB-333). The other is reported as superseded, not failed, since nothing is lost.
         var byKey = new Dictionary<(long RomId, string Slot), LocalSave>();
         var problems = new List<string>();
         var failed = 0;
@@ -1246,7 +1246,7 @@ public sealed class SaveSync
     /// nothing else, and on 5.3.0-alpha.3 negotiate asked for that save anyway: the server
     /// deduplicated it into the same row without moving its <c>updated_at</c>, so the next flush
     /// asked again, forever. Measured on the <c>nes</c> install as <c>saves: 1 up</c> on three
-    /// consecutive flushes for save 336, finding 259.
+    /// consecutive flushes for save 336, RB-259.
     /// </para>
     /// <para>
     /// <b>That half does not reproduce at 5.3.0-beta.1 or 5.3.0 and the guard is kept as
@@ -1574,7 +1574,7 @@ public sealed class SaveSync
             }
 
             // The scan passes over a blank card, so a slot holding one reads as empty and would
-            // fetch the same blank card back on every restore (finding 328).
+            // fetch the same blank card back on every restore (RB-328).
             if (written == Ps1MemoryCard.CardBytes && Ps1MemoryCard.IsBlank(part))
             {
                 SafeDelete(part);
@@ -1881,7 +1881,7 @@ public sealed class SaveSync
     /// <remarks>
     /// A path this device has proven stops being proven when mesen standalone writes
     /// <c>&lt;rom&gt;.sav</c> next to mednafen's <c>&lt;rom&gt;.&lt;md5&gt;.sav</c>, because mednafen
-    /// tries the name without its hash first (finding 273).
+    /// tries the name without its hash first (RB-273).
     /// </remarks>
     private bool IsShadowedByUnhashedName(RelativePath path, string? slot)
     {
@@ -2177,7 +2177,7 @@ public sealed class SaveSync
 
         // Blank rather than null on both of these, because the CHECKs they answer to refuse the
         // empty string and whitespace exactly as they refuse null, and SaveScanner.SlotFor
-        // throws on a blank emulator before a CHECK is even reached. Finding 245 established
+        // throws on a blank emulator before a CHECK is even reached. RB-245 established
         // that this server does emit slot values a client did not expect, and the branch that
         // widened this to any installed ROM brought other clients' free-text emulator values
         // with it.

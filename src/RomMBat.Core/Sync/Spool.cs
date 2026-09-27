@@ -5,7 +5,7 @@ namespace RomMBat.Core.Sync;
 /// </summary>
 /// <remarks>
 /// <b>One file per event, written then renamed, is what makes concurrency a non-problem.</b>
-/// EmulationStation spawns hooks fire-and-forget and M0 probe 1 caught three <c>game-end</c>
+/// EmulationStation spawns hooks fire-and-forget and RB-347 caught three <c>game-end</c>
 /// hooks in flight at once, interleaving their writes to a shared file. Nothing here is
 /// shared: each hook picks a name no other process will choose and renames it into place when
 /// the bytes are down, so a reader never sees a partial record and there is no lock to wait on

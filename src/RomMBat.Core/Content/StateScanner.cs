@@ -402,7 +402,7 @@ public sealed class StateScanner
     /// filename, and <c>bizhawk</c> wrote its own truncated name plus the core. Absence and
     /// presence both signal nothing, and only the content is ever worth anything: where it holds
     /// a serial (<c>SLUS-00404</c>, <c>GW7E69</c>) it is the Game ID that directory-save
-    /// attribution otherwise reads out of a ROM header. Finding 136.
+    /// attribution otherwise reads out of a ROM header. RB-136.
     /// </remarks>
     private static string? ReadNativeName(string statePath, string stem)
     {

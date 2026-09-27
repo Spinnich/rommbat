@@ -5,7 +5,7 @@ namespace RomMBat.Core.Content;
 /// </summary>
 /// <remarks>
 /// A portable RetroBat often lives on exFAT or FAT32, and the differences are not cosmetic.
-/// M0 probe 7 measured all of this on real sticks rather than reading it off a table.
+/// RB-393 measured all of this on real sticks rather than reading it off a table.
 /// <para>
 /// <b>FAT32's 4 GB ceiling announces itself as the wrong error.</b> The write fails with
 /// Win32 112 <c>ERROR_DISK_FULL</c>, "There is not enough space on the disk", on a volume with

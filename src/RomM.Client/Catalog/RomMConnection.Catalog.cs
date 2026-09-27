@@ -31,7 +31,7 @@ public sealed partial class RomMConnection
     /// Lists collections. Needs <c>collections.read</c>.
     /// </summary>
     /// <remarks>
-    /// <b>Expensive, and only for naming.</b> M0 probe 5 measured a single collection at
+    /// <b>Expensive, and only for naming.</b> RB-355 measured a single collection at
     /// 714.8 KB, 99% of it two inlined arrays of cover-art paths, one entry per member ROM
     /// and duplicated at two sizes. There is no pagination. Call it to let someone pick a
     /// collection by name, then resolve membership by paging <c>GET /api/roms</c>; never read

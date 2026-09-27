@@ -74,8 +74,8 @@ public sealed record KeyboardKey(
 /// it is typed once.
 /// <para>
 /// <b>It is EmulationStation's keyboard, and the layout is transcribed rather than designed.</b>
-/// Finding 228 established that ES ships one and that RomMBat had quietly disagreed with it;
-/// finding 234 read its source and settled what it actually contains. See
+/// RB-228 established that ES ships one and that RomMBat had quietly disagreed with it;
+/// RB-234 read its source and settled what it actually contains. See
 /// <see cref="KeyboardLayouts"/> for the tables and their provenance. Everything below follows
 /// from them: a thirteen-column grid, four faces per key, delete, accept and the layer key down
 /// the right-hand edge, and shift, space, reset and cancel along the bottom.

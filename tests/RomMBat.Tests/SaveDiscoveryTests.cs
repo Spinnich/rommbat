@@ -764,7 +764,7 @@ public class SaveDiscoveryTests
     {
         // es_savestates.cfg names Dolphin "dolphin" and RetroBat writes its save tree under
         // dolphin-emu/, so asking the directory name alone puts the one emulator whose states
-        // are measured working (finding 971) in the half that says nothing here is restorable.
+        // are measured working (RB-368) in the half that says nothing here is restorable.
         using var fixture = SaveTree.Create();
 
         fixture.AddSave("gamecube", "dolphin-emu/User/GC/USA/5D-GUNE-Gauntlet.gci.deleted", "not a unit");
@@ -1124,7 +1124,7 @@ public class SaveDiscoveryTests
     [Fact]
     public void A_restore_for_a_slot_this_device_never_held_is_named_from_the_rom_not_from_file_name_no_tags()
     {
-        // Measurement 152. The server does not undo its own timestamp tag, it runs a general
+        // RB-152. The server does not undo its own timestamp tag, it runs a general
         // tag stripper: a real save came back as
         // "Phantasy Star (Brazil) [2026-08-17_17-01-00].srm" with file_name_no_tags of
         // "Phantasy Star", because (Brazil) is part of the ROM's name. Writing that produces a
