@@ -265,6 +265,17 @@ under it, so `last_played` is not readable and the session row is what to read. 
 traps apply whichever token is used, and the `?device_id=` filter takes the **RomM-side** device
 id, the one `status` prints on its `romm device` line.
 
+**Under the approver token an install's data looks empty, not forbidden.**
+`GET /api/states?rom_id=` and `GET /api/play-sessions?rom_id=` answer `200` with zero rows,
+`GET /api/roms/{id}` comes back with `rom_user.user_id: -1`, and `GET /api/devices/<id>` for the
+install's device answers `404`. None of these means the install's data is missing, so read what
+an install pushed as the install. Ask `rommbat-agent` first: `status`, `saves`, and a
+`saves restore` preview, which says per state whether a screenshot is linked (it scans the tree
+first, so read `platform-certification` before moving a file aside for one). Never read the
+token out of `rommbat.db` to call the API yourself; Claude Code's permission classifier refuses
+that as credential handling. When only a direct API read will answer, use the owner token above
+or ask the maintainer to run it.
+
 Then source it for the run. `dotnet test` reads the process environment and nothing loads
 `.env` on its own, so this is deliberate every time rather than ambient:
 

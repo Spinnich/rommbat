@@ -257,7 +257,11 @@ across emulators with a note (step 2 not where emulators disagree about a playli
 
    **All nine `nes` rows have passed it**, and the method is worth copying. Make the state in a real session, delete it and its `.png` from the tree, and
    run `saves restore <rom id>` and then `--apply`: the preview names the screenshot it would
-   bring back, and the apply is what proves the whole path. **Compare the returned image's bytes,
+   bring back, and the apply is what proves the whole path. **Delete, never move aside and put
+   back.** Even a preview scans the tree before it finds anything, so a file moved out for one
+   loses its `local_state` or `local_save` row, and moving it back does not restore the row. A
+   state then re-uploads (states upsert, so no duplicate); a slotted save loses its baseline and
+   can come back as a conflict. The `--apply` writes the row back. **Compare the returned image's bytes,
    not its name or its arrival**, because RomM can answer a libretro slot with another slot's
    image, which is not a link to this state. Make more than one state in the session and pick
    the one whose image is unique for the comparison, because two states on the same frame share an
@@ -399,7 +403,11 @@ slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `j
 can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
 `es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`). Kega
 Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and needs its
-controls remapped in its own menu before the pad plays (finding 284). **When a key's effect cannot be seen,
+controls remapped in its own menu before the pad plays (finding 284). On the maintainer's
+RetroBat machine a Logitech LIGHTSPEED receiver takes DirectInput index 0, so every
+DirectInput-indexed generator (Kega, mednafen, Snes9x, Mesen, PCSX2 and others) binds player 1
+one pad too high until the floor carries emulatorlauncher#1376's fix (`docs/upstream-issues.md`).
+A pad that does nothing there is that, not a failed row. **When a key's effect cannot be seen,
 take a screenshot of the screen from the agent's session** rather than sending keys blind: a
 blind Start on a title screen is as likely to land during a fade as on the menu.
 

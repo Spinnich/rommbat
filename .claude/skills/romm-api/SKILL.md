@@ -445,7 +445,10 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
   the client and nothing on the server. About sixty 10 s calls from a looped live test took a
   96k-ROM instance's container from 2 GB to **20.9 GiB**, the workers holding their peak until
   recycled. rommapp/romm#4577. The same shape applies to any request whose server work outlives
-  a client timeout: never retry one, and never loop one against a real library.
+  a client timeout: never retry one, and never loop one against a real library. Check what a
+  live test's requests cost the server before repeating it, prefer `StubRomMServer` for
+  repetition, and treat per-run latency rising across a loop as the signal to stop, not as
+  load (it went from 28 s to 147 s here).
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
   133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
   hit, so neither is a sweep.

@@ -46,6 +46,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | How RomMBat's code is laid out and why                                                 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the section for the area                                       |
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
+| A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
 | Wrapping up: commit, PR, "done"                                                        | `pre-pr-verification`, all of it                                                                             |
 | Reviewing or fixing a PR                                                               | `/review-pr <n>`, `/fix-pr <n>`                                                                              |
 
@@ -119,8 +120,9 @@ profile before adding a slow test (`pre-pr-verification`: "Test cost").
 
 **Verify before handoff.** Never claim a platform works without running the
 `platform-certification` checklist against it. The unit is `(system, emulator, core)`, so "snes
-works" is not a claim. A change to save logic owes one hands-on pass of the shape it touches,
-and a session that cannot take one says which claims are unproven rather than letting the test
+works" is not a claim. A change to save logic owes a hands-on pass of the shape it touches,
+on every emulator and save option that writes it (`pre-pr-verification`), and a session that
+cannot take one says which claims are unproven rather than letting the test
 suite stand in for evidence.
 
 **Ask the maintainer as multiple choice.** A decision that is the maintainer's goes through

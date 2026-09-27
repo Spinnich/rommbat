@@ -170,7 +170,8 @@ and posting the PR. Draft the text, show me, wait.
 A close comment states the evidence and stops: the commit or the current code, one or two
 sentences, no thanks and no summary of the issue back at its author. Use `completed` for something
 that is now fixed and `not planned` for something that was never real, and reach for the `wontfix`
-or `invalid` labels only if I say so. `Closes #N` in the PR body belongs only on issues this branch
+or `invalid` labels only if I say so. Never apply `good first issue`, which drew a bot claim on #161;
+raise any outside claim on an issue with me rather than waiting on it. `Closes #N` in the PR body belongs only on issues this branch
 actually fixes; a close for staleness is a separate action and should not ride in on a merge.
 
 ## Rules that bite in a sweep specifically

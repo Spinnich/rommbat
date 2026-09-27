@@ -244,8 +244,9 @@ Then:
 2. Pre-existing problems, listed separately and sorted two ways. **Small and related** (the
    PR's subject, or files it already edits) rolls into this PR: it goes on the PR as a
    comment for the fix session, never as a new issue, because a one-line fix does not earn
-   an issue and a PR of its own. **Large or unrelated** is listed for a follow-up issue.
-   Say which way each one went.
+   an issue and a PR of its own. **Large or unrelated** is listed for a follow-up issue,
+   never labelled `good first issue`: that label drew a bot claim on #161. Say which way each
+   one went.
 3. If threads should go on the PR itself, the text for each as `file:line` plus comment.
 
 Write for the fix session and for the record, not for an audience. No preamble, no summary

@@ -41,6 +41,21 @@ Terms such as row, shape, slot, set and floor are defined in
 default and write on `--apply`, so a generic preview is a "preview". "A dry run", two words, is
 ordinary English and is fine.
 
+## Writing for readers outside the repo
+
+Anything sent to the RomM team, an upstream tracker or any other outside reader holds only
+verified claims: measured on a certified `(system, emulator, core)` row, read in upstream source,
+or measured live against the server. Verify an unverified point first and add it afterwards;
+never send it labelled preliminary, which hands the checking to someone else. Evidence from an
+uncertified platform becomes a verification task, not a line in the document.
+
+## Markdown traps
+
+**Two bare `$` on one line pair up as inline math**, in markdownlint and in GitHub's renderer,
+and every code span between them breaks. Trunk then reports MD038 and MD033 at column 0, which
+points nowhere useful. A `$` inside backticks is safe. Reword, or put the name in a code span,
+rather than escaping it.
+
 ## What `tools/docs/check.py` enforces
 
 These rules are mechanical, so a tool checks them and the prose rules above do not repeat them.
