@@ -20,10 +20,10 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Eighty `(system, emulator, core)` rows are certified against a real emulator: seventy-three
-> across wave 1's seven systems, every row `nes`, `snes`, `gb` and `gbc` declare, seven of
-> `megadrive`'s eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten, and all seven of
-> `psx`'s, which opens wave 2. No other system has a certified row; see
+> Eighty-eight `(system, emulator, core)` rows are certified against a real emulator:
+> seventy-three across wave 1's seven systems, every row `nes`, `snes`, `gb` and `gbc` declare,
+> seven of `megadrive`'s eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten, then all
+> seven of `psx`'s and eight of `n64`'s nine in wave 2. No other system has a certified row; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
@@ -407,23 +407,18 @@ silence.
 
 ### Known upstream issues
 
-M0 filed three RetroBat bugs rather than facts to design around. Two are now resolved and
-one is still open. Each is re-checked every release, because a fix upstream changes what
-RomMBat should do rather than just closing a ticket. A workaround comes out only once the fix
-is in a release the compatibility gate accepts **and** a hands-on pass has seen the fixed
-behaviour: a changelog line is what upstream believes, not what lands on disk.
-
-| Issue                                                                                                     | State                       | What it costs                                                                       |
-| --------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196) | Open                        | ES event scripts do not run once an argument is quoted, so **hooks must be `.exe`** |
-| [emulatorlauncher#1336](https://github.com/RetroBat-Official/emulatorlauncher/issues/1336)                | **Fixed in RetroBat 8.2.1** | Flycast wrote save states to a different directory than the one declared            |
-| [emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)                | Closed, will not be fixed   | BizHawk crashes unless the launcher is passed `-core`                               |
+Every issue RomMBat has raised upstream, and the ones judged upstream's but not yet filed, are
+tracked in [docs/upstream-issues.md](docs/upstream-issues.md) with their state. An entry stays
+there until RomMBat has adopted a release carrying the fix: upstream closing an issue is not
+enough, and a workaround comes out only once the fix is in a release the compatibility gate
+accepts **and** a hands-on pass has seen the fixed behaviour. The three M0 filed shaped the design,
+and two still do.
 
 **#2196 moved repository, not status.** It was filed as `RetroBat-Official/retrobat#249` and
 closed there on 2026-08-21 as an EmulationStation issue; RetroBat's own ES fork has issues
 disabled, so it now lives upstream at `batocera-linux/batocera-emulationstation`. The
-mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **This is
-the one that still constrains the design**: the hooks stay `.exe`.
+mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **It still
+constrains the design**: the hooks stay `.exe`.
 
 **#1336 is fixed, and the workaround is out.** 8.2.1 pointed Flycast's save-state watcher at
 the directory Flycast actually writes, so a state is mirrored into the declared
@@ -467,7 +462,7 @@ folder for, so it is out of scope rather than unscheduled.
 | Wave | Systems                                                                                                  | Status           |
 | ---- | -------------------------------------------------------------------------------------------------------- | ---------------- |
 | 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Every row driven |
-| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | `psx` certified  |
+| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | `psx`, `n64`     |
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started      |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started      |
 | 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started      |
@@ -535,14 +530,23 @@ mednafen emulates no memory card at RetroBat's default, so set its card count to
 there, and both BizHawk rows are handed disc 1 of a set whatever the layout
 ([docs/platforms/psx.md](docs/platforms/psx.md)).
 
-That is eighty rows on one install. Every row wave 1's seven systems and `psx` declare has now been
-driven, and the eight not certified say why in their records. The unit is still
+**Eight of `n64`'s nine rows are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on 2026-09-27:
+`libretro` under `mupen64plus_next`, which a stock install runs, and `parallel_n64`, then RMG,
+simple64, Project64, ares, and `bizhawk` under `Ares64` and `Mupen64Plus`, with each row's Controller
+Pak option driven. Four rows have no pak at RetroBat's default, so a game that saves only to the pak
+needs the option set. BizHawk's two cores share one save file they cannot read from each other.
+gopher64 is driven and not certified: RetroBat leaves its battery saves outside `saves/`, where
+RomMBat does not read, which #239 tracks ([docs/platforms/n64.md](docs/platforms/n64.md)).
+
+That is eighty-eight rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
+has now been driven, and the nine not certified say why in their records. The unit is still
 `(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
 were measured on, so none of those emulators is certified anywhere else.
 [docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
 [docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md),
-[docs/platforms/gbc.md](docs/platforms/gbc.md), [docs/platforms/snes.md](docs/platforms/snes.md) and
-[docs/platforms/mastersystem.md](docs/platforms/mastersystem.md) are the records, gaps included.
+[docs/platforms/gbc.md](docs/platforms/gbc.md), [docs/platforms/snes.md](docs/platforms/snes.md),
+[docs/platforms/mastersystem.md](docs/platforms/mastersystem.md), [docs/platforms/psx.md](docs/platforms/psx.md) and
+[docs/platforms/n64.md](docs/platforms/n64.md) are the records, gaps included.
 
 Every one of those rows is carried to the RomM `5.3.1` floor. Steps 1 and 9 were re-run there on
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise.
@@ -595,6 +599,9 @@ docs/{freegosy,argosy}-findings.md
 docs/romm-5.3-findings.md
                       What the RomM 5.3 line changes for RomMBat, what it falsifies here,
                       and what each floor on it measured as
+docs/upstream-issues.md
+                      Every issue raised upstream, and each one's state, until RomMBat has
+                      adopted the release that fixes it
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system
 reference/            Vendored upstream data plus a script that re-derives every number

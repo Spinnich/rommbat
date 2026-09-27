@@ -200,6 +200,32 @@ public sealed class StatusCommandTests
         Assert.True(run.Wrote("2026-08-16 10:00:30Z, 30s"), run.Out);
     }
 
+    [Fact]
+    public async Task All_sessions_lists_the_whole_window_where_the_default_lists_ten()
+    {
+        // A certification pass plays more rows than ten, and each has to be matched to its launch.
+        var rows = Enumerable.Range(1, 12).Select(index => string.Create(
+            CultureInfo.InvariantCulture,
+            $$"""
+              {"id": {{index}}, "device_id": "romm-device-1", "rom_id": {{index}}, "save_slot": null,
+               "start_time": "2026-08-16T10:{{index:D2}}:00", "end_time": "2026-08-16T10:{{index:D2}}:30",
+               "duration_ms": 30000}
+              """));
+
+        using var server = CannedRomMServer.Serving("[" + string.Join(',', rows) + "]");
+        using var tree = TempRetroBatTree.Create();
+        Pair(tree, server.Origin, RomMScopes.RomsUserRead);
+
+        const string Oldest = "2026-08-16 10:01:00Z to 2026-08-16 10:01:30Z, 30s, rom 1";
+
+        var brief = await AgentRunner.RunAsync(tree, "status");
+        Assert.DoesNotContain(Oldest, brief.Out, StringComparison.Ordinal);
+
+        var all = await AgentRunner.RunAsync(tree, "status", "--all-sessions");
+        Assert.Equal(ExitCode.Ok, all.ExitCode);
+        Assert.Contains(Oldest, all.Out, StringComparison.Ordinal);
+    }
+
     private static void Pair(TempRetroBatTree tree, Uri origin, string scope)
     {
         var install = tree.Install();

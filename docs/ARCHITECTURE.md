@@ -463,7 +463,7 @@ a drift by updating the expected number.
 | `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | M0 experiment 2, in Grout's shape                                                             |
 | `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | M0 experiment 2                                                                               |
 | `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
-| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one `nes` or `megadrive` row at a time                              |
+| `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one row at a time, from `nes` to `n64`                              |
 | `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
 | `multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                 | One certification pass per system; `psx` first, driven on every row RetroBat offers           |
 
@@ -786,7 +786,12 @@ contents in playlist order, and a disc of a set answers for the set in `Content/
 BizHawk names its `psx` files after disc 1. Where two files hold one `(rom_id, slot)`, as a changed
 card type leaves, the flush sends the one written last and reports the other as superseded. A PS1
 card with no save on it, which an emulator writes on exit regardless, is neither scanned nor
-downloaded.
+downloaded. On `n64` two more display-name rules join a file to its ROM through the launch window:
+RMG's and simple64's shared `sram/<title>-<md5 prefix>.sra`, where a rule can name **other
+emulators that write the same file**, and Project64's **directory per game**, where the title is the
+directory and the file inside is named with the part before its last `-`. A rule's **title
+pattern** keeps two display-name rules carrying one extension on one system from claiming each
+other's binding keys.
 
 **The flush is one Core service, not a subcommand.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
@@ -891,7 +896,10 @@ not hardcode. Two things make it less easy than it looks, both measured:
   `StateScanner.LoadSchema` therefore reads the install's file with
   `data/retrobat/es_savestates.supplement.xml` beneath it: the same format plus a `systems`
   attribute limiting each entry to where it was measured, and a `{{romhash}}` token for mednafen's
-  content hash, which a restore carries from the uploaded name. An entry in the install's own file
+  content hash, which a restore carries from the uploaded name. `titled_by` names a display-name
+  battery rule whose learned title stands in for the ROM's stem, which simple64's `n64` states
+  need, and `per_game_directory` puts each game's states in a directory of that title, keeping the
+  file name the state was sent under, which Project64's need. An entry in the install's own file
   always wins. An emulator may have one supplement entry per system, because its layout is its
   own per system: ares writes `nes` under `ares/Famicom/` and `megadrive` under `ares/Mega Drive/`.
 

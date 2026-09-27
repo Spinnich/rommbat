@@ -286,7 +286,11 @@ internal static class StatusCommand
         // matched to its launch rather than only the last of them.
         Console.WriteLine("  recent:");
 
-        foreach (var session in sessions.OrderByDescending(session => session.EndTime).Take(RecentShown))
+        // --all-sessions lists the whole window, so a certification pass of more rows than ten can
+        // match every launch to a server row.
+        var shown = command.Has("all-sessions") ? SessionWindow : RecentShown;
+
+        foreach (var session in sessions.OrderByDescending(session => session.EndTime).Take(shown))
         {
             Console.WriteLine(
                 $"    {Describe(session.StartTime)} to {Describe(session.EndTime)}, "

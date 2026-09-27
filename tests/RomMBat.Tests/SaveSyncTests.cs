@@ -1023,6 +1023,48 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_project64_save_downloads_into_the_per_game_directory_this_device_learned()
+    {
+        // Project64 reads project64/<header>-<md5>/<header>.sra, so the title is a directory and
+        // the file inside is named with its header half.
+        const string Title = "THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36";
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(225805, "n64", "Legend of Zelda, The - Ocarina of Time (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/n64/Legend of Zelda, The - Ocarina of Time (USA).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "n64",
+            $"{Title}.sra",
+            225805,
+            RelativePath.Create("roms/n64/Legend of Zelda, The - Ocarina of Time (USA).zip"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+
+        fixture.SeedServerSave(225805, "project64:battery:sra", "THE LEGEND OF ZELDA", "sra", "from the other device", emulator: "project64");
+        fixture.Stub.UnsolicitedDownloads.Add((225805, "project64:battery:sra"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(
+            "from the other device",
+            File.ReadAllText(fixture.Resolve($"saves/n64/project64/{Title}/THE LEGEND OF ZELDA.sra")));
+
+        // The next scan reads it back as the same slot for the same ROM.
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("project64:battery:sra", save.Slot);
+        Assert.Equal(225805, save.RomId);
+
+        fixture.Stub.UnsolicitedDownloads.Clear();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal(0, again.Downloaded);
+    }
+
+    [Fact]
     public async Task A_jgenesis_save_downloads_into_its_own_directory_under_the_roms_stem()
     {
         // jgenesis reads jgenesis/nes/<rom>.sav, so the loose saves/nes/<rom>.sav a stem alone

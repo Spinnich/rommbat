@@ -230,6 +230,99 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_n64_rules_give_each_of_the_test_games_saves_one_owner()
+    {
+        // Ocarina of Time and Mario Kart 64, booted under every n64 row on 8.2.1.
+        var shapes = SaveShapes.Bundled;
+        const string Oot = "Legend of Zelda, The - Ocarina of Time (USA)";
+
+        Assert.Equal("libretro", shapes.BatteryRuleFor("n64", string.Empty, $"{Oot}.srm")?.Emulator);
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("n64", "bizhawk", $"{Oot}.SaveRAM")?.Emulator);
+
+        // ares keeps SRAM, EEPROM and the Controller Pak apart, each in its own slot.
+        var ares = shapes.BatteryRuleFor("n64", "ares/Nintendo 64", $"{Oot}.ram")!;
+        Assert.Equal("ares", ares.Emulator);
+        Assert.Equal("ares:battery:pak", ares.SlotOf("Mario Kart 64 (USA).pak", SaveShapeClass.B));
+        Assert.Same(ares, shapes.BatteryRuleFor("n64", "ares/Nintendo 64", "Mario Kart 64 (USA).eeprom"));
+
+        // RMG and simple64 share one file, named with mupen64plus's GoodName and an md5 prefix.
+        var mupen = shapes.BatteryRuleFor("n64", "sram", "Legend of Zelda, The - Ocarina o-5BD1FE10.sra")!;
+        Assert.Equal("mupen64", mupen.Emulator);
+        Assert.Equal(["mupen64", "simple64"], mupen.Writers);
+        Assert.Equal("mupen64:battery:eep", mupen.SlotOf("Mario Kart 64 (U) [!]-3A67D998.eep", SaveShapeClass.B));
+        Assert.Equal("mupen64:battery:mpk", mupen.SlotOf("Mario Kart 64 (U) [!]-3A67D998.mpk", SaveShapeClass.B));
+        Assert.Null(shapes.BatteryRuleFor("n64", "sram", $"{Oot}.sra"));
+
+        // Project64 keeps a directory per game and names the file with the header half.
+        var pj64 = shapes.BatteryRuleForSlot("n64", "project64:battery:sra")!;
+        const string Zelda = "THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36";
+        const string Kart = "MARIOKART64-E3880AD6EFE62E32297BA6034F1A1EFA";
+        Assert.True(pj64.PerGameDirectory);
+        Assert.Equal($"{Zelda}.sra", pj64.GameFileName(Zelda, "THE LEGEND OF ZELDA.sra"));
+        Assert.Equal($"{Kart}.mpk", pj64.GameFileName(Kart, "MARIOKART64_Cont_1.mpk"));
+        Assert.Null(pj64.GameFileName(Kart, "MARIOKART64.mpk"));
+        Assert.Null(pj64.GameFileName(Kart, "SOMETHING ELSE.eep"));
+        Assert.Null(pj64.GameFileName("cache", "cache.sra"));
+        Assert.Equal($"{Kart}/MARIOKART64_Cont_1.mpk", pj64.GamePathOf(Kart, ".mpk"));
+        Assert.Equal($"{Zelda}/THE LEGEND OF ZELDA.sra", pj64.GamePathOf(Zelda, ".sra"));
+
+        // Both carry .sra on one system, so each key belongs to one rule by its title's shape.
+        Assert.True(mupen.IsBindingKey("Legend of Zelda, The - Ocarina o-5BD1FE10.sra"));
+        Assert.False(mupen.IsBindingKey($"{Zelda}.sra"));
+        Assert.True(pj64.IsBindingKey($"{Zelda}.sra"));
+        Assert.False(pj64.IsBindingKey("Legend of Zelda, The - Ocarina o-5BD1FE10.sra"));
+    }
+
+    [Fact]
+    public void A_simple64_launch_attributes_the_sram_file_it_shares_with_rmg()
+    {
+        using var fixture = new TitleFixture();
+        fixture.AddRom(225805, "Legend of Zelda, The - Ocarina of Time (USA).zip", "n64");
+        var mupen = SaveShapes.Bundled.BatteryRuleForSlot("n64", "mupen64:battery:sra")!;
+
+        var attribution = fixture.Attributor(
+                Launch(Now.AddMinutes(-10), "Legend of Zelda, The - Ocarina of Time (USA).zip", "simple64", "n64"))
+            .Attribute("n64", mupen, "Legend of Zelda, The - Ocarina o-5BD1FE10.sra", Now.AddMinutes(-2));
+
+        Assert.Equal(225805, attribution.RomId);
+        Assert.Equal(BindingSource.Journal, attribution.Source);
+
+        // A libretro launch writes the loose .srm, so it says nothing about this file.
+        using var other = new TitleFixture();
+        other.AddRom(225805, "Legend of Zelda, The - Ocarina of Time (USA).zip", "n64");
+        var libretro = other.Attributor(
+                Launch(Now.AddMinutes(-10), "Legend of Zelda, The - Ocarina of Time (USA).zip", "libretro", "n64"))
+            .Attribute("n64", mupen, "Legend of Zelda, The - Ocarina o-5BD1FE10.sra", Now.AddMinutes(-2));
+
+        Assert.Null(libretro.RomId);
+    }
+
+    [Fact]
+    public void A_project64_save_in_its_game_directory_is_attributed_by_its_launch()
+    {
+        const string Dir = "saves/n64/project64/MARIOKART64-E3880AD6EFE62E32297BA6034F1A1EFA";
+        using var fixture = new TitleFixture();
+        fixture.AddRom(157714, "Mario Kart 64 (USA).zip", "n64");
+        fixture.Write($"{Dir}/MARIOKART64.eep", "eeprom");
+        fixture.Write($"{Dir}/MARIOKART64_Cont_1.mpk", "pak");
+        fixture.Write("saves/n64/project64/cache/MARIOKART64.eep", "not a game directory");
+        fixture.Touch($"{Dir}/MARIOKART64.eep", Now.AddMinutes(-5));
+        fixture.Touch($"{Dir}/MARIOKART64_Cont_1.mpk", Now.AddMinutes(-5));
+        fixture.Write(
+            LaunchLog.LivePath.Value,
+            $"{Now.AddMinutes(-20).ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [INFO]      [Startup] "
+                + "\"X:\\RetroBat\\emulationstation\\emulatorLauncher.exe\" -system n64 -emulator project64 "
+                + "-rom \"X:\\RetroBat\\roms\\n64\\Mario Kart 64 (USA).zip\"\r\n");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().OrderBy(save => save.Slot, StringComparer.Ordinal).ToList();
+        Assert.Equal(["project64:battery:eep", "project64:battery:mpk"], saves.Select(save => save.Slot));
+        Assert.All(saves, save => Assert.Equal(157714, save.RomId));
+        Assert.Equal($"{Dir}/MARIOKART64_Cont_1.mpk", saves[1].Path.Value);
+    }
+
+    [Fact]
     public void The_bundled_psx_rule_gives_each_of_duckstations_cards_its_own_slot()
     {
         // Symphony of the Night under DuckStation on 8.2.1, PerGameTitle for both ports.

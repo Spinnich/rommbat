@@ -132,7 +132,7 @@ is a measurement of one build, and a supported range means owning that measureme
 version in it, across a `(system, emulator, core)` matrix that is already two to four passes
 per row. Adopting one means: re-run `reference/refresh.sh` and resolve the drift, read the
 upstream changelog for anything touching a measured rule, move the floor and the tested row
-together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the RomM floor
+together, and re-check every entry in `docs/upstream-issues.md`. Moving the RomM floor
 also moves the pinned OpenAPI schema, which is the minimum version on purpose. A prerelease
 is adoptable, and then the target is the newest prerelease of that version when the work
 starts, re-checked before the PR opens; `docs/PLAN.md`, "Version compatibility is declared,

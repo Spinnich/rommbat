@@ -578,6 +578,27 @@ file's stem to its set after every ROM, so a ROM of that name keeps it, and neve
 one of the ROM's own disc files. BizHawk's `.SaveRAM` on `psx` is Nymashock's one raw card or
 Octoshock's card plus 128 KB, one `bizhawk:battery` slot for both.
 
+**On `n64` four rows name their saves with something other than the ROM** (findings 336 to 341).
+The two `libretro` cores share a loose 296,960 B `.srm` holding EEPROM, four Controller Paks, SRAM
+and FlashRAM, so a pak ghost carries between them. **RMG and simple64 share `sram/<title>-<md5
+prefix>.<ext>`**, the title being the first 32 characters of mupen64plus's GoodName, under one
+`mupen64` display-name rule whose `also_written_by` names simple64, so either's launch binds the
+file; class B, `.sra`, `.eep` and a four-pak `.mpk` each take a slot. **Project64 keeps a directory
+per game**, `project64/<header>-<md5 of the ROM in its word order>/`, holding `<header>.sra`,
+`.eep` and `<header>_Cont_1.mpk`: `per_game_directory` makes the directory the title and the binding
+key `<directory><ext>`, and `extension_stems` adds `_Cont_1` for the pak. **Two display-name rules
+carrying `.sra` on one system are kept apart by `title_pattern`**, `-<8 hex>` for mupen64's and
+`-<32 hex>` for Project64's, so neither claims the other's binding keys and `LearnedTitle` answers
+one title. ares keeps `.ram`, `.eeprom` and `.pak` in `ares/Nintendo 64/`, class B. **BizHawk's two
+cores share one `.SaveRAM` in formats neither reads from the other**: `Ares64`'s raw big-endian SRAM,
+with the pak appended when one is set, and `Mupen64Plus`'s 296,960 B image with SRAM at `0x40800`;
+the slot stays one, and a device changing core loses the other's save locally. **A state can be
+named through a battery binding too**: simple64's `state/<title>.st<n>` and Project64's
+`project64/sstates/<directory>/<its database's name>.pj.zip` are declared with `titled_by` in the
+supplement, and a restore names them with the learned title, or for Project64 keeps the name the
+state was sent under. gopher64 keeps its battery saves outside `saves/`, which `local_save`'s CHECK
+refuses, so they are not read until #239.
+
 **The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's

@@ -1826,6 +1826,15 @@ public sealed class SaveSync
                     return (null, TargetProblem.TitleNotLearned);
                 }
 
+                // Project64 keeps each game's files in a directory named with the title.
+                if (rule.PerGameDirectory)
+                {
+                    return rule.GamePathOf(title, extension) is { } inside
+                        && RelativePath.TryCreate($"{directory}/{inside}", out var placed)
+                        ? (placed, TargetProblem.None)
+                        : (null, TargetProblem.Unnameable);
+                }
+
                 stem = title + rule.StemSuffixFor(operation.Slot);
             }
             else if (rule.NamedAfter == BatteryNaming.RomFileAndContentMd5)

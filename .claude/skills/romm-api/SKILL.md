@@ -504,7 +504,8 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   and `roms.user.read` was granted, which is what makes step 8 answerable from the agent (#208);
   `docs/platforms/nes.md` step 8 is the worked case from before it existed. The endpoint promises
   no order, so take the newest by `end_time` rather than the first row, and sort by it before
-  listing the ten newest, which `status` does under `recent:`. An empty answer stays
+  listing the ten newest, which `status` does under `recent:`, or the whole window with
+  `--all-sessions`. An empty answer stays
   ambiguous however it is read, so whatever prints it says so.
 - **Ingesting a play session sets `rom_user.now_playing`, and nothing clears it.** Every
   session RomMBat sends is finished by construction, so a client that only posts sessions

@@ -52,7 +52,8 @@ resumes and verifies against its own md5 (finding 315).
 
 **The two BizHawk rows boot disc 1 only, whatever the layout.** `emulatorLauncher` replaces the
 `.m3u` with the first disc's `.cue` before EmuHawk starts (finding 314), so no arrangement of files
-reaches disc 2 from the game entry. That is RetroBat's behaviour to report upstream, and it is why
+reaches disc 2 from the game entry. That is RetroBat's behaviour, reported upstream as
+[emulatorlauncher#1391](https://github.com/RetroBat-Official/emulatorlauncher/issues/1391), and it is why
 the layout serves the five rows that read a playlist rather than waiting on a layout none could
 find.
 

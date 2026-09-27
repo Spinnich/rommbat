@@ -132,12 +132,28 @@ state loads only from ES's save-state menu**, which passes `-state_file`; a plai
 nothing back into DuckStation's own directory. **BizHawk names everything after disc 1 of a set**,
 so attribution and a restore both have to know the set's discs (332).
 
+**`n64` is second in wave 2: eight of nine rows certified at `5.3.1` on 2026-09-27**, in one
+morning, with `docs/platforms/n64.md` the record. **Pick one game per save medium**: Ocarina of Time
+covers SRAM, and Mario Kart 64 covers EEPROM plus a Controller Pak ghost, which is step 6. **Boot
+every row once before playing and list what it writes where**: four of the nine name their files
+with something other than the ROM (an emulator's title, a header name and an md5, a directory per
+game), and that list decides the code the pass needs. **A seed is a format conversion on `n64`**:
+the same SRAM is word-swapped in one row and big-endian in the next, and sits at a different offset
+in each 296,960 B image (finding 338), so convert rather than copy, and confirm the game loads it.
+**Four rows have no Controller Pak at RetroBat's default** (339): check the pak option before asking
+for a pak save, and record both the default and the set value. **Read an emulator's keys from what
+RetroBat writes**, not from its own defaults: Project64 saves on F2 under RetroBat's
+`Project64.sc3` and reaches no slot but 0 (337). **An emulator can keep its saves outside `saves/`
+with no mirror**, as gopher64 does (341); the row is recorded, not certified, and the fix is its own
+issue.
+
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
-report rather than a tree to start scanning (finding 283). And a core can refuse the library for
+report rather than a tree to start scanning (finding 283, emulatorlauncher#1390). Every issue raised
+upstream is tracked in `docs/upstream-issues.md` until RomMBat adopts the release that fixes it. And a core can refuse the library for
 its names: FBNeo takes a console game's driver from the file name, so it boots nothing named by
 No-Intro (finding 278). **An emulator absent from `emulators/`** is installed by ES on the first
 launch under it, so check the folder holds an executable before planning its rows.
@@ -288,7 +304,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    **`rommbat-agent status` settles this step**, under its `Playtime` block: with the server
    reachable it reads `GET /api/play-sessions` back for this device and prints the count, the
    last session's start, end and length, and the ten newest under `recent:` (#208), so a run of
-   rows played back to back can each be matched to its launch. A token stored with `--protect` needs
+   rows played back to back can each be matched to its launch; `--all-sessions` lists the whole
+   window of up to 50, which a system of more rows than ten needs. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
    **Both of the ways this step used to be answered by hand have a trap, and they are why the

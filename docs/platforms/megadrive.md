@@ -344,7 +344,9 @@ Hedgehog 3 (USA) (Lock-on Combination).srm` there, 980 B. RetroBat's `Fusion.ini
 `SRMFiles=.\..\..\emulators\kega-fusion` while `StateFiles=.\..\..\saves\megadrive\kega-fusion`,
 and `emulatorLauncher` rewrote neither on any of five launches. RomMBat reads saves from `saves/`
 and nowhere else, and core principle 2 rules out writing the key itself. **Recorded as a RetroBat
-defect, to be reported upstream, by the maintainer's ruling**, rather than widened around.
+defect, reported upstream as
+[emulatorlauncher#1390](https://github.com/RetroBat-Official/emulatorlauncher/issues/1390), by the
+maintainer's ruling**, rather than widened around.
 Finding 283.
 
 **A real save was made there, and it is the libretro cores' format.** After remapping input in

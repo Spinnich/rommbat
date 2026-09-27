@@ -416,7 +416,7 @@ public sealed class SaveScanner
                 continue;
             }
 
-            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            foreach (var (file, name) in FilesOf(rule, directory))
             {
                 if (!_install.Contains(file))
                 {
@@ -426,7 +426,7 @@ public sealed class SaveScanner
                 // Before any rule, since a shared card can match a per-game name: DuckStation's
                 // shared_card_1.mcd ends in the _1 its per-game cards do. AddSharedContainers has
                 // already reported it.
-                if (_shapes.SharedContainerReason(system, $"{rule.Directory}/{Path.GetFileName(file)}") is not null)
+                if (_shapes.SharedContainerReason(system, $"{rule.Directory}/{name}") is not null)
                 {
                     carried.Add(_install.Relativize(file));
                     continue;
@@ -442,7 +442,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                if (!rule.Claims(Path.GetFileName(file)))
+                if (!rule.Claims(name))
                 {
                     continue;
                 }
@@ -453,7 +453,7 @@ public sealed class SaveScanner
                     continue;
                 }
 
-                var attribution = AttributeByTitle(system, file, rule, titles, known);
+                var attribution = AttributeByTitle(system, file, rule, titles, known, name);
 
                 if (Describe(system, file, rule, romsByStem, attribution) is not { } save)
                 {
@@ -485,6 +485,45 @@ public sealed class SaveScanner
         return carried;
     }
 
+    /// <summary>
+    /// A rule's files, each with the name the rule knows it by: its own, or for a per-game
+    /// directory the name <see cref="BatteryRule.GameFileName"/> gives it.
+    /// </summary>
+    /// <remarks>
+    /// Only directories whose name the rule reads as a title are entered. Project64 keeps
+    /// <c>cache</c>, <c>hires_texture</c> and its states beside its per-game directories.
+    /// </remarks>
+    private static IEnumerable<(string File, string Name)> FilesOf(BatteryRule rule, string directory)
+    {
+        if (!rule.PerGameDirectory)
+        {
+            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            {
+                yield return (file, Path.GetFileName(file));
+            }
+
+            yield break;
+        }
+
+        foreach (var game in Directory.EnumerateDirectories(directory).Order(StringComparer.Ordinal))
+        {
+            var title = Path.GetFileName(game);
+
+            if (rule.TitlePattern is { } pattern && !pattern.IsMatch(title))
+            {
+                continue;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(game).Order(StringComparer.Ordinal))
+            {
+                if (rule.GameFileName(title, Path.GetFileName(file)) is { } name)
+                {
+                    yield return (file, name);
+                }
+            }
+        }
+    }
+
     /// <summary>What each of a system's single-file saves held when it was last attributed.</summary>
     private Dictionary<RelativePath, LocalSave> KnownSaves(string system) =>
         _store.Saves
@@ -507,7 +546,8 @@ public sealed class SaveScanner
         string file,
         BatteryRule rule,
         DisplayNameAttributor titles,
-        Dictionary<RelativePath, LocalSave> known)
+        Dictionary<RelativePath, LocalSave> known,
+        string? name = null)
     {
         if (rule.NamedAfter != BatteryNaming.DisplayName)
         {
@@ -522,7 +562,7 @@ public sealed class SaveScanner
         return titles.Attribute(
             system,
             rule,
-            Path.GetFileName(file),
+            name ?? Path.GetFileName(file),
             unchanged ? null : new DateTimeOffset(File.GetLastWriteTimeUtc(file), TimeSpan.Zero));
     }
 
@@ -1142,7 +1182,17 @@ public sealed class SaveScanner
         }
 
         var relative = Path.GetRelativePath(savesRoot, directory).Replace('\\', '/');
-        return _states.MatchDirectory(relative) is not null;
+
+        if (_states.MatchDirectory(relative) is not null)
+        {
+            return true;
+        }
+
+        // A game's own directory under an entry that keeps one per game, as Project64 does.
+        var parent = Path.GetDirectoryName(directory);
+
+        return parent is not null
+            && _states.MatchDirectory(Path.GetRelativePath(savesRoot, parent).Replace('\\', '/')) is { Emulator.PerGameDirectory: true };
     }
 
     /// <summary>A file's path from the install root, as the report names it.</summary>

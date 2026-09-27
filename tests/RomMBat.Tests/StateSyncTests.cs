@@ -687,6 +687,99 @@ public class StateSyncTests
     }
 
     [Fact]
+    public async Task A_simple64_state_is_joined_and_named_through_the_title_its_battery_save_taught()
+    {
+        // simple64 names a state with the title mupen64plus gives the game, the one sram/ carries.
+        const string Title = "Legend of Zelda, The - Ocarina o-5BD1FE10";
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(225805, "n64", "Legend of Zelda, The - Ocarina of Time (USA).zip");
+        fixture.AddState("n64/state", $"{Title}.st1", "progress");
+
+        // No title learned yet, so the state is nobody's.
+        fixture.Scan();
+        Assert.Null(Assert.Single(fixture.Store.States.List()).RomId);
+
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "n64",
+            $"{Title}.sra",
+            225805,
+            RelativePath.Create("roms/n64/Legend of Zelda, The - Ocarina of Time (USA).zip"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+        Assert.Equal(225805, Assert.Single(fixture.Store.States.List()).RomId);
+
+        Assert.Equal(1, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        var state = fixture.Install.Resolve(RelativePath.Create($"saves/n64/state/{Title}.st1"));
+        File.Delete(state);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+        Assert.Equal($"saves/n64/state/{Title}.st1", candidate.Destination.Value);
+        Assert.Equal("simple64::1", candidate.SlotKey);
+
+        // Without the binding a restore has no name to give it.
+        fixture.Execute("DELETE FROM game_id_binding");
+        var unlearned = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(unlearned.Value!.Restorable);
+        Assert.Contains("Run the game once under simple64", Assert.Single(unlearned.Value.Unrestorable).Reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_project64_state_is_joined_by_its_game_directory_and_restored_under_its_own_name()
+    {
+        // The directory is the title Project64's battery save taught; the stem is its database's.
+        const string Title = "THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36";
+        const string Name = "The Legend of Zelda - Ocarina of Time (U) (V1.0).pj.zip";
+        using var fixture = StateFixture.Create();
+        fixture.AddRom(225805, "n64", "Legend of Zelda, The - Ocarina of Time (USA).zip");
+        fixture.AddState($"n64/project64/sstates/{Title}", Name, "progress");
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "n64",
+            $"{Title}.sra",
+            225805,
+            RelativePath.Create("roms/n64/Legend of Zelda, The - Ocarina of Time (USA).zip"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+
+        fixture.Scan();
+        var scanned = Assert.Single(fixture.Store.States.List());
+        Assert.Equal(225805, scanned.RomId);
+        Assert.Equal("project64::0", scanned.Slot);
+
+        Assert.Equal(1, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        var state = fixture.Install.Resolve(RelativePath.Create($"saves/n64/project64/sstates/{Title}/{Name}"));
+        File.Delete(state);
+
+        var found = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(found.Value!.Restorable);
+        Assert.Equal($"saves/n64/project64/sstates/{Title}/{Name}", candidate.Destination.Value);
+
+        var restored = await fixture.RestoreAsync([candidate], TestContext.Current.CancellationToken);
+        Assert.Equal(1, restored.Restored);
+        Assert.Equal("progress", File.ReadAllText(state));
+
+        fixture.Scan();
+        Assert.Equal(0, (await fixture.PushAsync(TestContext.Current.CancellationToken)).Uploaded);
+
+        // A name RomMBat did not send has an extension but not Project64's stem for the game.
+        File.Delete(state);
+        fixture.Scan();
+        var held = fixture.Stub.States.Values.Single();
+        fixture.Stub.States[held.Id] = held with { FileName = Name };
+
+        var foreign = await fixture.FindRestorableAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(foreign.Value!.Restorable);
+        var reason = Assert.Single(foreign.Value.Unrestorable).Reason;
+        Assert.Contains("uploaded under", reason, StringComparison.Ordinal);
+        Assert.DoesNotContain("no extension", reason, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_mednafen_state_sent_from_a_rom_named_differently_elsewhere_keeps_its_hash()
     {
         // The hash is of the ROM's content, so it holds on every device with the same ROM while

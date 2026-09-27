@@ -321,13 +321,24 @@ public sealed class GameIdAttributor
         IReadOnlyList<LaunchRecord> launches,
         string system,
         string? emulator,
+        DateTimeOffset written) =>
+        CoveringLaunch(launches, system, emulator is null ? null : [emulator], written);
+
+    /// <param name="emulators">
+    /// Null for any emulator, else the emulators that write the file: RMG and simple64 both write
+    /// mupen64plus's <c>sram/</c> on <c>n64</c>.
+    /// </param>
+    internal static LaunchRecord? CoveringLaunch(
+        IReadOnlyList<LaunchRecord> launches,
+        string system,
+        IReadOnlyCollection<string>? emulators,
         DateTimeOffset written)
     {
         var candidates = launches
             .Where(launch => !launch.IsMenuLaunch && launch.RomPath is not null)
             .Where(launch => string.Equals(launch.System, system, StringComparison.OrdinalIgnoreCase))
-            .Where(launch => emulator is null
-                || string.Equals(launch.Emulator, emulator, StringComparison.OrdinalIgnoreCase))
+            .Where(launch => emulators is null
+                || emulators.Contains(launch.Emulator ?? string.Empty, StringComparer.OrdinalIgnoreCase))
             .Where(launch => launch.At <= written + LaunchAmbiguity)
             .OrderByDescending(launch => launch.At)
             .ToList();

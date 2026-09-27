@@ -93,7 +93,7 @@ public sealed class DisplayNameAttributor
         var answers = new List<RouteAnswer>(FromSidecar(system, rule, title));
 
         if (written is { } at
-            && GameIdAttributor.CoveringLaunch(_launches, system, rule.Emulator, at) is { } launch
+            && GameIdAttributor.CoveringLaunch(_launches, system, [.. rule.Writers], at) is { } launch
             && !EndedBefore(launch, at)
             && _roms.Find(system, Path.GetFileNameWithoutExtension(launch.RomPath!.Value.Value)) is { } launched)
         {
@@ -101,7 +101,7 @@ public sealed class DisplayNameAttributor
                 BindingSource.Journal,
                 launched.RomId,
                 launched.Path,
-                $"{launched.Path.Name} was running under {rule.Emulator} when {key} was last written "
+                $"{launched.Path.Name} was running under {launch.Emulator} when {key} was last written "
                     + $"({launch.At:u} against {at:u})"));
         }
 

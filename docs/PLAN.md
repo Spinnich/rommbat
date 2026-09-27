@@ -438,7 +438,7 @@ carry the workaround and the fix at once.
 
 What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, re-read
 the upstream changelog for anything that touches a measured rule, move the floor and the
-tested row together, and re-check every open issue in `docs/retrobat-findings.md`. Moving the
+tested row together, and re-check every entry in `docs/upstream-issues.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
 purpose. And every platform record under `docs/platforms/` is mapped onto the nine steps: the
 steps the move touches are re-run or recorded as owed at the new floor, step 9 always among
@@ -2339,7 +2339,7 @@ server_updated_at, server_content_hash}], total_*}`. Send the **real local mtime
     RetroBat's mirror races the emulator writing the image and a zero-byte result was measured,
     the client has to suppress the empty case, because nothing downstream will.
 
-  One thing worth reporting upstream rather than working around: **the `emulator` query
+  One thing reported upstream rather than worked around, as rommapp/romm#4839: **the `emulator` query
   parameter is not sanitised.** It becomes a directory segment in the stored state's
   `file_path`, and `libretro/evil` was accepted and became two segments. RomMBat's own schema
   refuses a separator in that column, so it cannot send one.

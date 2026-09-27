@@ -164,14 +164,14 @@ public sealed class StateScanner
 
         foreach (var (template, directory) in ResolveDirectories(savesRoot))
         {
-            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            foreach (var (file, title) in StateFiles(template, directory))
             {
                 if (template.NearMiss(Path.GetFileName(file)) is { } nearMiss)
                 {
                     nearMisses.Add(nearMiss);
                 }
 
-                var state = Describe(template, file, roms, now);
+                var state = Describe(template, file, roms, now, title);
 
                 if (state is null)
                 {
@@ -251,7 +251,32 @@ public sealed class StateScanner
         return resolved;
     }
 
-    private LocalState? Describe(SaveStateTemplate template, string file, RomIndex roms, DateTimeOffset now)
+    /// <summary>
+    /// A state directory's files, each with the per-game directory's name it was found in, or
+    /// null where the entry keeps every game in one directory.
+    /// </summary>
+    private static IEnumerable<(string File, string? Title)> StateFiles(SaveStateTemplate template, string directory)
+    {
+        if (!template.Emulator.PerGameDirectory)
+        {
+            foreach (var file in Directory.EnumerateFiles(directory).Order(StringComparer.Ordinal))
+            {
+                yield return (file, null);
+            }
+
+            yield break;
+        }
+
+        foreach (var game in Directory.EnumerateDirectories(directory).Order(StringComparer.Ordinal))
+        {
+            foreach (var file in Directory.EnumerateFiles(game).Order(StringComparer.Ordinal))
+            {
+                yield return (file, Path.GetFileName(game));
+            }
+        }
+    }
+
+    private LocalState? Describe(SaveStateTemplate template, string file, RomIndex roms, DateTimeOffset now, string? title = null)
     {
         if (!_install.Contains(file))
         {
@@ -274,7 +299,9 @@ public sealed class StateScanner
 
         var path = _install.Relativize(file);
         var info = new FileInfo(file);
-        var rom = roms.Find(template.System, match.Stem);
+        var rom = template.Emulator.TitledBy is { } titledBy
+            ? TitledRom(template.System, titledBy, title ?? match.Stem)
+            : roms.Find(template.System, match.Stem);
 
         string? hash = null;
 
@@ -306,6 +333,35 @@ public sealed class StateScanner
             SizeBytes = info.Length,
             FileMtimeUtc = new DateTimeOffset(info.LastWriteTimeUtc, TimeSpan.Zero),
         };
+    }
+
+    /// <summary>
+    /// The one ROM a battery rule's binding gives this title, or null when none or several do.
+    /// </summary>
+    /// <remarks>
+    /// Several is refused rather than chosen between, for the reason a contested battery title
+    /// is: the file belongs to whichever ROM the emulator gave that title, and nothing here says
+    /// which. A binding is learned by the save scan, so a state written before its game's first
+    /// battery save is attributed on the pass after that save is.
+    /// </remarks>
+    private (long RomId, RelativePath Path)? TitledRom(string system, string titledBy, string title)
+    {
+        if (SaveShapes.Bundled.TitleRuleFor(system, titledBy) is not { } rule)
+        {
+            return null;
+        }
+
+        var roms = _store.GameIdBindings
+            .List()
+            .Where(binding => binding is { RomId: not null, RomPath: not null }
+                && string.Equals(binding.System, system, StringComparison.OrdinalIgnoreCase)
+                && rule.IsBindingKey(binding.GameId)
+                && string.Equals(rule.TitleOf(binding.GameId), title, StringComparison.OrdinalIgnoreCase))
+            .Select(binding => (binding.RomId!.Value, binding.RomPath!.Value))
+            .Distinct()
+            .ToList();
+
+        return roms.Count == 1 ? roms[0] : null;
     }
 
     /// <summary>
