@@ -2,7 +2,7 @@
 
 What was taken from reading [`abduznik/Freegosy`](https://github.com/abduznik/Freegosy), what
 survived verification against a primary source, and what did not. Written in the shape of
-[retrobat-findings.md](retrobat-findings.md), which is the model for how this repository
+[the upstream reference](upstream/README.md), which is the model for how this repository
 records a measurement.
 
 **Freegosy is a hypothesis generator, never evidence.** Nothing here is a fact because
@@ -126,7 +126,7 @@ this repository again in six months and re-walks the same dead ends.
 | F12 | A 409 on upload carries a structured body with `save_id`, `current_save_time` and `device_sync_time`                            | M6, `romm-api`, `save-sync`                     | The body is actionable, so a conflict can be shown without a second request            | Force a 409 and quote the body                                                            | **live, rejected**         |
 | F13 | `GET /api/saves/identifiers` takes no parameters, the same shape that made `/api/roms/identifiers` 504                          | M6 reconcile, `romm-api`                        | Saves are few enough that it answers, unlike the roms sibling                          | Time the call against the live library                                                    | **open**                   |
 | F14 | `/api/roms` **silently ignores** an unknown query parameter, so `platform_id` resolves the whole library                        | M2 set resolution, `romm-api`                   | The server does not reject unknown params, which FastAPI does not by default           | Compare `platform_id=` against `platform_ids=` on the same platform, read `total`         | **live, confirmed**        |
-| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which finding 83 treats as the multi-file marker                  | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**        |
+| F15 | A ROM can carry exactly one file and an empty `fs_extension`, which RB-83 treats as the multi-file marker                       | M3 exclusion state and its message, `romm-api`  | Such rows exist in a real library                                                      | Scan a sample of `/api/roms?with_files=true` for `len(files)==1 and fs_extension==''`     | **live, confirmed**        |
 | F16 | A multi-disc set is one multi-file ROM whose `files[]` includes a `.m3u` plus non-launchable `.cue`/`.ccd`/`.mds`/`.toc`        | M3 seam, the later multi-file milestone         | Real multi-disc rows look like that on this instance                                   | Scan the same sample for `.m3u` members and tally the sibling extensions                  | **live, rejected**         |
 | F17 | The GameCube/Wii game ID is 4 ASCII bytes at offset `0x00` in an `.iso` and `0x58` in an `.rvz`                                 | M6 attribution fallback, `save-sync`            | The offsets are right for the containers RetroBat accepts                              | Read the header of a real `.iso` and a real `.rvz`                                        | **live, confirmed**        |
 | F18 | A multi-disc `.m3u` filename carries region tags the save file does not, so save matching needs tag stripping                   | M6 attribution, `save-sync`                     | RetroBat's emulators name per-game saves from the disc, not the playlist               | Probe 2 rerun on a multi-disc PS1 title, driven far enough that a card appears            | **probe, corrected twice** |
@@ -382,7 +382,7 @@ Cross-tabulation of file count against fs_extension and the shape flag:
   files=n ext=no  has_multiple_files                 209
   files=n ext=no  has_nested_single_file             234
 
-The two claims finding 83 makes, checked separately:
+The two claims RB-83 makes, checked separately:
   roms with an empty fs_extension:            602
     of those flagged has_multiple_files:      209
     of those flagged has_nested_single_file:  391
@@ -400,7 +400,7 @@ id=134184 has_nested_single_file fs_name='Bayonetta Origins Cereza and the Lost 
     member='Bayonetta Origins Cereza and the Lost Demon - (US) (1.0.0).nsp'
 ```
 
-So finding 83's "every extensionless ROM is multi-file, 105 of 105 both ways" is **half wrong
+So RB-83's "every extensionless ROM is multi-file, 105 of 105 both ways" is **half wrong
 on this sample**, and `romm-api`'s "`has_multiple_files`, and equivalently an empty
 `fs_extension`" is wrong in the same place. The two are not equivalent.
 

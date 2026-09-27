@@ -10,7 +10,7 @@ namespace RomMBat.Tests;
 /// The connect timeout and the exception classification it forces.
 /// </summary>
 /// <remarks>
-/// M0 probe 6b is the source for all of this: an absent host on the local subnet takes 21
+/// RB-353 is the source for all of this: an absent host on the local subnet takes 21
 /// seconds to fail, a default <see cref="HttpClient"/> inherits every millisecond, and a
 /// timeout and a user cancellation are the same exception type.
 /// </remarks>
@@ -58,7 +58,7 @@ public class TransportTests
     [Fact]
     public void HttpClients_own_timeout_is_a_request_timeout_not_a_connect_timeout()
     {
-        // The chain M0 probe 6b measured for HttpClient.Timeout. A ConnectTimeout's
+        // The chain RB-353 measured for HttpClient.Timeout. A ConnectTimeout's
         // TimeoutException carries nothing inside it; this one wraps the cancellation it replaced.
         var timeout = new TaskCanceledException(
             "The request was canceled due to the configured HttpClient.Timeout of 30 seconds elapsing.",

@@ -19,7 +19,7 @@
 --
 -- 3. The read position into emulatorLauncher.log. Measured on a real install: the file
 --    rotates at a ~1 MiB size threshold and the two halves do not overlap, so a byte offset
---    is wrong across a rotation and a timestamp is not. See docs/retrobat-findings.md, 112.
+--    is wrong across a rotation and a timestamp is not. See RB-112.
 --
 -- 4. What cannot be synced, and why. Stage 1 discovers class C and D and every save state and
 --    ships none of them, so the alternative to a table here is a user whose PS3 saves quietly

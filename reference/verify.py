@@ -191,7 +191,7 @@ def main():
     # Both halves are checked: the second is what flips if the indexing ever comes back.
     # The divergence this replaced ends per row rather than outright, because
     # primary_developer falls back to companies[0] wherever developers is empty, and a row
-    # populates the split only when it is rescanned. See finding 98 and finding 7.
+    # populates the split only when it is rescanned. See RB-98 and RM-7.
     check(
         "upstream reads developer and publisher off the split roles",
         "rom.metadatum.primary_developer" in exporter

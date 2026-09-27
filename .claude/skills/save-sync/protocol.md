@@ -14,11 +14,11 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   clock decides: same second updates, a second later appends. `overwrite` only suppresses the 409
   checks and the identical-content dedup. So `--keep-local` appends, the server's copy stays one
   row down until something writes into it in place (see "Other writers on the same slots"), and `autocleanup_limit=10` is what bounds the slot rather than the resolution bounding
-  it at one. Never tell a user their copy replaced the server's. Measurement 160.
+  it at one. Never tell a user their copy replaced the server's. RB-160.
 - An unregistered `device_id` is a **404**, not a request that quietly proceeds without a device.
   **Omitting it altogether is accepted**, and produces a save attributed to no device, which is
   how a second device is simulated on an install that has only one. So the 404 bounds
-  impersonation, not participation. Measurement 162.
+  impersonation, not participation. RB-162.
 - 409 means the slot moved. Surface it; retry with `overwrite=true` only after resolution.
   **The body is a bare string** with no save id and no timestamps, so fetch the save row if
   you want to show the user what they are conflicting with. It fires when **this device's**
@@ -87,12 +87,12 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
 - **States download too now, and nothing verifies them.** `StateSchema` carries no hash field of
   any kind, where a save carries `content_hash`, and states have no `/track`, no `/downloaded`
   and no negotiate participation. So a state arrives unverified and the command says so on the
-  preview as well as after; that is the ceiling of the API rather than a shortcut. Finding 246.
+  preview as well as after; that is the ceiling of the API rather than a shortcut. RB-246.
 
   **A restored state is named after the ROM on disk, never after the server row.** RomM strips
   parenthesised groups as tags, so `Legend of Zelda, The (USA) (Rev 1) [libretro.nestopia].state1`
   reads back as `Legend of Zelda, The`. Writing the server's name puts a state where the emulator
-  never looks, and it then reads as absent rather than as an error. Finding 247.
+  never looks, and it then reads as absent rather than as an error. RB-247.
 
   **The slot is read out of the uploaded name, not the extension.** `StateSync.SentNameFor`
   strips the scope group back off `file_name`, the template matches what is left, and
@@ -100,7 +100,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   worked for libretro, dolphin, gopher64 and mupen64, and placed nothing for the eight emulators
   that write the slot into the stem (`Game.QuickSave2.State`, `Game_0.jst`, `Game.01.p2s`) or a
   libretro autosave (`Game.state.auto`): every one reported "could not tell which slot it is".
-  A name without the group, another client's, falls back to the extension. Finding 258.
+  A name without the group, another client's, falls back to the extension. RB-258.
 
   **A restore writes a `local_state` row, or the next flush sends back what it just fetched.**
   `RestoreAsync` records with `uploaded_content_hash` equal to what is now on disk, because both
@@ -118,7 +118,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   that fails costs a line and the state still counts as restored, and an image already in the
   tree is left alone. **Both halves were RomMBat's.** A state whose image RomM stored and did not
   link reads `screenshot: null`, and there is nothing to follow, so that state comes back without
-  one. Every libretro-shaped state uploaded before finding 258 is in that position and stays
+  one. Every libretro-shaped state uploaded before RB-258 is in that position and stays
   there, because an unchanged state is not re-sent. So does a
   linked one for an emulator whose `<image>` is its `<file>`, DeSmuME, which has nowhere to put
   it; the find keeps the id either way, so the preview says per row which of the three it is. `DetailedRomSchema.user_screenshots` might reach such an orphan
@@ -207,7 +207,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   `updated_at`, `server_updated_at`, `created_at`, `start_time` and `end_time` with no zone while
   storing UTC, so a plain `DateTimeOffset` is out by the machine's own offset and the conflict
   block shows the two sides on different clocks. `UtcTimestampConverter` is on every one of them;
-  see the `romm-api` skill and finding 260. **Rows written before that fix carry the shifted value** in
+  see the `romm-api` skill and RB-260. **Rows written before that fix carry the shifted value** in
   `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
   correct themselves when the slot is next negotiated or the conflict resolved, and they are
   display-only in the meantime, since ordering compares server rows only against each other.
@@ -215,7 +215,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   answers have to be overruled here and a third is guarded against.** The repo's own rule is that
   mtime never decides whether a save changed, and this is the server applying that reasoning on
   the other side of the wire. `tools/romm-5.3-probes/s4-older-mtime.py` asks it directly, six
-  cases, and is the instrument to re-run rather than reasoning from a flush (#206, finding 259).
+  cases, and is the instrument to re-run rather than reasoning from a flush (#206, RB-259).
   At `beta.1`, `5.3.0` and the `5.3.1` floor alike: M1 `no_op (No changes since last sync)`, M2
   `upload`, M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is
   identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are the peer-row
@@ -233,7 +233,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
     safe rather than merely better than silence: identical content into one slot reuses the row,
     and a stale device record still answers 409, which lands as a conflict.
   - **An `upload` of bytes the server already holds is a no-op without a round trip, and this
-    one is defence rather than a live fix.** Finding 259 measured `1 up` on three consecutive
+    one is defence rather than a live fix.** RB-259 measured `1 up` on three consecutive
     flushes for save 336 on 5.3.0-alpha.3, an emulator rewriting a save with identical bytes
     moving the mtime and nothing else. **It does not reproduce at the floor**: M4 answers `no_op
 (Content is identical)`, so the hash settles it server-side. Kept because it costs one
@@ -266,7 +266,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   strongest reason to pull. The target for such a slot comes from the ROM's own folder and stem,
   with only the extension read off the operation's tagged filename. **That target is usually a
   file another slot already keeps**, the loose class A save, and writing it was a silent overwrite
-  that the next scan then uploaded into the other slot (#205, finding 259: RomM 5.3.0-alpha.3's
+  that the next scan then uploaded into the other slot (#205, RB-259: RomM 5.3.0-alpha.3's
   browser files a fresh session under `autosave`, which lands on the `.srm` this device keeps as
   `libretro:battery`). So a download for a slot this device holds no row for, whose destination
   another slot's `local_save` holds, is **recorded as a conflict on the offered slot** and never
@@ -313,8 +313,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   as the upload 409 stays a conflict**: a version this device still names in `save_slot` can be
   deleted under it, negotiate then forgets the history and answers `upload` for an edited copy,
   while the upload guard still holds the device's record and refuses 409, which `SaveSync`
-  records as a conflict. An unchanged copy downloads the newest. Finding 11 of
-  `romm-5.3-findings.md`, `s3-slot-retention.py`.
+  records as a conflict. An unchanged copy downloads the newest. RM-11,
+  `s3-slot-retention.py`.
 - Restores stage everything off to one side: extract to a temp directory beside the target, keep
   the previous copy until the next successful sync. **A class C swap is not one filesystem
   operation, and do not write that it is.** Members are removed and moved in one at a time,

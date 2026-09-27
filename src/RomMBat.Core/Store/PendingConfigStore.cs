@@ -5,7 +5,7 @@ namespace RomMBat.Core.Store;
 
 /// <summary>What a queued change wants the setting to end up as.</summary>
 /// <remarks>
-/// Removing is its own state rather than a null value. Finding 170 established that "the key
+/// Removing is its own state rather than a null value. RB-170 established that "the key
 /// was absent" and "the key held the stock value" are different files to restore, so a queued
 /// revert of a conversion whose prior state was absent has to say <see cref="Remove"/> and mean
 /// it.

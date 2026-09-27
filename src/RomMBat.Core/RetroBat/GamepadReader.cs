@@ -232,7 +232,7 @@ public sealed class GamepadReader : IDisposable
         for (var axis = 0; axis < _axes; axis++)
         {
             // An axis binding names a direction, so the reading is reduced to its sign. An
-            // analog trigger rests fully negative rather than centred (finding 223), so a
+            // analog trigger rests fully negative rather than centred (RB-223), so a
             // resting trigger reads -1 and matches nothing, where "non-zero means pressed"
             // would report both triggers held forever.
             var raw = SdlLibrary.SDL_JoystickGetAxis(_joystick, axis);

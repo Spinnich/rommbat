@@ -26,7 +26,7 @@ payloads this client needs most, so never code from them.
   streamed headers.
 - **The two timeouts differ only one level down.** Both arrive as `TaskCanceledException`
   wrapping `TimeoutException`. Under `HttpClient.Timeout` that `TimeoutException` wraps a
-  further `TaskCanceledException`, and under `ConnectTimeout` it wraps nothing (M0 probe 6b).
+  further `TaskCanceledException`, and under `ConnectTimeout` it wraps nothing (RB-353).
   `Classify` reads that to report `RequestTimeout` or `ConnectTimeout`. Nothing branches on the
   reason yet.
 - **A heartbeat answer that is not RomM's is no contact, not a crash.** A captive portal's page
@@ -156,7 +156,7 @@ media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play s
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
   CI is. Driven against the live instance while adding the play-session read: a session the agent
   had just fetched came back four hours ahead of the same run's `Date` header, putting a finished
-  session in the future. Finding 260 in `docs/retrobat-findings.md`. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
+  session in the future. RB-260. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
   `DateTimeOffset` read off the server**, which honours an offset where one is present, so it is
   safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
   its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub

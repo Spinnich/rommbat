@@ -75,7 +75,7 @@ public class SaveUnitTests
     public void A_psp_savedata_key_is_a_prefix_of_the_directory_name()
     {
         // UCES01011 is bare and ULES01513SYSDATA carries a suffix the game chose. Matching the
-        // whole segment finds neither as a title id, which is measurement 141.
+        // whole segment finds neither as a title id, which is RB-141.
         using var tree = TempRetroBatTree.Create();
 
         Write(tree, "saves/psp/SAVEDATA/UCES01011/PARAM.SFO", "game data");

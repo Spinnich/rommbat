@@ -42,7 +42,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                       |
 | Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                  |
 | Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes.md` as the worked example                    |
-| How RetroBat or RomM behaves, and the evidence                                         | `docs/retrobat-findings.md`, `docs/romm-5.3-findings.md`, `docs/upstream-issues.md` (grep, never read whole) |
+| How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                    |
 | How RomMBat's code is laid out and why                                                 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the section for the area                                       |
 | Why a behaviour was chosen, when no skill says                                         | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
@@ -110,7 +110,7 @@ and RomM 5.3.1, both the newest stable; anything older is refused at startup, an
 warns. The floor moves forward: adopt a new stable (or a prerelease ahead of it) within one
 release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, reading
 the upstream changelog for anything touching a measured rule, moving the floor and the tested
-row together, and re-checking every entry in `docs/upstream-issues.md`. Moving the RomM floor
+row together, and re-checking every entry in `docs/upstream/issues.md`. Moving the RomM floor
 also moves the pinned OpenAPI schema. Details are in
 [docs/design/version-compatibility.md](docs/design/version-compatibility.md).
 

@@ -66,5 +66,13 @@ class LinkTest(unittest.TestCase):
         )
 
 
+class FactIdTest(unittest.TestCase):
+    def test_letter_suffix_is_one_id(self) -> None:
+        self.assertEqual(check.FACT_ID.findall("RB-9b and RB-92b, not RB-9"), [
+            ("RB", "9b"), ("RB", "92b"), ("RB", "9")
+        ])
+        self.assertEqual(check.FACT_HEADING.match("## RB-9c. Title").group(1), "RB-9c")
+
+
 if __name__ == "__main__":
     unittest.main()

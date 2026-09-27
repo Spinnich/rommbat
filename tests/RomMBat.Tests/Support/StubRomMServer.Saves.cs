@@ -23,7 +23,7 @@ namespace RomMBat.Tests.Support;
 /// the 409 checks and the identical-content dedup and does <b>not</b> replace a row, so whether an
 /// upload updates one or appends one turns on whether it lands in the same second as the row it
 /// would replace. Tests holding <see cref="ServerDate"/> fixed therefore see one row per slot;
-/// advancing it between uploads is how a slot is made to grow. Measurement 160.
+/// advancing it between uploads is how a slot is made to grow. RB-160.
 /// </para>
 /// </remarks>
 internal sealed partial class StubRomMServer
@@ -84,7 +84,7 @@ internal sealed partial class StubRomMServer
     /// </summary>
     /// <remarks>
     /// No live instance has been seen answering <c>conflict</c> for an unsubmitted slot, but
-    /// nothing rules it out either: measurement 151 withdrew 132 and showed negotiate does
+    /// nothing rules it out either: RB-151 withdrew 132 and showed negotiate does
     /// volunteer slots the client never named, so the unsubmitted half of this is real and only
     /// the action is unobserved. Modelled because the client's answer to it was a
     /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
@@ -396,7 +396,7 @@ internal sealed partial class StubRomMServer
                 //
                 // Inside the !overwrite branch on purpose. The server guards this check with
                 // `not overwrite`, so an overwrite that re-sends unchanged bytes still makes a
-                // row rather than deduplicating into the one it matches. Measurement 160.
+                // row rather than deduplicating into the one it matches. RB-160.
                 return Json(HttpStatusCode.OK, Describe(identical));
             }
         }
@@ -409,7 +409,7 @@ internal sealed partial class StubRomMServer
         // slotted upload to carry a datetime tag at one-second resolution and looks the row up
         // by that name, so what decides between updating a row and appending one is the clock
         // and never the flag. Two uploads inside one second are one row; a second apart they are
-        // two. Measurement 160, and it is why this stub previously hid an append: it reused the
+        // two. RB-160, and it is why this stub previously hid an append: it reused the
         // id in the slot outright, so a resolution could not be seen to grow the slot.
         var candidate = new StubSave
         {

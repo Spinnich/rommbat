@@ -72,14 +72,14 @@ from the currently selected `Scraper`, guarding each on `isMediaSupported(...)`,
 stored value is not in the new scraper's list it calls `selectFirstItem()` and writes it on
 close. Switching SCRAPE FROM therefore rewrites a source the user never touched. Read the
 value, map what is recognised, fall back on anything else, and **ignore `Scraper`**: RomM is
-not one of the scrapers it names. Finding 241.
+not one of the scrapers it names. RB-241.
 
 **Three of the remaining switches map onto real RomM fields and two are dead.** `ScrapeBezel`,
 `ScrapeBoxBack` and `ScrapeFanart` map onto `bezel_path`, `box2d_back_path` and `fanart_path`.
 `ScrapeMap` and `ScrapePadToKey` have no counterpart at all, which is a fact about the schema
 rather than about one library, and padtokey is input config rather than media. **Do not rule a
 kind out because a library holds none of it**: that number says when the platform was last
-scraped. Findings 239 and 240, and #108 for the shape.
+scraped. RB-239 and RB-240, and #108 for the shape.
 
 **A kind turned off is also a kind removed.** Stopping future downloads and leaving what is
 already there makes the setting mean two different things depending on which way it is moved,

@@ -94,7 +94,7 @@ public sealed class InstallSession : IDisposable
     /// nobody chose a language. It is also what ES itself sees: on a Windows release build
     /// <c>SystemConf</c> has no config file of its own and falls back to these settings, which
     /// is why the language that picks a keyboard lives here and not in <c>batocera.conf</c>.
-    /// Finding 234.
+    /// RB-234.
     /// </para>
     /// </remarks>
     public string? EmulationStationLanguage() =>

@@ -11,7 +11,7 @@ namespace RomMBat.Tests;
 /// <remarks>
 /// Under <see cref="HttpCompletionOption.ResponseHeadersRead"/>, once the headers arrive
 /// <see cref="HttpClient.Timeout"/> no longer covers the body. Measured on a real socket
-/// (finding 267): a 2 s timeout and a body that stopped after 100 bytes was still reading at 8 s.
+/// (RB-267): a 2 s timeout and a body that stopped after 100 bytes was still reading at 8 s.
 /// Every call was sent that way, so a restore, or a background flush nobody watches, hung until
 /// someone cancelled it (#198).
 /// </remarks>

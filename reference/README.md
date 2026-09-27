@@ -113,7 +113,7 @@ checks exist so each divergence stays visible rather than becoming an accidental
   sorted, so **alphabetical indexing assigns both roles wrongly on 41% of rows** (163 of 398):
   `4x4 Evo 2` is `companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer
   when Terminal Reality developed it. #172. **Re-taken over the whole library on 2026-09-16**
-  (`tools/romm-5.3-probes/r4-company-split.py`, finding 7): the split is on 18.9% of 95,993
+  (`tools/romm-5.3-probes/r4-company-split.py`, RM-7): the split is on 18.9% of 95,993
   rows across 53 platforms, indexing is wrong on **21.5%** of split rows rather than 41%, and
   3.0% of split rows carry more than one developer or publisher.
 

@@ -10,8 +10,8 @@ wins and this file needs fixing.
 > [!NOTE]
 >
 > Written at scaffolding time, ahead of the code, and amended as milestones land.
-> `docs/retrobat-findings.md` records the measurements that corrected it, and supersedes
-> any number quoted here.
+> `docs/upstream/` records the measurements that corrected it, and supersedes any number
+> quoted here.
 
 ---
 
@@ -76,7 +76,7 @@ The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
   loop, resumable downloads, multipart save upload, sync negotiation.
 - Every call takes a `CancellationToken`, and **`SocketsHttpHandler.ConnectTimeout` is set
   explicitly on every handler**, because nothing sets it by default and an absent host on
-  the local subnet otherwise stalls for 21 seconds (M0 probe 6b). 2 s is the interactive
+  the local subnet otherwise stalls for 21 seconds (RB-353). 2 s is the interactive
   budget. `HttpClient.Timeout` is set too, for a different reason: it covers an API call and
   its JSON body, and a slow server that is still reachable, so it cannot be the reachability
   lever. A streamed transfer's body is bounded by the stall watchdog (`StallTimeout`) instead.
@@ -140,7 +140,7 @@ one by hand.
 **The `start` and `quit` hooks invoke a pass; `sync` and a person typing `flush` still do
 too.** Through M6 nothing did but those last two, so an install that was never synced spooled
 events forever, and the reason recorded here was that a spawn would put an 11 MB process start
-inside the game-launch path. **The measurement refuted that** (findings 195 and 197): ES spawns
+inside the game-launch path. **The measurement refuted that** (RB-195 and RB-197): ES spawns
 hooks fire-and-forget and starts emulatorlauncher without waiting, and the 75.9 MB agent reaches
 `Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun`
 throws the framework's precompiled code away.
@@ -172,20 +172,20 @@ delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **
 concurrently**, with each other and across events.
 
 **`game-start` does fire, and the hooks ship as an executable.** An earlier reading here
-said ES never fires `game-start` for a name containing a space. M0 probe 7b overturned it:
+said ES never fires `game-start` for a name containing a space. RB-396 overturned it:
 ES fires the event and logs `executing:` for every script in the folder, and the failure was
 **per interpreter**, not per event. A `.bat` never starts once any argument is quoted,
 because the `batfile` association is `cmd /c "%1" %*`; a `.ps1` never starts once the name
 contains a parenthesis, because ES builds `powershell <script> <args>` with no `-File`. An
 `.exe` received all three arguments intact on a real No-Intro name, and on the second host
-in probe 7 an `.exe` was the **only** form that ran at all.
+in RB-398 an `.exe` was the **only** form that ran at all.
 
 So the hooks are the agent executable, and `game-start` is usable. Two things still hold.
 `game-end` also fires with **no** preceding `game-start`, including for ES-menu launches and
 for launches that failed, so an orphan `game-end` is normal rather than a fault. And the
 hook is never told the system, emulator or core, so
 **`emulationstation/emulatorLauncher.log` remains the source for the launch facts**. See
-`docs/retrobat-findings.md` probes 1 and 7b.
+RB-346 to RB-352 and RB-394 to RB-400.
 
 Concurrent invocations are safe: the flush takes a lock file in the tree and a second
 process exits rather than queueing. The lock is mandatory, not defensive, because concurrent
@@ -355,7 +355,7 @@ breaks the app at launch with nothing a user can read.
 which records which physical input is `a` on that pad rather than what kind of pad it is, and
 it is read through `emulationstation/SDL2.dll` because those ids are SDL joystick indices and
 only the same library can interpret them. There is no vendor-id table anywhere in RomMBat.
-See `EsInputMap` and `GamepadReader`, and findings 218 to 225.
+See `EsInputMap` and `GamepadReader`, and RB-218 to RB-225.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
@@ -541,7 +541,7 @@ in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/)
 ### No column ever holds an absolute path
 
 Everything is relative to the RetroBat root and resolved at the point of use, because a
-drive letter changing from `E:` to `F:` must be a non-event. M0 probe 7 moved a stick
+drive letter changing from `E:` to `F:` must be a non-event. RB-391 moved a stick
 G: to D: to K: across two machines, so this is measured rather than theoretical.
 
 An earlier draft of this document promised a **static check that fails the build**. That is
@@ -588,7 +588,7 @@ contact, local time is compared against the server response `Date` header; past
 survives a wrong clock; correctness of the wall clock does not have to be assumed.
 
 Any check for "this timestamp is in the future" carries at least
-`ClockSkew.FilesystemTimestampTolerance` (2 s). M0 probe 7 measured FAT32 **and exFAT**
+`ClockSkew.FilesystemTimestampTolerance` (2 s). RB-393 measured FAT32 **and exFAT**
 storing mtimes to 2 seconds and rounding **up**, so a freshly written save is legitimately
 stamped ahead of the clock that wrote it, and without the tolerance every FAT install would
 look like it had a broken clock.
@@ -637,7 +637,7 @@ the config is visible from the RomM web UI.
 
 **DPAPI is unavailable.** `DataProtectionScope.CurrentUser` binds the ciphertext to one user
 profile on one machine and `LocalMachine` binds it to that machine, so either makes the drive
-undecryptable on the next PC. M0 probe 7 moved a stick between two machines under two
+undecryptable on the next PC. RB-391 moved a stick between two machines under two
 different Windows users, which is precisely the case that has to keep working.
 
 So the honest position is that **on a portable install the token is only as protected as the
@@ -728,7 +728,7 @@ BIOS is dead weight in the gallery. **It never gates a platform.** The list has 
 flag and the emulator decides which files it reads, so a file RomM lacks is reported and the
 platform's ROMs sync regardless. Where a row reads a file the list files under another system,
 the manifest builder copies that entry onto the system with a `supplement` note saying why: `gb`
-takes `sgb`'s four Super Game Boy files and `gbc`'s boot ROM (finding 293). Every hash is still
+takes `sgb`'s four Super Game Boy files and `gbc`'s boot ROM (RB-293). Every hash is still
 RetroBat's.
 
 Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
@@ -832,7 +832,7 @@ Three rules that are not obvious:
   Define `content_hash` over sorted relative paths plus each file's own hash. The archive
   is transport only.
 - **The fold is RomM's own archive digest**, the md5 of `<entry>:<md5>` lines sorted by name
-  (finding 303), so a bundled save carries one hash: it is the local change detector and the
+  (RB-303), so a bundled save carries one hash: it is the local change detector and the
   value negotiated. A restore is checked against the server's value over the archive's raw entry
   names, or the MD5 of the zip for a row written before RomM 5.2.0.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so one of its
@@ -844,7 +844,7 @@ Three rules that are not obvious:
   exchanged, since the server refuses the next upload against a stale device record (M6).
   Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1`, at `5.3.0` and
   again at the `5.3.1` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
-  already holds as a no-op; finding 259 measured that loop on `5.3.0-alpha.3`, the floor settles
+  already holds as a no-op; RB-259 measured that loop on `5.3.0-alpha.3`, the floor settles
   it server-side, and it is kept as cheap defence. #206.
 
   **A `download` over a local save the server has never seen is recorded as a conflict**, the
@@ -867,7 +867,7 @@ in place and moves its `updated_at`, and from 5.3.0-alpha.3 the server prunes a 
 retention on every slotted upload, so the rejected copy can return to the head of the slot either
 way. At 5.3.0-alpha.2 RomM's browser player supplied the write, sending that `PUT` for the save it
 loaded; from alpha.3 it leaves the loaded save alone and appends beside it, and the deletion half
-is what finding 11 of `romm-5.3-findings.md` measured. A download naming a save id lower than the
+is what RM-11 measured. A download naming a save id lower than the
 one this device last recorded for the slot is therefore recorded as a conflict rather than taken,
 measured on 5.3.0-alpha.2 as the case where negotiate would otherwise answer `download`. Resolving either way
 prunes the copy, which is what makes the design's "keep the previous copy

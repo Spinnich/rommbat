@@ -71,10 +71,10 @@ public sealed class SaveScanner
     /// </summary>
     /// <remarks>
     /// The file declares <c>name="dolphin"</c> with <c>&lt;directory&gt;{{system}}/dolphin</c>,
-    /// and the save tree beside it is <c>dolphin-emu</c>: finding 740 lists
+    /// and the save tree beside it is <c>dolphin-emu</c>: RB-361 lists
     /// <c>wii/dolphin-emu</c>, and <c>save_shapes.json</c> carries <c>dolphin-emu</c> for both
     /// the gamecube and wii <c>unit_paths</c>. Without this step the one emulator whose save
-    /// states are measured working (finding 971, <c>.s01</c>, written live) would be reported
+    /// states are measured working (RB-368, <c>.s01</c>, written live) would be reported
     /// under a row saying nothing here is restorable, on every install: <c>shared2/</c>,
     /// <c>sys/</c> and <c>title/00000001</c> are never units, so the wii count is never zero.
     /// <para>

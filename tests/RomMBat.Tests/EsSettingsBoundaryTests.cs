@@ -20,7 +20,7 @@ namespace RomMBat.Tests;
 /// is always up by construction, and ES loads <c>es_settings.cfg</c> at startup and serialises
 /// its own model over anything written underneath. A key that appears afterwards is discarded,
 /// and merging and atomicity do not help: both were tried and the write still vanished
-/// (findings 178 and 179). Every change therefore goes through
+/// (RB-178 and RB-179). Every change therefore goes through
 /// <see cref="PendingConfigStore"/> and is applied by <c>background quit</c> once the process
 /// is confirmed gone. <c>docs/ARCHITECTURE.md</c> says "The UI can never write <c>es_settings.cfg</c>",
 /// and this is what makes that a fact about the build rather than an intention.

@@ -38,7 +38,7 @@ held it, and neither is a fault or fixable by re-running. A kind measured at 0% 
 rescrape away from 100%.
 
 **Quote the library and the date beside any such number**, or a later session will read it as a
-property of RomM. Finding 239 is the worked example, including the wrong reading first.
+property of RomM. RB-239 is the worked example, including the wrong reading first.
 
 ## `fs_size_bytes` can be stale against the file the server serves
 
@@ -65,7 +65,7 @@ compare only md5, or sha1 where the server published no md5. Measured across **1
 from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
 RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
 nothing. Confirmed over every platform with `tools/romm-5.3-probes/r7-hash-coverage.py`
-(finding 257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
+(RB-257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
 Test for blank, never for null, because the server never sends null here. crc32 was never compared anywhere at all.
 
 The cost of that, measured on a 3.41 GB image already in the OS cache so the numbers are
@@ -147,12 +147,12 @@ columns for that reason.
   because `sgdb` is one of those and the filter ignores it. `statuses` cannot be probed that
   way at all, since an unrecognised status returns **zero** rather than everything and so looks
   exactly like a real status nobody has used; its authority is `RomUserStatus` in the schema.
-  Finding 236.
+  RB-236.
 - **`filter_values` is not the list of what you can filter on.** The sidecar reports
   `game_modes`, which no query parameter accepts, and omits `statuses` and
   `metadata_providers`, which two do. It also reports `platforms`, which is a scope rather than
   a facet, and as **ids** where every other key is names. Drive a filter screen off the
-  endpoint's parameters and use the sidecar only for the values. Finding 237.
+  endpoint's parameters and use the sidecar only for the values. RB-237.
 - **The sidecar rides on `/api/roms`, so asking for it means being sent a row.** Read it with a
   shape that ignores `items` entirely. Deserialising the row through the generated page type
   put an `int32` on `fs_size_bytes`, and a single ROM at or above 2 GiB then failed the whole
@@ -167,8 +167,7 @@ columns for that reason.
   5.3.0-alpha.2 the same request answers 206 with an `ETag`, and its `Content-Range` total is
   22 bytes short of the plain 200's `Content-Length`, so one URL is serving two representations
   and a resume across them splices. The rule to send no `Range` on multi-file is unchanged, and
-  its reason is now the mismatch rather than the refusal. Section C of
-  [romm-5.3-findings.md](../../../docs/romm-5.3-findings.md).
+  its reason is now the mismatch rather than the refusal. RM-15.
 - **Multi-file is `has_multiple_files`, and an empty `fs_extension` is not the same thing.**
   The schema carries three shape flags: `has_simple_single_file`, `has_nested_single_file`,
   `has_multiple_files`. Every multi-file ROM does have an empty extension (209 of 209

@@ -13,7 +13,7 @@ link column: `State.screenshot` finds an image whose name, or name less extensio
 state's name or the state's name less extension, where "extension" is RomM's
 `\.(([a-z]+\.)*\w+)$`. Scoping the image's own name put the group after `.state1` and never
 matched for the five emulators whose `<image>` is `<file>.png`, while the seven whose `<image>`
-replaces the extension happened to match; that mix was finding 138's "a third".
+replaces the extension happened to match; that mix was RB-138's "a third".
 `<upload name><image extension>` matches for every declared emulator (ppsspp's image is `.jpg`).
 
 **A match is not unique, so check the name that comes back.** RomM's pattern strips a run of
@@ -26,7 +26,7 @@ image, `Game.state [libretro.x].png`, likewise answers for the autosave
 `<state upload name>.<ext>`, or the exact earlier name of the state's own image (which linked
 for the seven), on restore and when counting a dropped screenshot on push. `StubRomMServer.Binds` ports the filter and `ScreenshotFor` the
 choice among a ROM's images, so a test cannot pass on a name the server would not link or on
-another state's image. Finding 258.
+another state's image. RB-258.
 
 **That slot never leaves the device.** `POST /api/states` has no slot field, and the row it
 returns carries no `content_hash` either, both confirmed live and in the pinned schema. So it
@@ -38,7 +38,7 @@ expression and matching what is on disk reads the slot off the filename, which a
 `libretro`'s trap, the one entry declaring no bounds, and settles a question that is not one of
 the four: whether `{{slot}}` renders empty at slot zero becomes "accept zero digits".
 **`bigpemu` is not answered**: it declares `001`/`999` against a two-digit `{{slot2d}}`, which
-compiles to `\d{2}`. **That reads as a contradiction and is not one** (measurement 166, driven):
+compiles to `\d{2}`. **That reads as a contradiction and is not one** (RB-166, driven):
 the bounds describe what **BigPEmu** writes in its own tree, three-digit and keyed by an internal
 game id under `emulators/bigpemu/userdata/`, and the template describes **RetroBat's mirror**
 under `saves/jaguar/bigpemu/`, two-digit and rom-named. Reading the declared path is right and
@@ -51,7 +51,7 @@ one game.
 
 **`bigpemu` is a third emulator whose native tree is not under `saves/`, and its battery save
 never leaves it.** `game<ID>_eeprom.bigpeep` sits in `emulators/bigpemu/userdata/` with no
-counterpart anywhere under `saves/jaguar/` (measurement 167), so a client reading only the
+counterpart anywhere under `saves/jaguar/` (RB-167), so a client reading only the
 declared tree concludes the game has no battery save. That is the concrete reason `jaguar` stays
 in `save_shapes.json`'s `_unclassified` list. Its `.txt` sidecar holds the same internal game id
 its native filenames use (168), so it is the mapping between the two naming schemes, the same job
@@ -86,7 +86,7 @@ writes `bios/openmsx/savestates/<name>.oms`. For BizHawk only the mirror lands u
 and deleting the native copy and relaunching rebuilt it from the ES-facing one, so the declared
 path is authoritative in both directions. The mirror is `emulatorLauncher`'s: a native state
 written by an EmuHawk started any other way never reaches `saves/`, and the next launch removes
-it (finding 270). **openMSX's declared directory stayed empty**, so do
+it (RB-270). **openMSX's declared directory stayed empty**, so do
 not assume every emulator is mirrored. Do not assume everything beside a state travels either:
 BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 

@@ -59,8 +59,8 @@ public sealed record SpoolRecord(string Event, DateTimeOffset At, int ProcessId,
     /// The cost objection that kept the hooks inert for six milestones was measured and went
     /// the other way: ES spawns hooks fire-and-forget and starts emulatorlauncher without
     /// waiting, a median of 24 ms before the hook even reaches its own first line. What
-    /// remains is rule 4, which is about the network. See <c>docs/retrobat-findings.md</c>,
-    /// 195 and 197.
+    /// remains is rule 4, which is about the network. See RB-195
+    /// and RB-197.
     /// </para>
     /// </remarks>
     public static IReadOnlyList<string> BackgroundEvents { get; } = ["start", "quit"];

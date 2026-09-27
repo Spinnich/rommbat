@@ -219,7 +219,7 @@ public sealed class SaveSlotStore
     /// still comes from the server, since nothing local knows what the save was called.
     /// </para>
     /// <para>
-    /// <b>This path is reachable, which stage 2a said it was not.</b> Measurement 132 read
+    /// <b>This path is reachable, which stage 2a said it was not.</b> RB-132 read
     /// negotiate's empty answer as "never volunteers a slot the client did not submit"; re-driven,
     /// negotiate returns a download for every save the device has no sync record for, so a
     /// restore onto a device that never held the slot is an ordinary case rather than a dead one.

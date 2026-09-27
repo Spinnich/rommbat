@@ -22,7 +22,7 @@ because that is the only system they were measured on. `megadrive` has since bee
 widened the `bizhawk` and `mednafen` rules to name it, with its own `jgenesis` and `ares` rules
 beside these; [megadrive.md](megadrive.md) is that record, and nothing here speaks for it.
 
-**Step 5 closed on 2026-09-20 and is the first time any row has passed it.** Finding 258's fix
+**Step 5 closed on 2026-09-20 and is the first time any row has passed it.** RB-258's fix
 was driven on a state made after it, and the restored screenshot was checked by its bytes rather
 than by its arrival. Step 2 changed on the same day, from requiring an exclusion this library
 cannot offer to requiring that nothing be excluded. See "Re-driven at `5.3.0-beta.1`".
@@ -57,7 +57,7 @@ setting says nothing about the default, which is why the record names how the ro
 Three further `nes.*` keys were set at the same time and are recorded because they are part of
 the configuration this row was measured under: `nes.nestopia_nospritelimit = 1`,
 `nes.video_driver = vulkan`, `nes.xbox_layout = 1`. `nes.ungroup` was **removed** rather than set
-to false, which is EmulationStation pruning a switch turned off, the behaviour finding 238
+to false, which is EmulationStation pruning a switch turned off, the behaviour RB-238
 describes.
 
 ## The install this was measured on
@@ -94,15 +94,15 @@ tolerate it.
 slot record in "Conflict resolution, driven both ways", was driven on it and says itself that it
 re-runs no step. Mapped onto the nine steps per the
 `platform-certification` skill's "When the floor moves", from the `src/` and `data/` diff across
-#179 to #199, the finding 258 fix, and `docs/romm-5.3-findings.md`:
+#179 to #199, the RB-258 fix, and `docs/upstream/romm/`:
 
 | #   | At `5.3.0-alpha.2` | Why                                                                                                                                     |
 | --- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | **Owed**           | `data/retrobat/platforms.json` was re-sourced from upstream's alias table (#166)                                                        |
 | 2   | **Owed**           | The resolver gained a no-file-on-disk exclusion ahead of the extension check (#167), and the index flag on a scoped page changed (#188) |
-| 3   | Carried            | No firmware code or bundled BIOS data changed, and the findings doc records no firmware route change                                    |
+| 3   | Carried            | No firmware code or bundled BIOS data changed, and no upstream fact records a firmware route change                                     |
 | 4   | **Owed**           | `SaveSync`, `SaveConflictResolver` and `SaveSlotStore` changed to refuse a superseded row the browser's writer revives (#170)           |
-| 5   | **Owed**           | A restore fetches a linked screenshot (#158), and finding 258 renamed the uploaded screenshot and changed how a restore reads the slot  |
+| 5   | **Owed**           | A restore fetches a linked screenshot (#158), and RB-258 renamed the uploaded screenshot and changed how a restore reads the slot       |
 | 6   | N/A                | Unchanged: `nes` has no class D                                                                                                         |
 | 7   | **Owed**           | The catalog query changed when `GET /api/roms/identifiers` was retired (#199), and that query is what fills the game list               |
 | 8   | **Owed**           | The detached `background` pass the hooks spawn writes its log through a new append-only handle (#153)                                   |
@@ -114,7 +114,7 @@ before any result here speaks for the current floor.
 ## The move to `5.3.0-alpha.3`
 
 **It adds nothing to what is owed, because only step 3 was carried and alpha.3 leaves it
-carried.** Mapped from finding 11 of `docs/romm-5.3-findings.md`; no `src/` or `data/` change
+carried.** Mapped from RM-11; no `src/` or `data/` change
 came with this move beyond the regenerated DTOs, which no step's code reads.
 
 | #   | At `5.3.0-alpha.3` | Why                                                                                                                        |
@@ -131,8 +131,8 @@ came with this move beyond the regenerated DTOs, which no step's code reads.
 
 ## The move to `5.3.0-beta.1`
 
-**It adds nothing to what is owed either, and it un-touches nothing.** Mapped from finding 12 of
-`docs/romm-5.3-findings.md`. The only `src/` change in the move is the regenerated DTOs, four
+**It adds nothing to what is owed either, and it un-touches nothing.** Mapped from RM-12.
+The only `src/` change in the move is the regenerated DTOs, four
 lines, and no step's code reads either member.
 
 | #   | At `5.3.0-beta.1` | Why                                                                                                                       |
@@ -160,15 +160,15 @@ the first on this install to carry the floor it was measured against: the previo
 predated the retarget, so the record now names a client that refuses anything below `beta.1`
 rather than one that merely tolerated it.
 
-| #   | Owed for                             | Re-run result                                                     |
-| --- | ------------------------------------ | ----------------------------------------------------------------- |
-| 1   | The re-sourced alias table           | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`    |
-| 2   | The no-file-on-disk exclusion        | **Pass.** 228 of 228 resolve and nothing is excluded              |
-| 4   | The superseded-row guard             | **Pass, both directions.** A new save round-tripped byte for byte |
-| 5   | The screenshot fetch and finding 258 | **Pass, and for the first time on any row.** See below            |
-| 7   | The retired identifiers endpoint     | **Pass.** Art on screen, and the game list is unchanged           |
-| 8   | The append-only background log       | **Pass.** See below                                               |
-| 9   | Always owed on a move                | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical  |
+| #   | Owed for                         | Re-run result                                                     |
+| --- | -------------------------------- | ----------------------------------------------------------------- |
+| 1   | The re-sourced alias table       | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`    |
+| 2   | The no-file-on-disk exclusion    | **Pass.** 228 of 228 resolve and nothing is excluded              |
+| 4   | The superseded-row guard         | **Pass, both directions.** A new save round-tripped byte for byte |
+| 5   | The screenshot fetch and RB-258  | **Pass, and for the first time on any row.** See below            |
+| 7   | The retired identifiers endpoint | **Pass.** Art on screen, and the game list is unchanged           |
+| 8   | The append-only background log   | **Pass.** See below                                               |
+| 9   | Always owed on a move            | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical  |
 
 **Step 3 was not re-run and does not need to be.** All three moves carried it for the same
 reason, that `nes` requires no BIOS and no firmware code or bundled data changed, and re-running
@@ -176,13 +176,13 @@ reason, that `nes` requires no BIOS and no firmware code or bundled data changed
 
 **Step 5 is the one that changed, and it is the reason the session happened.** Every earlier
 revision of this file recorded the screenshot as not linking, first as RomM's fault and then, at
-finding 258, as RomMBat's own naming. The fix could not be believed until a state made after it
+RB-258, as RomMBat's own naming. The fix could not be believed until a state made after it
 was driven, because an unchanged state is never re-sent.
 
 ## The move to `5.3.0`
 
-**It touches step 9 and nothing else, and step 9 was re-run.** Mapped from finding 13 of
-`docs/romm-5.3-findings.md`, which is 14 upstream commits with no contract change, and from this
+**It touches step 9 and nothing else, and step 9 was re-run.** Mapped from RM-13,
+which is 14 upstream commits with no contract change, and from this
 repo's `src/` and `data/` diff across the move, which is the two version constants and comments.
 It applies to all nine rows alike, because nothing a single row exercises moved.
 
@@ -210,8 +210,8 @@ request carrying a session cookie now keeps the CSRF check, and `RomMConnection`
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -464,15 +464,15 @@ filenames match `{{romfilename}}.state{{slot}}` and its `.png` sibling exactly.
 
 **The uploaded name carries the core scope**, `Legend of Zelda, The (USA) (Rev 1)
 [libretro.nestopia].state1`, which is what stops two cores writing one filename from becoming one
-overwritten server row. Finding 134 proved that collision; this is the fix holding on a second
+overwritten server row. RB-134 proved that collision; this is the fix holding on a second
 platform.
 
 **The state comes back down as well as up**, measured in the same exercise as step 4: deleted
 from the tree and restored by `saves restore --apply` at an identical md5, into the same declared
 directory it was written from.
 
-**The screenshot did not link, which is finding 138 recurring.** It uploaded, stored against the
-ROM at the right name and size, and the state still reads `screenshot: null`. Finding 138
+**The screenshot did not link, which is RB-138 recurring.** It uploaded, stored against the
+ROM at the right name and size, and the state still reads `screenshot: null`. RB-138
 measured this at roughly a third of thirty-five attempts on `mastersystem` under
 `genesis_plus_gx`; seeing it on `nes` under `nestopia` shows it is **not specific to a platform or
 a core**. Nothing here suggests a RomMBat fault: the asset is on the server, correctly named.
@@ -495,12 +495,12 @@ alone.
 screenshot into the declared `<image>`. Not re-driven on a linked screenshot, because none exists:
 at the 5.3.0-alpha.2 floor all 9 `nes` states on the instance read `screenshot: null`, and 7 of 7
 re-uploaded ones came back unlinked. The `.srm` and `.state1` of Crystalis (USA) were deleted and
-restored byte-identically in the same pass. Findings 138 and 256 in `docs/retrobat-findings.md`.
+restored byte-identically in the same pass. RB-138 and RB-256.
 
-**Diagnosed since, and neither half was RomM's** (finding 258). RomM links a screenshot to a
+**Diagnosed since, and neither half was RomM's** (RB-258). RomM links a screenshot to a
 state by filename, and RomMBat uploaded this one as `Legend of Zelda, The (USA) (Rev 1).state1
 [libretro.nestopia].png`, which that rule can never match against the state's name. The two
-paragraphs above that call the link RomM's, and "a finding 138 recurrence", describe the cause
+paragraphs above that call the link RomM's, and "a RB-138 recurrence", describe the cause
 as it was understood when they were written. It is fixed: the image now goes up as the state's
 upload name plus `.png`. Screenshot 193 stays unlinked, because an unchanged state is not re-sent,
 so step 5 needs a state made after the fix.
@@ -513,7 +513,7 @@ RomM's model rather than of this platform.
 
 #### Driven on a state made after the fix, 2026-09-20, and it links
 
-Everything above this heading describes states uploaded before finding 258 was fixed. Three new
+Everything above this heading describes states uploaded before RB-258 was fixed. Three new
 ones were made in one EmulationStation session and they are what the step now rests on.
 
 | Slot                  | On disk                                               | Screenshot md5 |
@@ -528,7 +528,7 @@ session landed in slot 2, which was read as ES deciding it. The `libretro`/`mese
 2026-09-21 disproved that: `-state_slot 5` on the launch line, states written as `.state1` and
 `.state2`. RetroArch runs with `savestate_auto_index` on and continues from the highest slot
 already in the core's directory, and `libretro.nestopia/` already held slot 1 here, so slot 2 was
-RetroArch's pick that happened to match. Finding 261.
+RetroArch's pick that happened to match. RB-261.
 
 Slot 2 was deleted from the tree, with its `.png`, and restored:
 
@@ -545,7 +545,7 @@ restored 1 save(s) and 1 state(s), failed 0, 20.1 KB, with 1 screenshot(s)
 | `.state2`, 10,252 B    | `4e257f3b...`     | `4e257f3b...`     |
 | `.state2.png`, 2,144 B | `ecd1d57f...`     | `ecd1d57f...`     |
 
-**The screenshot was checked by its bytes, not by its arrival**, which is the check finding 258
+**The screenshot was checked by its bytes, not by its arrival**, which is the check RB-258
 makes necessary: RomM can answer a libretro slot with another slot's image, and a restore that
 merely produces a `.png` would not notice. Slots 3 and 4 were saved on the same frame and share
 one image, `d75aca69...`; slot 2's is its own. What came back is `ecd1d57f...`, so the link is to
@@ -581,7 +581,7 @@ warns a budget has to be sized for. This wave ran with the budget off, so nothin
 
 **Those coverage figures are a dated observation about this RomM library, not a platform result
 and not a RomMBat capability.** They say when this platform was last scraped and with what
-settings. Video at 94.7% here is well above the 72.1% finding 92 measured library-wide, and the
+settings. Video at 94.7% here is well above the 72.1% RB-92 measured library-wide, and the
 administrator is actively removing videos, so this number is expected to fall. An absent kind is
 the ordinary `Missing` case.
 
@@ -611,7 +611,7 @@ recording which source filled a slot on the `local_file` row. What is arguably w
 
 RomM exposes fourteen `ss_metadata` paths against the nine values the pickers offer, so the fix
 is a mapping rather than new plumbing. Whether a given library actually holds a given kind is the
-ordinary `Missing` case, per finding 239.
+ordinary `Missing` case, per RB-239.
 
 #### Re-driven at `5.3.0-beta.1`, 2026-09-20, and the video prediction came true
 
@@ -902,7 +902,7 @@ is not slot 1's on either row, so the link is to that state and not to a neighbo
 **`-state_slot` did not pick the slot**, and that corrected the `nestopia` record. `mesen` was
 launched with `-state_slot 5` and wrote slots 1 and 2, and RetroArch's log shows it choosing:
 `found_last_state_slot: #0` against the empty `libretro.mesen/`. `fceumm`'s launch carried no
-`-state_slot` at all. Finding 261.
+`-state_slot` at all. RB-261.
 
 ### 7. Launch on both
 
@@ -954,8 +954,8 @@ below, and a pin overrides the system setting. It was removed for the `quickerNE
 closed and put back afterwards. The install was left on `libretro`/`nestopia`, where it was found.
 
 **Destiny of an Emperor was picked because its BizHawk title is unique on this install.** BizHawk
-names a battery save after its own title for the game (finding 263), and a title two ROMs answer
-to is contested rather than synced (finding 262). Zelda's is unique too.
+names a battery save after its own title for the game (RB-263), and a title two ROMs answer
+to is contested rather than synced (RB-262). Zelda's is unique too.
 
 ### Checklist for both `bizhawk` rows
 
@@ -990,13 +990,13 @@ same reason.
 
 **The two cores read each other's file**, which the "BizHawk battery saves, driven" pass left
 unmeasured. `quickerNES` showed `NesHawk`'s `LINK` on Zelda's file-select screen, and the name
-registered there went into the next file slot of the same `.SaveRAM`. Finding 271.
+registered there went into the next file slot of the same `.SaveRAM`. RB-271.
 
 **The hash at the restore is not the hash the session left**, and the difference is the game's.
 The second state on each row came from a later launch that sat on the title screen, and both
 games rewrote their save on that boot: Destiny changed 4 bytes at `0x400` to `0x403` with its
 saved game intact, and Zelda changed with both names intact. Each rewrite went up as a new
-`bizhawk:battery` version, which is right, since the bytes changed. Finding 272. The restore
+`bizhawk:battery` version, which is right, since the bytes changed. RB-272. The restore
 named the newest of 3 server saves on each row and listed the two it did not restore.
 
 A `flush` after each restore reported every restored file `in step` and sent nothing.
@@ -1017,21 +1017,21 @@ a zip holding `Framebuffer.bmp` beside the core state. So the step was checked b
 state's framebuffer, confirming the two on each row show different screens, and requiring the
 restored state to match by md5, which carries the framebuffer with it. RomM holds no screenshot
 for a BizHawk state, and the restore preview says `no screenshot: the server links none to this
-state`, which is correct. Finding 268.
+state`, which is correct. RB-268.
 
 **The declared `<directory>` is where both cores' states land, and it is a mirror.** EmuHawk
 writes `emulators/bizhawk/sstates/nes/<title>.<core>.QuickSave<n>.State`, and `emulatorLauncher`
 copies it to `saves/nes/bizhawk/sstates/<core>/<rom>.QuickSave<n>.State` in the same second, with
 a `.txt` sidecar holding `<title>.<core>`. The copy is `emulatorLauncher`'s, not EmuHawk's: a
 state made in an EmuHawk opened directly never reached `saves/`, and the next launch through the
-launcher removed it from the native directory. Finding 270. Each uploaded name carries its core,
+launcher removed it from the native directory. RB-270. Each uploaded name carries its core,
 `[bizhawk.NesHawk]` and `[bizhawk.quickerNES]`.
 
 On each row both states and the `.SaveRAM` were moved out of the tree. The preview named both
 states at their own slots, `QuickSave0` and `QuickSave2` on `NesHawk`, `QuickSave5` and
 `QuickSave2` on `quickerNES`, and `--apply` answered `restored 1 save(s) and 2 state(s), failed
 0`, exit 0. **Every file came back at its own md5.** This is the first restore of a `bizhawk` state
-since finding 258 changed how a restore reads the slot out of an uploaded name, and the first on
+since RB-258 changed how a restore reads the slot out of an uploaded name, and the first on
 any emulator that keeps the slot in the stem.
 
 **The slot is ES's, the reverse of `libretro`.** The `quickerNES` launch carried `-state_slot 5`
@@ -1041,7 +1041,7 @@ in game. `Ctrl+F1` to `Ctrl+F10` on a keyboard save to a slot outright, and over
 reach EmuHawk, so the second state on each row was made from the agent's session on the RetroBat
 machine: `emulatorLauncher` started with the row's `-system`, `-emulator`, `-core` and `-rom`, and
 `Ctrl+F2` sent by `keybd_event` with hardware scan codes, since EmuHawk reads the keyboard through
-DirectInput and ignores `SendKeys`. Finding 269. Those two launches skip ES, so the hooks did not
+DirectInput and ignores `SendKeys`. RB-269. Those two launches skip ES, so the hooks did not
 run, and a `flush` by hand sent each state.
 
 ### 7. Launch on both `bizhawk` rows
@@ -1140,7 +1140,7 @@ back through `saves restore --apply` at its own md5, and a flush afterwards sent
 **mednafen's hash is of the ROM less its iNES header, measured on three ROMs**: Final Fantasy
 (`24ae5edf...`), Zelda (`d3f45393...`, on its state) and Zelda II (`88c0493f...`) each match the md5
 of the `.nes` inside the zip with its first 16 bytes left off. A restore onto a device that never
-held the file computes it from the ROM there. Finding 274.
+held the file computes it from the ROM there. RB-274.
 
 **mednafen puts the hash on only when the name without it is free.** Its own documentation says
 `%M` is "empty for first evaluation per full path construction", and the first Zelda session showed
@@ -1150,7 +1150,7 @@ file of the same `.sav`. So a plain `<rom>.sav` is one save that `mesen` and `me
 write, uploaded as `mesen:battery` whichever wrote it last, and mednafen writes the hashed name only
 for a game with no plain one, which is why the row was driven on Zelda II. A restore refuses to
 write a `mednafen:battery` save where a plain `<rom>.sav` would shadow it, rather than leave a file
-mednafen never opens. Finding 273.
+mednafen never opens. RB-273.
 
 ### 5. States on the four
 
@@ -1175,7 +1175,7 @@ restore preview says in `no screenshot: the server links none to this state`.
 slots 0, 1, 0 and 1. `jgenesis` mirrors like BizHawk, from `emulators/jgenesis/states/nes/` into
 the declared directory, with a `.txt` sidecar; the other three write straight into their own tree
 under `saves/nes/`, which the supplement names. `ares` states are a fixed 21,719 B, so only the md5
-tells two apart. Finding 275.
+tells two apart. RB-275.
 
 ### 8 and 9 on the four
 
@@ -1240,7 +1240,7 @@ uniform.
 
 `<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`, which is the
 `.nes` less its 16-byte iNES header, and mednafen adds it only when `<rom>.sav` does not already
-exist (findings 273 and 274).
+exist (RB-273 and RB-274).
 
 **The screenshot half of that column was recorded for the three `libretro` rows only, and the gap
 is not cosmetic here.** `es_savestates.cfg` declares an `<image>` for `bizhawk`
@@ -1251,8 +1251,8 @@ wrote would be in their own tree, unread for the same reason their states are. W
 decides how wide the remaining gap is, and it needs another hands-on pass. It is no longer _this
 platform's_ open gap, because the three `libretro` rows closed it on 2026-09-20 and 2026-09-21; it
 is what the other six rows owe. **Since measured on all six**: BizHawk writes the frame inside the
-state and no `.png` (finding 268), and `jgenesis`, `mesen`, `mednafen` and `ares` write no image at
-all (finding 275).
+state and no `.png` (RB-268), and `jgenesis`, `mesen`, `mednafen` and `ares` write no image at
+all (RB-275).
 
 **So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
 entry, `class A`, `provenance: observed`, evidence `loose .srm per rom, libretro`, and the evidence
@@ -1267,7 +1267,7 @@ under `nestopia`, then under `fceumm`, and the second session carried on from th
 rewrote the same 8,192 bytes. Across emulator families they are separate files in incompatible
 formats, so the same game under `mesen` standalone and under `libretro` holds two unrelated saves
 and neither sees the other. **`mesen` standalone and `mednafen` are the exception**, found later:
-mednafen reads a plain `<rom>.sav` whenever one exists, so the two share it (finding 273).
+mednafen reads a plain `<rom>.sav` whenever one exists, so the two share it (RB-273).
 
 ### What RomMBat does with them
 
@@ -1287,7 +1287,7 @@ by a battery rule in `save_rules.json`, and the three "invisible" states by the 
 
 **"Synced" was upload only for `bizhawk` and `jgenesis`.** A restore could not place either
 row's state, because both keep the slot in the stem and the restore read it from the extension.
-The restore preview listed all three as "could not tell which slot it is". Fixed with finding 258,
+The restore preview listed all three as "could not tell which slot it is". Fixed with RB-258,
 and driven since on both `bizhawk` rows and on `jgenesis`, each restoring two slots to their own
 names.
 
@@ -1313,7 +1313,7 @@ was driven under `nestopia` and under `mesen` standalone. **#151 replaced the tw
 two rules could claim one file, so `mesen` and `mednafen` each need a rule of their own and can no
 longer be carried by accident. **Both have one since**, and the two share `.sav` at the loose
 level only because mednafen's rule names a content hash on the stem, which the loader allows for
-exactly one of a pair (finding 273).
+exactly one of a pair (RB-273).
 
 The battery column is a **reported** limitation and the right behaviour for this release. Nothing
 is dropped silently. The pass that drove these nine rows read one `saves` row covering all five
@@ -1361,7 +1361,7 @@ Two smaller findings from the same pass:
 
 Driven from EmulationStation on 2026-09-21 against the build carrying #151, with the maintainer
 at the controller. **This is the one hands-on pass a save-logic change owes, not a certification
-of either `bizhawk` row**: steps other than the battery save were not re-run. Findings 262 to 266.
+of either `bizhawk` row**: steps other than the battery save were not re-run. RB-262 to RB-266.
 
 | Pass                                               | What happened                                                                                                                                                                                                      |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1374,13 +1374,13 @@ of either `bizhawk` row**: steps other than the battery save were not re-run. Fi
 | Europe copy of a game already saved in the USA one | **One file for both**: the Europe copy read the USA progress and wrote a new character into `StarTropics.SaveRAM`. Contested, nothing uploaded; `saves bind` settled it to USA and a restore put the USA save back |
 
 Three defects surfaced here that the suite had not caught, and each now has a test: a slot this
-device had already sent restored to the ROM's stem rather than the title (finding 266), a restored
+device had already sent restored to the ROM's stem rather than the title (RB-266), a restored
 file was credited to whichever BizHawk session came last and contested (265), and BizHawk's
 `.SaveRAM.bak` was reported as an unknown shape (264).
 
 **Since measured**: `NesHawk` and `quickerNES` read each other's `.SaveRAM`. Zelda's file,
 registered under `NesHawk`, showed on the file-select screen under `quickerNES`, which wrote a
-second name beside it (finding 271, in "`bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`").
+second name beside it (RB-271, in "`bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`").
 
 ### The hooks carried the whole session
 
@@ -1480,8 +1480,8 @@ speak to; the class C recording is read from the code and from the 7b-3 measurem
 the recorded save id to recognise a superseded row returning to the head of a slot. What is above
 is the behaviour this pass measured before the fix. Driven after it on this row, with
 `Destiny of an Emperor (USA)`: keep-server left `save_slot` naming the save it took, and a plain
-download moved it to the newer save. Recorded in finding 4 of
-[romm-5.3-findings.md](../romm-5.3-findings.md); it is not a re-run of any certification step.
+download moved it to the newer save. Recorded in RM-4;
+it is not a re-run of any certification step.
 
 **A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
 copy is still there with no decision to attach to it and no mechanism that will remove it. Since
@@ -1529,7 +1529,7 @@ On Final Fantasy (USA), rom 158331, on `R:\RetroBat` (RetroBat 8.2.1, RomM `5.3.
 2026-09-21), running PR #215's build after its review round. It re-runs no certification step.
 The `mednafen:battery` slot was in step at `Final Fantasy (USA).24ae5edf....sav` (md5 `597b2790`,
 save 369). The other device was a slotted upload with no `device_id`, and the plain file was a
-byte copy of the hashed one, standing in for what mesen standalone writes (finding 273).
+byte copy of the hashed one, standing in for what mesen standalone writes (RB-273).
 
 | Step                                                  | Result                                                                                                      |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -1545,7 +1545,7 @@ recorded path straight through: the unit test for this case received the downloa
 ## RomM's browser player, driven at `5.3.0-alpha.3`
 
 On `libretro`/`nestopia` with The Legend of Zelda (USA) (Rev 1), rom 158633, the maintainer in
-RomM's v2 player and at EmulationStation. Finding 259 in `docs/retrobat-findings.md` has the
+RomM's v2 player and at EmulationStation. RB-259 has the
 detail; it re-runs no checklist step.
 
 | Session                                      | What reached RetroBat                                                                            |
@@ -1560,7 +1560,7 @@ from the copy aside and is the current `libretro:battery` version again.
 
 **Row 2's re-upload does not reproduce at `5.3.0-beta.1` or `5.3.0`**, and the table is left as it
 was measured on `5.3.0-alpha.3`. Probe case M4 answers `no_op (Content is identical)` there, so
-the hash settles it server-side; finding 259 carries the re-check. #210 guards the client side
+the hash settles it server-side; RB-259 carries the re-check. #210 guards the client side
 anyway, because the loop it would prevent is silent.
 
 ## What this file will not claim

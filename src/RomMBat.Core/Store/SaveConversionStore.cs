@@ -48,7 +48,7 @@ public sealed record SaveConversion
 /// <c>es_settings.cfg</c> later cannot recover it, and M6 stage 2c measured why in both
 /// directions: ES prunes a setting equal to its own default, so absence is not evidence of a
 /// revert, and ES also adds keys on its own, so presence is not evidence of the user's intent.
-/// See <c>docs/retrobat-findings.md</c>, 170.
+/// See RB-170.
 /// </remarks>
 public sealed class SaveConversionStore
 {

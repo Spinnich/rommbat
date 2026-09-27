@@ -124,7 +124,7 @@ public class SaveSyncTests
     [Fact]
     public async Task An_upload_of_bytes_the_server_already_holds_is_not_sent_again()
     {
-        // The other half of #206, finding 259, and a guard rather than a live fix. Nestopia
+        // The other half of #206, RB-259, and a guard rather than a live fix. Nestopia
         // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
         // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
         // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
@@ -1496,7 +1496,7 @@ public class SaveSyncTests
         // save_conflict.local_path is NOT NULL and CHECKs for a non-blank value, so recording a
         // conflict with no local save behind it raised SQLITE_CONSTRAINT_CHECK out of the flush,
         // taking the states pass down with it. The constraint is what keeps this safe, not
-        // negotiate's silence: measurement 151 withdrew 132 and showed negotiate does volunteer
+        // negotiate's silence: RB-151 withdrew 132 and showed negotiate does volunteer
         // slots the client never submitted, so the case is reachable and stays a guard and a
         // reported problem.
         using var fixture = SyncFixture.Create();
@@ -3006,7 +3006,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_restored_save_whose_slot_and_emulator_are_blank_still_gets_a_row()
     {
-        // Finding 245 closed the null case; the CHECKs behind it refuse the empty string and
+        // RB-245 closed the null case; the CHECKs behind it refuse the empty string and
         // whitespace the same way, and SaveScanner.SlotFor throws on a blank emulator before a
         // CHECK is even reached. Both reach this path now that a restore covers any installed
         // ROM rather than only this device's own uploads, so the values are another client's.

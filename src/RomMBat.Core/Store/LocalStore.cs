@@ -29,7 +29,7 @@ public sealed class LocalStore : IDisposable
 {
     /// <summary>How long to wait for another process holding the write lock.</summary>
     /// <remarks>
-    /// ES spawns hooks fire-and-forget and they run concurrently; M0 probe 1 observed three
+    /// ES spawns hooks fire-and-forget and they run concurrently; RB-347 observed three
     /// <c>game-end</c> hooks in flight at once. Contention is the normal case here.
     /// </remarks>
     private static readonly TimeSpan BusyTimeout = TimeSpan.FromSeconds(5);

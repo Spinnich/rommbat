@@ -46,27 +46,27 @@ changes with it; a row in this family on another system needs its own entry from
 plus a battery rule, before it can pass steps 4 and 5.
 
 **Find each emulator's slot keys before sitting down.** The pad's save key saves to the current
-slot, and only `bizhawk` takes ES's `-state_slot` as that slot (finding 269). `jgenesis`, `mesen`,
+slot, and only `bizhawk` takes ES's `-state_slot` as that slot (RB-269). `jgenesis`, `mesen`,
 `mednafen` and `ares` all step the slot on `F7` and save on `F2` with no modifier, which the agent
-can send locally through `emulatorLauncher` when RDP eats them (finding 275). The keys are in
+can send locally through `emulatorLauncher` when RDP eats them (RB-275). The keys are in
 `es_padtokey.cfg` or the emulator's own config (`mednafen.cfg`, Mesen's `settings.json`). Kega
 Fusion saves on `F5` and steps the slot down on `F7`, has no pad-to-key file, and needs its
-controls remapped in its own menu before the pad plays (finding 284). On the maintainer's
+controls remapped in its own menu before the pad plays (RB-284). On the maintainer's
 RetroBat machine a Logitech LIGHTSPEED receiver takes DirectInput index 0, so every
 DirectInput-indexed generator (Kega, mednafen, Snes9x, Mesen, PCSX2 and others) binds player 1
-one pad too high until the floor carries emulatorlauncher#1376's fix (`docs/upstream-issues.md`).
+one pad too high until the floor carries emulatorlauncher#1376's fix (`docs/upstream/issues.md`).
 A pad that does nothing there is that, not a failed row. **When a key's effect cannot be seen,
 take a screenshot of the screen from the agent's session** rather than sending keys blind: a
 blind Start on a title screen is as likely to land during a fade as on the menu.
 
-The libretro family is the one that most needs driving rather than assumed: finding 134 measured
+The libretro family is the one that most needs driving rather than assumed: RB-134 measured
 two cores writing an identical `state1` filename, which survived as two server rows only because
 the uploaded name carries the core.
 
 **Name how the row was selected, every time**, and confirm what ran from
 `emulationstation/emulatorLauncher.log` rather than from configuration. A row driven under an
 `es_settings.cfg` override is not the row a stock install gives a user. Never read
-`retroarch.cfg` for this: finding 217 measured that it describes only the last game launched.
+`retroarch.cfg` for this: RB-217 measured that it describes only the last game launched.
 
 **`<extension>` belongs to the system, not the row.** It is a union across every emulator, and
 RetroBat publishes no per-`(emulator, core)` extension data anywhere, so record what the

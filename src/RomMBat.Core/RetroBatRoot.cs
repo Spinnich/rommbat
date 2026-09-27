@@ -8,7 +8,7 @@ namespace RomMBat.Core;
 /// </summary>
 /// <remarks>
 /// Walking up from <see cref="AppContext.BaseDirectory"/> is the primary path and works on
-/// both portable and fixed installs; M0 probe 7 exercised it across two machines and three
+/// both portable and fixed installs; RB-391 exercised it across two machines and three
 /// drive letters. The registry lookup is a genuine last resort and is deliberately last:
 /// <c>HKCU\Software\RetroBat\LatestKnownInstallPath</c> records where an install was
 /// <i>last seen</i>, so on a portable drive it is stale the moment the letter changes.
@@ -62,7 +62,7 @@ public static class RetroBatRoot
             return new RetroBatInstall(fromExecutable, RootDiscoverySource.ExecutableDirectory);
         }
 
-        // The launched process gets its own directory as CWD (M0 probe 4), so this rarely
+        // The launched process gets its own directory as CWD (RB-384), so this rarely
         // adds anything, but it covers being run from inside the tree by hand.
         var fromWorkingDirectory = WalkUp(Directory.GetCurrentDirectory());
         if (fromWorkingDirectory is not null)

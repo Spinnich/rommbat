@@ -76,7 +76,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    measurement.** `psx` was first (`docs/platforms/psx.md`): drive every row on a set held as one
    RomM rom, confirm what ES lists for the layout with `/systems/<system>/games` and a screenshot,
    and record which rows read the playlist. A row that cannot is recorded, not waited on: RetroBat's
-   launcher hands both BizHawk `psx` cores disc 1 whatever the layout (finding 314). Test on a set
+   launcher hands both BizHawk `psx` cores disc 1 whatever the layout (RB-314). Test on a set
    held as **one rom per release**, since that is the layout RomMBat designs for; a library holding
    each disc as its own rom has nothing multi-file to unlock, and regrouping one set in RomM is the
    fix, as it was for `psx`.
@@ -110,14 +110,14 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    **Boot every row with the whole family's firmware out, not just the system's list.** A row can
    read a file RetroBat lists under a sibling system: on `gb`, `bsnes` needs `sgb`'s `SGB1.sfc`
    and `GBHawk` needs `gbc`'s boot ROM for a Color-flagged cartridge, and neither was on `gb`'s
-   list (finding 293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
+   list (RB-293). Such a file goes into `tools/build-bios-manifest.py`'s supplement for the
    system, copied from the sibling's entry, so `bios <system>` fetches it.
 
    **Expect the list to cover the default emulator only.** By the RetroBat team's account, relayed
    by the maintainer on 2026-09-24, that is by design. So a row RetroBat does not run by default
    can need a file no list names, and the supplement has nothing to copy. On `snes` the default,
    `libretro`/`snes9x`, runs a DSP-1 cartridge without firmware and the list is empty, while
-   `mesen-s`, Mesen and jgenesis refuse one without `dsp1b.rom` (finding 317). Record where each
+   `mesen-s`, Mesen and jgenesis refuse one without `dsp1b.rom` (RB-317). Record where each
    such row reads the file, since it need not be `bios\`: Mesen reads its own `Firmware\` folder
    and jgenesis a config key RetroBat never sets.
 
@@ -135,11 +135,11 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    `emulatorlauncher#1336`; on the supported floor its declared `flycast/sstates` is
    populated and is the one to read, so confirm it rather than expecting it to be empty.
 
-   **Drive a state made after finding 258's fix, never one uploaded before it.** RomM links a
+   **Drive a state made after RB-258's fix, never one uploaded before it.** RomM links a
    screenshot by filename, and RomMBat named it so that no libretro-shaped state ever linked,
    while its restore could not place a state for any emulator that keeps the slot in the stem.
    Between them no row could pass step 5 until 2026-09-20, and both were RomMBat's
-   (`docs/retrobat-findings.md` findings 138, 256 and 258). An unchanged state is never re-sent,
+   (RB-138, RB-256 and RB-258). An unchanged state is never re-sent,
    so an older one stays unlinked. A null link on a fresh state is a new finding, not a
    recurrence of an old one.
 
@@ -159,19 +159,19 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    **Under `libretro` the state slot is RetroArch's, not EmulationStation's.** RetroArch runs with
    `savestate_auto_index` on and continues from the highest slot already in the core's state
    directory, so `-state_slot <n>` on the `emulatorLauncher.log` line does not decide the suffix:
-   `mesen` was launched with `-state_slot 5` and wrote slots 1 and 2 (finding 261). Read the slot
+   `mesen` was launched with `-state_slot 5` and wrote slots 1 and 2 (RB-261). Read the slot
    from the `Saving state` lines in `es_launch_stdout.log`, or from the file on disk.
 
    **Under `bizhawk` it is the other way round, and the screenshot is inside the state.** ES's
    `-state_slot` becomes EmuHawk's current slot and the pad's save key always writes there, so a
-   second slot needs a keyboard: `Ctrl+F1` to `Ctrl+F10` save to a slot outright (finding 269).
+   second slot needs a keyboard: `Ctrl+F1` to `Ctrl+F10` save to a slot outright (RB-269).
    Those keys do not cross RDP. From a session on the RetroBat machine, start `emulatorLauncher`
    with the row's `-system`, `-emulator`, `-core` and `-rom` and send the key with `keybd_event`
    and its hardware scan code, because EmuHawk reads DirectInput and ignores `SendKeys`. Never
    start EmuHawk directly: `emulatorLauncher` does the mirror into `saves/`, and a state made
-   without it is removed at the next launch (finding 270). BizHawk writes no `.png` at all, whatever
+   without it is removed at the next launch (RB-270). BizHawk writes no `.png` at all, whatever
    `es_savestates.cfg` declares. The frame is `Framebuffer.bmp` inside the `.State` zip, so open it
-   to check the two slots differ, and an md5-equal restore of the state carries it (finding 268).
+   to check the two slots differ, and an md5-equal restore of the state carries it (RB-268).
 
    **Check the game's `<emulator>` in `gamelist.xml` before driving a row on it.** A per-game pin
    overrides `<system>.emulator` and leaves no trace in `es_settings.cfg`, and on the `nes` install
@@ -219,8 +219,8 @@ carry it forward by itself.** Nor does it void it. The PR that moves a floor owe
 `docs/platforms/` a mapping of the move onto the nine steps, and the re-run of the steps it touches:
 
 - **A step is touched** when the move changes code or bundled data that step exercises (the
-  diff since the previous floor under `src/` and `data/`), or when the findings doc for the
-  adoption records an upstream change on its path. A changelog line nobody measured counts as
+  diff since the previous floor under `src/` and `data/`), or when a fact in `docs/upstream/`
+  records the adoption's upstream change on its path. A changelog line nobody measured counts as
   touching, because the point is to find out.
 - **Step 9 is always touched.** It is the cheapest step and the one that catches a change nobody
   mapped: new fields on a row show up as gamelist churn or a re-download.

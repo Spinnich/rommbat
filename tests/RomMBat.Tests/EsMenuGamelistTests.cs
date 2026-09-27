@@ -17,7 +17,7 @@ namespace RomMBat.Tests;
 /// whenever it has a reason to, so a field RomMBat mangles is one ES would rewrite anyway.
 /// This file it leaves alone: measured across three sessions, the last of which had the change
 /// in ES's model and still left the md5 and the mtime untouched. So whatever RomMBat writes
-/// here is what the user keeps. See <c>docs/retrobat-findings.md</c>, 205 and 207.
+/// here is what the user keeps. See RB-205 and RB-207.
 /// </para>
 /// </remarks>
 public sealed class EsMenuGamelistTests

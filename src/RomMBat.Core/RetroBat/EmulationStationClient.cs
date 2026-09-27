@@ -37,7 +37,7 @@ public sealed record EsReportedSystem
 /// <para>
 /// <b>The connect timeout is the whole reason this class exists rather than a reused
 /// client.</b> A refused connection on loopback takes <b>2.04 s</b> on Windows, measured five
-/// times over raw TCP and three over HttpClient, which is the same figure M0 probe 6b
+/// times over raw TCP and three over HttpClient, which is the same figure RB-353
 /// recorded for a closed port. The project's 2 s interactive budget would therefore fire at
 /// almost exactly the moment the OS gave up anyway and save nothing. ES answers in 1-2 ms
 /// when it is there, so a far shorter budget costs nothing and turns 2 s of dead time per

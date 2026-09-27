@@ -147,7 +147,7 @@ public sealed record ScopeValues(IReadOnlyList<ScopeValueOption> Options, string
 /// three collection kinds, the editor had no row to set a value, and the only thing the screen
 /// could say was that a value was needed.
 /// <para>
-/// <b>Listing collections is expensive and is only ever for naming.</b> M0 probe 5 measured a
+/// <b>Listing collections is expensive and is only ever for naming.</b> RB-355 measured a
 /// single collection at 714.8 KB, 99% of it inlined cover-art paths, with no pagination. One
 /// call when a picker opens is a fair price; reading membership off <c>rom_ids</c> is not, and
 /// never happens: a set resolves by paging <c>GET /api/roms</c> like every other scope.
@@ -299,7 +299,7 @@ public sealed class CatalogScopeService
     /// it.</b> Nine come from the sidecar. <c>statuses</c> and <c>metadata_providers</c> are
     /// hardcoded below because the sidecar does not report them, and the two keys it does
     /// report that no query parameter accepts, <c>game_modes</c> and <c>platforms</c>, are
-    /// dropped. Finding 237.
+    /// dropped. RB-237.
     /// </para>
     /// <para>
     /// This returned six until the last commit of stage 7b-2a, on the reasoning that they were
@@ -371,7 +371,7 @@ public sealed class CatalogScopeService
     /// makes a wrong entry here worse than a missing one: the user picks a provider and is
     /// handed the whole library. So these were probed one at a time against a live 5.2.0
     /// instance, where a recognised value narrows the total and an unrecognised one leaves it
-    /// alone. Finding 236.
+    /// alone. RB-236.
     /// <para>
     /// Deriving them from <c>SimpleRomSchema</c>'s <c>*_id</c> fields would have been wrong:
     /// <c>sgdb</c> is one of those and the filter ignores it.

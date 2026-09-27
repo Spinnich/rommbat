@@ -119,7 +119,7 @@ public sealed record RomRow
     /// with an empty extension, a folder name for its <c>fs_name</c>, and this flag false,
     /// found on a real library and reproduced on 5.3.0-alpha.2 by moving a lone <c>.zip</c> into
     /// a new subfolder. So the flag is read and the extension is never inferred from, because
-    /// only the flag states the fact. See <c>docs/retrobat-findings.md</c> finding 82.
+    /// only the flag states the fact. See RB-82.
     /// </para>
     /// </remarks>
     [JsonPropertyName("has_multiple_files")]
@@ -414,7 +414,7 @@ public sealed record RomPage
     /// How many rows the query matches in total.
     /// </summary>
     /// <remarks>
-    /// The only one of the four default-on flags kept on. M0 probe 5 measured it at zero
+    /// The only one of the four default-on flags kept on. RB-354 measured it at zero
     /// bytes (it is an integer, while the other three cost a flat 841 KB per request), and it
     /// is what lets an interrupted walk report progress and know when it is finished.
     /// <para>

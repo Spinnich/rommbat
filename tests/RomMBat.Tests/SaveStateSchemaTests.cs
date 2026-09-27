@@ -377,7 +377,7 @@ public class SaveStateSchemaTests
     [Fact]
     public void A_bigpemu_name_that_misses_only_on_slot_width_is_reported_rather_than_dropped()
     {
-        // #34. Measurement 166 drove six real states and found the mirror RetroBat writes under
+        // #34. RB-166 drove six real states and found the mirror RetroBat writes under
         // saves/ is two-digit, so {{slot2d}} is right and this case is not the routine one #34
         // assumed. It is still the case past slot 99, which nothing has reached, and a name that
         // matches everything except the slot's width is not a sidecar or a screenshot.

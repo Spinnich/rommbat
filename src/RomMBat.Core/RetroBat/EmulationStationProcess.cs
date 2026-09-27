@@ -27,7 +27,7 @@ public sealed record EsRunningVerdict(bool IsRunning, string? Detail)
 /// install: two custom keys were merged in atomically, confirmed on disk, and gone after ES's
 /// next write. ES loads the file at startup and serialises that model every time it writes, so
 /// a key present at load survives and one that appears afterwards does not. Merging and
-/// atomicity do not help; both were done. See <c>docs/retrobat-findings.md</c>, 178 and 179.
+/// atomicity do not help; both were done. See RB-178 and RB-179.
 /// <para>
 /// <b>Matched on the executable's path, not on the process name.</b> Two RetroBat installs can
 /// sit on one machine, and ES running out of the other one has no bearing on this install's
@@ -62,7 +62,7 @@ public static class EmulationStationProcess
     /// roughly 400 times the observed cost, which is deliberate. The budget is not sized for
     /// the ordinary case, which is over before the second poll; it is sized for a shutdown
     /// that has stalled on something, where the right answer is still to wait a while before
-    /// concluding ES is not going to exit. See <c>docs/retrobat-findings.md</c>, 201.
+    /// concluding ES is not going to exit. See RB-201.
     /// </remarks>
     public static TimeSpan DefaultExitBudget => TimeSpan.FromSeconds(30);
 
@@ -128,7 +128,7 @@ public static class EmulationStationProcess
     /// <b>The quit hook fires while ES is still alive.</b> Timed across three sessions: ES
     /// writes <c>es_settings.cfg</c> 175 to 325 ms after the quit was asked for, fires the hook
     /// 200 to 630 ms after that write, and exits 48 to 68 ms later. So a hook-spawned pass that
-    /// wrote the file immediately would be writing inside the window finding 178 measured, where
+    /// wrote the file immediately would be writing inside the window RB-178 measured, where
     /// ES discards what it finds. Polling the process is what closes that window, and it is
     /// cheap.
     /// <para>

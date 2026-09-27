@@ -7,7 +7,7 @@ namespace RomM.Client.Catalog;
 /// <remarks>
 /// <b>Five of the six resolve the same way</b>, by paging <c>GET /api/roms</c> with the scope
 /// as a query parameter. None of them reads membership off a collection payload: <c>rom_ids</c>
-/// is a full set on every collection response, and M0 probe 5 measured one collection at 715 KB
+/// is a full set on every collection response, and RB-355 measured one collection at 715 KB
 /// with no pagination available.
 /// <para>
 /// <b><see cref="Picked"/> is the exception and cannot be paged at all.</b> The endpoint has no
@@ -365,7 +365,7 @@ public sealed record CatalogQuery
     /// <summary>Builds the query string for one page.</summary>
     /// <param name="withFilterValues">
     /// Turns the filter-value sidecar back on. Used once per session by the filter picker and
-    /// never while paging: M0 probe 5 measured the sidecars at a flat 841 KB resent on every
+    /// never while paging: RB-354 measured the sidecars at a flat 841 KB resent on every
     /// request, 65% of the body at the default page size.
     /// </param>
     /// <exception cref="InvalidOperationException">
@@ -392,7 +392,7 @@ public sealed record CatalogQuery
 
             // Off under every scope too. Every id the scope matches, resent on every page: 63 KiB
             // a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, at
-            // no latency cost on 5.3.0-alpha.2 (romm-5.3-findings, finding 9, probe R2). On
+            // no latency cost on 5.3.0-alpha.2 (RM-9, probe R2). On
             // 5.2.0 a scoped page was 3.4 to 3.7 times slower without it (romm-api skill).
             new("with_rom_id_index", "false"),
             new("with_filter_values", withFilterValues ? "true" : "false"),
@@ -400,7 +400,7 @@ public sealed record CatalogQuery
             // Kept on: it is the only way a resumable walk knows how far it has left to go. With
             // the index off it is a separate count rather than the index's length: inside the
             // noise of a scoped page and about 130 ms unscoped on 5.3.0-alpha.2
-            // (romm-5.3-findings, finding 9). Load-bearing since RomM 5.2.0, which made the
+            // (RM-9). Load-bearing since RomM 5.2.0, which made the
             // response's `total` nullable: the server returns null when neither this nor
             // with_rom_id_index is set, and RomPage.Total is a non-nullable int, so turning
             // this off to save bytes throws on deserialisation rather than degrading.

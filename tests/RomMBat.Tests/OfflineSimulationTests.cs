@@ -243,7 +243,7 @@ public class OfflineSimulationTests
     [Fact]
     public async Task Re_pairing_after_a_move_keeps_the_same_identifier()
     {
-        // M0 probe 7 moved a stick between two machines under different Windows users. The
+        // RB-391 moved a stick between two machines under different Windows users. The
         // identity has to follow the drive, so the device list must not grow a second row.
         using var original = TempRetroBatTree.Create();
         var firstIdentifier = DeviceIdentity.ReadOrCreate(original.Install());

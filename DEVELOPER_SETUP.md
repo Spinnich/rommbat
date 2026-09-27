@@ -711,8 +711,8 @@ version is compared.
 
 **RomMBat tracks the newest RetroBat and RomM stable, or a prerelease ahead of it, rather than
 supporting a wide range**, so expect the floor to move. When it does, the work is: re-run `reference/refresh.sh` and
-resolve the drift, read the upstream changelog for anything touching a rule in
-`docs/retrobat-findings.md`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
+resolve the drift, read the upstream changelog for anything touching a fact in
+`docs/upstream/`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
 `RetroBatRoot.MinimumVersion` and the README compatibility row together, and re-check the
 open upstream issues. The reasoning is in `docs/design/version-compatibility.md`.
 
@@ -793,14 +793,14 @@ gone stale. Regenerating is left to you, because the diff is the point.
 ## 6. Where things live at runtime
 
 Everything RomMBat owns lives inside the RetroBat tree. Nothing goes to `%APPDATA%`, the
-registry, a service or a scheduled task. **M0 probe 4 settled the subdirectory and it is
+registry, a service or a scheduled task. **RB-384 settled the subdirectory and it is
 not a free choice**: a `.menu` entry resolves its executable under `emulators\` and
 `emulatorLauncher` refuses `..\` escapes, so anything launched from the ES menu must live
 there.
 
 ```text
 <RetroBat root>/
-  emulators/rommbat/      forced by the .menu path rules, see retrobat-findings.md probe 4
+  emulators/rommbat/      forced by the .menu path rules, see RB-384
     rommbat-agent.exe     the seven installed files start here
     RomMBat.exe
     rommbat-hook.exe      the source hooks install copies into each event folder

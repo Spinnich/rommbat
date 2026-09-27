@@ -16,7 +16,7 @@ written with the current time, so it always wins; that direction is safe. But a 
 `Card A` with nothing beside it is copied **back out**, so a save RomMBat removed reappears
 holding whatever `Card A` captured at some earlier launch. Driven on hardware: deleting the
 region-root file and launching restored the _previous_ session's bytes, and the only trace was
-`[INFO] GameCube saves have been synced.` Findings 190 and 191.
+`[INFO] GameCube saves have been synced.` RB-190 and RB-191.
 
 `Card A` is invisible to class C discovery, and that is correct rather than a bug:
 `SaveUnitScanner` enumerates one level, so it can neither double-count the copies nor be fooled
@@ -193,20 +193,20 @@ so exclude it or rewrite it on restore.
 ## Other writers on the same slots
 
 RomM 5.3.0 adds two writers to the saves this protocol was measured against, and a third route
-that looks like save transport and is not. Finding 3 and 4 of
-[romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) hold the evidence; these are the rules.
+that looks like save transport and is not. RM-3 and RM-4
+hold the evidence; these are the rules.
 
 **`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
 the id, the tagged `file_name` and the slot, changes `content_hash`, moves `updated_at`, and runs
 no 409 check, no dedup and no device check. At 5.3.0-alpha.2 RomM's browser player sent it for
 whichever save it loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every
-save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not measured; finding 11
-of `romm-5.3-findings.md`): a session's first write `POST`s a new version with `overwrite=true`
+save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not measured; RM-11):
+a session's first write `POST`s a new version with `overwrite=true`
 into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
 this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
 its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
 **Still true at the `5.3.1` floor**, re-read at `beta.1` because the writer was rewritten around
-it (finding 12), and untouched from `beta.1` through `5.3.1` (findings 13 and 14): `preferredSlot` is byte-identical and still prefers the newest slotted save over
+it (RM-12), and untouched from `beta.1` through `5.3.1` (RM-13 and RM-14): `preferredSlot` is byte-identical and still prefers the newest slotted save over
 `autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
 with no slotted save and not one this client syncs. What is new is a screenshot on every save
 version, which is inert here because only states carry one on this side. So
@@ -248,7 +248,7 @@ oldest server copies. The local file survives and is never re-sent, because "in 
 from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
 
 **The browser writes states as new rows, and only a same-named manual upload rewrites one this
-client holds** (#190, read at 5.3.0-alpha.2, finding 4). The player posts
+client holds** (#190, read at 5.3.0-alpha.2, RM-4). The player posts
 `<rom> [<timestamp>].state` under the EJS core, and `auto_save_sync` does not touch states. The
 console view posts `state.save` under `emulatorjs` every time, so the upsert rewrites one row per
 ROM, but that name can never equal this client's `<stem> [<emulator>[.<core>]]<ext>`, and restore
@@ -261,7 +261,7 @@ strength of this; no player write reaches it.
 it uploads the JSON literal when it has no save to send, md5 `37a6259cc0c1dae299a7866489dff0bd`,
 and the server keeps it in `autosave`, in a slotted row, or in none. Placed as a battery save it
 replaces a real one with a file no emulator loads, which this client did on `megadrive` and twice on
-`nes` (finding 276 of `retrobat-findings.md`). **`SaveSync.DownloadAsync` refuses it**, by the
+`nes` (RB-276). **`SaveSync.DownloadAsync` refuses it**, by the
 server's hash before the transfer and by the bytes after, and never acknowledges it, so the server
 keeps offering it. Count it as `Rejected`, never as `Failed`: nothing on the device can fix it, so
 a failure would exit `Partial` on every flush until someone deletes the row in RomM. The restore

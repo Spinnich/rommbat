@@ -65,7 +65,7 @@ public sealed record JournalEntry(
 /// belongs to the flush. CLAUDE.md rule 4 makes this a rule rather than a preference.
 /// <para>
 /// <b>Concurrency is the normal case.</b> ES spawns event scripts fire-and-forget, and M0
-/// probe 1 caught three <c>game-end</c> hooks in flight at once, interleaving writes to one
+/// RB-347 caught three <c>game-end</c> hooks in flight at once, interleaving writes to one
 /// file. That is why the journal is a SQLite table and not a text log: a line-oriented file
 /// gives no cross-process atomicity, and a record split by another process's write is
 /// unrecoverable. <see cref="LocalStore"/> opens with WAL and a five-second busy timeout, so

@@ -22,8 +22,8 @@ and the upstream reports it drafted.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -169,7 +169,7 @@ flag.
 
 **By the maintainer's ruling, `bios gb` fetches all five**, through a supplement in
 `tools/build-bios-manifest.py` that copies each entry from RetroBat's own list for its system and
-fails the build if RetroBat drops it there or adds it to `gb` itself. Finding 293.
+fails the build if RetroBat drops it there or adds it to `gb` itself. RB-293.
 
 ## What the boot launches wrote
 
@@ -194,8 +194,8 @@ before a flush could send it.
 
 **A boot write on `gb` is not recognisably blank.** On `gba` every one was uniform `0xFF`. Here
 Mesen randomises uninitialised RAM, and Pokemon's first generation decompresses sprites through
-cartridge RAM, so a boot can leave real-looking bytes. Finding 287 already says only a baseline
-separates a boot write from a save; `gb` shows a fill test would not even be a heuristic. Finding 294.
+cartridge RAM, so a boot can leave real-looking bytes. RB-287 already says only a baseline
+separates a boot write from a save; `gb` shows a fill test would not even be a heuristic. RB-294.
 
 ## The six `libretro` rows
 
@@ -238,7 +238,7 @@ from slot 1's. The first preview listed an older save on the server, save 191 fr
 written by another client, and left it alone.
 
 **The declared `<directory>` is where every core wrote**, `saves/gb/libretro.<core>/`. ES passed
-`-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as finding 261
+`-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as RB-261
 says.
 
 **`bsnes` keeps the save itself.** RetroArch logged `Content loading skipped. Implementation will
@@ -291,7 +291,7 @@ cartridge `gambatte` writes one too, and it syncs as `libretro:battery:rtc` (bel
 Every file is 32,768 B, the cartridge's RAM with nothing appended. **Mesen writes the loose `.srm`
 the `libretro` cores share**, so it needed no rule and uploads as `libretro:battery`; its round trip
 was run on the file it left, `4a8163a7...`. **mednafen read and saved into mGBA's plain `.sav`**
-rather than its hashed name, which it writes only when no plain one is there (finding 273), so the
+rather than its hashed name, which it writes only when no plain one is there (RB-273), so the
 two share `mgba:battery` as on `gba`. **BizHawk's three cores share one file named after BizHawk's
 own title**, `Pokemon - Yellow Version (USA, Europe)`, where on `gba` its title matched the ROM file;
 the state sidecar says so, and the `.SaveRAM.bak` beside it is BizHawk's copy of the previous save.
@@ -375,7 +375,7 @@ as `libretro:battery:rtc`, and the session, 19:55:42Z to 19:57:42Z, is on the se
 own md5. Relaunched, the game showed the clock about five minutes on, the time since the save, and
 Continue loaded it. That launch saved nothing, left the `.rtc` unchanged and changed the `.srm` in
 335 bytes, 334 of them in the first 8 KB bank, which Pokemon uses as scratch, so it went up as a new
-version. Both sets then re-synced as a clean no-op. Finding 298.
+version. Both sets then re-synced as a clean no-op. RB-298.
 
 **`jgenesis` names its directory from the file inside the zip**: `jgenesis/gbc/` for Silver's
 `.gbc`, `jgenesis/gb/` for Yellow's `.gb`. The `gb` rule reads `jgenesis/gb/` only, and the loader
@@ -387,7 +387,7 @@ gap, and `jgenesis/gb/` has not been seen to hold one.
 
 **ares's clock on `gb` is its own slot, `ares:battery:rtc`**, added by the `gbc` pass after a copy of
 Silver under `ares`/`GameBoy` wrote `ares/Game Boy/<rom>.rtc` beside the `.ram`; the `.ram` keeps
-`ares:battery` (`gbc.md`, finding 302).
+`ares:battery` (`gbc.md`, RB-302).
 
 ## What the pass turned up that is not a row
 
@@ -395,7 +395,7 @@ Silver under `ares`/`GameBoy` wrote `ares/Game Boy/<rom>.rtc` beside the `.ram`;
   `DoubleCherryGB` and `sameboy` write `<rom>.rtc` for every game, 4 B of Unix time for the first two
   and 32 B for `sameboy`, which read the 4 B form without complaint. It is still a save, for the
   clock cartridge above, so on Yellow those cores upload a few bytes of new version per launch.
-  Finding 295.
+  RB-295.
 - **The first flush after the sync pulled down a save.** The `start` pass that ran before the first
   launch wrote `Super Mario Land 2 - 6 Golden Coins (USA, Europe) (Rev 2).srm`, 8,192 B, the server's
   save for a game the sync had just placed, written by another client. That is RomMBat's download

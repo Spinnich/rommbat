@@ -442,9 +442,9 @@ public sealed class ContentPlanner
         // either on every sync would be worse than trusting a file of exactly the right length.
         //
         // There is no sha1 arm because sha1 is a second number the same server published rather
-        // than an independent check, and finding 180 measured it being simply wrong on two ps2
+        // than an independent check, and RB-180 measured it being simply wrong on two ps2
         // rows. How many rows reach this path is unsettled, and #112 is the measurement: the
-        // sample migration 013 was written from and finding 85 disagree, by about a hundred rows
+        // sample migration 013 was written from and RB-85 disagree, by about a hundred rows
         // in 1,895. Either way the answer here is recorded as VerifiedBy.Size rather than passed
         // off as a hash check.
         // Blank rather than null, because a member can be read back from a store or built by a

@@ -22,7 +22,7 @@ public class HookAndJournalTests
     /// The rom name that defeated both scripted hook forms, and two worse ones.
     /// </summary>
     /// <remarks>
-    /// The first is verbatim from M0 probe 7b: a <c>.bat</c> would not start on it because ES
+    /// The first is verbatim from RB-396: a <c>.bat</c> would not start on it because ES
     /// quotes an argument containing a space and cmd then mangles the line, and a <c>.ps1</c>
     /// would not start on it because ES omits <c>-File</c> and PowerShell reparses the
     /// parenthesis as code. The others check that the spool format cannot be forged by a name.
@@ -277,7 +277,7 @@ public class HookAndJournalTests
     /// <remarks>
     /// Driven with the <b>real</b> hook executable in separate OS processes, started together,
     /// because the failure this guards against is cross-process and a single-process
-    /// simulation cannot reproduce it. M0 probe 1 caught three <c>game-end</c> hooks in flight
+    /// simulation cannot reproduce it. RB-347 caught three <c>game-end</c> hooks in flight
     /// at once, interleaving writes to one shared file; a spool file per record is what makes
     /// that unrepresentable rather than merely unlikely.
     /// <para>

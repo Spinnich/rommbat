@@ -18,12 +18,12 @@ On `nes`, jgenesis (`jgenesis/nes/`), mesen standalone (loose `.sav`), mednafen 
 (`ares/Famicom/*.ram`) each have one since, all measured there and scoped to it. On `megadrive`,
 jgenesis (`jgenesis/md/`) and ares (`ares/Mega Drive/*.ram`) have their own rules, since the
 directory is the emulator's name for the system, and the bizhawk and mednafen rules name both
-systems because their layout did not change (findings 279 to 282).
+systems because their layout did not change (RB-279 to RB-282).
 
-**mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (finding 273): its `%M`
+**mednafen names a save `<rom>.<md5>.sav` only when `<rom>.sav` is absent** (RB-273): its `%M`
 is empty on the first try, so an existing plain `.sav`, mesen's included, is the file it reads and
-writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES header (finding 274), on
-`megadrive` the whole `.md` (finding 280), and `MednafenRomHash` picks by system and answers null
+writes. The hash is the system's: on `nes` the `.nes` less its 16-byte iNES header (RB-274), on
+`megadrive` the whole `.md` (RB-280), and `MednafenRomHash` picks by system and answers null
 for any system or format not measured. So mednafen's rule is
 `named_after: "rom file and content md5"`, which may share an extension in one directory with a
 plain rule, the hash on the stem deciding. On `nes`, a plain `<rom>.sav` goes up as
@@ -35,7 +35,7 @@ not refuse NES 2.0 as such**: all 232 ROMs on the test install carry a NES 2.0 h
 clear, the three measured ones included.
 
 `named_after: "archive member and content md5"` is narrower still,
-`<rom>.zip#<member>.<md5>.sav` for mednafen_gba (finding 290), and the loader asks rules narrowest
+`<rom>.zip#<member>.<md5>.sav` for mednafen_gba (RB-290), and the loader asks rules narrowest
 first and refuses two of one narrowness. The ROM's own name may hold a `#`, so the match anchors
 on the first `.zip#` or `.7z#`. On `gba` that is three owners for one loose `.sav` extension:
 mednafen_gba's `#` name, mednafen's hashed one, and the plain one, which mGBA, Mesen and mednafen
@@ -45,27 +45,27 @@ the hash is the whole `.gba` there.
 
 **A clock beside a save is class B.** Mesen, jgenesis and ares keep a cartridge's real-time clock
 in `<rom>.rtc` next to the save, and each gets `{emulator}:battery:rtc`, so the clock travels
-with it. Mesen's, jgenesis's and ares's change on every launch (findings 291 and 300), so a
+with it. Mesen's, jgenesis's and ares's change on every launch (RB-291 and RB-300), so a
 session uploads a version whether or not the game was saved. mGBA and BizHawk keep the clock
 inside the save, 16 bytes on `gba`, and on `gbc` 48 under mGBA and BizHawk's SameBoy and 22 under
 its Gambatte, and those change on every launch the same way.
 
 **On `gb` the loose `.rtc` is `libretro`'s, `libretro:battery:rtc`.** A clock cartridge keeps its
 clock there under the stock `gambatte` core, and Mesen writes the same name, as it does the `.srm`
-(finding 298). `tgbdual`, `DoubleCherryGB` and `sameboy` write it for every game, and with no clock
-on the cartridge it holds only the host time at exit (finding 295), so those three upload a few
+(RB-298). `tgbdual`, `DoubleCherryGB` and `sameboy` write it for every game, and with no clock
+on the cartridge it holds only the host time at exit (RB-295), so those three upload a few
 bytes of new version per launch. Measure it on a clock cartridge, not a clockless one: on a
 clockless game the file looks like noise.
 
 **On `gbc` the loose `.rtc` is `libretro`'s too, and it is one name with four formats**: 8 B of
 base time under `gambatte`, 4 B of host time under `tgbdual` and `DoubleCherryGB`, 32 B under
-`sameboy` and 13 B under Mesen (finding 300). Each row reads its own back, so a device that stays
+`sameboy` and 13 B under Mesen (RB-300). Each row reads its own back, so a device that stays
 on one row keeps its clock; a device that switches row can lose it, with or without RomMBat, and every move observed did. By the
 maintainer's ruling the slot stays one, because on disk it is one file, and nothing converts a
 clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc` and
 `jgenesis:battery:rtc`, and ares's battery save sits in `ares/Game Boy` while its states sit in
 `ares/Game Boy Color`. On `gb` ares's `.rtc` has a rule of its own beside the class A `.ram`, as
-`libretro`'s does beside the `.srm`, so the `.ram` kept the slot it already had (finding 302).
+`libretro`'s does beside the `.srm`, so the `.ram` kept the slot it already had (RB-302).
 
 **A clock slot is a stopgap until RomM can move a save as one unit.** RomM's maintainers are
 drafting a save-sync overhaul that bundles a save with its companion files and leaves the clock out
@@ -81,35 +81,35 @@ mednafen's hashed name taken only when no plain one is there. BizHawk's three co
 **On `snes` the loose `<rom>.srm` is shared by ten rows**: the seven `libretro` cores, Mesen,
 standalone Snes9x, and mednafen, and uploads as `libretro:battery`. mednafen reads and saves into
 it when it is there and otherwise writes `<rom>.<md5>.srm`, a `.srm` and not the `.sav` of its
-other systems, the md5 being of the whole `.sfc` (finding 318), which uploads as
+other systems, the md5 being of the whole `.sfc` (RB-318), which uploads as
 `mednafen:battery`. BizHawk's `.SaveRAM` is named after the ROM file on `snes`, and ares keeps a
 DSP-1 cartridge's data RAM as `<rom>.dram` beside the `.ram`, class B, `ares:battery:dram`.
 `libretro`/`mednafen_snes` leaves an empty `<rom>.rtc` on every exit, and `empty_not_a_save` in
 `save_rules.json` passes over an empty one per system and extension, while one with content is
-still reported (finding 319). Zelda, the test game, writes
+still reported (RB-319). Zelda, the test game, writes
 its SRAM at boot, so any launch uploads a new `.srm` version whether or not the game was saved.
 
 **On `mastersystem` only the two `libretro` cores share the loose `<rom>.srm`**, Genesis Plus GX
 trimming it to the last used byte and PicoDrive keeping 32 KB. Mesen writes its own loose
 `<rom>.sav`, `mesen:battery`, and rewrites it only when the SRAM changes; mednafen writes
 `<rom>.<md5>.sav`, the md5 of the whole `.sms`, and **will not start the game while Mesen's 8 KB
-`.sav` is beside the ROM**, since it opens the plain name and expects 32 KB (finding 324). A restore
+`.sav` is beside the ROM**, since it opens the plain name and expects 32 KB (RB-324). A restore
 that brings Mesen's save back therefore stops mednafen for that game, which is the emulators and not
 something to route around. BizHawk names its `.SaveRAM` after its own title, `Golden Axe Warrior
-(UE)`, bound through the state sidecar. Kega Fusion's `.ssm` stays outside `saves/` (findings 283,
+(UE)`, bound through the state sidecar. Kega Fusion's `.ssm` stays outside `saves/` (RB-283,
 323). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
-Warrior does (finding 326), so on such a game a changed file is not new progress.
+Warrior does (RB-326), so on such a game a changed file is not new progress.
 
 **On `psx` a `libretro` core writes a formatted, empty memory card on exit whether or not the game
-saved** (finding 328): a 128 KB loose `<rom>.srm` whose fifteen directory frames are all `0xA0`,
+saved** (RB-328): a 128 KB loose `<rom>.srm` whose fifteen directory frames are all `0xA0`,
 never used. It went up as the game's save until `Ps1MemoryCard.IsBlank` made the scanner pass over
 it, at the loose level and under an emulator's own directory alike, and made a restore treat it as
 absent, so a second device's first boot neither uploads it nor blocks the server's save. The test
 reads the format, not the system or extension. A card whose saves were deleted in the game marks
-those frames `0xA1` to `0xA3` and still syncs. A download refuses a blank card too (finding 334),
+those frames `0xA1` to `0xA3` and still syncs. A download refuses a blank card too (RB-334),
 or a slot the scan leaves empty fetches the server's blank copy back on every restore.
 
-**DuckStation's per-game cards are a display-name rule with a slot per port** (finding 329):
+**DuckStation's per-game cards are a display-name rule with a slot per port** (RB-329):
 `duckstation/memcards/<saveName>_1.mcd` uploads as `duckstation:battery` and `_2.mcd` as
 `duckstation:battery:2`, from the rule's `stem_suffixes`. The title is the stem less the suffix, so
 one title names both cards: a restore places card 2 under the title card 1 taught, and the next
@@ -117,12 +117,12 @@ scan attributes it through card 1's binding rather than leaving it unattributed.
 from `gamedb.yaml` by serial and is not the rom's stem in general (`Metal Gear Solid (USA)` for the
 `(Rev 1)` rom), so it is learned from the launch route; DuckStation's state sidecar is a bare serial
 and answers nothing here. A card with no `_<port>` suffix is not claimed.
-**A card type change leaves two files for one game in one slot** (finding 333). The flush sends the
+**A card type change leaves two files for one game in one slot** (RB-333). The flush sends the
 file written most recently and reports the rest as superseded, and `LearnedTitle` picks the title
 whose file is newest for a rule with `stem_suffixes`. DuckStation's `shared_card_<n>.mcd` names are
 declared shared containers, and `ScanBelow` asks that list before any rule claims a file, since
 `shared_card_1.mcd` matches the per-game `_1`.
-**The `libretro` cores' other `psx` cards are class B slots beside the `.srm`** (finding 335):
+**The `libretro` cores' other `psx` cards are class B slots beside the `.srm`** (RB-335):
 swanstation's loose `<serial or title>_1.mcd` and `_2.mcd` take `libretro:battery:mcd` and `:mcd2`,
 and mednafen_psx_hw's `<rom>.1.mcr` takes `libretro:battery:mcr`. **Each port can be named its own
 way**, so `LearnedTitle` takes the slot, prefers a title learned from the same port, and weighs only
@@ -135,17 +135,17 @@ routes as `ScanBelow` does.
 is mednafen's hash of every disc's table of contents in playlist order, which
 `MednafenRomHash.CdLayout` computes for a `.cue` or a `.m3u` of cues with one file and one data
 track each, and answers null for anything else, so such a card is unnameable on restore. **At
-RetroBat's default the row emulates no card** (finding 330): `mednafen_psx_memcards` unset writes
+RetroBat's default the row emulates no card** (RB-330): `mednafen_psx_memcards` unset writes
 every port as `0`, so there is nothing to sync until a user sets it.
 
-**A disc of a set answers for the set** (finding 332). BizHawk on `psx` is handed disc 1 rather than
+**A disc of a set answers for the set** (RB-332). BizHawk on `psx` is handed disc 1 rather than
 the playlist, so its states are `<disc 1 stem>.QuickSave<n>.State`. `RomIndex` maps a `RomPart`
 file's stem to its set after every ROM, so a ROM of that name keeps it, and never adds a disc to
 `InFolder`. A state restore keeps its stem-from-disk rule but takes the sent name's stem when it is
 one of the ROM's own disc files. BizHawk's `.SaveRAM` on `psx` is Nymashock's one raw card or
 Octoshock's card plus 128 KB, one `bizhawk:battery` slot for both.
 
-**On `n64` four rows name their saves with something other than the ROM** (findings 336 to 341).
+**On `n64` four rows name their saves with something other than the ROM** (RB-336 to RB-341).
 The two `libretro` cores share a loose 296,960 B `.srm` holding EEPROM, four Controller Paks, SRAM
 and FlashRAM, so a pak ghost carries between them. **RMG and simple64 share `sram/<title>-<md5
 prefix>.<ext>`**, the title being the first 32 characters of mupen64plus's GoodName, under one
@@ -200,20 +200,20 @@ mtime. The binding is cached in `game_id_binding` keyed on the **file name**
   before that mtime is a session that never touched the bytes: driven, an Ultima launch eight
   days earlier was credited with a restored `StarTropics.SaveRAM` and contested it. The launch
   route is skipped when `local_save` already holds the path with the same hash and a ROM, and a
-  session ends at the next launch of anything, since ES runs one game at a time. Finding 265.
+  session ends at the next launch of anything, since ES runs one game at a time. RB-265.
 - **`save_slot`'s derived destination is the ROM's stem, which is wrong for this rule.** Once a
   slot has been sent, `SaveSlotStore` derived `saves/nes/StarTropics (USA).SaveRAM` and
   `ResolveTarget` took it before asking the rule. It now derives nothing for a slot a
-  subdirectory rule owns. Finding 266.
+  subdirectory rule owns. RB-266.
 - **BizHawk leaves `<title>.SaveRAM.bak` on exit**, the save the new one replaced. A rule
-  declares its own `not_a_save_extensions` for that. Finding 264.
+  declares its own `not_a_save_extensions` for that. RB-264.
 
-**Driven on both cores on 2026-09-21** (findings 262 to 266, `docs/platforms/nes.md`): upload,
+**Driven on both cores on 2026-09-21** (RB-262 to RB-266, `docs/platforms/nes.md`): upload,
 restore into the file BizHawk loads, the in-flight deferral, the launch route alone, and the
 Europe copy of StarTropics sharing the USA copy's file, contested and then settled by
-`saves bind`. **`NesHawk` and `quickerNES` read each other's `.SaveRAM`** (finding 271), so the
+`saves bind`. **`NesHawk` and `quickerNES` read each other's `.SaveRAM`** (RB-271), so the
 one `bizhawk:battery` slot is one save in fact. **A game can rewrite its save on boot with no
-in-game save**: Destiny of an Emperor changed 4 bytes on a title-screen run (finding 272), so every
+in-game save**: Destiny of an Emperor changed 4 bytes on a title-screen run (RB-272), so every
 launch sends a new version, and a new hash after a session is not by itself evidence of play. Both
 rows are certified on `nes` since.
 
@@ -246,12 +246,12 @@ since the feature landed, and the rule below about asking every route is what it
   row scanned before it still holds the hex id in both fields, as the 50 most recently updated
   GameCube rows on a live library did the day after the upgrade, all last written 2026-09-14.
   A consumer of `save_target` for GameCube accepts either, decoding eight hex digits to four ASCII characters. Nothing
-  reads the field yet (finding 14 of `romm-5.3-findings.md`).
+  reads the field yet (RM-14).
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game
   would be one row with several files, and folding them back leaves 101 groups over 222 rows
-  (104 over 232 with the committed probe's fold, `r5-gamecube-title-ids.py`, finding 2).
+  (104 over 232 with the committed probe's fold, `r5-gamecube-title-ids.py`, RM-2).
   Both kinds are right. Disc 1 and Disc 2 share a memory card, and a revision does not move the
   player's save. **Plan for the larger number**, because a loose multi-disc library is ordinary
   and this client does not get to require otherwise. The first-wins rule below already covers it
@@ -265,7 +265,7 @@ read itself". Its extractor answers nothing for Switch (encrypted, left out deli
 two cover different ground in both directions. Writing back is not built and is not assumed; it
 is recorded here so the next session does not re-derive that the endpoint exists.
 
-See finding 2 of [romm-5.3-findings.md](../../../docs/romm-5.3-findings.md) and #168.
+See RM-2 and #168.
 
 **Ask every route, not the first one that answers.** They are cheap next to the scan that
 already ran, and their agreement is the only evidence a binding has. One exception comes before
@@ -282,7 +282,7 @@ never cached.
    `retrobat-layout`). Build the window from `emulationstation/emulatorLauncher.log`, which
    records rom path, system, emulator and core with a millisecond timestamp on every launch,
    and use the `game-end` hook as the trigger to go read it. See
-   `docs/retrobat-findings.md` probes 1 and 7b.
+   RB-346 to RB-352 and RB-394 to RB-400.
 
 2. **Read the ID from the ROM's header**, and know how little that reaches. Measured across
    every image in five systems on a real install: GameCube **100%** and Wii **75.5%** (a `.wad`
@@ -329,7 +329,7 @@ data root costs 426 s where the scoped subtree costs 0.06 s.
 `content_hash` is the MD5 of the bytes for a plain file and, for an archive, `hash_zip_contents`:
 the md5 of `<entry name>:<entry md5>` lines, sorted by name, joined with `\n` and none trailing,
 directory entries skipped. Identical at the 5.2.0 and 5.3.0 tags, and confirmed live by
-`s5-archive-content-hash.py` (finding 303), which withdraws 149's "not reproducible".
+`s5-archive-content-hash.py` (RB-303), which withdraws 149's "not reproducible".
 `LogicalContentHash.Fold` is that rule, sorted by UTF-8 bytes because Python sorts code points,
 so the fold is the local change detector and the wire value.
 
@@ -354,7 +354,7 @@ identical)`, the next edit's upload is refused 409 "Slot has a newer save since 
 and after `POST /api/saves/{id}/downloaded` for the peer's row the same upload lands. The
 `AlreadyHeld` download skip settles the same way. A peer's upload of bytes a row in the slot
 already holds does not make a new row: it comes back as that row (M5), so this case needs the
-original row gone, which slot retention does (`s3-slot-retention.py` in `romm-5.3-findings.md`).
+original row gone, which slot retention does (`s3-slot-retention.py`, RM-11).
 
 Defining `content_hash` as the MD5 of zip bytes is a trap: Go's `archive/zip` and .NET's
 `ZipArchive` differ in entry ordering, timestamps and compression, so RomMBat and Grout

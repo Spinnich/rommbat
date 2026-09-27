@@ -67,7 +67,7 @@ internal static class ScreenView
     /// <para>
     /// Read from <c>es_input.cfg</c>'s own names rather than from labels: <c>a</c> is the
     /// bottom button, <c>b</c> the right, <c>y</c> the left and <c>x</c> the top. The last two
-    /// are the ones printed X and Y the other way round (finding 225).
+    /// are the ones printed X and Y the other way round (RB-225).
     /// </para>
     /// </remarks>
     private static readonly (double X, double Y)[] Diamond =

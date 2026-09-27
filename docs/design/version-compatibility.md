@@ -10,8 +10,8 @@ Every RomMBat release states the minimum RomM and RetroBat versions it supports.
 
 **The floor tracks the newest stable, it does not sit at the oldest version that happens to
 work.** RomMBat adopts a new RomM or RetroBat stable within one release of it appearing and
-moves the minimum with it. Two reasons, both specific to this project. Every rule in
-`docs/retrobat-findings.md` is a measurement of one build's behaviour, and supporting a range
+moves the minimum with it. Two reasons, both specific to this project. Every fact in
+`docs/upstream/` is a measurement of one build's behaviour, and supporting a range
 means owning that measurement on every version in the range, on a `(system, emulator, core)`
 matrix that is already two to four passes per row. And RetroBat's own updater moves users
 forward, so a wide floor buys compatibility with installs that mostly do not exist while
@@ -21,7 +21,7 @@ carry the workaround and the fix at once.
 
 What adoption costs, each time: re-run `reference/refresh.sh` and resolve the drift, re-read
 the upstream changelog for anything that touches a measured rule, move the floor and the
-tested row together, and re-check every entry in `docs/upstream-issues.md`. Moving the
+tested row together, and re-check every entry in `docs/upstream/issues.md`. Moving the
 RomM floor also moves the pinned OpenAPI schema, because the pin is the minimum version on
 purpose. And every platform record under `docs/platforms/` is mapped onto the nine steps: the
 steps the move touches are re-run or recorded as owed at the new floor, step 9 always among

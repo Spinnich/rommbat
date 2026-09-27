@@ -29,7 +29,7 @@ public sealed class EsMenuEntryTests : IDisposable
     public void Installing_writes_the_two_files_registration_needs_plus_its_artwork()
     {
         // Two files is the registration and the third is what the entry points at. A .menu with
-        // no gamelist element shows as a bare filename, measured at 209 ms in finding 203, and
+        // no gamelist element shows as a bare filename, measured at 209 ms in RB-203, and
         // an entry with no <image> shows as one too.
         var entry = new EsMenuEntry(_tree.Install());
 

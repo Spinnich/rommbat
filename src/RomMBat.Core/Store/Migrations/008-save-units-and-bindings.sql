@@ -3,7 +3,7 @@
 -- 006 declared itself sufficient for this stage and 007 repeated the claim: "a class C or D
 -- unit root goes into local_save's existing columns". Both were written against the plan's
 -- reading of class C as "a directory per game", and a read-only sweep of a real install
--- refutes that reading on three systems at once (docs/retrobat-findings.md, 140 and 141).
+-- refutes that reading on three systems at once (RB-140 and RB-141).
 --
 --   ps3        BLUS30109G6A383E91  BLUS30109G6A3B071C  BLUS30109S    one title id, three dirs
 --              BCUS98111-AUTOSAVE  BCUS98111-USERDATA                one title id, two dirs

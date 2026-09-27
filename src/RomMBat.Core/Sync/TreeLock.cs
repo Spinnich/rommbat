@@ -9,7 +9,7 @@ namespace RomMBat.Core.Sync;
 /// <b>Mandatory rather than defensive.</b> A portable install cannot register a service, so
 /// the flush is a short-lived process invoked from the <c>start</c>, <c>game-end</c> and
 /// <c>quit</c> hooks and from the UI. EmulationStation spawns those hooks fire-and-forget and
-/// does not wait for them, and M0 probe 1 observed <b>three <c>game-end</c> hooks in flight at
+/// does not wait for them, and RB-347 observed <b>three <c>game-end</c> hooks in flight at
 /// once</b>. Several agents racing the same outbox is the normal case here, not an edge one.
 /// <para>
 /// <b>The handle is the lock, not the file's existence.</b> A lock built on "does the file

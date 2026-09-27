@@ -10,7 +10,7 @@ namespace RomMBat.Tests;
 /// <b>The quit hook fires while ES is still alive.</b> Timed across three sessions this stage:
 /// ES writes <c>es_settings.cfg</c> 175 to 325 ms after the quit was asked for, fires the hook
 /// 200 to 630 ms after that write, and the process is gone 48 to 68 ms later. So a pass that
-/// wrote the file the moment it started would be writing inside the window finding 178
+/// wrote the file the moment it started would be writing inside the window RB-178
 /// measured, where ES discards what it finds and says nothing.
 /// <para>
 /// Driven against a stand-in verdict rather than a real ES, because what is being tested is

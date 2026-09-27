@@ -11,7 +11,7 @@ namespace RomMBat.Core.Paths;
 /// the agent from disagreeing about where the install is, which they would eventually do if
 /// each had its own marker walk.
 /// <para>
-/// Nothing here reads the working directory. M0 probe 7b measured that it differs by hook
+/// Nothing here reads the working directory. RB-400 measured that it differs by hook
 /// form, an <c>.exe</c> getting its own folder and a <c>.ps1</c> getting ES's home, so no
 /// design may depend on it.
 /// </para>
@@ -22,7 +22,7 @@ public static class RootMarkers
     /// Files and directories whose presence identifies a RetroBat root.
     /// </summary>
     /// <remarks>
-    /// M0 probe 4 confirmed all three in a stock 8.2 tree, and confirmed there is no
+    /// RB-378 confirmed all three in a stock 8.2 tree, and confirmed there is no
     /// <c>build.ini</c> anywhere in it.
     /// </remarks>
     public static IReadOnlyList<string> All { get; } = ["retrobat.ini", "emulationstation", "roms"];

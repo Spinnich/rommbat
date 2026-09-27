@@ -32,7 +32,7 @@ public sealed record StoredToken(
 /// <remarks>
 /// <b>DPAPI is unavailable to us.</b> <c>DataProtectionScope.CurrentUser</c> binds the
 /// ciphertext to one user profile on one machine and <c>LocalMachine</c> binds it to that
-/// machine, so either choice makes a portable drive undecryptable on the next PC. M0 probe 7
+/// machine, so either choice makes a portable drive undecryptable on the next PC. RB-391
 /// moved a stick between two machines under two different Windows users, which is the case
 /// that has to keep working.
 /// <para>

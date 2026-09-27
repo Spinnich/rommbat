@@ -56,7 +56,7 @@ public sealed record EsMenuOutcome(IReadOnlyList<EsMenuStep> Steps)
 /// Puts RomMBat in the EmulationStation menu, and takes it back out.
 /// </summary>
 /// <remarks>
-/// <b>Registration is two files, not one, and that is measured.</b> M0 probe 4 found that
+/// <b>Registration is two files, not one, and that is measured.</b> RB-385 found that
 /// <c>es_menu</c> is an ordinary ES system declared in <c>es_systems.cfg</c> with
 /// <c>&lt;extension&gt;.menu&lt;/extension&gt;</c>, so a <c>.menu</c> is a ROM of the
 /// <c>retrobat</c> system and the thing that parses it is <b>emulatorLauncher, not ES</b>. The
@@ -64,7 +64,7 @@ public sealed record EsMenuOutcome(IReadOnlyList<EsMenuStep> Steps)
 /// <c>&lt;game&gt;</c> element in <c>system/es_menu/gamelist.xml</c>. A <c>.menu</c> with no
 /// gamelist entry appears under its bare filename, which was driven rather than assumed:
 /// writing the file alone took ES from 92 games to 93 in 209 ms, listed as <c>zzprobe7a</c>
-/// with no image. See <c>docs/retrobat-findings.md</c>, 203.
+/// with no image. See RB-203.
 /// <para>
 /// <b>The executable line cannot escape <c>emulators\</c>.</b> Three variants were installed
 /// side by side and launched: <c>..\..\plugins\rommbat\…</c> and <c>\plugins\rommbat\…</c> were

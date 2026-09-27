@@ -22,8 +22,8 @@ that is not a row.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from finding 14 of
-`docs/romm-5.3-findings.md`, 161 upstream commits with no schema change, and from this repo's
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
 single row exercises moved.
@@ -151,7 +151,7 @@ Game Boy family firmware anywhere in the tree:
 | `jgenesis`                 | Boots to the intro                                       |
 
 With `gbc_bios.bin` back, GBHawk boots Crystal to the intro. It is the file `bios gbc` fetches, so
-`gbc` needs no supplement, where `gb` needed five files from its siblings (finding 293). Finding 299.
+`gbc` needs no supplement, where `gb` needed five files from its siblings (RB-293). RB-299.
 
 ## What the boot launches wrote
 
@@ -218,7 +218,7 @@ own md5, and each returned image was that slot's, distinct from slot 1's. From t
 the preview also listed the earlier cores' versions on the server and left them alone.
 
 **The declared `<directory>` is where every core wrote**, `saves/gbc/libretro.<core>/`. ES passed
-`-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as finding 261
+`-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as RB-261
 says. **Every core writes the `.rtc` on exit as RAM type #1**, beside the `.srm` as type #0, and
 the clock it holds is not the same thing on any two of them (below).
 
@@ -264,7 +264,7 @@ where its save sat on disk unread; the second's first flush sent **6 saves and 1
 
 **Mesen writes the loose `.srm` and `.rtc` the `libretro` cores share**, so it needed no rule, and
 it rewrites the `.rtc` on a launch with nothing saved. **mednafen read and saved into mGBA's plain
-`.sav`** rather than its hashed name, as on `gb` (finding 273). **ares keeps its battery save in
+`.sav`** rather than its hashed name, as on `gb` (RB-273). **ares keeps its battery save in
 `Game Boy`, `gb`'s directory name, and its states in `Game Boy Color`**, so the two halves of one
 row sit in two trees. **BizHawk's three cores share one file named after BizHawk's own title**,
 `(Rev A)` where the ROM file says `(Rev 1)`, learned from the state sidecar
@@ -345,7 +345,7 @@ maintainer's ruling that is recorded and not worked around. Where a seed was pla
 clock (ares, BizHawk, jgenesis, each given the 32 KB RAM alone) the game found no clock and asked
 for one, which says only that they were given none. mednafen read and saved into mGBA's own `.sav`,
 both 32,816 B with a 48 B footer, and is the move most likely to have kept the clock; nobody looked.
-Finding 300.
+RB-300.
 
 ## What the pass turned up that is not a row
 
@@ -355,7 +355,7 @@ Finding 300.
 - **The first flush on the second deploy refused one save that is not `gbc`'s**: rom 189465 on
   `megadrive`, where the server holds the four bytes `null` another client wrote in July.
 - **mGBA, mednafen's shared `.sav`, Mesen, ares and jgenesis rewrite the clock on a launch with
-  nothing saved**, so each such launch uploads a small new version, as on `gba` (finding 291).
+  nothing saved**, so each such launch uploads a small new version, as on `gba` (RB-291).
 
 ## What this file will not claim
 
@@ -376,7 +376,7 @@ of Silver placed in `roms/gb` for one launch under `ares`/`GameBoy`: `ares/Game 
 so the clock would not have synced. It now has its own class B rule, `ares:battery:rtc`, and the
 `.ram` keeps `ares:battery`, so nothing uploaded under it moves; a flush on the new build sent
 nothing. The copy and what it wrote were removed after the launch, and the round trip is carried
-from the `gbc` row, which syncs the same two files. Finding 302.
+from the `gbc` row, which syncs the same two files. RB-302.
 
 **jgenesis on `gb` needs no clock rule.** It names its directory from the file inside the zip, and
 the clock cartridges known here are Color titles, a `.gbc`, even where they run on a mono Game Boy,

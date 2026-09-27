@@ -11,12 +11,12 @@
 --
 -- 2. local_file cannot say what a recorded hash describes. RomM's md5_hash, sha1_hash and
 --    crc_hash all describe the *uncompressed* content, measured: a 1,025-byte zip reports the
---    hashes of the 16,400-byte nes file inside it (finding 80). So a row holding the hash of
+--    hashes of the 16,400-byte nes file inside it (RB-80). So a row holding the hash of
 --    a .zip and a row holding the hash of its content are different facts that would compare
 --    equal, and adoption would either re-download everything or accept the wrong file.
 --
 -- 3. local_file cannot say which check it passed. Only 91% of roms carry an md5 and 96% a
---    sha1 (finding 85), so verification degrades to size for the rest, and "verified" has to
+--    sha1 (RB-85), so verification degrades to size for the rest, and "verified" has to
 --    mean something a person can read rather than a bare timestamp.
 --
 -- 4. Nothing holds an interrupted download. A .part on disk is bytes with no provenance: the
@@ -155,12 +155,12 @@ CREATE TABLE content_download (
                 ),
 
   -- Content-Length from the first response. fs_size_bytes agrees with it for single-file
-  -- roms (finding 83), and this is what the transfer is measured against.
+  -- roms (RB-83), and this is what the transfer is measured against.
   expected_size INTEGER,
 
   -- The ETag the first response carried, sent back as If-Range. nginx's form is
   -- hex(mtime)-hex(size), so it moves when the file does. A stale one answers 200 with the
-  -- whole body rather than a corrupt splice (finding 79), which is what makes resuming safe
+  -- whole body rather than a corrupt splice (RB-79), which is what makes resuming safe
   -- even across a server restart.
   validator     TEXT,
   started_at    TEXT    NOT NULL,

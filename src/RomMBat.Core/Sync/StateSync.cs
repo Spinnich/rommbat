@@ -24,7 +24,7 @@ public sealed record StateSyncOutcome
     /// name or the state's name less the extension. The image is stored against the ROM either
     /// way, so a name that fails the lookup leaves a screenshot row nothing points at.
     /// <see cref="StateSync.ScreenshotUploadNameFor"/> is what makes the lookup succeed, and this count is
-    /// what reports the server declining it anyway (finding 138, whose "a third" was the mix of
+    /// what reports the server declining it anyway (RB-138, whose "a third" was the mix of
     /// emulators the earlier naming did and did not match).
     /// <para>
     /// So this is counted rather than treated as a failure. The state itself is correct and
@@ -545,7 +545,7 @@ public sealed class StateSync
             }
 
             // Only a linked, non-empty screenshot that is this state's own. A state whose image the
-            // server did not link (docs/retrobat-findings.md finding 258), including a libretro or
+            // server did not link (RB-258), including a libretro or
             // other `<file>.png` image uploaded under the earlier screenshot name, comes back
             // without one. The link is kept even where the emulator has nowhere to put it, so the
             // preview can say which of the two it was.
@@ -1026,7 +1026,7 @@ public sealed class StateSync
     /// </summary>
     /// <remarks>
     /// RetroBat's launcher hands BizHawk disc 1 of a <c>psx</c> set rather than the playlist
-    /// (finding 314), so its states are named after that disc and not the ROM. The stem still
+    /// (RB-314), so its states are named after that disc and not the ROM. The stem still
     /// comes from a file on disk, which is what keeps a tag RomM strips from mattering.
     /// </remarks>
     private string? DiscStemOf(int romId, string sentStem) =>

@@ -897,7 +897,7 @@ public class LocalStoreTests
     [Fact]
     public void The_future_timestamp_check_tolerates_FAT_rounding()
     {
-        // M0 probe 7: FAT32 and exFAT both store mtimes to 2 seconds and round up, so a file
+        // RB-393: FAT32 and exFAT both store mtimes to 2 seconds and round up, so a file
         // written at 08:03:16.097 is stamped 08:03:18.000. Without the tolerance every FAT
         // install would look like it had a broken clock.
         var now = new DateTimeOffset(2026, 8, 9, 8, 3, 16, 97, TimeSpan.Zero);

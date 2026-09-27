@@ -72,7 +72,7 @@ public readonly record struct ScreenCommand(
 /// What the hint promises, rather than what to call the button. A screen cannot name a button
 /// here, deliberately: <c>es_input.cfg</c>'s <c>x</c> is the button printed Y and its <c>y</c>
 /// is the one printed X, so a screen free to write "X" writes the wrong one, which is exactly
-/// what finding 225 was. The renderer owns the glyph and there is one place to be wrong.
+/// what RB-225 was. The renderer owns the glyph and there is one place to be wrong.
 /// </param>
 /// <remarks>
 /// <b>Every hint a screen offers is drawn, in the order it is listed.</b> This record carried a
