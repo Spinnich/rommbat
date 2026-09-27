@@ -203,6 +203,7 @@ dotnet test
 
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 trunk fmt && trunk check        # lint
+python3 tools/docs/check.py     # docs: links, anchors, fact citations, budgets
 
 # Only when deliberately moving the pinned RomM schema version. Needs `dotnet tool restore`.
 cd src/RomM.Client/openapi && ./generate.sh

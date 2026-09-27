@@ -147,6 +147,8 @@ Name these if the PR will bounce, but don't spend the review on them.
 - `line-endings` fails on any tracked `.sh` whose committed bytes carry CRLF. `-text` on
   `reference/**` turns off the normalisation that would otherwise fix `refresh.sh`, and a flip
   renders as a whole-file rewrite, so read that diff as endings before reading it as content.
+- `docs-check` fails on a broken relative link or anchor, an em-dash in any tracked file, or a
+  fact ID cited but defined nowhere, and runs the checker's own tests.
 
 ## Reference data
 

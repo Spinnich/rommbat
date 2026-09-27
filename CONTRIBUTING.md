@@ -67,6 +67,7 @@ Before opening a PR:
 dotnet build                    # no new warnings
 dotnet test                     # full suite green
 trunk fmt && trunk check        # never commit with --no-verify
+python3 tools/docs/check.py     # docs links and rules
 cd reference && python3 verify.py
 ```
 

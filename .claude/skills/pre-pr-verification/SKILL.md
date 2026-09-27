@@ -11,6 +11,7 @@ description: The checks that must pass before committing, opening a PR, or telli
 dotnet build                    # no warnings introduced
 dotnet test                     # full suite green
 trunk fmt && trunk check        # never commit with --no-verify
+python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
 cd reference && python3 verify.py
 ```
 
