@@ -170,7 +170,8 @@ and posting the PR. Draft the text, show me, wait.
 A close comment states the evidence and stops: the commit or the current code, one or two
 sentences, no thanks and no summary of the issue back at its author. Use `completed` for something
 that is now fixed and `not planned` for something that was never real, and reach for the `wontfix`
-or `invalid` labels only if I say so. `Closes #N` in the PR body belongs only on issues this branch
+or `invalid` labels only if I say so. Never apply `good first issue`, which drew a bot claim on #161;
+raise any outside claim on an issue with me rather than waiting on it. `Closes #N` in the PR body belongs only on issues this branch
 actually fixes; a close for staleness is a separate action and should not ride in on a merge.
 
 ## Rules that bite in a sweep specifically
@@ -201,8 +202,8 @@ cd reference && python3 verify.py
 ```
 
 Also build and test from a fresh clone, which is what catches a `.gitignore`-swallowed fixture
-locally instead of in CI. If anything touched save logic, take one hands-on pass on the shape it
-touches, per `docs/platforms/README.md`, and if you cannot, name the claims that are unproven for
+locally instead of in CI. If anything touched save logic, take a hands-on pass on the shape it
+touches, on every emulator and save option that writes it, per `pre-pr-verification`, and if you cannot, name the claims that are unproven for
 that reason rather than letting the suite stand in for evidence.
 
 Walk the `pre-pr-verification` doc-parity trigger table before pushing. This branch is unusually

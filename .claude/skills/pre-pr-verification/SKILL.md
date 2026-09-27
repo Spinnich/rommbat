@@ -8,12 +8,18 @@ description: The checks that must pass before committing, opening a PR, or telli
 ## Always
 
 ```bash
-dotnet build                    # no warnings introduced
-dotnet test                     # full suite green
+dotnet build -c Release -warnaserror --no-incremental   # what CI builds
+dotnet test -c Release --no-build                       # full suite green, only after that build
 trunk fmt && trunk check        # never commit with --no-verify
 python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
 cd reference && python3 verify.py
 ```
+
+**Build with `--no-incremental`, because an incremental build can hide an error the previous one
+reported.** On PR #196 a nullable warning (CS8602) failed one build under `-warnaserror`; a second
+incremental build finished in a second with "0 Error(s)", and the tests passed against stale
+binaries. Nothing in the tree escalates CS8602, so without `-warnaserror` it is only a warning, in
+Debug or Release. Grep the output for `error` rather than trusting the summary line.
 
 **`dotnet test` here is Microsoft.Testing.Platform, not VSTest**, opted in through
 `global.json`, and it takes a different set of options. An option it does not recognise is
@@ -70,11 +76,13 @@ cost there.
 - Re-run a sync with no changes: zero uploads, zero downloads, no gamelist churn.
 - Exercise the offline path: switch the stub to unreachable mid-operation and confirm work
   either completes locally or queues, and that a later flush is idempotent under replay.
-- **If save logic changed**, one real emulator must have written one real save or state of the
-  affected shape, and RomMBat must have handled it. That is **not** a certification and must
-  not be recorded as one: the wave rollout starts after M7, because every pass needs a person
-  launching games and the gamepad UI is what makes that bearable. It is one game, one emulator,
-  one shape, through EmulationStation and back.
+- **If save logic changed**, a real emulator must have written a real save or state of the
+  affected shape, and RomMBat must have handled it, through EmulationStation and back. Drive
+  **every emulator the system offers and every save option RetroBat exposes within each** (PCSX2's
+  memory card type, including folder cards), because the shape varies by both and one
+  combination says nothing about the others. List the emulators and cores from `es_systems.cfg`
+  and the save-affecting options from `es_features.cfg` before sitting down. That is **not** a
+  certification and must not be recorded as one: it covers the changed shape, not the nine steps.
 
   A session that cannot do it, because it is non-interactive or has no permission to touch a
   real install, **says which claims are unproven for that reason** rather than letting the test

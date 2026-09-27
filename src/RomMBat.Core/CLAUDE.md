@@ -25,6 +25,11 @@ a rule that lives in either of them lives in the wrong place.
   a write made underneath it.
 - **Every writer of save files takes `TreeLock` and asks `InFlightGuard`.** A flush that cannot
   get the lock exits as done; anything else refuses.
-- **`data/retrobat/save_rules.json` is hand-edited** alongside its generator; regenerating it
-  from a live install corrupts the loose rule.
+- **`data/retrobat/save_rules.json` is hand-edited** alongside its generator,
+  `tools/m6-probes/m6-emit-save-rules.py`; running that against a live install corrupts the loose
+  rule. Add a rule to the script's `OTHER_BATTERY_RULES` and the same entry to the JSON, then
+  compare the script's list with the JSON's `battery_saves[1:]`. If you ran it, `git checkout` it.
+- **A roaming push that works prints nothing.** `RoamingPush.Note` is null on success, and every
+  caller shows only a non-null note, so no output is the success signal. To confirm a push, read
+  `Device.sync_config` back with the install's own token.
 - Timestamps are the file's real mtime and carry a local sequence number, never the sync time.
