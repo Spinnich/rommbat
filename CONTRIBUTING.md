@@ -35,7 +35,7 @@ Please be respectful to maintainers and disclose AI assistance.
 
 ### If you are an agent working in this repository
 
-Read [CLAUDE.md](CLAUDE.md) first, then [docs/PLAN.md](docs/PLAN.md), which is the design of record. Load the skill in `.claude/skills/` that matches the task. Before claiming anything is done, run the `pre-pr-verification` skill and state plainly what you verified and what you did not.
+Read [CLAUDE.md](CLAUDE.md) first, then [docs/design/principles.md](docs/design/principles.md). `docs/design/` is the design of record: the principles, and one record per standing decision under `docs/design/decisions/`. Load the skill in `.claude/skills/` that matches the task. Before claiming anything is done, run the `pre-pr-verification` skill and state plainly what you verified and what you did not.
 
 ## Contributing to the Docs
 
@@ -85,13 +85,13 @@ These are the ones a newcomer, human or otherwise, gets backwards. Each is cheap
 
 ## Reference data
 
-`reference/` vendors upstream files that the design depends on, so the numbers quoted in `docs/PLAN.md` can be re-derived offline and drift shows up in a diff.
+`reference/` vendors upstream files that the design depends on, so the numbers quoted in `reference/README.md` and cited across the docs can be re-derived offline and drift shows up in a diff.
 
 ```bash
 cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check the generated data
 ```
 
-**Never hand-edit a vendored file, and never "fix" `verify.py` by updating an expected number.** A drift there means an upstream fact moved, which is a signal to revisit `docs/PLAN.md`.
+**Never hand-edit a vendored file, and never "fix" `verify.py` by updating an expected number.** A drift there means an upstream fact moved, which is a signal to revisit the design in `docs/design/` and the skill that relies on the number.
 
 ## Platform contributions
 

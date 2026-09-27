@@ -17,7 +17,7 @@
     <windowsSettings>
       <!--
         A deep portable path plus long ROM names plus images/ siblings can cross
-        MAX_PATH. See core principle 4 in docs/PLAN.md.
+        MAX_PATH. See core principle 4 in docs/design/principles.md.
       -->
       <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
       <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>

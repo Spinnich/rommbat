@@ -28,14 +28,14 @@ Argosy's prose describing it, never about its code.
 
 ## The correction this session owes
 
-`docs/PLAN.md` has never contained a row for Argosy in "Reference implementations to mine", and
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md) has never contained a row for Argosy in "Reference implementations to mine", and
 it never said Argosy was mined. The false statement is in two other places:
 
 - [freegosy-findings.md](freegosy-findings.md), in "Why this source needed a higher bar than the
   last three": "Grout, Argosy and the Playnite plugin sit under `rommapp`, track the server
   closely, and **were mined as trustworthy about the API**."
 - `.claude/commands/mine-freegosy.md`, which repeats it and adds that "their rows sit in
-  `docs/PLAN.md`".
+  [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md)".
 
 Argosy's only appearances anywhere in this repository before this session were as a licence
 precedent (the decisions table, and `README.md`) and as an example of a RomM client existing
@@ -108,22 +108,22 @@ re-walks the same dead ends.
 
 ### Survivors
 
-| #   | Claim                                                                                                                     | Touches                                    | Cheapest experiment                                                       | Verdict                  |
-| --- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------- | ------------------------ |
-| A1  | `with_rom_id_index=false`, which RomMBat sends, is the parameter Argosy built, measured as a regression and reverted      | M2, M4, `CatalogQuery`, `romm-api`         | Time our real page query with the flag both ways, scoped and unscoped     | **live, confirmed**      |
-| A2  | `with_total` is free while the id index is on and paid for with it off                                                    | M2, M4, `CatalogQuery`                     | Four-cell matrix at offset 0                                              | **live, confirmed**      |
-| A3  | RetroBat names one acceptable md5 per file, so a working BIOS under another revision reads as missing                     | M5, `BiosPlanner`, `bios.json`             | Join every RetroBat requirement against every firmware md5 in the library | **live, corrected**      |
-| A4  | 30 of Argosy's 55 md5-to-RetroArch-filename pairs are absent from our manifest                                            | M5, `bios.json`                            | Extract their map, diff against our 156                                   | **reference, confirmed** |
-| A5  | `POST /api/activity/heartbeat` exists at our baseline and RomMBat has never mentioned it                                  | M7a follow-on, `romm-api`                  | Post one, read `/api/activity` back, delete it                            | **live, confirmed**      |
-| A6  | A 4xx from `/complete` means already-finalized, and retrying forever makes a zombie session                               | M6, `romm-api`, `SaveSync`                 | Complete one session three times                                          | **live, corrected**      |
-| A7  | The RetroArch state path's core segment comes from `sort_savestates_enable`, which defaults **on** when the key is absent | M6 stage 2, `StateSync`, `retrobat-layout` | Read the generated `retroarch.cfg` and the states on disk                 | **probe, rejected**      |
-| A8  | The five-usage taxonomy is a match-rule axis, orthogonal to our A/B/C/D cardinality axis                                  | `save-sync`, `save_shapes.json`            | Argue it against our existing `unit_paths` rows                           | **reasoned, confirmed**  |
-| A9  | Save-path config must key on `(emulator, platform)`; emulator alone caused two shipped Argosy bugs                        | `save-sync`, `save_shapes.json`            | Read our resolver against RetroBat's tree                                 | **reasoned, confirmed**  |
-| A10 | `GET /api/roms/identifiers` is usable for deletion reconcile, as Argosy uses it                                           | `romm-api`, PLAN 112 and 1217              | Re-time it once                                                           | **live, rejected**       |
-| A11 | A sweep must withhold entirely on missing evidence, or a failed page deletes the library                                  | M3 eviction, `SetResolver`                 | Read what authorises a member retirement                                  | **reasoned, confirmed**  |
-| A12 | `merged_ra_metadata` is 45% of the page payload                                                                           | M2/M4 scale budget                         | Measure one page's composition                                            | **live, rejected**       |
-| A13 | Argosy resumes with a bare `Range` and no `If-Range`, where M3 sends the validator                                        | M3, confirmation                           | Read both                                                                 | **source, confirmed**    |
-| A14 | Argosy omits `optimistic=false` on two of three save-download paths                                                       | Ledger note, upstream report               | Read their call sites                                                     | **source, confirmed**    |
+| #   | Claim                                                                                                                     | Touches                                                                                                                                                                        | Cheapest experiment                                                       | Verdict                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- | ------------------------ |
+| A1  | `with_rom_id_index=false`, which RomMBat sends, is the parameter Argosy built, measured as a regression and reverted      | M2, M4, `CatalogQuery`, `romm-api`                                                                                                                                             | Time our real page query with the flag both ways, scoped and unscoped     | **live, confirmed**      |
+| A2  | `with_total` is free while the id index is on and paid for with it off                                                    | M2, M4, `CatalogQuery`                                                                                                                                                         | Four-cell matrix at offset 0                                              | **live, confirmed**      |
+| A3  | RetroBat names one acceptable md5 per file, so a working BIOS under another revision reads as missing                     | M5, `BiosPlanner`, `bios.json`                                                                                                                                                 | Join every RetroBat requirement against every firmware md5 in the library | **live, corrected**      |
+| A4  | 30 of Argosy's 55 md5-to-RetroArch-filename pairs are absent from our manifest                                            | M5, `bios.json`                                                                                                                                                                | Extract their map, diff against our 156                                   | **reference, confirmed** |
+| A5  | `POST /api/activity/heartbeat` exists at our baseline and RomMBat has never mentioned it                                  | M7a follow-on, `romm-api`                                                                                                                                                      | Post one, read `/api/activity` back, delete it                            | **live, confirmed**      |
+| A6  | A 4xx from `/complete` means already-finalized, and retrying forever makes a zombie session                               | M6, `romm-api`, `SaveSync`                                                                                                                                                     | Complete one session three times                                          | **live, corrected**      |
+| A7  | The RetroArch state path's core segment comes from `sort_savestates_enable`, which defaults **on** when the key is absent | M6 stage 2, `StateSync`, `retrobat-layout`                                                                                                                                     | Read the generated `retroarch.cfg` and the states on disk                 | **probe, rejected**      |
+| A8  | The five-usage taxonomy is a match-rule axis, orthogonal to our A/B/C/D cardinality axis                                  | `save-sync`, `save_shapes.json`                                                                                                                                                | Argue it against our existing `unit_paths` rows                           | **reasoned, confirmed**  |
+| A9  | Save-path config must key on `(emulator, platform)`; emulator alone caused two shipped Argosy bugs                        | `save-sync`, `save_shapes.json`                                                                                                                                                | Read our resolver against RetroBat's tree                                 | **reasoned, confirmed**  |
+| A10 | `GET /api/roms/identifiers` is usable for deletion reconcile, as Argosy uses it                                           | `romm-api`, [PLAN 112](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md#L112) and [1217](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md#L1217) | Re-time it once                                                           | **live, rejected**       |
+| A11 | A sweep must withhold entirely on missing evidence, or a failed page deletes the library                                  | M3 eviction, `SetResolver`                                                                                                                                                     | Read what authorises a member retirement                                  | **reasoned, confirmed**  |
+| A12 | `merged_ra_metadata` is 45% of the page payload                                                                           | M2/M4 scale budget                                                                                                                                                             | Measure one page's composition                                            | **live, rejected**       |
+| A13 | Argosy resumes with a bare `Range` and no `If-Range`, where M3 sends the validator                                        | M3, confirmation                                                                                                                                                               | Read both                                                                 | **source, confirmed**    |
+| A14 | Argosy omits `optimistic=false` on two of three save-download paths                                                       | Ledger note, upstream report                                                                                                                                                   | Read their call sites                                                     | **source, confirmed**    |
 
 ### Dropped at triage
 
@@ -283,14 +283,14 @@ over its bytes. That holds for a **single-entry ROM** archive. A multi-member fi
 hashed as a container, so the two statements are about different cases and the skill now says
 which is which.
 
-**This repository already knows that argument and applied it somewhere else.** `docs/PLAN.md`
+**This repository already knows that argument and applied it somewhere else.** [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md)
 the risk table records that Go's `archive/zip` and .NET's `ZipArchive` produce different bytes for the
 same members, and the conclusion drawn there is to define `content_hash` over sorted relative
 paths plus per-file hashes and treat the archive as transport only. The same reasoning governs a
 BIOS zip and was never carried across. M5 inherits the defect for the 20 zip requirements that
 carry an md5, 5.7% of the manifest, and it fails in the direction that wastes a user's time: it
 reports `MissingFromLibrary` for a file the library is holding under the right name. For the
-other 64 the report says `Unverifiable`, which is what `docs/PLAN.md` already argues for.
+other 64 the report says `Unverifiable`, which is what [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5918e0298/docs/PLAN.md) already argues for.
 
 **Nine systems have firmware in the library and no md5 overlap**: `atari7800`, `atomiswave`,
 `msx`, `msx2`, `n64dd`, `naomi`, `neogeocd`, `sgb`, `xbox`. Several are zip cases. `sgb` is not a
@@ -305,7 +305,7 @@ missing, which is the honest answer under the current rule, but the file is plai
 **Rule 3 is not overturned.** Joining on filename across the whole manifest remains wrong for the
 reason `reference/verify.py` asserts: RetroBat requires 156 distinct md5s, RomM knows 353, and
 only 63 overlap, so filenames disagree at scale. (156, not the 157 an earlier table carried;
-`docs/PLAN.md` records why that count was wrong.) What the probe shows is that md5 is the wrong
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/f707cae89/docs/PLAN.md) records why that count was wrong.) What the probe shows is that md5 is the wrong
 key for two bounded subsets, and each wants its own rule rather than a relaxation of the general
 one.
 
@@ -333,7 +333,7 @@ this session to run A3's join, and A3 is the finding.
 ## A5: `POST /api/activity/heartbeat` exists, works, and RomMBat has never mentioned it. **Confirmed**
 
 Declared in `romm-5.1.0.json`, the pin at the time, with `post` and `delete`, alongside `GET /api/activity`
-and `GET /api/activity/rom/{rom_id}`. It appears nowhere in `docs/PLAN.md`, nowhere in the
+and `GET /api/activity/rom/{rom_id}`. It appears nowhere in [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md), nowhere in the
 `romm-api` skill, and nowhere in `RomM.Client`. M7a closed the loop between EmulationStation and
 RomM without it.
 
@@ -502,7 +502,7 @@ answer today, and rewriting a generated file's schema on that basis would be inv
 
 Argosy reconciles deletions through this endpoint and builds real safety machinery on top of it.
 `retrobat-findings.md` measurement 81 recorded it at **504 after 300 s** on 83,131 roms, which is
-why `docs/PLAN.md` rules it out in both the core-principle guardrails and M3, and the `romm-api` skill says so twice.
+why [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md) rules it out in both the core-principle guardrails and M3, and the `romm-api` skill says so twice.
 
 Re-measured on 5.2.0, with the library now at 88,331 roms:
 
@@ -627,7 +627,7 @@ the same five and the same two fields, with the same names and the same nullabil
 **The negotiate payload and response match field for field.** Their `RomMClientSaveState` sends
 `rom_id, file_name, slot, emulator, content_hash, updated_at, file_size_bytes`, and their
 `ReconcileOperation` reads `action, rom_id, save_id, file_name, slot, emulator, reason,
-server_updated_at, server_content_hash`. `docs/PLAN.md` lists both in the M6 protocol rules, identically. Note
+server_updated_at, server_content_hash`. [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5c6a208c5/docs/PLAN.md) lists both in the M6 protocol rules, identically. Note
 this is not independent corroboration: same org, same server, plausibly the same reading of the
 same source.
 

@@ -714,8 +714,7 @@ supporting a wide range**, so expect the floor to move. When it does, the work i
 resolve the drift, read the upstream changelog for anything touching a rule in
 `docs/retrobat-findings.md`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
 `RetroBatRoot.MinimumVersion` and the README compatibility row together, and re-check the
-open upstream issues. The reasoning is in `docs/PLAN.md`, "Version compatibility is declared,
-checked, and visible".
+open upstream issues. The reasoning is in `docs/design/version-compatibility.md`.
 
 ### Content
 
@@ -773,9 +772,9 @@ npx prettier@3.7.4 --write <files>
 npx markdownlint-cli@0.45.0 -c .trunk/configs/.markdownlint.yaml <files>
 ```
 
-`verify.py` re-derives every upstream number `docs/PLAN.md` quotes. **A drift there means
-an upstream fact moved, so the fix is to revisit the plan, not to update the expected
-number.** Never hand-edit a vendored file under `reference/`; use `./refresh.sh` and
+`verify.py` re-derives every upstream number `reference/README.md` quotes. **A drift there
+means an upstream fact moved, so the fix is to revisit the design, not to update the
+expected number.** Never hand-edit a vendored file under `reference/`; use `./refresh.sh` and
 review the diff.
 
 To re-pull upstream data:

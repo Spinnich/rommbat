@@ -36,7 +36,7 @@ vulnerabilities, and are documented so a report can skip them:
   `LocalMachine` to one machine, and either would make the drive undecryptable
   on the next PC. The mitigations are a scoped, expiring token by default, an
   optional passphrase-derived key, and cheap re-pairing. See core principle 4
-  in [docs/PLAN.md](docs/PLAN.md).
+  in [docs/design/principles.md](docs/design/principles.md#4-portable-first).
 - **RomMBat writes into the RetroBat tree**, including `gamelist.xml` and
   `es_settings.cfg`. That is the integration mechanism. Reports about RomMBat
   modifying RetroBat's own configuration are expected behaviour, though a write

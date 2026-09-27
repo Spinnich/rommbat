@@ -39,7 +39,7 @@ the `-unofficial` rows are his own filing scheme for demos and prototypes, and t
 both rows. The probe now prints every match. What survives is smaller and is recorded as
 such.
 
-**Two corrections to things already written down as measured.** F15: `docs/PLAN.md` finding
+**Two corrections to things already written down as measured.** F15: [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/c08cf374b/docs/PLAN.md) finding
 83 claimed multi-file and an empty `fs_extension` were equivalent both ways, and only one
 direction holds; the code never relied on the wrong half. F18: `<extension>` turns out to be
 the authority on what EmulationStation **offers**, not on what the emulator can **play**, so
@@ -67,7 +67,7 @@ Freegosy is none of those things:
 
 > **Corrected 2026-08-25.** This sentence originally said those three "were mined as
 > trustworthy about the API". **Argosy had not been mined and had no row in
-> `docs/PLAN.md`**, so that half of the claim was false when it was written. It has since
+> [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/5ef5ee041/docs/PLAN.md)**, so that half of the claim was false when it was written. It has since
 > been read: see [argosy-findings.md](argosy-findings.md). Being in `rommapp` was the
 > reason to trust a lead enough to chase it, never the thing that settled one, and the
 > Argosy pass found two things Argosy itself has wrong at 5.2.0.
@@ -87,14 +87,14 @@ Freegosy is none of those things:
 
 Each claim graduates by exactly one route, recorded next to it.
 
-| Route         | What it means                                                                            |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| **live**      | A request made against the live instance, with the request and response quoted           |
-| **probe**     | A probe against a real RetroBat install, driven far enough to see the file               |
-| **reference** | Vendored under `reference/` and re-derived by `verify.py`, never a number typed by hand  |
-| **reasoned**  | An argument from first principles plus a test that fails if it is wrong. Not measured    |
-| **open**      | Recorded, not settled. May not enter `docs/PLAN.md` as fact                              |
-| **dropped**   | Cut at triage because nothing in RomMBat would change if it were true. Never got a probe |
+| Route         | What it means                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **live**      | A request made against the live instance, with the request and response quoted                                                 |
+| **probe**     | A probe against a real RetroBat install, driven far enough to see the file                                                     |
+| **reference** | Vendored under `reference/` and re-derived by `verify.py`, never a number typed by hand                                        |
+| **reasoned**  | An argument from first principles plus a test that fails if it is wrong. Not measured                                          |
+| **open**      | Recorded, not settled. May not enter [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/dc71f748d/docs/PLAN.md) as fact |
+| **dropped**   | Cut at triage because nothing in RomMBat would change if it were true. Never got a probe                                       |
 
 The pinned schema is used to **screen** candidates, never to settle them. A parameter
 declared in `romm-5.1.0.json`, the pin at the time, is evidence that the parameter exists, not
@@ -491,7 +491,7 @@ a save silently. **A download that dies mid-body leaves the server believing the
 the save**, so the next negotiate answers `no_op` for that slot and the save never comes
 down again. Nothing surfaces; the device simply never gets it.
 
-`docs/PLAN.md` already calls `POST /api/saves/{id}/downloaded`, so the intent was right, but
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) already calls `POST /api/saves/{id}/downloaded`, so the intent was right, but
 it never passes `optimistic=false`. Without it the ack is decoration: the record is already
 written by the time the client makes it. **The two have to travel together**, and the ack has
 to come after the bytes are written and verified, not after the response headers arrive. This
@@ -508,7 +508,7 @@ POST /api/saves (sent 'probe.srm') -> 200
   file_extension    'srm'
 ```
 
-The rename is what `docs/PLAN.md` says it is. What the plan does not say is **what to write
+The rename is what [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) says it is. What the plan does not say is **what to write
 on disk when a save comes back down**, and that is the half that decides whether a restored
 save is loadable at all. RetroArch and the standalone emulators find a battery save by
 matching the ROM name, so a file written as `probe [2026-08-10_22-58-26].srm` is invisible to
@@ -518,7 +518,7 @@ branch for a disambiguating counter.
 
 **None of that is necessary.** The server already returns `file_name_no_tags`, so the on-disk
 name is `file_name_no_tags` plus `file_extension` and no client-side regex is involved.
-`docs/PLAN.md` says to persist the returned `file_name`, which is right for the server-side
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) says to persist the returned `file_name`, which is right for the server-side
 identity and wrong as a filename to write. Both are needed and they are different fields.
 
 Not observed: any `-N` disambiguator. Two saves uploaded inside the same second landed on
@@ -562,7 +562,7 @@ saves in the slot before: 2
 
 The slot holds at exactly the limit across three further uploads, keeping the newest. The
 parameters default to `autocleanup=false` and `autocleanup_limit=10`, so **the default is
-unbounded growth**, and `docs/PLAN.md` has no save-retention story at all today. A device
+unbounded growth**, and [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) has no save-retention story at all today. A device
 syncing a changed save every session accumulates one server row per session forever.
 
 This is a decision RomMBat has to make deliberately rather than inherit: server-side pruning
@@ -612,7 +612,7 @@ GET /api/saves?rom_id&device_id=B -> 2 saves
 ```
 
 Both devices see the same rows. `device_id` scopes **sync bookkeeping**, never visibility.
-That is what `docs/PLAN.md` already assumes, so this is a decision that survived a challenge
+That is what [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) already assumes, so this is a decision that survived a challenge
 rather than a change: the plan passes `device_id` for negotiation and conflict detection, and
 never treats it as a filter.
 
@@ -644,7 +644,7 @@ to pull, not the weakest.
 ### F9: `origin_device_id` names the uploading device. **Confirmed, live**
 
 `origin_device_id` came back as device A on every row A uploaded, including after a
-`overwrite=true` replacement. It is not in `docs/PLAN.md` and it is the cheapest way for a
+`overwrite=true` replacement. It is not in [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) and it is the cheapest way for a
 client to recognise its own upload coming back down, which matters when deciding whether a
 `download` operation is worth acting on.
 
@@ -730,7 +730,7 @@ POST /api/play-sessions  end_time earlier than start_time -> 422
   an orphan `game-end` is discarded stands.
 
 The endpoint works with no sync session open at all, so **playtime can flush without
-negotiating saves first**. `docs/PLAN.md` routes play sessions only through
+negotiating saves first**. [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) routes play sessions only through
 `POST /api/sync/sessions/{session_id}/complete`, which couples the two; they need not be
 coupled, and for an agent that wakes on `game-end` with nothing to negotiate, the standalone
 route is the whole job.
@@ -794,7 +794,7 @@ header size = 0x20, wad type = 'Is'
 A WAD is an installable Wii title, and its title ID lives inside the ticket, whose offset
 depends on the preceding certificate-chain size rather than being fixed. **It cannot be read
 by a constant offset at all**, which makes it the case where the launch-journal correlation
-route is not merely preferred but required. That is the route `docs/PLAN.md` already ranks
+route is not merely preferred but required. That is the route [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/052bcad63/docs/PLAN.md) already ranks
 first; this is a platform where the fallback simply does not exist.
 
 ### F19: mastersystem and gamegear are class A. **Confirmed, probe**
@@ -974,7 +974,7 @@ filename.** One system, one game, one session, and the two emulators do not shar
 naming input.
 
 That inverts the cost. `PerGameTitle` is the stock default and it already holds a set
-together; `PerGameFileTitle`, which `docs/PLAN.md` recommends precisely because it keys on the
+together; `PerGameFileTitle`, which [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/958b7a5f2/docs/PLAN.md) recommends precisely because it keys on the
 rom file, is the change that would split one. Applying the recommended conversion to a
 multi-disc PS1 title makes the save disappear at the disc change, and the stock configuration
 that the conversion was meant to improve on does not have that failure.
@@ -1179,19 +1179,19 @@ cost someone an hour.
 ## Decisions that survived a challenge
 
 Recorded because a decision that has been challenged and held is worth more than one that was
-never tested, which is how `docs/PLAN.md` already treats the Playnite `RomMRegisterDevice`
+never tested, which is how [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/235921f9d/docs/PLAN.md) already treats the Playnite `RomMRegisterDevice`
 disagreement.
 
-| RomMBat's rule                                                           | Freegosy does                                                          | What settled it                                                                    |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Join firmware on **md5 only**, never filename                            | `_findMatchingSpec` matches `spec.fileName.toLowerCase()`              | 10 of the 49 required files this library holds arrive under a different name (F21) |
-| Ignore `is_verified`                                                     | Not consulted                                                          | `is_verified` misses 11 of those same 49 files (F21)                               |
-| `device_id` is bookkeeping, never a visibility filter                    | Research doc frames 4.9 as isolating saves per device                  | Both devices see the same rows (F7)                                                |
-| Hash the **logical contents** of a bundle, never the archive bytes       | Injects a timestamped `freegosy_sync.txt` to defeat server dedup       | Identical content dedups to one row; theirs never can (F3)                         |
-| Always send a stable, non-null slot                                      | Moved from timestamped slots to a constant one after two filename bugs | Their own issues #42 and #28, plus the dedup measurement (F3)                      |
-| Resume with an `ETag` and `If-Range`, and never `Range` a multi-file ROM | Bare `Range`, no validator, truncates on 200                           | M3's landed work is strictly stronger; nothing here challenges it                  |
-| Device pairing is the only auth path                                     | `POST /api/token` password login and `client-tokens/exchange`          | Ruled out by M1; not re-litigated                                                  |
-| Never call `POST /api/devices` with host fingerprint fields              | Calls it; its research doc sends `hostname`, its code dropped it       | Not re-probed. The MAC-dedup reading in `docs/PLAN.md` line 168 is unchanged       |
+| RomMBat's rule                                                           | Freegosy does                                                          | What settled it                                                                                                                                 |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Join firmware on **md5 only**, never filename                            | `_findMatchingSpec` matches `spec.fileName.toLowerCase()`              | 10 of the 49 required files this library holds arrive under a different name (F21)                                                              |
+| Ignore `is_verified`                                                     | Not consulted                                                          | `is_verified` misses 11 of those same 49 files (F21)                                                                                            |
+| `device_id` is bookkeeping, never a visibility filter                    | Research doc frames 4.9 as isolating saves per device                  | Both devices see the same rows (F7)                                                                                                             |
+| Hash the **logical contents** of a bundle, never the archive bytes       | Injects a timestamped `freegosy_sync.txt` to defeat server dedup       | Identical content dedups to one row; theirs never can (F3)                                                                                      |
+| Always send a stable, non-null slot                                      | Moved from timestamped slots to a constant one after two filename bugs | Their own issues #42 and #28, plus the dedup measurement (F3)                                                                                   |
+| Resume with an `ETag` and `If-Range`, and never `Range` a multi-file ROM | Bare `Range`, no validator, truncates on 200                           | M3's landed work is strictly stronger; nothing here challenges it                                                                               |
+| Device pairing is the only auth path                                     | `POST /api/token` password login and `client-tokens/exchange`          | Ruled out by M1; not re-litigated                                                                                                               |
+| Never call `POST /api/devices` with host fingerprint fields              | Calls it; its research doc sends `hostname`, its code dropped it       | Not re-probed. The MAC-dedup reading in [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/83f11431a/docs/PLAN.md) line 168 is unchanged |
 
 ## The state of the test RetroBat install
 

@@ -135,7 +135,7 @@ internal static class Program
     private static int NotImplemented(string subcommand)
     {
         Console.Error.WriteLine(
-            $"rommbat-agent: '{subcommand}' lands in a later milestone. See docs/PLAN.md.");
+            $"rommbat-agent: '{subcommand}' lands in a later milestone.");
         return ExitCode.NotImplemented;
     }
 

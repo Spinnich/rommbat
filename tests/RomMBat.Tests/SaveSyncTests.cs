@@ -15,7 +15,7 @@ namespace RomMBat.Tests;
 /// The save protocol, and what happens to it when the server disappears.
 /// </summary>
 /// <remarks>
-/// The offline half of this is the suite <c>docs/PLAN.md</c> calls the highest value in the
+/// The offline half of this is the suite <c>docs/design/verification.md</c> calls the highest value in the
 /// repository, and the reason is that being away from the server is the normal case for a
 /// handheld rather than an error path. Every test here asserts the same thing from a different
 /// angle: work completes or queues, nothing is lost, and a replay is free.
