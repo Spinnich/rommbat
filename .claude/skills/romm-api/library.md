@@ -299,8 +299,8 @@ columns for that reason.
   Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
   133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
   hit, so neither is a sweep.
-- **`is_verified` on firmware is unreliable here.** See `platform-mapping` and the BIOS
-  section of the plan: it is false on files RetroBat requires, `psxonpsp660.bin` among them.
+- **`is_verified` on firmware is unreliable here.** See `platform-mapping` and
+  `retrobat-layout`'s BIOS section: it is false on files RetroBat requires, `psxonpsp660.bin` among them.
   Measured against a real library, filtering on it discards 6 of the 49 required files that
   library holds, and joining on `file_name` instead of `md5_hash` discards 2. Join on md5 and
   nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record

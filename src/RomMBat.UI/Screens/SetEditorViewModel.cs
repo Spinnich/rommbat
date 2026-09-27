@@ -324,7 +324,7 @@ public sealed class SetEditorViewModel : IScreen
         // Two rows that look alike were doing different jobs: Platform is the scope's own
         // value ("this set holds Atari 2600 games") and Folder is a RomM-to-RetroBat
         // mapping override. The mapping belongs in platform_map, where platforms list
-        // already reads it and where docs/PLAN.md's M2 puts a screen of its own in 7b-3.
+        // already reads it and where the platform mapping screen edits it.
         // It survives here only for the case that genuinely needs a per-set answer: an
         // arcade platform resolving to none of the ten possible folders. Offering it on
         // every set made a global setting look like a per-set one, and it is meaningless

@@ -27,7 +27,7 @@ is a wombat.
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record
-> ([docs/PLAN.md](docs/PLAN.md)) and the measurements that corrected it
+> ([docs/design/](docs/design/principles.md)) and the measurements that corrected it
 > ([docs/retrobat-findings.md](docs/retrobat-findings.md)). See [Status](#status).
 
 ## Why
@@ -572,7 +572,9 @@ tests/RomMBat.Tests   xUnit, over Core and Client
 tests/RomMBat.Agent.Tests
                       xUnit, over the Agent's subcommands and their gates
 
-docs/PLAN.md          The design of record. Read this before anything else
+docs/design/          The design of record: principles, integration seams, version
+                      policy, rollout, verification, and one record per standing
+                      decision under decisions/. Read principles.md before anything else
 docs/retrobat-findings.md
                       What a real RetroBat install actually does, measured, plus the
                       contradiction table naming every place the plan was wrong

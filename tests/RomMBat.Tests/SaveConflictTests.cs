@@ -117,8 +117,8 @@ public class SaveConflictTests
     [Fact]
     public async Task Keeping_the_local_side_a_second_later_appends_a_row_rather_than_replacing_one()
     {
-        // overwrite=true does not replace the row in the slot, which both docs/PLAN.md and this
-        // stub used to say it did. The server renames a slotted upload to carry the current second
+        // overwrite=true does not replace the row in the slot, which this stub used to say it
+        // did. The server renames a slotted upload to carry the current second
         // and keys the row on that name, so what decides between updating and appending is the
         // clock. A person deciding a conflict is never inside the same second as the save they are
         // deciding against, so the real answer for the only caller of overwrite=true is: it

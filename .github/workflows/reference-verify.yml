@@ -1,8 +1,8 @@
 name: Verify reference data
 
-# reference/verify.py re-derives every upstream number docs/PLAN.md quotes from the
-# vendored files. A failure here means an upstream fact moved, or that someone
-# hand-edited a vendored artifact. Either way the fix is to revisit docs/PLAN.md,
+# reference/verify.py re-derives every upstream number reference/README.md quotes from
+# the vendored files. A failure here means an upstream fact moved, or that someone
+# hand-edited a vendored artifact. Either way the fix is to revisit the docs citing it,
 # not to update the expected number. See reference/README.md.
 #
 # The bundled platform map and BIOS manifest are derived from the same vendored files,
@@ -16,7 +16,6 @@ on:
   pull_request:
     paths:
       - reference/**
-      - docs/PLAN.md
       - data/retrobat/platforms.json
       - data/retrobat/bios.json
       - tools/build-platform-map.py

@@ -125,7 +125,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   by name, and that is unmeasured, so it is not built on.
 
   **The version rule is a statement here, not a comparison, and saying so is the whole of it.**
-  `save-sync` and `PLAN.md` both say never silently restore a state made by a different emulator
+  [states.md](states.md) says never silently restore a state made by a different emulator
   version. Neither side can perform that check: `ScopeOf` uploads `emulator[.core]` with no
   version, and `StateScanner.ReadEmulatorVersion` declines on every emulator measured, so the
   local column is null too. So the command prints the ceiling on the preview and before applying,

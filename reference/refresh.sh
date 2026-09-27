@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Re-pull the vendored upstream reference data, re-derive the plan's numbers, and
+# Re-pull the vendored upstream reference data, re-derive the quoted numbers, and
 # check the bundled data files still match what their generators emit.
 # Requires an authenticated `gh`. Review the resulting diff: a change here can
-# invalidate a design decision in docs/PLAN.md.
+# invalidate a design decision in docs/design/.
 set -euo pipefail
 cd "$(dirname "$0")"
 

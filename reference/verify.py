@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Re-derive every number quoted in docs/PLAN.md from the vendored reference data.
+"""Re-derive every number quoted in reference/README.md from the vendored reference data.
 
-Run after ./refresh.sh. If a count moves, the matching section of the plan is stale.
+Run after ./refresh.sh. If a count moves, every doc and skill citing it is stale.
 Needs the vendored rommapp/romm files refresh.sh pulls, romm-slugs.txt included.
 """
 
@@ -224,9 +224,9 @@ def main():
 
     print()
     if FAIL:
-        print(f"{len(FAIL)} value(s) drifted. Revisit docs/PLAN.md before relying on them.")
+        print(f"{len(FAIL)} value(s) drifted. Revisit the docs citing them before relying on them.")
         return 1
-    print("All reference-derived values match the plan.")
+    print("All reference-derived values match the docs.")
     return 0
 
 

@@ -89,7 +89,7 @@ public class HookAndJournalTests
     [Fact]
     public void A_hook_four_levels_down_walks_up_to_the_root()
     {
-        // The arithmetic docs/PLAN.md had wrong for three revisions. RetroBat's own
+        // The arithmetic is easy to get wrong by one. RetroBat's own
         // start/updatestores.bat goes up three levels because it is calling
         // emulatorLauncher.exe in emulationstation/; the root is a fourth. The hook walks to a
         // marker rather than counting, so a changed layout is a miss and never a wrong answer.

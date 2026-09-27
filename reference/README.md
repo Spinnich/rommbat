@@ -1,7 +1,7 @@
 # Reference data
 
-Upstream files RomMBat's design depends on, vendored so the numbers in `docs/PLAN.md` can
-be re-derived offline and so drift is visible in a diff.
+Upstream files RomMBat's design depends on, vendored so the numbers below, which the docs and
+skills cite, can be re-derived offline and so drift is visible in a diff.
 
 **These are upstream artifacts. Never hand-edit them.** Refresh with `refresh.sh` and
 review the diff, because a change here can invalidate a design decision.
@@ -24,8 +24,8 @@ mid-refresh would hide the change the script exists to surface.
 
 ## Derived facts
 
-Run `python3 verify.py` to reproduce all of these. If any number moves, the corresponding
-section of `docs/PLAN.md` needs revisiting.
+Run `python3 verify.py` to reproduce all of these. If any number moves, every doc and skill
+that cites it needs revisiting.
 
 **Platform mapping is many-to-many and incomplete**
 
@@ -102,7 +102,7 @@ checks exist so each divergence stays visible rather than becoming an accidental
   already contains (`Racing, Driving` in 2,079 of 4,440 entries).
 - `developer` and `publisher` **were** `companies[0]` and `companies[1]`. 5.3.0 splits company
   metadata into `developers` and `publishers` and the exporter reads `primary_developer` and
-  `primary_publisher` instead, which is the ask `docs/PLAN.md` recorded as a follow-up to RomM
+  `primary_publisher` instead, which is the ask RomMBat recorded as a follow-up to RomM
   itself. **It ends per row rather than outright**, because each property falls back to the old
   indexing (`developers[0] or companies[0]`, `publishers[0] or companies[1]`) and a row only
   carries the split once it has been rescanned under 5.3.0. Measured on a live
@@ -156,7 +156,7 @@ gamelist through `defusedxml` rather than overwriting one, moved `ASSET_DIRS` in
 Both unit conversions hold: `first_release_date` is still divided by 1000, so milliseconds,
 and `average_rating` is still divided by 100, so a 0 to 100 scale. So do the `marquee` rule
 and all seventeen elements RomMBat writes. Only the company check changed, and it changed
-because upstream fixed what `docs/PLAN.md` asked them to. Earlier, and still true:
+because upstream fixed what RomMBat asked them to. Earlier, and still true:
 `miximage_v2` has its own asset directory (`miximages_v2`, previously shared with `miximage`)
 and its own gamelist element name, and falls back to the gamelist provider's path as well as
 ScreenScraper's. Inert here, because nothing hand-written references `miximage`.

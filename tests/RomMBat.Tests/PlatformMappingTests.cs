@@ -88,7 +88,7 @@ public class PlatformMappingTests
     /// <b>This assertion was inverted in M7 stage 7b-2a, on a hands-on finding, and the reason
     /// is worth reading before inverting it back.</b> It used to pass <c>fs_slug: "mame"</c>
     /// and require a refusal, which put the arcade check ahead of the fs_slug match. But
-    /// <c>docs/PLAN.md</c>'s M2 orders the chain the other way, "try this before any table",
+    /// the platform-mapping skill orders the chain the other way, fs_slug before any table,
     /// and the arcade rule comes from that table.
     /// <para>
     /// What it cost on a live install: RomM's "Arcade (FinalBurn Neo)" carries

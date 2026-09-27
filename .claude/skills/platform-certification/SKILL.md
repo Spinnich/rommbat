@@ -235,8 +235,8 @@ launches the row through `emulatorLauncher` on the real install, drives its stat
 what the emulator wrote is evidence, not a test suite standing in for it, so its pass clears a
 touched step. It never clears a row's first certification, a new emulator or core, step 6, or a
 multi-disc set; those stay hands-on. The harness, the row fingerprint that decides which rows it
-runs, and the fixtures kept from each pass are designed in `docs/PLAN.md`, "Keeping
-certifications current", and tracked in #216. Until they exist, a touched step is re-run by hand.
+runs, and the fixtures kept from each pass are designed in
+[rollout.md](../../../docs/design/rollout.md#keeping-certifications-current) and tracked in #216. Until they exist, a touched step is re-run by hand.
 
 This is the middle of three options #187 weighed. Re-running all nine on every move grows with
 the wave rollout for steps nothing changed, and never re-running leaves a record attesting to a

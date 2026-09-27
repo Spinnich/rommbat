@@ -71,7 +71,7 @@ clock between formats. ares and jgenesis keep theirs apart, as `ares:battery:rtc
 drafting a save-sync overhaul that bundles a save with its companion files and leaves the clock out
 of change detection; no work on it has started. Do not bundle `.srm` and `.rtc` against today's
 API, since the web player cannot open a bundle. Move the clock into the unit when RomMBat adopts
-that API (`docs/PLAN.md`, revisited 2026-09-23).
+that API ([decision](../../../docs/design/decisions/clock-file-keeps-its-own-slot.md)).
 
 **On `gb` the shared files are two**: the loose `<rom>.srm` six `libretro` cores and Mesen write,
 as `libretro:battery`, and the loose `<rom>.sav` mGBA and mednafen write, as `mgba:battery`, with
@@ -166,11 +166,11 @@ supplement, and a restore names them with the learned title, or for Project64 ke
 state was sent under. gopher64 keeps its battery saves outside `saves/`, which `local_save`'s CHECK
 refuses, so they are not read until #239.
 
-**The grain is per emulator, decided** (`docs/PLAN.md`, 2026-09-21): libretro's cores share one
+**The grain is per emulator, decided** by the maintainer on 2026-09-21: libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
 split a slot by core or merge two emulators' slots without a new decision. mednafen_gba's
 `libretro:battery:sav` is not a split by core: it is a second file, which is what class B's
-per-extension slot is for (`docs/PLAN.md`, amended 2026-09-22).
+per-extension slot is for (ruled 2026-09-22).
 
 **BizHawk names a battery save after its own title for the game** (`named_after: display
 name`), so the filename join cannot match: `StarTropics (USA).zip` wrote

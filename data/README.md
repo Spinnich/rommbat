@@ -2,7 +2,7 @@
 
 Tables RomMBat ships and reads at runtime. Not to be confused with
 [reference/](../reference/), which vendors upstream files purely so the numbers in
-[docs/PLAN.md](../docs/PLAN.md) can be re-derived offline.
+[reference/README.md](../reference/README.md) can be re-derived offline.
 
 | File                             | Shape                                                        | Derived from                                                                | Arrives in |
 | -------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- | ---------- |
@@ -108,7 +108,7 @@ name folders RetroBat does not have (`astrocde` vs `astrocade`, `ps` vs `psx`, `
 vs `megacd`), and 13 RomM slugs fan out to several folders, `arcade` alone to ten.
 
 `python3 ../reference/verify.py` re-derives all of those numbers. If one moves, revisit
-the plan rather than the expected value.
+the docs that cite it rather than the expected value.
 
 ## Changing a mapping
 

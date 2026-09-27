@@ -5,7 +5,7 @@ RomMBat syncs a self-hosted [RomM](https://github.com/rommapp/romm) library with
 subset of ROMs, metadata, media and BIOS into RetroBat's native folder layout, and pushes
 saves, states and play sessions back. RomM is the authority, RetroBat is the player.
 
-Read first: the core principles in [docs/PLAN.md](docs/PLAN.md#core-principles). Then find
+Read first: the core principles in [docs/design/principles.md](docs/design/principles.md#core-principles). Then find
 your task in the routing table below and load what it names, and nothing more.
 
 ## The stack at a glance
@@ -44,6 +44,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes.md` as the worked example                    |
 | How RetroBat or RomM behaves, and the evidence                                         | `docs/retrobat-findings.md`, `docs/romm-5.3-findings.md`, `docs/upstream-issues.md` (grep, never read whole) |
 | How RomMBat's code is laid out and why                                                 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the section for the area                                       |
+| Why a behaviour was chosen, when no skill says                                         | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |
 | A scripted edit or a `gh` body edit from Windows                                       | [docs/contributing/windows-agent-hazards.md](docs/contributing/windows-agent-hazards.md)                     |
@@ -111,7 +112,7 @@ release. Adopting one means re-running `reference/refresh.sh` and resolving the 
 the upstream changelog for anything touching a measured rule, moving the floor and the tested
 row together, and re-checking every entry in `docs/upstream-issues.md`. Moving the RomM floor
 also moves the pinned OpenAPI schema. Details are in
-[docs/PLAN.md](docs/PLAN.md#version-compatibility-is-declared-checked-and-visible).
+[docs/design/version-compatibility.md](docs/design/version-compatibility.md).
 
 **Tests travel with code.** New logic gets a test. Save-shape and mapping logic get fixtures
 from a real install, checked in: its layout, config and logs, never game content. The suite's

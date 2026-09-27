@@ -3,9 +3,9 @@
 How the code is laid out, how the pieces talk to each other, and what the local schema
 holds.
 
-[docs/PLAN.md](PLAN.md) is the design of record and says **why**. This file says **where**,
-and is the one to read before adding a class. Where the two disagree, the plan wins and
-this file needs fixing.
+[docs/design/](design/principles.md) is the design of record and says **why**. This file says
+**where**, and is the one to read before adding a class. Where the two disagree, the design
+wins and this file needs fixing.
 
 > [!NOTE]
 >
@@ -278,8 +278,9 @@ transcription of the three grids compiled into `emulationstation.exe`, in upstre
 `OnScreenKeyboard` builds them into a 13-column grid of spanning keys with four faces each. The
 layout follows the language ES is running in, which
 `InstallSession.EmulationStationLanguage` reads from `es_settings.cfg` because the UI may not
-name `EsSettingsFile`. RomMBat's interface itself stays English: see M7's 7b section for why
-that is a milestone rather than a follow-up.
+name `EsSettingsFile`. RomMBat's interface itself stays English: see
+[interface-language](design/decisions/interface-language.md) for why that is a milestone rather
+than a follow-up.
 
 **The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
 deciding argument is size on a portable drive rather than either start time or
@@ -451,7 +452,7 @@ the token's. See DEVELOPER_SETUP.md section 3.
 
 Two different things, easy to confuse.
 
-**`reference/`** vendors upstream files so the numbers in the plan are reproducible
+**`reference/`** vendors upstream files so the numbers the docs quote are reproducible
 offline. It is an audit trail, not a runtime input. Never hand-edit it, and never resolve
 a drift by updating the expected number.
 
@@ -869,7 +870,7 @@ loaded; from alpha.3 it leaves the loaded save alone and appends beside it, and 
 is what finding 11 of `romm-5.3-findings.md` measured. A download naming a save id lower than the
 one this device last recorded for the slot is therefore recorded as a conflict rather than taken,
 measured on 5.3.0-alpha.2 as the case where negotiate would otherwise answer `download`. Resolving either way
-prunes the copy, which is what makes the plan's "keep the previous copy
+prunes the copy, which is what makes the design's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 
 Save states look like the easier half, because `es_savestates.cfg` is a machine-readable

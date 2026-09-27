@@ -22,7 +22,7 @@ class SlugifyTest(unittest.TestCase):
             "The __loose__ rule": "the-loose-rule",
             "save_rules.json is hand-edited": "save_rulesjson-is-hand-edited",
             "`es_settings.cfg` precedence": "es_settingscfg-precedence",
-            "[Linked](docs/PLAN.md) heading": "linked-heading",
+            "[Linked](docs/ARCHITECTURE.md) heading": "linked-heading",
         }
         for heading, slug in cases.items():
             with self.subTest(heading=heading):
@@ -31,7 +31,7 @@ class SlugifyTest(unittest.TestCase):
 
 class LinkTest(unittest.TestCase):
     def test_existing_file_and_anchor_resolve(self) -> None:
-        self.assertEqual(link_errors("README.md", "[p](docs/PLAN.md)\n"), [])
+        self.assertEqual(link_errors("README.md", "[p](docs/ARCHITECTURE.md)\n"), [])
         self.assertEqual(
             link_errors("README.md", "[c](CLAUDE.md#six-rules-that-override-intuition)\n"), []
         )

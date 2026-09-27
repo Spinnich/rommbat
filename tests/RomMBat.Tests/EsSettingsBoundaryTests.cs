@@ -22,7 +22,7 @@ namespace RomMBat.Tests;
 /// and merging and atomicity do not help: both were tried and the write still vanished
 /// (findings 178 and 179). Every change therefore goes through
 /// <see cref="PendingConfigStore"/> and is applied by <c>background quit</c> once the process
-/// is confirmed gone. <c>docs/PLAN.md</c> says "there is no arrangement under which it can",
+/// is confirmed gone. <c>docs/ARCHITECTURE.md</c> says "The UI can never write <c>es_settings.cfg</c>",
 /// and this is what makes that a fact about the build rather than an intention.
 /// </para>
 /// <para>
