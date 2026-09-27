@@ -148,6 +148,9 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 
 ## Traps
 
+These cross every area. The rest are in [library.md](library.md#traps) (catalog, downloads,
+media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play sessions, a 409).
+
 - **RomM serialises every datetime without a zone and stores UTC, and
   `System.Text.Json` reads a zone-less value as local.** So a plain `DateTimeOffset` property is
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
