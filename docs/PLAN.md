@@ -563,8 +563,8 @@ The six results that moved the design most:
    arguments. Filed upstream as `RetroBat-Official/retrobat#249`, closed there on 2026-08-21
    as an EmulationStation issue and refiled at
    [batocera-emulationstation#2196](https://github.com/batocera-linux/batocera-emulationstation/issues/2196),
-   where it is open. Its title still describes only the `.bat` symptom and understates the
-   scope.
+   whose state is tracked in [upstream-issues.md](upstream-issues.md). Its title describes only
+   the `.bat` symptom and understates the scope.
 
 2. **Save file locations and shapes.** Map, per system, where RetroBat's emulators
    actually write saves, and classify each into the four shapes in M6 (one file, several
