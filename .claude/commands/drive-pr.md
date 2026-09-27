@@ -61,8 +61,9 @@ and the row says what that evidence was.
 ## Each run
 
 1. **State.** `gh pr view $PR --json state,isDraft,mergeable,headRefName,labels`,
-   `gh pr checks $PR`, the ledger, every review comment (`<!-- rommbat-review`), and any comment
-   from the maintainer newer than the ledger. A closed or merged PR: say so and stop.
+   `gh pr checks $PR`, the ledger, every review comment (`<!-- rommbat-review`), and every
+   comment and inline review thread from the maintainer (`issues/<PR>/comments` and
+   `pulls/<PR>/comments`) that the ledger or a reply does not already answer. A closed or merged PR: say so and stop.
 2. **Check out.** Work in the PR's branch, in its worktree if one exists (`git worktree list`).
 3. **Behind main?** If the PR conflicts, or main moved under a file it touches, rebase onto
    `origin/main` and `git push --force-with-lease`. Put the old head sha in the ledger so the next
@@ -77,8 +78,10 @@ and the row says what that evidence was.
      `check.py` accepts locally.
    - `reference-verify` drifting means an upstream fact moved. Never edit a vendored file or an
      expected number. That is a MAINTAINER question.
-5. **Review round.** Increment the round. Spawn the `pr-reviewer` agent with the prompt
-   `PR <n>, round <r>` and wait for it. It posts its own comment.
+5. **Review round.** The round is the count of `<!-- rommbat-review` markers on the PR plus
+   one, the count `/review-pr` uses, so a round it ran in between is not reused. Set the
+   ledger's round to it. Spawn the `pr-reviewer` agent with the prompt `PR <n>, round <r>` and
+   wait for it. It posts its own comment.
 6. **Rule.** Every finding gets a row. Roll the reviewer's small pre-existing items that sit in
    files this PR edits into this PR; open an issue for each large or unrelated one (never labelled
    `good first issue`). Reply on each of the maintainer's threads.

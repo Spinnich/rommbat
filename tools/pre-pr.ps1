@@ -21,7 +21,8 @@
 .PARAMETER Skip
     Gates to leave out, by name: build, publish, test, package, trunk, docs, reference,
     line-endings. A skipped gate is reported as skipped, never as passed. Skipping build
-    runs the tests against whatever binaries are already there.
+    runs the tests against whatever binaries are already there, and skipping publish runs
+    the process-level tests against whatever hook and agent an earlier publish left.
 
 .PARAMETER Fix
     Run trunk fmt before trunk check.

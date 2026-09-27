@@ -747,7 +747,8 @@ cd reference && python3 verify.py
 ```
 
 `pwsh -File tools/pre-pr.ps1` runs these three, the Release build and the tests in one go, trunk
-through WSL, and prints a pass or fail line per gate.
+through WSL (skipped in a git worktree, which trunk in WSL cannot read), and prints a pass or
+fail line per gate.
 
 `tools/docs/check.py` fails on a broken relative link or anchor, an em-dash, or a fact ID cited
 but defined nowhere, and prints reports for the rules the docs overhaul (#242) is bringing the
