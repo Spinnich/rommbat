@@ -154,9 +154,10 @@ system's path. An emulator can write outside `saves/`: Kega Fusion's battery sav
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
 report rather than a tree to start scanning (finding 283, emulatorlauncher#1390). Every issue raised
 upstream is tracked in `docs/upstream-issues.md` until RomMBat adopts the release that fixes it.
-And a core can refuse the library for its names: FBNeo takes a console game's driver from the file name, so it boots nothing named by
-No-Intro (finding 278). **An emulator absent from `emulators/`** is installed by ES on the first
-launch under it, so check the folder holds an executable before planning its rows.
+And a core can refuse the library for its names: FBNeo takes a console game's driver from the file
+name, so it boots nothing named by No-Intro (finding 278). **An emulator absent from `emulators/`**
+is installed by ES on the first launch under it, so check the folder holds an executable before
+planning its rows.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data
 rather than costing a re-download. Each M6 stage owes one hands-on pass of the save shape it
