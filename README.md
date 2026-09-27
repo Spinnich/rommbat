@@ -407,30 +407,13 @@ silence.
 
 ### Known upstream issues
 
-Every issue RomMBat has raised upstream, and the ones judged upstream's but not yet filed, are
-tracked in [docs/upstream-issues.md](docs/upstream-issues.md) with their state. An entry stays
-there until RomMBat has adopted a release carrying the fix: upstream closing an issue is not
-enough, and a workaround comes out only once the fix is in a release the compatibility gate
-accepts **and** a hands-on pass has seen the fixed behaviour. The three M0 filed shaped the design,
-and two still do.
-
-**#2196 moved repository, not status.** It was filed as `RetroBat-Official/retrobat#249` and
-closed there on 2026-08-21 as an EmulationStation issue; RetroBat's own ES fork has issues
-disabled, so it now lives upstream at `batocera-linux/batocera-emulationstation`. The
-mechanism, the two verified fixes and the `.exe` hook consequence are unchanged. **It still
-constrains the design**: the hooks stay `.exe`.
-
-**#1336 is fixed, and the workaround is out.** 8.2.1 pointed Flycast's save-state watcher at
-the directory Flycast actually writes, so a state is mirrored into the declared
-`saves/<system>/flycast/sstates`. Confirmed by hand rather than taken from the changelog:
-three runs of a real Dreamcast game on a real 8.2.1 install put the state in both places, same
-bytes, same millisecond, while the emulator was still running. Dreamcast states now sync from
-the declared directory like any other emulator's. `openmsx` is still wrong and still reported.
-
-**#1337 will not be fixed, and that costs RomMBat nothing.** Upstream's position is that
-there is no reason to run `emulatorLauncher` directly. RomMBat is a direct invoker, so the
-constraint stands unchanged and is not a workaround for a bug: **pass `-core`**, which is
-correct either way.
+Problems found in RomM, RetroBat and EmulationStation that are theirs to fix are tracked in
+[docs/upstream-issues.md](docs/upstream-issues.md): each issue's state, what RomMBat does
+meanwhile, and where the measurement behind it is recorded. That register is the one list, and
+nothing here repeats it. An entry stays there until RomMBat has adopted a release carrying the
+fix, because upstream closing an issue is not what reaches a user: a workaround comes out only once
+the fix is in a release the compatibility gate accepts **and** a hands-on pass has seen the fixed
+behaviour.
 
 ### Platform certification
 
