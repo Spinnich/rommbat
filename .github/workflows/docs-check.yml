@@ -28,5 +28,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Test the checker
+        run: python3 -m unittest discover -s tools/docs
+
       - name: Check docs
         run: python3 tools/docs/check.py

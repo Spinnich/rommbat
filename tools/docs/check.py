@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -70,7 +71,8 @@ GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")
 
 INLINE_LINK = re.compile(r"(?<!!)\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 IMAGE_LINK = re.compile(r"!\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
-REFERENCE_DEF = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)")
+# `[^1]:` is a footnote, not a link.
+REFERENCE_DEF = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 HTML_ANCHOR = re.compile(r"<a\s+(?:[^>]*\s)?(?:id|name)=\"([^\"]+)\"", re.IGNORECASE)
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
@@ -91,6 +93,35 @@ def tracked_files() -> list[str]:
         ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True
     ).stdout
     return [p for p in out.decode("utf-8").split("\0") if p and is_checked(p)]
+
+
+_present: set[str] | None = None
+
+
+def present_paths() -> set[str]:
+    """Files git would publish and their folders, in exact case.
+
+    The filesystem is the wrong oracle: Windows matches a link case-insensitively and sees
+    ignored files, while ubuntu CI and GitHub see neither. Untracked files count, so the hook
+    accepts a link to a doc written moments ago and not yet added.
+    """
+    global _present
+    if _present is None:
+        out = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+            cwd=ROOT,
+            capture_output=True,
+            check=True,
+        ).stdout
+        paths = {"."}
+        for rel in out.decode("utf-8").split("\0"):
+            # --cached still lists a file deleted from the working tree.
+            if rel and (ROOT / rel).is_file():
+                while rel and rel not in paths:
+                    paths.add(rel)
+                    rel = posixpath.dirname(rel)
+        _present = paths
+    return _present
 
 
 def is_checked(rel: str) -> bool:
@@ -127,6 +158,8 @@ def slugify(heading: str) -> str:
     """GitHub's heading anchor: rendered text, lowercased, punctuation dropped, spaces to -."""
     text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", heading)
     text = re.sub(r"<[^>]+>", "", text)
+    # Underscore emphasis renders away; an intraword underscore, as in save_rules, stays.
+    text = re.sub(r"(?<!\w)(_+)(?=\S)(.+?)(?<=\S)\1(?!\w)", r"\2", text)
     text = text.replace("`", "").lower()
     text = re.sub(r"[^\w\- ]", "", text)
     return text.replace(" ", "-")
@@ -165,7 +198,7 @@ def anchors_of(rel: str) -> set[str]:
 
 
 def check_links(rel: str, text: str, findings: Findings) -> None:
-    base = (ROOT / rel).parent
+    base = posixpath.dirname(rel)
     for number, line in prose_lines(text):
         targets = INLINE_LINK.findall(line) + IMAGE_LINK.findall(line)
         ref = REFERENCE_DEF.match(line)
@@ -176,13 +209,12 @@ def check_links(rel: str, text: str, findings: Findings) -> None:
                 continue
             path_part, _, anchor = target.partition("#")
             if path_part:
-                resolved = (base / path_part).resolve()
-                try:
-                    target_rel = resolved.relative_to(ROOT).as_posix()
-                except ValueError:
+                # Path.resolve() would take the on-disk casing on Windows and hide a mismatch.
+                target_rel = posixpath.normpath(posixpath.join(base, path_part))
+                if target_rel == ".." or target_rel.startswith("../"):
                     findings.errors.append(f"{rel}:{number}: link leaves the repository: {target}")
                     continue
-                if not resolved.exists():
+                if target_rel not in present_paths():
                     findings.errors.append(f"{rel}:{number}: broken link: {target}")
                     continue
             else:
