@@ -593,6 +593,7 @@ data/retrobat/        Bundled mapping tables (platforms, save directories, save 
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this
+tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
 tools/m*-probes/      Throwaway probes, one folder per milestone, kept so every measured
                       number is reproducible
 tools/{freegosy,argosy}-probes/
@@ -610,6 +611,7 @@ dotnet build
 dotnet test
 
 trunk fmt && trunk check        # lint, from WSL on Windows
+python3 tools/docs/check.py     # links, anchors and the docs rules
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 ```
 

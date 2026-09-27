@@ -15,7 +15,7 @@
 - [ ] I've updated relevant comments
 - [ ] I've assigned reviewers for this PR
 - [ ] I've added unit tests that cover the changes
-- [ ] `dotnet build`, `dotnet test` and `trunk check` all pass
+- [ ] `dotnet build`, `dotnet test`, `trunk check` and `python3 tools/docs/check.py` all pass
 - [ ] `cd reference && python3 verify.py` still passes, or the drift is explained below
 
 **Invariants**

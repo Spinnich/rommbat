@@ -1,0 +1,32 @@
+name: Docs check
+
+# tools/docs/check.py fails on a broken relative link or anchor, an em-dash, or a fact ID
+# cited but defined nowhere, and prints reports for the rules the tree does not meet yet.
+# The reports tighten into errors as the docs overhaul lands (#242).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      - name: Check docs
+        run: python3 tools/docs/check.py

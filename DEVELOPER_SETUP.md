@@ -731,8 +731,14 @@ get hold of a FAT32-formatted one, that exercises the 4 GB ceiling for free.
 
 ```bash
 trunk fmt && trunk check
+python3 tools/docs/check.py
 cd reference && python3 verify.py
 ```
+
+`tools/docs/check.py` fails on a broken relative link or anchor, an em-dash, or a fact ID cited
+but defined nowhere, and prints reports for the rules the docs overhaul (#242) is bringing the
+tree into line with. Claude Code runs it on every Markdown file it writes, through the hook in
+`.claude/settings.json`.
 
 **Trunk has no Windows-native CLI, so run it from WSL**, which is what its own install
 instructions assume. From PowerShell:
@@ -820,6 +826,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and the `pre-pr-verification` skill.
 dotnet build                    # no new warnings
 dotnet test                     # full suite green
 trunk fmt && trunk check
+python3 tools/docs/check.py
 cd reference && python3 verify.py
 ```
 
