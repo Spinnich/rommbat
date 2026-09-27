@@ -69,8 +69,8 @@ RB-346 to RB-352. The load-bearing results:
 - **They do run concurrently**, with each other and across events. Three `game-end` hooks
   were seen in flight at once, interleaving writes to one file. A lock file is mandatory and
   the journal must survive interleaved appends from separate processes.
-- **`game-start` fires for every game**, contrary to an earlier reading. It is the `.bat`
-  that never starts when the display name contains a space. An exe hook is unaffected.
+- **`game-start` fires for every game.** It is the `.bat` that never starts when the display
+  name contains a space. An exe hook is unaffected.
 - **Take the launch facts from `emulationstation/emulatorLauncher.log` anyway**, with
   `game-end` as the trigger. It carries rom path, `-system`, `-emulator` and `-core` with a
   millisecond timestamp and rotates across two files, and the hook is told none of those
@@ -111,29 +111,29 @@ ES serves an API on `127.0.0.1:1234` whenever it is running. It works on loopbac
 `PublicWebAccess` setting untouched, because that setting gates only non-local callers, so
 using it requires no change to the user's configuration.
 
-| Route                     | Method | Use                                                |
-| ------------------------- | ------ | -------------------------------------------------- |
-| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart      |
-| `/systems`                | GET    | Systems as JSON, including `totalGames`            |
-| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`             |
-| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`           |
-| `/quit`                   | GET    | Close ES cleanly, before writing `es_settings.cfg` |
-| `/emukill`                | GET    | Kill the running emulator                          |
-| `/launch`                 | POST   | **Does nothing.** 200 and no launch; see below     |
+| Route                     | Method | Use                                            |
+| ------------------------- | ------ | ---------------------------------------------- |
+| `/reloadgames`            | GET    | Rescan roms and re-read gamelists, no restart  |
+| `/systems`                | GET    | Systems as JSON, including `totalGames`        |
+| `/systems/<system>/games` | GET    | Games as JSON: `name`, `desc`, `image`         |
+| `/caps`                   | GET    | `{"Version": "8.2.0-stable-win64", ...}`       |
+| `/quit`                   | GET    | Close ES. RomMBat does not call it             |
+| `/emukill`                | GET    | Kill the running emulator                      |
+| `/launch`                 | POST   | **Does nothing.** 200 and no launch; see below |
 
 `POST /reloadgames` is 404; the verb is GET. Treat the whole API as best-effort: it only
 answers while ES is running, so every call needs a short timeout and a no-ES fallback.
 
-**A 200 from this API is never evidence the action happened**, and that now covers every route
-that does something. `/quit` and `/emukill` are ignored while a game is running; `/reloadgames`
-is too, and answers in 1-2 ms before doing the work either way; and **`POST /launch` does not
-launch anything at all**.
+**A 200 from this API is never evidence the action happened**, on any route that does
+something. `/quit` and `/emukill` do nothing while a game is running; `/reloadgames` has no
+effect while one runs, and answers in 1-2 ms before doing the work either way; and **`POST
+/launch` does not launch anything at all**.
 
 **"Ignored" is the wrong word for `/reloadgames`, and the difference decides a design.** It is
 **deferred, not discarded**: a reload issued while an app is in front of ES is queued and
 applied when that app exits. Measured on 8.2.1 with RomMBat itself as the app in front, which
-is the case that matters because an ES-menu launch is suspended exactly as a game is (finding
-233):
+is the case that matters because an ES-menu launch is suspended exactly as a game is
+(RB-233):
 
 | With RomMBat in front                               | `totalGames`                               |
 | --------------------------------------------------- | ------------------------------------------ |
@@ -147,7 +147,7 @@ gamelists even from the interface**, and expect the games to appear when the use
 RomMBat rather than while they are still in it. Do not build a workaround, do not tell the user
 to restart the front end, and do not skip the call on the theory that ES will notice.
 
-**Built that way in 7b-2b, and the stop path is included.** The sync screen runs the same
+**The stop path is included.** The sync screen runs the same
 `GamelistSync` pass the agent does, through `LibrarySyncService`, and it runs it **after a stop
 as well as after a completed run**. A run that ended early still touched folders, and leaving
 their lists unwritten would be work postponed rather than a run that stopped.
@@ -158,9 +158,10 @@ bytes, so a game that was taken back is simply never written. Verified on the li
 sync stopped mid-transfer left no row without a file, nothing under `partial/`, and the store
 byte-identical to before the run.
 
-Also measured, since it costs nothing to say: the control reload worked with **ES unfocused**,
-so ES's own reload does not depend on focus. Driven twice with the exact path `/systems/<system>/games` reports
-and an explicit `text/plain` body: 200, empty response, `emulatorLauncher.log` did not grow by
-a byte, no emulator process. M0 recorded `/launch` as working from the API's own help page,
-which was documentation rather than a drive. **A hands-on pass covering `game-start` and
-`game-end` needs a person at the controller; it cannot be scripted through this API.**
+A reload works with **ES unfocused**, so ES's own reload does not depend on focus (RB-233).
+
+**`POST /launch` answers 200 and launches nothing.** Driven twice with the exact path
+`/systems/<system>/games` reports and an explicit `text/plain` body: an empty response,
+`emulatorLauncher.log` did not grow by a byte, and no emulator process appeared (RB-208). **A
+hands-on pass covering `game-start` and `game-end` needs a person at the controller; it cannot
+be scripted through this API.**
