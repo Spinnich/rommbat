@@ -16,10 +16,10 @@ cd reference && python3 verify.py
 ```
 
 **Build with `--no-incremental`, because an incremental build can hide an error the previous one
-reported.** On PR #196 a nullable error (CS8602) failed one Release build; a second incremental
-build finished in a second with "0 Error(s)", and the tests passed against stale binaries. Debug
-treats CS8602 as a warning, so a Debug run never shows it. Grep the output for `error` rather
-than trusting the summary line.
+reported.** On PR #196 a nullable warning (CS8602) failed one build under `-warnaserror`; a second
+incremental build finished in a second with "0 Error(s)", and the tests passed against stale
+binaries. Nothing in the tree escalates CS8602, so without `-warnaserror` it is only a warning, in
+Debug or Release. Grep the output for `error` rather than trusting the summary line.
 
 **`dotnet test` here is Microsoft.Testing.Platform, not VSTest**, opted in through
 `global.json`, and it takes a different set of options. An option it does not recognise is
