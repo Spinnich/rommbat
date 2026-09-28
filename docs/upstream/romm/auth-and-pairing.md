@@ -12,7 +12,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 Verified: RomM 5.1.1, 2026-08-10, and 5.3.1, 2026-09-28. How: on 5.1.1 sent both shapes to a throwaway device; on 5.3.1 read `update_device` and ran `LiveCatalogTests`' `sync_config` round trip.
 The server applies `model_dump(exclude_unset=True)`, so a property sent as an explicit null is
 written. The generated `DeviceUpdatePayload` serializes every unset property that way, and
-`sync_enabled` and `sync_mode` are not nullable, so the full shape answers **500** with a
+`sync_enabled` and `sync_mode` are not nullable in the device table, so the full shape answers **500** with a
 plain-text body. A bare `{"sync_config": {...}}` answers 200 and leaves the rest intact, which is
 all `UpdateDeviceSyncConfigAsync` sends.
 

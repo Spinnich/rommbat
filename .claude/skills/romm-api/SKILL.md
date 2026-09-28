@@ -108,13 +108,9 @@ CSRF does not apply when an `Authorization` header is present.
 Never needed by either, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
 `platforms.write`, `tasks.run`, `logs.read`.
 
-**RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`, so
-neither grant is requested.** Both tightened at RomM 5.3.0 to require a `PLATFORMS` / `WRITE`
-grant and to enforce platform visibility, which would otherwise have landed on the device
-scope set. Confirmed by grep rather than assumed: no hand-written C# names either route, and
-the one repo-wide hit is `pegasus_export` as a generated DTO property describing the server's
-own config. That follows from the design, since `GamelistSync` writes RetroBat gamelists into
-the install directly and has no reason to ask the server for one. RM-8.
+**RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`**, which
+need `platforms.write` (RM-8). `GamelistSync` writes RetroBat gamelists into the install
+directly, so the device scope set never needs that grant.
 
 `me.write` is **not** a device scope and RomMBat never asks for it. `/approve` and `/deny`
 require it, so only a harness token carries it. A token without it fails the route guard
