@@ -518,8 +518,9 @@ there, and both BizHawk rows are handed disc 1 of a set whatever the layout
 simple64, Project64, ares, and `bizhawk` under `Ares64` and `Mupen64Plus`, with each row's Controller
 Pak option driven. Four rows have no pak at RetroBat's default, so a game that saves only to the pak
 needs the option set. BizHawk's two cores share one save file they cannot read from each other.
-gopher64 is driven and not certified: RetroBat leaves its battery saves outside `saves/`, where
-RomMBat does not read, which #239 tracks ([docs/platforms/n64.md](docs/platforms/n64.md)).
+gopher64 is driven and not yet certified: RetroBat leaves its battery saves outside `saves/`, and
+RomMBat reads them there, which a hands-on pass has still to prove
+([docs/platforms/n64.md](docs/platforms/n64.md)).
 
 That is eighty-eight rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
 has now been driven, and the nine not certified say why in their records. The unit is still

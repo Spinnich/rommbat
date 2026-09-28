@@ -1021,6 +1021,52 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_gopher64_save_downloads_into_its_portable_folder_outside_saves()
+    {
+        // gopher64 reads only emulators/gopher64/portable_data/data/saves/, which RetroBat does
+        // not mirror into saves/n64/ (#239).
+        const string Title = "THE LEGEND OF ZELDA-C916AB315FBE82A22169BFF13D6B866E9FDDC907461EB6B0A227B82ACDF5B506";
+        const string Target = $"emulators/gopher64/portable_data/data/saves/{Title}.sra";
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(225805, "n64", "Legend of Zelda, The - Ocarina of Time (USA)", ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve("saves/n64/Legend of Zelda, The - Ocarina of Time (USA).srm"));
+        fixture.Store.GameIdBindings.Record(new GameIdBinding(
+            "n64",
+            $"{Title}.sra",
+            225805,
+            RelativePath.Create("roms/n64/Legend of Zelda, The - Ocarina of Time (USA).zip"),
+            BindingSource.Journal,
+            null,
+            DateTimeOffset.UnixEpoch));
+        fixture.Scan();
+
+        fixture.SeedServerSave(225805, "gopher64:battery:sra", "THE LEGEND OF ZELDA", "sra", "from the other device", emulator: "gopher64");
+        fixture.Stub.UnsolicitedDownloads.Add((225805, "gopher64:battery:sra"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve(Target)));
+
+        // Recorded under n64, though the path names no system folder.
+        var restored = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("n64", restored.System);
+        Assert.Equal(Target, restored.Path.Value);
+
+        // The next scan reads it back as the same slot for the same ROM.
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("gopher64:battery:sra", save.Slot);
+        Assert.Equal(225805, save.RomId);
+
+        fixture.Stub.UnsolicitedDownloads.Clear();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal(0, again.Downloaded);
+    }
+
+    [Fact]
     public async Task A_project64_save_downloads_into_the_per_game_directory_this_device_learned()
     {
         // Project64 reads project64/<header>-<md5>/<header>.sra, so the title is a directory and

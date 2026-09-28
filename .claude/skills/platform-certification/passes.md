@@ -111,8 +111,9 @@ in each 296,960 B image (RB-338), so convert rather than copy, and confirm the g
 for a pak save, and record both the default and the set value. **Read an emulator's keys from what
 RetroBat writes**, not from its own defaults: Project64 saves on F2 under RetroBat's
 `Project64.sc3` and reaches no slot but 0 (337). **An emulator can keep its saves outside `saves/`
-with no mirror**, as gopher64 does (341); the row is recorded, not certified, and the fix is its own
-issue.
+with no mirror**, as gopher64 does (341). A battery rule can read it there with `from_root`, which
+needs a migration admitting the folder to `local_save` (#239); until one lands, the row is recorded,
+not certified.
 
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console

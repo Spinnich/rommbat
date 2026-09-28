@@ -154,10 +154,13 @@ public sealed class SaveScanner
         var attributor = new GameIdAttributor(_install, _store, romsByStem, launches, _time);
         var titles = new DisplayNameAttributor(_store, romsByStem, launches, _time);
 
+        var walked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var systemDirectory in Directory.EnumerateDirectories(savesRoot).Order(StringComparer.Ordinal))
         {
             var system = Path.GetFileName(systemDirectory);
             var shape = _shapes.For(system);
+            walked.Add(system);
 
             if (shape is null)
             {
@@ -267,7 +270,7 @@ public sealed class SaveScanner
             var carried = ScanUnits(system, attributor, report, seenUnits, now, ref units, ref unitsAttributed, ref bytes);
 
             // An emulator's own battery saves, before the subdirectory report for the same reason.
-            carried.UnionWith(ScanBelow(system, systemDirectory, romsByStem, titles, report, seen, now, ref found, ref attributed, ref bytes));
+            carried.UnionWith(ScanBelow(system, romsByStem, titles, report, seen, now, ref found, ref attributed, ref bytes));
 
             // A converted class D container, before both reports, for the reason the class C
             // pass runs first: a file this pass carries must not also be counted as one nothing
@@ -281,6 +284,13 @@ public sealed class SaveScanner
 
             // Every remaining subdirectory of a system folder is class D or a save state.
             AddSubdirectories(report, system, shape, systemDirectory, savesRoot, carried, shared);
+        }
+
+        // A rule outside saves/ holds files whether or not saves/<system>/ exists, and a file this
+        // pass does not see has its row forgotten below.
+        foreach (var system in _shapes.SystemsReadFromRoot().Where(system => !walked.Contains(system)))
+        {
+            ScanBelow(system, romsByStem, titles, report, seen, now, ref found, ref attributed, ref bytes);
         }
 
         var forgotten = ForgetMissing(seen, seenUnits);
@@ -373,7 +383,8 @@ public sealed class SaveScanner
     }
 
     /// <summary>
-    /// Records the battery saves an emulator keeps in its own subdirectory of a system folder.
+    /// Records the battery saves an emulator keeps in its own subdirectory of a system folder, or
+    /// in its own folder outside <c>saves/</c> where a rule reads from the RetroBat root.
     /// </summary>
     /// <remarks>
     /// <b>One directory level, from the rule, and never discovered.</b> BizHawk keeps its states
@@ -391,7 +402,6 @@ public sealed class SaveScanner
     /// </returns>
     private HashSet<RelativePath> ScanBelow(
         string system,
-        string systemDirectory,
         RomIndex romsByStem,
         DisplayNameAttributor titles,
         UnsyncableReport report,
@@ -409,7 +419,7 @@ public sealed class SaveScanner
 
         foreach (var rule in _shapes.BatteryRulesBelow(system))
         {
-            var directory = Path.Combine(systemDirectory, rule.Directory.Replace('/', Path.DirectorySeparatorChar));
+            var directory = _install.Resolve(RelativePath.Create(rule.DirectoryFor(system)));
 
             if (!Directory.Exists(directory))
             {

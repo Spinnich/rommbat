@@ -266,16 +266,71 @@ public class LocalStoreTests
     [InlineData("roms/snes/Game.sfc")]
     [InlineData("emulators/rommbat/rommbat.db")]
     [InlineData("bios/scph5501.bin")]
+    [InlineData("emulators/gopher64/config.json")]
+    [InlineData("emulators/gopher64/portable_data/data/states/MARIOKART64.state0")]
+    [InlineData("emulators/gopher64/portableXdata/data/saves/MARIOKART64.eep")]
     public void A_save_row_is_refused_a_path_outside_the_saves_tree(string value)
     {
         // The same discipline 005 landed for firmware under bios/. A shape definition that
         // named the wrong directory would otherwise have RomMBat treating a ROM as a save and,
-        // worse, restoring over it.
+        // worse, restoring over it. gopher64's own save folder is the one exception, and only
+        // that folder: the X stands where an unescaped LIKE would let any character through.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
 
         Assert.True(RelativePath.TryCreate(value, out _));
         Assert.Throws<SqliteException>(() => InsertPath(store, "local_save", "relative_path", value));
+    }
+
+    [Fact]
+    public void A_save_row_is_accepted_in_gopher64s_own_save_folder()
+    {
+        // gopher64 keeps its battery saves only there, and RetroBat does not mirror them (#239).
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        InsertPath(store, "local_save", "relative_path", "emulators/gopher64/portable_data/data/saves/MARIOKART64-D6B8.eep");
+    }
+
+    [Fact]
+    public void The_019_rebuild_keeps_every_save_row()
+    {
+        // 019 widens local_save's path CHECK. A row the scanner recorded, and what it says was
+        // last uploaded, must survive it, or the next pass offers every save up again.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            seed.Open();
+
+            foreach (var migration in MigrationsUpTo(18))
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO local_save (relative_path, unit_key, system, emulator, shape_class, rom_id,
+                                        slot, content_hash, scanned_at_utc, uploaded_content_hash)
+                VALUES ('saves/snes/ActRaiser (USA).srm', '', 'snes', 'libretro', 'A', 7,
+                        'libretro:battery', '0123456789abcdef0123456789abcdef', '2026-01-01T00:00:00Z',
+                        '0123456789abcdef0123456789abcdef');
+
+                PRAGMA user_version = 18;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var save = Assert.Single(store.Saves.List(7));
+        Assert.Equal("saves/snes/ActRaiser (USA).srm", save.Path.Value);
+        Assert.Equal("0123456789abcdef0123456789abcdef", save.UploadedContentHash);
     }
 
     [Theory]

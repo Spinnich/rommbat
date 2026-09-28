@@ -263,6 +263,17 @@
       "evidence": "n64 under project64, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote project64/THE LEGEND OF ZELDA-AA3911F5D5598E19E0183E15B6719C36/THE LEGEND OF ZELDA.sra, a directory per game named with the ROM header's name and the md5 of the ROM in 32-bit little-endian word order, the file named with the header's name alone; Mario Kart 64 (USA).zip wrote MARIOKART64-E3880AD6.../MARIOKART64.eep, 512 B, and MARIOKART64_Cont_1.mpk, 32,768 B, player 1's Controller Pak"
     },
     {
+      "emulator": "gopher64",
+      "systems": ["n64"],
+      "directory": "emulators/gopher64/portable_data/data/saves",
+      "from_root": true,
+      "extensions": [".sra", ".eep", ".mpk"],
+      "named_after": "display name",
+      "class": "B",
+      "title_pattern": "-[0-9a-f]{64}$",
+      "evidence": "n64 under gopher64, on 8.2.1: gopher64 keeps its battery saves only in its own portable folder, emulators/gopher64/portable_data/data/saves/, and RetroBat neither points them into saves/n64/ nor mirrors them there, so the directory is relative to the RetroBat root. Legend of Zelda, The - Ocarina of Time (USA).zip wrote THE LEGEND OF ZELDA-C916AB31....sra, 32,768 B of big-endian SRAM; Mario Kart 64 (USA).zip wrote MARIOKART64-D6B8538D....eep, 2,048 B, and .mpk, 131,072 B, all four Controller Paks, on by default. The stem is the ROM header's name, a dash and the upper-case sha256 of the .z64 inside the zip (#239)"
+    },
+    {
       "emulator": "duckstation",
       "systems": ["psx"],
       "directory": "duckstation/memcards",

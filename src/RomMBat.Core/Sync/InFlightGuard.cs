@@ -97,7 +97,9 @@ public sealed class InFlightGuard
     /// Asks whether a save for a ROM may be written to a path now.
     /// </summary>
     /// <param name="romId">The ROM the save belongs to.</param>
-    /// <param name="target">Where it would land, under <c>saves/</c>.</param>
+    /// <param name="target">
+    /// Where it would land: under <c>saves/</c>, or under a battery rule's directory outside it.
+    /// </param>
     /// <remarks>
     /// The whole answer is wrapped rather than the journal read alone, because the rom index is
     /// read out of the same database and a busy timeout that expires there is no more evidence
@@ -162,7 +164,7 @@ public sealed class InFlightGuard
         // the same write under the same open handle. Class A and B land beside the rom as one
         // file per game and are unaffected, which is why an nes download is never deferred for
         // a snes game.
-        var system = SystemFolderOf(target, "saves");
+        var system = _shapes.SystemOf(target);
 
         if (system is null
             || !launches.Any(launch => string.Equals(
@@ -366,22 +368,10 @@ public sealed class InFlightGuard
     /// <summary>
     /// The emulator whose display-name battery rule covers <paramref name="target"/>, or null.
     /// </summary>
-    private string? DisplayNamedBy(string system, RelativePath target)
-    {
-        var segments = target.Value.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        if (segments.Length < 3)
-        {
-            return null;
-        }
-
-        var directory = string.Join('/', segments[2..^1]);
-
-        return _shapes
-            .BatteryRuleFor(system, directory, segments[^1]) is { NamedAfter: BatteryNaming.DisplayName } rule
+    private string? DisplayNamedBy(string system, RelativePath target) =>
+        _shapes.BatteryRuleAt(system, target) is { NamedAfter: BatteryNaming.DisplayName } rule
             ? rule.Emulator
             : null;
-    }
 
     /// <summary>
     /// Whether a path lies inside a declared container.

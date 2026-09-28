@@ -323,6 +323,83 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_gopher64_rule_reads_its_own_portable_folder()
+    {
+        // gopher64 on 8.2.1: the header's name, a dash and the upper-case sha256 of the .z64, in
+        // a folder outside saves/ that RetroBat does not mirror (#239).
+        const string Folder = "emulators/gopher64/portable_data/data/saves";
+        const string Kart = "MARIOKART64-D6B8538DD63F0132ECB2856E7D32816ED3C30E3E479AECD23CF83FB6BA17A5DA";
+        var shapes = SaveShapes.Bundled;
+
+        var gopher = shapes.BatteryRuleForSlot("n64", "gopher64:battery:eep")!;
+        Assert.True(gopher.FromRoot);
+        Assert.Equal(Folder, gopher.DirectoryFor("n64"));
+        Assert.Equal("gopher64:battery:mpk", gopher.SlotOf($"{Kart}.mpk", SaveShapeClass.B));
+        Assert.Same(gopher, shapes.BatteryRuleAt("n64", RelativePath.Create($"{Folder}/{Kart}.eep")));
+        Assert.Equal("n64", shapes.SystemOf(RelativePath.Create($"{Folder}/{Kart}.eep")));
+        Assert.Contains("n64", shapes.SystemsReadFromRoot());
+
+        // mupen64plus and Project64 name .eep files too, each with a hash of another length.
+        Assert.True(gopher.IsBindingKey($"{Kart}.eep"));
+        Assert.False(gopher.IsBindingKey("Mario Kart 64 (U) [!]-3A67D998.eep"));
+        Assert.False(gopher.IsBindingKey("MARIOKART64-E3880AD6EFE62E32297BA6034F1A1EFA.eep"));
+        Assert.Null(shapes.BatteryRuleAt("n64", RelativePath.Create($"saves/n64/{Kart}.eep")));
+        Assert.Null(shapes.SystemOf(RelativePath.Create($"emulators/gopher64/{Kart}.eep")));
+    }
+
+    [Fact]
+    public void A_rule_read_from_the_root_must_name_one_system_outside_saves()
+    {
+        const string Loose = """{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }""";
+
+        var anchored = SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(Loose, """{ "emulator": "x", "systems": ["n64"], "directory": "emulators/x", "from_root": true, "extensions": [".sav"], "named_after": "rom file" }"""));
+        Assert.Equal("n64", anchored.SystemOf(RelativePath.Create("emulators/x/Game.sav")));
+
+        // Two systems leave a path under it with no one system to belong to.
+        Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(Loose, """{ "emulator": "x", "systems": ["n64", "snes"], "directory": "emulators/x", "from_root": true, "extensions": [".sav"], "named_after": "rom file" }""")));
+
+        // And under saves/ it is an ordinary rule written the long way round.
+        Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(
+            """{ "shapes": {} }""",
+            Rules(Loose, """{ "emulator": "x", "systems": ["n64"], "directory": "saves/n64/x", "from_root": true, "extensions": [".sav"], "named_after": "rom file" }""")));
+    }
+
+    [Fact]
+    public void A_gopher64_save_in_its_portable_folder_is_attributed_by_its_launch()
+    {
+        // No saves/n64/ at all, which is an install that only ever ran gopher64 for n64 saves.
+        const string Dir = "emulators/gopher64/portable_data/data/saves";
+        const string Kart = "MARIOKART64-D6B8538DD63F0132ECB2856E7D32816ED3C30E3E479AECD23CF83FB6BA17A5DA";
+        using var fixture = new TitleFixture();
+        fixture.AddRom(157714, "Mario Kart 64 (USA).zip", "n64");
+        fixture.Write($"{Dir}/{Kart}.eep", "eeprom");
+        fixture.Write($"{Dir}/{Kart}.mpk", "paks");
+        fixture.Touch($"{Dir}/{Kart}.eep", Now.AddMinutes(-5));
+        fixture.Touch($"{Dir}/{Kart}.mpk", Now.AddMinutes(-5));
+        fixture.Write(
+            LaunchLog.LivePath.Value,
+            $"{Now.AddMinutes(-20).ToLocalTime():yyyy-MM-dd HH:mm:ss.fff} [INFO]      [Startup] "
+                + "\"X:\\RetroBat\\emulationstation\\emulatorLauncher.exe\" -system n64 -emulator gopher64 "
+                + "-rom \"X:\\RetroBat\\roms\\n64\\Mario Kart 64 (USA).zip\"\r\n");
+
+        fixture.Scan();
+
+        var saves = fixture.Store.Saves.List().OrderBy(save => save.Slot, StringComparer.Ordinal).ToList();
+        Assert.Equal(["gopher64:battery:eep", "gopher64:battery:mpk"], saves.Select(save => save.Slot));
+        Assert.All(saves, save => Assert.Equal(157714, save.RomId));
+        Assert.All(saves, save => Assert.Equal("n64", save.System));
+        Assert.Equal($"{Dir}/{Kart}.mpk", saves[1].Path.Value);
+
+        // Seen again, so a second pass keeps the rows rather than forgetting them.
+        fixture.Scan();
+        Assert.Equal(2, fixture.Store.Saves.List().Count);
+    }
+
+    [Fact]
     public void The_bundled_psx_rule_gives_each_of_duckstations_cards_its_own_slot()
     {
         // Symphony of the Night under DuckStation on 8.2.1, PerGameTitle for both ports.
