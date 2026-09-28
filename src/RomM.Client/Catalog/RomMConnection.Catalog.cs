@@ -151,11 +151,9 @@ public sealed partial class RomMConnection
     /// <para>
     /// <b>Only <c>sync_config</c> goes on the wire, and the generated
     /// <c>DeviceUpdatePayload</c> is deliberately not used.</b> That type serialises every
-    /// property, so the unset ones arrive as explicit nulls and the server writes them.
-    /// Measured against a live 5.1.1 instance: the full shape answers <b>500 Internal Server
-    /// Error</b> with a plain-text body, while the same request carrying only
-    /// <c>sync_config</c> answers 200 and leaves the device's name, platform and client
-    /// version intact.
+    /// property, so the unset ones arrive as explicit nulls and the server writes them: the
+    /// full shape answers <b>500</b>, while <c>sync_config</c> alone answers 200 and leaves
+    /// the rest of the device intact. RB-73.
     /// </para>
     /// </remarks>
     public async Task<RomMResponse<DeviceSchema>> UpdateDeviceSyncConfigAsync(

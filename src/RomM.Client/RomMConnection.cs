@@ -106,7 +106,7 @@ public sealed partial class RomMConnection : IDisposable
     }
 
     /// <summary>
-    /// Starts a pairing flow. Unauthenticated and rate limited to 10/min/IP.
+    /// Starts a pairing flow. Unauthenticated and rate limited to 10/min/IP (RB-74).
     /// </summary>
     /// <exception cref="RomMUnreachableException">The server did not answer.</exception>
     /// <exception cref="RomMApiException">The server rejected the request.</exception>
