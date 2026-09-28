@@ -7,13 +7,14 @@ read-when: Before scanning `saves/`, attributing a save unit, or handling a shar
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-361. The tree is `saves/<system>/<emulator>/`, and only libretro battery saves sit loose
+## RB-361. The tree is `saves/<system>/<emulator>/`, and the loose level is mostly libretro's
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: inventoried every file under `saves/` on a real install with a substantial library.
-A standalone emulator writes under an emulator-named subdirectory (`ps2/pcsx2`,
-`dreamcast/flycast`, `saturn/kronos`, `3ds/azahar`, `wii/dolphin-emu`). Only libretro battery
-saves land loose at `saves/<system>/*.srm`. Emulator-named folders also sit at the top level
-beside the systems (RB-119), and `saves/dolphin/User/GC/SRAM.USA.raw` exists alongside
+Most standalone emulators write under an emulator-named subdirectory (`ps2/pcsx2`,
+`dreamcast/flycast`, `saturn/kronos`, `3ds/azahar`, `wii/dolphin-emu`). Libretro battery saves
+land loose at `saves/<system>/*.srm`, and so do a few standalone emulators', such as `mesen`
+and `mednafen` on `nes` (RB-253, `save_rules.json`). Emulator-named folders also sit at the top
+level beside the systems (RB-119), and `saves/dolphin/User/GC/SRAM.USA.raw` exists alongside
 `saves/gamecube/dolphin-emu/User/GC/`. So a save path does not always begin with a system name.
 
 | System                                                                       | Class       | Observed                                                                                            |
@@ -90,8 +91,8 @@ folders. What it does is narrower, and is in the GameCube facts, RB-189.
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted `saves/ps2/` around a PCSX2 launch in which the game saved nothing.
 `pcsx2/memcards/Mcd001.ps2` and `Mcd002.ps2`, 8,650,752 B each, were both rewritten. So a class
-D container's mtime changes on every launch, and mtime decides nothing in RomMBat: every save
-it syncs is content-hashed.
+D container's mtime changes on every launch, and mtime never decides whether a save needs
+uploading: every save RomMBat syncs is content-hashed.
 
 ## RB-125. A class A pass over a whole install costs half a second
 
