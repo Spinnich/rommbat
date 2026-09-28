@@ -76,8 +76,8 @@ puts its whole user-data directory under `bios/openmsx/`, and the declared direc
 empty. The saves took openMSX's default name rather than the `[guess_title]_0` RetroBat's
 `kbhotkeys.tcl` binds to Alt+F2, so whether RetroBat mirrors a state saved under its own naming
 is unmeasured. Nothing in RomMBat scans `bios/openmsx/`, so openMSX states are neither synced
-nor reported, and a scan of the declared directory says `states: none found`.
-`StateScanner.WrongDeclaredDirectories` names the trap for tests and gates nothing.
+nor reported, and the scan counts none of them. `StateScanner.WrongDeclaredDirectories` names
+the trap for tests and gates nothing.
 
 ## RB-135. The slot a save-state key writes is neither 0 nor fixed
 
