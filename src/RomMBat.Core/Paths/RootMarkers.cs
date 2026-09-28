@@ -22,7 +22,7 @@ public static class RootMarkers
     /// Files and directories whose presence identifies a RetroBat root.
     /// </summary>
     /// <remarks>
-    /// RB-378 confirmed all three in a stock 8.2 tree, and confirmed there is no
+    /// RB-378 confirmed all three in a stock 8.2 tree, and RB-377 that there is no
     /// <c>build.ini</c> anywhere in it.
     /// </remarks>
     public static IReadOnlyList<string> All { get; } = ["retrobat.ini", "emulationstation", "roms"];
