@@ -38,7 +38,7 @@ held it, and neither is a fault or fixable by re-running. A kind measured at 0% 
 rescrape away from 100%.
 
 **Quote the library and the date beside any such number**, or a later session will read it as a
-property of RomM. RB-239 is the worked example, including the wrong reading first.
+property of RomM. RB-239 is the worked example.
 
 ## `fs_size_bytes` can be stale against the file the server serves
 

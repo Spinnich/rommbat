@@ -7,197 +7,139 @@ read-when: Before writing a gamelist or media, or honouring a scraper option.
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-23. Confirmed by mtime for `roms/<system>/gamelist.xml` and `es_settings.cfg`
-
-Plan says: ES may overwrite `gamelist.xml` on exit (M4, L403-404)
-
-Measurement says: Confirmed by mtime for `roms/<system>/gamelist.xml` **and** `es_settings.cfg`. But `system/es_menu/gamelist.xml` was **not** rewritten across two sessions, so menu registration is a gentler case
-
-## RB-29. Only if you do not reload
-
-Plan says: Writing `gamelist.xml` while ES runs may be clobbered on exit (L403-404, M4)
-
-Measurement says: Only if you do not reload. ES holds a stale model and rewrites from it at exit, so **write then `GET /reloadgames`** and the edit sticks and shows immediately. ES merges in place, preserving comments
-
-## RB-44. Not supported
-
-Plan says: A 100k-entry gamelist "would make EmulationStation unusable" (core principle 2, L104)
-
-Measurement says: **Not supported.** ES loads 100,000 entries in **2.07 s** for 419 MB, and 2.93 s with artwork on disk. Cap the gamelist for gamepad navigability, not because ES cannot take it
-
-## RB-101. Confirmed exactly, read off a real scraped install rather than from memory: `images/<stem>-image.png`
-
-Previously: Media is named after the ROM file (plan M4, `retrobat-layout`)
-
-Measurement says: Confirmed exactly, read off a real scraped install rather than from memory: `images/<stem>-image.png`, `images/<stem>-thumb.png`, **`images/<stem>-marquee.png`** (marquee lives under `images/`, not its own folder), `videos/<stem>-video.mp4`, `manuals/<stem>-manual.pdf`, where `<stem>` is the ROM file name without its extension
-
-## RB-102. Incomplete, and two of the four are unobserved
-
-Previously: ES writes back favourite, playcount, lastplayed and hidden (plan M4)
-
-Measurement says: **Incomplete, and two of the four are unobserved.** Across 4,531 entries in 32 real gamelists: `playcount` 115, `lastplayed` 115, **`gametime` 114**, and **no `favorite` and no `hidden` at all**. The merge surface is much wider: `scrap` 4,525 (self-closing, `name` and `date` attributes), `game@id` 4,493, `cheevosHash` 4,187, `md5` 2,815, `cheevosId` 2,329, `arcadesystemname` 568, `multidisk` 161, `crc32` 8. Own an allowlist, never a blocklist
-
-## RB-103. Refuted
-
-Previously: **XML comments survive an ES rewrite** (probe 3, "Writing `gamelist.xml` under a running ES")
-
-Measurement says: **Refuted.** When ES does rewrite the file it drops **every** comment, both at document level and inside a `<game>` it did not otherwise touch. Unknown **elements** and **attributes** do survive, including `<scrap/>` in its self-closing form and `id`/`source` on `<game>`, so the original conclusion holds for everything except comments
-
-## RB-104. Only when it has something to change
-
-Previously: ES rewrites `gamelist.xml` on exit (probe 3)
-
-Measurement says: **Only when it has something to change.** A full session that started ES, called `/reloadgames`, and quit left a 1,810-byte file **byte-identical**, mtime included. The rewrite in probe 3 followed a game actually being played. So the no-churn regression is meaningful, but it has to compare the file **after** ES has touched it, not the one RomMBat wrote
-
-## RB-105. For entries it does not touch
-
-Previously: ES merges in place, so element order survives (probe 3)
-
-Measurement says: **For entries it does not touch.** Playing one game rewrote that entry's children into ES's own order (`path,name,desc,genre,rating,releasedate,developer,publisher,players,favorite,playcount,lastplayed,gametime,lang,region,...`), **moved it to the end of the file**, and **dropped `<hidden>false</hidden>`**, which is the same default-pruning seen on `es_settings.cfg`. The untouched entry kept RomMBat's order exactly
-
-## RB-106. What a gamelist entry with no file behind it does
-
-Previously: (not addressed) what a gamelist entry with no file behind it does
-
-Measurement says: **Nothing.** ES reported 6 games for 6 ROM files while the gamelist held 3 entries, one of them naming a file that does not exist, so a stale entry left by an eviction is not a phantom game. It **does survive the rewrite**, so it is inert but permanent until RomMBat removes it
-
-## RB-111. A cap cannot deliver that on its own
-
-Previously: The per-system cap is for navigability (probe 5, plan M4)
-
-Measurement says: **A cap cannot deliver that on its own.** ES lists ROM files it has no gamelist entry for (probe 3, and reconfirmed here), so dropping entries hides no games and only strips their art. `ParseGamelistOnly` does exist as an ES setting, beside `IgnoreGamelist`, backing `--gamelist-only`, but it is global and would change every system including ones RomMBat does not manage
-
-## RB-204. Its encoding is not like any other, and merging with the shipped writer would rewrite all 96 entries
-
-The claim being checked: `system/es_menu/gamelist.xml` is a gamelist like any other, so RomMBat's writer can merge into it (**this stage's brief**)
-
-What was measured: **Its encoding is not like any other, and merging with the shipped writer would rewrite all 96 entries.** The stock file is **UTF-8 with a BOM and CRLF endings**; `GamelistDocument` writes no BOM and LF. Against **42 of 42** `roms/<system>/gamelist.xml` across both installs, which are no BOM and LF, this one file is the exception. `GamelistDocument` now records the convention of the file it loaded and reproduces it
-
-## RB-205. Third session, and the strongest one: ES had the change in its model and still left the file alone
-
-The claim being checked: `system/es_menu/gamelist.xml` was not rewritten by ES across two sessions, which is an absence of evidence rather than a guarantee (**probe 7**)
-
-What was measured: **Third session, and the strongest one: ES had the change in its model and still left the file alone.** The entry was written, `/reloadgames` was called, ES listed it by name, and after `/quit` the file's **md5 and mtime were both unchanged** from what the probe had written. Probe 7's two sessions did not include a session where ES had a reason
-
-## RB-206. No, and it is worth recording as a wrong guess a measurement caught, the way 196 was
-
-The claim being checked: ES rewrote that gamelist on exit, stripping the BOM and reindenting to two spaces (**this session's own first reading**)
-
-What was measured: **No, and it is worth recording as a wrong guess a measurement caught, the way 196 was.** The rewrite was the probe's own `XmlDocument.Save`, which defaults to CRLF and two-space indentation. The first run compared the post-quit file against the **shipped** one rather than against the bytes the probe itself had just written, so the probe's own write was the only thing the comparison could ever have shown. Retracted, and the probe now hashes the file immediately after writing it
-
-## RB-207. Three `<game>` elements in the stock file are commented out
-
-The claim being checked: (not addressed) what a gamelist merge into `es_menu` must preserve beyond the entries
-
-What was measured: **Three `<game>` elements in the stock file are commented out**, `citra_canary`, `yuzu-early-access` and `zsnes-dos`, which is how RetroBat disables an entry it still ships the markup for. Read together with 205, RomMBat is the **only** writer that could drop them, so the comment preservation `GamelistDocument` already has stops being incidental here. It also explains a count that looks wrong: the file holds 96 `<path>` elements and 93 live `<game>` entries, and ES reports 92 because four entries name a `.menu` that is not on disk
-
-## RB-238. Both switches ship on, and absence is a deliberate off
-
-Question: **What an absent `ScrapeVideos` or `ScrapeManual` means, since 170's pruning makes absence ambiguous in general**
-
-Measured: **Both switches ship on, and absence is a deliberate off. `RetroBat ships templates that override EmulationStation's compiled defaults`, which is the general trap and the reason the first answer here was wrong.** `system/templates/emulationstation/es_settings.cfg` carries `ScrapeVideos` and `ScrapeManual` as **`true`**, byte-identical on a fresh 8.2.1 install and on the used one, and a fresh install's scraper menu shows both **on**. EmulationStation's own compiled defaults are the opposite: `Settings.cpp` at `c686ca8b`, the last commit to that file before the 2026-08-23 release, registers `mBoolMap["ScrapeVideos"] = false` and registers `ScrapeManual` **nowhere**, so `SETTINGS_GETSET(bool, mBoolMap, getBool, setBool, false)` returns `false`. `saveMap` then drops any key equal to its registered default, and any key with no registered default equal to `false`, so **turning a switch off deletes the key** and a literal `value="false"` never occurs. The three states are `true` on, **absent** off, and `false` never. **Seeding is once, not per launch**: the used install's template still says `true` while its live file has no `ScrapeVideos` line and was rewritten by ES at 06:37 the same morning without restoring it. **The consequence for RomMBat** is that the absent branch must be off: reading it as RomMBat's own default left 389 MB of megadrive video and **2.05 GB across the tree** that no setting could reach, and made the round-two fix a no-op for the kind it was written for. Generalises 170 and 235, and corrects the method: for anything in this file, read `system/templates/` and a fresh install, because upstream source is not evidence of what a RetroBat does
-
-## RB-239. Three of them are not media kinds at all, they are source pickers for slots RomMBat already fills
-
-Question: **What the other nine scraper options mean, and which of them RomM can actually serve**
-
-Measured: **Three of them are not media kinds at all, they are source pickers for slots RomMBat already fills.** The source comments name the tag: `ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc` feeds `<thumbnail>`, `ScrapperLogoSrc` feeds `<marquee>`. Values are `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`, `wheel`, `marquee`, and empty for NONE. **RomM's `ss_metadata` carries fourteen paths, not the one `logo_path` RomMBat reads**: `title_screen_path`, `miximage_path`, `miximage_v2_path`, `box2d_path`, `box3d_path`, `box2d_back_path`, `box2d_side_path`, `fanart_path`, `logo_path`, `marquee_path`, `bezel_path`, `physical_path`, `video_path`, `video_normalized_path`. Coverage over 200 rows per platform (megadrive / snes / atari2600): cover **82/100/100%**, `title_screen` **82/100/99%**, `miximage_v2` **82/100/100%**, `box2d_back` **81/100/100%**, `logo` **82/100/100%**, `bezel` **49/97/96%**, `manual` **55/96/95%**. **Every one of those numbers says when that platform was last scraped and with what settings, and nothing about what RomM or ScreenScraper can serve.** That is what makes the apparent `box2d` / `box3d` split a reading error rather than a finding: megadrive shows 0% 2D and 81% 3D, atari2600 the exact inverse, and the cause is Spinnich's own library rather than the platform. `box2d` in that form is new to RomM and the older platforms have not been rescraped for it, and he has recently stopped storing `box3d`, so the recently scraped platform has none. `fanart_path` at 0% on all three is the same class of observation and is **not** evidence the field is unusable. **The design consequence is that coverage must never decide what RomMBat supports**: support what the schema exposes, let an absent path be the ordinary `Missing` case, and re-read the numbers as a snapshot that moves the next time an administrator rescrapes. **`ScrapeMap` and `ScrapePadToKey` are dead**: no map field exists anywhere in the 5.2.0 schema, and padtokey is ES's own input config rather than media. `ScrapeBoxBack` maps to `box2d_back_path` and `ScrapeBezel` to `bezel_path`, both real. ES's own gamelist vocabulary is wider than the menu and reads `titleshot`, `magazine`, `cartridge`, `boxart`, `wheel` and `mix` as paths too
-
-## RB-240. Not by hash, because RomM publishes none for media, and it does not need one
-
-Question: **How a source change could be detected, since a re-fetch has to know the slot was filled differently**
-
-Measured: **Not by hash, because RomM publishes none for media, and it does not need one.** `gamelist_metadata` was **absent on every row sampled** across all three platforms, so its `md5_hash` never arrives, and no media path on any block carries a hash of its own. Recording **which source filled the slot** on the `local_file` row makes a settings change an ordinary `recorded != wanted` comparison, which is the `Discard` path 7b-2b already built for a kind being turned off, widened by one column. **Duplication needs no policy either**: ES removes Box 2D from the Box Source list when Image Source is set to `box-2D`, on `imageSource->setSelectedChangedCallback`, so upstream prevents the collision at the menu and RomMBat mirrors that rather than inventing a rule
-
-## RB-241. No. Switching scrapers can rewrite a source the user never touched
-
-Question: **Whether the stored source value is stable, since the menu changes with the SCRAPE FROM setting**
-
-Measured: **No. Switching scrapers can rewrite a source the user never touched.** `GuiScraperSettings`'s constructor builds every row from `Scraper::getScraper()`, guarding each on `isMediaSupported(...)`, and when the stored value is not in the new scraper's list `selectFirstItem()` picks one and `addSaveFunc` writes it on close. So `ScrapperImageSrc` tracks the last scraper selected when that menu was closed rather than a deliberate choice. The rule for RomMBat is to read the value, map what it recognises, treat anything else as a fallback, and **ignore the `Scraper` setting entirely**, because RomM is not any of the scrapers it names. Spinnich's observation, checked against the source
-
-## RB-356. The gamelist ceiling: there isn't one worth designing around
-
-The last open item, measured on the live install with synthetic corpora in an otherwise empty
-`roms/snes` (`tools/m0-probes/probe5-gamelist.ps1`). Each row is a cold ES start against that
-size, timed from process start to `/systems` reporting the full count, since ES parses the
-gamelists **before** it opens the HTTP port and `/caps` therefore tracks total startup rather
-than preceding the load.
-
-| Entries     | `gamelist.xml` | Cold start | Working set | Read the list | Reload effect |
-| ----------- | -------------- | ---------- | ----------- | ------------- | ------------- |
-| 200 (floor) | 0.13 MB        | 1.67 s     | 211 MB      | 15 ms         | 269 ms        |
-| 1,000       | 0.65 MB        | 1.60 s     | 216 MB      | 24 ms         | 533 ms        |
-| 5,000       | 3.2 MB         | 1.55 s     | 225 MB      | 104 ms        | 260 ms        |
-| 10,000      | 6.5 MB         | 1.54 s     | 240 MB      | 167 ms        | 274 ms        |
-| 25,000      | 16.2 MB        | 1.55 s     | 272 MB      | 401 ms        | 538 ms        |
-| 50,000      | 32.5 MB        | 2.05 s     | 312 MB      | 769 ms        | 525 ms        |
-| **100,000** | **65.0 MB**    | **2.07 s** | **419 MB**  | 1457 ms       | 1084 ms       |
-
-**100,000 entries in one system cost ES about half a second of startup and 208 MB.** Memory
-is linear at roughly **2 MB per 1,000 entries**, and cold start barely moves: 1.5 s at every
-size up to 25k, 2.05 s from 50k. Nothing here degrades, breaks or thrashes.
-
-Repeated at 100,000 with a real image file per entry on disk, since a gamelist that references
-artwork nobody has is the optimistic case:
-
-| 100,000 entries     | Cold start | Working set |
-| ------------------- | ---------- | ----------- |
-| metadata only       | 2.07 s     | 419 MB      |
-| with 100,000 images | **2.93 s** | 402 MB      |
-
-Artwork costs **0.9 s of startup and no memory at load**, which says ES stats the files during
-the scan and decodes textures lazily while browsing.
-
-**So the per-system gamelist cap the plan wanted from this probe is not an ES limit.** Core
-principle 2's "a 100k-entry gamelist would make EmulationStation unusable" is not supported:
-ES loads exactly that in under three seconds. The reason to cap a gamelist is that **a human
-cannot navigate 100,000 entries with a gamepad**, which is core principle 3's curation
-argument and a product decision, not a measured ceiling. M4 should enforce a cap for
-navigability, and can stop treating a large gamelist as a technical hazard.
-
-Two caveats, stated because they bound the claim:
-
-- **This measures loading, not scrolling.** Cold start, reload, working set and the API read
-  are all readable from ES; on-screen scroll smoothness is not, and nothing here substitutes
-  for it.
-- `/reloadgames` returns in 1-2 ms and does the work afterwards, so its response time measures
-  nothing. The reload column above is the time until ES reports a change made on disk, which
-  is what M4 actually waits for. Even at 100k that is **about a second**.
-
-## RB-388. Writing `gamelist.xml` under a running ES is safe, but only if you reload
-
-ES **does** rewrite `gamelist.xml` on exit: mtime landed at 23:48:31, exactly when ES closed.
-But the concurrent edits survived, both the renamed entry and a raw XML comment stamp.
-Comparing the file before and after that rewrite:
-
-- **XML comments survive.** ES is not regenerating the document from its model; it loads,
-  modifies and saves, so unknown nodes are preserved.
-
-  > **Half of this is withdrawn. See RB-103.** Unknown elements and attributes do
-  > survive, `<scrap/>` in its self-closing form included. **Comments do not**: an ES rewrite
-  > drops every one, at document level and inside a `<game>` alike. What is preserved is the
-  > node tree its parser keeps, and comments are not in it.
-
-- **`<path>` element order is unchanged.**
-
-  > **True only for entries ES did not touch. See RB-105.** The played entry's children
-  > were rewritten into ES's own order, the entry moved to the end of the file, and
-  > `<hidden>false</hidden>` was pruned as a default.
-
-- **No `<game>` entry was written for the metadata-less probe rom**, even though ES listed it
-  in the API. ES only persists entries it has metadata for.
-
-**The reason the write survived is the actionable part, and it is a sequencing rule:** the
-edit was made _and then_ `/reloadgames` was called, so ES had it in memory before serialising
-on exit. ES demonstrably holds a stale model otherwise, and demonstrably rewrites the file at
-exit, so an edit made **without** a following reload would be overwritten by that stale model.
-
-> **Rule for M4: write the gamelist, then immediately `GET /reloadgames`.** That converts the
-> plan's "write only while ES is idle" constraint into a much cheaper "write then reload".
-> The negative case, editing without reloading and then quitting, was not directly executed;
-> it is inferred from the stale-model and rewrite-on-exit measurements, both of which were.
->
-> **Two M4 measurements bound the rule.** ES rewrites the file only when it has something to
-> change, so a session that touched nothing leaves it byte-identical (RB-104); and the
-> reload is ignored outright while a game is running (RB-107), which is precisely when a
-> background sync is most likely to be writing.
+## RB-388. A gamelist written under a running ES survives only if `/reloadgames` follows
+
+Verified: RetroBat 8.2.0, 2026-08-08. How: edited `roms/<system>/gamelist.xml` with ES up, called `/reloadgames`, quit, and diffed the file ES rewrote on exit.
+ES holds the gamelist it loaded in memory and serialises that model when it rewrites the file on
+exit. An edit followed by `/reloadgames` is in the model, shows at once and survives the rewrite.
+An edit with no reload would be overwritten by the stale model: that half is inferred from the two
+measured halves, not driven. ES writes no `<game>` for a rom it has no metadata for, even while
+listing the rom. `GamelistSync` writes, then reloads. A reload has no effect while a game runs
+(RB-107).
+
+## RB-104. ES rewrites a rom gamelist on exit only when it has something to change
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: a session that started ES, called `/reloadgames` and quit, with the file's md5 and mtime compared before and after.
+A session that changed nothing left a 1,810-byte file byte-identical, mtime included. A session in
+which a game was played rewrote it. So a no-churn check compares RomMBat's second write against
+the file ES left behind, not against RomMBat's own first write.
+
+## RB-105. A rewrite reorders and prunes the entry ES touched, and leaves the rest alone
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: played one of two RomMBat-written games, quit, and diffed the gamelist.
+The played entry's children were rewritten into ES's own order (`path`, `name`, `desc`, `genre`,
+`rating`, `releasedate`, `developer`, `publisher`, `players`, `favorite`, `playcount`,
+`lastplayed`, `gametime`, `lang`, `region`, ...), the entry moved to the end of the file, and
+`<hidden>false</hidden>` was dropped as a default. The untouched entry kept RomMBat's order.
+
+## RB-103. A rewrite drops every XML comment and keeps unknown elements and attributes
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: seeded a gamelist with comments, unknown elements and attributes, played a game so ES rewrote it, and diffed.
+Comments go at document level and inside a `<game>` ES did not otherwise touch. Unknown elements
+and attributes stay, including `<scrap/>` in its self-closing form and `id` and `source` on
+`<game>`. `GamelistDocument` preserves comments itself but never uses one to carry meaning.
+
+## RB-106. A gamelist entry whose file is missing is inert, and ES keeps it
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: 6 rom files and 3 gamelist entries, one naming a file not on disk; read ES's game count, then forced a rewrite.
+ES reported 6 games, so the entry is not a phantom game. It survives ES's rewrite, so a stale entry
+left by an eviction stays until RomMBat removes it.
+
+## RB-111. ES lists a rom file with no gamelist entry, so dropping entries hides no game
+
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-11. How: counted ES's games against rom files and gamelist entries in probe 3 and again in M4.
+A capped gamelist only strips art and descriptions. `ParseGamelistOnly`, beside `IgnoreGamelist`
+and backing `--gamelist-only`, would make the gamelist authoritative, but it is global and would
+change every system, including ones RomMBat does not manage. RomMBat does not set it, and the
+sync set's `max_games` bounds a folder instead.
+
+## RB-356. ES loads a 100,000-entry gamelist in about two seconds
+
+Verified: RetroBat 8.2.0, 2026-08-08. How: cold ES starts against synthetic gamelists of 200 to 100,000 entries in an otherwise empty `roms/snes`, timed to `/systems` reporting the full count.
+100,000 entries (65 MB) took 2.07 s against 1.67 s for 200, with a working set of 419 MB against
+211 MB, roughly 2 MB per 1,000 entries. A real image per entry raised startup to 2.93 s and left
+memory flat. At 100,000, a change made on disk showed about a second after a reload. This measures
+loading, not on-screen scrolling. A gamelist size is a navigability question, not an ES limit.
+
+## RB-102. ES and its scraper write far more into a gamelist entry than play statistics
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: counted elements and attributes across 4,531 entries in 32 gamelists of a real scraped install, read only.
+`playcount` 115, `lastplayed` 115 and `gametime` 114; no `favorite` or `hidden` at all. Beside
+them: `scrap` 4,525 (self-closing, `name` and `date` attributes), `id` on `<game>` 4,493,
+`cheevosHash` 4,187, `md5` 2,815, `cheevosId` 2,329, `arcadesystemname` 568, `multidisk` 161,
+`crc32` 8. `GamelistDocument` merges an allowlist of the elements its caller names and never a
+blocklist of ES's.
+
+## RB-101. Scraped media is named after the rom file's stem
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: read the media folders of a real scraped install.
+`images/<stem>-image.png`, `images/<stem>-thumb.png`, `images/<stem>-marquee.png` (the marquee
+has no folder of its own), `videos/<stem>-video.mp4` and `manuals/<stem>-manual.pdf`, where
+`<stem>` is the rom file name without its extension. A user's own scrape writes the same names,
+so RomMBat deletes only files it recorded as its own.
+
+## RB-204. `system/es_menu/gamelist.xml` ships with a BOM and CRLF, unlike a rom gamelist
+
+Verified: RetroBat 8.2.0, 2026-08-24, and 8.2.1, 2026-09-28. How: read the first bytes and line endings of the stock file, and of 42 `roms/<system>/gamelist.xml` across two 8.2.0 installs.
+Every rom gamelist measured is no BOM and LF, 42 of 42. Writing that convention over the
+`es_menu` file would rewrite every one of its entries in order to add one, so `GamelistDocument`
+records the BOM and line endings of the file it loaded and reproduces them.
+
+## RB-205. ES does not rewrite `system/es_menu/gamelist.xml`, even with a change in its model
+
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: three sessions, the last writing an entry, calling `/reloadgames`, confirming ES listed it, quitting, and comparing md5 and mtime.
+The file's md5 and mtime were unchanged after all three, where the same sessions rewrote rom
+gamelists. What RomMBat writes into this file is therefore what the user keeps, and `EsMenuEntry`
+merges its one element into it.
+
+## RB-207. The stock `es_menu` gamelist disables three entries by commenting them out
+
+Verified: RetroBat 8.2.0, 2026-08-24, and 8.2.1, 2026-09-28. How: parsed the stock file and checked each live `<path>` against the `.menu` files on disk.
+`citra_canary`, `yuzu-early-access` and `zsnes-dos` sit inside comments, so the file holds 96
+`<path>` elements and 93 live `<game>` entries. On 8.2.1, one live entry names a `.menu` that is
+not on disk, `suyu.menu`, which ES does not list (RB-106). Since ES never rewrites this file
+(RB-205), RomMBat is the only writer that could drop those comments, and `GamelistDocument`
+keeps them.
+
+## RB-238. `ScrapeVideos` and `ScrapeManual` ship on, and an absent key means off
+
+Verified: RetroBat 8.2.1, 2026-09-01, with the template re-read 2026-09-28. How: read `system/templates/emulationstation/es_settings.cfg` and the scraper menu on a fresh install, a used install's live file, and `Settings.cpp` at `c686ca8b`.
+RetroBat's template seeds both as `true`, once at install. ES's compiled default is `false` for
+`ScrapeVideos` and unregistered for `ScrapeManual`, and `saveMap` drops a key equal to its
+default or, unregistered, equal to `false`. So turning a switch off deletes the key: the file says
+`true` or nothing, never `false`. A template overriding ES's compiled defaults is general, so a
+RetroBat default is read from `system/templates/` and a fresh install, not from ES's source.
+`MediaPolicy` reads an absent key as off.
+
+## RB-239. Three scraper options pick a source for a slot, and RomM exposes fourteen media paths
+
+Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.3.1, 2026-09-28. How: read `GuiScraperSettings.cpp` and `MetaData.cpp` at `c686ca8b`, sampled 200 roms per platform on the live instance, and read `RomSSMetadata` in the pinned schema.
+`ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc` `<thumbnail>` and `ScrapperLogoSrc`
+`<marquee>`, with values `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`,
+`wheel`, `marquee`, and empty for none. RomM's `ss_metadata` carries `title_screen_path`,
+`miximage_path`, `miximage_v2_path`, `box2d_path`, `box3d_path`, `box2d_back_path`,
+`box2d_side_path`, `fanart_path`, `logo_path`, `marquee_path`, `bezel_path`, `physical_path`,
+`video_path` and `video_normalized_path`. `ScrapeBoxBack` maps to `box2d_back_path` and
+`ScrapeBezel` to `bezel_path`. `ScrapeMap` has no field in the schema, and `ScrapePadToKey` is
+input config, not media. ES's gamelist vocabulary also reads `titleshot`, `magazine`,
+`cartridge`, `boxart`, `wheel` and `mix` as paths. How many roms hold a kind depends on when
+each platform was last scraped, not on RomM: in the sample, megadrive held 0% `box2d` and 81%
+`box3d` and atari2600 the reverse, because only one had been rescraped since RomM added
+`box2d`. So coverage never decides which kinds RomMBat supports, and an absent path is `Missing`.
+
+## RB-240. No media path carries a hash, and ES itself stops two slots taking one source
+
+Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.3.1, 2026-09-28. How: read `RomSSMetadata` and `RomGamelistMetadata` in the schema, and `GuiScraperSettings.cpp` at `c686ca8b`.
+No `*_path` or `*_url` field carries a hash of its own, so a change of source is detectable only by
+recording which source filled a slot. ES removes Box 2D from the box source list (`ScrapperThumbSrc`)
+when the image source is `box-2D`, in `imageSource->setSelectedChangedCallback`, so the collision is
+prevented at the menu. RomMBat does not read the source pickers yet (#108).
+
+## RB-241. Changing the scraper can rewrite a source picker the user never touched
+
+Verified: RetroBat 8.2.1, 2026-09-01. How: the maintainer saw SCRAPE FROM change the image source in the menu; read `GuiScraperSettings`'s constructor at `c686ca8b` to confirm why.
+Every row is built from `Scraper::getScraper()` and guarded on `isMediaSupported(...)`. When the
+stored value is not in the new scraper's list, `selectFirstItem()` picks one and `addSaveFunc`
+writes it on close. So `ScrapperImageSrc` records the scraper last selected when that menu
+closed, not a deliberate choice. A reader maps the values it recognises, falls back on anything
+else, and ignores `Scraper`, since RomM is none of the scrapers it names.
