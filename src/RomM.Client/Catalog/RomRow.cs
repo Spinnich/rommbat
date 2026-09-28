@@ -415,7 +415,7 @@ public sealed record RomPage
     /// </summary>
     /// <remarks>
     /// The only one of the four default-on flags kept on. RB-354 measured it at zero
-    /// bytes (it is an integer, while the other three cost a flat 841 KB per request), and it
+    /// bytes (it is an integer, while the other three cost a flat 1 MB per request), and it
     /// is what lets an interrupted walk report progress and know when it is finished.
     /// <para>
     /// <b>Non-nullable on purpose, and it depends on the query.</b> RomM 5.2.0 made the wire

@@ -4,11 +4,9 @@ namespace RomM.Client.Catalog;
 /// Walks <c>GET /api/roms</c> a page at a time, and can be stopped and resumed.
 /// </summary>
 /// <remarks>
-/// Page size and resumption both come from RB-354, measured against an 83,131 ROM
-/// library. Latency is close to linear in page size at roughly 10 ms per ROM, so a bigger
-/// page buys almost no throughput while costing responsiveness and making resumption
-/// coarser. 250 gives a 2.5 s page and 333 pages for that library, and a full walk of about
-/// 14 minutes.
+/// Page size and resumption both come from RB-354. A page of 250 takes well under a second
+/// with the sidecars off, a bigger page only makes resumption coarser, and a walk of a
+/// 96k-ROM library takes minutes.
 /// <para>
 /// A walk that long cannot be assumed to finish, so this class holds the offset rather than
 /// a loop holding it. The caller writes <see cref="Offset"/> to <c>sync_cursor</c> after each

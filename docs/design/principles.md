@@ -108,19 +108,13 @@ Guardrails that follow from this:
 - Never call `GET /api/roms` without `with_char_index=false&with_filter_values=false`.
   Each of those sidecars scans the whole library.
 
-  **`with_rom_id_index=false` too, under every scope, from `5.3.0`.** Under a
-  scoping parameter the index spans the scope rather than the library, and on 5.2.0 it was what
-  let the server serve a scoped page by primary key: measured at 88,331 roms, turning it off cost
-  **3.4 to 3.7 times the latency on a scoped walk** (2.3 s to 8.5 s a page) to save 63 KiB, so
-  from 2026-08-25 it followed the scope ([argosy-findings.md](../argosy-findings.md), A1). **On
-  `5.3.0-alpha.2` that penalty does not reproduce**, and the bytes do: 63 KiB a 250-row page on a
-  9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, with index off inside the
-  noise or ahead on both. With no supported server left that pays the latency, it is off
-  everywhere. #188, and RM-9.
+  **`with_rom_id_index=false` too, under every scope.** Under a scoping parameter the index
+  spans the scope rather than the library and is resent on every page: 63 KiB a 250-row page on
+  a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, for no latency. #188, and
+  RM-9.
 
-  `with_total` stays on and is what keeps `total` non-null with the index off. It is not free
-  that way (`resolve_total()` returns `len(rom_id_index)` when the index is built, A2), but
-  under a scope on `5.3.0-alpha.2` its cost is inside the noise of the page.
+  `with_total` stays on and is what keeps `total` non-null with the index off. With the index
+  off it is a separate count, whose cost under a scope is inside the noise of the page (RM-9).
 
 - **Never read `rom_ids` off a collection response.** `BaseCollectionSchema.rom_ids` is a
   full `set[int]` and it is present on the _list_ endpoint too, so `GET /api/collections`
@@ -128,12 +122,10 @@ Guardrails that follow from this:
   Resolve membership by paging `GET /api/roms?collection_id=` (or
   `smart_collection_id=` / `virtual_collection_id=`) instead.
 - Use the `/identifiers` endpoints for deletion reconciliation rather than re-pulling full
-  rows, **except `/api/roms/identifiers`, which does not scale**: it takes no parameters, so it
-  can be neither scoped nor paged, and 5.3.0-alpha.2 spends 176.7 s answering it, while its
-  platform and collection siblings answer in under 1.5 s (5.2.0 answered 504 after 300 s).
-  Deletion of content is reconciled through set re-resolution instead; see M3 and RB-81.
-  **Nothing calls it, including tests and probes**: an abandoned call keeps loading the whole
-  library server-side, and repeated ones took a live instance to 20.9 GiB (rommapp/romm#4577).
+  rows, **except `/api/roms/identifiers`**. It answers quickly, but it takes no parameters, so
+  it returns the whole library's ids and cannot be scoped to a set. Deletion of content is
+  reconciled through set re-resolution instead, whose walk already yields each set's ids; see
+  M3 and RB-81.
 - `gamelist.xml` only ever contains locally present ROMs. **Not because ES cannot take a
   large one**: M0 loaded a 100,000-entry gamelist in 2.07 s for 419 MB. A gamelist is a
   mirror of what is on disk, and that is the whole of the rule.

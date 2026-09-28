@@ -33,7 +33,7 @@ Measurement says: Safe for single-file: `fs_size_bytes` equalled `Content-Length
 
 ## RB-180. Not on this instance's PS2 `.chd` files, and the client is right to refuse them
 
-The claim being checked: RomM's `sha1_hash` describes the bytes it serves, so a downloaded file can be verified against it (**M3, `ContentHasher`, RB-85**)
+The claim being checked: RomM's `sha1_hash` describes the bytes it serves, so a downloaded file can be verified against it (**M3, `ContentHasher`, RB-257**)
 
 What was measured: **Not on this instance's PS2 `.chd` files, and the client is right to refuse them.** Syncing `Armored Core 3 (USA).chd` (rom 191723, 974,163,943 B) downloaded all 929 MB and then failed with "the downloaded file does not match the sha1 the server reported", leaving no `.part` and no rom, which is the verify-then-commit rule working. The server's metadata is what is wrong: two 1 MB `Range` requests, at offset 0 and at `size - 1 MB`, came back **byte-identical to the copy on the real install**, and that copy's sha1 is `0dd306bc…` against the `a5d460d3…` the API reports. So RomM serves one file and records the hash of another. **Not an outlier**: `Gauntlet - Dark Legacy (USA).chd` (rom 192797) mismatches the same way at the same exact size. Nothing here is a client defect and nothing in M6 stage 2c touches it, but it makes the shipped adopt-and-verify path unusable for this library's PS2 titles, so the stage's hands-on pass registered its ROM row by hand and said so
 
