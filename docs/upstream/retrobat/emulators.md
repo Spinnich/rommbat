@@ -10,7 +10,8 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 ## RB-26. `emulatorLauncher.log` is the only in-tree record of what a launch ran
 
 Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-28. How: read `emulationstation/emulatorLauncher.log` on each install, read-only.
-Each launch line carries the rom, `-system`, `-emulator`, `-core` and a millisecond timestamp.
+Each launch line carries the rom, `-system`, `-emulator`, a millisecond timestamp, and `-core` when
+there is one: 58 of 383 launches in the 8.2.1 `.log.old` have none.
 No other file in the tree holds those together, and a hook is given none of the system, emulator
 or core. So `LaunchLog` reads this file and the `game-end` hook is only the trigger.
 

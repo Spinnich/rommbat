@@ -104,7 +104,7 @@ Verified: RetroBat 8.2.1, 2026-09-21. How: launched `nes` under `bizhawk` with a
 `SaveSlot: 5` and the pad's save key wrote `QuickSave5`; no `-state_slot` left `SaveSlot: 10`
 and the same key wrote `QuickSave0`. The pad key is `F2` sent by pad-to-key, so it saves to the
 current slot. In game, `Ctrl+F1` to `Ctrl+F10` save to slots 1 to 10, and `F6` and `F7` step
-the slot. EmuHawk reads DirectInput, so a key sent by `WScript.Shell.SendKeys` is ignored and
+the slot. `Shift+F1` loads slot 1, so the save key other emulators use loads a state here. EmuHawk reads DirectInput, so a key sent by `WScript.Shell.SendKeys` is ignored and
 one sent by `keybd_event` with the hardware scan code is not. For a `bizhawk` row, read the slot
 from the file on disk.
 
