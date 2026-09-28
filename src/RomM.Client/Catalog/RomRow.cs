@@ -16,7 +16,7 @@ namespace RomM.Client.Catalog;
 /// ceiling. Here it is a <see cref="long"/>.
 /// </para>
 /// <para>
-/// <b>Cost.</b> A full walk of an 83k library is 333 pages of 250, and the generated schema
+/// <b>Cost.</b> A full walk of a 96k library is about 384 pages of 250, and the generated schema
 /// carries roughly seventy fields per ROM including eight metadata sub-objects. Most of that
 /// is still skipped here.
 /// </para>

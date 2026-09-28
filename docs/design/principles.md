@@ -162,7 +162,7 @@ a **Sync Set**: a named scope plus a policy.
 - **A smart collection's listed `rom_count` is its owner's, not the caller's.** It is stored,
   and recomputed as the owner, while paging applies the criteria as whoever asks. So a public
   collection filtering on `favorite` lists another account's favourites and pages back only
-  the caller's: 29 of 29 on a live 5.3.0-alpha.2 instance advertised 6 to 594 and paged 0. The
+  the caller's: 29 of 29 on a live instance advertised 6 to 594 and paged 0 (RM-16). The
   picker shows no count for one, and the resolve reports what the set really holds (#193).
 - Persist set definitions into `Device.sync_config` (a free-form dict, writable via
   `PUT /api/devices/{id}`) so a reimaged or re-paired device gets its configuration back

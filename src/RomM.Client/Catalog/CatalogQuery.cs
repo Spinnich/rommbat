@@ -344,7 +344,7 @@ public sealed record CatalogQuery
     /// Only ROMs updated after this instant.
     /// </summary>
     /// <remarks>
-    /// The normal path. A full walk of 83k ROMs takes about 14 minutes at 250 per page, so
+    /// The normal path. A full walk of a 96k library takes minutes at 250 per page (RB-354), so
     /// it is a first-run or repair operation and this is what every other run does instead.
     /// </remarks>
     public DateTimeOffset? UpdatedAfter { get; init; }

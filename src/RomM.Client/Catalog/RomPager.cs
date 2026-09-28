@@ -6,7 +6,7 @@ namespace RomM.Client.Catalog;
 /// <remarks>
 /// Page size and resumption both come from RB-354. A page of 250 takes well under a second
 /// with the sidecars off, a bigger page only makes resumption coarser, and a walk of a
-/// 96k-ROM library takes minutes.
+/// 96k-ROM library is about 384 pages and takes minutes.
 /// <para>
 /// A walk that long cannot be assumed to finish, so this class holds the offset rather than
 /// a loop holding it. The caller writes <see cref="Offset"/> to <c>sync_cursor</c> after each

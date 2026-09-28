@@ -620,7 +620,7 @@ public class SyncSetTests : IDisposable
         Assert.NotNull(cursor);
         Assert.False(cursor.HasWalkInFlight);
 
-        // The start, not the finish. Anything changed during those fourteen minutes is
+        // The start, not the finish. Anything changed during the walk is
         // picked up next time instead of falling into the gap.
         Assert.Equal(Now, cursor.UpdatedAfter);
     }

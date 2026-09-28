@@ -11,8 +11,8 @@ public sealed record SyncCursor
     /// Only fetch rows changed after this.
     /// </summary>
     /// <remarks>
-    /// The normal path, and the reason a routine sync is seconds rather than the fourteen
-    /// minutes a full 83k walk takes. Advanced only when a walk completes.
+    /// The normal path, and the reason a routine sync is seconds rather than the minutes a
+    /// full walk of a 96k library takes (RB-354). Advanced only when a walk completes.
     /// </remarks>
     public DateTimeOffset? UpdatedAfter { get; init; }
 
@@ -44,9 +44,8 @@ public sealed record SyncCursor
 /// The cursors that make a sync incremental, and a full walk resumable.
 /// </summary>
 /// <remarks>
-/// A full walk is a first-run or repair operation, not routine, and at roughly 2.5 s per
-/// 250-row page it takes about fourteen minutes on an 83k library. Something that long gets
-/// interrupted, so the offset is written after every page and a later run picks it up.
+/// A full walk is a first-run or repair operation, not routine, and it takes minutes on a
+/// 96k library (RB-354). Something that long gets interrupted, so the offset is written after every page and a later run picks it up.
 /// </remarks>
 public sealed class SyncCursorStore
 {
