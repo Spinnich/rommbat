@@ -40,22 +40,24 @@ A key present when ES starts survives its rewrites, including a nonsense per-gam
 understand. A key written after it started was on disk, escaped, and gone after ES's next write.
 `Language` shows this is not a merge: ES added it at startup and dropped it on that same write.
 ES re-indents with tabs and sorts entries alphabetically within the `bool`, `int` and `string`
-groups, and `EsSettingsFile` renders the file the same way. RomMBat writes this file only while
+groups. `EsSettingsFile` matches the indentation and appends a new key at the end, leaving the
+sort to ES's next rewrite. RomMBat writes this file only while
 the ES process is gone (`EmulationStationProcess`), and re-reads it afterwards.
 
-## RB-179. ES writes the file at launch and on exit, and only when something changed
+## RB-179. ES can write the file during launch as well as on exit
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: compared the file's mtime against the `start` and `quit` hooks' own millisecond stamps, over one M6 session and three M7 sessions on `K:`.
-A session that only started and quit, and one that launched a game, left the file untouched. In
-sessions where something had changed, a launch write landed 7.7, 4.9, 1.6 and 1.7 s before the
-`start` hook fired, and it added `Language`. The exit
-write is RB-200. So `background start` never writes this file, because ES has already loaded its
-model and written once by then. It is not known whether changing a setting mid-session triggers a
-write of its own.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: read the file's mtime across a start-and-quit session, then compared it against the `start` and `quit` hooks' own millisecond stamps over four sessions on `K:`.
+A session that only started and quit left the file untouched, so ES does not write it every time.
+In the four timed sessions a launch write landed 7.7, 4.9, 1.6 and 1.7 s before the `start` hook
+fired. In the one diffed, it added `Language` and nothing else, so ES wrote a change of its own
+before the session could make any. That session's exit write landed 2.4 s before the `quit` hook,
+and RB-200 times three more. So `background start` never writes this file, because ES has
+already loaded its model and written once by then. Whether changing a setting mid-session
+triggers a write of its own is not known.
 
-## RB-200. The exit write comes 200 to 630 ms before the `quit` hook
+## RB-200. The exit write comes before the `quit` hook, and ES is still alive when the hook fires
 
-Verified: RetroBat 8.2.0, 2026-08-24. How: three sessions forced to write on exit, timed from `GET /quit` with the file sampled every 25 ms.
+Verified: RetroBat 8.2.0, 2026-08-24. How: three sessions forced to write on exit by a bogus `LastSystem`, timed from `GET /quit` with the file sampled every 25 ms.
 
 | Event                         | When                     |
 | ----------------------------- | ------------------------ |
@@ -67,12 +69,13 @@ Nothing touched the file again, before the exit or in the 3 s after it. The hook
 while ES is alive, so `background quit` polls for the process (RB-201) rather than trusting the
 hook.
 
-## RB-170. ES adds and drops a key at its stock value on its own
+## RB-170. ES adds and drops `Language=en_US` on its own
 
-Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: watched `Language` across ES rewrites on the M0 install, then diffed the file across days on two installs and three GameCube launches.
+Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: watched `Language` across ES rewrites on one install, then diffed the file across days on two installs and three GameCube launches.
 `Language=en_US` vanished on a rewrite while `fr_FR` survived. On another install the key was
 absent one day and present at `en_US` the next, with nothing else changed, and over three
-launches ES added it again and changed nothing else, 56 settings to 57. So neither presence nor absence says what the user chose.
+launches ES added it again and changed nothing else, 56 settings to 57. Whether `en_US` is ES's
+default is not established, so neither presence nor absence says what the user chose.
 `SaveConverter` takes over a key only when it holds the value RomMBat wrote, and a conversion
 records whether the key was absent or present before it (migration `010`).
 
