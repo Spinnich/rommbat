@@ -7,50 +7,40 @@ read-when: Before reading `es_systems.cfg`, mapping a system to its folder, or p
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-67. Wrong comparison
+## RB-67. The live `es_systems.cfg` declares the shipped template's 244 systems and 240 ROM folders
 
-Previously: The live `es_systems.cfg` carries four systems upstream does not (probe 5, "Other observations")
-
-Measurement says: **Wrong comparison.** That put the live file's 244 `<system>` elements next to `systems_names.lst`'s 240 folder **names**. The shipped template also has 244 active systems, and both files own exactly the same 240 folders under `roms/`. The live file matches upstream
+Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: parsed the live file and the shipped template, and matched their `<path>` folders against `systems_names.lst`.
+Both files hold 244 `<system>` elements, and both own the same 240 folders under `roms/` that
+`systems_names.lst` names. Every system has a non-empty `<extension>`, 338 distinct across the
+file. RomMBat still reads the live file and never the copy in `reference/`, because a user's
+emulator choices can change it (rule 3), and `reference/verify.py` asserts the 240 folder names.
 
 ## RB-68. `<name>` is not the folder
 
-Previously: `es_systems.cfg` `<name>` identifies the system (plan L918-928, `retrobat-layout`)
+Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: compared each `<name>` with the last segment of its `<path>`.
+Five systems disagree: `gw`/`gameandwatch`, `powerbomberman`/`pb`, `casloopy`/`loopy` and
+`Windows`/`windows`, and `starship` is the `<name>` of both `ghostship` and `starship`. Keying on
+`<name>` loses one system and mismatches four more, so `EsSystemsFile` takes the folder from
+`<path>`.
 
-Measurement says: **`<name>` is not the folder.** Five systems disagree in the shipped file: `gw`/`gameandwatch`, `powerbomberman`/`pb`, `casloopy`/`loopy`, `Windows`/`windows`, and `starship` is used **twice**, for `ghostship` and `starship`. Take the folder from `<path>`
+## RB-69. Four systems are not sync targets
 
-## RB-69. Whether every `<system>` is a sync target
+Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: resolved every `<path>` in the live file.
+`library` and `screenshots` point outside `roms/`, `retrobat` is `system/es_menu`, which carries
+the `.menu` entries, and `mess` declares no path at all. `EsSystemsFile` filters on the resolved
+path, not on a list of names, and keeps the four as `NonRomSystems` so `status` can explain the gap.
 
-Previously: (not addressed) whether every `<system>` is a sync target
+## RB-70. `arcade` and `kodi` are inside XML comments
 
-Measurement says: Four own no folder under `roms/` (`library`, `screenshots`, `kodi`, and `retrobat` at `system/es_menu`) and `mess` declares no path at all. Filter on the resolved path, not on a list of names
+Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: counted `<system>` with a regex and with an XML parser.
+A regex over `<system>` finds 246, including both. An XML parser finds 244 and neither, which is
+why `EsSystemsFile` loads the file with `XDocument`.
 
-## RB-70. `arcade` and `kodi` appear in the shipped `es_systems.cfg`
+## RB-173. A disc marker is always `(Disc N)`, and text can follow it
 
-Previously: (not addressed) `arcade` and `kodi` appear in the shipped `es_systems.cfg`
-
-Measurement says: Both are inside XML comments. A regex over `<system>` finds them; an XML parser correctly does not
-
-## RB-173. `(Disc N)`, always, N numeric, 202 files across `psx`, `saturn`, `dreamcast`, `gamecube`, `3do` and `ps2`
-
-The claim being checked: (not addressed) how a disc marker is written
-
-What was measured: **`(Disc N)`, always, N numeric, 202 files across `psx`, `saturn`, `dreamcast`, `gamecube`, `3do` and `ps2`.** No `(Disk`, `(CD` or `(Side` appears. **53 of the 202 carry text after the marker** (`(Rev 1)`, `(Unl)`, translation tags), the filename-side twin of the 130 subtitled `gamedb` stems in F18, so a set's base title is the text **before** the marker and never the stem with the marker cut out of its middle
-
-## RB-402. Other observations
-
-- The live `es_systems.cfg` **differs** from the copy vendored in `reference/`, as expected
-  for a per-install generated file. It declares **244 systems and 1176 distinct file
-  extensions**, and every single system has a non-empty `<extension>`. The vendored upstream
-  copy declares **240**, so a live install carries four systems upstream does not. That gap
-  is exactly why rule 3 exists: read extensions from the live file, never from a bundled
-  table. `reference/verify.py` continues to assert 240 against the vendored file, which is
-  correct and should not be changed to match the live number.
-- `es_systems.cfg` uses `~\..\roms\<system>` for `<path>` and `%HOME%\emulatorLauncher.exe`
-  in `<command>`, so RetroBat itself already avoids absolute paths in its primary config.
-  That is a good sign for probe 7 but is not yet a full audit.
-- The `game-start`, `game-end`, `quit`, `reboot`, `shutdown`, `sleep` and `wake` hook
-  directories all exist and are **empty** in a stock install. Only `start/` and
-  `update-gamelists/` ship a script, both `updatestores.bat`. Installing hooks is therefore
-  a pure addition in the common case, but the append-don't-replace rule still matters for
-  those two events.
+Verified: RetroBat 8.2.0, 2026-08-24. How: swept every filename under a real install's `roms/`, read-only.
+202 files carry a marker, across `psx`, `saturn`, `dreamcast`, `gamecube`, `3do` and `ps2`, and
+every one is `(Disc N)` with N numeric. No `(Disk`, `(CD` or `(Side` appears. 53 of the 202
+carry text after the marker, such as `(Rev 1)`, `(Unl)` and translation tags. So `DiscSet` takes a
+set's base title from the text before the marker, never from the stem with the marker cut out,
+and still matches the other forms.

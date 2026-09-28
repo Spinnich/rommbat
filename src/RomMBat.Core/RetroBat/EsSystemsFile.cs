@@ -54,8 +54,8 @@ public sealed record EsNonRomSystem(string Name, string DeclaredPath, string Rea
 /// <remarks>
 /// Read from the live install, never from the copy vendored in <c>reference/</c>. The
 /// vendored file is the shipped template; the live one reflects that machine's actual
-/// emulator configuration, and <c>&lt;extension&gt;</c> is a sync filter rather than a
-/// display detail.
+/// emulator configuration, including the <c>&lt;extension&gt;</c> list EmulationStation
+/// shows (RB-67).
 /// <para>
 /// <b>The folder is <c>&lt;path&gt;</c>, not <c>&lt;name&gt;</c>.</b> They are different
 /// vocabularies and five systems in the shipped 8.2.0 file disagree: <c>gw</c> writes to
@@ -102,10 +102,10 @@ public sealed class EsSystemsFile
     /// Entries that declare no ROM folder, kept so <c>status</c> can explain a gap.
     /// </summary>
     /// <remarks>
-    /// The shipped 8.2.0 file has five: <c>library</c>, <c>screenshots</c> and <c>kodi</c>
-    /// point outside <c>roms/</c>, <c>retrobat</c> is the <c>system/es_menu</c> system that
-    /// carries <c>.menu</c> entries, and <c>mess</c> declares an empty path. None of them is
-    /// a sync target and none should reach the mapping surface.
+    /// The shipped file has four (RB-69): <c>library</c> and <c>screenshots</c> point outside
+    /// <c>roms/</c>, <c>retrobat</c> is the <c>system/es_menu</c> system that carries
+    /// <c>.menu</c> entries, and <c>mess</c> declares an empty path. None of them is a sync
+    /// target and none should reach the mapping surface.
     /// </remarks>
     public IReadOnlyList<EsNonRomSystem> NonRomSystems { get; }
 
