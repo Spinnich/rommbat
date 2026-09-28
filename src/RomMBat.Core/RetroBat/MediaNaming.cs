@@ -25,7 +25,7 @@ public static class MediaNaming
     /// The longest a single path component may be.
     /// </summary>
     /// <remarks>
-    /// The real ceiling for a constructed name, and not the one the plan expected. Measured:
+    /// The real ceiling for a constructed name. RB-109 measured it:
     /// a 255-character file name writes and a 256-character one fails <c>IOException</c>,
     /// <b>with or without the <c>\\?\</c> prefix</b>, because it is a filesystem component
     /// limit rather than <c>MAX_PATH</c>. The same run wrote a 306-character total path
@@ -35,7 +35,7 @@ public static class MediaNaming
 
     /// <summary>Characters Windows refuses in a name, plus the one it accepts and should not.</summary>
     /// <remarks>
-    /// <c>&lt;</c>, <c>&gt;</c>, <c>"</c>, <c>|</c>, <c>?</c> and <c>*</c> fail loudly with an
+    /// RB-110: <c>&lt;</c>, <c>&gt;</c>, <c>"</c>, <c>|</c>, <c>?</c> and <c>*</c> fail loudly with an
     /// <c>IOException</c> and the separators fail with a <c>DirectoryNotFoundException</c>.
     /// <b><c>:</c> does not fail at all</b>: it opens an NTFS alternate data stream, so the
     /// write succeeds, the directory lists a file with the name truncated at the colon, and

@@ -129,7 +129,7 @@ RetroBat runs from a USB drive and moves between machines.
 - **Identity follows the drive.** A GUID in the tree sent as `client_device_identifier`.
   Never MAC or hostname. See `romm-api`.
 - **The filesystem may be exFAT or FAT32.** All of this is measured, not assumed; see
-  RB-393.
+  RB-48 and RB-393.
   - FAT32 cannot hold a file over 4 GB, which excludes many PS2/GameCube/Wii images. Detect
     and refuse cleanly rather than failing mid-write. The write fails with Win32 112
     `ERROR_DISK_FULL`, **"There is not enough space on the disk"**, on a volume with plenty
