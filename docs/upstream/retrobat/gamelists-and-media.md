@@ -12,8 +12,8 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../README.md)
 Verified: RetroBat 8.2.0, 2026-08-08. How: edited `roms/<system>/gamelist.xml` with ES up, called `/reloadgames`, quit, and diffed the file ES rewrote on exit.
 ES holds the gamelist it loaded in memory and serialises that model when it rewrites the file on
 exit. An edit followed by `/reloadgames` is in the model, shows at once and survives the rewrite.
-An edit with no reload would be overwritten by the stale model: that half is inferred from the two
-measured halves, not driven. ES writes no `<game>` for a rom it has no metadata for, even while
+An edit with no reload is overwritten when ES next rewrites the file, which it does only when it
+has a change of its own (RB-104): that half is inferred from the measured halves, not driven. ES writes no `<game>` for a rom it has no metadata for, even while
 listing the rom. `GamelistSync` writes, then reloads. A reload has no effect while a game runs
 (RB-107).
 
@@ -88,8 +88,8 @@ records the BOM and line endings of the file it loaded and reproduces them.
 ## RB-205. ES does not rewrite `system/es_menu/gamelist.xml`, even with a change in its model
 
 Verified: RetroBat 8.2.0, 2026-08-08 and 2026-08-24. How: three sessions, the last writing an entry, calling `/reloadgames`, confirming ES listed it, quitting, and comparing md5 and mtime.
-The file's md5 and mtime were unchanged after all three, where the same sessions rewrote rom
-gamelists. What RomMBat writes into this file is therefore what the user keeps, and `EsMenuEntry`
+The file's md5 and mtime were unchanged after all three, although the third had a change of its
+own in ES's model. What RomMBat writes into this file is therefore what the user keeps, and `EsMenuEntry`
 merges its one element into it.
 
 ## RB-207. The stock `es_menu` gamelist disables three entries by commenting them out
@@ -115,17 +115,12 @@ RetroBat default is read from `system/templates/` and a fresh install, not from 
 
 Verified: RetroBat 8.2.1 and RomM 5.2.0, 2026-09-01; the schema half against RomM 5.3.1, 2026-09-28. How: read `GuiScraperSettings.cpp` and `MetaData.cpp` at `c686ca8b`, sampled 200 roms per platform on the live instance, and read `RomSSMetadata` in the pinned schema.
 `ScrapperImageSrc` feeds `<image>`, `ScrapperThumbSrc` `<thumbnail>` and `ScrapperLogoSrc`
-`<marquee>`, with values `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`,
-`wheel`, `marquee`, and empty for none. RomM's `ss_metadata` carries `title_screen_path`,
-`miximage_path`, `miximage_v2_path`, `box2d_path`, `box3d_path`, `box2d_back_path`,
-`box2d_side_path`, `fanart_path`, `logo_path`, `marquee_path`, `bezel_path`, `physical_path`,
-`video_path` and `video_normalized_path`. `ScrapeBoxBack` maps to `box2d_back_path` and
-`ScrapeBezel` to `bezel_path`. `ScrapeMap` has no field in the schema, and `ScrapePadToKey` is
-input config, not media. ES's gamelist vocabulary also reads `titleshot`, `magazine`,
-`cartridge`, `boxart`, `wheel` and `mix` as paths. How many roms hold a kind depends on when
-each platform was last scraped, not on RomM: in the sample, megadrive held 0% `box2d` and 81%
-`box3d` and atari2600 the reverse, because only one had been rescraped since RomM added
-`box2d`. So coverage never decides which kinds RomMBat supports, and an absent path is `Missing`.
+`<marquee>`, taking `ss`, `sstitle`, `mixrbv1`, `mixrbv2`, `box-2D`, `box-3D`, `fanart`, `wheel`,
+`marquee`, or empty for none. `RomSSMetadata` has fourteen `*_path` fields. `ScrapeBoxBack` maps
+to `box2d_back_path`, `ScrapeBezel` to `bezel_path`, and `ScrapeMap` and `ScrapePadToKey` to
+nothing. Coverage of a kind says when a platform was last
+scraped, not what RomM serves: in the sample megadrive held 0% `box2d` and 81% `box3d`, atari2600
+the reverse. So coverage never decides which kinds RomMBat supports; an absent path is `Missing`.
 
 ## RB-240. No media path carries a hash, and ES itself stops two slots taking one source
 
