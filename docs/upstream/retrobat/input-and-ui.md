@@ -77,7 +77,7 @@ The bottom face button is A on an Xbox pad, Cross on a DualSense and B on a Swit
 live file configures a Switch Pro, a DualSense, a PS4 pad, the 8BitDo and an Xbox 360 pad. ES
 draws a four-dot diamond with one dot filled, which names a position, and `es_input.cfg` encodes
 the same thing: `a` is the bottom button, `b` the right, `y` the left and `x` the top. RomMBat's
-`FooterHint` carries a `NavAction`, never a string.
+`FooterHint` carries a `NavAction` rather than a button name.
 
 ## RB-231. A controller switched off and on reaches `GamepadReader` again
 
@@ -91,14 +91,12 @@ scan interval.
 ## RB-234. ES's on-screen keyboard is compiled into `emulationstation.exe`, three layouts of four faces a key
 
 Verified: RetroBat 8.2.1, 2026-08-30 and 2026-08-31. How: read `es-core/src/guis/GuiTextEditPopupKeyboard.cpp` in `batocera-linux/batocera-emulationstation`, and the keyboard on a live session.
-`kbUs`, `kbFr` and `kbKr` are the only layouts. Each is a 13-column grid over five rows, with four
-faces per key (lower, upper, alted, alted-upper), `DEL`, `OK` and `ALT` down the right edge, and
-`SHIFT`, `SPACE`, `RESET` and `CANCEL` along the bottom. `OK` spans two rows, and the bottom row
-spans 2, 7, 2 and 2. The bindings: `a` presses the key, `start` is OK, `b` BACK, `pageup` DELETE,
-`pagedown` SPACE, `y` SHIFT and `x` RESET, which commits the empty string and closes. Left and
-right wrap; up and down go to the text field. A key with an empty face on the current layer holds
-focus and does nothing, and `altKeys()` clears shift. The shoulders are therefore taken, and
-`OnScreenKeyboard` transcribes these tables rather than designing its own.
+`kbUs`, `kbFr` and `kbKr` are the only layouts: a 13-column grid over five rows, four faces per
+key, `DEL`, `OK` (two rows tall) and `ALT` down the right, and `SHIFT`, `SPACE`, `RESET` and
+`CANCEL` along the bottom, spanning 2, 7, 2 and 2. `a` presses the key, `start` is OK, `b` BACK,
+`pageup` DELETE, `pagedown` SPACE, `y` SHIFT and `x` RESET, which commits the empty string and
+closes. Left and right wrap, up and down reach the text field, and an empty face holds focus and
+does nothing. `OnScreenKeyboard` transcribes these tables, so the shoulders are not RomMBat's.
 
 ## RB-235. ES picks the keyboard layout from `es_settings.cfg`'s `Language`
 

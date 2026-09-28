@@ -69,7 +69,7 @@ incomparable to the file (RB-227). If the library is missing or the pad has no
 (configure the controller in EmulationStation first) rather than inventing a default map: a pad
 ES cannot drive is one the user's own front end cannot drive either.
 
-**EmulationStation has already answered the on-screen keyboard, and RomMBat now copies it
+**EmulationStation has already answered the on-screen keyboard, and RomMBat copies it
 rather than resembling it.** `GuiTextEditPopupKeyboard` binds **A** to press the highlighted key,
 **Start** to OK, **B** to BACK, **L (`pageup`) to DELETE**, **R (`pagedown`) to SPACE**,
 **`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. RB-234, read from
@@ -107,7 +107,7 @@ an Xbox pad, Cross on a DualSense and B on a Switch Pro, so any letter is wrong 
 out of three, and a stock RetroBat `es_input.cfg` routinely has all three configured. ES draws a
 four-dot diamond with one dot filled, naming a **position**, which is what `es_input.cfg` already
 encodes: `a` is the bottom button, `b` the right, `y` the left, `x` the top. In RomMBat a
-`FooterHint` therefore carries a `NavAction` and never a string, so a screen **cannot** name a
+`FooterHint` therefore carries a `NavAction` and never a button name, so a screen **cannot** name a
 button and there is one place to be wrong. RB-230.
 
 **Closing the hint channel is not the whole rule, because prose is a second channel.** The
