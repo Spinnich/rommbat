@@ -7,7 +7,7 @@ read-when: Before writing a gamelist or media, or honouring a scraper option.
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-388. A gamelist written under a running ES survives only if `/reloadgames` follows
+## RB-388. ES serialises its loaded gamelist model, so an edit it has not reloaded can be lost
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: edited `roms/<system>/gamelist.xml` with ES up, called `/reloadgames`, quit, and diffed the file ES rewrote on exit.
 ES holds the gamelist it loaded in memory and serialises that model when it rewrites the file on
