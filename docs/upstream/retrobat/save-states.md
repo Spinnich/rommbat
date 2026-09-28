@@ -49,17 +49,17 @@ for one. This is rule 2 seen from the reading side.
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted the whole `saves/<system>` subtree around a real save state in each emulator.
 
-| Emulator      | System    | `<file>` written | `<image>` | `.txt` sidecar holds         | Written |
-| ------------- | --------- | ---------------- | --------- | ---------------------------- | ------- |
-| `libretro`    | snes      | `.state1`        | 1,163 B   | none                         | live    |
-| `ppsspp`      | psp       | `_0.ppst`        | racy      | `UCES00995_1.00`             | live    |
-| `duckstation` | psx       | `_resume.sav`    | absent    | `SLUS-00404`                 | at exit |
-| `pcsx2`       | ps2       | `.resume.p2s`    | 183 KB    | `SLUS-20265 (79646C72)`      | at exit |
-| `dolphin`     | gamecube  | `.s01`           | absent    | `GW7E69`                     | live    |
-| `flycast`     | dreamcast | `_1.state`       | absent    | none                         | live    |
-| `gopher64`    | n64       | `.state0`        | absent    | `TWINE-72E3E7B4...` (sha256) | live    |
+| Emulator      | System   | `<file>` written | `<image>` | `.txt` sidecar holds         | Written |
+| ------------- | -------- | ---------------- | --------- | ---------------------------- | ------- |
+| `libretro`    | snes     | `.state1`        | 1,163 B   | none                         | live    |
+| `ppsspp`      | psp      | `_0.ppst`        | racy      | `UCES00995_1.00`             | live    |
+| `duckstation` | psx      | `_resume.sav`    | absent    | `SLUS-00404`                 | at exit |
+| `pcsx2`       | ps2      | `.resume.p2s`    | 183 KB    | `SLUS-20265 (79646C72)`      | at exit |
+| `dolphin`     | gamecube | `.s01`           | absent    | `GW7E69`                     | live    |
+| `gopher64`    | n64      | `.state0`        | absent    | `TWINE-72E3E7B4...` (sha256) | live    |
 
-Four more are in RB-370. The declared `<file>` was right for every emulator driven, so
+Four more are in RB-370, and `flycast`, whose declared directory 8.2.0 left empty, is in
+RB-343. The declared `<file>` was right for every emulator driven, so
 `StateScanner` attributes a state by its `{{romfilename}}` stem with no Game ID. A manual save
 reaches the declared directory about 120 ms after the keypress, while the emulator runs. An
 autosave state, driven here through `<system>.autosave=1`, appears only at exit, and the
@@ -75,8 +75,9 @@ The declaration is `saves/msx1/openmsx/<rom filename>_<slot>.oms`. openMSX wrote
 puts its whole user-data directory under `bios/openmsx/`, and the declared directory stayed
 empty. The saves took openMSX's default name rather than the `[guess_title]_0` RetroBat's
 `kbhotkeys.tcl` binds to Alt+F2, so whether RetroBat mirrors a state saved under its own naming
-is unmeasured. `StateScanner.WrongDeclaredDirectories` reports openMSX states as unsyncable,
-and an empty declared directory is never read as "no states".
+is unmeasured. Nothing in RomMBat scans `bios/openmsx/`, so openMSX states are neither synced
+nor reported, and a scan of the declared directory says `states: none found`.
+`StateScanner.WrongDeclaredDirectories` names the trap for tests and gates nothing.
 
 ## RB-135. The slot a save-state key writes is neither 0 nor fixed
 
