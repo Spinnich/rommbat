@@ -111,7 +111,7 @@ unlisted core reaches it. Upstream will not fix it
 ([emulatorlauncher#1337](https://github.com/RetroBat-Official/emulatorlauncher/issues/1337)), so
 anything that runs `emulatorLauncher` itself passes `-core`.
 
-## RB-370. DeSmuME, Mupen64, jgenesis and BizHawk write states where they are declared
+## RB-370. DeSmuME, Mupen64, jgenesis and BizHawk states reach their declared directories
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: installed each on demand, made a real save state, and snapshotted the `saves/<system>` subtree around it.
 
@@ -122,7 +122,8 @@ Verified: RetroBat 8.2.0, 2026-08-08. How: installed each on demand, made a real
 | `jgenesis` | megadrive | `jgenesis-cli.exe`               | `_0.jst`            | absent                | the rom filename                |
 | `bizhawk`  | nes       | `EmuHawk.exe`                    | `.QuickSave0.State` | absent                | `Battle City.NesHawk`           |
 
-Each state reached the declared directory while the emulator ran. `mupen64` is Rosalie's Mupen GUI,
+Each state reached the declared directory while the emulator ran. BizHawk's got there through the
+launcher's mirror of its native `emulators/bizhawk/sstates/` (RB-270). `mupen64` is Rosalie's Mupen GUI,
 not a mupen64plus binary. DeSmuME's state template, `{{romfilename}}.ds{{slot0}}`, sits beside its
 battery save `{{romfilename}}.dsv`, so `SaveStateSchema` compiles `{{slot0}}` to exactly one digit
 rather than globbing `<rom>.ds*`, which would take the battery save as slot `v`.
@@ -132,9 +133,8 @@ rather than globbing `<rom>.ds*`, which would take the battery save as slot `v`.
 Verified: RetroBat 8.2.0, 2026-08-08. How: launched Rayman under `bigpemu`, swept F1 to F8 into its window, and read `BigPEmuConfig.bigpcfg`.
 It saves states from its own overlay menu. RetroBat's `es_padtokey.cfg` binds only a close hotkey
 for it, the sweep wrote no file of any kind, and the config binds no save-state key (only
-`System/StateSlot = -1`). So its declared template,
-`{{system}}/bigpemu/{{romfilename}}_state{{slot2d}}.bigpstate`, is unverified until someone drives
-the menu with a gamepad.
+`System/StateSlot = -1`). A state is made through the overlay with a gamepad, which is how RB-166
+drove six and read them off the declared path.
 
 ## RB-373. A system overlay can take an emulator's hotkey
 
