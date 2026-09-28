@@ -41,9 +41,10 @@ launched a game (exit 0) and rewrote a `gamelist.xml` on the stick. Only the hoo
 Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. How: scanned every `.cfg`, `.ini`, `.xml`, `.menu`, `.json`, `.bat` and `.info` in the tree for a drive-rooted path.
 `retrobat.ini`, `es_systems.cfg`, `es_settings.cfg`, `es_savestates.cfg`, `es_features.cfg`,
 every `gamelist.xml` and every `.menu` are clean; `es_systems.cfg` writes `~\..\roms\<system>`.
-The 27 hits of 5,741 files on 8.2.1 are emulator configs `emulatorlauncher` writes at launch
-with the current root (`R:\RetroBat\saves\psx` in `mednafen.cfg`), developer paths in
-`system/templates/`, MAME software lists and a comment example in `retrobat.ini`.
+The 27 hits of 5,741 files on 8.2.1 are emulator configs holding the current root
+(`R:\RetroBat\saves\psx` in `mednafen.cfg`) or the user's temp folder, developer paths in
+`system/templates/` and their copies under `emulators/`, MAME software lists and a comment
+example in `retrobat.ini`. Only emulator configs name the root, and RetroBat regenerates those.
 
 ## RB-48. FAT32's 4 GB ceiling fails as "There is not enough space on the disk"
 
