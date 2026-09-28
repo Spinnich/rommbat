@@ -25,7 +25,8 @@ enough name to match partway up an unrelated tree.
 
 Verified: RetroBat 8.2.0, 2026-08-09, and 8.2.1, 2026-09-28. How: read `HKCU\Software\RetroBat`.
 `LatestKnownInstallPath` holds the root with a trailing backslash, per Windows user, on one
-machine. After a drive-letter change it names the old letter, and a second host has no key.
+machine. After the stick moved G: to D: to K: it read `K:\RetroBat\`, so it follows RetroBat's
+last run there and nothing later: RomMBat can run from a new letter before RetroBat has.
 `RetroBatRoot` walks up from its own folder first and reads the key last, checking it against the
 markers (RB-378) before trusting it.
 
