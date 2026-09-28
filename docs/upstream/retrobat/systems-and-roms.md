@@ -13,7 +13,8 @@ Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: parsed the liv
 Both files hold 244 `<system>` elements, and both own the same 240 folders under `roms/` that
 `systems_names.lst` names. Every system has a non-empty `<extension>`, 338 distinct across the
 file. RomMBat still reads the live file and never the copy in `reference/`, because a user's
-emulator choices can change it (rule 3), and `reference/verify.py` asserts the 240 folder names.
+emulator choices can change it (rule 3). `reference/verify.py` asserts that `systems_names.lst`
+holds 240 names, and `EsSystemsFileTests` that the shipped file's folders are exactly those.
 
 ## RB-68. `<name>` is not the folder
 
