@@ -100,7 +100,7 @@ public sealed class BiosManifestTests
     {
         var manifest = Fixtures.LoadBiosManifest();
 
-        // mastersystem is one of the 28 systems with no joinable entry at all. Reporting these
+        // mastersystem is one of the 29 systems with no joinable entry at all. Reporting these
         // as "not in your library" would send a user looking for a file RomMBat could not
         // recognise if they already had it.
         var mastersystem = manifest.For("mastersystem");
@@ -190,7 +190,7 @@ public sealed class BiosManifestTests
     public void Every_destination_survives_a_round_trip_through_the_database()
     {
         // The paths are stored, so RelativePath agreeing is not enough on its own: the CHECK
-        // on relative_path has to agree too, for all 346 of them.
+        // on relative_path has to agree too, for all 336 distinct paths.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
         var manifest = Fixtures.LoadBiosManifest();

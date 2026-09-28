@@ -77,7 +77,7 @@ rather than quietly reworded. What the pass actually took is small and specific:
 plan to re-measure `with_rom_id_index`, which turned out to be a **3.4 to 3.7 times regression
 on a platform-scoped walk** on 5.2.0 (fixed at 7b-2a, and absent on `5.3.0-alpha.2`, which is why
 the index is off under every scope again, #188), and to run the BIOS join that found
-**84 of RetroBat's 353 requirements are `.zip` files no md5 comparison can ever match**. Neither
+**84 of RetroBat's 355 requirements are `.zip` files no md5 comparison can ever match**. Neither
 number is Argosy's; both are measured here. It targets Android, so **no path from it is valid for
 RetroBat and none was taken**, and its own headline cost figure inverts on this library. The full
 ledger, including the eighteen leads dropped at triage and the design notes addressed to M7b, is

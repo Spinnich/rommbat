@@ -716,8 +716,8 @@ lists, so members it omits sync anyway and are reported as unlisted, on the reso
 and on the set's detail. What does gate a game is its shape: a multi-file ROM, or one RomM holds
 as a folder, waits until its platform's certification has settled where RetroBat wants it.
 
-**Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 353 BIOS
-entries across 99 systems as `{md5, file}`, with the exact destination path. Join it
+**Firmware requirements come from RetroBat too.** `batocera-systems.json` gives 355 BIOS
+entries across 100 systems as `{md5, file}`, with the exact destination path. Join it
 against RomM's firmware records on **md5 only**: filenames differ between the two projects,
 and RomM's `is_verified` is false on files RetroBat requires, `psxonpsp660.bin` among them,
 so on a real library filtering on it discards 6 of the 49 required hashes that library
@@ -733,7 +733,7 @@ RetroBat's.
 
 Two shapes follow from measuring it. **RetroBat does not ship that file**, only a copy of it
 inside `batocera-systems.exe`, so the manifest is bundled at `data/retrobat/bios.json` rather
-than read from the install. And **179 of the 353 entries carry no md5**, so a BIOS report has
+than read from the install. And **181 of the 355 entries carry no md5**, so a BIOS report has
 three states rather than two: matched, missing from the library, and unverifiable because
 RetroBat names no hash. `bios/` is otherwise a tree RomMBat does not own, holding thousands of
 files of emulator user data, so nothing there is overwritten or deleted.

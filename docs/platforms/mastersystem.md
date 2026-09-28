@@ -138,7 +138,7 @@ $ rommbat-agent bios mastersystem
 
 **Exit 0. Both files RetroBat lists are hashless**, so RomMBat can neither find them in RomM nor
 recognise them on disk, and says so. That is the fourth of step 3's states for both; present,
-fetched and not in the library do not apply. `mastersystem` is one of the 28 systems with no
+fetched and not in the library do not apply. `mastersystem` is one of the 29 systems with no
 joinable entry.
 
 ## Which rows need firmware
