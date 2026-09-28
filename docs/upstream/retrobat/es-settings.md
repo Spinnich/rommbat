@@ -52,7 +52,7 @@ In the four timed sessions a launch write landed 7.7, 4.9, 1.6 and 1.7 s before 
 fired. In the one diffed, it added `Language` and nothing else, so ES wrote a change of its own
 before the session could make any. That session's exit write landed 2.4 s before the `quit` hook,
 and RB-200 times three more. So `background start` never writes this file, because ES has
-already loaded its model and written once by then. Whether changing a setting mid-session
+already loaded its model by then (RB-178). Whether changing a setting mid-session
 triggers a write of its own is not known.
 
 ## RB-200. The exit write comes before the `quit` hook, and ES is still alive when the hook fires
