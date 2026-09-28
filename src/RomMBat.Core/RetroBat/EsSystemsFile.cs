@@ -58,7 +58,7 @@ public sealed record EsNonRomSystem(string Name, string DeclaredPath, string Rea
 /// shows (RB-67).
 /// <para>
 /// <b>The folder is <c>&lt;path&gt;</c>, not <c>&lt;name&gt;</c>.</b> They are different
-/// vocabularies and five systems in the shipped 8.2.0 file disagree: <c>gw</c> writes to
+/// vocabularies and five systems in the shipped file disagree (RB-68): <c>gw</c> writes to
 /// <c>gameandwatch</c>, <c>powerbomberman</c> to <c>pb</c>, <c>casloopy</c> to <c>loopy</c>,
 /// <c>Windows</c> to <c>windows</c>, and <c>starship</c> appears twice, once for
 /// <c>ghostship</c> and once for <c>starship</c>. Keying anything on <c>&lt;name&gt;</c>
@@ -99,7 +99,7 @@ public sealed class EsSystemsFile
     public IReadOnlyList<EsSystem> Systems { get; }
 
     /// <summary>
-    /// Entries that declare no ROM folder, kept so <c>status</c> can explain a gap.
+    /// Entries that declare no ROM folder, and why. Only tests read it.
     /// </summary>
     /// <remarks>
     /// The shipped file has four (RB-69): <c>library</c> and <c>screenshots</c> point outside

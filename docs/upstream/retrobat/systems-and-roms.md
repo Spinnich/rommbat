@@ -28,7 +28,7 @@ Five systems disagree: `gw`/`gameandwatch`, `powerbomberman`/`pb`, `casloopy`/`l
 Verified: RetroBat 8.2.0, 2026-08-10, and 8.2.1, 2026-09-27. How: resolved every `<path>` in the live file.
 `library` and `screenshots` point outside `roms/`, `retrobat` is `system/es_menu`, which carries
 the `.menu` entries, and `mess` declares no path at all. `EsSystemsFile` filters on the resolved
-path, not on a list of names, and keeps the four as `NonRomSystems` so `status` can explain the gap.
+path, not on a list of names, and keeps the four as `NonRomSystems`, which nothing reads yet.
 
 ## RB-70. `arcade` and `kodi` are inside XML comments
 
