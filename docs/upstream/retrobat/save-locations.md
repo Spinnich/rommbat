@@ -7,196 +7,166 @@ read-when: Before scanning `saves/`, attributing a save unit, or handling a shar
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-6. Add `megacd`'s shared `4Mbit_cart.brm` and `xbox`'s `eeprom.bin` + `xbox_hdd.qcow2`
+## RB-361. The tree is `saves/<system>/<emulator>/`, and only libretro battery saves sit loose
+
+Verified: RetroBat 8.2.0, 2026-08-08. How: inventoried every file under `saves/` on a real install with a substantial library.
+A standalone emulator writes under an emulator-named subdirectory (`ps2/pcsx2`,
+`dreamcast/flycast`, `saturn/kronos`, `3ds/azahar`, `wii/dolphin-emu`). Only libretro battery
+saves land loose at `saves/<system>/*.srm`. Emulator-named folders also sit at the top level
+beside the systems (RB-119), and `saves/dolphin/User/GC/SRAM.USA.raw` exists alongside
+`saves/gamecube/dolphin-emu/User/GC/`. So a save path does not always begin with a system name.
 
-Plan says: Class-D list is PCSX2 and Dreamcast VMU (L822)
+| System                                                                       | Class       | Observed                                                                                            |
+| ---------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------- |
+| `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `n64`, `pcengine`, `sega32x` | A           | loose `.srm`, keyed by ROM filename                                                                 |
+| `psx`                                                                        | A           | loose `.srm` under libretro; DuckStation writes per-set memory cards instead (`save_shapes.json`)   |
+| `saturn`                                                                     | B           | `.bcr` (512 KB) and `.bkr` (32 KB), both for every game                                             |
+| `megacd`                                                                     | B and D     | per-game `.brm` and `.srm`, plus a shared 512 KB `4Mbit_cart.brm` RAM cart (RB-121)                 |
+| `mame`                                                                       | C           | `mame/nvram/<shortname>/`, 1,231 directories (RB-153)                                               |
+| `psp`                                                                        | C           | `psp/SAVEDATA/<GAMEID>SYSDATA/` holding `PARAM.SFO` (RB-141, RB-144)                                |
+| `ps3`                                                                        | C           | `ps3/rpcs3/dev_hdd0/home/00000001/savedata` and `dev_hdd0/savedata`, inside a 32,451-file data root |
+| `gamecube`                                                                   | C, per file | `.gci` files in a shared folder, no per-game directory (RB-140)                                     |
+| `wii`                                                                        | C           | the NAND tree at `wii/dolphin-emu/User/Wii/title/`, beside shared system state                      |
+| `dreamcast`                                                                  | D           | shared VMUs under `flycast/vmu/`                                                                    |
+| `xbox`                                                                       | D           | `eeprom.bin` (256 B) and `xbox_hdd.qcow2` (38 MB), one disk image for every game (RB-121)           |
 
-Measurement says: Add `megacd`'s shared `4Mbit_cart.brm` and `xbox`'s `eeprom.bin` + `xbox_hdd.qcow2`
+`SaveScanner` finds units through the named containers in `save_shapes.json` rather than by
+position in the path.
+
+## RB-119. Nine top-level folders under `saves/` are emulators, not systems
 
-## RB-10. The tree is `saves/<system>/<emulator>/`, plus emulator-named folders at the top level
+Verified: RetroBat 8.2.0, 2026-08-16. How: listed `saves/` on a real install and diffed it against the 243 systems its live `es_systems.cfg` declares.
+The nine are `amiga`, `dolphin`, `gameandwatch`, `ghostship`, `loopy`, `mesen`, `pb`, `psxmame`
+and `windows`. A first path segment is a system only when `es_systems.cfg` declares it.
 
-Plan says: Save directories are modelled per system (L815, M6 generally)
+## RB-120. The second path segment does not reliably name an emulator
+
+Verified: RetroBat 8.2.0, 2026-08-16. How: classified every second-level directory under `saves/` on a real install.
+`mame/artwork`, `mame/cfg`, `mame/ctrlr`, `n64/sram`, `n64/games`, `n64/sstates`, `psp/SYSTEM`,
+`psp/Cheats`, `switch/user`, `switch/sdmc`, `rtcw/Main` and `dolphin/User` name no emulator.
+Where states live the segment is emulator and core, so `saves/gbc/libretro.gambatte/` sits
+beside `saves/gbc/*.srm`. Discovery cannot be positional at either level.
 
-Measurement says: The tree is `saves/<system>/<emulator>/`, plus emulator-named folders at the top level
+## RB-121. A loose file under `saves/<system>/` can be a shared container
 
-## RB-43. Detecting changes to a class-D shared container
+Verified: RetroBat 8.2.0, 2026-08-16. How: classified every loose file under a system folder on a real install.
+`xbox` keeps `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` loose at the system root, and both
+are class D. `megacd` mixes classes at one level: per-game `.brm` and `.srm` beside the shared
+`4Mbit_cart.brm`. So `save_shapes.json` names each shared container, and the scanner excludes
+by that list rather than by position.
 
-Plan says: (not addressed) detecting changes to a class-D shared container
+## RB-122. Every system `save_shapes.json` leaves unclassified holds saves
 
-Measurement says: Launching a PS2 game rewrote both `Mcd001.ps2` and `Mcd002.ps2` with no in-game save, so **mtime is useless for class D** and content hashing is mandatory
+Verified: RetroBat 8.2.0, 2026-08-16. How: compared the file's `_unclassified` list and `shapes` against the systems holding content on a real install.
+All 21 unclassified systems hold content. `ports` holds content too and appears in neither list.
+So the bundled data falls short of a used tree in two ways, and a scan reports what no shape
+covers rather than guessing a class for it.
 
-## RB-119. Nine, against the 243 systems the live `es_systems.cfg` declares: `amiga`, `dolphin`, `gameandwatch`
+## RB-123. The four class D options and `dolphin_sync_saves` are unset by default
 
-Previously: Four top-level directories under `saves/` are emulator-named, not systems (probe 2)
+Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. How: read `es_settings.cfg` on a real, heavily used install, 261 settings on the second reading.
+None of `pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`, `flycast_vmupergame`
+or `dolphin_sync_saves` appears, and no per-game `[&quot;` key of any kind does. `ps2.emulator`
+is `pcsx2`. So the stock shape of each system is the one to build for, and a conversion is
+something RomMBat detects and offers (RB-364).
 
-Measurement says: **Nine**, against the 243 systems the live `es_systems.cfg` declares: `amiga`, `dolphin`, `gameandwatch`, `ghostship`, `loopy`, `mesen`, `pb`, `psxmame`, `windows`
+## RB-364. The class D conversion options and their choices
 
-## RB-120. Not reliably
+Verified: RetroBat 8.2.0, 2026-08-08. How: read each option's choice list from `es_features.cfg`.
 
-Previously: The second segment is the emulator (plan M6, probe 2)
+| Emulator    | Option                    | Choices                                                 | `save_shapes.json` sets |
+| ----------- | ------------------------- | ------------------------------------------------------- | ----------------------- |
+| DuckStation | `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | nothing, stock is kept  |
+| PCSX2       | `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | `game`                  |
+| Dolphin     | `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | `8`, the default        |
+| Flycast     | `flycast_vmupergame`      | a `switchauto`, so off unless set                       | `on`                    |
 
-Measurement says: **Not reliably.** `mame/artwork`, `mame/cfg`, `mame/ctrlr`, `n64/sram`, `n64/games`, `n64/sstates`, `psp/SYSTEM`, `psp/Cheats`, `switch/user`, `switch/sdmc`, `rtcw/Main` and `dolphin/User` name no emulator. Where states live it is emulator-**and-core**, so `saves/gbc/libretro.gambatte/` sits beside `saves/gbc/*.srm`. Discovery cannot be positional in either level
+DuckStation's stock `PerGameTitle` keys the card by `gamedb.yaml`'s `saveName` with the disc
+marker removed, which binds a multi-disc set onto one card, so RomMBat leaves it alone.
+`es_features.cfg` describes `dolphin_sync_saves` as syncing the dolphin and libretro-dolphin
+folders. What it does is narrower, and is in the GameCube facts, RB-189.
 
-## RB-121. `xbox` refutes it: `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` sit loose at the system root and both are
+## RB-43. Launching a PS2 game rewrites both shared memory cards
 
-Previously: A loose file under `saves/<system>/` is a class A battery save (plan M6)
+Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted `saves/ps2/` around a PCSX2 launch in which the game saved nothing.
+`pcsx2/memcards/Mcd001.ps2` and `Mcd002.ps2`, 8,650,752 B each, were both rewritten. So a class
+D container's mtime changes on every launch, and RomMBat compares class D by content hash.
 
-Measurement says: **`xbox` refutes it**: `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` sit loose at the system root and both are class D. And **`megacd` interleaves classes at one level**, per-game `.brm` and `.srm` beside the shared `4Mbit_cart.brm`, so excluding class D is a named-container list rather than a positional rule
+## RB-125. A class A pass over a whole install costs half a second
 
-## RB-122. Still 21, and all 21 hold content on the measured install
+Verified: RetroBat 8.2.0, 2026-08-16. How: timed a read of every loose file under every system folder on a real install.
+37 loose files, 43.0 MB, 0.51 s. 38 MB of that is `xbox`'s class D disk image, which a scan
+must not read (RB-121). MAME's whole `nvram` tree, for comparison, is 1,531 files and 8.0 s.
 
-Previously: `save_shapes.json` leaves 21 systems `_unclassified` (F19)
+## RB-158. A class C scan of a whole tree costs about four seconds
 
-Measurement says: Still 21, and **all 21 hold content on the measured install**. `ports` holds content and is absent from the file entirely, not even listed as unclassified. So the bundled data is short of the tree in two different ways
+Verified: RetroBat 8.2.0, 2026-08-17. How: timed a save scan over the whole `saves/` tree of the `K:` development install, hashing included.
+4.1 s wall, 1,231 MAME `nvram` units and everything else included.
 
-## RB-123. Unset on this install, as are all four class-D options (`duckstation_memcardtype`, `pcsx2_slot1_memory`
+## RB-140. A class C unit is not a directory per game
 
-Previously: `dolphin_sync_saves` must be detected before trusting a location (RB-9c, and see 189 for what it actually does)
+Verified: RetroBat 8.2.0, 2026-08-17. How: listed every class C container on a real install.
+`ps3` keeps `BLUS30109G6A383E91`, `BLUS30109G6A3B071C` and `BLUS30109S` for one title id, and
+`BCUS98111-AUTOSAVE` beside `BCUS98111-USERDATA`. `psp` keeps `UCES01011` beside
+`ULES01513SYSDATA`. `gamecube` has no per-game directory at all: `69-GXBE-game1.ssx.gci` and
+`69-GXBE-settings.ssx.gci` are two files in a shared folder. So a unit is a `(container, key)`
+pair, which is what migration `008` stores.
 
-Measurement says: **Unset on this install**, as are all four class-D options (`duckstation_memcardtype`, `pcsx2_slot1_memory`, `flycast_vmupergame`, `dolphin_slotA`). Stock is the case to build for; the conversion hazards are stage 2's to detect
+## RB-141. The unit key is a prefix of the directory name
 
-## RB-125. 37 loose files, 43.0 MB, 0.51 s
+Verified: RetroBat 8.2.0, 2026-08-17. How: joined each class C directory on a real install against the title ids its games carry.
+`ULES01513SYSDATA` carries key `ULES01513`, and `BLUS30187GAMEDAT9ZLDR0F5K7M4000` carries
+`BLUS30187`. Matching the whole segment finds nothing.
 
-Previously: (not addressed) what a class A pass actually costs
+## RB-143. A ROM's header yields a Game ID for GameCube and Wii only
 
-Measurement says: **37 loose files, 43.0 MB, 0.51 s** across every system on a real install, and **38 MB of that is `xbox`'s class-D disk image** which it must not read. MAME's whole `nvram` tree, for comparison, is 1,531 files and 8.0 s
+Verified: RetroBat 8.2.0, 2026-08-17. How: read the first bytes of every image in five systems on a real install.
+`gamecube`, 178 `.rvz`: 100% readable at `0x58` with the version checked. `wii`, 40 `.rvz` and
+13 `.wad`: 75.5%. `psp` (147 `.cso`, 7 `.chd`), `ps3` (23 `.dec.iso`) and `psx` (386 `.chd`):
+0%. No constant offset reaches into a `.cso`, a `.chd` or an ISO9660 image. `RomGameId` serves
+GameCube and Wii, and PSP attribution goes through the journal and the sidecar (RB-145).
 
-## RB-139. Whether an emulator's battery save keeps the ROM's name
+## RB-144. `PARAM.SFO` adds nothing the directory name does not
 
-Previously: (not addressed) whether an emulator's battery save keeps the ROM's name
+Verified: RetroBat 8.2.0, 2026-08-17. How: parsed the `PARAM.SFO` of every `psp` save directory on a real install.
+Its keys are `SAVEDATA_DIRECTORY`, which is the directory's own name, and `TITLE`, a human string
+(`'echochrome'`, `'The 3rd Birthday'`). Parsing it buys a fuzzy title match, never an exact key,
+so RomMBat does not read it.
 
-Measurement says: **BizHawk truncates it**: `Phantasy Star (Brazil).zip` produced `bizhawk/Phantasy Star (B).SaveRAM`. It sits in a subdirectory so this release reports it rather than syncing it, but any future attribution by filename has to expect a truncated stem
+## RB-145. A state's `.txt` sidecar joins a ROM to its native save key
 
-## RB-140. Refuted, on three systems at once
+Verified: RetroBat 8.2.0, 2026-08-17. How: read the sidecars beside `ppsspp` states on a real install and joined them to `SAVEDATA/`.
+`ppsspp/3rd Birthday, The (Europe).txt` holds `ULES01513_1.00`. Its `ULES01513` prefix joins
+`SAVEDATA/ULES01513SYSDATA`, and the stem resolves through `RomIndex`. The route needs no ROM
+read and no observed launch, and it covers only games that have a state. It is one of
+`GameIdAttributor`'s three routes, beside the launch journal and the ROM header (RB-143).
 
-Previously: Class C is "a directory per game" (plan, the class table)
+## RB-153. MAME's `nvram` directories are named by short name
 
-Measurement says: **Refuted, on three systems at once.** `ps3` holds `BLUS30109G6A383E91`, `BLUS30109G6A3B071C` and `BLUS30109S` for one title id, and `BCUS98111-AUTOSAVE` beside `BCUS98111-USERDATA`. `psp` holds `UCES01011` and `ULES01513SYSDATA`. **`gamecube` has no per-game directory at all**: `69-GXBE-game1.ssx.gci` and `69-GXBE-settings.ssx.gci` are two files in a shared folder
+Verified: RetroBat 8.2.0, 2026-08-17. How: listed `saves/mame/nvram/` on a real install against its `roms/mame`.
+1,231 unit directories with well-formed short names (`1944`, `19xx`, `1on1gov`, `20pacgal`),
+against 3 `.zip` files in `roms/mame`, so nothing joined. A MAME set names each archive after its
+short name, so the basename is the key, but this library cannot demonstrate the join.
 
-## RB-141. It is a prefix of it
+## RB-253. A system's save shape depends on the emulator
 
-Previously: The unit key is the directory's name
+Verified: RetroBat 8.2.1, 2026-09-13. How: drove all nine `nes` rows from EmulationStation, confirming each emulator from `emulatorLauncher.log`.
+Three libretro cores share one `saves/nes/<rom>.srm`, so switching core continues the same save,
+measured on Kirby's Adventure under `nestopia` then `fceumm`. The other six rows write four other
+shapes in their own subdirectories or under other extensions. So `nes` is class A on libretro and
+on nothing else, and shape belongs to `(system, emulator)`, as `save_shapes.json`'s `_note` says.
 
-Measurement says: **It is a prefix of it.** `ULES01513SYSDATA` carries key `ULES01513`, and `BLUS30187GAMEDAT9ZLDR0F5K7M4000` carries `BLUS30187`. Matching the whole segment finds nothing
+## RB-254. BizHawk names a battery save after the game's display name
 
-## RB-143. It reaches nothing this stage needs
+Verified: RetroBat 8.2.1, 2026-09-13. How: launched `StarTropics (USA).zip` under BizHawk and read what it wrote.
+It wrote `saves/nes/bizhawk/StarTropics.SaveRAM`, dropping the region tag, which no ROM filename
+yields. Its own state sidecar spells the convention out as `StarTropics.NesHawk`, so the mapping
+is recoverable from the tree. `DisplayNameAttributor` joins it through that sidecar or a BizHawk
+launch, and refuses a title two ROMs answer to.
 
-Previously: Reading the ID out of the ROM is the fallback route (plan, M6; F17)
+## RB-139. BizHawk's display name can abbreviate a region tag
 
-Measurement says: **It reaches nothing this stage needs.** Every image in five systems, head read only: `gamecube` 178 `.rvz`, **100%** readable at `0x58` with the version checked; `wii` 40 `.rvz` + 13 `.wad`, **75.5%**; `psp` 147 `.cso` + 7 `.chd`, **0%**; `ps3` 23 `.dec.iso`, **0%**; `psx` 386 `.chd`, **0%**. No constant offset reaches a `.cso`, a `.chd` or an ISO9660 image
-
-## RB-144. It yields nothing the directory name does not
-
-Previously: `PARAM.SFO` yields the Game ID (start-m6-stage2b brief)
-
-Measurement says: **It yields nothing the directory name does not.** Its keys are `SAVEDATA_DIRECTORY`, which is the directory's own name, and `TITLE`, a human string (`'echochrome'`, `'The 3rd Birthday'`). So parsing it buys a fuzzy title match, never an exact key
-
-## RB-145. It is, and it is measured
-
-Previously: The state `.txt` sidecar may be a cheaper third route (stage 2a ledger)
-
-Measurement says: **It is, and it is measured.** `ppsspp/3rd Birthday, The (Europe).txt` holds `ULES01513_1.00`, whose `ULES01513` prefix joins `SAVEDATA/ULES01513SYSDATA`, while the stem resolves through `RomIndex`. It needs no ROM read and no observed launch, and it covers only games that have a state
-
-## RB-153. Structurally sound and unprovable on this install
-
-Previously: MAME's short name **is** the rom basename, so attribution is free (probe 2, plan)
-
-Measurement says: **Structurally sound and unprovable on this install.** 1,231 `nvram` unit directories against 3 `.zip` files in `roms/mame`, so nothing joins. The names are well-formed MAME short names (`1944`, `19xx`, `1on1gov`, `20pacgal`) and a MAME set names each archive after one, but this library cannot demonstrate it
-
-## RB-158. What a class C scan costs on a real tree
-
-Previously: (not addressed) what a class C scan costs on a real tree
-
-The pass says: **4.1 s wall** for the whole `K:` saves tree, 1,231 MAME nvram units and everything else, including hashing
-
-## RB-171. Seven of ten never were
-
-The claim being checked: The bundled `shared_containers` declarations are reachable (`save_rules.json`, `SaveDiscoveryTests`)
-
-What was measured: **Seven of ten never were.** `SharedContainerReason` had one caller, asking with a bare filename from a non-recursive enumeration, so the seven declarations naming a path with a separator (`ps2/pcsx2/memcards/Mcd00{1,2}.ps2`, dreamcast's four VMUs, `saturn/kronos/bkram.bin`) could not match. The test covering it called the lookup table rather than the scanner, and passed. The shared PS2 cards were being counted inside an unread `pcsx2/` subdirectory instead of named
-
-## RB-174. Still true, re-read on a heavily used install
-
-The claim being checked: All four class D options and `dolphin_sync_saves` are unset on a stock install (**probe 2**)
-
-What was measured: **Still true, re-read on a heavily used install.** None of `pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`, `flycast_vmupergame` or `dolphin_sync_saves` appears in the 261-setting file, and no per-game `[&quot;` key of any kind does. `ps2.emulator` is `pcsx2`, so `(ps2, pcsx2)` is the pair to build for
-
-## RB-198. Whether a save this device uploaded is restored if it goes missing locally
-
-The claim being checked: (not addressed) whether a save this device uploaded is restored if it goes missing locally
-
-What was measured: **It is not.** With the GameCube unit deleted and its row forgotten, a flush planned no download and the region root stayed empty; the save had to be fetched from `/api/saves/{id}/content` by hand. So the two halves compound: RetroBat puts back a stale copy RomMBat cannot see, and the good copy on the server is unreachable to this device. This is the ledger's `IsOwnUpload` question, measured rather than inferred
-
-## RB-253. No, and `nes` is the first system checked against every row rather than one
-
-Question: A system's save shape holds across every emulator it declares (`save_shapes.json`, one row per system)
-
-Measured: **No, and `nes` is the first system checked against every row rather than one.** Three `libretro` cores share one `saves/nes/<rom>.srm`, so switching core continues the same save, measured on Kirby's Adventure under `nestopia` then `fceumm`. The other six rows write four other shapes in their own subdirectories or under other extensions, so `nes` is class A on `libretro` and on nothing else. The file's `_note` already said shape is a property of `(system, emulator)`; this is that note measured
-
-## RB-254. The display name, not the ROM filename
-
-Question: (not addressed) what BizHawk names a battery save after
-
-Measured: **The display name, not the ROM filename.** `StarTropics (USA).zip` produced `saves/nes/bizhawk/StarTropics.SaveRAM`, dropping the region tag, which is a join key no ROM filename yields. Its own state sidecar spells the convention out as `StarTropics.NesHawk`, so the mapping is recoverable from the tree (#151). **Now joined**, by `DisplayNameAttributor` through that sidecar or a BizHawk launch, refusing a title two ROMs answer to; driven on both cores in RB-262 to RB-266
-
-## RB-361. What the real save tree contains
-
-Inventoried from a live install with a substantial library
-(`probe-output/saves_observed.json`). **The single biggest structural finding is that the
-plan's mental model of the saves tree is wrong.**
-
-**Saves are `saves/<system>/<emulator>/...`, not `saves/<system>/`.** Every system that uses
-a standalone emulator gets an emulator-named subdirectory (`ps2/pcsx2`, `dreamcast/flycast`,
-`saturn/kronos`, `3ds/azahar`, `wii/dolphin-emu`). Only libretro battery saves land loose at
-`saves/<system>/*.srm`. Worse, there are also **emulator-named folders at the top level**
-(`saves/dolphin/`, `saves/mesen/`, `saves/psxmame/`, `saves/amiga/`) that sit beside the
-system folders rather than under them. `saves/dolphin/User/GC/SRAM.USA.raw` exists at the
-same time as `saves/gamecube/dolphin-emu/User/GC/`. Any code that assumes a save path
-begins with a system name will mis-attribute these.
-
-Observed shapes, with the evidence:
-
-| System                                                                       | Observed            | Notes                                                                                                                                                                                                                        |
-| ---------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `n64`, `pcengine`, `sega32x` | **A**               | loose `.srm`, ROM-filename-keyed. The easy case, and it is the majority.                                                                                                                                                     |
-| `psx`                                                                        | **A**               | loose `.srm`, so this install runs libretro for PS1, **not** DuckStation. The plan's claim that PS1 is already per-game via DuckStation's `PerGameTitle` default does not apply unless DuckStation is the selected emulator. |
-| `saturn`                                                                     | **B**               | `.bcr` (512 KB) **and** `.bkr` (32 KB) per game, both present for every game.                                                                                                                                                |
-| `megacd`                                                                     | **B and D at once** | per-game `.brm` + `.srm`, **plus a shared `4Mbit_cart.brm` (512 KB)** holding the RAM cart for all games. Class D, and not in the plan's class-D table.                                                                      |
-| `mame`                                                                       | **C**               | `mame/nvram/<shortname>/`, **1231 directories**. Keyed by MAME short name, which _is_ the ROM basename, so attribution here is trivially solvable by filename, unlike the other class-C cases.                               |
-| `psp`                                                                        | **C**               | `psp/SAVEDATA/<GAMEID>SYSDATA/` containing `PARAM.SFO`. Game-ID-keyed as predicted.                                                                                                                                          |
-| `ps3`                                                                        | **C**               | `ps3/rpcs3/dev_hdd0/home/00000001/savedata` and `dev_hdd0/savedata`. **32451 files** under `ps3/rpcs3/`, which is a real performance constraint on any recursive hash.                                                       |
-| `gamecube`                                                                   | **C, multi-file**   | see below                                                                                                                                                                                                                    |
-| `wii`                                                                        | **C**               | full NAND tree at `wii/dolphin-emu/User/Wii/title/...`, alongside a lot of shared system state that is not per-game.                                                                                                         |
-| `dreamcast`                                                                  | **D**               | see below                                                                                                                                                                                                                    |
-| `xbox`                                                                       | **D**               | `xbox/eeprom.bin` (256 B) and `xbox/xbox_hdd.qcow2` (38 MB). A whole disk image, shared by every game.                                                                                                                       |
-
-## RB-364. The class-D conversion options, read from `es_features.cfg`
-
-All four options the plan names exist, and their choice lists are wider than assumed:
-
-| Emulator    | Option                    | Choices                                                 | Best for sync            |
-| ----------- | ------------------------- | ------------------------------------------------------- | ------------------------ |
-| DuckStation | `duckstation_memcardtype` | `PerGameTitle`, `Shared`, `PerGameFileTitle`, `PerGame` | **`PerGameFileTitle`**   |
-| PCSX2       | `pcsx2_slot1_memory`      | `standard`, `folder`, `game`                            | **`game`**               |
-| Dolphin     | `dolphin_slotA`           | `8` (GCI folder), `1` (memory card)                     | **`8`**, already default |
-| Flycast     | `flycast_vmupergame`      | switch, `switchauto` so unset by default                | **on**                   |
-
-**The plan's DuckStation recommendation should change.** It treats the stock `PerGameTitle`
-as good enough. `PerGameFileTitle` is strictly better for a sync client: it names the card
-after the **rom file**, which is the key RomMBat already matches on, whereas `PerGameTitle`
-uses DuckStation's internal database title, which need not equal the filename. Choosing
-`PerGameFileTitle` collapses class D into ordinary class-A handling.
-
-> **Superseded.** This recommendation was withdrawn once a real card was measured rather than
-> reasoned about. `PerGameTitle` names the card from `gamedb.yaml`'s `saveName` with the disc
-> marker removed, which is what binds a multi-disc set onto one card; keying by rom file splits
-> the set and loses the save at the disc change. The conclusion above is right about the
-> mechanism and wrong about which side of the trade to take. See
-> [freegosy-findings.md](../../freegosy-findings.md), F18. The rest of this section still holds.
-
-**One hazard found while reading these options:** `dolphin_sync_saves`, described as
-"RetroBat will sync dolphin and libretro-dolphin saves folders". **That description is the
-emulator's and it is misleading**, which RB-189 settles: it is GameCube only, it runs once
-per launch inside emulatorlauncher rather than on a schedule, and it reconciles
-`GC/<REGION>/` against a `Card A/` subdirectory of that same folder. Whether it is on has to be
-detected, and so does the `Card A` it leaves behind, which outlives the setting.
+Verified: RetroBat 8.2.0, 2026-08-17. How: launched `mastersystem`'s Phantasy Star (Brazil) under BizHawk on the `K:` install, made a state, and read what it wrote.
+`Phantasy Star (Brazil).zip` produced `bizhawk/Phantasy Star (B).SaveRAM`. So a BizHawk stem can
+differ from the ROM's in more than a dropped tag, and joining goes through RB-254's routes, never
+the filename.
