@@ -41,9 +41,10 @@ spool file and renames it into place, sharing nothing, and the flush that drains
 
 ## RB-350. ES runs every script in an event folder
 
-Verified: RetroBat 8.2.0, 2026-08-08. How: a probe script beside the shipped `start/updatestores.bat`.
-Both ran, 63 ms apart, in alphabetical order. RomMBat installs its hook as a separate file beside
-RetroBat's rather than replacing it.
+Verified: RetroBat 8.2.0, 2026-08-08, and 8.2.1, 2026-09-27. How: a probe script beside the shipped `start/updatestores.bat`; listed every event folder.
+Both ran, 63 ms apart, in alphabetical order. A stock install ships a script only in `start/` and
+`update-gamelists/`, both `updatestores.bat`, and every other event folder is empty. RomMBat
+installs its hook as a separate file beside RetroBat's rather than replacing it.
 
 ## RB-348. `game-start` gets three arguments, and no system, emulator or core
 

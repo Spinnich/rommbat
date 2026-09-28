@@ -54,11 +54,11 @@ public sealed record EsNonRomSystem(string Name, string DeclaredPath, string Rea
 /// <remarks>
 /// Read from the live install, never from the copy vendored in <c>reference/</c>. The
 /// vendored file is the shipped template; the live one reflects that machine's actual
-/// emulator configuration, and <c>&lt;extension&gt;</c> is a sync filter rather than a
-/// display detail.
+/// emulator configuration, including the <c>&lt;extension&gt;</c> list EmulationStation
+/// shows (RB-67).
 /// <para>
 /// <b>The folder is <c>&lt;path&gt;</c>, not <c>&lt;name&gt;</c>.</b> They are different
-/// vocabularies and five systems in the shipped 8.2.0 file disagree: <c>gw</c> writes to
+/// vocabularies and five systems in the shipped file disagree (RB-68): <c>gw</c> writes to
 /// <c>gameandwatch</c>, <c>powerbomberman</c> to <c>pb</c>, <c>casloopy</c> to <c>loopy</c>,
 /// <c>Windows</c> to <c>windows</c>, and <c>starship</c> appears twice, once for
 /// <c>ghostship</c> and once for <c>starship</c>. Keying anything on <c>&lt;name&gt;</c>
@@ -99,13 +99,13 @@ public sealed class EsSystemsFile
     public IReadOnlyList<EsSystem> Systems { get; }
 
     /// <summary>
-    /// Entries that declare no ROM folder, kept so <c>status</c> can explain a gap.
+    /// Entries that declare no ROM folder, and why. Only tests read it.
     /// </summary>
     /// <remarks>
-    /// The shipped 8.2.0 file has five: <c>library</c>, <c>screenshots</c> and <c>kodi</c>
-    /// point outside <c>roms/</c>, <c>retrobat</c> is the <c>system/es_menu</c> system that
-    /// carries <c>.menu</c> entries, and <c>mess</c> declares an empty path. None of them is
-    /// a sync target and none should reach the mapping surface.
+    /// The shipped file has four (RB-69): <c>library</c> and <c>screenshots</c> point outside
+    /// <c>roms/</c>, <c>retrobat</c> is the <c>system/es_menu</c> system that carries
+    /// <c>.menu</c> entries, and <c>mess</c> declares an empty path. None of them is a sync
+    /// target and none should reach the mapping surface.
     /// </remarks>
     public IReadOnlyList<EsNonRomSystem> NonRomSystems { get; }
 
