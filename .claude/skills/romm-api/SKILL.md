@@ -77,7 +77,7 @@ The code is **8 characters from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`**, not 8 digit
 grouped (`ABCD-EFGH`).
 
 Pending state is Redis-only with a hard 600s TTL: show a countdown and a one-button
-restart. Rate limits: init 10/min/IP, token 60/min/IP, plus per-code pacing. **The init
+restart. Rate limits: init 10/min/IP and token 60/min/IP (RB-74), plus per-code pacing. **The init
 limit binds the test suite too:** one pairing per live test exceeds it, so live tests share
 one pairing per class. `LivePairingTests` is the exception and cannot: pairing is what it
 tests, so it spends four of the ten and two suite runs inside a minute exhaust the budget.
@@ -108,13 +108,9 @@ CSRF does not apply when an `Authorization` header is present.
 Never needed by either, and dangerous to grant: `users.read`, `users.write`, `roms.write`,
 `platforms.write`, `tasks.run`, `logs.read`.
 
-**RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`, so
-neither grant is requested.** Both tightened at RomM 5.3.0 to require a `PLATFORMS` / `WRITE`
-grant and to enforce platform visibility, which would otherwise have landed on the device
-scope set. Confirmed by grep rather than assumed: no hand-written C# names either route, and
-the one repo-wide hit is `pegasus_export` as a generated DTO property describing the server's
-own config. That follows from the design, since `GamelistSync` writes RetroBat gamelists into
-the install directly and has no reason to ask the server for one. Do not re-run that grep; #176.
+**RomMBat calls neither `POST /api/export/gamelist-xml` nor `POST /api/export/pegasus`**, which
+need `platforms.write` (RM-8). `GamelistSync` writes RetroBat gamelists into the install
+directly, so the device scope set never needs that grant.
 
 `me.write` is **not** a device scope and RomMBat never asks for it. `/approve` and `/deny`
 require it, so only a harness token carries it. A token without it fails the route guard
@@ -164,7 +160,7 @@ media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play s
 - **`PUT /api/devices/{id}` takes only the fields you are changing.** The generated
   `DeviceUpdatePayload` serializes unset properties as explicit nulls and the server answers
   **500** with a plain-text body. Send a bare `{"sync_config": {...}}`, and merge into what
-  is already there so another client's keys survive.
+  is already there so another client's keys survive. RB-73.
 - **`POST /api/devices` answers `{device_id, name, created_at}`**, not a `DeviceSchema`.
   `GET /api/devices` keys the same value `id`.
 - **Socket.IO is unusable.** It authenticates from the `romm_session` cookie only, and

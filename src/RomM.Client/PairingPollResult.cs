@@ -23,7 +23,7 @@ public enum PairingOutcome
     /// </summary>
     Expired,
 
-    /// <summary>Rate limited (60 polls/min/IP). Back off and keep polling.</summary>
+    /// <summary>Rate limited (60 polls/min/IP, RB-74). Back off and keep polling.</summary>
     RateLimited,
 
     /// <summary>Anything else the server said.</summary>
