@@ -11,7 +11,7 @@ namespace RomMBat.Core;
 /// both portable and fixed installs; RB-391 exercised it across two machines and three
 /// drive letters. The registry lookup is a genuine last resort and is deliberately last:
 /// <c>HKCU\Software\RetroBat\LatestKnownInstallPath</c> records where an install was
-/// <i>last seen</i>, so on a portable drive it is stale the moment the letter changes.
+/// <i>last seen</i> (RB-381), so on a portable drive it is stale the moment the letter changes.
 /// </remarks>
 public static class RetroBatRoot
 {
