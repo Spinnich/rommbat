@@ -30,8 +30,8 @@ beside the systems (RB-119), and `saves/dolphin/User/GC/SRAM.USA.raw` exists alo
 | `dreamcast`                                                                  | D           | shared VMUs under `flycast/vmu/`                                                                    |
 | `xbox`                                                                       | D           | `eeprom.bin` (256 B) and `xbox_hdd.qcow2` (38 MB), one disk image for every game (RB-121)           |
 
-`SaveScanner` finds units through the named containers in `save_shapes.json` rather than by
-position in the path.
+`SaveScanner` finds saves through the rules in `save_rules.json` (battery saves, shared
+containers) and the class C unit paths in `save_shapes.json`, never by position in the path.
 
 ## RB-119. Nine top-level folders under `saves/` are emulators, not systems
 
@@ -52,8 +52,8 @@ beside `saves/gbc/*.srm`. Discovery cannot be positional at either level.
 Verified: RetroBat 8.2.0, 2026-08-16. How: classified every loose file under a system folder on a real install.
 `xbox` keeps `eeprom.bin` and a 39,714,816 B `xbox_hdd.qcow2` loose at the system root, and both
 are class D. `megacd` mixes classes at one level: per-game `.brm` and `.srm` beside the shared
-`4Mbit_cart.brm`. So `save_shapes.json` names each shared container, and the scanner excludes
-by that list rather than by position.
+`4Mbit_cart.brm`. So `save_rules.json`'s `shared_containers` names each one, and the scanner
+excludes by that list rather than by position.
 
 ## RB-122. Every system `save_shapes.json` leaves unclassified holds saves
 
@@ -90,7 +90,8 @@ folders. What it does is narrower, and is in the GameCube facts, RB-189.
 
 Verified: RetroBat 8.2.0, 2026-08-08. How: snapshotted `saves/ps2/` around a PCSX2 launch in which the game saved nothing.
 `pcsx2/memcards/Mcd001.ps2` and `Mcd002.ps2`, 8,650,752 B each, were both rewritten. So a class
-D container's mtime changes on every launch, and RomMBat compares class D by content hash.
+D container's mtime changes on every launch, and mtime decides nothing in RomMBat: every save
+it syncs is content-hashed.
 
 ## RB-125. A class A pass over a whole install costs half a second
 
