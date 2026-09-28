@@ -139,8 +139,9 @@ via `savestate_directory`. Nor does it take its slot from `-state_slot`: with
 (RB-261). `bizhawk` is the reverse: `emulatorLauncher` writes `-state_slot` into EmuHawk's
 `config.ini` as `SaveSlot`, and the pad's save key writes to that slot (RB-269).
 
-Watch for a `.txt` sidecar carrying the native basename: RetroBat writes it beside the state
-unconditionally, and it belongs with the state. **Its contents vary by emulator and one of them
+Watch for a `.txt` sidecar carrying the native basename: most emulators get one beside the
+state and `libretro` gets none, so its presence signals nothing (RB-136), and it belongs with
+the state. **Its contents vary by emulator and one of them
 is useful**: some hold nothing but the rom filename, while DuckStation's holds the bare disc
 serial (`SLUS-00594`), which is the join key a database-named memory card otherwise has to be
 reverse engineered from. Read it rather than assuming. See `save-sync` for the unreliable
