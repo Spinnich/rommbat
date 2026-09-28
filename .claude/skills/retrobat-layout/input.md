@@ -72,10 +72,8 @@ ES cannot drive is one the user's own front end cannot drive either.
 **EmulationStation has already answered the on-screen keyboard, and RomMBat now copies it
 rather than resembling it.** `GuiTextEditPopupKeyboard` binds **A** to press the highlighted key,
 **Start** to OK, **B** to BACK, **L (`pageup`) to DELETE**, **R (`pagedown`) to SPACE**,
-**`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. RB-228 and RB-234:
-read off a live 8.2.1 session, corroborated in
-`resources/locale/*/LC_MESSAGES/emulationstation2.po`, and then settled against upstream's own
-source, which is the only place the layout exists.
+**`y` to SHIFT** and **`x` to RESET**, with the d-pad moving the cursor. RB-234, read from
+upstream's source, which is the only place the layout exists.
 
 - **The tables are compiled into `emulationstation.exe`**, so there is nothing for
   `reference/refresh.sh` to pull and nothing on disk to read. `KeyboardLayouts` holds a
@@ -124,6 +122,7 @@ type system cannot.
 
 **ES surfaces controller hotplug itself**, with `%s connected` and `%s disconnected` in that same
 string table. A front end living inside it that cannot notice a pad arriving is the odd one out.
+RB-229.
 
 **Enumerate more than once, because a controller is not a fixed fact about a session.** A pad
 asleep in its cradle at launch, batteries that go mid-session, and a virtual pad from a
@@ -133,6 +132,7 @@ would restart the app. A lost pad also does not announce itself: reading a handl
 has gone away returns released buttons and centred axes, which is exactly what an untouched
 controller looks like, so `SDL_JoystickGetAttached` is the only way to tell them apart.
 `GamepadReader` asks that per frame and re-enumerates once a second when it holds nothing.
+RB-231.
 
 **A UI launched from the ES menu has the controller to itself, and needs no workaround.**
 Measured with a stamping hook on `game-selected`: ES fired **zero** navigation events during the
