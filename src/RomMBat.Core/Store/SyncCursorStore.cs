@@ -45,7 +45,8 @@ public sealed record SyncCursor
 /// </summary>
 /// <remarks>
 /// A full walk is a first-run or repair operation, not routine, and it takes minutes on a
-/// 96k library (RB-354). Something that long gets interrupted, so the offset is written after every page and a later run picks it up.
+/// 96k library (RB-354). Something that long gets interrupted, so the offset is written after
+/// every page and a later run picks it up.
 /// </remarks>
 public sealed class SyncCursorStore
 {

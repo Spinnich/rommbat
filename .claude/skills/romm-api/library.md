@@ -103,8 +103,8 @@ columns for that reason.
   **The 5.2.0 rule reached `CatalogQuery` only at M7 stage 7b-2a.** It was written from A1's
   measurement and the code went on sending a constant `false` for a further two stages, which
   is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
-  **8 m 15 s**, 13.4 s a page at 250, where `RomPager`'s own comment records 2.5 s a page for
-  the unscoped case. **A rule in a skill is not a rule in the code**, and this one went
+  **8 m 15 s**, 13.4 s a page at 250, against 2.5 s a page for an unscoped walk on the same
+  server. **A rule in a skill is not a rule in the code**, and this one went
   unnoticed until a stage put the walk behind a screen somebody had to sit and watch.
 
 - **`with_total=true` is what keeps `total` non-null with the index off.** The server nulls
@@ -210,7 +210,7 @@ columns for that reason.
   shows no count, and the resolve's total is the real size. Not an upstream defect.
 - **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**
   `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
-  `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
+  `DetailedRomSchema` adds only eight per-user arrays (RB-93). And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
   **Re-verified against the `romm-5.3.0-beta.1.json` pin, identical in contract to today's `5.3.0`, because a whole scope kind turns

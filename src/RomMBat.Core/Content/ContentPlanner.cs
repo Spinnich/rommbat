@@ -443,7 +443,7 @@ public sealed class ContentPlanner
         //
         // There is no sha1 arm because sha1 is a second number the same server published rather
         // than an independent check, and RB-180 measured it being simply wrong on two ps2
-        // rows. The rows with no hash at all are 0.6% of a real library (RB-257), and the answer
+        // rows. The rows with no hash at all are 0.6% of a real library's single-file ROMs (RB-257), and the answer
         // here is recorded as VerifiedBy.Size rather than passed off as a hash check.
         // Blank rather than null, because a member can be read back from a store or built by a
         // caller that never passed through the client's boundary, and a blank hash is absence
