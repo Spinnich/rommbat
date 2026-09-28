@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Emit data/retrobat/bios.json: what RetroBat requires under bios/, per system.
 
-RetroBat ships this data, and ships it in a form nothing can read. A real 8.2.0 install
+RetroBat ships this data, and ships it in a form nothing can read. A real 8.2.1 install
 carries no batocera-systems.json at all: the manifest is a .NET string resource inside
 emulationstation/batocera-systems.exe, byte-identical to the vendored copy apart from a
 trailing newline. So unlike
@@ -10,8 +10,8 @@ es_systems.cfg, there is no live copy to prefer, and RomMBat bundles the manifes
 The transform is deliberately thin, because the vendored file is the authority and a
 generator that decided things would be a second authority that can disagree with it:
 
-  * an empty md5 becomes null, which is a third state and not a missing file. 179 of the
-    353 entries carry one, across 49 systems, and 28 systems have nothing else
+  * an empty md5 becomes null, which is a third state and not a missing file. 181 of the
+    355 entries carry one, across 50 systems, and 29 systems have nothing else
   * the destination path is kept exactly as RetroBat writes it, relative to the RetroBat
     root, because that is the whole point of the manifest
   * two system keys are aliased to the RetroBat folder of the same system, below

@@ -7,39 +7,23 @@ read-when: Before fetching or placing firmware.
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../README.md) says what an entry holds and how IDs are kept.
 
-## RB-379. There is no `batocera-systems.json` either (M5)
+## RB-379. The firmware manifest is a string resource inside `batocera-systems.exe`, not a file
 
-[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/62552faa4/docs/PLAN.md) said the BIOS requirements manifest was "present in the tree". A recursive
-search of a real 8.2.0 install finds **no file by that name at all**. The data ships as a
-.NET string resource named `batocera_systems` inside
-`emulationstation/batocera-systems.exe`, 40,644 bytes at offset 7,250 of a 50,688-byte
-executable, and it is `reference/batocera-systems.json` **byte for byte apart from a trailing
-newline** (99 systems, 353 entries, no system added, removed or changed).
+Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28. How: searched the install for the file name, then compared the executable's embedded resource with `reference/batocera-systems.json`.
+No file named `batocera-systems.json` exists anywhere in an install. The data is a .NET string
+resource named `batocera_systems` inside `emulationstation/batocera-systems.exe`, at offset 7,250
+of the 50,688-byte executable, and matches the vendored copy byte for byte apart from its
+trailing newline: 100 systems and 355 entries, 181 of them with an empty md5. With no live copy
+to read, RomMBat bundles the manifest at `data/retrobat/bios.json` rather than reading a
+build-specific resource layout out of the executable at runtime.
 
-So the `es_systems.cfg` precedent, read the live copy and treat the vendored one as a
-template, cannot apply: there is no live copy to read, and prising a string out of an
-executable at runtime would bind RomMBat to one build's resource layout. The manifest is
-bundled instead. `tools/m5-probes/m5-probe1-manifest-in-install.py` re-derives all of this.
+## RB-380. `bios/` is a shared tree, and almost none of it is firmware
 
-## RB-380. `bios/` is a shared tree, and RomMBat owns almost none of it (M5)
-
-Before RomMBat writes anything, `bios/` on a real install holds **4,683 files and 373 MB**,
-nearly all of it emulator data rather than firmware:
-
-| Under `bios/`      | Files |
-| ------------------ | ----- |
-| `dolphin-emu/`     | 2,508 |
-| `mame/`            | 858   |
-| `nxengine/`        | 436   |
-| `Machines/`        | 296   |
-| `scummvm/`         | 208   |
-| `PPSSPP/`          | 167   |
-| `dinothawr/`       | 144   |
-| flat at `bios/`    | 6     |
-| 15 more subfolders | 60    |
-
-Exactly **3** of those files sit at a path `batocera-systems.json` names carrying the md5 it
-names, and **none** sits at a named path with a different md5. `bios/mame/hash` alone holds
-776 software-list XML files, already recorded above as metadata rather than firmware, and
-openMSX keeps its whole user-data directory here, save states included. Nothing in this tree
-is RomMBat's to remove.
+Verified: RetroBat 8.2.0, 2026-08-16. How: walked `bios/` on an install RomMBat had not yet written to, and hashed every path the manifest names.
+Before RomMBat writes anything, `bios/` holds 4,683 files and 373 MB, nearly all of it emulator
+data: `dolphin-emu/` 2,508 files, `mame/` 858, `nxengine/` 436, `Machines/` 296, `scummvm/` 208,
+`PPSSPP/` 167, `dinothawr/` 144, 6 flat at `bios/` and 60 across 15 more subfolders. Three files
+sat at a path the manifest names with the md5 it names, and none at a named path with a
+different md5. `mame/hash/` holds 776 software-list XML files, whose manifest entries carry no
+md5, and openMSX keeps its whole user-data directory here, save states included (RB-371).
+RomMBat therefore never overwrites or deletes anything under `bios/` that it did not download.

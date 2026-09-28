@@ -274,7 +274,7 @@ columns for that reason.
   hashed as a container.** Measured: the library's 34-member `neogeo.zip` carries an
   `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` can
   never be joined on md5** against a manifest that hashed a differently-built archive of the
-  same members. 84 of RetroBat's 353 BIOS requirements are zips, and **20 of those carry an
+  same members. 84 of RetroBat's 355 BIOS requirements are zips, and **20 of those carry an
   md5**, which is the whole defect surface: the other 64 name no hash, so `BiosPlanner.Inspect`
   answers `Unverifiable` before the join. Compare members, the way `LogicalContentHash` does
   for saves. See
