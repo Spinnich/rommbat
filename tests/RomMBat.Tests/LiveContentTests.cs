@@ -118,17 +118,14 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     /// A multi-file ROM's plain and ranged responses are not two views of one file.
     /// </summary>
     /// <remarks>
-    /// <b>Re-aimed after the server changed its mind.</b> This asserted a 403 until RomM
-    /// 5.3.0-alpha.2, where a <c>Range</c> on a multi-file ROM is answered 206 instead. What
-    /// the 403 was protecting survives the change: the two answers still describe different
-    /// representations. Measured on two platforms, plain against ranged total, 2,740,866 against
-    /// 2,740,768 on <c>neogeocd</c> and 9,439,703 against 9,439,567 on <c>pcenginecd</c>, with
-    /// only the ranged one carrying an <c>ETag</c>. So the property is asserted rather than the
-    /// mechanism, and it holds on either server generation.
+    /// The plain answer is a zip built per request and the ranged one a cached zip of a
+    /// different length, and only the ranged one carries an <c>ETag</c> (RM-15). The property
+    /// is asserted rather than the mechanism, so a server that refused the header would pass
+    /// too.
     /// <para>
     /// The client is right either way, because it sends no <c>Range</c> at all here. This exists
     /// so that the day a server does make the two agree, it is noticed here and multi-file resume
-    /// can be reconsidered, rather than someone reading the 403's absence as permission. If
+    /// can be reconsidered, rather than someone reading a 206 as permission. If
     /// either total is missing the test skips with the reason, because an absent header is not
     /// evidence either way and a silent pass would read as the tripwire having held.
     /// Single-file is the contrast: same <c>ETag</c>, same total, in
@@ -174,7 +171,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         if (ranged.StatusCode == HttpStatusCode.Forbidden)
         {
-            // The 5.2.0 answer: nginx refuses the header outright, whatever offset it names.
+            // A refusal keeps the two answers apart too.
             return;
         }
 

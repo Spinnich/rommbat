@@ -18,8 +18,7 @@ public sealed partial class RomMConnection
     /// Streams a ROM's content into <paramref name="destination"/>.
     /// </summary>
     /// <remarks>
-    /// <b>The <c>Range</c> header is conditional, which is the opposite of what the plan
-    /// originally said.</b> A single-file ROM is asked for with <c>Range: bytes=&lt;from&gt;-</c>,
+    /// <b>The <c>Range</c> header is conditional.</b> A single-file ROM is asked for with <c>Range: bytes=&lt;from&gt;-</c>,
     /// which answers 206 with a <c>Content-Range</c> and an <c>ETag</c>, and resumes exactly.
     /// A multi-file ROM is asked for plainly, because its ranged and plain responses are not
     /// the same file.
@@ -76,11 +75,10 @@ public sealed partial class RomMConnection
 
         using var message = new HttpRequestMessage(HttpMethod.Get, Resolve(path));
 
-        // Single-file only. A multi-file ROM's ranged and plain responses describe different
-        // representations of one URL, measured 22 bytes apart, and only the ranged one carries
-        // an ETag. So sending this header is what would let a resume splice two artifacts into
-        // one corrupt file that passes every check made here. RomM 5.2.0 refused it 403
-        // instead; the reason changed at 5.3.0 and the answer did not. See #180.
+        // Single-file only. A multi-file ROM's ranged and plain responses are two different
+        // zips of different lengths, and only the ranged one carries an ETag (RM-15). So
+        // sending this header is what would let a resume splice two artifacts into one
+        // corrupt file that passes every check made here.
         if (request.IsSingleFile)
         {
             message.Headers.Range = new RangeHeaderValue(request.ResumeFrom, null);
@@ -391,11 +389,9 @@ public sealed partial class RomMConnection
 
             HttpStatusCode.Forbidden => RomMResponse.Failure<RomContentResult>(
                 RomMResponseStatus.Forbidden,
-                // 403 has two quite different causes here, and only one is about scopes. On
-                // RomM 5.2.0 nginx answers 403 to any ranged request for a multi-file ROM, with
-                // its own HTML page rather than a RomM error body. 5.3.0 serves the range
-                // instead, so this branch is the older server's answer and is kept for as long
-                // as the floor can meet one.
+                // The multi-file arm words a refused range, which the floor never sends: a
+                // multi-file request carries no Range (RM-15), so a 403 here is a scope refusal
+                // either way. #302 removes the arm.
                 !request.IsSingleFile
                     ? $"The server refused to serve part of '{request.FsName}'. Multi-file ROMs cannot be "
                         + "downloaded in ranges, so this transfer cannot resume."

@@ -14,9 +14,7 @@ public sealed record RomContentRequest
     /// <remarks>
     /// Suppresses the <c>Range</c> header. The plain response carries no <c>ETag</c> and no
     /// <c>Accept-Ranges</c>, and the ranged one describes a <b>different representation</b> of
-    /// the same URL, so nothing could tell a resume that it had spliced the two. RomM 5.2.0
-    /// refused the header <b>403</b> outright and 5.3.0-alpha.2 answers it 206; it stays
-    /// suppressed on both, for the reason that outlived the refusal. See #180.
+    /// the same URL, so nothing could tell a resume that it had spliced the two (RM-15).
     /// </remarks>
     public bool IsMultiFile { get; init; }
 
