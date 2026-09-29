@@ -129,7 +129,7 @@ return next(iter(self.developers or companies[:1]), None)
 ```
 
 So on a row without the split (RB-98), upstream's `<developer>` and `<publisher>` are the
-alphabet's first and second company. RomMBat does not follow it there. The same file divides
+alphabet's first and second company. RomMBat reads neither role, on any row (RB-98). The same file divides
 `first_release_date` by 1000 and `average_rating` by 100, and `verify.py` asserts both
 conversions as behaviours rather than line numbers. `tools/romm-5.3-probes/r4-company-split.py`
 re-takes the split counts for the whole library.

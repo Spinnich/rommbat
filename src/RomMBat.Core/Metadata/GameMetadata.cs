@@ -49,8 +49,8 @@ public sealed record GameMetadata
     /// <c>metadatum.companies</c> merges both roles into one array and sorts it
     /// alphabetically on every row measured, so <c>companies[0]</c> and <c>companies[1]</c>
     /// are the first two entries of the alphabet rather than a developer and a publisher.
-    /// RomM's own exporter does index them that way, which is why KOTOR exports from RomM
-    /// with Activision as its developer. Writing the whole list into <c>developer</c> claims
+    /// RomM's own exporter falls back to that indexing on a row without the developer and
+    /// publisher split (RM-7), which is how KOTOR can export with Activision as its developer. Writing the whole list into <c>developer</c> claims
     /// only that these companies were involved, which is true.
     /// </remarks>
     public string? Developer { get; init; }
