@@ -140,9 +140,9 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   A refusal on the state half alone is `Partial` rather than `Refused`, because the saves landed.
 
   **A failure reading `/api/states` must not take the save restore down with it.** They are
-  independent reads. A token whose scopes do not cover the route, or a 500 from it, used to
-  return `Offline` before a single save was written. It is now reported and carried, and an
-  `--apply` that could not see the state half ends `Partial`. A state it can see and cannot place
+  independent reads. A token whose scopes do not cover the route, or a 500 from it, is reported
+  and carried rather than returned as `Offline`, and an `--apply` that could not see the state
+  half ends `Partial`. A state it can see and cannot place
   does not, for the rule under "Where the flush passes live".
 
   **The `<slot>` positional narrows saves only, and the help says so.** A state's slot lives in
@@ -367,9 +367,8 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   the device's record for `libretro:battery` current, and the next flush uploaded over it with no
   409 and no mention.
 - It still **resolves to the same destination path** as the slotted rows for that ROM. So does a
-  slot's own history. `saves restore` used to offer every one as its own restore, and applying
-  them wrote one file repeatedly and kept whichever came last (#156). **The find now keeps the
-  newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
+  slot's own history. Offering each as its own restore would write one file repeatedly and keep
+  whichever came last, so **the find keeps the newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
   names the rows it folded and says when a null-slot row and a slotted one share the file. It
   narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
   row even where a newer null-slot row shares the file. **The flush had the same gap for slotted

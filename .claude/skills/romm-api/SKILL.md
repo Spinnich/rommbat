@@ -32,7 +32,7 @@ payloads this client needs most, so never code from them.
 - **A heartbeat answer that is not RomM's is no contact, not a crash.** A captive portal's page
   or a proxy's 502 makes `ProbeAsync` throw `RomMApiException`, and `ServerProbes.ContactAsync`
   returns it as a failure beside unreachable, flagged `Answered` so a caller can say something
-  answered. `status` used to die on it (#211).
+  answered, and `status` reports it rather than failing.
 - **Never `catch (TaskCanceledException)` bare.** A connect timeout and a user cancellation
   are the same type; route everything through `RomMTransportErrors.Classify`.
 - **401 and 403 are results, not exceptions.** Authenticated calls return `RomMResponse<T>`.
