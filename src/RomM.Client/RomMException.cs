@@ -44,7 +44,7 @@ public enum UnreachableReason
 /// callers are expected to catch this and fall back to local state.
 /// </summary>
 /// <remarks>
-/// RB-353 measured that an unreachable host on the local subnet and a user
+/// RB-403 measured that an unreachable host on the local subnet and a user
 /// cancellation both surface as <see cref="TaskCanceledException"/>, differing only in the
 /// inner exception. Everything that talks to the server routes its failures through
 /// <see cref="RomMTransportErrors.Classify"/> so the two never get confused.
@@ -101,7 +101,7 @@ public static class RomMTransportErrors
 
         if (exception is TaskCanceledException canceled)
         {
-            // Both timeouts arrive as an inner TimeoutException. RB-353 measured the
+            // Both timeouts arrive as an inner TimeoutException. RB-403 measured the
             // difference: HttpClient's own Timeout wraps the cancellation it replaced, and
             // SocketsHttpHandler's ConnectTimeout wraps nothing.
             var reason = canceled.InnerException is TimeoutException { InnerException: null }

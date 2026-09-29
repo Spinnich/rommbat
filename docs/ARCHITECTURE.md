@@ -81,7 +81,7 @@ The RomM API, and nothing else. No disk, no SQLite, no RetroBat.
   its JSON body, and a slow server that is still reachable, so it cannot be the reachability
   lever. A streamed transfer's body is bounded by the stall watchdog (`StallTimeout`) instead.
 - **A timeout and a user cancellation are the same exception type.** Both surface as
-  `TaskCanceledException` and differ only in the inner exception, so every failure goes
+  `TaskCanceledException` and differ only in the inner exception (RB-403), so every failure goes
   through `RomMTransportErrors.Classify` rather than a bare `catch`. A naive catch reports
   every offline server as a user action.
 - **Never throws on 401.** An expired or revoked token is an expected state, not an
