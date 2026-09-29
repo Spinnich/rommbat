@@ -681,12 +681,28 @@ ordinary rather than a fault. `--no-reload` skips the call.
 RetroBat is portable by design, which makes it trivially disposable. That is also the
 cleanest way to test the portable-move requirement and the first-run install path.
 
-1. Download RetroBat 8.2.1 or newer from <https://www.retrobat.org/download/>. It is the
-   declared minimum, and RomMBat refuses to run below it.
-2. Extract it somewhere with room, for example `D:\retrobat-pristine\`.
-3. Run it once so EmulationStation generates its config files. You need
-   `.emulationstation/es_settings.cfg` and `es_savestates.cfg` to exist.
-4. **Never test against the pristine copy.** Copy the whole tree per test run:
+1. Install one from a PowerShell 7 prompt. It needs `gh`, and about 6 GB: the 1.9 GB installer
+   plus the 4 GB tree it holds.
+
+   ```powershell
+   ./tools/retrobat-install.ps1 -Path D:\retrobat-pristine                         # newest stable
+   ./tools/retrobat-install.ps1 -Version prerelease -Path D:\retrobat-beta          # newest of any kind
+   ./tools/retrobat-install.ps1 -Version 8.2.1 -Path D:\retrobat-8.2.1              # an exact tag
+   ```
+
+   The installer is cached under `%LOCALAPPDATA%\rommbat-dev\retrobat-installers` and checked
+   against the sha256 upstream publishes beside it. Nothing prunes that folder. The setup.exe
+   has no silent mode, so the script extracts the ZIP it carries, which is the whole of what
+   the wizard installs apart from its optional system-wide prerequisites (Visual C++, DirectX,
+   Dokany, WinFsp). The script warns about any it cannot find.
+
+   To do it by hand instead, run the setup.exe from <https://www.retrobat.org/download/> and
+   pick an empty folder. RomMBat refuses anything below 8.2.1.
+
+2. EmulationStation needs no first launch. `es_settings.cfg`, `es_savestates.cfg` and
+   `es_systems.cfg` ship in `emulationstation\.emulationstation\`. Emulators do not: apart from
+   RetroArch and its cores, RetroBat downloads each one the first time a game needs it.
+3. **Never test against the pristine copy.** Copy the whole tree per test run:
 
    ```powershell
    Remove-Item -Recurse -Force D:\retrobat-test -ErrorAction SilentlyContinue
