@@ -150,8 +150,9 @@ media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play s
 - **RomM serialises a play session's datetimes without a zone and stores UTC, and
   `System.Text.Json` reads a zone-less value as local.** So a plain `DateTimeOffset` property is
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
-  CI is. The other `GET` routes RB-260 read carry `+00:00`. RB-260. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
-  `DateTimeOffset` read off the server**, which honours an offset where one is present, so it is
+  CI is. The other `GET` routes RB-260 read carry `+00:00`. **Put
+  `[JsonConverter(typeof(UtcTimestampConverter))]` on any `DateTimeOffset` read off the
+  server**, which honours an offset where one is present, so it is
   safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
   its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub
   writing an offset lets the broken client pass.

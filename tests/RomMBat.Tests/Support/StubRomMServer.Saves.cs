@@ -688,7 +688,7 @@ internal sealed partial class StubRomMServer
         timestamp.Length >= 19 ? timestamp[..19] : timestamp;
 
     /// <summary>
-    /// A timestamp as the server writes one: UTC, with nothing saying so.
+    /// A timestamp as the server writes a play session's: UTC, with nothing saying so (RB-260).
     /// </summary>
     /// <remarks>
     /// Every datetime this stub serves goes through here, because a stub that writes an offset
