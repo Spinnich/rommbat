@@ -134,7 +134,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
   what keeps a keep-local from being undone (`save-sync`). RB-163.
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
-  that earlier one answers **400** `Session is already cancelled`. Complete a session before
+  that earlier one answers **400** `Session is already CANCELLED`. Complete a session before
   negotiating again, or accept that the first one can never be tidied up. RB-164.
   Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
   `SaveSync` reads it and reports every refusal except `already COMPLETED`, which means the

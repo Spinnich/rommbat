@@ -30,7 +30,7 @@ standing constraint is kept in [Retired](#retired) so the reason for the code st
 a RetroBat or RomM release or prerelease appears: an entry reaching stage 3 is what makes a release
 worth adopting sooner.
 
-States below were read from GitHub on **2026-09-27**.
+States below were read from GitHub on **2026-09-27**, apart from romm#4839, read on 2026-09-29.
 
 ## Tracked
 
