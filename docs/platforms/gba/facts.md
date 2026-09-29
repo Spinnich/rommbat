@@ -23,7 +23,7 @@ Measured: **Only through the bare `.gba` beside the zip, which the emulator then
 
 Question: Whether a `gba` boot writes a battery save
 
-Measured: **Yes, on every row that got past boot and closed.** Each wrote 131,072 B of `0xFF` for Emerald, md5 `41d2e2c0...`, an unwritten 128 KB flash chip; BizHawk's is 131,088 B. That is freegosy F20 on a second system: no property of the file separates it from a save, only a baseline does. All were moved out of the tree before a flush
+Measured: **Yes, on every row that got past boot and closed.** Each wrote 131,072 B of `0xFF` for Emerald, md5 `41d2e2c0...`, an unwritten 128 KB flash chip; BizHawk's is 131,088 B. That is RB-404 on a second system: no property of the file separates it from a save, only a baseline does. All were moved out of the tree before a flush
 
 ## RB-288. Where each `gba` row puts a battery save, before one is made
 

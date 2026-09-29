@@ -1,6 +1,6 @@
 """R2: whether the scoped half of the with_rom_id_index rule still has a reason (#188).
 
-CatalogQuery sends with_rom_id_index=true under a scope and false unscoped. The scoped half
+CatalogQuery sent with_rom_id_index=true under a scope and false unscoped. The scoped half
 was written from a 5.2.0 latency reading, 3.4 to 3.7x slower with the index off, and R1 and
 a re-run found that penalty gone on 5.3.0-alpha.2. What that re-run did not take is the
 reading the decision needs: the page size the client actually sends, a scope wider than one

@@ -269,8 +269,8 @@ on `file_name` in place of `md5_hash` lost 2. RomMBat joins on md5 and reads nei
 
 ## RM-27. A firmware row marked `missing_from_fs` has no content to serve
 
-Verified: RomM 5.3.1 source, 2026-09-29. How: read `_resolve_firmware_content`; on a 5.1.1 beta, 2026-08-16, requested one such record live.
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `_resolve_firmware_content`.
 The scan keeps a row whose file has gone and marks it; 142 of 656 firmware records carried the
-flag on the library measured. On 5.3.1 its content route answers 404, `Firmware file '<name>' is missing
-from filesystem`, where the 5.1.1 beta answered a bare 500. RomMBat skips such a record
-before offering it, or a sync promises a file and fails mid-pass.
+flag on the library measured. Its content route answers 404, `Firmware file '<name>' is
+missing from filesystem`. RomMBat skips such a record before offering it, or a sync promises a
+file and fails mid-pass.

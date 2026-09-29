@@ -47,7 +47,7 @@ What was measured: **True while the game is using them, and a converted game lea
 
 The claim being checked: (not addressed) what `pcsx2_slot1_memory=game` does to console slot 2
 
-What was measured: **Slot 2 stays shared, exactly as the option name says, and it moved its mtime without changing a byte.** `Mcd002.ps2` was written at `08:28:22.0017`, the same instant as the new card, and its md5 is unchanged at `96cebf28…`, 76 distinct byte values, no game serial in it. So it is F18's formatted-empty card reproduced on PS2, and it is a fresh demonstration on the converted path that **mtime moves while content does not**, which is why every save is content-hashed
+What was measured: **Slot 2 stays shared, exactly as the option name says, and it moved its mtime without changing a byte.** `Mcd002.ps2` was written at `08:28:22.0017`, the same instant as the new card, and its md5 is unchanged at `96cebf28…`, 76 distinct byte values, no game serial in it. So it is RB-328's formatted-empty card reproduced on PS2, and it is a fresh demonstration on the converted path that **mtime moves while content does not**, which is why every save is content-hashed
 
 ## RB-186. It does, driven on hardware under real budget pressure, and it fails closed rather than pretending to succeed
 

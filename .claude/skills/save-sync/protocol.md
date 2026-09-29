@@ -346,8 +346,8 @@ Both devices see the same save rows; nothing is isolated per device. What is per
 the sync record, exposed as `device_syncs` on a save, and **that array is empty unless the
 request carries `device_id`**. Empty therefore reads exactly like "nobody has ever synced
 this", which is why it must not be read that way. With `device_id` set it lists every device
-that has a record, the queried one first, and a device that has never synced is **absent**
-rather than `is_current: false`. Treat a missing entry as the strongest reason to pull.
+that has a record, the queried one first, and gives a queried device that has never synced
+the save an `is_current: false` entry, the strongest reason to pull (RM-18).
 `origin_device_id` names the uploader, which is how a device recognises its own save
 returning.
 

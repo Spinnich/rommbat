@@ -284,7 +284,7 @@ after the bytes are written and verified.
 
 ## RM-18. `device_id` scopes sync bookkeeping, never which saves are listed
 
-Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: listed one ROM's saves as two devices and as none; on 5.3.1 read `get_saves` and `_build_save_schema`.
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `get_saves` and `_build_save_schema`; on 5.1.1-beta.1, 2026-08-10, listed one ROM's saves as two devices and as none.
 Both devices listed the same rows. `device_syncs` is empty when no `device_id` is passed. With
 one, it holds every device's record, the caller's first, and the caller gets an entry with
 `is_current: false` when it has never synced the save. `origin_device_id` names the device that
@@ -317,7 +317,7 @@ URL to request as served. RomMBat builds the content URL from the save's `id`.
 
 ## RM-22. `POST /api/saves/delete` stops at the first id it cannot find
 
-Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: deleted a batch holding an id already gone; on 5.3.1 read `delete_saves`.
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `delete_saves`.
 It deletes in list order and answers 404, `Save with ID <n> not found`, at the first missing
 id, keeping the deletions before it and skipping every id after. The slot prune can remove an id
 between a listing and a delete, so a batch built from a stale list half-lands.
