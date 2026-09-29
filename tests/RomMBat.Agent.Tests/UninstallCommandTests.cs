@@ -62,7 +62,7 @@ public sealed class UninstallCommandTests
     public async Task Apply_says_what_a_reverted_conversion_leaves_in_its_own_card()
     {
         // The preview says it once for all of them; the report is where the user sees which game
-        // it happened to, and the hands-on pass found it said nothing there at all.
+        // it happened to. It must not promise the syncing that the removal itself ends.
         using var tree = TempRetroBatTree.Create();
         const string Key = "ps2[\"Frequency (USA).chd\"].pcsx2_slot1_memory";
 
@@ -90,6 +90,8 @@ public sealed class UninstallCommandTests
         Assert.Equal(0, run.ExitCode);
         Assert.True(run.Wrote($"removed {Key}"), run.Out);
         Assert.True(run.Wrote("goes back to the shared memory card"), run.Out);
+        Assert.True(run.Wrote("no longer synced"), run.Out);
+        Assert.False(run.Wrote("keeps syncing"), run.Out);
     }
 
     private static void InstallHooks(TempRetroBatTree tree)

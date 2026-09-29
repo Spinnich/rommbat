@@ -224,7 +224,15 @@ public sealed class RemovalService
         }
 
         var converter = new SaveConverter(_session.Install, _session.Store, emulationStation: _emulationStation);
-        var reverted = fresh.Conversions.Select(converter.RevertRecorded).ToList();
+        // The converter's warning says RomMBat keeps syncing the game's own card, which is true
+        // for `saves convert --revert` and false here, where the syncing is what is going.
+        var reverted = new List<ConversionResult>();
+
+        foreach (var conversion in fresh.Conversions)
+        {
+            var result = converter.RevertRecorded(conversion);
+            reverted.Add(result.Ok ? result with { Warning = StrandedWarning(conversion) } : result);
+        }
 
         EvictionApplied? content = null;
 
@@ -242,6 +250,12 @@ public sealed class RemovalService
         return new RemovalApplied(
             null, hooks, menu, cancelled, reverted, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
     }
+
+    /// <summary>What a reverted game leaves in its own card, once RomMBat is gone.</summary>
+    private static string StrandedWarning(SaveConversion conversion) =>
+        $"'{conversion.FsName}' goes back to the shared memory card. Anything it saved while converted "
+            + "stays in its own card on disk, which the game will no longer read and which is no longer "
+            + "synced once RomMBat is removed.";
 
     /// <summary>States then saves, so the unsent-work queries read the tree as it is now.</summary>
     private void Scan()

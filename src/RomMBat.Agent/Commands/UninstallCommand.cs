@@ -109,7 +109,7 @@ internal static class UninstallCommand
         {
             // Nothing deletes these, and nothing here can say whose they are: every save in these
             // systems with no ROM on record, which includes the saves of games RomMBat never
-            // synced. A hands-on pass listed 22 of those, so the heading claims no more than that.
+            // synced, so the heading claims no more than that.
             Section(
                 "Saves in these systems that RomMBat cannot tie to any game, so it cannot say whether one belongs to a game going. They stay",
                 report.Unvouchable);
