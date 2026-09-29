@@ -236,10 +236,10 @@ path, write one line to a local journal, and exit.
 
 **`uninstall` takes the tree back to how it was before RomMBat.** It removes the hooks and the
 menu entry and puts back every per-game memory card setting, and with `--content` and `--bios`
-the games and firmware RomMBat downloaded. Files it found already on disk, and every save, stay.
-It refuses outright while anything has not reached the server, and `--apply` refuses while
-EmulationStation is running. Delete `emulators
-ommbat` afterwards to finish.
+the games and firmware RomMBat downloaded. Files it found already on disk stay, with the artwork
+and gamelist entries it added for them, and so does every save. It refuses outright while
+anything has not reached the server, and `--apply` refuses while EmulationStation is running.
+Delete `emulators/rommbat` afterwards to finish.
 
 **`saves convert` needs EmulationStation closed, or `--at-quit`.** EmulationStation loads its
 settings at startup and writes that copy back over anything changed underneath it, so a change

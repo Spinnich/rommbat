@@ -151,6 +151,46 @@ public sealed class UninstallTests : IDisposable
     }
 
     [Fact]
+    public void A_game_start_orphaned_before_the_last_EmulationStation_start_does_not_block()
+    {
+        // A flush never closes a game-start with no game-end, which is what a power loss
+        // mid-game leaves. ES starting again ends every game that was running, so the row is
+        // stale from there, and counting it would refuse removal on this install forever.
+        _session.Store.Journal.Append(JournalEvent.GameStart, Now, RelativePath.Create("roms/snes/a.sfc"));
+        _session.Store.Journal.Append(JournalEvent.Start, Now);
+        _session.Store.Journal.Close([.. _session.Store.Journal.All().Where(entry => entry.Event == JournalEvent.Start).Select(entry => entry.Id)], JournalState.Correlated, Now);
+
+        Assert.False(Service().Preview(new RemovalScope()).IsBlocked);
+    }
+
+    [Fact]
+    public void A_game_start_since_the_last_EmulationStation_start_blocks_and_says_why()
+    {
+        _session.Store.Journal.Append(JournalEvent.Start, Now);
+        _session.Store.Journal.Append(JournalEvent.GameStart, Now, RelativePath.Create("roms/snes/a.sfc"));
+
+        var report = Service().Preview(new RemovalScope());
+
+        var blocker = Assert.Single(report.Blockers, line => line.Contains("no end", StringComparison.Ordinal));
+        Assert.Contains("start and quit EmulationStation", blocker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_gamelist_that_could_not_be_rewritten_is_not_reported_as_success()
+    {
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+        File.WriteAllText(Path.Combine(_tree.Root, "roms", "snes", "gamelist.xml"), "<gameList><game>");
+
+        var applied = await Service().ApplyAsync(
+            Service().Preview(new RemovalScope(Content: true)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Null(applied.Refusal);
+        Assert.NotNull(applied.Content!.Gamelists);
+        Assert.False(applied.Ok, "a gamelist still naming removed games was reported as done");
+    }
+
+    [Fact]
     public async Task Apply_refuses_while_EmulationStation_runs_and_changes_nothing()
     {
         InstallHooksAndMenu();

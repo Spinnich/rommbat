@@ -59,6 +59,7 @@ public sealed record RemovalApplied(
         && (Menu?.Failed ?? 0) == 0
         && (Reverted ?? []).All(result => result.Ok)
         && (Content?.Evicted?.Problems.Count ?? 0) == 0
+        && (Content?.Gamelists?.Folders.All(folder => folder.Problem is null) ?? true)
         && (Problems ?? []).Count == 0;
 }
 
@@ -255,8 +256,12 @@ public sealed class RemovalService
             Add(Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent';"),
                 "save or play record is queued to send. Run 'rommbat-agent flush'.");
 
-            Add(_session.Store.Journal.OpenCount(),
+            Add(Count(OpenJournal(runningOnly: false)),
                 "game launch has not been worked out yet. Run 'rommbat-agent flush'.");
+
+            Add(Count(OpenJournal(runningOnly: true)),
+                "game launch has no end recorded since EmulationStation last started. Quit the game; "
+                    + "if nothing is running, start and quit EmulationStation once, then run 'rommbat-agent flush'.");
 
             Add(SpoolCount(), "hook event is waiting in the spool. Run 'rommbat-agent flush'.");
 
@@ -283,6 +288,30 @@ public sealed class RemovalService
             }
         }
     }
+
+    /// <summary>
+    /// Open journal rows, split the way <see cref="InFlightGuard"/> splits them.
+    /// </summary>
+    /// <remarks>
+    /// <b>A flush never closes a <c>game-start</c> that has no <c>game-end</c></b>, and a power
+    /// loss mid-game leaves exactly that. ES starting or quitting ends every game that was
+    /// running, so a <c>game-start</c> older than the last <c>start</c> or <c>quit</c> is stale
+    /// and not counted; counting it would refuse on that install forever. Every other open row
+    /// is one a flush closes.
+    /// </remarks>
+    private static string OpenJournal(bool runningOnly) =>
+        runningOnly
+            ? """
+              SELECT COUNT(*)
+              FROM journal
+              WHERE state = 'open'
+                AND event = 'game-start'
+                AND local_sequence > (
+                      SELECT COALESCE(MAX(local_sequence), -1)
+                      FROM journal
+                      WHERE event IN ('start', 'quit'));
+              """
+            : "SELECT COUNT(*) FROM journal WHERE state = 'open' AND event <> 'game-start';";
 
     private static string Unsent(string table) =>
         $"""

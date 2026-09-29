@@ -215,7 +215,8 @@ internal static class UninstallCommand
     {
         Console.WriteLine("Left in place:");
         Console.WriteLine("  every save and save state, which RomMBat never removes;");
-        Console.WriteLine("  files RomMBat found already on disk rather than downloaded;");
+        Console.WriteLine("  games RomMBat found already on disk, with the artwork and gamelist entries it added");
+        Console.WriteLine("    for them, since those describe your own files;");
 
         if (!scope.Content)
         {
