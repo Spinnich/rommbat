@@ -107,10 +107,11 @@ internal static class UninstallCommand
 
         if (report.Unvouchable.Count > 0)
         {
-            // Nothing deletes these. What goes is the only thing that could ever say whose they
-            // are, so the user decides with them in view.
+            // Nothing deletes these, and nothing here can say whose they are: every save in these
+            // systems with no ROM on record, which includes the saves of games RomMBat never
+            // synced, so the heading claims no more than that.
             Section(
-                "Saves that stay but that no game will own once these games go, because they are shared or unattributed",
+                "Saves in these systems that RomMBat cannot tie to any game, so it cannot say whether one belongs to a game going. They stay",
                 report.Unvouchable);
         }
 
@@ -180,6 +181,11 @@ internal static class UninstallCommand
         foreach (var result in applied.Reverted ?? [])
         {
             Console.WriteLine(result.Ok ? $"  {result.Detail}" : $"  FAILED     {result.Detail}");
+
+            if (result.Ok && result.Warning is { } warning)
+            {
+                Console.WriteLine($"             {warning}");
+            }
         }
 
         if (applied.Content is { } content)

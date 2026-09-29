@@ -439,11 +439,8 @@ whole run.
 
 ```powershell
 # nothing half-finished in the tree
-dir D:
-etrobat-test\emulators
-ommbat\partial      # empty
-dotnet run --project src/RomMBat.Agent -- status --root D:
-etrobat-test
+dir D:\retrobat-test\emulators\rommbat\partial      # empty
+dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
 ```
 
 The game that was in progress should be wholly gone, ROM and rows together, and every game that
@@ -536,12 +533,9 @@ sweep will happen next time.
 ### Metadata, media and gamelists
 
 ```powershell
-dotnet run --project src/RomMBat.Agent -- gamelist --root D:
-etrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:
-etrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:
-etrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:\retrobat-test
+dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:\retrobat-test
 ```
 
 `sync` already does all of this. `gamelist` is the same pass on its own, and it needs no
