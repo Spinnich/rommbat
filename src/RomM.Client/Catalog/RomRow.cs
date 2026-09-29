@@ -68,11 +68,10 @@ public sealed record RomRow
     /// The md5 of this ROM's <b>uncompressed</b> content, or null.
     /// </summary>
     /// <remarks>
-    /// All three hash fields describe the content rather than the stored file, which the plan
-    /// previously said only of <see cref="CrcHash"/>. Measured: a 1,025-byte <c>.zip</c>
-    /// reports the hashes of the 16,400-byte <c>.nes</c> inside it, and a <c>.chd</c> reports
-    /// the hashes of its own bytes. So comparing an archive's own bytes against this is always
-    /// wrong.
+    /// All three hash fields describe the content rather than the stored file (RB-80). A
+    /// 1,025-byte <c>.zip</c> reports the hashes of the 16,400-byte <c>.nes</c> inside it, and a
+    /// <c>.chd</c> reports the hashes of its own bytes. So comparing an archive's own bytes
+    /// against this is always wrong.
     /// <para>
     /// Null is ordinary. Across a whole live library, 94,472 single-file ROMs, the three hashes
     /// are set on the same 99.4% and blank on the same 0.6%, so verification has to degrade to

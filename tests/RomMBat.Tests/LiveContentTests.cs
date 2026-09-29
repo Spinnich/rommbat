@@ -125,7 +125,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
     /// <para>
     /// The client is right either way, because it sends no <c>Range</c> at all here. This exists
     /// so that the day a server does make the two agree, it is noticed here and multi-file resume
-    /// can be reconsidered, rather than someone reading the 403's absence as permission. If
+    /// can be reconsidered, rather than someone reading a 206 as permission. If
     /// either total is missing the test skips with the reason, because an absent header is not
     /// evidence either way and a silent pass would read as the tripwire having held.
     /// Single-file is the contrast: same <c>ETag</c>, same total, in
@@ -171,7 +171,7 @@ public class LiveContentTests(LiveCatalogFixture fixture) : IClassFixture<LiveCa
 
         if (ranged.StatusCode == HttpStatusCode.Forbidden)
         {
-            // The 5.2.0 answer: nginx refuses the header outright, whatever offset it names.
+            // A refusal keeps the two answers apart too.
             return;
         }
 
