@@ -105,6 +105,15 @@ internal static class UninstallCommand
             }
         }
 
+        if (report.Unvouchable.Count > 0)
+        {
+            // Nothing deletes these. What goes is the only thing that could ever say whose they
+            // are, so the user decides with them in view.
+            Section(
+                "Saves that stay but that no game will own once these games go, because they are shared or unattributed",
+                report.Unvouchable);
+        }
+
         if (report.Scope.Firmware)
         {
             Section("Synced firmware under bios/", [.. report.Firmware.Select(file => file.Path.Value)]);

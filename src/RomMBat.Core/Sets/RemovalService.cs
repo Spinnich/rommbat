@@ -24,6 +24,11 @@ public sealed record RemovalScope(bool Content = false, bool Firmware = false);
 /// <param name="Queued">Conversions queued for the next EmulationStation quit.</param>
 /// <param name="Content">The content removal, or null when the scope leaves content alone.</param>
 /// <param name="Firmware">Synced firmware rows, empty when the scope leaves <c>bios/</c> alone.</param>
+/// <param name="Unvouchable">
+/// Saves in the systems the content leaves that no game can be attributed to, from
+/// <see cref="EvictionService.Unvouchable"/>. Named and never deleted: removing the games takes the
+/// only thing that could ever say whose they are. Empty when the scope leaves content alone.
+/// </param>
 /// <param name="EmulationStation">Why applying would be refused now, or null when ES is closed.</param>
 public sealed record RemovalReport(
     RemovalScope Scope,
@@ -34,6 +39,7 @@ public sealed record RemovalReport(
     IReadOnlyList<PendingConfig> Queued,
     EvictionReport? Content,
     IReadOnlyList<LocalFile> Firmware,
+    IReadOnlyList<string> Unvouchable,
     string? EmulationStation)
 {
     public bool IsBlocked => Blockers.Count > 0;
@@ -119,6 +125,7 @@ public sealed class RemovalService
         var eviction = new EvictionService(_session);
 
         EvictionReport? content = null;
+        IReadOnlyList<string> unvouchable = [];
 
         if (scope.Content)
         {
@@ -131,6 +138,7 @@ public sealed class RemovalService
                 .ToList();
 
             content = eviction.PreviewRemoval(roms, sets);
+            unvouchable = eviction.Unvouchable(roms);
         }
         else
         {
@@ -163,6 +171,7 @@ public sealed class RemovalService
             scope.Firmware
                 ? [.. store.Files.List(kind: LocalFileKind.Firmware).Where(file => file.Origin == FileOrigin.Synced)]
                 : [],
+            unvouchable,
             _emulationStation() is { IsRunning: true } running ? running.Detail : null);
     }
 
@@ -260,8 +269,17 @@ public sealed class RemovalService
 
         try
         {
-            Add(Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent';"),
+            Add(Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent' AND last_error IS NULL;"),
                 "save or play record is queued to send. Run 'rommbat-agent flush'.");
+
+            if (FailedOutbox() is { Count: > 0 } failed)
+            {
+                Add(failed.Count,
+                    "save or play record failed to send last time, most recently with: "
+                        + string.Join(" / ", failed.Errors)
+                        + ". Run 'rommbat-agent flush' to retry. If it fails the same way again, the server "
+                        + "is refusing it and retrying will not send it.");
+            }
 
             Add(Count(OpenJournal(runningOnly: false)),
                 "game launch has not been worked out yet. Run 'rommbat-agent flush'.");
@@ -319,6 +337,44 @@ public sealed class RemovalService
                       WHERE event IN ('start', 'quit'));
               """
             : "SELECT COUNT(*) FROM journal WHERE state = 'open' AND event <> 'game-start';";
+
+    /// <summary>
+    /// Outbox rows whose last attempt failed, and the distinct errors they carry.
+    /// </summary>
+    /// <remarks>
+    /// <b>Split out because "run flush" is not always the answer.</b> A failure leaves the row
+    /// pending (<see cref="OutboxStore.RecordFailure"/>), which is right for being offline and
+    /// wrong for an entry the server refuses: that one blocks here on every run, and without its
+    /// error the user is told to do the one thing that cannot clear it.
+    /// </remarks>
+    private (int Count, IReadOnlyList<string> Errors) FailedOutbox()
+    {
+        var count = Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent' AND last_error IS NOT NULL;");
+
+        if (count == 0)
+        {
+            return (0, []);
+        }
+
+        using var command = _session.Store.Connection.Command(
+            """
+            SELECT DISTINCT last_error
+            FROM outbox
+            WHERE state <> 'sent' AND last_error IS NOT NULL
+            ORDER BY last_error
+            LIMIT 3;
+            """);
+
+        using var reader = command.ExecuteReader();
+        var errors = new List<string>();
+
+        while (reader.Read())
+        {
+            errors.Add(reader.GetString(0));
+        }
+
+        return (count, errors);
+    }
 
     private static string Unsent(string table) =>
         $"""

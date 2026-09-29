@@ -26,6 +26,8 @@ public sealed class UninstallTests : IDisposable
 
     private readonly TempRetroBatTree _tree = TempRetroBatTree.Create();
     private readonly InstallSession _session;
+    private readonly List<SyncSetMember> _members = [];
+    private SyncSetDefinition? _memberSet;
 
     public UninstallTests()
     {
@@ -197,6 +199,44 @@ public sealed class UninstallTests : IDisposable
     }
 
     [Fact]
+    public void An_outbox_entry_that_failed_is_named_with_its_error_rather_than_only_told_to_flush()
+    {
+        // A failure leaves the row pending, so one the server refuses blocks on every run. Without
+        // the error the user is sent to flush, which is the one thing that cannot clear it.
+        _session.Store.Outbox.Enqueue(OutboxKind.Save, Now, romId: 7, slot: "main");
+        _session.Store.Outbox.RecordFailure(_session.Store.Outbox.Pending().Single().Id, "400: not a zip", Now);
+
+        var blocker = Assert.Single(Service().Preview(new RemovalScope()).Blockers);
+
+        Assert.Contains("400: not a zip", blocker, StringComparison.Ordinal);
+        Assert.Contains("refusing it", blocker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Content_names_a_save_no_game_will_own_once_the_games_go()
+    {
+        // Two regions share one BizHawk SaveRAM, so attribution refuses to pick and the row has
+        // no rom_id. SaveGuard cannot answer for it, and removing both games takes the only
+        // thing that could. The save-sync skill: a removal names it rather than vouching for it.
+        WriteTree("emulationstation/.emulationstation/es_savestates.cfg", File.ReadAllText(Fixtures.EsSaveStatesTemplate));
+        Rom(12, "nes", "StarTropics (USA).zip", FileOrigin.Synced);
+        Rom(13, "nes", "StarTropics (Europe).zip", FileOrigin.Synced);
+        Member(12, "StarTropics (USA).zip");
+        Member(13, "StarTropics (Europe).zip");
+
+        WriteTree("saves/nes/bizhawk/sstates/NesHawk/StarTropics (USA).QuickSave0.State", "a state");
+        WriteTree("saves/nes/bizhawk/sstates/NesHawk/StarTropics (USA).txt", "StarTropics.NesHawk");
+        WriteTree("saves/nes/bizhawk/sstates/NesHawk/StarTropics (Europe).QuickSave0.State", "a state");
+        WriteTree("saves/nes/bizhawk/sstates/NesHawk/StarTropics (Europe).txt", "StarTropics.NesHawk");
+        WriteTree("saves/nes/bizhawk/StarTropics.SaveRAM", "whichever region wrote last");
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+
+        Assert.Contains("saves/nes/bizhawk/StarTropics.SaveRAM", report.Unvouchable);
+        Assert.Empty(Service().Preview(new RemovalScope()).Unvouchable);
+    }
+
+    [Fact]
     public async Task A_gamelist_that_could_not_be_rewritten_is_not_reported_as_success()
     {
         Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
@@ -269,6 +309,44 @@ public sealed class UninstallTests : IDisposable
             [.. _session.Store.Journal.All().Where(entry => entry.LocalSequence == sequence).Select(entry => entry.Id)],
             JournalState.Correlated,
             Now);
+
+    private void WriteTree(string relative, string contents)
+    {
+        var absolute = _session.Install.Resolve(RelativePath.Create(relative));
+        Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+        File.WriteAllText(absolute, contents);
+    }
+
+    /// <summary>Puts a game in one set, which is how <c>Unvouchable</c> learns its system.</summary>
+    private void Member(int romId, string fsName)
+    {
+        _memberSet ??= _session.Store.SyncSets.Add(
+            new SyncSetDefinition
+            {
+                Name = "NES",
+                Scope = RomM.Client.Catalog.CatalogScopeKind.Platform,
+                ScopeValue = "1",
+                Enabled = true,
+            },
+            Now);
+
+        _members.Add(new SyncSetMember
+        {
+            RomId = romId,
+            State = MemberState.Member,
+            Folder = "nes",
+            PlatformSlug = "nes",
+            FsName = fsName,
+            FsExtension = "zip",
+            SizeBytes = 64,
+            DisplayName = fsName,
+            SortKey = fsName.ToLowerInvariant(),
+            Position = _members.Count + 1,
+            ResolvedAt = Now,
+        });
+
+        _session.Store.SyncSets.ReplaceMembers(_memberSet.Id, _members, $"{_members.Count} games", Now);
+    }
 
     private RemovalService Service() => new(_session, () => EsRunningVerdict.NotRunning);
 
