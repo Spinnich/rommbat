@@ -51,7 +51,7 @@ $Path = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($Path)
 $CacheDir = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($CacheDir)
 
 # Checked before the download, so a wrong path costs nothing.
-if ((Test-Path $Path) -and (Get-ChildItem -LiteralPath $Path -Force | Select-Object -First 1)) {
+if ((Test-Path -LiteralPath $Path) -and (Get-ChildItem -LiteralPath $Path -Force | Select-Object -First 1)) {
     throw "$Path is not empty. Remove it or choose another path; a pristine tree is extracted into an empty one."
 }
 
@@ -103,7 +103,8 @@ if ($expected -notmatch '^[0-9A-F]{64}$') {
     throw "$($hashAsset.name) does not hold a sha256: '$expected'."
 }
 
-New-Item -ItemType Directory -Path $CacheDir -Force | Out-Null
+# Not New-Item, which reads [ and ] in a path as a wildcard.
+[System.IO.Directory]::CreateDirectory($CacheDir) | Out-Null
 $installer = Join-Path $CacheDir $setup.name
 $partial = "$installer.partial"
 
@@ -227,7 +228,7 @@ try {
 
     try {
         Write-Host ("Extracting {0:N0} entries to {1}" -f $zip.Entries.Count, $Path)
-        New-Item -ItemType Directory -Path $Path -Force | Out-Null
+        [System.IO.Directory]::CreateDirectory($Path) | Out-Null
         [System.IO.Compression.ZipFileExtensions]::ExtractToDirectory($zip, $Path)
     }
     finally {
