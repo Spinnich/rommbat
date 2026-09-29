@@ -64,7 +64,8 @@ public enum BatteryNaming
 /// <summary>Which files in one directory are one emulator's battery saves.</summary>
 /// <param name="Emulator">Who writes them, which is also the first half of the slot.</param>
 /// <param name="Directory">
-/// Relative to <c>saves/&lt;system&gt;/</c>, forward-slashed. Empty is the loose level.
+/// Relative to <c>saves/&lt;system&gt;/</c>, or to the RetroBat root under
+/// <see cref="FromRoot"/>, forward-slashed. Empty is the loose level.
 /// </param>
 /// <param name="Extensions">Lower-cased, with the dot.</param>
 /// <param name="Class">
@@ -144,8 +145,26 @@ public sealed partial record BatteryRule(
     public FrozenDictionary<string, string> ExtensionStems { get; init; } =
         FrozenDictionary<string, string>.Empty;
 
+    /// <summary>
+    /// True when <see cref="Directory"/> is relative to the RetroBat root rather than to
+    /// <c>saves/&lt;system&gt;/</c>.
+    /// </summary>
+    /// <remarks>
+    /// gopher64 is the measured case: it keeps its battery saves only in
+    /// <c>emulators/gopher64/portable_data/data/saves/</c>, and RetroBat 8.2.1 neither points them
+    /// into <c>saves/n64/</c> nor mirrors them there (#239). Loading refuses such a rule unless it
+    /// names exactly one system, so a path under it has one system to belong to.
+    /// </remarks>
+    public bool FromRoot { get; init; }
+
     /// <summary>Every emulator whose launch can have written one of these files.</summary>
     public IEnumerable<string> Writers => AlsoWrittenBy.Prepend(Emulator);
+
+    /// <summary>Where the rule's files are on a system, relative to the RetroBat root, forward-slashed.</summary>
+    public string DirectoryFor(string system) =>
+        FromRoot ? Directory
+        : IsLoose ? $"saves/{system}"
+        : $"saves/{system}/{Directory}";
 
     /// <summary>
     /// The name a file in a per-game directory is known by, <c>&lt;directory&gt;&lt;ext&gt;</c>, or
@@ -555,9 +574,36 @@ public sealed class SaveShapes
             .OrderBy(rule => rule.Specificity)
             .FirstOrDefault();
 
-    /// <summary>The rules for an emulator's own subdirectory under a system, in table order.</summary>
+    /// <summary>
+    /// The rule that claims a file at this path, relative to the RetroBat root, or null when none
+    /// does. Asked the way <see cref="BatteryRuleFor"/> is, of the file's own directory.
+    /// </summary>
+    public BatteryRule? BatteryRuleAt(string system, Paths.RelativePath path)
+    {
+        var directory = path.Value[..Math.Max(0, path.Value.Length - path.Name.Length - 1)];
+
+        return _batteryRules
+            .Where(rule =>
+                rule.AppliesTo(system)
+                && string.Equals(rule.DirectoryFor(system), directory, StringComparison.OrdinalIgnoreCase)
+                && rule.Claims(path.Name))
+            .OrderBy(rule => rule.Specificity)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// The rules for an emulator's own directory on a system, under <c>saves/&lt;system&gt;/</c> or
+    /// the RetroBat root, in table order.
+    /// </summary>
     public IEnumerable<BatteryRule> BatteryRulesBelow(string system) =>
         _batteryRules.Where(rule => !rule.IsLoose && rule.AppliesTo(system));
+
+    /// <summary>Every system with a battery rule that reads from outside <c>saves/</c>.</summary>
+    public IEnumerable<string> SystemsReadFromRoot() =>
+        _batteryRules
+            .Where(rule => rule.FromRoot)
+            .SelectMany(rule => rule.Systems!)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>An emulator's display-name rule on a system, whose titles a state entry may borrow.</summary>
     public BatteryRule? TitleRuleFor(string system, string emulator) =>
@@ -574,6 +620,25 @@ public sealed class SaveShapes
     /// </remarks>
     public BatteryRule? BatteryRuleForSlot(string system, string? slot) =>
         _batteryRules.FirstOrDefault(rule => rule.NeedsRuleToPlace && rule.AppliesTo(system) && rule.OwnsSlot(slot));
+
+    /// <summary>
+    /// The system a save path belongs to: the folder after <c>saves/</c>, or the one system of a
+    /// rule whose directory is outside <c>saves/</c> and holds the path. Null for anything else.
+    /// </summary>
+    public string? SystemOf(Paths.RelativePath path)
+    {
+        var segments = path.Value.Split('/');
+
+        if (segments.Length > 2 && string.Equals(segments[0], "saves", StringComparison.OrdinalIgnoreCase))
+        {
+            return segments[1];
+        }
+
+        return _batteryRules
+            .FirstOrDefault(rule => rule.FromRoot
+                && path.Value.StartsWith(rule.Directory + "/", StringComparison.OrdinalIgnoreCase))
+            ?.Systems!.Single();
+    }
 
     /// <summary>
     /// True when the file is something RetroBat or RetroArch writes that is not a save.
@@ -711,8 +776,20 @@ public sealed class SaveShapes
                     pair => pair.Key.ToLowerInvariant(),
                     pair => pair.Value,
                     StringComparer.Ordinal),
+                FromRoot = entry.FromRoot,
             })
             .ToList();
+
+        // A path outside saves/ carries no system folder, so the rule has to supply the one system.
+        if (parsed.FirstOrDefault(rule => rule.FromRoot
+            && (rule.Systems is not { Count: 1 }
+                || rule.IsLoose
+                || rule.Directory.StartsWith("saves/", StringComparison.OrdinalIgnoreCase))) is { } unanchored)
+        {
+            throw new InvalidOperationException(
+                $"save_rules.json reads {unanchored.Emulator}'s saves from the RetroBat root, which needs "
+                    + "exactly one system and a directory outside saves/.");
+        }
 
         for (var i = 0; i < parsed.Count; i++)
         {
@@ -977,5 +1054,8 @@ public sealed class SaveShapes
 
         [JsonPropertyName("extension_stems")]
         public Dictionary<string, string> ExtensionStems { get; init; } = [];
+
+        [JsonPropertyName("from_root")]
+        public bool FromRoot { get; init; }
     }
 }

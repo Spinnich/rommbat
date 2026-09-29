@@ -100,7 +100,9 @@ nothing back into DuckStation's own directory. **BizHawk names everything after 
 so attribution and a restore both have to know the set's discs (332).
 
 **`n64` is second in wave 2: eight of nine rows certified at `5.3.1` on 2026-09-27**, in one
-morning, with `docs/platforms/n64.md` the record. **Pick one game per save medium**: Ocarina of Time
+morning, and gopher64 on 2026-09-29 once #239 read its folder, with `docs/platforms/n64.md` the
+record. **A Mario Kart 64 ghost reaches the pak only when the game saves it**: a lap writes the
+EEPROM, and gopher64 rewrites the `.mpk` with the same bytes on every access, so check the hash. **Pick one game per save medium**: Ocarina of Time
 covers SRAM, and Mario Kart 64 covers EEPROM plus a Controller Pak ghost, which is step 6. **Boot
 every row once before playing and list what it writes where**: four of the nine name their files
 with something other than the ROM (an emulator's title, a header name and an md5, a directory per
@@ -111,15 +113,18 @@ in each 296,960 B image (RB-338), so convert rather than copy, and confirm the g
 for a pak save, and record both the default and the set value. **Read an emulator's keys from what
 RetroBat writes**, not from its own defaults: Project64 saves on F2 under RetroBat's
 `Project64.sc3` and reaches no slot but 0 (337). **An emulator can keep its saves outside `saves/`
-with no mirror**, as gopher64 does (341); the row is recorded, not certified, and the fix is its own
-issue.
+with no mirror**, as gopher64 does (341). A battery rule can read it there with `from_root`, which
+needs a migration admitting the folder to `local_save` (#239); until one lands, the row is recorded,
+not certified.
 
 **Three things `megadrive` taught that transfer.** An emulator lays out its tree per system, not per
 emulator: `jgenesis` and `ares` name their save directory after their own name for the console
 (`jgenesis/md`, `ares/Mega Drive`), so a rule measured on `nes` says nothing about the next
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
-report rather than a tree to start scanning (RB-283, emulatorlauncher#1390). Every issue raised
+report (RB-283, emulatorlauncher#1390). Whether RomMBat reads such a folder meanwhile is the
+maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239),
+Kega Fusion's is not. Every issue raised
 upstream is tracked in `docs/upstream/issues.md` until RomMBat adopts the release that fixes it.
 And a core can refuse the library for its names: FBNeo takes a console game's driver from the file
 name, so it boots nothing named by No-Intro (RB-278). **An emulator absent from `emulators/`**

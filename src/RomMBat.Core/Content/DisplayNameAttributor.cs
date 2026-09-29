@@ -238,7 +238,7 @@ public sealed class DisplayNameAttributor
         // card types do: the file written most recently is the one the emulator reads now. Only
         // files this rule claims in its own directory count, since a .srm beside a loose card
         // strips to the same title.
-        var directory = rule.IsLoose ? $"saves/{system}/" : $"saves/{system}/{rule.Directory}/";
+        var directory = rule.DirectoryFor(system) + "/";
         var written = store.Saves.List(romId)
             .Where(save => string.Equals(save.System, system, StringComparison.OrdinalIgnoreCase)
                 && save.FileMtimeUtc is not null

@@ -513,16 +513,16 @@ mednafen emulates no memory card at RetroBat's default, so set its card count to
 there, and both BizHawk rows are handed disc 1 of a set whatever the layout
 ([docs/platforms/psx.md](docs/platforms/psx.md)).
 
-**Eight of `n64`'s nine rows are certified**, at RomM `5.3.1` and RetroBat 8.2.1 on 2026-09-27:
+**All nine of `n64`'s rows are certified**, at RomM `5.3.1` and RetroBat 8.2.1: on 2026-09-27
 `libretro` under `mupen64plus_next`, which a stock install runs, and `parallel_n64`, then RMG,
 simple64, Project64, ares, and `bizhawk` under `Ares64` and `Mupen64Plus`, with each row's Controller
 Pak option driven. Four rows have no pak at RetroBat's default, so a game that saves only to the pak
 needs the option set. BizHawk's two cores share one save file they cannot read from each other.
-gopher64 is driven and not certified: RetroBat leaves its battery saves outside `saves/`, where
-RomMBat does not read, which #239 tracks ([docs/platforms/n64.md](docs/platforms/n64.md)).
+gopher64 followed on 2026-09-29: RetroBat leaves its battery saves outside `saves/`, and RomMBat
+reads them there ([docs/platforms/n64.md](docs/platforms/n64.md)).
 
-That is eighty-eight rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
-has now been driven, and the nine not certified say why in their records. The unit is still
+That is eighty-nine rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
+has now been driven, and the eight not certified say why in their records. The unit is still
 `(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
 were measured on, so none of those emulators is certified anywhere else.
 [docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),

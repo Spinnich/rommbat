@@ -463,7 +463,7 @@ a drift by updating the expected number.
 | `platforms.json`               | RomM slug to an **ordered list** of RetroBat folders                   | `systems_names.lst`, each folder resolved by RomM's `backend/utils/platform_aliases.py`       |
 | `save_directories.json`        | **RetroBat system** to emulator save subdirectories                    | M0 experiment 2, in Grout's shape                                                             |
 | `save_shapes.json`             | RetroBat system to save class A/B/C/D                                  | M0 experiment 2                                                                               |
-| `save_rules.json`              | Which files under `saves/` are whose battery saves                     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
+| `save_rules.json`              | Which files under `saves/`, and gopher64's folder, are whose saves     | `tools/m6-probes/m6-emit-save-rules.py`, plus one hand-measured rule per `(system, emulator)` |
 | `es_savestates.supplement.xml` | State entries for emulators `es_savestates.cfg` leaves out, per system | Driven on a real install, one row at a time, from `nes` to `n64`                              |
 | `bios.json`                    | RetroBat system to the firmware it requires                            | `tools/build-bios-manifest.py`, over `reference/batocera-systems.json`                        |
 | `multi_file.json`              | Systems whose multi-file ROMs sync, and how each lands                 | One certification pass per system; `psx` first, driven on every row RetroBat offers           |
@@ -493,7 +493,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Seventeen migrations
+so each milestone has somewhere honest to write from the moment it starts. Eighteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -510,7 +510,9 @@ disk is the other, and the second has been reachable since the 5.2.0 floor. 017 
 and the one case that gate caught which still needs a state is a ROM RomM holds as a folder,
 of one file or several. 018 lets one ROM own several files, for `psx` disc sets: `local_file`
 gains the kind `'rom_part'` for a set's discs, its playlist staying `'rom'`, and
-`content_download` is keyed on `(rom_id, file_id)` so each disc resumes on its own. The schema lives
+`content_download` is keyed on `(rom_id, file_id)` so each disc resumes on its own. 019 admits one
+folder outside `saves/` to `local_save.relative_path`, `emulators/gopher64/portable_data/data/saves/`,
+where gopher64 keeps its `n64` battery saves and RetroBat does not mirror them. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |
@@ -763,7 +765,8 @@ took 426 s where the scoped subtree took 0.06 s.
 
 **Whose a class A or B file is comes from a rule per `(system, emulator)`**, in
 `data/retrobat/save_rules.json`: a directory under `saves/<system>/`, its extensions, and what
-the stem joins on. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
+the stem joins on. gopher64's `n64` rule is the one whose directory is relative to the RetroBat
+root instead (`from_root`), since RetroBat leaves those saves in the emulator's own folder. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
 two rules could claim one file, or one emulator has two rules on a system unless class B gives
 each extension its own slot and no extension is in both. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside

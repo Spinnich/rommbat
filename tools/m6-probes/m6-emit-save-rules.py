@@ -527,6 +527,26 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "gopher64",
+        "systems": ["n64"],
+        "directory": "emulators/gopher64/portable_data/data/saves",
+        "from_root": True,
+        "extensions": [".sra", ".eep", ".mpk"],
+        "named_after": "display name",
+        "class": "B",
+        "title_pattern": "-[0-9a-f]{64}$",
+        "evidence": (
+            "n64 under gopher64, on 8.2.1: gopher64 keeps its battery saves only in its own portable "
+            "folder, emulators/gopher64/portable_data/data/saves/, and RetroBat neither points them "
+            "into saves/n64/ nor mirrors them there, so the directory is relative to the RetroBat "
+            "root. Legend of Zelda, The - Ocarina of Time (USA).zip wrote THE LEGEND OF "
+            "ZELDA-C916AB31....sra, 32,768 B of big-endian SRAM; Mario Kart 64 (USA).zip wrote "
+            "MARIOKART64-D6B8538D....eep, 2,048 B, and .mpk, 131,072 B, all four Controller Paks, on "
+            "by default. The stem is the ROM header's name, a dash and the upper-case sha256 of the "
+            ".z64 inside the zip (#239)"
+        ),
+    },
+    {
         "emulator": "duckstation",
         "systems": ["psx"],
         "directory": "duckstation/memcards",

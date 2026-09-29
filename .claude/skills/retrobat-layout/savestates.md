@@ -81,8 +81,10 @@ the emulator itself drops every supplement entry for it (RB-281).
 **Kega Fusion writes its battery saves outside `saves/`.** RetroBat's template `Fusion.ini` sets
 `SRMFiles` to `emulators\kega-fusion` and `StateFiles` to `saves\megadrive\kega-fusion`, and
 `emulatorLauncher` rewrites neither per launch, so its `.srm` never reaches a tree RomMBat reads.
-Treat it as RetroBat's to fix, not as a second tree to scan, and never write the key (rule 2).
-RB-283. RetroBat ships no Kega Fusion either: the folder holds only that template until ES
+Treat it as RetroBat's to fix and never write the key (rule 2). RB-283. RomMBat does not read
+that folder: a battery rule can read one outside `saves/` with `from_root`, but each costs a
+migration admitting the folder to `local_save`, and the maintainer took that on for gopher64 only
+(#239). RetroBat ships no Kega Fusion either: the folder holds only that template until ES
 downloads the emulator on a first launch.
 
 A row still undeclared on another system is not silent, though, and the difference matters to

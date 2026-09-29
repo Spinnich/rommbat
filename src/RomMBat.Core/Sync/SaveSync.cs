@@ -1810,7 +1810,7 @@ public sealed class SaveSync
         // one that puts a hash of the ROM's content on the stem, which only the ROM can supply.
         if (_shapes.BatteryRuleForSlot(folder, operation.Slot) is { } rule)
         {
-            directory = rule.IsLoose ? $"saves/{folder}" : $"saves/{folder}/{rule.Directory}";
+            directory = rule.DirectoryFor(folder);
 
             if (rule.NamedAfter == BatteryNaming.DisplayName)
             {
@@ -2165,9 +2165,6 @@ public sealed class SaveSync
         var info = new FileInfo(absolute);
         var hash = LogicalContentHash.OfFile(absolute);
 
-        // saves/<system>/..., which the schema's CHECK already guarantees is the shape.
-        var segments = destination.Value.Split('/');
-
         // Blank rather than null on both of these, because the CHECKs they answer to refuse the
         // empty string and whitespace exactly as they refuse null, and SaveScanner.SlotFor
         // throws on a blank emulator before a CHECK is even reached. RB-245 established
@@ -2183,7 +2180,7 @@ public sealed class SaveSync
             new LocalSave
             {
                 Path = destination,
-                System = previous?.System ?? (segments.Length > 1 ? segments[1] : "unknown"),
+                System = previous?.System ?? _shapes.SystemOf(destination) ?? "unknown",
                 Emulator = emulator,
                 ShapeClass = shapeClass,
 

@@ -591,10 +591,7 @@ public sealed class SaveConflictResolver
         }
     }
 
-    /// <summary>The system folder out of <c>saves/&lt;system&gt;/...</c>.</summary>
-    private static string Segment(RelativePath path)
-    {
-        var segments = path.Value.Split('/');
-        return segments.Length > 1 ? segments[1] : "unknown";
-    }
+    /// <summary>The system a save path belongs to, which <see cref="RetroBat.SaveShapes.SystemOf"/> reads.</summary>
+    private static string Segment(RelativePath path) =>
+        RetroBat.SaveShapes.Bundled.SystemOf(path) ?? "unknown";
 }

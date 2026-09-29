@@ -91,6 +91,23 @@ public class InFlightGuardTests
     }
 
     [Fact]
+    public void A_gopher64_save_outside_saves_is_deferred_while_any_n64_game_runs()
+    {
+        // The path names no system folder, so the system comes from the rule (#239).
+        using var fixture = GuardFixture.Create();
+        fixture.AddGame(12, "n64", "Legend of Zelda, The - Ocarina of Time (USA).zip");
+        fixture.AddGame(13, "n64", "Mario Kart 64 (USA).zip");
+        fixture.Launch(13);
+
+        var verdict = fixture.Check(
+            12,
+            "emulators/gopher64/portable_data/data/saves/THE LEGEND OF ZELDA-C916AB315FBE82A22169BFF13D6B866E9FDDC907461EB6B0A227B82ACDF5B506.sra");
+
+        Assert.False(verdict.CanWrite);
+        Assert.Contains("gopher64 names this save after its own title", verdict.Reason!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Every_disc_of_a_multi_disc_set_counts_as_the_same_game()
     {
         // One rom id, several files. Launching disc 2 has to defer the save the set shares, and

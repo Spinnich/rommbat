@@ -163,8 +163,10 @@ the slot stays one, and a device changing core loses the other's save locally. *
 named through a battery binding too**: simple64's `state/<title>.st<n>` and Project64's
 `project64/sstates/<directory>/<its database's name>.pj.zip` are declared with `titled_by` in the
 supplement, and a restore names them with the learned title, or for Project64 keeps the name the
-state was sent under. gopher64 keeps its battery saves outside `saves/`, which `local_save`'s CHECK
-refuses, so they are not read until #239.
+state was sent under. gopher64 keeps its battery saves outside `saves/`, so its rule sets `from_root`: the directory is
+relative to the RetroBat root, the rule must name exactly one system, and `SaveShapes.SystemOf`
+gives a path there that system. Migration 019 widens `local_save`'s CHECK to that one folder,
+so a new such rule needs its own migration (#239).
 
 **The grain is per emulator, decided** by the maintainer on 2026-09-21: libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not
