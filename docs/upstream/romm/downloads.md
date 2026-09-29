@@ -88,7 +88,7 @@ Two requirements for `RomM.Client` follow:
    ES cannot match to a gamelist entry. Use `fs_name` from the rom record instead.
 
 What this does **not** cover is a genuine link-layer drop, where the socket stalls rather
-than closing. That is the case where probe 6b's 21 second OS timeout applies, and it is why
+than closing. That is the case where the 21 second OS timeout of RB-353 applies, and it is why
 a read timeout matters separately from `ConnectTimeout`.
 
 ## RM-15. Multi-file ROMs answer a `Range` now, and the two answers are different files (`measured`)

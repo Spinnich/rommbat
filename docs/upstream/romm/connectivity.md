@@ -15,8 +15,8 @@ time, with `SocketException(TimedOut)`, and a default `HttpClient` waits the sam
 the common offline case: the RomM box is off but its address is still valid. A closed port on a
 live host is refused at 2.04 to 2.05 s, and an unresolvable name fails in under 50 ms.
 `SocketsHttpHandler.ConnectTimeout` caps the wait to within 20 ms of its value, so every
-`RomM.Client` handler sets it: 2 s interactive, 10 s for background work. `HttpClient.Timeout`
-cannot be that lever, because it also bounds a reachable server's slow answer.
+`RomM.Client` handler sets it, to 2 s. `HttpClient.Timeout` cannot be that lever, because it
+also bounds a reachable server's slow answer.
 
 ## RB-403. A timeout and a user cancellation differ only in the inner exception
 
