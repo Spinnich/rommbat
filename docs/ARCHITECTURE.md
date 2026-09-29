@@ -866,8 +866,9 @@ one-second resolution, so no decision a person takes lands on the row it is over
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
 row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. **Until
 something writes into it, or the row above it is deleted:** `PUT /api/saves/{id}` rewrites a row
-in place and moves its `updated_at`, and the server prunes a slot past its retention on every
-slotted upload (RM-11), so the rejected copy can return to the head of the slot either way. A
+in place and moves its `updated_at`, and deleting the row above leaves it the newest, so the
+rejected copy can return to the head of the slot either way. The per-slot prune cannot do it,
+because it deletes the oldest rows first (RM-11). A
 download naming a save id lower than the one this device last recorded for the slot is therefore
 recorded as a conflict rather than taken, which is RM-4's case E. Resolving either way
 prunes the copy, which is what makes the design's "keep the previous copy

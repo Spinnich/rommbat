@@ -105,11 +105,10 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   from the console view's fixed `state.save` name (RM-4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
-  never sends it. At 5.3.0-alpha.2 RomM's browser player did, for the save it loaded and on every
-  save tick under `auto_save_sync`; from alpha.3 it `PUT`s only the version its own session
-  created. A save id therefore does not name its bytes, and a superseded row can return to the
-  head of its slot, now by the server's per-slot prune deleting the row above it. `save-sync`
-  holds the consequences.
+  never sends it. RomM's browser player `PUT`s only the version its own session created (RM-4).
+  A save id therefore does not name its bytes, and a superseded row returns to the head of its
+  slot when a `PUT` touches it or the row above is deleted. The per-slot prune deletes the oldest
+  first, so it never does (RM-11). `save-sync` holds the consequences.
 - **`/api/memory-cards` is not called and is not a save transport.** A card is scoped by
   `(user, emulator)` with no ROM, a version is a whole zipped card, and only a zip is accepted.
   Measured at 5.3.0-alpha.2; `save-sync` again.
