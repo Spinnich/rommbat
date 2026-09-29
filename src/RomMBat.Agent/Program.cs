@@ -36,6 +36,7 @@ internal static class Program
         "gamelist",   // rewrite gamelist.xml from local state, no server needed
         "hooks",      // install or remove the ES event hooks
         "menu",       // install or remove the ES menu entry
+        "uninstall",  // take everything RomMBat added back out, dry run unless --apply
         "saves",      // what is on disk, what went up, what cannot
         "game-start", // journal only, no network
         "game-end",   // journal only, no network
@@ -105,6 +106,7 @@ internal static class Program
                 "gamelist" => await GamelistCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "hooks" => await HooksCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "menu" => await MenuCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "uninstall" => await UninstallCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "saves" => await SavesCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "background" => await BackgroundCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
@@ -156,6 +158,7 @@ internal static class Program
         Console.Error.WriteLine("  gamelist    Rewrite gamelist.xml from local state, and tell EmulationStation");
         Console.Error.WriteLine("  hooks       status | install | uninstall the EmulationStation event hooks");
         Console.Error.WriteLine("  menu        status | install | uninstall RomMBat's EmulationStation menu entry");
+        Console.Error.WriteLine("  uninstall   Take the hooks, menu entry and memory card settings back out");
         Console.Error.WriteLine("  saves       What is on disk, what went up, and what is waiting on you");
         Console.Error.WriteLine("              saves resolve <rom> <slot> --keep-local | --keep-server");
         Console.Error.WriteLine("              saves restore [<rom> [<slot>]]: put back a save or state the server has");
@@ -173,8 +176,8 @@ internal static class Program
         Console.Error.WriteLine("  --passphrase <s>  Unlock a token stored with --protect, for any command that calls out");
         Console.Error.WriteLine("  --offline         status, sync, bios, saves: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
-        Console.Error.WriteLine("  --apply           evict: actually remove. bios: actually fetch. saves restore: actually");
-        Console.Error.WriteLine("                    write. Without it, none of the three writes");
+        Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:");
+        Console.Error.WriteLine("                    actually write. Without it, none of the four writes");
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");
@@ -186,5 +189,7 @@ internal static class Program
         Console.Error.WriteLine("  --all-sessions    status: list every session read back, up to 50, not only the newest ten");
         Console.Error.WriteLine("  --keep-local      saves resolve: send this device's copy over the server's");
         Console.Error.WriteLine("  --keep-server     saves resolve: take the server's copy over this device's");
+        Console.Error.WriteLine("  --content         uninstall: also remove synced games, their media and gamelist entries");
+        Console.Error.WriteLine("  --bios            uninstall: also remove synced firmware under bios/");
     }
 }

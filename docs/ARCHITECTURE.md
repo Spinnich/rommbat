@@ -98,16 +98,16 @@ here**; see §5.
 Local state, plus everything that knows RetroBat's disk layout. The largest project and
 the one with all the interesting invariants.
 
-| Area             | Responsibility                                                                                                                                                                                                                               |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                |
-| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                            |
-| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                             |
-| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema, with a bundled supplement beneath it), `es_features.cfg` (per-game options), `system/version.info` (version)                                                |
-| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                        |
-| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                     |
-| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                            |
-| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
+| Area             | Responsibility                                                                                                                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root discovery   | Walk up from `AppContext.BaseDirectory` to a marker (`retrobat.ini`, `emulationstation/`, `roms/`). Registry and fixed-path lookups are a last-resort fallback, never primary                                                                                  |
+| Path resolution  | The single place a relative stored path becomes an absolute one. Nothing else concatenates a root                                                                                                                                                              |
+| Local store      | SQLite: file index, sync sets, outbox, cursors, learned bindings                                                                                                                                                                                               |
+| RetroBat readers | `es_systems.cfg` (folders and `<extension>`), `es_savestates.cfg` (state schema, with a bundled supplement beneath it), `es_features.cfg` (per-game options), `system/version.info` (version)                                                                  |
+| RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                                          |
+| Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                                       |
+| Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                                              |
+| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RemovalService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
 
 ### `src/RomMBat.Agent`
 
@@ -122,6 +122,7 @@ task.
 | `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`                               |
 | `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
 | `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                          |
+| `uninstall`  | **never**     | Take hooks, menu entry and conversions back out; `--content`, `--bios` add synced files. `--apply`     |
 | `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision                  |
 | `game-start` | **never**     | Append a start record and exit                                                                         |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                              |

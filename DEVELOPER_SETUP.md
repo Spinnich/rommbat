@@ -572,7 +572,9 @@ dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 --forget
 anything else it does, so none of this is normally typed. `hooks uninstall` removes exactly
 RomMBat's own file from each event folder and nothing else in them, and `menu uninstall`
 removes its `.menu`, its artwork and its one `<game>` element, leaving the 93 entries
-RetroBat put in that gamelist alone.
+RetroBat put in that gamelist alone. `uninstall` does both, reverts every per-game memory card
+conversion from its record, and with `--content` and `--bios` removes synced games and firmware;
+it refuses while any save, session or hook event is unsent.
 
 **The hook is its own executable and has to be published before it can be installed.** It is
 not the agent: four copies are installed, one per event folder, so it is built small and

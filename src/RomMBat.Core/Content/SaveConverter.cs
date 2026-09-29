@@ -350,12 +350,9 @@ public sealed class SaveConverter
                     + "and guessing between them would leave the setting somewhere it never was.");
         }
 
-        if (current is not null && current != recorded.AppliedValue)
+        if (ChangedSince(key, current, recorded) is { } changed)
         {
-            return Refuse(
-                $"'{key}' is now '{current}' and RomMBat wrote '{recorded.AppliedValue}', so somebody has "
-                    + "changed it since. Reverting would discard that. Clear it yourself if that is what "
-                    + "you want.");
+            return changed;
         }
 
         if (queueing)
@@ -373,7 +370,7 @@ public sealed class SaveConverter
                 recorded.PriorValue,
                 $"back to the shared memory card for '{rom.FsName}'",
                 $"queued: {goingBackTo}, at the next EmulationStation quit",
-                RevertWarning(rom));
+                RevertWarning(rom.FsName));
         }
 
         if (_emulationStation() is { IsRunning: true } running)
@@ -381,6 +378,51 @@ public sealed class SaveConverter
             return Refuse($"{running.Detail} Quit EmulationStation and run this again, or queue it with --at-quit.");
         }
 
+        return RevertNow(recorded, key, path, file);
+    }
+
+    /// <summary>
+    /// Puts one recorded conversion back, whether or not its ROM is still on this device.
+    /// </summary>
+    /// <remarks>
+    /// <b>What removing RomMBat reverts with, and why it does not go through
+    /// <see cref="Revert(int)"/>.</b> That path starts from the ROM's row, and eviction takes the
+    /// row and leaves the conversion: the key is still in <c>es_settings.cfg</c> naming a file
+    /// that is gone. The record alone carries the system, the filename and the prior state, which
+    /// is everything putting the setting back needs. Every refusal still applies.
+    /// </remarks>
+    public ConversionResult RevertRecorded(SaveConversion recorded)
+    {
+        ArgumentNullException.ThrowIfNull(recorded);
+
+        var key = EsSettingsFile.PerGameKey(recorded.System, recorded.FsName, recorded.SettingKey);
+        var path = _install.Resolve(EsSettingsFile.Location);
+        var file = EsSettingsFile.Load(path);
+
+        if (ChangedSince(key, file.Value(key), recorded) is { } changed)
+        {
+            return changed;
+        }
+
+        if (_emulationStation() is { IsRunning: true } running)
+        {
+            return Refuse($"{running.Detail} Quit EmulationStation and run this again.");
+        }
+
+        return RevertNow(recorded, key, path, file);
+    }
+
+    /// <summary>A refusal when somebody has changed the key since RomMBat wrote it, else null.</summary>
+    private static ConversionResult? ChangedSince(string key, string? current, SaveConversion recorded) =>
+        current is not null && current != recorded.AppliedValue
+            ? Refuse(
+                $"'{key}' is now '{current}' and RomMBat wrote '{recorded.AppliedValue}', so somebody has "
+                    + "changed it since. Reverting would discard that. Clear it yourself if that is what "
+                    + "you want.")
+            : null;
+
+    private ConversionResult RevertNow(SaveConversion recorded, string key, string path, EsSettingsFile file)
+    {
         if (recorded.PriorState == PriorSettingState.Present)
         {
             file.Set(key, recorded.PriorValue!);
@@ -402,18 +444,18 @@ public sealed class SaveConverter
                     + "Something else is writing es_settings.cfg.");
         }
 
-        _store.SaveConversions.Forget(rom.Folder, rom.FsName, conversion.Option);
+        _store.SaveConversions.Forget(recorded.System, recorded.FsName, recorded.SettingKey);
 
         var restored = recorded.PriorState == PriorSettingState.Present
             ? $"restored {key} = {recorded.PriorValue}"
             : $"removed {key}, which was not in the file before";
 
-        return new ConversionResult(ConversionStatus.Reverted, restored, RevertWarning(rom));
+        return new ConversionResult(ConversionStatus.Reverted, restored, RevertWarning(recorded.FsName));
     }
 
     /// <summary>What un-converting leaves behind, which is the same whenever it happens.</summary>
-    private static string RevertWarning(LocatedRom rom) =>
-        $"'{rom.FsName}' goes back to the shared memory card. Anything it saved while converted "
+    private static string RevertWarning(string fsName) =>
+        $"'{fsName}' goes back to the shared memory card. Anything it saved while converted "
             + "stays in its own card, which RomMBat keeps syncing but the game will no longer read.";
 
     /// <summary>
