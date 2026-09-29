@@ -242,13 +242,10 @@ since the feature landed, and the rule below about asking every route is what it
   bytes; RomM's `title_id` holds the same four hex encoded. All 1,601 distinct GameCube ids on a real library
   decode to printable `A-Z0-9` codes, `47553459` being `GU4Y`. So this route corroborates rather
   than competes, which is what the disagreement rule needs to be worth anything.
-- **GameCube's `save_target` has two shapes from 5.3.1, and a library holds both.** RomM
-  5.3.1's sigil pin (rommapp/romm#4687) makes it the ASCII code, `GAFE`, which is what a
-  Dolphin `.gci` name carries; `title_id` stays hex. Only a rescan writes the new form, so a
-  row scanned before it still holds the hex id in both fields, as the 50 most recently updated
-  GameCube rows on a live library did the day after the upgrade, all last written 2026-09-14.
-  A consumer of `save_target` for GameCube accepts either, decoding eight hex digits to four ASCII characters. Nothing
-  reads the field yet (RM-14).
+- **GameCube's `save_target` has two shapes, and a library holds both.** It is the ASCII code,
+  `GAFE`, that a Dolphin `.gci` name carries, except on a row no rescan has rewritten, which
+  holds the hex id in both fields (RM-2). A consumer of `save_target` for GameCube accepts
+  either, decoding eight hex digits to four ASCII characters. Nothing reads the field yet.
 - **A serial is not unique per ROM and is not meant to be.** On a GameCube library scanned end to
   end, 167 ids are shared by 359 of 1,793 rows. A third of that is the library rather than the
   field: multi-disc releases stored as loose files are a row per disc, where one folder per game

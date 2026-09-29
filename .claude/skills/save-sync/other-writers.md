@@ -199,20 +199,15 @@ hold the evidence; these are the rules.
 
 **`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
 the id, the tagged `file_name` and the slot, changes `content_hash`, moves `updated_at`, and runs
-no 409 check, no dedup and no device check. At 5.3.0-alpha.2 RomM's browser player sent it for
-whichever save it loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every
-save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not measured; RM-11):
-a session's first write `POST`s a new version with `overwrite=true`
-into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
-this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
-its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
-**Still true at the `5.3.1` floor**, re-read at `beta.1` because the writer was rewritten around
-it (RM-12), and untouched from `beta.1` through `5.3.1` (RM-13 and RM-14): `preferredSlot` is byte-identical and still prefers the newest slotted save over
-`autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
-with no slotted save and not one this client syncs. What is new is a screenshot on every save
-version, which is inert here because only states carry one on this side. So
-compare the hash wherever the question is "is this the save I had", which `save_conflict` already
-does and must keep doing. Measured on 5.3.0-alpha.2 with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
+no 409 check, no dedup and no device check. RomM's browser player leaves the save it loaded
+alone: a session's first write `POST`s a new version with `overwrite=true` into the loaded save's
+slot, or the newest slotted save's, which for a game this client syncs is this client's slot, and
+later writes `PUT` only that new row (read, not measured; RM-4). To this client that is a newer row
+in its own slot, so `download` or `conflict`. The release notes' "ordinary play goes to the
+`autosave` slot" describes a game with no slotted save. A screenshot rides on every save version,
+which is inert here because only states carry one on this side. So compare the hash wherever the
+question is "is this the save I had", which `save_conflict` already does and must keep doing. The
+`PUT` itself is measured with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
 which replays the browser's own calls:
 
 | Case                                                                          | Negotiate answers                                        |

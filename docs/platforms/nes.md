@@ -114,7 +114,7 @@ before any result here speaks for the current floor.
 ## The move to `5.3.0-alpha.3`
 
 **It adds nothing to what is owed, because only step 3 was carried and alpha.3 leaves it
-carried.** Mapped from RM-11; no `src/` or `data/` change
+carried.** No `src/` or `data/` change
 came with this move beyond the regenerated DTOs, which no step's code reads.
 
 | #   | At `5.3.0-alpha.3` | Why                                                                                                                        |
@@ -131,7 +131,7 @@ came with this move beyond the regenerated DTOs, which no step's code reads.
 
 ## The move to `5.3.0-beta.1`
 
-**It adds nothing to what is owed either, and it un-touches nothing.** Mapped from RM-12.
+**It adds nothing to what is owed either, and it un-touches nothing.**
 The only `src/` change in the move is the regenerated DTOs, four
 lines, and no step's code reads either member.
 
@@ -181,8 +181,8 @@ was driven, because an unchanged state is never re-sent.
 
 ## The move to `5.3.0`
 
-**It touches step 9 and nothing else, and step 9 was re-run.** Mapped from RM-13,
-which is 14 upstream commits with no contract change, and from this
+**It touches step 9 and nothing else, and step 9 was re-run.** Mapped from
+14 upstream commits with no contract change, and from this
 repo's `src/` and `data/` diff across the move, which is the two version constants and comments.
 It applies to all nine rows alike, because nothing a single row exercises moved.
 
@@ -210,7 +210,7 @@ request carrying a session cookie now keeps the CSRF check, and `RomMConnection`
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from
 161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a

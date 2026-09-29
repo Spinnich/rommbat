@@ -145,9 +145,27 @@ goes back from slug to folder and returns `None` when several folders collapse o
 Batocera spellings no RetroBat install has. RomMBat seeds its mapping from the table and the slug
 enum, filtered by the live `es_systems.cfg` (`platform-mapping`).
 
+## RM-10. A RomM instance exits at start on a retired folder key or an undeclared `{platform}/roms` library
+
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `_check_retired_filesystem_keys` and `check_library_layout` in `config/config_manager.py`.
+`filesystem.roms_folder` or `filesystem.firmware_folder` in `config.yml` exits with the equivalent
+`filesystem.structure` template printed. A library laid out as `{platform}/roms` with no
+`structure.default` exits the same way, since that layout is no longer detected. A
+`roms/{platform}` library needs nothing:
+
+```yaml
+filesystem:
+  structure:
+    default: "roms/{platform}/{game}"
+    firmware: "bios/{platform}"
+```
+
+The server's layout is inert for RomMBat, which maps to RetroBat's folders, and matters to anyone
+standing up a disposable instance from `DEVELOPER_SETUP.md`.
+
 ## RM-2. Every ROM row carries `title_id`, `save_target` and `save_target_layout`
 
-Verified: RomM 5.3.0-alpha.2, 2026-09-16, and 5.3.1 source, 2026-09-28. How: rescanned named rows per system and read the fields back; on 5.3.1 read `RomSchema` and `SaveTargetLayout`.
+Verified: RomM 5.3.0-alpha.2, 2026-09-16, and 5.3.1, 2026-09-29. How: rescanned named rows per system and read the fields back; on 5.3.1 read `RomSchema` and `SaveTargetLayout`, and paged every GameCube row.
 The scan reads the triple out of the game binary when the heartbeat's
 `TITLE_ID_EXTRACTION_ENABLED` is on, and only for a row scanned since the feature landed.
 `save_target_layout` is one of `folder-exact`, `folder-prefix`, `file-exact`, `file-prefix` and
@@ -169,8 +187,10 @@ becomes `4D530064`, and ps2 prefixes `BA`. 28 of 33 rows answered:
 
 Switch needs `prod.keys`, which RomM leaves out deliberately, PSN `.pkg` content is not covered,
 and a Vita `.zip` answers nothing; `Metal Gear Solid (Europe) (Disc 1).chd` failed where three
-`.chd` neighbours did not. On GameCube the stored id is the header's four ASCII bytes, and 1,793
-rows carry 1,601 distinct ids: `tools/romm-5.3-probes/r5-gamecube-title-ids.py` finds 104 groups
+`.chd` neighbours did not. On GameCube `title_id` is the header's four bytes in hex (`47414645`)
+and `save_target` the same four in ASCII (`GAFE`), as a Dolphin `.gci` name carries them. Only a
+rescan writes the ASCII form: on 2026-09-29, 1,790 of 1,794 rows carried it and 4 still held hex
+in both fields. The 1,793 rows the probe read carry 1,601 distinct ids: `tools/romm-5.3-probes/r5-gamecube-title-ids.py` finds 104 groups
 over 232 rows after folding disc sets, all revisions and re-releases. A serial is not unique per
 ROM, and `save-sync` uses it as one attribution route among several, never as identity.
 
@@ -220,3 +240,12 @@ advertises between 6 and 594 ROMs and pages back 0. `refresh_smart_collection` s
 `rom_count` and `rom_ids` as its owner computed them, and `smart_collection_id` applies the
 criteria as the caller, who has favourited none of them. RomMBat's picker shows no count for a
 smart collection, and a resolve's `total` is its size.
+
+## RM-14. A rescan can change a platform's `fs_slug` case, and the platform keeps its id
+
+Verified: RomM 5.3.1, 2026-09-29. How: read `get_platform_by_fs_slug` and `scan_platform`; listed every platform's `fs_slug` live.
+`get_platform_by_fs_slug` matches case-insensitively, and a scan writes the folder's on-disk
+spelling. `PlatformMapStore` keys `platform_map` on the exact `fs_slug`, so `Record` rekeys a row
+whose id matches and whose key differs only in case, rather than leaving a second platform behind.
+Sync sets store the platform id. All 128 platforms on the live library have a lowercase `fs_slug`,
+so the rekey has not been driven.

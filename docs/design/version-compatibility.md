@@ -42,6 +42,17 @@ between two prereleases is read rather than waved through: `alpha.1` to `alpha.2
 commits over 21 files, and reading them is what said which findings held at both tags and
 which had to be re-attributed.
 
+Read a RomM delta from source, counted from the tags' trees (`pre-pr-verification`, step 7).
+The release notes are cumulative from the last minor and can say the opposite of the code: 5.3's
+say ordinary browser play goes to `autosave`, and RM-4 is what the player does for a game RomMBat
+syncs.
+
+RomMBat does not adopt RomM features that never reach a local RetroBat install, so a delta that
+adds only these needs no work: Jukebox and the soundtrack player, walkthroughs, barcode
+scanning, recommendations, the Steam, Demozoo, Pouet and CSDb metadata sources, js-dos and
+PICO-8 in-browser play, and Emulator Streaming as a feature. Streaming reaches RomMBat only as a
+writer on its slots (RM-4). Server layout (RM-10) is administration and inert here too.
+
 - Read the RomM version from `GET /api/heartbeat` (`SYSTEM.VERSION`) at startup and the
   RetroBat version from **`system/version.info`** in the tree.
 - **There is no `build.ini`.** M0 confirmed it does not exist anywhere in a RetroBat 8.2

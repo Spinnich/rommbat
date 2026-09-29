@@ -92,18 +92,15 @@ is four lines.
   drop from `minimum: 1` to `minimum: 0`, because an empty ROM file is accepted now. RomMBat
   does not upload ROMs.
 
-RM-12.
-
 The 5.3.0-beta.1 to 5.3.0 move is **the first with no generated diff at all.** The capture is
 byte-identical to the `beta.1` pin apart from `info.version`, and `generate.sh` reproduces the
-committed DTOs exactly. RM-13.
+committed DTOs exactly.
 
 The 5.3.0 to 5.3.1 move **generates no diff either**, though the capture does change: every
 `/api/music/*` page caps `limit` at 1,000 where it took 10,000, and
 `POST /api/streaming/sessions/{platform}/heartbeat` gains an optional `container` query
 parameter. Neither reaches a DTO, since both are operation parameters and NSwag generates
 types here, not a client, and RomMBat calls neither route. The 272 schemas are identical.
-RM-14.
 
 ## Why the generated file disables four doc-comment warnings
 

@@ -30,3 +30,12 @@ Verified: RomM 5.3.0, 2026-09-14, and 5.3.1, 2026-09-28. How: read `endpoints/ex
 hidden from the caller. No hand-written code names either route; the one hit is `pegasus_export`,
 a generated DTO property. `GamelistSync` writes RetroBat's gamelists itself, so the device scope
 set does not carry the grant.
+
+## RM-13. A bearer request that also carries a session cookie runs as the cookie's owner, CSRF-checked
+
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `CSRFMiddleware` and `HybridAuthBackend`; grepped `src/` for `UseCookies`.
+The session authenticates before the `Authorization` header, so a request carrying both runs as
+the cookie's user, and the CSRF middleware skips only a bearer or basic request that no session
+authenticated. RomMBat authenticates by token alone, and `RomMConnection` builds its one handler
+with `UseCookies = false`, which every RomM request goes through. So its POSTs are never
+CSRF-checked.

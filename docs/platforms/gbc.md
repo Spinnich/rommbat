@@ -22,7 +22,7 @@ that is not a row.
 
 ## The move to `5.3.1`
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from RM-14,
+**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from
 161 upstream commits with no schema change, and from this repo's
 `src/` and `data/` diff across the move, which is the two version constants and
 `PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
