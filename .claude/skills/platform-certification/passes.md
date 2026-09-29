@@ -100,7 +100,9 @@ nothing back into DuckStation's own directory. **BizHawk names everything after 
 so attribution and a restore both have to know the set's discs (332).
 
 **`n64` is second in wave 2: eight of nine rows certified at `5.3.1` on 2026-09-27**, in one
-morning, with `docs/platforms/n64.md` the record. **Pick one game per save medium**: Ocarina of Time
+morning, and gopher64 on 2026-09-29 once #239 read its folder, with `docs/platforms/n64.md` the
+record. **A Mario Kart 64 ghost reaches the pak only when the game saves it**: a lap writes the
+EEPROM, and gopher64 rewrites the `.mpk` with the same bytes on every access, so check the hash. **Pick one game per save medium**: Ocarina of Time
 covers SRAM, and Mario Kart 64 covers EEPROM plus a Controller Pak ghost, which is step 6. **Boot
 every row once before playing and list what it writes where**: four of the nine name their files
 with something other than the ROM (an emulator's title, a header name and an md5, a directory per
