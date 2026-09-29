@@ -160,14 +160,11 @@ columns for that reason.
   that overflow and says so; `RomFilterValuesPage` is the same lesson for this call.
 - **Send `Range: bytes=0-` on a single-file ROM download, and never on a multi-file one.**
   Single-file answers 206 with an `ETag` (nginx's `hex(mtime)-hex(size)`) and resumes; a
-  stale `If-Range` returns a full 200 rather than a corrupt splice. **Any `Range` on a
-  multi-file ROM is refused 403 by nginx**, and the plain request that works carries no
-  `ETag` and no `Accept-Ranges`, so multi-file is not resumable at all. **Both halves of that
-  are 5.2.0 readings, and the multi-file half is already false above the floor**: on
-  5.3.0-alpha.2 the same request answers 206 with an `ETag`, and its `Content-Range` total is
-  22 bytes short of the plain 200's `Content-Length`, so one URL is serving two representations
-  and a resume across them splices. The rule to send no `Range` on multi-file is unchanged, and
-  its reason is now the mismatch rather than the refusal. RM-15.
+  stale `If-Range` returns a full 200 rather than a corrupt splice (RB-79). A multi-file ROM's
+  plain 200 is a zip built per request with no `ETag`, and a ranged request is answered from a
+  cached zip of a different length, so a resume across the two splices (RM-15). A multi-file
+  ROM restarts instead; one member fetched through `file_ids` resumes like a single file
+  (RB-315).
 - **Multi-file is `has_multiple_files`, and an empty `fs_extension` is not the same thing.**
   The schema carries three shape flags: `has_simple_single_file`, `has_nested_single_file`,
   `has_multiple_files`. Every multi-file ROM does have an empty extension (209 of 209
