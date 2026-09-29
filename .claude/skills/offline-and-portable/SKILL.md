@@ -49,7 +49,7 @@ the source of truth; the network is optional, probed with a short-timeout
   transfer killed mid-body by a dropped link leaves the server sure the device holds a save it
   does not, and the next negotiate answers `no_op`. Pass `optimistic=false` and ack with
   `POST /api/saves/{id}/downloaded` after the bytes are written and verified. Same shape as the
-  [`.part` rule](transfers.md#offline-first): verify, then commit. See `save-sync` and `docs/freegosy-findings.md` F1.
+  [`.part` rule](transfers.md#offline-first): verify, then commit. See `save-sync` and RM-17.
 - **Clock skew is a real failure mode.** A flat RTC produces timestamps that lose every
   conflict. Keep a monotonic sequence alongside wall clock, compare against the server's
   `Date` header on first contact, and offer to re-stamp the outbox past a threshold.

@@ -249,3 +249,28 @@ spelling. `PlatformMapStore` keys `platform_map` on the exact `fs_slug`, so `Rec
 whose id matches and whose key differs only in case, rather than leaving a second platform behind.
 Sync sets store the platform id. All 128 platforms on the live library have a lowercase `fs_slug`,
 so the rekey has not been driven.
+
+## RM-25. `GET /api/platforms` inlines every firmware record, and one md5 sits on several platforms
+
+Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: read `/api/platforms` against `/api/firmware?platform_id=` for the largest set, and counted md5s across platform rows; on 5.3.1 read `PlatformSchema`.
+Each platform carries its whole `firmware[]`, `md5_hash` on every record: 656 records on 79 of
+123 platforms in one 424 KB response, `firmware_count` equal to the array's length on every
+platform and the same 75 ids as the dedicated call for the largest. 504 of the 656 share an md5
+with a record on another platform, a user's `-unofficial` twin among them. So a BIOS gap report
+is one request under `platforms.read`, and a join dedupes on md5 and takes any copy.
+
+## RM-26. Firmware `is_verified` is RomM's own filename check, false on files RetroBat requires
+
+Verified: RomM 5.1.1-beta.1, 2026-08-11, and 5.3.1 source, 2026-09-29. How: joined RetroBat's required md5s against a live library's firmware, then filtered on the flag and on file name; on 5.3.1 read `Firmware.verify_file_hashes`.
+The flag is true only when RomM's own known-BIOS list has an entry for `<platform>:<file name>`
+whose size and one hash match. `psxonpsp660.bin`, which RetroBat's `psx` requires, is false on
+every copy. Of the 49 required files one library held, filtering on the flag lost 6 and joining
+on `file_name` in place of `md5_hash` lost 2. RomMBat joins on md5 and reads neither.
+
+## RM-27. A firmware row marked `missing_from_fs` has no content to serve
+
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `_resolve_firmware_content`; on a 5.1.1 beta, 2026-08-16, requested one such record live.
+The scan keeps a row whose file has gone and marks it; 142 of 656 firmware records carried the
+flag on the library measured. On 5.3.1 its content route answers 404, `Firmware file '<name>' is missing
+from filesystem`, where the 5.1.1 beta answered a bare 500. RomMBat skips such a record
+before offering it, or a sync promises a file and fails mid-pass.

@@ -175,7 +175,7 @@ distinct byte values, legible ASCII: a minimum-upload-size check passes it and a
 check passes it. `autosave_interval = "10"` means it lands within seconds of boot, so waiting
 for a clean exit protects nothing either. **The first save seen for a ROM with no local
 baseline is not evidence that anything was played**, so it must not win a conflict on recency
-alone.
+alone. RB-404.
 
 **Dreamcast converts, but not into class A.** With `flycast_vmupergame=1` the new file is
 `vmu/T40217N_vmu_save_A1.bin`, named for the **disc serial**, while the shared

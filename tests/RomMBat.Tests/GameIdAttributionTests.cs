@@ -52,7 +52,7 @@ public class GameIdAttributionTests
     [Fact]
     public void An_rvz_read_at_offset_zero_would_have_taken_the_magic_for_a_game_code()
     {
-        // The trap F17 names. A reader that handles only raw .iso resolves nothing on a real
+        // The trap RB-143 guards. A reader that handles only raw .iso resolves nothing on a real
         // library and would read the literal bytes "RVZ." as a code, so the raw-image path
         // checks the disc magic rather than the shape of the first four bytes.
         var head = Rvz("GW7E", version: 1);

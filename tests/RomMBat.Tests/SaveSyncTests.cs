@@ -1416,7 +1416,7 @@ public class SaveSyncTests
     [Fact]
     public async Task A_download_that_dies_mid_body_leaves_the_server_not_current_and_the_file_untouched()
     {
-        // The failure F1 exists to prevent. Without optimistic=false the server would already
+        // The failure RM-17 describes. Without optimistic=false the server would already
         // believe this device has the save, the next negotiate would answer no_op, and the
         // save would never come down again with nothing to show for it.
         using var fixture = SyncFixture.Create();

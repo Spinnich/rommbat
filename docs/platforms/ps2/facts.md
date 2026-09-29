@@ -15,7 +15,7 @@ What was measured: **302 single-disc titles against 7 two-disc sets, with no `.m
 
 ## RB-175. Both reproduced on PS2, having been measured on PS1
 
-The claim being checked: A PS2 launch rewrites both shared memory cards, and an empty card is the same size as a real one (**the `save-sync` skill, F18**)
+The claim being checked: A PS2 launch rewrites both shared memory cards, and an empty card is the same size as a real one (**the `save-sync` skill**, RB-43 and RB-328)
 
 What was measured: **Both reproduced on PS2, having been measured on PS1.** `Mcd001.ps2` and `Mcd002.ps2` are each 8,650,752 B with identical mtimes to the second, and their byte histograms are **256 distinct values against 76**. So mtime cannot decide whether either changed, size cannot tell a formatted empty card from one holding a save, and only the contents separate them
 

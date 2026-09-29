@@ -94,24 +94,11 @@ columns for that reason.
   every page. **Measured on 5.3.1 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
   a page on a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, with index off
   inside the noise on both** (RM-9). Unscoped it is 657 KiB a 100-row page against 1.3x.
-
-  **The rule was the opposite at 5.2.0 and do not bring it back from there.** At 88,331 roms a
-  scoped page cost 3.4 to 3.7 times the latency with the index off (2.3 s to 8.5 s), so from
-  7b-2a to #188 the flag followed the scope. The N+1 fix and concurrency 4 took that penalty with
-  them. If a later floor brings it back, R2 is the probe that shows it.
-
-  **The 5.2.0 rule reached `CatalogQuery` only at M7 stage 7b-2a.** It was written from A1's
-  measurement and the code went on sending a constant `false` for a further two stages, which
-  is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
-  **8 m 15 s**, 13.4 s a page at 250, against 2.5 s a page for an unscoped walk on the same
-  server. **A rule in a skill is not a rule in the code**, and this one went
-  unnoticed until a stage put the walk behind a screen somebody had to sit and watch.
-
 - **`with_total=true` is what keeps `total` non-null with the index off.** The server nulls
   `total` when neither flag is set, and `RomPage.Total` is a non-nullable `int`. The count is
   free with the index on, because `resolve_total()` returns `len(rom_id_index)`, and computed
-  separately with it off: 124 ms unscoped on 5.2.0 (A2), and inside the noise of a scoped page on
-  5.3.0-alpha.2. Never turn it off to save the cost.
+  separately with it off: inside the noise of a scoped page and about 140 ms of an unscoped one
+  (RM-9). Never turn it off to save the cost.
 - **An absent hash is an empty string, not null.** `GET /api/roms/191723` on a live 5.1.x
   instance answers `"md5_hash": ""` and `"crc_hash": ""` beside a populated sha1. Null is the
   ordinary case rather than the exception, since only 91% of a real library carries an md5, so
@@ -269,14 +256,13 @@ columns for that reason.
   sha1, so verification must degrade to size and say so.
 
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
-  hashed as a container.** Measured: the library's 34-member `neogeo.zip` carries an
+  hashed as a container** (RM-28): the library's 34-member `neogeo.zip` carries an
   `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` can
   never be joined on md5** against a manifest that hashed a differently-built archive of the
   same members. 84 of RetroBat's 355 BIOS requirements are zips, and **20 of those carry an
   md5**, which is the whole defect surface: the other 64 name no hash, so `BiosPlanner.Inspect`
   answers `Unverifiable` before the join. Compare members, the way `LogicalContentHash` does
-  for saves. See
-  [argosy-findings.md](../../../docs/argosy-findings.md), A3.
+  for saves.
 
 - **Do not reconcile deletions with `GET /api/roms/identifiers`.** It answers 95,989 ids in
   under a second on 5.3.1, but it takes no parameters, so it cannot be scoped to a set, and a
@@ -293,14 +279,13 @@ columns for that reason.
   sweep.
 - **`is_verified` on firmware is unreliable here.** See `docs/ARCHITECTURE.md`, "Two
   authorities that are easy to get backwards": it is false on files RetroBat requires,
-  `psxonpsp660.bin` among them. Measured against a real library, filtering on it discards 6 of the 49 required files that
-  library holds, and joining on `file_name` instead of `md5_hash` discards 2. Join on md5 and
-  nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record
+  `psxonpsp660.bin` among them. Filtering on it discards 6 of the 49 required files one
+  library holds, and joining on `file_name` instead of `md5_hash` discards 2 (RM-26). Join on
+  md5 and nothing else. (The separate figure of 93 of the 156 required md5s is what RomM has no record
   of at all, which no join can rescue.)
-- **`missing_from_fs` means the row outlived the file, and its content route answers 500.**
-  142 of 656 firmware records carried it on the library measured, and a bare
-  `Internal Server Error` in `text/plain` is what a request for one gets, not a 404. Skip such
-  a record before offering it, or a sync promises a file and fails mid-pass.
+- **`missing_from_fs` means the row outlived the file, and its content route answers 404.**
+  142 of 656 firmware records carried it on the library measured. Skip such a record before
+  offering it, or a sync promises a file and fails mid-pass (RM-27).
 - **The firmware content route ignores the file name in the URL.** The right id under any name
   serves the bytes. It otherwise behaves exactly as the ROM route does, though it is
   Starlette's `FileResponse` rather than nginx: `accept-ranges`, an `etag`, a `content-range`
@@ -310,5 +295,5 @@ columns for that reason.
 - **A token missing `firmware.read` answers a bare `Forbidden`.** The scope guard runs before
   the handler, so the body names nothing, the same shape as the `me.write` case in [Scopes](SKILL.md#scopes). The
   client has to name the missing scope itself. `platforms.read` alone still carries every
-  firmware `md5_hash`, because the records are inlined on the platform list, so a BIOS **gap
-  report** survives a narrowed grant and only the fetch is refused.
+  firmware `md5_hash`, because the records are inlined on the platform list (RM-25), so a BIOS
+  **gap report** survives a narrowed grant and only the fetch is refused.
