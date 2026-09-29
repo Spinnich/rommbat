@@ -96,6 +96,13 @@ internal static class UninstallCommand
             Section(
                 $"Synced games, with their media and gamelist entries ({ByteSize.Format(content.Plan.BytesFreed)})",
                 [.. content.Plan.Selected.Select(candidate => candidate.File.Path.Value)]);
+
+            if (content.Plan.Refused.Count > 0)
+            {
+                Section(
+                    "Synced games held back, which stay on disk",
+                    [.. content.Plan.Refused.Select(candidate => $"{candidate.File.Path.Value}: {candidate.Refusal}")]);
+            }
         }
 
         if (report.Scope.Firmware)
@@ -189,6 +196,11 @@ internal static class UninstallCommand
         if (applied.FirmwareRemoved > 0)
         {
             Console.WriteLine($"  removed {applied.FirmwareRemoved} firmware file(s) under bios/");
+        }
+
+        foreach (var held in applied.Held ?? [])
+        {
+            Console.Error.WriteLine($"  kept       {held.File.Path.Value}: {held.Refusal}");
         }
 
         foreach (var kept in applied.Kept ?? [])

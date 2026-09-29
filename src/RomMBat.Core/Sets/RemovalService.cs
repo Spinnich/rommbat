@@ -42,6 +42,10 @@ public sealed record RemovalReport(
 /// <summary>What a removal did.</summary>
 /// <param name="Refusal">Set when nothing was done, and says why.</param>
 /// <param name="Kept">Firmware left because it changed since RomMBat wrote it. Not a failure.</param>
+/// <param name="Held">
+/// Games <see cref="SaveGuard"/> refused, with the reason on each. A failure, because their files
+/// stay and deleting <c>emulators/rommbat</c> takes the only record that they were RomMBat's.
+/// </param>
 public sealed record RemovalApplied(
     string? Refusal,
     EsHookOutcome? Hooks = null,
@@ -51,7 +55,8 @@ public sealed record RemovalApplied(
     EvictionApplied? Content = null,
     int FirmwareRemoved = 0,
     IReadOnlyList<string>? Kept = null,
-    IReadOnlyList<string>? Problems = null)
+    IReadOnlyList<string>? Problems = null,
+    IReadOnlyList<EvictionCandidate>? Held = null)
 {
     /// <summary>True when every step that ran finished, and nothing was left half done.</summary>
     public bool Ok => Refusal is null
@@ -60,7 +65,8 @@ public sealed record RemovalApplied(
         && (Reverted ?? []).All(result => result.Ok)
         && (Content?.Evicted?.Problems.Count ?? 0) == 0
         && (Content?.Gamelists?.Folders.All(folder => folder.Problem is null) ?? true)
-        && (Problems ?? []).Count == 0;
+        && (Problems ?? []).Count == 0
+        && (Held ?? []).Count == 0;
 }
 
 /// <summary>
@@ -223,7 +229,8 @@ public sealed class RemovalService
         var problems = new List<string>();
         var firmware = RemoveFirmware(fresh.Firmware, kept, problems);
 
-        return new RemovalApplied(null, hooks, menu, cancelled, reverted, content, firmware, kept, problems);
+        return new RemovalApplied(
+            null, hooks, menu, cancelled, reverted, content, firmware, kept, problems, fresh.Content?.Plan.Refused ?? []);
     }
 
     /// <summary>States then saves, so the unsent-work queries read the tree as it is now.</summary>

@@ -157,8 +157,7 @@ public sealed class UninstallTests : IDisposable
         // mid-game leaves. ES starting again ends every game that was running, so the row is
         // stale from there, and counting it would refuse removal on this install forever.
         _session.Store.Journal.Append(JournalEvent.GameStart, Now, RelativePath.Create("roms/snes/a.sfc"));
-        _session.Store.Journal.Append(JournalEvent.Start, Now);
-        _session.Store.Journal.Close([.. _session.Store.Journal.All().Where(entry => entry.Event == JournalEvent.Start).Select(entry => entry.Id)], JournalState.Correlated, Now);
+        CloseAfterFlush(_session.Store.Journal.Append(JournalEvent.Start, Now));
 
         Assert.False(Service().Preview(new RemovalScope()).IsBlocked);
     }
@@ -173,6 +172,28 @@ public sealed class UninstallTests : IDisposable
 
         var blocker = Assert.Single(report.Blockers, line => line.Contains("no end", StringComparison.Ordinal));
         Assert.Contains("start and quit EmulationStation", blocker, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_game_the_save_guard_holds_back_is_named_and_fails_the_run()
+    {
+        // The stale game-start no longer blocks the whole removal, but SaveGuard has no such
+        // bound (#294) and still refuses this one game. Its files stay, and once the user deletes
+        // emulators/rommbat nothing records that they were RomMBat's, so it cannot pass quietly.
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+        _session.Store.Journal.Append(JournalEvent.GameStart, Now, RelativePath.Create("roms/snes/Chrono Trigger (USA).sfc"));
+        CloseAfterFlush(_session.Store.Journal.Append(JournalEvent.Start, Now));
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+        Assert.False(report.IsBlocked);
+        Assert.Single(report.Content!.Plan.Refused);
+
+        var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.Null(applied.Refusal);
+        Assert.Single(applied.Held!);
+        Assert.False(applied.Ok, "a game left behind was reported as done");
+        Assert.True(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
     }
 
     [Fact]
@@ -241,6 +262,13 @@ public sealed class UninstallTests : IDisposable
         Assert.Single(applied.Kept!);
         Assert.True(File.Exists(adopted));
     }
+
+    /// <summary>Closes a heartbeat row the way a flush does, by its sequence.</summary>
+    private void CloseAfterFlush(long sequence) =>
+        _session.Store.Journal.Close(
+            [.. _session.Store.Journal.All().Where(entry => entry.LocalSequence == sequence).Select(entry => entry.Id)],
+            JournalState.Correlated,
+            Now);
 
     private RemovalService Service() => new(_session, () => EsRunningVerdict.NotRunning);
 
