@@ -26,7 +26,7 @@ payloads this client needs most, so never code from them.
   streamed headers.
 - **The two timeouts differ only one level down.** Both arrive as `TaskCanceledException`
   wrapping `TimeoutException`. Under `HttpClient.Timeout` that `TimeoutException` wraps a
-  further `TaskCanceledException`, and under `ConnectTimeout` it wraps nothing (RB-353).
+  further `TaskCanceledException`, and under `ConnectTimeout` it wraps nothing (RB-403).
   `Classify` reads that to report `RequestTimeout` or `ConnectTimeout`. Nothing branches on the
   reason yet.
 - **A heartbeat answer that is not RomM's is no contact, not a crash.** A captive portal's page
