@@ -73,9 +73,9 @@ The 5.3.0-alpha.2 to 5.3.0-alpha.3 move **removes one operation**, the streaming
 `POST /api/streaming/sessions/{platform}/state-frame`, with its `StateFrameResponse`, and adds
 none. `SGDBResource` is renamed `CoverResource`, and `MissingRomsCleanupStats.platform_id`
 becomes a `platform_ids` list. No hand-written code names any of the three. On a route this
-client calls, the only change is `slot` on `POST /api/saves` gaining `maxLength: 255`; the
+client calls, the only change is `slot` on `POST /api/saves` gaining `maxLength: 255` (RM-11); the
 `GET /api/roms` parameters are the same set in a different order, and the collection ids on
-`GET /api/roms/download` gain `minimum: 1`. RM-11.
+`GET /api/roms/download` gain `minimum: 1`.
 
 The 5.3.0-alpha.3 to 5.3.0-beta.1 move is the smallest of the four: **the same 246 operations
 and 272 schemas, none added, removed or renamed.** Three things change, and the generated diff

@@ -208,7 +208,7 @@ in its own slot, so `download` or `conflict`. The release notes' "ordinary play 
 which is inert here because only states carry one on this side. So compare the hash wherever the
 question is "is this the save I had", which `save_conflict` already does and must keep doing. The
 `PUT` itself is measured with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
-which replays the browser's own calls:
+which replays an in-place `PUT` and a slotless `POST`:
 
 | Case                                                                     | Negotiate answers                                        |
 | ------------------------------------------------------------------------ | -------------------------------------------------------- |
@@ -227,7 +227,7 @@ so a lower id at the head of a slot is an in-place write or a deleted head row. 
 measured to reach a download, and the refusal covers both without telling them apart. Case A, the
 same id, is an ordinary download.
 
-**Streaming V2 writes saves no slot can see.** Read at tag 5.3.0-alpha.2, not measured, because
+**Streaming V2 writes saves no slot can see.** Read in source (RM-4), not measured, because
 the server measured has streaming off. A session's saves land as a **null-slot** row named
 `<rom stem> [<emulator> <timestamp>].saves.zip`, one per pull, deduplicated by hash against every
 save for the ROM. Negotiate never offers one (#138). `saves restore` would list one as restorable
@@ -244,7 +244,7 @@ oldest server copies. The local file survives and is never re-sent, because "in 
 from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
 
 **The browser writes states as new rows, and only a same-named manual upload rewrites one this
-client holds** (#190, read at 5.3.0-alpha.2, RM-4). The player posts
+client holds** (#190, read in source, RM-4). The player posts
 `<rom> [<timestamp>].state` under the EJS core, and `auto_save_sync` does not touch states. The
 console view posts `state.save` under `emulatorjs` every time, so the upsert rewrites one row per
 ROM, but that name can never equal this client's `<stem> [<emulator>[.<core>]]<ext>`, and restore
