@@ -845,8 +845,9 @@ public sealed class SaveScanner
 
         foreach (var (relative, reason) in _shapes.SharedContainersFor(system))
         {
-            // Declared with forward slashes, and only ever below the loose level here: a
-            // container sitting loose is already named by the file loop above.
+            // Declared with forward slashes, and only ever below the loose level here. A shaped
+            // system's file loop names a loose container; a tree with no shape has no such loop,
+            // so a loose one declared there would be counted as unknown, and none is declared.
             if (!relative.Contains('/', StringComparison.Ordinal))
             {
                 continue;

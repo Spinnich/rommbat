@@ -75,7 +75,8 @@ SHARED_CONTAINERS = {
             "never points slot B into saves/gamecube/, so it stays here (RB-193)"
         )
         for region in ("EUR", "USA", "JAP")
-    },    "psx": {
+    },
+    "psx": {
         "duckstation/memcards/shared_card_1.mcd": (
             "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
         ),
