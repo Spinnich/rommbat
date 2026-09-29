@@ -337,7 +337,7 @@ system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
   which is fixed on the instance now but shaped how this pass ran.
 
 **2b, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
-system, steps 4 and 9 only. Results are RB-154 to RB-159.
+system, steps 4 and 9 only. Results are RB-154 to RB-156, RB-158 and RB-159.
 
 | Step                                  | Result                                                                      |
 | ------------------------------------- | --------------------------------------------------------------------------- |
@@ -362,7 +362,7 @@ was synthetic, so the emulator-loads-it result rests on that plus the fold rathe
 untouched round trip.
 
 **2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
-one game, one system, steps 4 and 5 only. Results are RB-134 to RB-139.
+one game, one system, steps 4 and 5 only. Results are RB-134 to RB-137 and RB-139.
 
 | Emulator                     | On disk                                      | Slot                         | Landed |
 | ---------------------------- | -------------------------------------------- | ---------------------------- | ------ |

@@ -152,7 +152,7 @@ different bytes and an mtime older than this device's last upload answers `no_op
 since last sync" (M1), and a newer one `upload` (M2). With no record, the newer timestamp wins,
 so a peer's row answers `download`, "Server save is newer (no sync history)", over any local save
 with an older mtime (M3). RomMBat uploads a `no_op` whose local hash differs from what it last
-sent, and records a `download` over a save the server has never seen as a conflict.
+sent, unless the server's hash already equals the local one, and records a `download` over a save the server has never seen as a conflict.
 
 ## RB-276. RomM keeps a save whose bytes are the JSON literal `null`
 
