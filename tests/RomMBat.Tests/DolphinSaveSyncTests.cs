@@ -225,6 +225,19 @@ public class DolphinSaveSyncTests
     }
 
     [Fact]
+    public void A_per_game_key_with_no_extension_is_not_reported_because_emulatorlauncher_never_matches_it()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        var state = DolphinSaveSync.Inspect(
+            install,
+            SettingsWith(("gamecube[\"Ikaruga\"].dolphin_sync_saves", "true")));
+
+        Assert.False(state.WorthReporting);
+    }
+
+    [Fact]
     public void An_install_with_no_Card_A_and_the_option_off_has_nothing_to_say()
     {
         using var tree = TempRetroBatTree.Create();

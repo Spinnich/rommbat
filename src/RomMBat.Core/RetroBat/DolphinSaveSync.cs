@@ -257,9 +257,18 @@ public static class DolphinSaveSync
 
     private static string SystemKeyText => EsSettingsFile.SystemKey(System, OptionKey);
 
-    private static bool IsPerGameKey(string name) =>
-        name.StartsWith($"{System}[\"", StringComparison.Ordinal)
-        && name.EndsWith($"\"].{OptionKey}", StringComparison.Ordinal);
+    // The same extension rule Read applies: a key built from a bare stem is one emulatorlauncher
+    // never matches, so it is not reported as on.
+    private static bool IsPerGameKey(string name)
+    {
+        var prefix = $"{System}[\"";
+        var suffix = $"\"].{OptionKey}";
+
+        return name.Length > prefix.Length + suffix.Length
+            && name.StartsWith(prefix, StringComparison.Ordinal)
+            && name.EndsWith(suffix, StringComparison.Ordinal)
+            && Path.GetExtension(name[prefix.Length..^suffix.Length]).Length > 0;
+    }
 
     private static bool IsOn(string? value) =>
         value is not null
