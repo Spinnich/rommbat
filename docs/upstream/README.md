@@ -55,5 +55,5 @@ narrative.
   fails on a citation that resolves to no heading.
 - A fact is edited in place when the behaviour changes on a version move, keeping its ID. A fact
   that stops being true is deleted with every citation of it.
-- An ID is never reused. The next free numbers are **404** for `RB-` and **17** for `RM-`.
+- An ID is never reused. The next free numbers are **405** for `RB-` and **29** for `RM-`.
   Take one and raise the number here in the same change.

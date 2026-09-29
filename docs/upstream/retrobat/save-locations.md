@@ -172,3 +172,13 @@ Verified: RetroBat 8.2.0, 2026-08-17. How: launched `mastersystem`'s Phantasy St
 `Phantasy Star (Brazil).zip` produced `bizhawk/Phantasy Star (B).SaveRAM`. So a BizHawk stem can
 differ from the ROM's in more than a dropped tag, and joining goes through RB-254's routes, never
 the filename.
+
+## RB-404. A launch alone writes a battery save, and its content can pass for a real one
+
+Verified: RetroBat 8.2.0, 2026-08-11. How: booted Phantasy Star (Brazil) under `libretro` `genesis_plus_gx` to its title screen, pressed nothing, and read `saves/mastersystem/` during the run and after exit.
+A 65,536 B `<rom>.srm` appeared while the game ran and an 8,188 B one after a clean exit.
+RetroBat's `retroarch.cfg` sets `autosave_interval = "10"`, so the file lands within seconds of
+boot and survives a crash. It held the cartridge formatting its own backup RAM, legible ASCII
+and 35 distinct byte values, so no size floor and no all-`0x00` or all-`0xFF` test separates it
+from a player's save. Only a known earlier `content_hash` does, and a first save seen with no
+baseline is not evidence of play.

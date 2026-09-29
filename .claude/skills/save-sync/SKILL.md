@@ -87,8 +87,7 @@ and those are two axes, not one. A `unit_paths` entry carries `key` (`title_id`,
 knowing that. A platform added later is where the omission bites. Argosy splits the same problem
 into five explicit usages (`FOLDER_EXACT`, `FOLDER_PREFIX`, `FILE_EXACT`, `FILE_PREFIX`,
 `FOLDER_SPLIT`), which is a match-rule taxonomy and not a rival to these four classes. When
-adding a platform, state the match rule alongside the key. See
-[argosy-findings.md](../../../docs/argosy-findings.md), A8.
+adding a platform, state the match rule alongside the key.
 
 **A save layout is chosen by `(system, emulator)`, never emulator alone.** RetroBat makes this
 mostly structural, because its tree is `saves/<system>/<emulator>/` and `save_shapes.json` is
@@ -97,7 +96,7 @@ Argosy, whose registry keyed on emulator, shipped two bugs from exactly this: a 
 GameCube's path, and a shared override key where a GameCube save path silently became the Wii
 one. Our `shapes` map holds one class per system with `shape_depends_on_emulator` as the escape
 hatch, which is the same relationship built the other way round; treat a multi-emulator system
-as needing the per-emulator answer rather than as an exception. A9.
+as needing the per-emulator answer rather than as an exception (RB-253).
 
 ## Class D is a configuration problem
 

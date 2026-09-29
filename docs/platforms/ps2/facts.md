@@ -15,7 +15,7 @@ What was measured: **302 single-disc titles against 7 two-disc sets, with no `.m
 
 ## RB-175. Both reproduced on PS2, having been measured on PS1
 
-The claim being checked: A PS2 launch rewrites both shared memory cards, and an empty card is the same size as a real one (**the `save-sync` skill, F18**)
+The claim being checked: A PS2 launch rewrites both shared memory cards, and an empty card is the same size as a real one (**the `save-sync` skill**, RB-43 and RB-328)
 
 What was measured: **Both reproduced on PS2, having been measured on PS1.** `Mcd001.ps2` and `Mcd002.ps2` are each 8,650,752 B with identical mtimes to the second, and their byte histograms are **256 distinct values against 76**. So mtime cannot decide whether either changed, size cannot tell a formatted empty card from one holding a save, and only the contents separate them
 
@@ -47,7 +47,7 @@ What was measured: **True while the game is using them, and a converted game lea
 
 The claim being checked: (not addressed) what `pcsx2_slot1_memory=game` does to console slot 2
 
-What was measured: **Slot 2 stays shared, exactly as the option name says, and it moved its mtime without changing a byte.** `Mcd002.ps2` was written at `08:28:22.0017`, the same instant as the new card, and its md5 is unchanged at `96cebf28…`, 76 distinct byte values, no game serial in it. So it is F18's formatted-empty card reproduced on PS2, and it is a fresh demonstration on the converted path that **mtime moves while content does not**, which is why every save is content-hashed
+What was measured: **Slot 2 stays shared, exactly as the option name says, and it moved its mtime without changing a byte.** `Mcd002.ps2` was written at `08:28:22.0017`, the same instant as the new card, and its md5 is unchanged at `96cebf28…`, 76 distinct byte values, no game serial in it. So it is RB-328's formatted-empty card reproduced on PS2, and it is a fresh demonstration on the converted path that **mtime moves while content does not**, which is why every save is content-hashed
 
 ## RB-186. It does, driven on hardware under real budget pressure, and it fails closed rather than pretending to succeed
 

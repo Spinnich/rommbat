@@ -589,9 +589,6 @@ docs/design/          The design of record: principles, integration seams, versi
 docs/upstream/        How RetroBat and RomM behave, measured, one RB- or RM- fact per
                       heading, by topic, plus issues.md: every issue raised upstream and
                       its state, until RomMBat has adopted the release that fixes it
-docs/{freegosy,argosy}-findings.md
-                      One ledger per mined reference implementation, recording what
-                      survived verification and what did not. Both are closed
 docs/ARCHITECTURE.md  Project layout, sync state machine, local schema
 docs/platforms/       One certification record per RetroBat system, and each system's
                       emulator facts in <system>/facts.md

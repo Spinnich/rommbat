@@ -13,11 +13,11 @@ Plan says: PS1 is already per-game via DuckStation `PerGameTitle` (L831, L835)
 
 Measurement says: Only when DuckStation is the selected emulator. This install runs libretro for `psx` and produces plain `.srm`
 
-## RB-9b. `PerGameFileTitle` is the better value: it keys the card by rom filename rather than by DuckStation's
+## RB-9b. DuckStation's stock `PerGameTitle` holds a disc set on one card, and `PerGameFileTitle` would split it
 
-Plan says: DuckStation `PerGameTitle` is treated as sufficient (L831)
+Question: Whether DuckStation's card type should change from `PerGameTitle` to key the card by rom filename
 
-Measurement says: `PerGameFileTitle` is the better value: it keys the card by **rom filename** rather than by DuckStation's internal title. **Later withdrawn**: a driven card showed `PerGameTitle` binds a multi-disc set and the filename key splits it, so the plan's original value was correct. See [freegosy-findings.md](../../freegosy-findings.md), F18
+Measured: **No.** Under the stock `PerGameTitle`, Metal Gear Solid's two discs through a `.m3u` and Final Fantasy VII's three loose discs, launched as disc 1 alone, each wrote one card, `<saveName with the disc marker removed>_<port>.mcd`, whose stem matches every serial of the set in `gamedb.yaml` (RB-329). Regions keep separate cards and a revision shares its base release's. `PerGameFileTitle` keys the card by each disc's file, so it would split a set at the disc change.
 
 ## RB-310. What EmulationStation lists for a folder holding discs and a same-named playlist
 

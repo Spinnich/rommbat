@@ -63,6 +63,15 @@ The `.zip` row's `md5_hash`, `sha1_hash` and `crc_hash` match the 24,592-byte `.
 and nothing about the archive. The `.chd` row's match its own bytes. So a downloaded zip is
 verified by hashing inside it, and adoption hashes inside a local zip too.
 
+## RM-28. A firmware file's md5 is over its own bytes, so a zip's is the container's
+
+Verified: RomM 5.2.0, 2026-08-25, and 5.3.1 source, 2026-09-29. How: downloaded the library's 34-member `neogeo.zip` and hashed the bytes; on 5.3.1 read `FirmwareHandler.calculate_file_hashes`.
+The record's `md5_hash`, `c74b8945...`, is the md5 of the 1,861,788 bytes served, not of any
+member, unlike a ROM zip (RB-80). Two zips of the same members hash differently when compression,
+order or stored times differ, so an md5 join finds none of the 20 zip requirements that carry
+an md5 in RetroBat's manifest, `neogeo.zip` at `dffb72f1...` among them. A zip is compared by
+its members, as `LogicalContentHash` does for a save.
+
 ## RB-180. RomM's hashes are its last scan's, and can describe some other file
 
 Verified: 2026-08-24, and RomM 5.3.1, 2026-09-29. How: compared two `ps2` `.chd` rows' `sha1_hash` with the bytes served; today re-read both rows and their files' `Last-Modified`.

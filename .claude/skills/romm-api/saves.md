@@ -6,10 +6,10 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
 
 - **`download_path` on a save is not a usable URL.** It is served with a raw space and an
   unencoded `+`: `/api/saves/130/content?timestamp=2026-08-10 23:00:25.474218+00:00`. Build
-  the URL from the save `id`.
-- **`POST /api/saves/delete` fails the whole batch if one id is already gone**, answering 404
-  and deleting nothing. Autocleanup can remove an id between listing and deleting, so delete
-  one at a time or re-list immediately before.
+  the URL from the save `id` (RM-21).
+- **`POST /api/saves/delete` stops at the first id already gone**, answering 404 after
+  deleting the ids before it and none after. The slot prune can remove an id between listing and
+  deleting, so delete one at a time or re-list immediately before (RM-22).
 - **Saves pair on `(rom_id, slot)`.** A null slot means "archival manual upload" and
   negotiates as `upload` forever. Always send a stable, non-null slot.
 - **The server renames a slotted save** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; an unslotted
@@ -22,7 +22,7 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   to `is_current: true` by issuing the GET alone. Always pass `optimistic=false` and send
   `POST /api/saves/{id}/downloaded` after the bytes are written and verified, or a download
   that dies mid-body leaves the server sure the device is current and the next negotiate
-  answers `no_op` forever.
+  answers `no_op` forever (RM-17).
 - **What decides whether a slotted upload appends is the clock, not `overwrite`.** The server
   renames the upload to carry a `[YYYY-MM-DD_HH-MM-SS]` tag and then looks the row up by
   **that** name, at one-second resolution, so two postings into one slot inside one second are
@@ -41,18 +41,18 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
 - **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
 last sync"}`, with no save id and no timestamps. Fetch the save row separately to show the
   user anything. It fires when **this device's** record is stale, so the device that wrote the
-  current save may write again while a device that never synced it is refused.
+  current save may write again while a device that never synced it is refused (RM-19).
 - **`device_syncs` is empty unless you pass `device_id`**, and empty reads exactly like
   "nobody has synced this". With `device_id` set it lists every device that has a record, the
-  queried one first. A device that never synced is **absent** rather than `is_current: false`,
-  so treat a missing entry as the strongest reason to pull.
+  queried one first, and gives the queried device an `is_current: false` entry when it has never
+  synced the save. `device_id` never narrows which saves are listed (RM-18).
 - **`origin_device_id`** names the device that uploaded a save, which is how you recognise
-  your own upload coming back.
+  your own upload coming back (RM-18).
 - **`POST /api/play-sessions` takes an envelope**, `{device_id, sessions: [...]}`, with
   `device_id` outside the entries; a bare array is a 422. It answers a per-index result array
   with `created_count`/`skipped_count` and reports a replay as `"status": "duplicate"`. Cap
   100 per call (101 entries answers 400), `end_time` strictly after `start_time`, `rom_id`
-  optional. It needs **no** open sync session, so playtime can flush on its own.
+  optional. It needs **no** open sync session, so playtime can flush on its own (RM-20).
 - **`GET /api/play-sessions` can answer `200` with zero rows for a session that exists**, two
   ways, and neither is distinguishable from one never written. It is scoped to the authenticated
   user (`roms.user.read`), so a token on any other account reads nothing for an install it did
@@ -86,7 +86,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
 - **`POST /api/sync/negotiate` requires `device_id`** unless the client token is device-bound,
   in which case the server infers it. Measured both ways: a pairing-minted token negotiates
   with the field absent, an ordinary client token answers 400 naming the condition. RomMBat's
-  token comes from pairing, so it may omit it; send it anyway, it is more explicit.
+  token comes from pairing, so it may omit it; send it anyway, it is more explicit (RM-23).
 - **A sync session cannot be deleted.** `/api/sync/sessions` is read-only apart from
   `/complete`, so every negotiate leaves a permanent row. Tests and probes that negotiate
   accumulate them.
@@ -134,7 +134,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   that earlier one answers **400** `Session is already CANCELLED`. Complete a session before
   negotiating again, or accept that the first one can never be tidied up. RB-164.
   Closing needs `devices.write`, and a refused close returns a failure rather than throwing, so
-  `SaveSync` reads it and reports every refusal except `already COMPLETED`, which means the
+  `SaveSync` reads it and reports every refusal except `already COMPLETED` (RB-164), which means the
   close landed. A 403 there otherwise reads as a clean sync with the session left open (#90), so
   a refused close sets `SaveSyncOutcome.SessionLeftOpen` and the flush ends `Partial`, with the
   403 naming `devices.write` (#148).

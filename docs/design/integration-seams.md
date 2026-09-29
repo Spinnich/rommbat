@@ -67,30 +67,15 @@ as a possible distribution channel later, not as the mechanism.
 | `rommapp/grout` `cfw/*/data/save_directories.json`               | RomM slug → emulator save subdirectory list                |
 | `rommapp/grout` `cache/save_sync.go`, `cache/background_sync.go` | Sync state machine and conflict handling, already proven   |
 | RomM `backend/utils/gamelist_exporter.py`                        | Authoritative field list for the `<game>` elements to emit |
-| `rommapp/argosy-launcher`                                        | **Mined and closed.** See the caveat below                 |
-| `abduznik/Freegosy`                                              | **Mined and closed.** See the caveat below                 |
+| `rommapp/argosy-launcher`                                        | **Mined and closed.** See below                            |
+| `abduznik/Freegosy`                                              | **Mined and closed.** See below                            |
 
-**Argosy was named twice during planning and then never read, and until 2026-08-25 this table
-had no row for it** while [freegosy-findings.md](../freegosy-findings.md) told its readers Argosy
-had been "mined as trustworthy about the API". That was false, and both places are corrected
-rather than quietly reworded. What the pass actually took is small and specific: it sent this
-plan to re-measure `with_rom_id_index`, which turned out to be a **3.4 to 3.7 times regression
-on a platform-scoped walk** on 5.2.0 (fixed at 7b-2a, and absent on `5.3.0-alpha.2`, which is why
-the index is off under every scope again, #188), and to run the BIOS join that found
-**84 of RetroBat's 355 requirements are `.zip` files no md5 comparison can ever match**. Neither
-number is Argosy's; both are measured here. It targets Android, so **no path from it is valid for
-RetroBat and none was taken**, and its own headline cost figure inverts on this library. The full
-ledger, including the eighteen leads dropped at triage and the design notes addressed to M7b, is
-[argosy-findings.md](../argosy-findings.md). **Treat that document as closed.**
-
-**Freegosy is the one source here that is not `rommapp` and not version-aligned**, and it was
-mined under a correspondingly higher bar: it targets RomM 4.9 against the 5.2.0 baseline it was mined under, it
-is v0.5.x with one maintainer, and it targets desktop emulators, EmuDeck and RetroDECK, so
-**none of its paths is valid for RetroBat and none was taken**. What it was good for was
-pointing at save-protocol parameters this plan had never mentioned. Every claim was then
-re-asked of the live server, and several of its own answers were wrong at 5.1.x: its play
-session payload shape is a 422, its documented 409 body does not exist, and its per-device
-isolation model is not what the server does. The full ledger, including the thirteen leads
-dropped at triage and the six left open, is
-[freegosy-findings.md](../freegosy-findings.md). **Treat that document as closed**; re-reading
-the client is unlikely to repay the effort.
+**Argosy and Freegosy were read for leads, never as evidence.** Every lead that could change
+RomMBat was re-asked of a live server or a real RetroBat install, and what held is an upstream
+fact, cited by the skill that relies on it. None of their paths applies: Argosy targets Android
+and Freegosy desktop emulators, EmuDeck and RetroDECK. Freegosy targets RomM 4.9, and several of
+its answers are wrong against the server: its play-session payload is a 422 (RM-20), the 409 body
+it parses does not exist (RM-19), and `device_id` does not isolate saves (RM-18). Argosy's
+gamepad conventions shaped the UI and are stated where the code applies them. The leads cut at
+triage are in the deleted ledgers, `git log --diff-filter=D -- docs/argosy-findings.md
+docs/freegosy-findings.md`; re-reading either client is unlikely to repay the effort.

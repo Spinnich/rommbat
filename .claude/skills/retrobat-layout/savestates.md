@@ -23,8 +23,7 @@ real 8.2.1 install against states from four cores on disk. Two consequences: the
 exist here, and the folder is named **`libretro.<core>`**, RetroBat's own convention, not the
 libretro `corename` that front ends reading `retroarch.cfg` produce. `es_savestates.cfg` is the
 source, and it is the stronger one because `retroarch.cfg` is regenerated per launch and
-describes only the last game run. See
-[argosy-findings.md](../../../docs/argosy-findings.md), A7.
+describes only the last game run. RB-216 and RB-217.
 
 **Trust `<file>`, verify `<directory>`.** Across the twelve emulators M0 drove, every `<file>`
 template was correct and one `<directory>` declaration still is not: **`openmsx` writes

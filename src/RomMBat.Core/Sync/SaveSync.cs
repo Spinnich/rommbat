@@ -337,9 +337,9 @@ public sealed class SaveSync
     /// <b>An empty local set still negotiates, because that is the inventory pass.</b> Measured:
     /// negotiate returns a download for every save the device has no current sync record for,
     /// including slots the client did not submit, and an empty <c>saves</c> array came back with
-    /// 13 downloads across two ROMs. A device that has never synced is <b>absent</b> from
-    /// <c>device_syncs</c> rather than <c>is_current: false</c>, so it is the device with the
-    /// strongest reason to pull, and returning early here made it the one that never asked.
+    /// 13 downloads across two ROMs. A device that has never synced has no current record for
+    /// anything, so it is the device with the strongest reason to pull, and returning early
+    /// here made it the one that never asked.
     /// Driven against a real instance: a second device paired with the same ROM and no
     /// <c>SAVEDATA</c> flushed to "nothing to sync", and seeding one local unit was enough to
     /// make the same flush answer one down and restore it. See #63.

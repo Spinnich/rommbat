@@ -91,9 +91,11 @@ back when something makes it the newest again, which `PUT /api/saves/{id}` does 
 
 ## RB-164. A negotiate cancels the device's previous active session
 
-Verified: RomM 5.3.1, 2026-09-29. How: negotiated twice as one device, then completed both sessions.
+Verified: RomM 5.3.1, 2026-09-29. How: negotiated twice as one device, then completed both sessions; completed one session three times on 5.2.0, 2026-08-25.
 Completing the first answered 400, "Session is already CANCELLED", and the second answered 200.
-So a client that negotiates twice without completing the first session cannot tidy it up.
+So a client that negotiates twice without completing the first session cannot tidy it up. A
+repeat completion is the same 400, "Session is already COMPLETED", not a 404, 409 or 410, and
+it means the first close landed.
 
 ## RB-243. Negotiate answers from the device's sync record, not from what the client claims
 
@@ -270,3 +272,68 @@ the newest by `updated_at` then `id`, and deletes the rest with their files. `sl
 `SaveSync` records a negotiated `upload` that comes back 409 as a conflict, so an edited copy is
 settled rather than overwritten. A `PUT` onto the oldest surviving version kept it through the
 next prune, and the next oldest went instead.
+
+## RM-17. A save download records the device current on the request unless `optimistic=false`
+
+Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: downloaded one save as two never-synced devices, with the default and with `optimistic=false`, and read `device_syncs` after each; on 5.3.1 read `download_save` and `confirm_download`.
+`optimistic` defaults to true, and the GET alone took the default device from `is_current:
+false` to `true`. With `optimistic=false` it stayed false until `POST /api/saves/{id}/downloaded`
+set it. So a download that dies mid-body leaves the server sure the device holds the save, and
+the next negotiate answers `no_op`. RomMBat passes `optimistic=false` and acknowledges only
+after the bytes are written and verified.
+
+## RM-18. `device_id` scopes sync bookkeeping, never which saves are listed
+
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `get_saves` and `_build_save_schema`; on 5.1.1-beta.1, 2026-08-10, listed one ROM's saves as two devices and as none.
+Both devices listed the same rows. `device_syncs` is empty when no `device_id` is passed. With
+one, it holds every device's record, the caller's first, and the caller gets an entry with
+`is_current: false` when it has never synced the save. `origin_device_id` names the device that
+uploaded a save, kept through an `overwrite=true` replacement. So a missing entry means the
+query named no device, never that nobody synced.
+
+## RM-19. A 409 on upload is a bare string, and names no save and no time
+
+Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: uploaded different content into one slot from a device that had not synced it; on 5.3.1 read `add_save`'s 409 checks.
+The body is `{"detail": "Slot has a newer save since your last sync"}`, or "Save has been updated
+since your last sync" for an unslotted save, and never an object. It fires when **this device's**
+record is stale, so the device that wrote the current save may write again while one that never
+synced it is refused (RB-156). Showing the user anything takes a separate fetch of the row.
+
+## RM-20. `POST /api/play-sessions` takes an envelope, needs no sync session, and names duplicates
+
+Verified: RomM 5.1.1-beta.1, 2026-08-11, and 5.3.1 source, 2026-09-29. How: posted a bare array, an envelope, the same envelope again, 101 entries, and an inverted range; on 5.3.1 read `ingest_play_sessions`.
+The body is `{device_id, sessions: [...]}` with `device_id` outside the entries, and a bare array
+is a 422; a device-bound token supplies a missing `device_id`. It answers 201 with a per-index
+`status` of `created`, `duplicate` or `error`, and `created_count` and `skipped_count`, so a
+replayed flush is told what it skipped. 101 entries is a 400, "Batch size exceeds maximum of
+100"; an `end_time` not after `start_time` is a 422; `rom_id` is optional.
+
+## RM-21. A save's `download_path` carries its timestamp unencoded
+
+Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29. How: read `download_path` off a live save; on 5.3.1 read `models/assets.py`.
+It is `/api/saves/<id>/content?timestamp=<updated_at>`, the datetime written as Python prints
+it, raw space and `+` included: `?timestamp=2026-08-10 23:00:25.474218+00:00`. So it is not a
+URL to request as served. RomMBat builds the content URL from the save's `id`.
+
+## RM-22. `POST /api/saves/delete` stops at the first id it cannot find
+
+Verified: RomM 5.3.1 source, 2026-09-29. How: read `delete_saves`.
+It deletes in list order and answers 404, `Save with ID <n> not found`, at the first missing
+id, keeping the deletions before it and skipping every id after. The slot prune can remove an id
+between a listing and a delete, so a batch built from a stale list half-lands.
+
+## RM-23. Negotiate needs `device_id` unless the token is device-bound
+
+Verified: RomM 5.1.1-beta.1, 2026-08-11, and 5.3.1 source, 2026-09-29. How: negotiated without `device_id` on an ordinary client token and on a pairing-minted one; on 5.3.1 read `negotiate`.
+The ordinary token answered 400, "device_id is required (either in the request payload or
+implicit via a device-bound client token)". The pairing-minted token negotiated the same with
+the field absent as present. RomMBat's token comes from pairing and it sends the field anyway.
+
+## RM-24. The activity heartbeat lasts 90 seconds, and its `DELETE` reads `device_id` from the query
+
+Verified: RomM 5.2.0, 2026-08-25, and 5.3.1 source, 2026-09-29. How: posted a heartbeat, listed `GET /api/activity`, and cleared it with a body and with a query; on 5.3.1 read `activity.py` and `activity_handler.py`.
+`POST /api/activity/heartbeat` takes `{rom_id, device_id}` and holds the entry for
+`ACTIVITY_TTL`, 90 s, so a client repeats it while play continues. The `DELETE` sent the same
+body answers 422 naming the missing query field; `?device_id=` answers 204. It is the presence
+feed only, not `rom_user.now_playing`. RomMBat never posts it: `game-start` is on the launch
+path, so any heartbeat would belong to the `background` pass.

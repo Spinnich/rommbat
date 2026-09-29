@@ -74,14 +74,13 @@ cleanly on reconnect.**
   timestamps, and save uploads dedup on `content_hash` within a slot, so replaying a
   failed flush is idempotent. Lean on that instead of inventing an ack protocol.
 
-  **Both halves are now measured, not inferred.** A byte-identical save posted twice into the
-  same slot reuses the same row and the slot count does not move; a replayed play session
-  comes back `"status": "duplicate"` in a per-index result array with `skipped_count`
-  incremented, so the server names what it skipped rather than leaving the client to guess.
-  This is also the reason a bundled directory save's archive **must** be deterministic: an
-  archive that varies between runs defeats the dedup this principle rests on, which is
-  precisely what Freegosy does by writing a timestamp file into every bundle. See
-  [freegosy-findings.md](../freegosy-findings.md), F3 and F4.
+  **Both halves are measured.** A byte-identical save posted twice into the same slot reuses
+  the same row and the slot count does not move (RB-161); a replayed play session comes back
+  `"status": "duplicate"` in a per-index result array with `skipped_count` incremented, so the
+  server names what it skipped rather than leaving the client to guess (RM-20). This is also
+  the reason a bundled directory save's archive **must** be deterministic: an archive that
+  varies between runs, as one holding a timestamp file does, defeats the dedup this principle
+  rests on.
 
 - **Clock skew is a real failure mode.** A handheld with a flat RTC produces timestamps
   that lose every conflict. Record a monotonic local sequence number alongside wall

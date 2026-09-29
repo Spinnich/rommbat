@@ -109,9 +109,9 @@ public sealed partial class RomMConnection
     /// Deletes states by id. Needs <c>assets.write</c>.
     /// </summary>
     /// <remarks>
-    /// The save sibling of this route fails the whole batch with a 404 when one id is already
-    /// gone, and nothing suggests this one differs, so callers that cannot re-list immediately
-    /// beforehand should send one id at a time.
+    /// The save sibling of this route stops with a 404 at the first id already gone, keeping
+    /// the deletions before it (RM-22), and nothing suggests this one differs, so callers that
+    /// cannot re-list immediately beforehand should send one id at a time.
     /// </remarks>
 
     /// <summary>

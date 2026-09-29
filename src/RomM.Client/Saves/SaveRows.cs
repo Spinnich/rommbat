@@ -50,9 +50,9 @@ public sealed record SaveRow(
 /// <summary>One device's sync record for a save.</summary>
 /// <remarks>
 /// <b>The array this comes from is empty unless the request carried <c>device_id</c></b>, and
-/// empty reads exactly like "nobody has ever synced this" while meaning "you did not ask". A
-/// device that has genuinely never synced is <b>absent</b> rather than present with
-/// <c>is_current: false</c>, so a missing entry is the strongest reason to pull.
+/// empty reads exactly like "nobody has ever synced this" while meaning "you did not ask". With
+/// it, a queried device that has never synced the save gets an entry with <c>is_current:
+/// false</c>, the strongest reason to pull (RM-18).
 /// </remarks>
 public sealed record SaveDeviceSync(
     [property: JsonPropertyName("device_id")] string? DeviceId,

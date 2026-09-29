@@ -140,7 +140,7 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 | Playtime                 | `POST /api/play-sessions`, body `{device_id, sessions: [...]}`                              |
 | Playtime read-back       | `GET /api/play-sessions?device_id=&rom_id=&start_after=&end_before=&limit=&offset=`         |
 | Roaming config           | `PUT /api/devices/{id}` (free-form `sync_config` dict)                                      |
-| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash`                   |
+| Firmware, whole library  | `GET /api/platforms`, whose inlined `firmware[]` carries every `md5_hash` (RM-25)           |
 
 ## Traps
 
@@ -178,14 +178,13 @@ names.** The heartbeat is the presence feed at `GET /api/activity`, which RomMBa
 to and which is empty on an install that only syncs. The flag a library actually shows is
 `rom_user.now_playing`, set by ingesting a play session and cleared only by
 `PUT /api/roms/{id}/props`. **`DELETE /api/activity/heartbeat` answers 204 and does not touch
-it**, measured during M7 stage 7b-3, so a session that reaches for the heartbeat to stop a
+it**, so a session that reaches for the heartbeat to stop a
 game reading as in progress has reached for the wrong one.
 
 - **The `DELETE` takes `device_id` as a query parameter**, not in the body the `POST` takes.
   Sent as a body it answers **422** naming the missing query field, which reads like a
   malformed payload rather than a misplaced one. `DELETE /api/activity/heartbeat?device_id=`
-  answers 204.
-- Argosy's client says the server holds a heartbeat for 90 seconds and it must be repeated
-  while play continues. **That was not measured here** and is not a fact.
+  answers 204 (RM-24).
+- **An entry lasts 90 seconds**, so a heartbeat is repeated while play continues (RM-24).
 - **`game-start` may not call this.** It is inside the launch path. Only the detached
   `background <event>` pass may touch the network during play.
