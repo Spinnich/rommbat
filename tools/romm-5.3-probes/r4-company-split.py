@@ -1,10 +1,7 @@
 """R4: whether developers and publishers are populated, and what indexing companies costs (#186).
 
-RM-7 and RomRow.Developers cite a sample of 3,000 rows over ten platforms: 398 of 400
-rows carrying the split on the one platform rescanned since 5.3.0, 0 of 300 on each of nine
-that were not, and companies[0] naming someone other than the developer on 41% of split rows.
-No script recorded how that sample was drawn, so this walks every platform instead. A whole
-library is a population rather than a sample, and the next adoption can re-take it exactly.
+RB-98's split figures come from this walk. It reads every platform rather than a sample, so
+the next adoption can re-take them exactly.
 
 Per row it counts:
 

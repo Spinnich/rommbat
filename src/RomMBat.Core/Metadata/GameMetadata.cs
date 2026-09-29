@@ -160,9 +160,9 @@ public sealed record GameMetadata
     /// The rating on the 0-1 scale a gamelist uses.
     /// </summary>
     /// <remarks>
-    /// <b>The value arrives on a 0-100 scale.</b> All 3,216 rated ROMs in a 5,000-row sample
-    /// were above 1.0, min 5.0 and max 100.0, and RomM's exporter divides by 100 with a
-    /// comment naming the scale. Clamped, because a value above 100 would produce a rating ES
+    /// <b>The value arrives on a 0-100 scale</b> (RB-96): every rating in a real library is
+    /// between 5.0 and 100.0, and RomM's exporter divides by 100 with a comment naming the
+    /// scale. Clamped, because a value above 100 would produce a rating ES
     /// cannot draw.
     /// </remarks>
     public static string? RatingOf(double? outOfHundred)
@@ -209,7 +209,7 @@ public sealed record GameMetadata
     /// </summary>
     /// <remarks>
     /// Repeats are real rather than defensive: Chrono Trigger's companies arrive as
-    /// <c>["Squaresoft", "Squaresoft"]</c>, and 18 of 5,000 sampled ROMs repeat a franchise.
+    /// <c>["Squaresoft", "Squaresoft"]</c>, and franchises repeat too (RB-98, RB-99).
     /// </remarks>
     private static List<string> Distinct(IEnumerable<string>? values)
     {

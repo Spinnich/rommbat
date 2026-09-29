@@ -56,7 +56,7 @@ public sealed record BrowseGame(
     /// <b>Trimmed rather than shortened.</b> A psx name runs past a hundred characters, and the
     /// part that goes is the tail: a translation credit rather than the region and revision,
     /// which sit early. Taken over <c>regions</c> and <c>languages</c>, which are sparse and
-    /// carry no revision, translation or dump flag: languages are on 18.3% of a real library.
+    /// carry no revision, translation or dump flag: languages are on about one row in seven (RB-100).
     /// </para>
     /// </remarks>
     public string Release => Row?.FsName ?? FsName;

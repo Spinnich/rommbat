@@ -100,22 +100,11 @@ checks exist so each divergence stays visible rather than becoming an accidental
   and `English` where EmulationStation's own vocabulary is `us` and `en`. RomMBat maps them.
 - `genre` is `genres[0]`. RomMBat joins with `, `, which is what a real scraped install
   already contains (`Racing, Driving` in 2,079 of 4,440 entries).
-- `developer` and `publisher` **were** `companies[0]` and `companies[1]`. 5.3.0 splits company
-  metadata into `developers` and `publishers` and the exporter reads `primary_developer` and
-  `primary_publisher` instead, which is the ask RomMBat recorded as a follow-up to RomM
-  itself. **It ends per row rather than outright**, because each property falls back to the old
-  indexing (`developers[0] or companies[0]`, `publishers[0] or companies[1]`) and a row only
-  carries the split once it has been rescanned under 5.3.0. Measured on a live
-  `5.3.0-alpha.2` library, 2026-09-14: of 3,000 rows sampled across ten platforms, the only
-  platform carrying `developers` was the one that had been rescanned, at 398 of 400 rows;
-  the other nine were 0 of 300 each while still carrying `companies`. Where the split is
-  present it is exactly one developer and one publisher, and `companies` is the two of them
-  sorted, so **alphabetical indexing assigns both roles wrongly on 41% of rows** (163 of 398):
-  `4x4 Evo 2` is `companies=[Sierra, Terminal Reality]`, which reads Sierra as the developer
-  when Terminal Reality developed it. #172. **Re-taken over the whole library on 2026-09-16**
-  (`tools/romm-5.3-probes/r4-company-split.py`, RM-7): the split is on 18.9% of 95,993
-  rows across 53 platforms, indexing is wrong on **21.5%** of split rows rather than 41%, and
-  3.0% of split rows carry more than one developer or publisher.
+- `developer` and `publisher` are `primary_developer` and `primary_publisher`, which read the
+  `developers` and `publishers` split and **fall back to `companies[0]` and `companies[1]`**
+  on a row without it (RM-7). A row carries the split only once it has been scanned since
+  5.3.0, and `companies` is sorted, so on the rest upstream writes the alphabet's first and
+  second company. RomMBat writes `companies` joined instead (RB-98).
 
 One thing to copy rather than diverge from: **`marquee` is sourced from ScreenScraper's
 `logo_path`, not its `marquee_path`.** EmulationStation's marquee is game logo art;

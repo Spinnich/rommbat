@@ -71,8 +71,8 @@ public sealed record MediaResource
     /// <c>path_cover_large</c> arrive already rooted at the prefix, while <c>path_manual</c>,
     /// <c>path_video</c> and <c>ss_metadata.logo_path</c> arrive relative to it. Sending the
     /// relative form as given does not fail: nginx answers <b>200 with the web UI's
-    /// index.html</b>, 5,826 bytes, carrying an <c>ETag</c> and <c>Accept-Ranges</c>, which
-    /// would be written to disk as a PDF.
+    /// index.html</b>, carrying an <c>ETag</c> and <c>Accept-Ranges</c>, which would be written
+    /// to disk as a PDF (RB-89, RB-90).
     /// <para>
     /// The query is a cache-busting <c>?ts=</c> carrying a <b>raw space</b>. nginx ignores it
     /// and answers the same bytes and the same <c>ETag</c> either way, so it is dropped

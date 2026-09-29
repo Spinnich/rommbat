@@ -436,7 +436,7 @@ public sealed class BrowseScreenTests : IDisposable
     /// revisions and a translation under one title, and picking the wrong one is a download and
     /// a removal to undo. The tags come from <c>fs_name</c>, which is where the No-Intro and
     /// Redump groups live and which is complete where <c>regions</c> and <c>languages</c> are
-    /// sparse: languages are on 18.3% of a real library.
+    /// sparse: languages are on about one row in seven (RB-100).
     /// </remarks>
     [Fact]
     public async Task Two_releases_of_one_game_are_told_apart_on_the_row()

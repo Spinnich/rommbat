@@ -118,18 +118,18 @@ public sealed record MediaSyncOutcome
 /// Fetches the artwork, video and manuals that make a gamelist worth having.
 /// </summary>
 /// <remarks>
-/// <b>Media is not a rounding error against the ROMs it decorates.</b> At the measured
-/// medians a game costs 525 KB of cover, 104 KB of thumbnail, 445 KB of marquee, 1.99 MB of
-/// video and 2.45 MB of manual, so a hundred-game NES set is about 12.8 MB of ROMs and up to
-/// 550 MB of media. It counts against the same two bounds ROMs do, and manuals are off by
-/// default because they are the largest single kind and nothing in M4 needs them.
+/// <b>Media is not a rounding error against the ROMs it decorates.</b> At the medians RB-92
+/// measures a game costs 806 KB of cover, 144 KB of thumbnail, 95 KB of marquee, 2.32 MB of
+/// video and 2.30 MB of manual, so a hundred-game NES set is about 12.8 MB of ROMs and up to
+/// 570 MB of media. It counts against the same two bounds ROMs do, and manuals are off by
+/// default because they are as large as a video and nothing needs them.
 /// <para>
 /// <b>A user's own scraper writes to exactly these names.</b> A file already at the target is
 /// recorded as <see cref="FileOrigin.Adopted"/> and never overwritten or counted against the
 /// budget, which is what keeps eviction from deleting artwork RomMBat did not create.
 /// </para>
 /// <para>
-/// Nothing here resumes. The largest kind has a 2.45 MB median, so a failed transfer starts
+/// Nothing here resumes. The largest kind has a median near 2.3 MB, so a failed transfer starts
 /// again rather than carrying the machinery a 4 GB ROM needs.
 /// </para>
 /// </remarks>
