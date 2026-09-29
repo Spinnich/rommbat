@@ -46,7 +46,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repo = 'RetroBat-Official/retrobat'
-$Path = [System.IO.Path]::GetFullPath($Path)
+# Against PowerShell's location, not the process directory, which cd does not move.
+$Path = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($Path)
+$CacheDir = $PSCmdlet.GetUnresolvedProviderPathFromPSPath($CacheDir)
 
 # Checked before the download, so a wrong path costs nothing.
 if ((Test-Path $Path) -and (Get-ChildItem -LiteralPath $Path -Force | Select-Object -First 1)) {
@@ -200,21 +202,22 @@ Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.ZipFile
 
 $file = [System.IO.File]::OpenRead($installer)
 try {
-    $footer = [byte[]]::new(8)
+    # BinaryReader reads little-endian and fully, on any PowerShell 7; Stream.ReadExactly
+    # needs 7.3.
+    $reader = [System.IO.BinaryReader]::new($file, [System.Text.Encoding]::UTF8, $true)
     $file.Position = $file.Length - 8
-    $file.ReadExactly($footer, 0, 8)
-    $zipLength = [BitConverter]::ToInt64($footer, 0)
+    $zipLength = $reader.ReadInt64()
     $zipStart = $file.Length - 8 - $zipLength
 
-    $magic = [byte[]]::new(4)
+    $magic = 0
     if ($zipStart -gt 0) {
         $file.Position = $zipStart
-        $file.ReadExactly($magic, 0, 4)
+        $magic = $reader.ReadUInt32()
     }
 
     # The layout is RetroBat's own and undocumented, so a release that changes it fails here,
     # by name, rather than extracting garbage.
-    if ($zipStart -le 0 -or [BitConverter]::ToUInt32($magic, 0) -ne 0x04034B50) {
+    if ($zipStart -le 0 -or $magic -ne 0x04034B50) {
         throw "$($setup.name) is not laid out as a ZIP followed by its int64 length. Install it by hand with the wizard."
     }
 
