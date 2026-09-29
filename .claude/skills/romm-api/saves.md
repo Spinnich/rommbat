@@ -12,10 +12,11 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   one at a time or re-list immediately before.
 - **Saves pair on `(rom_id, slot)`.** A null slot means "archival manual upload" and
   negotiates as `upload` forever. Always send a stable, non-null slot.
-- **The server renames uploaded saves** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`. Persist the
-  `file_name` from the response, not the one you sent. **To write one to disk use
-  `file_name_no_tags` + `file_extension` instead**: an emulator finds a battery save by rom
-  name and never sees the tagged one. No client-side regex; the server returns the stem.
+- **The server renames a slotted save** to `<name> [YYYY-MM-DD_HH-MM-SS]<ext>`; an unslotted
+  save and a state keep the name sent (RB-130). Persist the `file_name` from the response, not
+  the one you sent. **To write one to disk use the ROM's own stem plus `file_extension`**, never
+  `file_name_no_tags`, which strips every trailing tag group and so drops the ROM's region and
+  revision along with the timestamp (RB-247).
 - **`optimistic` on `GET /api/saves/{id}/content` defaults to true and records the device
   sync on the request**, before the client has the bytes. A device that had never synced went
   to `is_current: true` by issuing the GET alone. Always pass `optimistic=false` and send
@@ -37,7 +38,8 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   cap is 10 and the server's bites only on other writers' versions. `slot` is capped at 255
   characters, a 422 past it. Read in source; RM-11.
 - **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
-  a client cannot dodge the 409 path by sending an id the server does not know. RB-162.
+  a client cannot dodge the 409 path by sending an id the server does not know. Omitting it is
+  accepted, and writes a save attributed to no device. RB-162.
 - **A 409 on upload carries a bare string**, `{"detail": "Slot has a newer save since your
 last sync"}`, with no save id and no timestamps. Fetch the save row separately to show the
   user anything. It fires when **this device's** record is stale, so the device that wrote the
@@ -123,16 +125,14 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   with an **empty** `saves` array is the inventory pass a fresh device needs. It answers a
   `download` for every slot the device has no current sync record for, and stays quiet about a
   slot the device did sync and no longer sends, which it reads as a deliberate local delete.
-  RB-151, which withdraws 132.
-- **What negotiate pairs on is the newest row per `(rom_id, slot)`, and only that row.** Read
-  from `backend/endpoints/sync.py` at both `5.1.0` and `5.1.1-beta.2`, which are identical
-  here: the server folds its slotted saves to one row per slot by `updated_at` before matching
-  anything, and both the submitted and the unsubmitted pass walk that fold. **A superseded row
+  RB-151.
+- **What negotiate pairs on is the newest row per `(rom_id, slot)`, and only that row.** The
+  server folds its slotted saves to one row per slot by `updated_at` before matching anything,
+  and both the submitted and the unsubmitted pass walk that fold. **A superseded row
   in a slot is history and is never offered as an operation while it stays superseded.** That no
   longer makes an appending upload safe on its own: the in-place `PUT` above puts one back at the
   head of the slot, where negotiate can offer it as a `download`, and the client refusing that is
-  what keeps a keep-local from being undone (`save-sync`). RB-163, read from source and then driven against
-  a slot holding a superseded row.
+  what keeps a keep-local from being undone (`save-sync`). RB-163.
 - **A negotiate cancels the device's previous active session**, so `/sessions/{id}/complete` on
   that earlier one answers **400** `Session is already cancelled`. Complete a session before
   negotiating again, or accept that the first one can never be tidied up. RB-164.

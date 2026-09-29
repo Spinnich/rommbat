@@ -208,8 +208,9 @@ public class StateSyncTests
     [Fact]
     public async Task A_state_the_server_links_no_screenshot_to_restores_without_one_and_says_nothing_failed()
     {
-        // The upstream half of #158, RB-138: the image was uploaded and not linked, so the
-        // state row reads screenshot: null. The state still comes back and counts.
+        // The upstream half of #158, RB-258: an image whose name misses RomM's lookup is
+        // stored and not linked, so the state row reads screenshot: null. The state still comes
+        // back and counts.
         using var fixture = StateFixture.Create();
         fixture.Stub.DropScreenshots = true;
         fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
@@ -584,7 +585,7 @@ public class StateSyncTests
     [Fact]
     public void The_earlier_screenshot_name_never_attached_where_the_image_is_the_state_name_plus_png()
     {
-        // RB-138's "a third", explained. RomM binds by name, and scoping the image's own name
+        // RB-258. RomM binds by name, and scoping the image's own name
         // put the group after .state1 for every emulator whose <image> is <file>.png, while an
         // emulator whose <image> replaces the extension happened to line up.
         Assert.False(StubRomMServer.Binds(

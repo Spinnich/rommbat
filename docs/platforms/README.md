@@ -217,7 +217,7 @@ and came back out through the hooks. The waves finish against an M8 package.
 **Every row `nes` declares is certified**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1 and carried
 to `5.3.0` and then the `5.3.1` floor, all
 three `libretro` cores first. `nestopia`, re-driven on 2026-09-20, was the first row anywhere to pass step 5, a save
-state round-tripping with its screenshot, which had been blocked on RB-138, RB-256 and RB-258
+state round-tripping with its screenshot, which had been blocked on RomMBat's screenshot naming (RB-258)
 since the checklist was written. `fceumm` and `mesen` followed on 2026-09-21, and `fceumm` is the
 row a stock install gives a user, selected with no override. **`nes` under both `bizhawk` cores,
 `NesHawk` and `quickerNES`, followed later on 2026-09-21**, once #151 carried BizHawk's battery
@@ -373,5 +373,5 @@ one game, one system, steps 4 and 5 only. Results are RB-134 to RB-139.
 
 The two libretro cores wrote the **identical** filename and became two server rows, which is
 the collision the scoped upload name exists to prevent, proven rather than argued. What did
-**not** work is the screenshot: uploaded, stored against the ROM, and not linked to the state.
-See RB-138.
+**not** work is the screenshot: uploaded, stored against the ROM, and not linked to the state,
+because RomMBat's upload name missed RomM's lookup. See RB-258.

@@ -328,8 +328,7 @@ data root costs 426 s where the scoped subtree costs 0.06 s.
 **RomM does the same thing, and the fold is its function, so class C carries one hash.** Its
 `content_hash` is the MD5 of the bytes for a plain file and, for an archive, `hash_zip_contents`:
 the md5 of `<entry name>:<entry md5>` lines, sorted by name, joined with `\n` and none trailing,
-directory entries skipped. Identical at the 5.2.0 and 5.3.0 tags, and confirmed live by
-`s5-archive-content-hash.py` (RB-303), which withdraws 149's "not reproducible".
+directory entries skipped, confirmed live by `s5-archive-content-hash.py` (RB-303).
 `LogicalContentHash.Fold` is that rule, sorted by UTF-8 bytes because Python sorts code points,
 so the fold is the local change detector and the wire value.
 

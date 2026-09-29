@@ -124,13 +124,11 @@ public class SaveSyncTests
     [Fact]
     public async Task An_upload_of_bytes_the_server_already_holds_is_not_sent_again()
     {
-        // The other half of #206, RB-259, and a guard rather than a live fix. Nestopia
-        // rewrites its .srm with identical bytes on every launch, moving the mtime and nothing
-        // else, and on 5.3.0-alpha.3 negotiate asked for the upload anyway: three consecutive
-        // flushes each said "saves: 1 up" for save 336, each deduplicated into the same row.
-        // It does not reproduce at 5.3.0-beta.1 or 5.3.0, where probe case M4 answers
-        // "no_op (Content is identical)". Kept because it costs one comparison against a value
-        // the operation already carries, and the loop it prevents is silent.
+        // The other half of #206, and a guard rather than a live fix. Nestopia rewrites its
+        // .srm with identical bytes on every launch, moving the mtime and nothing else, and
+        // negotiate answers that "no_op (Content is identical)" (RB-259, probe case M4). The
+        // stub answers "upload" to stand in for a server that did not compare the hash, where
+        // each flush would send the save again and dedup into the same row, silently.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(42, "snes", "ActRaiser (USA)", ".zip", ".srm", "progress");
         fixture.Scan();
@@ -1496,9 +1494,8 @@ public class SaveSyncTests
         // save_conflict.local_path is NOT NULL and CHECKs for a non-blank value, so recording a
         // conflict with no local save behind it raised SQLITE_CONSTRAINT_CHECK out of the flush,
         // taking the states pass down with it. The constraint is what keeps this safe, not
-        // negotiate's silence: RB-151 withdrew 132 and showed negotiate does volunteer
-        // slots the client never submitted, so the case is reachable and stays a guard and a
-        // reported problem.
+        // negotiate's silence: negotiate volunteers slots the client never submitted (RB-151),
+        // so the case is reachable and stays a guard and a reported problem.
         using var fixture = SyncFixture.Create();
         fixture.AddGame(7, "gb", "Tetris (World)", ".zip", ".srm", "what this device did");
         fixture.Scan();

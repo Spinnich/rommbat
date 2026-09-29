@@ -24,8 +24,7 @@ public sealed record StateSyncOutcome
     /// name or the state's name less the extension. The image is stored against the ROM either
     /// way, so a name that fails the lookup leaves a screenshot row nothing points at.
     /// <see cref="StateSync.ScreenshotUploadNameFor"/> is what makes the lookup succeed, and this count is
-    /// what reports the server declining it anyway (RB-138, whose "a third" was the mix of
-    /// emulators the earlier naming did and did not match).
+    /// what reports the server declining it anyway (RB-258).
     /// <para>
     /// So this is counted rather than treated as a failure. The state itself is correct and
     /// complete, and a screenshot is best-effort by nature, but silently reporting success for

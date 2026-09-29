@@ -842,10 +842,9 @@ Three rules that are not obvious:
   The exception, for every shape, is a head that already holds the local bytes: that save is
   recorded as sent, and the head is acknowledged first when it is not the row this device last
   exchanged, since the server refuses the next upload against a stale device record (M6).
-  Confirmed by asking the server (`s4-older-mtime.py`, M1) at `5.3.0-beta.1`, at `5.3.0` and
-  again at the `5.3.1` floor, and by driving a flush on a real install at `beta.1`. A second guard answers an `upload` of bytes the server
-  already holds as a no-op; RB-259 measured that loop on `5.3.0-alpha.3`, the floor settles
-  it server-side, and it is kept as cheap defence. #206.
+  RB-259 has the server's answers, from `s4-older-mtime.py`. A second guard answers an `upload`
+  of bytes the server already holds as a no-op; negotiate settles that case on the hash itself
+  (M4), so the guard is cheap defence against a silent upload on every flush. #206.
 
   **A `download` over a local save the server has never seen is recorded as a conflict**, the
   same evidence read the other way. M3 answers `download` for a slot this device has no sync
