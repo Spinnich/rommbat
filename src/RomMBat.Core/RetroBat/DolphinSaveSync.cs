@@ -38,6 +38,12 @@ public sealed record DolphinSyncState(
     string? SetAt,
     IReadOnlyList<DolphinCardA> Directories)
 {
+    /// <summary>
+    /// How many games carry the per-game key switched on, when <see cref="Scope"/> is
+    /// <see cref="DolphinSyncScope.PerGame"/>, <see cref="SetAt"/> being the first of them.
+    /// </summary>
+    public int PerGameKeys { get; init; }
+
     /// <summary>True when RetroBat will reconcile GameCube saves on the next launch.</summary>
     public bool Enabled => Scope is not DolphinSyncScope.Off;
 
@@ -160,6 +166,23 @@ public static class DolphinSaveSync
         ArgumentNullException.ThrowIfNull(install);
 
         var (scope, key) = settings is null ? (DolphinSyncScope.Off, null) : Read(settings);
+        var perGameKeys = 0;
+
+        // Read stops at the system level without a rom name, and Inspect has none. The per-game
+        // keys are found by name instead, and only matter when neither broader level is on.
+        if (settings is not null && scope is DolphinSyncScope.Off)
+        {
+            var perGame = settings.Settings
+                .Where(setting => IsPerGameKey(setting.Name) && IsOn(setting.Value))
+                .Select(setting => setting.Name)
+                .ToList();
+
+            if (perGame.Count > 0)
+            {
+                (scope, key, perGameKeys) = (DolphinSyncScope.PerGame, perGame[0], perGame.Count);
+            }
+        }
+
         var directories = new List<DolphinCardA>();
 
         foreach (var region in Regions)
@@ -189,7 +212,7 @@ public static class DolphinSaveSync
             directories.Add(new DolphinCardA(cardA, mirrored, inside.Count - mirrored));
         }
 
-        return new DolphinSyncState(scope, key, directories);
+        return new DolphinSyncState(scope, key, directories) { PerGameKeys = perGameKeys };
     }
 
     /// <summary>The sentence the unsyncable report carries.</summary>
@@ -201,6 +224,11 @@ public static class DolphinSaveSync
         {
             DolphinSyncScope.Global => $"'{state.SetAt}' is on, so this applies to every system that honours it",
             DolphinSyncScope.System => $"'{state.SetAt}' is on",
+            // One is named and the rest counted: the Card A copies are per install, not per game.
+            DolphinSyncScope.PerGame when state.PerGameKeys == 2 =>
+                $"'{state.SetAt}' is on for that game and 1 other game",
+            DolphinSyncScope.PerGame when state.PerGameKeys > 2 =>
+                $"'{state.SetAt}' is on for that game and {state.PerGameKeys - 1} other games",
             DolphinSyncScope.PerGame => $"'{state.SetAt}' is on for that one game",
             _ => $"'{SystemKeyText}' is off, but the copies an earlier launch made are still here",
         };
@@ -228,6 +256,10 @@ public static class DolphinSaveSync
     }
 
     private static string SystemKeyText => EsSettingsFile.SystemKey(System, OptionKey);
+
+    private static bool IsPerGameKey(string name) =>
+        name.StartsWith($"{System}[\"", StringComparison.Ordinal)
+        && name.EndsWith($"\"].{OptionKey}", StringComparison.Ordinal);
 
     private static bool IsOn(string? value) =>
         value is not null

@@ -23,8 +23,9 @@ region-root file and launching restored the _previous_ session's bytes, and the 
 by a `.gci.old`. It is also why RomMBat cannot see the resurrection coming, which is why
 `DolphinSaveSync` exists.
 
-**Detect and report, never act.** `DolphinSaveSync.Inspect` reads the key at es_settings.cfg's
-own precedence and walks the three region folders, and the result becomes an
+**Detect and report, never act.** `DolphinSaveSync.Inspect` reads the key at the global and
+system levels, then finds any per-game `gamecube["<rom>"]` key by name because it has no ROM
+to ask about, and walks the three region folders, and the result becomes an
 `UnsyncableReason.ManagedElsewhere` row. Two writers reconciling one directory by different
 rules is how saves get lost, so RomMBat does not read `Card A`, does not upload it and does not
 delete it. **Report when the option is off too**: turning it off deletes nothing, so the copies

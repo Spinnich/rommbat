@@ -155,6 +155,76 @@ public class DolphinSaveSyncTests
     }
 
     [Fact]
+    public void A_per_game_key_alone_warns_before_the_first_launch_makes_any_copies()
+    {
+        // Inspect names no rom, so the per-game level has to be found by scanning the file.
+        // Nothing on disk yet: the warning is worth most before that launch.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        const string key = "gamecube[\"Bust-A-Move 3000 (USA).rvz\"].dolphin_sync_saves";
+
+        var state = DolphinSaveSync.Inspect(install, SettingsWith((key, "true")));
+
+        Assert.Equal(DolphinSyncScope.PerGame, state.Scope);
+        Assert.Equal(key, state.SetAt);
+        Assert.True(state.WorthReporting);
+        Assert.Contains("on for that one game", DolphinSaveSync.Describe(state), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Copies_made_under_a_per_game_key_are_not_described_as_left_over_from_an_option_that_is_off()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        Write(install, $"{Region}/Card A/{Gci}", "the previous session");
+
+        var state = DolphinSaveSync.Inspect(
+            install,
+            SettingsWith(
+                ("gamecube.dolphin_sync_saves", "false"),
+                ("gamecube[\"Bust-A-Move 3000 (USA).rvz\"].dolphin_sync_saves", "on"),
+                ("gamecube[\"Ikaruga (USA).rvz\"].dolphin_sync_saves", "yes"),
+                ("gamecube[\"Pikmin (USA).rvz\"].dolphin_sync_saves", "false")));
+        var described = DolphinSaveSync.Describe(state);
+
+        Assert.True(state.Enabled);
+        Assert.Equal(2, state.PerGameKeys);
+        Assert.DoesNotContain("is off", described, StringComparison.Ordinal);
+        Assert.Contains("and 1 other game", described, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_system_key_outranks_per_game_keys_in_the_report_because_it_covers_every_game()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        var state = DolphinSaveSync.Inspect(
+            install,
+            SettingsWith(
+                ("gamecube.dolphin_sync_saves", "true"),
+                ("gamecube[\"Ikaruga (USA).rvz\"].dolphin_sync_saves", "true")));
+
+        Assert.Equal(DolphinSyncScope.System, state.Scope);
+    }
+
+    [Fact]
+    public void A_per_game_key_for_another_system_or_option_is_not_read_as_this_one()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+
+        var state = DolphinSaveSync.Inspect(
+            install,
+            SettingsWith(
+                ("wii[\"Ikaruga (USA).rvz\"].dolphin_sync_saves", "true"),
+                ("gamecube[\"Ikaruga (USA).rvz\"].dolphin_slotA", "1")));
+
+        Assert.False(state.WorthReporting);
+    }
+
+    [Fact]
     public void An_install_with_no_Card_A_and_the_option_off_has_nothing_to_say()
     {
         using var tree = TempRetroBatTree.Create();
