@@ -193,8 +193,8 @@ so exclude it or rewrite it on restore.
 
 ## Other writers on the same slots
 
-RomM 5.3.0 adds two writers to the saves this protocol was measured against, and a third route
-that looks like save transport and is not. RM-3 and RM-4
+RomM has two writers on the slots this protocol negotiates, the browser player and streaming, and a
+third route that looks like save transport and is not. RM-3 and RM-4
 hold the evidence; these are the rules.
 
 **`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
@@ -210,13 +210,13 @@ question is "is this the save I had", which `save_conflict` already does and mus
 `PUT` itself is measured with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
 which replays the browser's own calls:
 
-| Case                                                                          | Negotiate answers                                        |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------- |
-| A. browser writes over this device's row, local unchanged                     | `download`, same save id, new hash                       |
-| B. the same, local also changed                                               | `conflict`; an ordinary upload is 409                    |
-| C. after keep-local, browser writes into the older row, this device synced it | `conflict` against the **older** row                     |
-| E. the same, but the older row came from a peer this device never synced      | **`download`**, "Server save is newer (no sync history)" |
-| D. no save loaded                                                             | one null-slot row, updated in place, never offered       |
+| Case                                                                     | Negotiate answers                                        |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- |
+| A. a PUT over this device's row, local unchanged                         | `download`, same save id, new hash                       |
+| B. the same, local also changed                                          | `conflict`; an ordinary upload is 409                    |
+| C. after keep-local, a PUT into the older row, this device synced it     | `conflict` against the **older** row                     |
+| E. the same, but the older row came from a peer this device never synced | **`download`**, "Server save is newer (no sync history)" |
+| D. a slotless POST, as a web-UI upload makes, then PUTs                  | one null-slot row, updated in place, never offered       |
 
 **A superseded row does not stay one row down.** Negotiate pairs on the newest `updated_at` per
 slot, and a PUT makes the row it touched the newest, so the copy a keep-local rejected comes back

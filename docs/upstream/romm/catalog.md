@@ -150,7 +150,7 @@ enum, filtered by the live `es_systems.cfg` (`platform-mapping`).
 Verified: RomM 5.3.1 source, 2026-09-29. How: read `_check_retired_filesystem_keys` and `check_library_layout` in `config/config_manager.py`.
 `filesystem.roms_folder` or `filesystem.firmware_folder` in `config.yml` exits with the equivalent
 `filesystem.structure` template printed. A library laid out as `{platform}/roms` with no
-`structure.default` exits the same way, since that layout is no longer detected. A
+`structure.default` exits the same way, because only a declared template selects it. A
 `roms/{platform}` library needs nothing:
 
 ```yaml
