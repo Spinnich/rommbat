@@ -147,12 +147,10 @@ says `Approved scopes exceed what's allowed for this user`. The route guard chec
 These cross every area. The rest are in [library.md](library.md#traps) (catalog, downloads,
 media, metadata, firmware) and [saves.md](saves.md#traps) (saves, states, play sessions, a 409).
 
-- **RomM serialises every datetime without a zone and stores UTC, and
+- **RomM serialises a play session's datetimes without a zone and stores UTC, and
   `System.Text.Json` reads a zone-less value as local.** So a plain `DateTimeOffset` property is
   wrong by the machine's own offset, silently, and reads as right on a UTC machine, which is what
-  CI is. Driven against the live instance while adding the play-session read: a session the agent
-  had just fetched came back four hours ahead of the same run's `Date` header, putting a finished
-  session in the future. RB-260. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
+  CI is. The other routes carry `+00:00`. RB-260. **Put `[JsonConverter(typeof(UtcTimestampConverter))]` on any
   `DateTimeOffset` read off the server**, which honours an offset where one is present, so it is
   safe whether or not the field names a zone. `RomRow.UpdatedAtUtc` does the same by hand because
   its raw field is a string. The stub serves every timestamp zone-less for this reason; a stub

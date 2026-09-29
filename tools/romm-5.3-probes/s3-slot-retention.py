@@ -1,16 +1,11 @@
-"""S3: what 5.3.0-alpha.3's per-slot cap does to a device that was away (RM-11, #4540).
+"""S3: what RomM's per-slot cap does to a device that was away (RM-11, rommapp/romm#4540).
 
-Read at tag 5.3.0-alpha.3, `backend/endpoints/saves.py` `add_save` prunes a slot past the
-tighter of `MAX_SAVES_PER_SLOT` (env, default 50) and a client's `autocleanup_limit`, on every
-slotted upload whether the client asked or not. `prune_slot` keeps the newest by `updated_at`
-then `id`. RomMBat sends `autocleanup=true&autocleanup_limit=10` on every save upload, so 10 is
-its own retention and always was; the server cap governs writers that ask for no cleanup, which
-is what `upload()` below deliberately imitates.
-
-`add_save` and `prune_slot` are byte-identical from alpha.3 through 5.3.1, the floor now: the
-only save change in that span projects ids for `GET /api/saves/identifiers`, at beta.1. So the
-run recorded against alpha.3 describes the code 5.3.1 ships, and a re-run would be a
-re-measurement of the same source rather than of a change.
+`backend/endpoints/saves.py` `add_save` prunes a slot past the tighter of `MAX_SAVES_PER_SLOT`
+(env, default 50) and a client's `autocleanup_limit`, on every slotted upload whether the client
+asked or not. `prune_slot` keeps the newest by `updated_at` then `id`. RomMBat sends
+`autocleanup=true&autocleanup_limit=10` on every save upload, so 10 is its own retention; the
+server cap governs writers that ask for no cleanup, which is what `upload()` below deliberately
+imitates.
 
 Two cases against one ROM and a throwaway slot, in the order they run:
 

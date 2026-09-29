@@ -203,14 +203,12 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   sentinel inside the directory is not a substitute**, measured rather than assumed:
   `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
   sentinel, so the staged members are gone regardless.
-- **A server time shown beside a local one has to be read as UTC first.** RomM serialises
-  `updated_at`, `server_updated_at`, `created_at`, `start_time` and `end_time` with no zone while
-  storing UTC, so a plain `DateTimeOffset` is out by the machine's own offset and the conflict
-  block shows the two sides on different clocks. `UtcTimestampConverter` is on every one of them;
-  see the `romm-api` skill and RB-260. **Rows written before that fix carry the shifted value** in
-  `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
-  correct themselves when the slot is next negotiated or the conflict resolved, and they are
-  display-only in the meantime, since ordering compares server rows only against each other.
+- **A server time shown beside a local one has to be read as UTC first.** RomM serialises a
+  play session's times with no zone while storing UTC, so a plain `DateTimeOffset` is out by the
+  machine's own offset. `UtcTimestampConverter` is on every server `DateTimeOffset`, the save and
+  state fields included, since it also honours an offset; see the `romm-api` skill and RB-260.
+  `save_slot.updated_at` and `save_conflict.server_updated_at` are display-only: ordering compares
+  server rows only against each other.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so two of its
   answers have to be overruled here and a third is guarded against.** The repo's own rule is that
   mtime never decides whether a save changed, and this is the server applying that reasoning on
@@ -300,13 +298,10 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
   mid-body leaves the server sure the device has a save it does not, and the next negotiate
   answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
   and verified. Same discipline as M3's `.part`: verify, then commit.
-- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10, and a
-  writer that leaves them alone gained a row per genuine change forever up to 5.3.0-alpha.2,
-  which the `keep_both` conflict default compounds. **This client is not that writer**: every
-  save upload sends `autocleanup=true&autocleanup_limit=10`, so its slots have been bounded at
-  10 since M6. **From alpha.3 the server prunes every slotted upload whatever the client asks**,
-  keeping the newest by `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env,
-  50 by default, `0` disables) and the client's `autocleanup_limit`. So the cap here stays 10,
+- **Decide retention.** Every save upload sends `autocleanup=true&autocleanup_limit=10`.
+  **The server prunes every slotted upload whatever the client asks**, keeping the newest by
+  `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env, 50 by default, `0`
+  disables) and the client's `autocleanup_limit`. So the cap here stays 10,
   and `MAX_SAVES_PER_SLOT` only ever bites on versions written by something that asks for no
   cleanup: a peer, or RomM's browser player. **Measured against such a writer, and safe as long
   as the upload 409 stays a conflict**: a version this device still names in `save_slot` can be

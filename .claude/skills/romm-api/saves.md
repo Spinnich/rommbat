@@ -30,13 +30,11 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   does is suppress the 409 checks **and** the identical-content dedup. RB-160.
 - **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
   `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
-  `--keep-local` not. RB-161. `autocleanup` defaults to **false** and
-  `autocleanup_limit` to 10, so a slot grew unboundedly unless you asked it not to, up to
-  5.3.0-alpha.2. **From alpha.3 the server prunes on each slotted upload whatever the client
-  sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and the
-  client's own `autocleanup_limit`. RomMBat sends `autocleanup=true&autocleanup_limit=10`, so its
-  cap is 10 and the server's bites only on other writers' versions. `slot` is capped at 255
-  characters, a 422 past it. Read in source; RM-11.
+  `--keep-local` not. RB-161. **The server prunes on each slotted
+  upload whatever the client sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50,
+  `0` disables) and the client's `autocleanup_limit` when `autocleanup` is set. RomMBat sends
+  `autocleanup=true&autocleanup_limit=10`, so its cap is 10 and the server's bites only on other
+  writers' versions. `slot` is capped at 255 characters, a 422 past it. RM-11.
 - **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
   a client cannot dodge the 409 path by sending an id the server does not know. Omitting it is
   accepted, and writes a save attributed to no device. RB-162.

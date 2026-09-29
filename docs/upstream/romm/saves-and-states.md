@@ -251,7 +251,7 @@ this device's oldest state rows on the server. The local files survive and are n
 
 ## RM-11. A slot keeps at most 50 versions, pruned on every slotted upload, and a slot name is at most 255 characters
 
-Verified: RomM 5.3.0-alpha.3, 2026-09-17, and 5.3.1 source, 2026-09-29. How: ran `s3-slot-retention.py` twice; on 5.3.1 read `add_save`, `_slot_retention` and `prune_slot`.
+Verified: RomM 5.3.1, 2026-09-29. How: ran `s3-slot-retention.py`; read `add_save`, `_slot_retention` and `prune_slot`.
 `add_save` keeps the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables it) and the
 client's `autocleanup_limit` when it sets `autocleanup`, first clamped to 1 to
 `MAX_AUTOCLEANUP_LIMIT` (env, default 100). It prunes past that on every slotted upload, keeping
