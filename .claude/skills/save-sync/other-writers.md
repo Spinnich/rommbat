@@ -193,35 +193,30 @@ so exclude it or rewrite it on restore.
 
 ## Other writers on the same slots
 
-RomM 5.3.0 adds two writers to the saves this protocol was measured against, and a third route
-that looks like save transport and is not. RM-3 and RM-4
+RomM has two writers on the slots this protocol negotiates, the browser player and streaming, and a
+third route that looks like save transport and is not. RM-3 and RM-4
 hold the evidence; these are the rules.
 
 **`PUT /api/saves/{id}` rewrites a row in place, and a save id does not name its bytes.** It keeps
 the id, the tagged `file_name` and the slot, changes `content_hash`, moves `updated_at`, and runs
-no 409 check, no dedup and no device check. At 5.3.0-alpha.2 RomM's browser player sent it for
-whichever save it loaded, at Save & Quit and, under 5.3.0's `emulatorjs.auto_save_sync`, **on every
-save tick**. **At alpha.3 it no longer touches the save it loaded** (read, not measured; RM-11):
-a session's first write `POST`s a new version with `overwrite=true`
-into the loaded save's slot, or the newest slotted save's, which for a game this client syncs is
-this client's slot, and later writes `PUT` only that new row. To this client that is a newer row in
-its own slot, so `download` or `conflict`, and the table below is the alpha.2 writer.
-**Still true at the `5.3.1` floor**, re-read at `beta.1` because the writer was rewritten around
-it (RM-12), and untouched from `beta.1` through `5.3.1` (RM-13 and RM-14): `preferredSlot` is byte-identical and still prefers the newest slotted save over
-`autosave`, so the release notes' "ordinary play goes to the `autosave` slot" describes a game
-with no slotted save and not one this client syncs. What is new is a screenshot on every save
-version, which is inert here because only states carry one on this side. So
-compare the hash wherever the question is "is this the save I had", which `save_conflict` already
-does and must keep doing. Measured on 5.3.0-alpha.2 with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
-which replays the browser's own calls:
+no 409 check, no dedup and no device check. RomM's browser player leaves the save it loaded
+alone: a session's first write `POST`s a new version with `overwrite=true` into the loaded save's
+slot, or the newest slotted save's, which for a game this client syncs is this client's slot, and
+later writes `PUT` only that new row (read, not measured; RM-4). To this client that is a newer row
+in its own slot, so `download` or `conflict`. The release notes' "ordinary play goes to the
+`autosave` slot" describes a game with no slotted save. A screenshot rides on every save version,
+which is inert here because only states carry one on this side. So compare the hash wherever the
+question is "is this the save I had", which `save_conflict` already does and must keep doing. The
+`PUT` itself is measured with `tools/romm-5.3-probes/s1-browser-save-writer.py`,
+which replays an in-place `PUT` and a slotless `POST`:
 
-| Case                                                                          | Negotiate answers                                        |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------- |
-| A. browser writes over this device's row, local unchanged                     | `download`, same save id, new hash                       |
-| B. the same, local also changed                                               | `conflict`; an ordinary upload is 409                    |
-| C. after keep-local, browser writes into the older row, this device synced it | `conflict` against the **older** row                     |
-| E. the same, but the older row came from a peer this device never synced      | **`download`**, "Server save is newer (no sync history)" |
-| D. no save loaded                                                             | one null-slot row, updated in place, never offered       |
+| Case                                                                     | Negotiate answers                                        |
+| ------------------------------------------------------------------------ | -------------------------------------------------------- |
+| A. a PUT over this device's row, local unchanged                         | `download`, same save id, new hash                       |
+| B. the same, local also changed                                          | `conflict`; an ordinary upload is 409                    |
+| C. after keep-local, a PUT into the older row, this device synced it     | `conflict` against the **older** row                     |
+| E. the same, but the older row came from a peer this device never synced | **`download`**, "Server save is newer (no sync history)" |
+| D. a slotless POST, as a web-UI upload makes, then PUTs                  | one null-slot row, updated in place, never offered       |
 
 **A superseded row does not stay one row down.** Negotiate pairs on the newest `updated_at` per
 slot, and a PUT makes the row it touched the newest, so the copy a keep-local rejected comes back
@@ -232,7 +227,7 @@ so a lower id at the head of a slot is an in-place write or a deleted head row. 
 measured to reach a download, and the refusal covers both without telling them apart. Case A, the
 same id, is an ordinary download.
 
-**Streaming V2 writes saves no slot can see.** Read at tag 5.3.0-alpha.2, not measured, because
+**Streaming V2 writes saves no slot can see.** Read in source (RM-4), not measured, because
 the server measured has streaming off. A session's saves land as a **null-slot** row named
 `<rom stem> [<emulator> <timestamp>].saves.zip`, one per pull, deduplicated by hash against every
 save for the ROM. Negotiate never offers one (#138). `saves restore` would list one as restorable
@@ -249,7 +244,7 @@ oldest server copies. The local file survives and is never re-sent, because "in 
 from the hash this device recorded. `libretro.<core>` does not collide with streaming's `retroarch`.
 
 **The browser writes states as new rows, and only a same-named manual upload rewrites one this
-client holds** (#190, read at 5.3.0-alpha.2, RM-4). The player posts
+client holds** (#190, read in source, RM-4). The player posts
 `<rom> [<timestamp>].state` under the EJS core, and `auto_save_sync` does not touch states. The
 console view posts `state.save` under `emulatorjs` every time, so the upsert rewrites one row per
 ROM, but that name can never equal this client's `<stem> [<emulator>[.<core>]]<ext>`, and restore

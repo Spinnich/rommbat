@@ -73,9 +73,9 @@ The 5.3.0-alpha.2 to 5.3.0-alpha.3 move **removes one operation**, the streaming
 `POST /api/streaming/sessions/{platform}/state-frame`, with its `StateFrameResponse`, and adds
 none. `SGDBResource` is renamed `CoverResource`, and `MissingRomsCleanupStats.platform_id`
 becomes a `platform_ids` list. No hand-written code names any of the three. On a route this
-client calls, the only change is `slot` on `POST /api/saves` gaining `maxLength: 255`; the
+client calls, the only change is `slot` on `POST /api/saves` gaining `maxLength: 255` (RM-11); the
 `GET /api/roms` parameters are the same set in a different order, and the collection ids on
-`GET /api/roms/download` gain `minimum: 1`. RM-11.
+`GET /api/roms/download` gain `minimum: 1`.
 
 The 5.3.0-alpha.3 to 5.3.0-beta.1 move is the smallest of the four: **the same 246 operations
 and 272 schemas, none added, removed or renamed.** Three things change, and the generated diff
@@ -92,18 +92,15 @@ is four lines.
   drop from `minimum: 1` to `minimum: 0`, because an empty ROM file is accepted now. RomMBat
   does not upload ROMs.
 
-RM-12.
-
 The 5.3.0-beta.1 to 5.3.0 move is **the first with no generated diff at all.** The capture is
 byte-identical to the `beta.1` pin apart from `info.version`, and `generate.sh` reproduces the
-committed DTOs exactly. RM-13.
+committed DTOs exactly.
 
 The 5.3.0 to 5.3.1 move **generates no diff either**, though the capture does change: every
 `/api/music/*` page caps `limit` at 1,000 where it took 10,000, and
 `POST /api/streaming/sessions/{platform}/heartbeat` gains an optional `container` query
 parameter. Neither reaches a DTO, since both are operation parameters and NSwag generates
 types here, not a client, and RomMBat calls neither route. The 272 schemas are identical.
-RM-14.
 
 ## Why the generated file disables four doc-comment warnings
 

@@ -16,7 +16,7 @@ RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 
 **Step 2, the one step this record holds, carries.** `GET /api/roms` takes the same parameters,
 `roms/files.py` changed only in typing, and nothing under `src/` that places a multi-disc set
-moved (RM-14). The `Metal Gear Solid` set answered `nothing to
+moved. The `Metal Gear Solid` set answered `nothing to
 do: 2 games already present, 0 downloaded, 0 written` on a deploy of the adoption branch, with
 `status` reading `5.3.1` as Supported. Steps 1 and 3 to 9 stay owed, now at `5.3.1`.
 

@@ -28,7 +28,7 @@ RetroBat topics: [hooks](retrobat/hooks.md), [EmulationStation](retrobat/emulati
 RomM topics: [auth and pairing](romm/auth-and-pairing.md), [connectivity](romm/connectivity.md),
 [catalog](romm/catalog.md), [downloads](romm/downloads.md),
 [media and metadata](romm/media-and-metadata.md), [saves and states](romm/saves-and-states.md),
-[timestamps](romm/timestamps.md), [release deltas](romm/releases.md).
+[timestamps](romm/timestamps.md).
 
 ## A fact
 

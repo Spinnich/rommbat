@@ -213,13 +213,17 @@ class C units, and bridging a whole-card version would put two writers on one co
 
 ## RM-4. RomM's browser player and streaming write the same slots RomMBat negotiates on
 
-Verified: RomM 5.3.1, 2026-09-29. How: ran `s1-browser-save-writer.py`, which replays an in-place `PUT` and a slotless `POST` with no `device_id`; read `saveSave` and the streaming handlers.
+Verified: RomM 5.3.1, 2026-09-29. How: ran `s1-browser-save-writer.py`, which replays an in-place `PUT` and a slotless `POST` with no `device_id`; read `saveSave`, `Player.vue`, `v2/utils/saveSlots.ts` and the streaming handlers.
 `PUT /api/saves/{id}` rewrites a row in place: the id, tagged name and slot stay, `content_hash`
 and `updated_at` move, and there is no 409 check, dedup or device check. The browser player's
 first write in a session `POST`s a new version with `overwrite=true` into the newest slotted
 save's slot, or `autosave` when there is none, which for a game RomMBat syncs is RomMBat's slot.
-Later writes in that session `PUT` that row. That first `POST` is read in source, not measured;
-to negotiate it is a newer row in the slot with no device. What negotiate answers to a `PUT`:
+A loaded save's slot wins over that choice (`loadedSave?.slot || props.saveSlot`). Later writes in
+that session `PUT` that row, named `<fs_name_no_ext>.srm` under the EmulatorJS core. The release
+notes say ordinary play goes to `autosave`, which holds only for a game with no slotted save. That
+first `POST` is read in source, not measured; to negotiate it is a newer row in the slot with no
+device, so `download` if the local file is unchanged and `conflict` if not. For a bundled slot the
+row is a raw `.srm` where RomMBat expects an archive. What negotiate answers to a `PUT`:
 
 | Case                                                                           | Negotiate answers                                                         |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
@@ -244,3 +248,25 @@ matches any save the ROM holds. It prunes states past `STREAMING_STATE_HISTORY_L
 RomMBat's `pcsx2`, `dolphin` and `xemu` states share those names, so a heavily streamed game loses
 this device's oldest state rows on the server. The local files survive and are not re-sent.
 `libretro.<core>` does not collide with streaming's `retroarch`.
+
+## RM-11. A slot keeps at most 50 versions, pruned on every slotted upload, and a slot name is at most 255 characters
+
+Verified: RomM 5.3.0-alpha.3, 2026-09-17, and 5.3.1 source, 2026-09-29. How: ran `s3-slot-retention.py` twice; on 5.3.1 read `add_save`, `_slot_retention` and `prune_slot`.
+`add_save` keeps the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables it) and the
+client's `autocleanup_limit` when it sets `autocleanup`, first clamped to 1 to
+`MAX_AUTOCLEANUP_LIMIT` (env, default 100). It prunes past that on every slotted upload, keeping
+the newest by `updated_at` then `id`, and deletes the rest with their files. `slot` longer than
+255 characters is a 422. RomMBat sends `autocleanup=true&autocleanup_limit=10`
+(`AutoCleanupLimit`), so the server cap bounds only other writers. After a peer with no device put
+51 versions into a slot this device had synced:
+
+| After 51 peer versions                  | Answer                                                             |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| Rows in the slot                        | 50, and the device's own version is one of those deleted           |
+| Negotiate, the device's copy unchanged  | `download` of the newest, "Server save is newer (no sync history)" |
+| Negotiate, the device's copy edited     | `upload`, "Client save is newer (no sync history)"                 |
+| The ordinary upload that answer invites | **409**, "Slot has a newer save since your last sync"              |
+
+`SaveSync` records a negotiated `upload` that comes back 409 as a conflict, so an edited copy is
+settled rather than overwritten. A `PUT` onto the oldest surviving version kept it through the
+next prune, and the next oldest went instead.
