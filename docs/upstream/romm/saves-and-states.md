@@ -139,7 +139,9 @@ both parts. `P3C Link [libretro.x].state3.png` linked; `P3C Link.state4 [libretr
 and slot 5, with no image, answered with slot 0's `P3C Zero0 [libretro.x].state.png`. RomMBat
 uploads the image as the state's upload name plus the image's own extension, which matches for
 every emulator in `es_savestates.cfg`, and restores or counts as kept only an image named after
-its own state.
+its own state or the earlier name of its own image. A restore reads the slot out of the uploaded
+name through the declared template rather than from the extension, because eight emulators write
+the slot into the stem (`Game.QuickSave2.State`, `Game_0.jst`, `Game.01.p2s`).
 
 ## RB-259. Negotiate settles on the hash first, then on mtimes against the device's last sync
 
@@ -211,12 +213,13 @@ class C units, and bridging a whole-card version would put two writers on one co
 
 ## RM-4. RomM's browser player and streaming write the same slots RomMBat negotiates on
 
-Verified: RomM 5.3.1, 2026-09-29. How: ran `s1-browser-save-writer.py`, which replays the browser's calls with no `device_id`; read the player and streaming handlers.
+Verified: RomM 5.3.1, 2026-09-29. How: ran `s1-browser-save-writer.py`, which replays an in-place `PUT` and a slotless `POST` with no `device_id`; read `saveSave` and the streaming handlers.
 `PUT /api/saves/{id}` rewrites a row in place: the id, tagged name and slot stay, `content_hash`
 and `updated_at` move, and there is no 409 check, dedup or device check. The browser player's
 first write in a session `POST`s a new version with `overwrite=true` into the newest slotted
 save's slot, or `autosave` when there is none, which for a game RomMBat syncs is RomMBat's slot.
-Later writes in that session `PUT` that row. What negotiate then answers:
+Later writes in that session `PUT` that row. That first `POST` is read in source, not measured;
+to negotiate it is a newer row in the slot with no device. What negotiate answers to a `PUT`:
 
 | Case                                                                           | Negotiate answers                                                         |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
@@ -224,7 +227,7 @@ Later writes in that session `PUT` that row. What negotiate then answers:
 | B. the same, and local also changed                                            | `conflict`, "Both sides changed since last sync"; an ordinary upload 409s |
 | C. after keep-local appends a row, a PUT into the older row this device synced | `conflict` against the older row, now the head                            |
 | E. as C, but the older row was a peer's this device never synced               | `download`, "Server save is newer (no sync history)"                      |
-| D. a slotless `POST`, then two PUTs                                            | one slotless row, same id throughout, never offered                       |
+| D. a slotless `POST`, as a web-UI upload makes, then two PUTs                  | one slotless row, same id throughout, never offered                       |
 
 Case E would put the copy a person rejected back over the one they kept. So RomMBat records a
 download naming a lower save id than the slot's recorded one as a conflict, since ids only grow.
