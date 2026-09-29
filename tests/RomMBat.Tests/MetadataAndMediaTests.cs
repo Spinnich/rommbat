@@ -218,8 +218,8 @@ public sealed class MetadataAndMediaTests
     public async Task A_media_response_that_is_a_web_page_is_refused_rather_than_written()
     {
         // The measured trap: a media path requested without the asset prefix answers 200,
-        // with an ETag and Accept-Ranges, and 5,826 bytes of the web UI's index.html. Status
-        // alone would write that to disk as a PDF.
+        // with an ETag and Accept-Ranges, and the web UI's index.html (RB-90). Status alone
+        // would write that to disk as a PDF.
         using var stub = new StubHandler(request =>
         {
             var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -406,7 +406,7 @@ public sealed class MetadataAndMediaTests
             [MediaKind.Image, MediaKind.Thumbnail, MediaKind.Marquee, MediaKind.Video],
             MediaPolicy.Parse(null));
 
-        // Manuals are the largest kind at a 2.45 MB median and nothing in M4 needs them.
+        // Manuals are as large as a video (RB-92) and nothing needs them.
         Assert.DoesNotContain(MediaKind.Manual, MediaPolicy.Parse(null));
     }
 

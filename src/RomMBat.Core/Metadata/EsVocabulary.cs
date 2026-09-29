@@ -88,8 +88,8 @@ public static class EsVocabulary
     /// The single region a gamelist entry carries.
     /// </summary>
     /// <remarks>
-    /// <c>&lt;region&gt;</c> is single-valued in a real install while 246 of 5,000 sampled ROMs
-    /// carry more than one, so the first that maps wins and the rest are dropped.
+    /// <c>&lt;region&gt;</c> is single-valued while about one ROM in six carries more than one
+    /// region (RB-100), so the first that maps wins and the rest are dropped.
     /// </remarks>
     public static string? Region(IEnumerable<string>? regions)
     {

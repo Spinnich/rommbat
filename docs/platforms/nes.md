@@ -555,7 +555,7 @@ warns a budget has to be sized for. This wave ran with the budget off, so nothin
 
 **Those coverage figures are a dated observation about this RomM library, not a platform result
 and not a RomMBat capability.** They say when this platform was last scraped and with what
-settings. Video at 94.7% here is well above the 72.1% RB-92 measured library-wide, and the
+settings. Video at 94.7% here is well above the 19.1% RB-92 measures library-wide, and the
 administrator is actively removing videos, so this number is expected to fall. An absent kind is
 the ordinary `Missing` case.
 

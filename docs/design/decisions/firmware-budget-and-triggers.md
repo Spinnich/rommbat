@@ -7,7 +7,7 @@ read-when: Changing how BIOS is budgeted, evicted, or triggered by sync and the 
 
 **Budget and eviction.** Firmware counts against `content.max_bytes`, so `status` and
 `budget` tell the truth about what RomMBat put on the disk, and is **never evicted**. Every
-file the measured library can serve totals **18.5 MiB**, against roughly 550 MB of media for
+file the measured library can serve totals **18.5 MiB**, against roughly 570 MB of media for
 a single 100-game set, so evicting firmware would free nothing measurable while leaving a
 platform unable to boot.
 

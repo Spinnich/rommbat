@@ -181,9 +181,9 @@ public sealed record RomRow
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; init; }
 
-    /// <summary>The description a gamelist calls <c>desc</c>. Present on 81.9% of a real library.</summary>
+    /// <summary>The description a gamelist calls <c>desc</c>. Present on 88.7% of a real library (RB-92).</summary>
     /// <remarks>
-    /// The longest in a 5,000-row sample is 11,719 characters, which is why nothing holds more
+    /// One in a real library runs to 11,719 characters, which is why nothing holds more
     /// than one page of these at a time and only selected members keep theirs.
     /// </remarks>
     [JsonPropertyName("summary")]
@@ -212,7 +212,7 @@ public sealed record RomRow
     /// <remarks>
     /// <c>logo_path</c> is EmulationStation's marquee. ScreenScraper's own <c>marquee_path</c>
     /// is an arcade cabinet marquee and is a different picture; RomM's exporter maps the same
-    /// way. Provider-scoped, so it is absent for about a fifth of a real library.
+    /// way. Provider-scoped, so it is absent for about an eighth of a real library (RB-92b).
     /// </remarks>
     [JsonPropertyName("ss_metadata")]
     public RomScreenScraperMetadata? ScreenScraper { get; init; }
@@ -221,7 +221,7 @@ public sealed record RomRow
     [JsonPropertyName("regions")]
     public IReadOnlyList<string> Regions { get; init; } = [];
 
-    /// <summary>Languages, in RomM's vocabulary (<c>English</c>). Present on only 18.3%.</summary>
+    /// <summary>Languages, in RomM's vocabulary (<c>English</c>). Present on about one row in seven.</summary>
     [JsonPropertyName("languages")]
     public IReadOnlyList<string> Languages { get; init; } = [];
 
@@ -286,20 +286,19 @@ public sealed record RomMetadata
     /// Every company involved, in one sorted list.
     /// </summary>
     /// <remarks>
-    /// Sorted on 4,197 of 4,197 rows that carry one, so indexing it reads the alphabet rather
-    /// than a role. Chrono Trigger arrives as <c>["Squaresoft", "Squaresoft"]</c>.
+    /// Sorted on every row that carries one, so indexing it reads the alphabet rather than a
+    /// role (RB-98). Chrono Trigger arrives as <c>["Squaresoft", "Squaresoft"]</c>.
     /// </remarks>
     [JsonPropertyName("companies")]
     public IReadOnlyList<string> Companies { get; init; } = [];
 
-    /// <summary>Companies credited as developer, split out of <see cref="Companies"/> at 5.3.0.</summary>
+    /// <summary>Companies credited as developer, split out of <see cref="Companies"/>.</summary>
     /// <remarks>
-    /// Empty on a row whose metadata predates the split, because the server populates it on
-    /// scan rather than backfilling it, so one library carries both shapes at once: measured
-    /// across a whole live 5.3.0-alpha.2 library, 18.9% of 95,993 rows, on 53 platforms of 125.
-    /// Where it is present it usually holds one name, and 3.0% of split rows carry more than one
-    /// developer or publisher. It disagrees with <see cref="Companies"/>[0] on 21.5% of split
-    /// rows, from 0 to 83% by platform, which is what indexing the sorted array costs.
+    /// Empty on a row not scanned since 5.3.0, because the server populates it on scan rather
+    /// than backfilling it, so one library carries both shapes at once: a real one has it on
+    /// about half its rows (RB-98). Where it is present it usually holds one name. It disagrees
+    /// with <see cref="Companies"/>[0] on about a quarter of those rows, which is what indexing
+    /// the sorted array costs.
     /// </remarks>
     [JsonPropertyName("developers")]
     public IReadOnlyList<string> Developers { get; init; } = [];

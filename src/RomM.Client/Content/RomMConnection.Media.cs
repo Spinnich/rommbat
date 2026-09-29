@@ -13,7 +13,7 @@ public sealed partial class RomMConnection
     /// The check exists because the failure it catches does not look like one. A media path
     /// requested without the asset prefix answers <b>200</b>, with an <c>ETag</c> and
     /// <c>Accept-Ranges</c>, and a body of the web UI's <c>index.html</c>. Status alone would
-    /// write 5,826 bytes of HTML to disk and call it a manual.
+    /// write the page's HTML to disk and call it a manual (RB-90).
     /// </remarks>
     private static readonly string[] RejectedContentTypes = ["text/html", "application/xhtml+xml"];
 
@@ -26,8 +26,8 @@ public sealed partial class RomMConnection
     /// on the download client, so it has no overall deadline and the same stall watchdog a
     /// ROM download has.
     /// <para>
-    /// Media is small enough that a partial one is not worth resuming: the largest kind is a
-    /// manual at a 2.45 MB median. A failed transfer starts again.
+    /// Media is small enough that a partial one is not worth resuming: the largest kinds, video
+    /// and manual, have medians near 2.3 MB (RB-92). A failed transfer starts again.
     /// </para>
     /// </remarks>
     /// <param name="resource">Which file, in either of the two path shapes RomM emits.</param>

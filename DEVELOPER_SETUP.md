@@ -665,8 +665,8 @@ replaced, not appended, which is the opposite of the `es_settings.cfg` key, wher
 is mandatory and omitting it fails silently.
 
 **Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
-opt-in.** At the sizes measured on a real library that is about 3.1 MB per game against
-5.5 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes
+opt-in.** At the sizes measured on a real library that is about 3.4 MB per game against
+5.7 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes
 a comma-separated list, `all`, or `none`.
 
 After writing, the agent asks EmulationStation to reload over

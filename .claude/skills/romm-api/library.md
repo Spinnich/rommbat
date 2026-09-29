@@ -186,15 +186,15 @@ columns for that reason.
   come in two shapes.** `path_cover_small` and `path_cover_large` are already rooted at that
   prefix and carry a `?ts=` query with a **raw space**; `path_manual`, `path_video` and
   `ss_metadata.logo_path` are relative to it. **The relative form requested as given
-  answers 200 with the web UI's `index.html`**, 5,826 bytes, with an `ETag` and
+  answers 200 with the web UI's `index.html`** (RB-90), with an `ETag` and
   `Accept-Ranges`, so a status check will not catch it and the content type must be. Normalise
   onto the prefix exactly once and drop the query. nginx serves them: ranges work, 416 past
   the end, and **no token is required at all**. EmulationStation's marquee is
   `ss_metadata.logo_path`, never the similarly named `marquee_path`, which is an arcade
   cabinet marquee.
-- **Never use `url_cover` or `url_manual`.** They are `neoclone.screenscraper.fr` API URLs
-  carrying a third party's `devid` and `devpassword` in the query string. Off-LAN, and not
-  yours to send.
+- **Never use `url_cover` or `url_manual`.** They are third-party URLs, almost all
+  `neoclone.screenscraper.fr` API calls carrying someone else's `devid` and `devpassword`
+  (RB-88). Off-LAN, and not yours to send.
 - **A smart collection's `rom_count` and `rom_ids` are its owner's view, not what the caller
   pages** (#193). Both are stored and recomputed by `refresh_smart_collection` with the owner's
   user id, which its docstring states on purpose. `smart_collection_id` applies the criteria
@@ -241,8 +241,9 @@ columns for that reason.
 - **`metadatum` units and scales agree with nothing.** `first_release_date` is **milliseconds**
   (read as seconds, every value lands in year 0); `average_rating` is **0-100**;
   `player_count` is a **string** already in EmulationStation's `1-2` form; `companies` is one
-  flat array merging developer and publisher, **alphabetically sorted on 4,197 of 4,197**
-  rows, so the roles cannot be recovered from it or from any provider block.
+  flat array merging developer and publisher, **alphabetically sorted on every row**, so the
+  roles cannot be recovered from it, and `developers` and `publishers` are there only on a row
+  scanned since 5.3.0 (RB-98).
 - **A rom id survives the file behind it moving or being renamed, from 5.3.0.** The unique key
   is `(platform_id, sha256(fs_path + "/" + fs_name))`, so a rename or a move looks like a brand
   new file and the old row goes `missing_from_fs`. What saves it is a scan-time rescue rather

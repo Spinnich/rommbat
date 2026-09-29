@@ -22,14 +22,13 @@ public readonly record struct MediaPreference(IReadOnlyList<MediaKind> Kinds, bo
 /// </summary>
 /// <remarks>
 /// A setting rather than a constant because the sizes differ by more than an order of
-/// magnitude, and the right answer depends on the drive. At the measured medians a game costs
-/// 104 KB of thumbnail, 445 KB of marquee, 525 KB of cover, 1.99 MB of video and 2.45 MB of
-/// manual.
+/// magnitude, and the right answer depends on the drive. At the medians RB-92 measures a game
+/// costs 144 KB of thumbnail, 95 KB of marquee, 806 KB of cover, 2.32 MB of video and 2.30 MB
+/// of manual.
 /// <para>
-/// <b>The default is covers, thumbnail, marquee and video</b>, about 3.1 MB per game, which is
-/// what this milestone is done-when: box art, descriptions and videos. Manuals are left out
-/// because nothing needs them and they are the single largest kind, and because only 46.1% of a
-/// real library has one at all.
+/// <b>The default is covers, thumbnail, marquee and video</b>, about 3.4 MB per game: box art,
+/// descriptions and videos. Manuals are left out because nothing needs them, they are as large
+/// as a video, and fewer than half the rows in a real library have one.
 /// </para>
 /// <para>
 /// <b>An install decides video and manuals for itself.</b>

@@ -56,7 +56,7 @@ public sealed record BrowseGame(
     /// <b>Trimmed rather than shortened.</b> A psx name runs past a hundred characters, and the
     /// part that goes is the tail: a translation credit rather than the region and revision,
     /// which sit early. Taken over <c>regions</c> and <c>languages</c>, which are sparse and
-    /// carry no revision, translation or dump flag: languages are on 18.3% of a real library.
+    /// carry no revision, translation or dump flag: languages are on about one row in seven (RB-100).
     /// </para>
     /// </remarks>
     public string Release => Row?.FsName ?? FsName;
@@ -91,7 +91,7 @@ public sealed record BrowsePage(
 /// <remarks>
 /// <b>One page in memory, ever.</b> M2's rule is that the catalog is never mirrored wholesale
 /// and <c>RomRow</c> and <c>RomPager</c> both say the same thing again: a 96k library is about
-/// 384 pages and the longest description in a 5,000-row sample is 11,719 characters. Nothing here
+/// 384 pages and one description in a real library runs to 11,719 characters. Nothing here
 /// accumulates, and a test asserts the row count never exceeds the page size across several
 /// pages.
 /// <para>
