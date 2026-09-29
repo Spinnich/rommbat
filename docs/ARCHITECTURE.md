@@ -107,7 +107,7 @@ the one with all the interesting invariants.
 | RetroBat writers | `gamelist.xml` and `es_settings.cfg`, both merge-not-clobber and atomic. The second also refuses to run while ES is up, because ES discards writes made underneath it                                                                        |
 | Mapping          | Platform resolution chain, save-directory map, save-shape classification                                                                                                                                                                     |
 | Sync             | Set resolution, disk budget and eviction, negotiation state machine, outbox flush                                                                                                                                                            |
-| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
+| Orchestration    | `Sets/`: the console-free services that compose the above. `SyncSetService`, `SetResolveService`, `LibrarySyncService`, `GameSync`, `EvictionService`, `RemovalService`, `RoamingConfigService`. `Sync/SaveFlushService` is the same shape for the saves flush |
 
 ### `src/RomMBat.Agent`
 
@@ -122,6 +122,7 @@ task.
 | `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`                               |
 | `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
 | `menu`       | **never**     | `status`, `install`, `uninstall` RomMBat's entry in the EmulationStation menu                          |
+| `uninstall`  | **never**     | Take hooks, menu entry and conversions back out; `--content`, `--bios` add synced files. `--apply`     |
 | `saves`      | only if asked | What is on disk, what went up, what cannot and why, and what is waiting on a decision                  |
 | `game-start` | **never**     | Append a start record and exit                                                                         |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                              |
