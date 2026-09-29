@@ -1124,8 +1124,8 @@ public class SaveDiscoveryTests
     [Fact]
     public void A_restore_for_a_slot_this_device_never_held_is_named_from_the_rom_not_from_file_name_no_tags()
     {
-        // RB-152. The server does not undo its own timestamp tag, it runs a general
-        // tag stripper: a real save came back as
+        // RB-247. The server does not undo its own timestamp tag, it strips every trailing
+        // tag group: a real save came back as
         // "Phantasy Star (Brazil) [2026-08-17_17-01-00].srm" with file_name_no_tags of
         // "Phantasy Star", because (Brazil) is part of the ROM's name. Writing that produces a
         // file libretro cannot see, so this fails on the old code, which used the untagged name.

@@ -84,8 +84,8 @@ internal sealed partial class StubRomMServer
     /// </summary>
     /// <remarks>
     /// No live instance has been seen answering <c>conflict</c> for an unsubmitted slot, but
-    /// nothing rules it out either: RB-151 withdrew 132 and showed negotiate does
-    /// volunteer slots the client never named, so the unsubmitted half of this is real and only
+    /// nothing rules it out either: negotiate volunteers slots the client never named
+    /// (RB-151), so the unsubmitted half of this is real and only
     /// the action is unobserved. Modelled because the client's answer to it was a
     /// <c>save_conflict.local_path</c> insert with an empty path, which fails the column's CHECK
     /// and takes the whole flush down rather than the one operation.

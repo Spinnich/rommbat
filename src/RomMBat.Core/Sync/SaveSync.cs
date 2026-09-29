@@ -1243,18 +1243,11 @@ public sealed class SaveSync
     /// <para>
     /// <b>An <c>upload</c> of bytes the server already holds is not an upload.</b> Nestopia
     /// rewrites its <c>.srm</c> with identical bytes on every launch, which moves the mtime and
-    /// nothing else, and on 5.3.0-alpha.3 negotiate asked for that save anyway: the server
-    /// deduplicated it into the same row without moving its <c>updated_at</c>, so the next flush
-    /// asked again, forever. Measured on the <c>nes</c> install as <c>saves: 1 up</c> on three
-    /// consecutive flushes for save 336, RB-259.
-    /// </para>
-    /// <para>
-    /// <b>That half does not reproduce at 5.3.0-beta.1 or 5.3.0 and the guard is kept as
-    /// defence, not as a live fix.</b> Asked directly, case M4 of
-    /// <c>tools/romm-5.3-probes/s4-older-mtime.py</c> answers <c>no_op (Content is
-    /// identical)</c>, so the server compares the hash there and the repeat never starts. It
-    /// costs one comparison against a value the operation already carries, and the alternative
-    /// is rediscovering the loop if a later version stops making that comparison.
+    /// nothing else. Negotiate compares the hash first and answers <c>no_op</c> for that (case M4
+    /// of <c>tools/romm-5.3-probes/s4-older-mtime.py</c>, RB-259), so this is defence rather
+    /// than a live fix. A server that asked for the upload would dedup it into the same row
+    /// without moving its <c>updated_at</c> and ask again on every flush, silently, and the guard
+    /// costs one comparison against a value the operation already carries.
     /// </para>
     /// </remarks>
     private static SyncAction Decide(SyncOperation operation, LocalSave? local)

@@ -14,11 +14,10 @@ Six cases against one ROM and throwaway slots:
   M5  a peer device's newer upload repeats this device's bytes, then this device edits
   M6  the same with this device's row deleted first
 
-M4 is the other direction, added when RB-259's reading of it stopped reproducing: an
-emulator that rewrites a save with the same bytes moves the mtime and nothing else, and the
-finding recorded negotiate answering `upload` for that on 5.3.0-alpha.3, which cost one
-pointless upload per flush forever. It is here so the answer is the server's own rather than
-inferred from what a flush did.
+M4 is the other direction: an emulator that rewrites a save with the same bytes moves the
+mtime and nothing else, and a server that answered `upload` for that would cost one pointless
+upload per flush forever. It is here so the answer is the server's own rather than inferred
+from what a flush did (RB-259).
 
 Writes to the instance. Everything it creates is deleted before it exits.
 

@@ -13,7 +13,7 @@ link column: `State.screenshot` finds an image whose name, or name less extensio
 state's name or the state's name less extension, where "extension" is RomM's
 `\.(([a-z]+\.)*\w+)$`. Scoping the image's own name put the group after `.state1` and never
 matched for the five emulators whose `<image>` is `<file>.png`, while the seven whose `<image>`
-replaces the extension happened to match; that mix was RB-138's "a third".
+replaces the extension happened to match, so a pass mixing the two linked about a third.
 `<upload name><image extension>` matches for every declared emulator (ppsspp's image is `.jpg`).
 
 **A match is not unique, so check the name that comes back.** RomM's pattern strips a run of

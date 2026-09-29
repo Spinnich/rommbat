@@ -218,7 +218,7 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   cases, and is the instrument to re-run rather than reasoning from a flush (#206, RB-259).
   At `beta.1`, `5.3.0` and the `5.3.1` floor alike: M1 `no_op (No changes since last sync)`, M2
   `upload`, M3 `download (Server save is newer (no sync history))`, M4 `no_op (Content is
-  identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are the peer-row
+identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are the peer-row
   cases under "Hash contents, not the archive".
   - **A `no_op` for a slot whose `content_hash` differs from `uploaded_content_hash` is
     uploaded, unless the offered `server_content_hash` equals the local `content_hash`.** That
@@ -233,12 +233,11 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
     safe rather than merely better than silence: identical content into one slot reuses the row,
     and a stale device record still answers 409, which lands as a conflict.
   - **An `upload` of bytes the server already holds is a no-op without a round trip, and this
-    one is defence rather than a live fix.** RB-259 measured `1 up` on three consecutive
-    flushes for save 336 on 5.3.0-alpha.3, an emulator rewriting a save with identical bytes
-    moving the mtime and nothing else. **It does not reproduce at the floor**: M4 answers `no_op
-(Content is identical)`, so the hash settles it server-side. Kept because it costs one
-    comparison against a value the operation already carries, and because the failure it
-    prevents is a silent upload on every flush forever.
+    one is defence rather than a live fix.** An emulator rewriting a save with identical bytes
+    moves the mtime and nothing else, and M4 answers that `no_op (Content is identical)`, so the
+    hash settles it server-side (RB-259). Kept because it costs one comparison against a value
+    the operation already carries, and because the failure it prevents is a silent upload on
+    every flush forever.
   - **That guard must not ask who uploaded the row.** `AlreadyHeld` requires the slot to name
     this device, which is right for a download and wrong for an upload: whether the server holds
     these bytes has nothing to do with who put them there. `AlreadySent` is the upload-direction
@@ -266,9 +265,9 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   strongest reason to pull. The target for such a slot comes from the ROM's own folder and stem,
   with only the extension read off the operation's tagged filename. **That target is usually a
   file another slot already keeps**, the loose class A save, and writing it was a silent overwrite
-  that the next scan then uploaded into the other slot (#205, RB-259: RomM 5.3.0-alpha.3's
-  browser files a fresh session under `autosave`, which lands on the `.srm` this device keeps as
-  `libretro:battery`). So a download for a slot this device holds no row for, whose destination
+  that the next scan then uploaded into the other slot (#205: RomM's browser player files a
+  session for a game with no slotted save under `autosave`, which lands on the `.srm` this device
+  keeps as `libretro:battery`; RM-4). So a download for a slot this device holds no row for, whose destination
   another slot's `local_save` holds, is **recorded as a conflict on the offered slot** and never
   written; `--keep-local` finds its local side by the conflict's path, since the offered slot has no
   row. **When the offered `content_hash` equals the holder's, it is a no-op instead**, or the save

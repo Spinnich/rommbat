@@ -959,7 +959,7 @@ internal static class SavesCommand
                     + $"{ByteSize.Format(state.SizeBytes),9}  {When(state.ServerUpdatedAt)}  {state.Destination}");
 
             // Said per row, because whether a screenshot comes back is decided by the server
-            // linking one, which it does not always do (RB-138), and
+            // linking one, which it does only for an image whose name its lookup matches (RB-258), and
             // on the emulator declaring an image apart from its state file, which DeSmuME does not.
             Console.WriteLine(state switch
             {

@@ -471,39 +471,13 @@ platform.
 from the tree and restored by `saves restore --apply` at an identical md5, into the same declared
 directory it was written from.
 
-**The screenshot did not link, which is RB-138 recurring.** It uploaded, stored against the
-ROM at the right name and size, and the state still reads `screenshot: null`. RB-138
-measured this at roughly a third of thirty-five attempts on `mastersystem` under
-`genesis_plus_gx`; seeing it on `nes` under `nestopia` shows it is **not specific to a platform or
-a core**. Nothing here suggests a RomMBat fault: the asset is on the server, correctly named.
-
-**What changed is the cost of that gap.** While states only went up, an unlinked screenshot was
-cosmetic. Now that a state comes back, the screenshot does not come with it: the restore has only
-the state's own `screenshot` field to follow, that field is null, and screenshot 193 sits on the
-server unreachable. `.state1.png` was the one file of the three that did not return. So step 5
-stays open on the screenshot, and the reason it stays open is now a loss rather than an untidy
-record.
-
-**The missing link is only half of it, and the other half is RomMBat's.** `RestorableState`
-carries no screenshot member, `RestoreAsync` fetches `DownloadStateAsync` and nothing else, and
-`RomMConnection.States` has an upload path for a screenshot with no download counterpart. So a
-state whose `screenshot` field did link would still not bring its `.png` back today. Step 5 needs
-#158 as well as the RomM-side link, and no `(system, emulator, core)` row can pass it on either
-alone.
-
-**Since closed on RomMBat's side by #158**, in stage 2 of #195: a restore now fetches a linked
-screenshot into the declared `<image>`. Not re-driven on a linked screenshot, because none exists:
-at the 5.3.0-alpha.2 floor all 9 `nes` states on the instance read `screenshot: null`, and 7 of 7
-re-uploaded ones came back unlinked. The `.srm` and `.state1` of Crystalis (USA) were deleted and
-restored byte-identically in the same pass. RB-138 and RB-256.
-
-**Diagnosed since, and neither half was RomM's** (RB-258). RomM links a screenshot to a
-state by filename, and RomMBat uploaded this one as `Legend of Zelda, The (USA) (Rev 1).state1
-[libretro.nestopia].png`, which that rule can never match against the state's name. The two
-paragraphs above that call the link RomM's, and "a RB-138 recurrence", describe the cause
-as it was understood when they were written. It is fixed: the image now goes up as the state's
-upload name plus `.png`. Screenshot 193 stays unlinked, because an unchanged state is not re-sent,
-so step 5 needs a state made after the fix.
+**The screenshot of a state uploaded before RB-258's fix does not link.** RomMBat uploaded this
+one as `Legend of Zelda, The (USA) (Rev 1).state1 [libretro.nestopia].png`, which RomM's lookup
+by name can never match against the state's name, so the state reads `screenshot: null` and
+a restore has nothing to follow. The image now goes up as the state's upload name plus `.png`,
+and a restore fetches a linked screenshot into the declared `<image>` (#158). Screenshot 193
+stays unlinked, because an unchanged state is not re-sent, so step 5 rests on a state made after
+the fix.
 
 **States carry no `content_hash` at all.** The state object has no such field, where the save has
 one that matched. So a state cannot be verified on download the way a save can, and RomMBat has
@@ -1545,8 +1519,8 @@ recorded path straight through: the unit test for this case received the downloa
 ## RomM's browser player, driven at `5.3.0-alpha.3`
 
 On `libretro`/`nestopia` with The Legend of Zelda (USA) (Rev 1), rom 158633, the maintainer in
-RomM's v2 player and at EmulationStation. RB-259 has the
-detail; it re-runs no checklist step.
+RomM's v2 player and at EmulationStation. RB-259 and RM-4 hold the
+server's side; it re-runs no checklist step.
 
 | Session                                      | What reached RetroBat                                                                            |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
