@@ -108,11 +108,13 @@ after the ROM stem, which makes attribution trivial on a single-disc title.
 **GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
 labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
 shared raw `SRAM.<REGION>.raw` that is class D. So GameCube is class C only at the default, and
-a user who picked the tidier-sounding option has a shared card RomMBat's class C scan finds
-nothing in. **Slot B is already there**: RetroBat only ever writes `SlotB` when
+a user who picked the tidier-sounding option has a shared card the class C scan finds nothing
+in, which `saves` names as a shared container. **Slot B is already there**: RetroBat only ever writes `SlotB` when
 `dolphin_microphone` is on, so it stays at Dolphin's stock relative default and a 16 MB
-`saves/dolphin/User/GC/SRAM.<REGION>.raw` accumulates outside every declared container. Finding
-193, and the same shape of trap as PCSX2's four menu entries.
+`saves/dolphin/User/GC/SRAM.<REGION>.raw` accumulates beside the system folders. No shape covers
+that tree, so `save_rules.json` declares the card under `dolphin` and the scanner names it there,
+reporting the rest of `saves/dolphin/` as an unknown shape. Finding 193, and the same shape of
+trap as PCSX2's four menu entries.
 
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a

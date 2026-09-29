@@ -76,7 +76,8 @@ never acts on it. RB-189.
 **GameCube's save class is set by `dolphin_slotA`, which the menu calls SAVE FORMAT.** `8` is
 the GCI folder RomMBat treats as class C; `1` is one shared raw `SRAM.<REGION>.raw`, class D.
 Slot B is never rewritten by RetroBat, so it stays at Dolphin's stock relative default in
-top-level `saves/dolphin/`, outside every declared container. RB-193.
+top-level `saves/dolphin/`, beside the system folders. `save_rules.json` declares the slot A and
+slot B cards for all three regions as shared containers, so `saves` names each one it finds. RB-193.
 
 **Never write this file while EmulationStation is running. The write is discarded.** ES loads
 `es_settings.cfg` at startup and serialises that model on every write, so a key present at load
