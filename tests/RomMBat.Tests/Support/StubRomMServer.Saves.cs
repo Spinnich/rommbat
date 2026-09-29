@@ -638,7 +638,7 @@ internal sealed partial class StubRomMServer
                 rom_id = row.RomId,
                 sync_session_id = (int?)null,
                 save_slot = row.SaveSlot,
-                // Zone-less, which is how the real server serialises every datetime it holds,
+                // Zone-less, which is how the real server serialises a play session (RB-260),
                 // and it stores UTC. A stub writing an offset here would let a client that
                 // reads these as local time pass, and that client is wrong by the machine's
                 // own offset on every row.
@@ -688,7 +688,7 @@ internal sealed partial class StubRomMServer
         timestamp.Length >= 19 ? timestamp[..19] : timestamp;
 
     /// <summary>
-    /// A timestamp as the server writes one: UTC, with nothing saying so.
+    /// A timestamp as the server writes a play session's: UTC, with nothing saying so (RB-260).
     /// </summary>
     /// <remarks>
     /// Every datetime this stub serves goes through here, because a stub that writes an offset

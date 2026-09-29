@@ -176,7 +176,8 @@ public sealed record RomRow
 
     /// <summary>
     /// Kept as text, because the pinned schema declares it a bare string with no
-    /// <c>date-time</c> format and the server has been seen to send it without a zone.
+    /// <c>date-time</c> format. RomM 5.3.1 sends it with <c>+00:00</c> (RB-260), and a zone-less
+    /// value is still read as UTC.
     /// </summary>
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; init; }

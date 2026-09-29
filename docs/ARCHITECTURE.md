@@ -866,13 +866,11 @@ one-second resolution, so no decision a person takes lands on the row it is over
 server's copy stays one row down, where negotiate no longer looks, since it pairs on the newest
 row per slot alone (measured, not inferred); `autocleanup_limit=10` bounds the slot. **Until
 something writes into it, or the row above it is deleted:** `PUT /api/saves/{id}` rewrites a row
-in place and moves its `updated_at`, and from 5.3.0-alpha.3 the server prunes a slot past its
-retention on every slotted upload, so the rejected copy can return to the head of the slot either
-way. At 5.3.0-alpha.2 RomM's browser player supplied the write, sending that `PUT` for the save it
-loaded; from alpha.3 it leaves the loaded save alone and appends beside it, and the deletion half
-is what RM-11 measured. A download naming a save id lower than the
-one this device last recorded for the slot is therefore recorded as a conflict rather than taken,
-measured on 5.3.0-alpha.2 as the case where negotiate would otherwise answer `download`. Resolving either way
+in place and moves its `updated_at`, and deleting the row above leaves it the newest, so the
+rejected copy can return to the head of the slot either way. The per-slot prune cannot do it,
+because it deletes the oldest rows first (RM-11). A
+download naming a save id lower than the one this device last recorded for the slot is therefore
+recorded as a conflict rather than taken, which is RM-4's case E. Resolving either way
 prunes the copy, which is what makes the design's "keep the previous copy
 until the next successful sync" true rather than aspirational.
 

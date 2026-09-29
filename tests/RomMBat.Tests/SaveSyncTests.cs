@@ -1527,10 +1527,10 @@ public class SaveSyncTests
         Assert.Equal("what this device did", File.ReadAllText(fixture.Resolve(conflict.LocalCopy.Value.Value)));
         Assert.NotEqual(conflict.LocalHash, conflict.ServerHash);
 
-        // The server's time is shown to whoever picks a side, and RomM serialises it with no
-        // zone while storing UTC, which System.Text.Json reads as local. Without
-        // UtcTimestampConverter this is out by the machine's own offset, and right only where
-        // that offset is zero, which is what CI is.
+        // The server's time is shown to whoever picks a side. The stub serves it with no zone,
+        // as RomM serialises a play session (RB-260), and System.Text.Json reads that as local.
+        // Without UtcTimestampConverter this is out by the machine's own offset, and right only
+        // where that offset is zero, which is what CI is.
         Assert.Equal(fixture.Stub.ServerDate, conflict.ServerUpdatedAt);
     }
 

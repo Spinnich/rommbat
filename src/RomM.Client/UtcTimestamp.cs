@@ -8,12 +8,10 @@ namespace RomM.Client;
 /// Reads a RomM timestamp that carries no zone as the UTC it is.
 /// </summary>
 /// <remarks>
-/// <b>RomM serialises its datetimes without an offset and stores UTC</b>, and
-/// <c>System.Text.Json</c> reads a zone-less value as <b>local</b> time. So a plain
-/// <c>DateTimeOffset</c> property is wrong by the machine's own offset, silently, and reads as
-/// right on a UTC machine. Driven against the live instance: a play session the agent had just
-/// read back came out four hours ahead of the same run's <c>Date</c> header, which put a
-/// finished session in the future.
+/// <b>RomM serialises a play session's datetimes without an offset and stores UTC</b>
+/// (RB-260), and <c>System.Text.Json</c> reads a zone-less value as <b>local</b> time. So a
+/// plain <c>DateTimeOffset</c> property is wrong by the machine's own offset, silently, and
+/// reads as right on a UTC machine.
 /// <para>
 /// The same reasoning as <c>RomRow.UpdatedAtUtc</c>, which does it by hand because its raw
 /// field is a string. This is the form for a field that should simply be an instant.

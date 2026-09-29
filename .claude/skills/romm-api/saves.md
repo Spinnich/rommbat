@@ -30,13 +30,11 @@ Part of the [romm-api](SKILL.md) skill. The save, state, play-session and sync-s
   does is suppress the 409 checks **and** the identical-content dedup. RB-160.
 - **Identical uploads dedup within a slot** (same row reused, count unchanged) **only when
   `overwrite` is absent**, which is what makes a replayed flush safe and a repeated
-  `--keep-local` not. RB-161. `autocleanup` defaults to **false** and
-  `autocleanup_limit` to 10, so a slot grew unboundedly unless you asked it not to, up to
-  5.3.0-alpha.2. **From alpha.3 the server prunes on each slotted upload whatever the client
-  sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50, `0` disables) and the
-  client's own `autocleanup_limit`. RomMBat sends `autocleanup=true&autocleanup_limit=10`, so its
-  cap is 10 and the server's bites only on other writers' versions. `slot` is capped at 255
-  characters, a 422 past it. Read in source; RM-11.
+  `--keep-local` not. RB-161. **The server prunes on each slotted
+  upload whatever the client sends**, past the tighter of `MAX_SAVES_PER_SLOT` (env, default 50,
+  `0` disables) and the client's `autocleanup_limit` when `autocleanup` is set. RomMBat sends
+  `autocleanup=true&autocleanup_limit=10`, so its cap is 10 and the server's bites only on other
+  writers' versions. `slot` is capped at 255 characters, a 422 past it. RM-11.
 - **An unregistered `device_id` is a 404**, not a request that quietly proceeds device-less, so
   a client cannot dodge the 409 path by sending an id the server does not know. Omitting it is
   accepted, and writes a save attributed to no device. RB-162.
@@ -107,11 +105,10 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   from the console view's fixed `state.save` name (RM-4).
 - **`PUT /api/saves/{id}` rewrites a save row in place.** Id, tagged `file_name` and slot stay,
   `content_hash` and `updated_at` move, and there is no 409 check, dedup or device check. RomMBat
-  never sends it. At 5.3.0-alpha.2 RomM's browser player did, for the save it loaded and on every
-  save tick under `auto_save_sync`; from alpha.3 it `PUT`s only the version its own session
-  created. A save id therefore does not name its bytes, and a superseded row can return to the
-  head of its slot, now by the server's per-slot prune deleting the row above it. `save-sync`
-  holds the consequences.
+  never sends it. RomM's browser player `PUT`s only the version its own session created (RM-4).
+  A save id therefore does not name its bytes, and a superseded row returns to the head of its
+  slot when a `PUT` touches it or the row above is deleted. The per-slot prune deletes the oldest
+  first, so it never does (RM-11). `save-sync` holds the consequences.
 - **`/api/memory-cards` is not called and is not a save transport.** A card is scoped by
   `(user, emulator)` with no ROM, a version is a whole zipped card, and only a zip is accepted.
   Measured at 5.3.0-alpha.2; `save-sync` again.

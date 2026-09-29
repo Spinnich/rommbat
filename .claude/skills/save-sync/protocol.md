@@ -140,9 +140,9 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   A refusal on the state half alone is `Partial` rather than `Refused`, because the saves landed.
 
   **A failure reading `/api/states` must not take the save restore down with it.** They are
-  independent reads. A token whose scopes do not cover the route, or a 500 from it, used to
-  return `Offline` before a single save was written. It is now reported and carried, and an
-  `--apply` that could not see the state half ends `Partial`. A state it can see and cannot place
+  independent reads. A token whose scopes do not cover the route, or a 500 from it, is reported
+  and carried rather than returned as `Offline`, and an `--apply` that could not see the state
+  half ends `Partial`. A state it can see and cannot place
   does not, for the rule under "Where the flush passes live".
 
   **The `<slot>` positional narrows saves only, and the help says so.** A state's slot lives in
@@ -203,14 +203,12 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   sentinel inside the directory is not a substitute**, measured rather than assumed:
   `Directory.Delete(recursive: true)` removes the siblings first and only then fails on the
   sentinel, so the staged members are gone regardless.
-- **A server time shown beside a local one has to be read as UTC first.** RomM serialises
-  `updated_at`, `server_updated_at`, `created_at`, `start_time` and `end_time` with no zone while
-  storing UTC, so a plain `DateTimeOffset` is out by the machine's own offset and the conflict
-  block shows the two sides on different clocks. `UtcTimestampConverter` is on every one of them;
-  see the `romm-api` skill and RB-260. **Rows written before that fix carry the shifted value** in
-  `save_slot.updated_at` and `save_conflict.server_updated_at`, and nothing rewrites them: they
-  correct themselves when the slot is next negotiated or the conflict resolved, and they are
-  display-only in the meantime, since ordering compares server rows only against each other.
+- **A server time shown beside a local one has to be read as UTC first.** RomM serialises a
+  play session's times with no zone while storing UTC, so a plain `DateTimeOffset` is out by the
+  machine's own offset. `UtcTimestampConverter` is on every server `DateTimeOffset`, the save and
+  state fields included, since it also honours an offset; see the `romm-api` skill and RB-260.
+  `save_slot.updated_at` and `save_conflict.server_updated_at` are display-only: ordering compares
+  server rows only against each other.
 - **Negotiate falls back to `updated_at` wherever the hashes do not settle it, so two of its
   answers have to be overruled here and a third is guarded against.** The repo's own rule is that
   mtime never decides whether a save changed, and this is the server applying that reasoning on
@@ -300,13 +298,10 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
   mid-body leaves the server sure the device has a save it does not, and the next negotiate
   answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
   and verified. Same discipline as M3's `.part`: verify, then commit.
-- **Decide retention.** `autocleanup` defaults to false and `autocleanup_limit` to 10, and a
-  writer that leaves them alone gained a row per genuine change forever up to 5.3.0-alpha.2,
-  which the `keep_both` conflict default compounds. **This client is not that writer**: every
-  save upload sends `autocleanup=true&autocleanup_limit=10`, so its slots have been bounded at
-  10 since M6. **From alpha.3 the server prunes every slotted upload whatever the client asks**,
-  keeping the newest by `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env,
-  50 by default, `0` disables) and the client's `autocleanup_limit`. So the cap here stays 10,
+- **Decide retention.** Every save upload sends `autocleanup=true&autocleanup_limit=10`.
+  **The server prunes every slotted upload whatever the client asks**, keeping the newest by
+  `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env, 50 by default, `0`
+  disables) and the client's `autocleanup_limit`. So the cap here stays 10,
   and `MAX_SAVES_PER_SLOT` only ever bites on versions written by something that asks for no
   cleanup: a peer, or RomM's browser player. **Measured against such a writer, and safe as long
   as the upload 409 stays a conflict**: a version this device still names in `save_slot` can be
@@ -372,9 +367,8 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   the device's record for `libretro:battery` current, and the next flush uploaded over it with no
   409 and no mention.
 - It still **resolves to the same destination path** as the slotted rows for that ROM. So does a
-  slot's own history. `saves restore` used to offer every one as its own restore, and applying
-  them wrote one file repeatedly and kept whichever came last (#156). **The find now keeps the
-  newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
+  slot's own history. Offering each as its own restore would write one file repeatedly and keep
+  whichever came last, so **the find keeps the newest row per destination** by `updated_at` then save id, whatever its slot, and the preview
   names the rows it folded and says when a null-slot row and a slotted one share the file. It
   narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
   row even where a newer null-slot row shares the file. **The flush had the same gap for slotted
