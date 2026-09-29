@@ -93,8 +93,8 @@ Confirmed in upstream's own code: `first_release_date` is divided by 1000, so it
 **milliseconds**, and `average_rating` is divided by 100, so it is on a **0-100** scale, with
 a comment saying as much. Both match what RomMBat measured live.
 
-**RomMBat deliberately diverges in two places, and the third is being retired**, and the
-checks exist so each divergence stays visible rather than becoming an accidental difference:
+**RomMBat deliberately diverges in three places**, and the checks exist so each divergence
+stays visible rather than becoming an accidental difference:
 
 - `region` and `lang` are `regions[0]` and `languages[0]` verbatim, so upstream writes `USA`
   and `English` where EmulationStation's own vocabulary is `us` and `en`. RomMBat maps them.
@@ -104,7 +104,8 @@ checks exist so each divergence stays visible rather than becoming an accidental
   `developers` and `publishers` split and **fall back to `companies[0]` and `companies[1]`**
   on a row without it (RM-7). A row carries the split only once it has been scanned since
   5.3.0, and `companies` is sorted, so on the rest upstream writes the alphabet's first and
-  second company. RomMBat writes `companies` joined instead (RB-98).
+  second company. RomMBat writes `<developer>` as `companies` joined, and no `<publisher>`
+  (RB-98).
 
 One thing to copy rather than diverge from: **`marquee` is sourced from ScreenScraper's
 `logo_path`, not its `marquee_path`.** EmulationStation's marquee is game logo art;

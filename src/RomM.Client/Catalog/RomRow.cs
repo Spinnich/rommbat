@@ -181,9 +181,9 @@ public sealed record RomRow
     [JsonPropertyName("updated_at")]
     public string? UpdatedAt { get; init; }
 
-    /// <summary>The description a gamelist calls <c>desc</c>. Present on 81.9% of a real library.</summary>
+    /// <summary>The description a gamelist calls <c>desc</c>. Present on 88.7% of a real library (RB-92).</summary>
     /// <remarks>
-    /// The longest in a 5,000-row sample is 11,719 characters, which is why nothing holds more
+    /// One in a real library runs to 11,719 characters, which is why nothing holds more
     /// than one page of these at a time and only selected members keep theirs.
     /// </remarks>
     [JsonPropertyName("summary")]
