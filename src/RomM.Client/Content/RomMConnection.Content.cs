@@ -156,8 +156,9 @@ public sealed partial class RomMConnection
     /// </summary>
     /// <remarks>
     /// Takes an md5, a sha1 or a CRC, all of the <b>uncompressed</b> content. A hit is a
-    /// ~12 KB body in 133-385 ms; a <b>miss costs 8.3 s</b>, which is why this identifies a
-    /// handful of unattributed files and is never run across a library.
+    /// ~9 KB body in 0.2 to 0.8 s and a miss a 404 after 1.4 to 1.8 s (RB-84): a request per
+    /// file, which is why this identifies a handful of unattributed files and is never run
+    /// across a library.
     /// <para>
     /// The response is parsed into the same slim <see cref="RomRow"/> the paged read uses, so
     /// the <c>int32</c> <c>fs_size_bytes</c> in the generated schema cannot overflow on a large

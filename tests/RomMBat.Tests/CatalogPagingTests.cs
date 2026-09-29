@@ -12,10 +12,9 @@ namespace RomMBat.Tests;
 /// Paged browsing: the sidecars, the page size, and what happens when a walk is cut short.
 /// </summary>
 /// <remarks>
-/// RB-354 measured the three costly sidecar flags at a flat 841 KB resent on every
-/// request, 65% of the response body at the default page size. Walking 83k ROMs with them
-/// on would resend about 1.4 GB of identical data, so their absence is asserted on the wire
-/// rather than trusted.
+/// RB-354 measured the three costly sidecar flags at a flat 1 MB resent on every request,
+/// against 77 KB for a page of ten. Walking a whole library with them on would resend that on
+/// every page, so their absence is asserted on the wire rather than trusted.
 /// </remarks>
 public class CatalogPagingTests
 {
@@ -60,10 +59,8 @@ public class CatalogPagingTests
     /// The rom id index is off under every scope.
     /// </summary>
     /// <remarks>
-    /// It resends every id the scope matches on every page. On 5.2.0 a scoped page was 3.4 to
-    /// 3.7 times slower without it, so it followed the scope, and a constant <c>false</c> then
-    /// was #88. On 5.3.0-alpha.2, then the floor, that penalty is gone at a 9,196-rom platform and a
-    /// 16,441-rom virtual collection, and only the bytes remain. #188.
+    /// It resends every id the scope matches on every page, and turning it off costs no latency
+    /// under a scope (RM-9). #188.
     /// </remarks>
     [Theory]
     [InlineData(CatalogScopeKind.Platform)]

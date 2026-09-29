@@ -17,8 +17,8 @@ namespace RomMBat.UI.Screens;
 /// list in rather than moving through one.
 /// <para>
 /// <b>Nothing here holds more than one page.</b> M2's rule is that the catalog is never mirrored
-/// wholesale, and <c>RomRow</c> and <c>RomPager</c> both restate it: an 83k library is 333 pages
-/// and the longest description in a 5,000-row sample is 11,719 characters. Moving past the
+/// wholesale, and <c>RomRow</c> and <c>RomPager</c> both restate it: a 96k library is about 384
+/// pages and the longest description in a 5,000-row sample is 11,719 characters. Moving past the
 /// bottom fetches the next offset and <b>replaces</b> what is held; moving past the top fetches
 /// the previous one. A test asserts the row count never exceeds the page size across several
 /// pages, because this is the rule most likely to be broken here and it breaks silently and

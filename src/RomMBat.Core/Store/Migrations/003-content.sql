@@ -15,9 +15,9 @@
 --    a .zip and a row holding the hash of its content are different facts that would compare
 --    equal, and adoption would either re-download everything or accept the wrong file.
 --
--- 3. local_file cannot say which check it passed. Only 91% of roms carry an md5 and 96% a
---    sha1 (RB-85), so verification degrades to size for the rest, and "verified" has to
---    mean something a person can read rather than a bare timestamp.
+-- 3. local_file cannot say which check it passed. A few roms carry no hash at all (RB-257), so
+--    verification degrades to size for those, and "verified" has to mean something a person
+--    can read rather than a bare timestamp.
 --
 -- 4. Nothing holds an interrupted download. A .part on disk is bytes with no provenance: the
 --    validator it was started against, its intended destination and its expected length all

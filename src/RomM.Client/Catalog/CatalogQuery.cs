@@ -344,7 +344,7 @@ public sealed record CatalogQuery
     /// Only ROMs updated after this instant.
     /// </summary>
     /// <remarks>
-    /// The normal path. A full walk of 83k ROMs takes about 14 minutes at 250 per page, so
+    /// The normal path. A full walk of a 96k library takes minutes at 250 per page (RB-354), so
     /// it is a first-run or repair operation and this is what every other run does instead.
     /// </remarks>
     public DateTimeOffset? UpdatedAfter { get; init; }
@@ -365,8 +365,8 @@ public sealed record CatalogQuery
     /// <summary>Builds the query string for one page.</summary>
     /// <param name="withFilterValues">
     /// Turns the filter-value sidecar back on. Used once per session by the filter picker and
-    /// never while paging: RB-354 measured the sidecars at a flat 841 KB resent on every
-    /// request, 65% of the body at the default page size.
+    /// never while paging: RB-354 measured the sidecars at a flat 1 MB resent on every
+    /// request.
     /// </param>
     /// <exception cref="InvalidOperationException">
     /// The scope is <see cref="CatalogScopeKind.Picked"/>, which the endpoint cannot express.
@@ -391,19 +391,17 @@ public sealed record CatalogQuery
             new("with_char_index", "false"),
 
             // Off under every scope too. Every id the scope matches, resent on every page: 63 KiB
-            // a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, at
-            // no latency cost on 5.3.0-alpha.2 (RM-9, probe R2). On
-            // 5.2.0 a scoped page was 3.4 to 3.7 times slower without it (romm-api skill).
+            // a page on a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, at
+            // no latency cost (RM-9, probe R2).
             new("with_rom_id_index", "false"),
             new("with_filter_values", withFilterValues ? "true" : "false"),
 
             // Kept on: it is the only way a resumable walk knows how far it has left to go. With
             // the index off it is a separate count rather than the index's length: inside the
-            // noise of a scoped page and about 130 ms unscoped on 5.3.0-alpha.2
-            // (RM-9). Load-bearing since RomM 5.2.0, which made the
-            // response's `total` nullable: the server returns null when neither this nor
-            // with_rom_id_index is set, and RomPage.Total is a non-nullable int, so turning
-            // this off to save bytes throws on deserialisation rather than degrading.
+            // noise of a scoped page and about 140 ms unscoped (RM-9). Load-bearing: the server
+            // returns a null `total` when neither this nor with_rom_id_index is set, and
+            // RomPage.Total is a non-nullable int, so turning this off to save bytes throws on
+            // deserialisation rather than degrading.
             new("with_total", "true"),
 
             // Opt-in and left off. Per-file detail is M3's problem, and it multiplies the body.

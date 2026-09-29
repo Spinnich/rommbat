@@ -290,7 +290,7 @@ public sealed class CatalogScopeService
     /// </summary>
     /// <remarks>
     /// <b>The sidecar this repository turns off everywhere else, used for the one job it is
-    /// for.</b> <c>with_filter_values</c> costs a flat 841 KB and is refused on every page of a
+    /// for.</b> <c>with_filter_values</c> costs a flat 379 KB and is refused on every page of a
     /// walk; here it is a single request at <c>limit=1</c> when the filter editor opens, which
     /// is what <see cref="RomMConnection.GetFilterValuesAsync"/> was built for and what its
     /// comment has said since M2.

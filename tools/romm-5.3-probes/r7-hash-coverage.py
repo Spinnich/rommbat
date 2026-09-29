@@ -1,14 +1,11 @@
 """R7: how many roms carry a sha1 and no md5, counting an empty string as absent (#112).
 
-Two records disagree. A sample of 1,616 rows from three platforms found no row with a sha1 and
-no md5, and RB-85 measured 91.0% md5 against 96.3% sha1 over 1,895 single-file roms,
-which puts about a hundred rows in exactly that state. RB-181 says how both can have been
-seen: the server reports a missing hash as '' rather than null, so a test for "not null" counts
-an empty string as a hash. Neither sample recorded its query.
+RB-257 and RB-181 are read from this. The server reports a missing hash as '' rather than null
+(RB-181), so a test for "not null" counts an empty string as a hash.
 
 This walks every platform, so it is a population and not a sample, and classifies each hash as
-null, '' or a value. Presence means a value. The single-file population is the one RB-85
-named: not has_multiple_files, and a file on disk (neither physical nor missing).
+null, '' or a value. Presence means a value. The population is single-file roms with a file on
+disk: not has_multiple_files, and neither physical nor missing.
 
 Read-only. Every request is a GET.
 """

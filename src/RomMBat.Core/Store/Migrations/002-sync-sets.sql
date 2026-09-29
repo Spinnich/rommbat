@@ -15,8 +15,8 @@
 --    rather than recomputed or hidden.
 --
 -- 3. sync_cursor could record where an incremental sync starts but not where an interrupted
---    full walk stopped. A full walk of an 83k library is about 14 minutes (RB-354), so
---    it will be interrupted, and it has to resume rather than restart.
+--    full walk stopped. A full walk of a 96k library takes minutes (RB-354), so it will be
+--    interrupted, and it has to resume rather than restart.
 --
 -- 4. platform_map was keyed by RomM's platform slug, which RomM does not keep unique. See
 --    the section below for the measurement.

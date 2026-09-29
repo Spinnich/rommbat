@@ -144,10 +144,8 @@ the detail, including why the `required` on `GIT_BRANCH` does not reach the DTO.
 and file routes at them. `GET /api/saves/identifiers` was building a `Save` per row to read
 `.id` off it, and now projects the column.
 
-**That lands on RM-9, and nothing here is re-measured.** The identifiers walk, 200 after
-176.7 s for 95,993 ids, is the reading most likely to have moved, and it is `alpha.2`'s. It is
-left exactly as written, because a measurement is attributed to the build it was taken on and
-editing it would invent a number. Re-measuring it is owed, #263.
+The ROM identifiers route answers in under a second on 5.3.1 (RB-81), and RM-9's timings are
+taken on 5.3.1.
 
 **The per-slot cap that RM-11 measured is byte-identical here.** `add_save` and `prune_slot`
 are untouched between the tags; the only save-side change is the ids projection. So the `alpha.3`

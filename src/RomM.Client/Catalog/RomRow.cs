@@ -16,7 +16,7 @@ namespace RomM.Client.Catalog;
 /// ceiling. Here it is a <see cref="long"/>.
 /// </para>
 /// <para>
-/// <b>Cost.</b> A full walk of an 83k library is 333 pages of 250, and the generated schema
+/// <b>Cost.</b> A full walk of a 96k library is about 384 pages of 250, and the generated schema
 /// carries roughly seventy fields per ROM including eight metadata sub-objects. Most of that
 /// is still skipped here.
 /// </para>
@@ -415,7 +415,7 @@ public sealed record RomPage
     /// </summary>
     /// <remarks>
     /// The only one of the four default-on flags kept on. RB-354 measured it at zero
-    /// bytes (it is an integer, while the other three cost a flat 841 KB per request), and it
+    /// bytes (it is an integer, while the other three cost a flat 1 MB per request), and it
     /// is what lets an interrupted walk report progress and know when it is finished.
     /// <para>
     /// <b>Non-nullable on purpose, and it depends on the query.</b> RomM 5.2.0 made the wire

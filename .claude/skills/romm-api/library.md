@@ -85,15 +85,15 @@ columns for that reason.
 
 ## Traps
 
-- **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; they cost
-  a flat 841 KB per request. Page size 250, `order_by=id&order_dir=asc` so a ROM added
+- **Always** pass `with_char_index=false&with_filter_values=false` to `/api/roms`; the filter
+  values alone are a flat 379 KB per request (RB-354). Page size 250, `order_by=id&order_dir=asc` so a ROM added
   mid-walk lands past the cursor instead of shifting every later page.
 - **`with_rom_id_index=false` under every scope, from `5.3.0`.** Under a
   scoping parameter (`platform_ids`, `collection_id`, `smart_collection_id`,
   `virtual_collection_id`) the index spans that scope, not the library, and is resent in full on
-  every page. **Measured on 5.3.0-alpha.2 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
-  a page on a 9,196-rom platform and 112 KiB on a 16,441-rom virtual collection, with index off
-  inside the noise or ahead on both.** Unscoped it is 604 KiB a page against 1.15 to 1.20x.
+  every page. **Measured on 5.3.1 at 250 a page (`r2-scoped-index-bandwidth.py`): 63 KiB
+  a page on a 9,194-ROM platform and 114 KiB on a 16,687-ROM virtual collection, with index off
+  inside the noise on both** (RM-9). Unscoped it is 657 KiB a 100-row page against 1.3x.
 
   **The rule was the opposite at 5.2.0 and do not bring it back from there.** At 88,331 roms a
   scoped page cost 3.4 to 3.7 times the latency with the index off (2.3 s to 8.5 s), so from
@@ -103,8 +103,8 @@ columns for that reason.
   **The 5.2.0 rule reached `CatalogQuery` only at M7 stage 7b-2a.** It was written from A1's
   measurement and the code went on sending a constant `false` for a further two stages, which
   is #88. What it cost end to end: a platform-scoped resolve of 9,196 roms took
-  **8 m 15 s**, 13.4 s a page at 250, where `RomPager`'s own comment records 2.5 s a page for
-  the unscoped case. **A rule in a skill is not a rule in the code**, and this one went
+  **8 m 15 s**, 13.4 s a page at 250, against 2.5 s a page for an unscoped walk on the same
+  server. **A rule in a skill is not a rule in the code**, and this one went
   unnoticed until a stage put the walk behind a screen somebody had to sit and watch.
 
 - **`with_total=true` is what keeps `total` non-null with the index off.** The server nulls
@@ -203,14 +203,14 @@ columns for that reason.
   user id, which its docstring states on purpose. `smart_collection_id` applies the criteria
   with the **caller's** id and hides the caller's hidden roms, and `GET /api/collections/smart`
   lists every public collection as well as the caller's own. Per-user criteria are `favorite`,
-  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.0-alpha.2 with
-  `tools/romm-5.3-probes/r6-smart-collections.py`: all 29 collections the approver account can
+  `statuses`, `has_saves`, `has_states` and `last_played`. Measured on 5.3.1 with
+  `tools/romm-5.3-probes/r6-smart-collections.py` (RM-16): all 29 collections the approver account can
   list are public, owned by another account and filter on `favorite`, advertise 6 to 594 roms,
   and page back 0. So never show or budget from `rom_count` on a smart collection; the picker
   shows no count, and the resolve's total is the real size. Not an upstream defect.
 - **The paged read already carries the metadata; `GET /api/roms/{id}` does not add any.**
   `SimpleRomSchema` has `metadatum`, `summary`, the media paths, `regions` and `languages`.
-  `DetailedRomSchema` adds only seven user arrays. And **`/api/roms` has no id-list
+  `DetailedRomSchema` adds only eight per-user arrays (RB-93). And **`/api/roms` has no id-list
   parameter**, so a set of known ROM ids cannot be asked for: read metadata during the walk.
 
   **Re-verified against the `romm-5.3.0-beta.1.json` pin, identical in contract to today's `5.3.0`, because a whole scope kind turns
@@ -280,24 +280,19 @@ columns for that reason.
   for saves. See
   [argosy-findings.md](../../../docs/argosy-findings.md), A3.
 
-- **`GET /api/roms/identifiers` does not scale.** It takes no parameters and answered 504
-  after 300 s on an 83k library; the platform and collection siblings answer in under 1.5 s.
-  **On 5.3.0-alpha.2 it completes rather than timing out: 200 after 176.7 s for 95,993 ids.**
-  The refusal stands and its reason changes, from an endpoint that cannot answer to one that
-  answers in three minutes, still unscopable and still unpageable.
-  **Never call it at all: not under a budget, not from a test, not from a probe.** The route
-  eager-loads every ROM's platform, `rom_users`, metadata, siblings and notes just to return ids,
-  runs in the threadpool, and keeps running after the client disconnects, so a timeout frees
-  the client and nothing on the server. About sixty 10 s calls from a looped live test took a
-  96k-ROM instance's container from 2 GB to **20.9 GiB**, the workers holding their peak until
-  recycled. rommapp/romm#4577. The same shape applies to any request whose server work outlives
-  a client timeout: never retry one, and never loop one against a real library. Check what a
+- **Do not reconcile deletions with `GET /api/roms/identifiers`.** It answers 95,989 ids in
+  under a second on 5.3.1, but it takes no parameters, so it cannot be scoped to a set, and a
+  set's walk already yields that set's ids (RB-81).
+- **Never retry or loop a request whose server work outlives a client timeout.** A route in
+  the threadpool keeps running after the client disconnects, so a timeout frees the client and
+  nothing on the server: sixty abandoned 10 s calls to the identifiers route took a 96k-ROM
+  instance from 2 GB to **20.9 GiB** before rommapp/romm#4577 made it project ids. Check what a
   live test's requests cost the server before repeating it, prefer `StubRomMServer` for
   repetition, and treat per-run latency rising across a loop as the signal to stop, not as
   load (it went from 28 s to 147 s here).
-  Reconcile deleted content through set re-resolution instead. `GET /api/roms/by-hash` is
-  133-385 ms on a hit but **8.3 s on a miss**, and `GET /api/roms/{id}/simple` 4.2 s on a
-  hit, so neither is a sweep.
+  `GET /api/roms/by-hash` is 0.2 to 0.8 s on a hit and 1.4 to 1.8 s on a miss (RB-84), and
+  `GET /api/roms/{id}/simple` under half a second (RB-87): a request per ROM, so neither is a
+  sweep.
 - **`is_verified` on firmware is unreliable here.** See `docs/ARCHITECTURE.md`, "Two
   authorities that are easy to get backwards": it is false on files RetroBat requires,
   `psxonpsp660.bin` among them. Measured against a real library, filtering on it discards 6 of the 49 required files that

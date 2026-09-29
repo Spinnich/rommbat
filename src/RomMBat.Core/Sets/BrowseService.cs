@@ -90,8 +90,8 @@ public sealed record BrowsePage(
 /// </summary>
 /// <remarks>
 /// <b>One page in memory, ever.</b> M2's rule is that the catalog is never mirrored wholesale
-/// and <c>RomRow</c> and <c>RomPager</c> both say the same thing again: an 83k library is 333
-/// pages and the longest description in a 5,000-row sample is 11,719 characters. Nothing here
+/// and <c>RomRow</c> and <c>RomPager</c> both say the same thing again: a 96k library is about
+/// 384 pages and the longest description in a 5,000-row sample is 11,719 characters. Nothing here
 /// accumulates, and a test asserts the row count never exceeds the page size across several
 /// pages.
 /// <para>
