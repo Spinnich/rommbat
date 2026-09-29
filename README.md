@@ -604,6 +604,8 @@ tools/publish.ps1     Publishes the three projects, assembles the seven files an
 tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
 tools/pre-pr.ps1      Runs every CI gate locally and says which failed (trunk only
                       outside a git worktree)
+tools/retrobat-install.ps1
+                      Installs a pristine RetroBat from an upstream release, for testing
 tools/m0-probes/      Generators for the bundled save data, and the scripts that drive
 tools/m6-probes/      emulators on a live install to re-check a save rule
 tools/romm-5.3-probes/
