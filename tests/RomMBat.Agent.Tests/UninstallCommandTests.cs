@@ -58,6 +58,40 @@ public sealed class UninstallCommandTests
         Assert.True(new EsHooks(tree.Install()).IsInstalled(), "the hooks went while a save was unsent");
     }
 
+    [Fact]
+    public async Task Apply_says_what_a_reverted_conversion_leaves_in_its_own_card()
+    {
+        // The preview says it once for all of them; the report is where the user sees which game
+        // it happened to, and the hands-on pass found it said nothing there at all.
+        using var tree = TempRetroBatTree.Create();
+        const string Key = "ps2[\"Frequency (USA).chd\"].pcsx2_slot1_memory";
+
+        var settings = tree.Install().Resolve(EsSettingsFile.Location);
+        var file = EsSettingsFile.Load(settings);
+        file.Set(Key, "game");
+        file.WriteIfChanged(settings);
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            store.SaveConversions.Record(new SaveConversion
+            {
+                RomId = 192693,
+                System = "ps2",
+                FsName = "Frequency (USA).chd",
+                SettingKey = "pcsx2_slot1_memory",
+                AppliedValue = "game",
+                PriorState = PriorSettingState.Absent,
+                ConvertedAtUtc = DateTimeOffset.UtcNow,
+            });
+        }
+
+        var run = await AgentRunner.RunAsync(tree, "uninstall", "--apply");
+
+        Assert.Equal(0, run.ExitCode);
+        Assert.True(run.Wrote($"removed {Key}"), run.Out);
+        Assert.True(run.Wrote("goes back to the shared memory card"), run.Out);
+    }
+
     private static void InstallHooks(TempRetroBatTree tree)
     {
         var standIn = Path.Combine(tree.Root, "stand-in-hook.exe");

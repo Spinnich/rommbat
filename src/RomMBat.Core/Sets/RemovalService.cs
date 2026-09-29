@@ -25,9 +25,10 @@ public sealed record RemovalScope(bool Content = false, bool Firmware = false);
 /// <param name="Content">The content removal, or null when the scope leaves content alone.</param>
 /// <param name="Firmware">Synced firmware rows, empty when the scope leaves <c>bios/</c> alone.</param>
 /// <param name="Unvouchable">
-/// Saves in the systems the content leaves that no game can be attributed to, from
-/// <see cref="EvictionService.Unvouchable"/>. Named and never deleted: removing the games takes the
-/// only thing that could ever say whose they are. Empty when the scope leaves content alone.
+/// Saves with no ROM on record in the systems the content leaves, from
+/// <see cref="EvictionService.Unvouchable"/>. That includes saves of games RomMBat never synced, so
+/// it says only that RomMBat cannot tell whether one belongs to a game going. Named and never
+/// deleted. Empty when the scope leaves content alone.
 /// </param>
 /// <param name="EmulationStation">Why applying would be refused now, or null when ES is closed.</param>
 public sealed record RemovalReport(
