@@ -676,8 +676,8 @@ public sealed class SaveShapes
     /// <remarks>
     /// Declared per system and never inferred, because nothing about a file says it is not a
     /// save: <c>.ini</c> is Dolphin's config under <c>gamecube/dolphin-emu/User/Config/</c> and
-    /// could be a save elsewhere. One GameCube boot raised the unsyncable count from 1 to 20
-    /// with Dolphin's cache, config and logs, all of which this now answers for (RB-405).
+    /// could be a save elsewhere. Dolphin's cache, config, logs and SD card under
+    /// <c>dolphin-emu/User/</c> are what it answers for on <c>gamecube</c> and <c>wii</c> (RB-405).
     /// </remarks>
     public bool IsNotASavePath(string system, string relativeToSystem) =>
         _notASavePaths.TryGetValue(system, out var paths)
@@ -796,8 +796,10 @@ public sealed class SaveShapes
 
             if (shapes.TryGetValue(system, out var shape))
             {
-                // Relative to saves/, and a wildcard segment stands for any one directory, so
-                // the fixed part before it is what a declaration must not cover.
+                // Relative to saves/, and only the fixed part before a wildcard is checked: a
+                // declaration at the wildcard's own depth may be a file beside the unit
+                // directories, as gamecube's GC/SRAM.raw is beside GC/<region>/, and nothing in
+                // the table says which it is.
                 saves.AddRange(shape.UnitPaths
                     .Select(unit => unit.Container.Split('*')[0].TrimEnd('/'))
                     .Where(container => container.StartsWith(system + "/", StringComparison.OrdinalIgnoreCase))
