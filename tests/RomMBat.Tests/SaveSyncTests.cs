@@ -2187,6 +2187,33 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task Keeping_the_local_side_of_a_directory_save_prunes_its_copy_aside()
+    {
+        // A unit's copy aside is a directory, and a prune that asked File.Exists left it behind
+        // with the pointer cleared, so nothing named it again (#333 R1.2).
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(8, "mame:nvram", "25pacman", "zip", "played there", emulator: "mame");
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var copy = fixture.Store.SaveConflicts.Read(8, "mame:nvram")!.LocalCopyPath!.Value;
+        Assert.True(Directory.Exists(fixture.Resolve(copy.Value)));
+
+        var outcome = await fixture.ResolveAsync(
+            8,
+            "mame:nvram",
+            ConflictResolution.KeepLocal,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.False(Directory.Exists(fixture.Resolve(copy.Value)));
+        Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Everything_this_stage_adds_also_queues_offline_and_lands_in_one_flush()
     {
         // The offline simulation extended to the shapes this stage adds. Same assertion as the

@@ -649,11 +649,17 @@ public sealed class SaveConflictResolver
         try
         {
             var path = _install.Resolve(copy);
-            var existed = File.Exists(path);
 
-            if (existed)
+            // A class C unit's copy is a directory of its members.
+            var existed = File.Exists(path) || Directory.Exists(path);
+
+            if (File.Exists(path))
             {
                 File.Delete(path);
+            }
+            else if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
             }
 
             _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);

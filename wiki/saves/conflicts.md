@@ -20,7 +20,8 @@ keeps the save it had as an earlier version, so that side is not lost.
 
 Keeping the server's save downloads it, checks it and puts it in place. This device's save never
 reached RomM, so RomMBat keeps it in `emulators/rommbat/replaced/` under a dated name: the copy
-set aside when the conflict was found, and a second one if you played on since. Nothing removes
+set aside when the conflict was found, and a second one taken just before the server's save goes
+in, if you played on since or if the save is a folder, such as a PSP game's. Nothing removes
 those copies, so to go back to that save, copy it over the game's save while the game is closed.
 
 Choosing needs the server. Keeping the server's save is refused while that game is open, so quit
