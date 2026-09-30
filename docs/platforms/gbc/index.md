@@ -1,6 +1,11 @@
+---
+summary: The certification record for `gbc`: each row's standing at the floor, and the system's own steps.
+read-when: Before certifying a `gbc` row, or when asked whether a `gbc` row works.
+---
+
 # gbc
 
-Nintendo Game Boy Color. RetroBat calls the folder `gbc`, which is what this file is named after.
+Nintendo Game Boy Color. RetroBat calls the folder `gbc`, which is what this folder is named after.
 
 **All twelve rows `gbc` declares are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-23, all nine steps with step 6 N/A because `gbc` has no class D:
@@ -15,38 +20,18 @@ loose `.rtc` rule widened from `gb`. The eight standalone rows needed a battery 
 `gbc`, where `mesen`'s was already `libretro`'s, and four of them a state declaration in RomMBat's
 bundled supplement. One row reads firmware, and RetroBat's `gbc` list names it.
 
-**This file is in six parts.** Steps 1, 2 and 3, which are the system's, with which rows need
-firmware. What the first boots wrote. The four `libretro` rows, then the eight standalone ones.
-Then the cartridge clock, which no change of row that was checked kept. Last, what the pass turned up
-that is not a row.
+## Where each row stands
 
-## The move to `5.3.1`
+**Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
+re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
+the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
 
-**It touches steps 1 and 9, and both were re-run on 2026-09-24.** Mapped from
-161 upstream commits with no schema change, and from this repo's
-`src/` and `data/` diff across the move, which is the two version constants and
-`PlatformMapStore.Record`'s case-only rekey. It applies to every row alike, because nothing a
-single row exercises moved.
-
-| #   | At `5.3.1`  | Why                                                                                                               |
-| --- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-| 1   | **Touched** | RomM #4676 lets an `fs_slug` change case and `platform_map` now rekeys for it. **Pass**, see below                |
-| 2   | Carried     | `GET /api/roms` takes the same parameters, and `roms/files.py` changed only in typing                             |
-| 3   | Carried     | `endpoints/firmware.py` is byte-identical, `firmware_handler.py` changed only in typing, and `data/` is unchanged |
-| 4   | Carried     | `saves.py` and `sync.py` are byte-identical, and `s4-older-mtime.py` answers all six cases as at `5.3.0`          |
-| 5   | Carried     | `states.py` is byte-identical, and `screenshots_handler.py` changed only in a type annotation                     |
-| 6   | N/A         | Unchanged: `gbc` has no class D                                                                                   |
-| 7   | Carried     | The game list's query is unchanged; the Player changes are gamepad focus in RomM's own web UI                     |
-| 8   | Carried     | `play_sessions.py` is byte-identical, and its handler changed only in how it counts rows                          |
-| 9   | **Touched** | Always touched on a move. **Pass**, see below                                                                     |
-
-**Both were re-run on a deploy of the adoption branch**, made by `tools/publish.ps1 -Deploy`, with
-`status` reading the server as `5.3.1`, Supported. `platforms list` was identical either side of
-the deploy, with `gbc` resolved by `fs_slug` as before. `sync` answered `nothing to do: 83
-games already present, 0 downloaded, 0 written` for `Spinnich's Game Boy Color Favorites`, and `gamelists: all 8 unchanged`,
-with every `gamelist.xml` md5'd either side and identical, and a `flush` moved no save or state.
-One re-sync covers every row, because none of them owns anything a sync touches that another does
-not.
+| File                           | What it holds                                                                                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| This file                      | Steps 1, 2 and 3, which are the system's, with which rows need firmware; what the first boots wrote; the cartridge clock, which no change of row that was checked kept; what the pass turned up that is not a row |
+| [libretro.md](libretro.md)     | The four `libretro` rows                                                                                                                                                                                          |
+| [standalone.md](standalone.md) | The eight standalone rows                                                                                                                                                                                         |
+| [facts.md](facts.md)           | The measured facts about `gbc`'s emulators, with RB- IDs                                                                                                                                                          |
 
 ## The install this was measured on
 
@@ -180,142 +165,6 @@ before a flush could send it.
 whose `Esc` went to another window closed on `WM_CLOSE` alone and wrote the same pair, so ares
 does not always ignore `WM_CLOSE`, as `gb`'s record has it; it can take longer than 15 s.
 
-## The four `libretro` rows
-
-|                  | Selected by                                  | Confirmed on the ES launch line      |
-| ---------------- | -------------------------------------------- | ------------------------------------ |
-| `gambatte`       | **Nothing: RetroBat's default**              | `-emulator libretro -core gambatte`  |
-| `tgbdual`        | `gbc.emulator = libretro`, `.core = tgbdual` | `-core tgbdual -state_slot 3`        |
-| `sameboy`        | `gbc.core = sameboy`                         | `-core sameboy -state_slot 3`        |
-| `DoubleCherryGB` | `gbc.core = DoubleCherryGB`                  | `-core DoubleCherryGB -state_slot 3` |
-
-Each override was set with ES closed, and the `gbc` keys were cleared when the pass ended. ES
-rewrote `es_settings.cfg` on its own exit during the pass, moving `LastSystem` to `gbc` and dropping
-`Language`; the copy taken first is `R:\rommbat-evidence\gbc\es_settings.before.cfg`.
-
-| #   | Result on every one of the four                                                                              |
-| --- | ------------------------------------------------------------------------------------------------------------ |
-| 4   | **Pass, both directions.** Class A `.srm` as `libretro:battery`, beside the `.rtc` as `libretro:battery:rtc` |
-| 5   | **Pass**, two slots each, the screenshot byte-checked                                                        |
-| 6   | **N/A.** `gbc` is class A                                                                                    |
-| 7   | **Pass.** Launched from ES after the sync, box art, marquee and description in `gamelist.xml`                |
-| 8   | **Pass**, every session read back from RomM by `status`, under `recent:`                                     |
-| 9   | **Pass.** 83 present and verified, 307 media present, gamelist byte-identical, 0 sent                        |
-
-| Core             | Session, UTC         | `.srm` after  | `.rtc` after        | Slot 1 png    | Slot 2 state, png            |
-| ---------------- | -------------------- | ------------- | ------------------- | ------------- | ---------------------------- |
-| `gambatte`       | 13:05:42 to 13:07:19 | `05dcc927...` | 8 B, `5f8f8410...`  | `b47b53a3...` | `5bc1a3ab...`, `1167691f...` |
-| `tgbdual`        | 13:11:11 to 13:12:26 | `0d4fc8e0...` | 4 B, `c8018a2c...`  | `ad1437d6...` | `1a658125...`, `cea4f8c0...` |
-| `sameboy`        | 13:18:01 to 13:18:53 | `2b97141d...` | 32 B, `d8ee6dda...` | `522faf4b...` | `6a365769...`, `7d41cea4...` |
-| `DoubleCherryGB` | 13:20:09 to 13:20:56 | `688ff125...` | 4 B, `e0719a22...`  | `fe28069f...` | `51c75433...`, `784d10fa...` |
-
-**The maintainer played the stock row from the intro to Crystal's first save**, setting the clock
-to about 9 AM, and made two states, then left ES; each later core loaded the `.srm` the one before
-it left, and the maintainer saved again. **After each row its `.srm`, `.rtc`, slot 2's state and
-slot 2's `.png` went out of the tree and came back through `saves restore 274994 --apply`**,
-`restored 2 save(s) and 1 state(s), failed 0, ... with 1 screenshot(s)`, exit 0, every file at its
-own md5, and each returned image was that slot's, distinct from slot 1's. From the second row on,
-the preview also listed the earlier cores' versions on the server and left them alone.
-
-**The declared `<directory>` is where every core wrote**, `saves/gbc/libretro.<core>/`. ES passed
-`-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as RB-261
-says. **Every core writes the `.rtc` on exit as RAM type #1**, beside the `.srm` as type #0, and
-the clock it holds is not the same thing on any two of them (below).
-
-## The eight standalone rows
-
-**All eight certified on 2026-09-23, on the second deploy.** Each was driven first on the first,
-where its save sat on disk unread; the second's first flush sent **6 saves and 10 states**.
-
-|            | Selected by                                   | Confirmed on the ES launch line     |
-| ---------- | --------------------------------------------- | ----------------------------------- |
-| `mesen`    | `gbc.emulator = mesen`                        | `-emulator mesen`, empty `-core`    |
-| `mgba`     | `gbc.emulator = mgba`, `.core = mgba`         | `-emulator mgba -core mgba`         |
-| `mednafen` | `gbc.emulator = mednafen`, `.core = gbc`      | `-emulator mednafen -core gbc`      |
-| `ares`     | `gbc.emulator = ares`, `.core = GameBoyColor` | `-emulator ares -core GameBoyColor` |
-| `Gambatte` | `gbc.emulator = bizhawk`, `.core = Gambatte`  | `-emulator bizhawk -core Gambatte`  |
-| `GBHawk`   | `gbc.emulator = bizhawk`, `.core = GBHawk`    | `-emulator bizhawk -core GBHawk`    |
-| `SameBoy`  | `gbc.emulator = bizhawk`, `.core = SameBoy`   | `-emulator bizhawk -core SameBoy`   |
-| `jgenesis` | `gbc.emulator = jgenesis`                     | `-emulator jgenesis`, empty `-core` |
-
-### Checklist for the eight
-
-| #   | Result on every one of the eight                                                            |
-| --- | ------------------------------------------------------------------------------------------- |
-| 4   | **Pass, both directions**, every file at its own md5 after one restore                      |
-| 5   | **Pass**, two slots each, where each emulator was found to write                            |
-| 6   | **N/A**                                                                                     |
-| 7   | **Pass**, carried: each was launched from ES on the synced ROM, art and description present |
-| 8   | **Pass**, every session read back from RomM by `status`, under `recent:`                    |
-| 9   | **Pass.** 83 present and verified, 307 media present, gamelist byte-identical, 0 sent       |
-
-### 4. Battery saves on the eight
-
-| Row        | Files under `saves/gbc/`                                                    | Slots                                          |
-| ---------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
-| `mesen`    | `<rom>.srm`, 32,768 B, and `<rom>.rtc`, 13 B                                | `libretro:battery`, `libretro:battery:rtc`     |
-| `mgba`     | `<rom>.sav`, 32,816 B, the clock in a 48 B footer                           | `mgba:battery`                                 |
-| `mednafen` | `<rom>.sav`, mGBA's file, 32,816 B                                          | `mgba:battery`                                 |
-| `ares`     | `ares/Game Boy/<rom>.ram`, 32,768 B, and `<rom>.rtc`, 13 B                  | `ares:battery:ram`, `ares:battery:rtc`         |
-| `Gambatte` | `bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM`, 32,790 B | `bizhawk:battery`                              |
-| `GBHawk`   | the same file, 32,768 B with no clock                                       | `bizhawk:battery`                              |
-| `SameBoy`  | the same file, 32,816 B                                                     | `bizhawk:battery`                              |
-| `jgenesis` | `jgenesis/gbc/<rom>.sav`, 32,768 B, and `<rom>.rtc`, 38 B                   | `jgenesis:battery:sav`, `jgenesis:battery:rtc` |
-
-**Mesen writes the loose `.srm` and `.rtc` the `libretro` cores share**, so it needed no rule, and
-it rewrites the `.rtc` on a launch with nothing saved. **mednafen read and saved into mGBA's plain
-`.sav`** rather than its hashed name, as on `gb` (RB-273). **ares keeps its battery save in
-`Game Boy`, `gb`'s directory name, and its states in `Game Boy Color`**, so the two halves of one
-row sit in two trees. **BizHawk's three cores share one file named after BizHawk's own title**,
-`(Rev A)` where the ROM file says `(Rev 1)`, learned from the state sidecar
-`Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte`; each core rewrites it at its own size,
-and the `.SaveRAM.bak` beside it is BizHawk's copy of the previous save. `jgenesis` keeps a `.gbc`
-ROM's saves in `jgenesis/gbc/`, which `gb`'s record left for this pass to declare.
-
-The six saves with their own rule and one state from each of the eight rows went out of the tree
-and came back through one `saves restore 274994 --apply`: `restored 6 save(s) and 8 state(s),
-failed 0, 562.4 KB`, exit 0, **all fourteen files at their own md5**. Mesen's `.srm` and `.rtc` went
-out and came back the same way on their own, `restored 2 save(s) and 0 state(s), failed 0`.
-
-### 5. States on the eight
-
-| Row        | Directory under `saves/gbc/` | First                       | Second                      | Keys                     |
-| ---------- | ---------------------------- | --------------------------- | --------------------------- | ------------------------ |
-| `mesen`    | `mesen/SaveStates/`          | `_1.mss`, `6aeaf1fa...`     | `_2.mss`, `69d42a50...`     | `Shift+F1`, `Shift+F2`   |
-| `mgba`     | `mgba/sstates/`              | `.ss1`, `fc7fac89...`       | `.ss2`, `6c884d72...`       | `Shift+F1`, `Shift+F2`   |
-| `mednafen` | `mednafen/sstates/`          | `.<md5>.mc0`, `d414ff85...` | `.<md5>.mc1`, `53d5eb0f...` | `F2`, then `F7` and `F2` |
-| `ares`     | `ares/Game Boy Color/`       | `.bs1`, `13ab6aef...`       | `.bs2`, `0352b419...`       | `F2`, then `F7` and `F2` |
-| `Gambatte` | `bizhawk/sstates/Gambatte/`  | `QuickSave4`, `5afd4f67...` | `QuickSave2`, `127dc204...` | `Ctrl+F4`, `Ctrl+F2`     |
-| `GBHawk`   | `bizhawk/sstates/GBHawk/`    | `QuickSave4`, `fa8ce222...` | `QuickSave2`, `6d8227ca...` | `Ctrl+F4`, `Ctrl+F2`     |
-| `SameBoy`  | `bizhawk/sstates/SameBoy/`   | `QuickSave4`, `7ffe1369...` | `QuickSave2`, `a12342e2...` | `Ctrl+F4`, `Ctrl+F2`     |
-| `jgenesis` | `jgenesis/states/`           | `_0.jst`, `e21bf5e4...`     | `_1.jst`, `8212e9a5...`     | `F2`, then `F7` and `F2` |
-
-**`mesen`, `mgba`, `mednafen` and `ares` declare no state directory**, and each wrote to the one
-above, which the supplement now declares for `gbc`. The md5 in mednafen's names is of the whole
-`.gbc` inside the zip, `301899b8...`. **BizHawk names its states after the ROM file**, `(Rev 1)`,
-while its battery save carries its own title. BizHawk's frame is inside the state; only the
-`libretro` rows write a screenshot `.png`, and the rest have nothing to carry.
-
-**On this machine `Ctrl+F1` never reached EmuHawk as a save**, from `keybd_event` with EmuHawk in the
-foreground and the keys held 400 ms, and neither did a plain `F2`; `Ctrl+F2` and `Ctrl+F4` saved
-every time, so the three BizHawk rows took slots 4 and 2. `config.ini` binds `Save State 1` to
-`Ctrl+F1`, so this is the key's delivery and not BizHawk's slot.
-
-### 8. Sessions
-
-| Row        | Journal, UTC         | Length |
-| ---------- | -------------------- | ------ |
-| `mesen`    | 13:22:06 to 13:22:46 | 40s    |
-| `mgba`     | 13:28:25 to 13:28:59 | 33s    |
-| `mednafen` | 13:31:19 to 13:32:03 | 44s    |
-| `ares`     | 13:34:05 to 13:35:30 | 1m 24s |
-| `Gambatte` | 13:37:45 to 13:38:48 | 1m 2s  |
-| `GBHawk`   | 13:44:59 to 13:45:43 | 43s    |
-| `SameBoy`  | 13:47:47 to 13:48:45 | 57s    |
-| `jgenesis` | 13:50:49 to 13:51:47 | 57s    |
-
-Every one is on the server, rom 274994, as are the four `libretro` sessions above.
-
 ## No change of row that was checked kept the clock
 
 **Every row keeps Crystal's clock, and no two keep it the same way.** Each round trip above carried
@@ -381,5 +230,5 @@ from the `gbc` row, which syncs the same two files. RB-302.
 **jgenesis on `gb` needs no clock rule.** It names its directory from the file inside the zip, and
 the clock cartridges known here are Color titles, a `.gbc`, even where they run on a mono Game Boy,
 and a mono-only one may not exist; none of the catalog's `gb` Pokemon titles has a clock. So such a
-clock lands in `jgenesis/gbc/`, the gap `gb.md` records, and `jgenesis/gb/<rom>.rtc` was not seen.
+clock lands in `jgenesis/gbc/`, the gap `gb/` records, and `jgenesis/gb/<rom>.rtc` was not seen.
 Only the Pokemon titles' headers were read.

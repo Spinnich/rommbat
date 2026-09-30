@@ -429,7 +429,7 @@ behaviour.
 ### Platform certification
 
 A platform counts as supported only after a nine-point checklist passes against a real
-install, recorded in `docs/platforms/<system>.md`.
+install, recorded in `docs/platforms/<system>/`.
 
 **The unit is `(system, emulator, core)`, not the system.** Two emulators for one console do
 not behave alike, and the difference lands exactly where it hurts: `psx` under libretro writes
@@ -503,7 +503,7 @@ without RomMBat, because each emulator keeps it in its own format.
 for `snes`, so a DSP-1 game such as Super Mario Kart will not start under `mesen-s`, `mesen` or
 `jgenesis` unless you supply the chip's file yourself: `dsp1b.rom` in `bios\` for `mesen-s`, the
 same file in `emulators\mesen\Firmware\` for Mesen, and `dsp1_rom_path` in `jgenesis-config.toml`
-for jgenesis ([docs/platforms/snes.md](docs/platforms/snes.md)).
+for jgenesis ([docs/platforms/snes/](docs/platforms/snes/index.md)).
 
 **Seven of `mastersystem`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-24: `libretro` under `genesis_plus_gx`, which a stock install runs, and `picodrive`, then
@@ -512,7 +512,7 @@ boots nothing named by No-Intro and both `kega-fusion` rows fail step 4, so they
 than certified. `bizhawk`/`SMSHawk` will not start a game without the US/EU Master System BIOS in
 `bios\`, which RetroBat lists without a hash, so RomMBat cannot fetch it and you supply it yourself.
 mednafen will not start a game while Mesen's save for it is beside the ROM
-([docs/platforms/mastersystem.md](docs/platforms/mastersystem.md)).
+([docs/platforms/mastersystem/](docs/platforms/mastersystem/index.md)).
 
 **Every row `psx` declares is certified**, seven, at RomM `5.3.1` and RetroBat 8.2.1 on
 2026-09-26: `libretro` under `mednafen_psx_hw`, which a stock install runs, `swanstation` and
@@ -522,7 +522,7 @@ type makes it; a shared card, DuckStation's, swanstation's or pcsx_rearmed's sec
 never sent. Six rows refuse to start without `psxonpsp660.bin`, which RomMBat fetches. Standalone
 mednafen emulates no memory card at RetroBat's default, so set its card count to keep a save
 there, and both BizHawk rows are handed disc 1 of a set whatever the layout
-([docs/platforms/psx.md](docs/platforms/psx.md)).
+([docs/platforms/psx/](docs/platforms/psx/index.md)).
 
 **All nine of `n64`'s rows are certified**, at RomM `5.3.1` and RetroBat 8.2.1: on 2026-09-27
 `libretro` under `mupen64plus_next`, which a stock install runs, and `parallel_n64`, then RMG,
@@ -530,17 +530,17 @@ simple64, Project64, ares, and `bizhawk` under `Ares64` and `Mupen64Plus`, with 
 Pak option driven. Four rows have no pak at RetroBat's default, so a game that saves only to the pak
 needs the option set. BizHawk's two cores share one save file they cannot read from each other.
 gopher64 followed on 2026-09-29: RetroBat leaves its battery saves outside `saves/`, and RomMBat
-reads them there ([docs/platforms/n64.md](docs/platforms/n64.md)).
+reads them there ([docs/platforms/n64/](docs/platforms/n64/index.md)).
 
 That is eighty-nine rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
 has now been driven, and the eight not certified say why in their records. The unit is still
 `(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
 were measured on, so none of those emulators is certified anywhere else.
-[docs/platforms/nes.md](docs/platforms/nes.md), [docs/platforms/megadrive.md](docs/platforms/megadrive.md),
-[docs/platforms/gba.md](docs/platforms/gba.md), [docs/platforms/gb.md](docs/platforms/gb.md),
-[docs/platforms/gbc.md](docs/platforms/gbc.md), [docs/platforms/snes.md](docs/platforms/snes.md),
-[docs/platforms/mastersystem.md](docs/platforms/mastersystem.md), [docs/platforms/psx.md](docs/platforms/psx.md) and
-[docs/platforms/n64.md](docs/platforms/n64.md) are the records, gaps included.
+[docs/platforms/nes/](docs/platforms/nes/index.md), [docs/platforms/megadrive/](docs/platforms/megadrive/index.md),
+[docs/platforms/gba/](docs/platforms/gba/index.md), [docs/platforms/gb/](docs/platforms/gb/index.md),
+[docs/platforms/gbc/](docs/platforms/gbc/index.md), [docs/platforms/snes/](docs/platforms/snes/index.md),
+[docs/platforms/mastersystem/](docs/platforms/mastersystem/index.md), [docs/platforms/psx/](docs/platforms/psx/index.md) and
+[docs/platforms/n64/](docs/platforms/n64/index.md) are the records, gaps included.
 
 Every one of those rows is carried to the RomM `5.3.1` floor. Steps 1 and 9 were re-run there on
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise.

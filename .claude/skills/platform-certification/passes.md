@@ -11,13 +11,13 @@ Part of the [platform-certification](SKILL.md) skill. What each system certified
 them, which is what a row costs once steps 1, 2 and 3 carry. The last four needed code first: a
 battery rule each and, for three, a state declaration in RomMBat's bundled supplement, which is
 what a row outside `es_savestates.cfg` will need on every other system too. Read
-`docs/platforms/nes.md` before starting a pass: it is the only worked example of the whole
+`docs/platforms/nes/` before starting a pass: it is the only worked example of the whole
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
 step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
 reads the sessions back, so step 8 no longer needs the token that record describes.
 
 **`megadrive` is second: seven of its eleven rows certified at `5.3.0` on 2026-09-21**, and
-`docs/platforms/megadrive.md` is the model for a system whose matrix does not all pass. The three
+`docs/platforms/megadrive/` is the model for a system whose matrix does not all pass. The three
 `libretro` cores that boot the library, `bizhawk`, `jgenesis`, `mednafen` and `ares`, the last four
 on a build carrying megadrive rules. `libretro`/`fbneo` and the three `kega-fusion` rows were
 driven and are recorded as not certifiable, each with its reason, which is a result and not a
@@ -59,7 +59,7 @@ quits**, adding `playcount` and moving the entry, so step 9 compares against a c
 the last ES session.
 
 **`snes` is sixth: all fifteen rows certified at `5.3.0` on 2026-09-24**, in one morning, on Zelda: A
-Link to the Past, with `docs/platforms/snes.md` the record. **Boot a coprocessor game for step 3**,
+Link to the Past, with `docs/platforms/snes/` the record. **Boot a coprocessor game for step 3**,
 not only the test game: RetroBat lists no `snes` firmware, and on Super Mario Kart, a DSP-1
 cartridge, three rows refused for want of `dsp1b.rom` while Zelda booted everywhere (RB-317).
 A title screen does not exercise the chip, so claim no more than the title. **A row whose emulator
@@ -70,7 +70,7 @@ pressed blind. **The server may already hold the test game's save**, from anothe
 flush then records a conflict rather than overwrite, and which side wins is the maintainer's call.
 
 **`mastersystem` is seventh, and closes wave 1: seven of its ten rows certified at `5.3.0` on
-2026-09-24**, in one day, on Golden Axe Warrior, with `docs/platforms/mastersystem.md` the record.
+2026-09-24**, in one day, on Golden Axe Warrior, with `docs/platforms/mastersystem/` the record.
 FBNeo and both Kega Fusion rows are recorded as not certifiable for `megadrive`'s reasons. **Pick a
 test game whose save point you know.** Golden Axe Warrior commits its save once, at the first
 character, and after that rewrites only a working copy, so every later row's file changed without
@@ -83,7 +83,7 @@ pass**: a launch there writes a save with no device, which the next flush takes 
 (RB-327).
 
 **`psx` opens wave 2: all seven rows certified at `5.3.1` on 2026-09-26**, with
-`docs/platforms/psx.md` the record. **Step 6 is the long step on a memory card system**: drive every
+`docs/platforms/psx/` the record. **Step 6 is the long step on a memory card system**: drive every
 card type the rows expose, boot each through `emulatorLauncher` first to learn the file it writes,
 seed it with the game's save, and uninstall the hooks for the sessions so nothing flushes before the
 scan has been read. A shared card needs two games saving to it, and a card type change leaves two
@@ -100,7 +100,7 @@ nothing back into DuckStation's own directory. **BizHawk names everything after 
 so attribution and a restore both have to know the set's discs (332).
 
 **`n64` is second in wave 2: eight of nine rows certified at `5.3.1` on 2026-09-27**, in one
-morning, and gopher64 on 2026-09-29 once #239 read its folder, with `docs/platforms/n64.md` the
+morning, and gopher64 on 2026-09-29 once #239 read its folder, with `docs/platforms/n64/` the
 record. **A Mario Kart 64 ghost reaches the pak only when the game saves it**: a lap writes the
 EEPROM, and gopher64 rewrites the `.mpk` with the same bytes on every access, so check the hash. **Pick one game per save medium**: Ocarina of Time
 covers SRAM, and Mario Kart 64 covers EEPROM plus a Controller Pak ghost, which is step 6. **Boot

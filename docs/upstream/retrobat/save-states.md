@@ -93,7 +93,7 @@ Two states made in the session landed as `.state1` and `.state2`. RetroArch's lo
 `found_last_state_slot: #0` against an empty `saves/nes/libretro.mesen/`, then `Saving state`
 for each. The generated `retroarch.cfg` sets `savestate_auto_index = "true"`, which continues
 from the highest slot on disk for that game and core. So the `nestopia` pass that proved RB-258's
-fix, `-state_slot 2` and states 2 to 4, followed a slot 1 already on disk (`docs/platforms/nes.md`). Where ES's number comes from is
+fix, `-state_slot 2` and states 2 to 4, followed a slot 1 already on disk (`docs/platforms/nes/`). Where ES's number comes from is
 unmeasured, and nothing in `src/` reads `-state_slot`. For a `libretro` row, read the slot from
 the `Saving state` lines or the file on disk.
 

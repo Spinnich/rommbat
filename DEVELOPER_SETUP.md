@@ -246,7 +246,7 @@ ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 account a real install is paired as**, for hands-on passes. With `roms.user.read` it lets a
 certification pass check step 8, that a play session reached RomM. With `roms.read` and
 `assets.write` as well it can stage a second device's save, a slotted upload with no `device_id`
-into a slot the install has never synced, which is how the #211 pass in `docs/platforms/nes.md`
+into a slot the install has never synced, which is how the #211 pass in `docs/platforms/nes/conflicts.md`
 was driven. It cannot read `GET /api/saves` without `assets.read`. Nothing else needs it, and a
 clone without it is unaffected.
 

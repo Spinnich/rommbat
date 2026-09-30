@@ -63,7 +63,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   passes use. **`RomMConnection.ListPlaySessionsAsync` is the client's read and `status` prints
   it** under a `Playtime` block, filtered by `RomMDeviceId` and only when the server is reachable
   and `roms.user.read` was granted, which is what makes step 8 answerable from the agent (#208);
-  `docs/platforms/nes.md` step 8 is the worked case from before it existed. The endpoint promises
+  `docs/platforms/nes/libretro-nestopia.md` step 8 is the worked case from before it existed. The endpoint promises
   no order, so take the newest by `end_time` rather than the first row, and sort by it before
   listing the ten newest, which `status` does under `recent:`, or the whole window with
   `--all-sessions`. An empty answer stays

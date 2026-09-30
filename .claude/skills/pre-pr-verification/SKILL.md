@@ -164,10 +164,11 @@ measurement was taken on and must not.
    payload when it truncates, so a delta that size reads as complete while hiding whichever
    files sort last. `alpha.3` to `beta.1` hit exactly 300 and hid the browser save writer, which
    a finding turned on. Diff blob shas from `git/trees/{ref}?recursive=1` at both tags instead.
-8. **Map the move onto every record in `docs/platforms/`.** Each record gets the nine steps
-   marked touched or carried, step 9 always touched, a one-line reason for each carried step,
-   and the touched ones re-run or recorded as owed at the new floor. The rule and what counts
-   as touched are in the `platform-certification` skill, "When the floor moves".
+8. **Map the move onto every record in `docs/platforms/`.** The PR description marks the nine
+   steps touched or carried, step 9 always touched, with a one-line reason for each carried
+   step. Each record's "Where each row stands" then says which steps were re-run at the new
+   floor and which are owed. The rule and what counts as touched are in the
+   `platform-certification` skill, "When the floor moves".
 
 ## Before claiming done
 
