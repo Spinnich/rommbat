@@ -30,3 +30,42 @@ es_settings.cfg  ->  global.<key>  ->  <system>.<key>  ->  <system>["<rom filena
 
 That last form is a genuine per-game override, and it is the lever that turns shared
 memory cards into per-game ones without touching an emulator config.
+
+## Where RomMBat's files live
+
+Everything RomMBat owns lives inside the RetroBat tree. Nothing goes to `%APPDATA%`, the
+registry, a service or a scheduled task. The subdirectory is not a free choice: a `.menu` entry
+resolves its executable under `emulators\` and `emulatorLauncher` refuses `..\` escapes, so
+anything launched from the ES menu lives there (RB-384).
+
+```text
+<RetroBat root>/
+  emulators/rommbat/      forced by the .menu path rules, see RB-384
+    rommbat-agent.exe     the seven installed files start here
+    RomMBat.exe
+    rommbat-hook.exe      the source hooks install copies into each event folder
+    e_sqlite3.dll         needed by both the agent and the UI, one copy serves both
+    libSkiaSharp.dll      the UI's three Avalonia natives; losing one breaks it at launch
+    av_libglesv2.dll
+    libHarfBuzzSharp.dll
+    rommbat.db            SQLite: file index, sync sets, outbox, cursors
+    device.id             the client_device_identifier GUID
+    logs/
+    outbox/
+  roms/<system>/          ROMs, gamelist.xml, images/, videos/, manuals/
+  bios/                   firmware, at the paths batocera-systems.json specifies
+  saves/<system>/<emulator>/   emulator save output, two levels deep
+  emulationstation/
+    emulatorLauncher.exe  what %~dp0..\..\..\ from a hook resolves to
+    .emulationstation/
+      es_settings.cfg     RetroBat options, including the per-game override form
+      es_savestates.cfg   per-emulator save-state schema
+      es_features.cfg     the per-game option definitions (memory cards, VMUs)
+      scripts/<event>/    the .bat hooks; reach the root with %~dp0..\..\..\..\
+  system/es_menu/
+    rommbat.menu          line 1 the exe path, relative to emulators/
+    gamelist.xml          must also carry a <game> entry or the app shows as a filename
+    media/
+      rommbat-logo.png    the artwork that entry points at, written by menu install
+  system/version.info     the version string, e.g. 8.2.1-stable-win64
+```

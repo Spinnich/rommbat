@@ -297,6 +297,16 @@ is byte-identical to the UI's, so one copy in the shared directory serves both. 
 assembles exactly those seven and refuses to package a set missing any, because losing one
 breaks the app at launch with nothing a user can read.
 
+Every entry in the zip is prefixed `emulators/rommbat/`, so it extracts at the RetroBat root,
+where `RetroBatInstall.AppDirectory` and `hooks install` expect the files; a flat archive would
+leave the ES menu entry unable to resolve its executable. The script cleans each project's
+output directory first, because a publish over a warm one missing a native considers the copy
+up to date, skips every native and still reports success. That clean also republishes a deleted
+native before the check can see it is gone, so `-NoPublish`, which packages whatever the last
+publish left, is the way to exercise the refusal. `-Deploy` writes only the seven files, so
+`rommbat.db` and `device.id` survive and the install stays paired, and it refuses a path that is
+not a RetroBat root.
+
 **Input is read, never detected.** The controller map comes from the live `es_input.cfg`,
 which records which physical input is `a` on that pad rather than what kind of pad it is, and
 it is read through `emulationstation/SDL2.dll` because those ids are SDL joystick indices and
@@ -386,8 +396,5 @@ user. That harness lives in the test project on purpose. Putting approval or tok
 into the shipped client would give it a second auth-adjacent surface, and the whole point of
 pairing being the only path is that there is exactly one.
 
-**That token is not a RomMBat token.** `/approve` and `/deny` are `[Scope.ME_WRITE]` routes,
-and `me.write` is a scope RomMBat itself never requests, so the harness token needs
-`me.read` plus `me.write` and nothing else. Its **account** separately needs the full device
-scope set, because `allowed_scopes` is computed from the account's permissions rather than
-the token's. See DEVELOPER_SETUP.md section 3.
+The token that harness holds is not a RomMBat token and needs other scopes than a device
+asks for; [the testing doc](../contributing/testing.md#the-approver-token) has which, and why.

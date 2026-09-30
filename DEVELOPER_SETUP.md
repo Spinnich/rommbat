@@ -1,11 +1,11 @@
 # Developer setup
 
-Everything you need to build RomMBat, point it at a RomM instance, and stand up a
-throwaway RetroBat to test against.
+The steps to build RomMBat, point it at a RomM instance, and stand up a throwaway RetroBat to
+test against. Development happens on Windows, the target platform: RomMBat drives
+EmulationStation hooks, reads RetroBat's config files and publishes `win-x64`.
 
-Development happens on Windows, which is also the target platform. That is not a
-compromise: RomMBat drives EmulationStation hooks, reads RetroBat's config files and
-publishes `win-x64`, so most of it cannot be meaningfully exercised anywhere else.
+How the code is laid out is in [docs/architecture/](docs/architecture/README.md), and how to run
+the tests beyond a plain `dotnet test` is in [docs/contributing/testing.md](docs/contributing/testing.md).
 
 ---
 
@@ -14,8 +14,8 @@ publishes `win-x64`, so most of it cannot be meaningfully exercised anywhere els
 | Tool                   | Why                                 | Get it                                                                  |
 | ---------------------- | ----------------------------------- | ----------------------------------------------------------------------- |
 | .NET SDK 10.0 or newer | Build and test                      | <https://dotnet.microsoft.com/download>                                 |
-| Git                    | Obviously                           | <https://git-scm.com/download/win>                                      |
-| Python 3.10+           | `reference/verify.py`               | <https://www.python.org/downloads/>                                     |
+| Git                    | Source control                      | <https://git-scm.com/download/win>                                      |
+| Python 3.10+           | `reference/verify.py`, docs checks  | <https://www.python.org/downloads/>                                     |
 | Trunk                  | Lint and format                     | `curl -fsSL https://trunk.io/releases/trunk -o trunk` (WSL or Git Bash) |
 | GitHub CLI             | Reading upstream repos, opening PRs | <https://cli.github.com/>                                               |
 
@@ -27,96 +27,40 @@ python3 --version      # 3.10+
 git --version
 ```
 
-`global.json` pins the minimum SDK with `rollForward: latestMajor`, so a newer SDK is
-fine and no SDK at all fails loudly rather than silently building against something
-unexpected.
+`global.json` pins the minimum SDK with `rollForward: latestMajor`, so a newer SDK works and no
+SDK fails loudly.
 
 ### Build
 
 ```bash
 dotnet restore
-dotnet tool restore    # once per clone: NSwag, for regenerating the API DTOs
 dotnet build
 dotnet test
 ```
 
-**Two things about `dotnet test` will waste an hour each if nobody says them.** `global.json`
-opts this repo into Microsoft.Testing.Platform, so `dotnet test` is MTP's command and not
-VSTest's, and it takes a different set of options. Run `dotnet test --help` for the real list.
+`dotnet test` is Microsoft.Testing.Platform, not VSTest, and a wrong option makes it report
+`Zero tests ran`. Read the `pre-pr-verification` skill before passing it anything.
 
-- **An option MTP does not recognise is forwarded to the test module, which refuses it and
-  reports `Zero tests ran` with exit code 5, naming neither the option nor the problem.**
-  `--nologo` is the one that catches people, because every other `dotnet` verb takes it. A run
-  that reports zero tests has almost certainly been handed a bad option rather than lost its
-  tests.
-- **A `--filter` that matches nothing in one of the two test projects makes the whole run exit
-  non-zero**, because a module running zero tests is an error. Scope the run with `--project` as
-  well, or the filtered run fails on the project you were not aiming at.
-
-**For per-test timings, run the test executable directly.** Built, each test project is an
-executable running xunit's own console runner, which takes `-xml <file>` and writes every
-test's duration, and `-class` or `-method` to scope the run:
-`tests/RomMBat.Tests/bin/Debug/net10.0/RomMBat.Tests.exe -xml timings.xml`. In CI, every
-`passed` line of the Test step's log carries its duration too. The rules for keeping the suite
-fast are in the `pre-pr-verification` skill.
-
-**With the two `ROMMBAT_TEST_*` variables below exported in your shell, every `dotnet test` runs
-the live suite against that server**, adding half a minute and a few pairings to each run. Keep
-them in `.env` and load them when you mean to run the live tests.
-
-Packages are managed centrally in `Directory.Packages.props`. Add a version there and a
-bare `<PackageReference Include="..." />` in the project, never a version in the `.csproj`.
-
-`dotnet tool restore` is only needed if you are moving the pinned OpenAPI schema. The
-generated DTOs are committed, so nothing generates at build time.
+Packages are managed centrally in `Directory.Packages.props`: add the version there and a bare
+`<PackageReference Include="..." />` in the project. `dotnet tool restore` is needed only to
+move the pinned OpenAPI schema; the generated DTOs are committed.
 
 ### Publish
 
 ```powershell
-./tools/publish.ps1                     # publish, lay out, and zip
+./tools/publish.ps1                          # publish, assemble the seven files, zip
 ./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
 
-This is what CI runs, so the two cannot drift. It publishes the three projects, assembles
-the **seven files** an install needs, refuses to package a set missing any of them, and
-writes `publish/rommbat-win-x64.zip`.
-
-Every entry in that zip is prefixed `emulators/rommbat/`, so it **extracts at the RetroBat
-root** and the files land where `RetroBatInstall.AppDirectory` and `hooks install` expect
-them. A flat archive would put them at the tree root, where the ES menu entry cannot resolve
-its executable.
-
-Seven, because self-contained is not one file. The agent and the UI each carry
-`e_sqlite3.dll`, and the UI carries three more Avalonia natives, since bundling those
-unpacks them into the host's temp directory rather than the tree, which core principle 4
-forbids. `docs/architecture/projects.md` has the sizes. **Losing one breaks the app at launch with
-nothing a user can read**, which is why the file list is checked rather than assumed.
-
-The per-project output directories are cleaned on every run. Publishing over a warm one
-that is missing a native makes the copy step consider itself up to date, skip **every**
-native, and still report success.
-
-That clean is also why deleting a native and re-running does not exercise the refusal: the
-file is republished before the manifest check can see it is gone. `-NoPublish` packages
-whatever the last publish left behind, which is the way to reach it.
-
-```powershell
-Remove-Item publish\ui\libSkiaSharp.dll
-./tools/publish.ps1 -NoPublish           # refuses, naming the missing file
-```
-
-`-Deploy` writes only those seven into `emulators/rommbat`, so `rommbat.db` and `device.id`
-survive and the install stays paired. It refuses a path that is not a RetroBat root.
-
-Self-contained is not optional. RomMBat installs into a portable RetroBat tree and must
-not require a machine-wide .NET runtime.
+This is what CI runs. It writes `publish/rommbat-win-x64.zip`, which extracts at the RetroBat
+root. What the seven files are and how the script guards them is in
+[docs/architecture/projects.md](docs/architecture/projects.md#srcrommbatui).
 
 ---
 
 ## 2. Clone the projects you will be reading
 
-RomMBat is written against two upstream codebases and mines a third for prior art. Keep
-local checkouts; you will read them constantly.
+RomMBat is written against two upstream codebases and mines a third for prior art:
 
 ```bash
 gh repo clone rommapp/romm                     # the server: endpoints are the contract
@@ -126,563 +70,93 @@ gh repo clone RetroBat-Official/retrobat       # systems_names.lst, es_systems.c
 gh repo clone RetroBat-Official/emulatorlauncher   # batocera-systems.json, es_savestates.cfg
 ```
 
-What each one settles is listed in [reference/README.md](reference/README.md). The files
-whose contents the design actually depends on are vendored under `reference/`, so you can
-work offline, but the full checkouts are worth having for the code around them.
+What each one settles is in [reference/README.md](reference/README.md). The files the design
+depends on are vendored under `reference/`.
 
-### Turn the git hooks on, once per clone
+Turn the git hooks on, once per clone:
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-Git will not use a checked-in hook until it is told where to look, and `core.hooksPath` is
-local config, so every clone has to do this. Today it installs one `pre-push` hook that
-refuses direct pushes to `main` and tells you to branch instead.
-
-**It is convenience, not enforcement, and it has no bypass.** `main` is governed by a GitHub
-ruleset: pull requests only, and the required status checks have to pass. The hook only says
-so in under a second, where pushing anyway costs the upload and comes back as `GH013` with a
-link to the rules. A local escape hatch could not get past the server, so there is not one.
+Its one `pre-push` hook refuses a direct push to `main`. The GitHub ruleset on `main` enforces
+the same thing server-side; the hook only says so sooner.
 
 ---
 
 ## 3. Point at a RomM instance
 
-RomM does not run comfortably on Windows and does not need to. Point the client at an
-existing instance over the LAN.
+RomM does not need to run on Windows. Point the client at instances over the LAN, two of them:
 
-You want **two** instances, for two different jobs.
+1. **A real library, for reads.** Selective sync exists because libraries reach six figures, and
+   a seeded one never reproduces that. Treat it as production: give RomMBat a **dedicated
+   non-admin account** with its own token and device, and grant only the scopes in the
+   [README table](README.md#authentication-and-scopes).
+2. **A disposable instance, for writes**, in Docker or a VM per
+   [RomM's setup docs](https://docs.romm.app). Save conflicts, `POST /api/saves` answering 409,
+   token expiry and revocation, and anything that creates devices belong here.
 
-### A real library, for reads
+The schema is already pinned; moving it is in
+[src/RomM.Client/openapi/README.md](src/RomM.Client/openapi/README.md). The backend is the
+contract, not RomM's published docs (`romm-api` skill).
 
-The whole selective-sync design exists because libraries reach six figures. A seeded dev
-library would never reproduce the behaviour that motivated it, so read-side work should
-run against a real, large instance.
+Server URLs and tokens never go in the repository. `.gitignore` covers `.env`, `*.local.json`
+and `*.token`.
 
-**Treat that instance as production, because it is:**
+### The live tests
 
-- Use a **dedicated non-admin account** for RomMBat, with its own scoped token and its own
-  registered device. RomMBat's writes (devices, `sync_config`, saves, play sessions) must
-  never touch the primary account's data.
-- Grant only the scopes in the [README table](README.md#authentication-and-scopes).
-  Anything from `users.*`, `roms.write`, `platforms.write`, `tasks.run` or `logs.read` is
-  over-scoped and is a bug in the request, not a convenience.
-- Reads are unrestricted. Anything destructive belongs on the disposable instance.
+The live tests pair headlessly through `tests/RomMBat.Tests/Support/ApprovingUser.cs`, which
+plays the approving user with a pre-made token. They skip unless both variables are set.
 
-### A disposable instance, for writes
+1. On the account the tests will run as (a non-admin account at RomM's write level), create a
+   client token with `me.read` and `me.write` and nothing else. Why those two is in
+   [the testing doc](docs/contributing/testing.md#the-approver-token).
+2. Put both values in a `.env` at the repository root:
 
-Conflict resolution, overwrite paths, token expiry and revocation all want a server you
-can reset. Run one in Docker or on a VM, per
-[RomM's own setup docs](https://docs.romm.app).
+   ```bash
+   ROMMBAT_TEST_SERVER=https://your-romm-instance
+   ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
+   ```
 
-You will need it for:
+   For hands-on passes, add `ROMMBAT_TEST_OWNER_TOKEN`, a token on the account an install is
+   paired as ([the owner token](docs/contributing/testing.md#the-owner-token)).
 
-- Save conflicts and the `keep_both` path
-- `POST /api/saves` returning 409 and the overwrite decision
-- Token expiry and revocation, and the 401-is-expected behaviour
-- Anything that creates devices you would then want to delete
+3. Source it for the run. Nothing loads `.env` on its own:
 
-### Pin the schema
+   ```bash
+   set -a; . ./.env; set +a; dotnet test
+   set -a; . ./.env; set +a; dotnet test --project tests/RomMBat.Tests --filter "FullyQualifiedName~LivePairingTests"
+   ```
 
-Already pinned. `src/RomM.Client/openapi/romm-5.3.1.json` is a byte-exact
-`/openapi.json` (served at the root, not under `/api`) from a server reporting
-**5.3.1**, the minimum RomMBat supports, so the generated DTOs describe the oldest
-server the client claims to work with. Since the floor tracks the newest stable, or a
-prerelease ahead of it when one is adopted early, that is also the newest release RomMBat has
-adopted.
-The preferred source is the project's public demo, which anyone can
-reproduce from without an account and without a hostname to scrub; neither the 5.2.0 pin nor
-this one came from there, because the demo had not caught up either time, and a prerelease
-will not reach it at all until it ships as stable. The recorded sha256 is how the capture is
-checked rather than trusted.
+   ```powershell
+   $env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
+   $env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
+   dotnet test
+   ```
 
-**Read `SYSTEM.VERSION` from `/api/heartbeat` at capture time rather than assuming it.** A
-live library can be upgraded underneath the work, which is how upstream's own tag moved from
-`5.3.0-alpha.1` to `5.3.0-alpha.2` eight hours after publication. A capture whose version
-does not match the floor is the wrong artifact even when it parses.
+With the variables exported, every `dotnet test` pairs against the server and is subject to its
+rate limit. Read [the live suite](docs/contributing/testing.md#the-live-suite) before looping it.
 
-```bash
-cd src/RomM.Client/openapi && ./generate.sh    # only when deliberately moving the pin
-```
+### Running the agent and the UI
 
-Moving the pin is a compatibility decision, not a refresh: it changes which server version
-the DTOs describe and moves a row in the README compatibility table with it. Read
-[`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md) first, including
-why the schema is normalised before NSwag sees it.
-
-The published RomM docs have drifted from the server. **The backend is the contract**; the
-schema is generated from it, and the docs are a hint. See
-[the romm-api skill](.claude/skills/romm-api/SKILL.md).
-
-### Local configuration
-
-Your server URL and token never go in the repository. RomMBat stores both inside the
-RetroBat tree at runtime, and `.gitignore` covers the dev-time equivalents (`.env`,
-`*.local.json`, `*.token`). If you find yourself about to commit a hostname, stop.
-
-### Pairing, the first time
-
-Device pairing is the only authentication path, and it cannot be automated away from the
-first run: someone has to approve the request in the RomM web UI. Have a browser open on
-the same network before you start.
-
-For **automated** tests, you do not need browser automation.
-`GET /api/auth/device/pending/{user_code}` and `POST /api/auth/device/approve` are ordinary
-protected routes, so a harness holding a pre-made token can play the approving user and
-drive the real flow headlessly. Do it that way rather than adding a token-injection
-backdoor, so the shipped client keeps exactly one auth path.
-
-That harness is `tests/RomMBat.Tests/Support/ApprovingUser.cs`, and `LivePairingTests` drives
-it. Those tests skip unless both variables are set, so a clone with no server still runs
-green. Keep them in a `.env` at the repository root, which `.gitignore` already covers:
-
-```bash
-ROMMBAT_TEST_SERVER=https://your-romm-instance
-ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
-```
-
-**A third variable exists and no test reads it.** `ROMMBAT_TEST_OWNER_TOKEN` is a token on **the
-account a real install is paired as**, for hands-on passes. With `roms.user.read` it lets a
-certification pass check step 8, that a play session reached RomM. With `roms.read` and
-`assets.write` as well it can stage a second device's save, a slotted upload with no `device_id`
-into a slot the install has never synced, which is how the #211 pass in `docs/platforms/nes/conflicts.md`
-was driven. It cannot read `GET /api/saves` without `assets.read`. Nothing else needs it, and a
-clone without it is unaffected.
-
-**Step 8 no longer needs it, and it is kept for the case where the paired token cannot be
-used.** `rommbat-agent status` reads `GET /api/play-sessions` back for this device and prints the
-count, the last session and the ten newest under a `Playtime` block (#208), which is the
-ordinary route now; `--all-sessions` lists the whole window of up to 50, for a pass of more rows
-than ten. A
-token stored with `--protect` needs `--passphrase` on that run.
-
-It has to be a separate token because the approver one is a different account, and saves, states
-and play sessions are per-user: `GET /api/play-sessions` answers `200` with the _requesting_
-account's rows, so the approver token reads zero for an install it did not pair and no scope
-widens that. `roms.user.read` alone is enough for the sessions; `GET /api/roms/{id}` is `403`
-under it, so `last_played` is not readable and the session row is what to read. The same two
-traps apply whichever token is used, and the `?device_id=` filter takes the **RomM-side** device
-id, the one `status` prints on its `romm device` line.
-
-**Under the approver token an install's data looks empty, not forbidden.**
-`GET /api/states?rom_id=` and `GET /api/play-sessions?rom_id=` answer `200` with zero rows,
-`GET /api/roms/{id}` comes back with `rom_user.user_id: -1`, and `GET /api/devices/<id>` for the
-install's device answers `404`. None of these means the install's data is missing, so read what
-an install pushed as the install. Ask `rommbat-agent` first: `status`, `saves`, and a
-`saves restore` preview, which says per state whether a screenshot is linked (it scans the tree
-first, so read `platform-certification` before moving a file aside for one). Never read the
-token out of `rommbat.db` to call the API yourself; Claude Code's permission classifier refuses
-that as credential handling. When only a direct API read will answer, use the owner token above
-or ask the maintainer to run it.
-
-Then source it for the run. `dotnet test` reads the process environment and nothing loads
-`.env` on its own, so this is deliberate every time rather than ambient:
-
-```bash
-set -a; . ./.env; set +a; dotnet test
-set -a; . ./.env; set +a; dotnet test --project tests/RomMBat.Tests --filter "FullyQualifiedName~LivePairingTests"
-```
-
-```powershell
-# PowerShell, if you prefer not to keep the file
-$env:ROMMBAT_TEST_SERVER = "https://your-romm-instance"
-$env:ROMMBAT_TEST_APPROVER_TOKEN = "rmm_..."
-dotnet test
-```
-
-**Run one suite at a time, and know that a plain `dotnet test` is a networked operation.** With
-these variables exported, **21 of the tests pair against the real server**, minting and revoking
-real credentials on the account behind the approver token. Nothing warns you first. Two runs
-inside a minute, overlapping or back to back, share that one account and the server answers
-`Too many authorize attempts. Try again later.` against the 10/min/IP init limit.
-
-`LivePairingTests` **skips** on that rather than failing, naming the limit and the wait, so the
-run still exits zero and a spent budget does not read as broken pairing. Four skips with that
-message mean wait a minute, not that anything regressed. It clears on its own.
-
-**Looping the live suite to chase an intermittent needs spacing, and one class is faster.** Pairing
-is limited to 10 per minute per IP, and one run of all four `Live*` classes pairs about nine times,
-so back-to-back runs trip the limit and prove nothing: 15 of 19 failed on it, 14 of them on every
-test. Leave 75 s between full runs.
-`LiveContentTests` alone pairs once and needs no gap. **Before looping any live test, check that
-none of its requests does server work that outlives a client timeout.** A test that called
-`GET /api/roms/identifiers` under a 10 s budget used to be in that class, and sixty runs of it
-took the server's container from 2 GB to 20.9 GiB, because every abandoned call kept loading the
-whole library in a web worker (rommapp/romm#4577). It has been removed, and so has the client
-method it called.
-
-If you want a run that touches nothing, unset both variables and the 21 skip:
-
-```bash
-env -u ROMMBAT_TEST_SERVER -u ROMMBAT_TEST_APPROVER_TOKEN dotnet test
-```
-
-**When these start failing, check the token first.** It is a `ClientToken` like any other,
-so it expires on whatever `expires_in` it was created with and can be revoked from the RomM
-UI. A revoked or lapsed token fails on `ReadPendingAsync` with a 401 rather than the 403
-that means a missing scope.
-
-**The approver token is not a RomMBat token, and the README scopes table does not apply to
-it.** That table is what a RomMBat _device_ requests, and RomMBat never needs `me.write`.
-The approving user is the other side of the same flow, and `/approve` and `/deny` are both
-`@protected_route(..., [Scope.ME_WRITE])`. So:
-
-|                               | Scopes                                     |
-| ----------------------------- | ------------------------------------------ |
-| The approver **token**        | `me.read` and `me.write`, and nothing else |
-| The **account** it belongs to | All eleven from the README table           |
-
-The split is because `allowed_scopes` is computed from `request.user.oauth_scopes`, the
-account's permissions, while the route guard checks the token's. A token missing `me.write`
-fails with a bare 403 `Forbidden` **before** the code is even looked up, which is how you
-tell it apart from a scope-subset rejection: the latter says
-`Approved scopes exceed what's allowed for this user`. An account short of the eleven fails
-later and differently, on `Assert.Empty(completion.Scopes.Degradations)`.
-
-RomM's `WRITE_SCOPES` tier covers all eleven, so an ordinary non-admin account at write
-level is enough. No admin account is needed and none should be used.
-
-**Run them under a dedicated non-admin account.** That, not the choice of instance, is what
-keeps them safe: devices and client tokens are per-user rows, so an account of their own
-cannot reach anyone else's data. The disposable instance is still the easier place to work,
-but a real instance with a purpose-made account is a legitimate setup.
-
-**The suite cleans up after itself**, in `PairingLitter` via `IAsyncLifetime.DisposeAsync`:
-each test deletes the devices it created and revokes the tokens bound to them, and a test
-fails if it cannot. That matters because every approval mints a genuine `rmm_` credential
-carrying all eleven device scopes, whose local copy dies with the temp tree. Without
-teardown a suite run leaves one set behind every time, and they accumulate.
-
-The ordering inside teardown is forced by which credential holds what: only the token a
-pairing just issued has `devices.write`, and only the approver can revoke tokens. So token
-ids are captured first, devices deleted second, revocation last.
-
-Neither environment value belongs in a file the repository tracks; `.env` at the repo root
-is gitignored.
-
-### Pairing by hand, without a UI
-
-The gamepad UI pairs from the couch as of M7 stage 7b-1. The console agent does the same
-thing without a window, ASCII QR included, which is what a headless or scripted install uses:
+Pair a throwaway tree, then run the UI against it. It runs standalone, with no EmulationStation
+and no controller:
 
 ```powershell
 dotnet run --project src/RomMBat.Agent -- pair --root D:\retrobat-test --server https://your-romm-instance
-dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
-```
-
-`--root` is only needed when the agent is not running from inside the tree. Add `--protect`
-to encrypt the stored token with a passphrase, and `--offline` to `status` to skip the
-reachability probe.
-
-### Running the gamepad UI at a desk
-
-It runs standalone, with no EmulationStation in front of it and no controller plugged in:
-
-```powershell
 dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
 ```
 
-**A physical keyboard drives it**, which exists so the interface can be worked on at a desk and
-is deliberately not a supported user flow: arrows move, Enter is A, Escape is B, Backspace is
-L1, Tab is X, F5 is Start. With a controller connected it is read through the same `es_input.cfg` a real
-install uses, so what you press at a desk is what a user presses on a sofa.
-
-**Running standalone changes nothing about `es_settings.cfg`.** The UI never writes that file,
-EmulationStation up or not, because the queue is the only path that exists and a test asserts
-the assembly cannot even name the writer. "ES is always up" is a fact about how it is launched,
-not a load-bearing assumption.
-
-#### Driving the sets screens
-
-From the status screen: **Start** opens the sets list, **the screen's secondary action** opens
-the disk budget. On the list, Start makes a new set and Accept opens the one under the cursor.
-On a set, Accept changes its folder if it has one, **Start syncs it**, the third face button
-resolves it without downloading anything, and the secondary action deletes it. On the list,
-the secondary action syncs every set and the third resolves every set.
-
-Caps and ordering **step on Left and Right** rather than being typed. Only a set's name and a
-filter's search term open the on-screen keyboard, which is the point: entering "8 GB" on a grid
-of letters is the interaction the whole stage exists to remove.
-
-**Everything except resolving works with no server at all**, so most of this surface can be
-driven against a throwaway tree that has never been paired. Resolve on an unpaired install says
-so immediately rather than waiting on a timeout.
-
-**The platform picker is empty until something has populated `platform_map`.** It offers what
-this install has heard of, which a `sync`, a `platforms list` or a resolve fills in. On a fresh
-tree the picker says so rather than showing an empty box. To get rows without a real server,
-run `platforms list` against one once, or seed the table the way `SyncSetServiceTests` does.
-
-**A resolve is minutes long against a real library**, measured at 8 m 15 s for a 9,196-rom
-platform scope. The screen shows a count that moves, and backing out of it records where it
-stopped: the next resolve continues from that offset rather than starting again. If you are
-testing the resolve screen repeatedly, use a small scope or a filter with a search term, which
-is what the sets on the live test install are.
-
-#### Driving the sync screen
-
-Start on a set, or the secondary action on the list for every set at once. The screen shows the
-pass it is in, the game it is on with a bar for that game's transfer, a running count, the disk
-budget as it is spent, and problems as they arrive.
-
-**Back stops and stays; a second Back leaves.** The first press is not a way out, and that is
-deliberate: the stop removes the game it was in, and a screen that closed on the press could
-never say what went. The resolve screen answers Back the same way.
-
-**A stop is meant to be exercised, so make it easy to hit.** A set of small ROMs finishes before
-you can press anything: 76 Atari 5200 games took 17 seconds end to end against a live instance.
-Use a set with large files, where the interesting window is one game's transfer rather than the
-whole run.
-
-**What to check after a stop**, which is the invariant the stage is built around:
-
-```powershell
-# nothing half-finished in the tree
-dir D:\retrobat-test\emulators\rommbat\partial      # empty
-dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
-```
-
-The game that was in progress should be wholly gone, ROM and rows together, and every game that
-finished before it should still be there with its artwork and a gamelist entry.
-
-#### Freeing space is the user naming what goes, never RomMBat choosing
-
-There is no eviction screen and there is not going to be one. `EvictionService` is in Core and
-`rommbat-agent evict` still previews by default and writes on `--apply`, but nothing in the
-gamepad UI offers to pick games to delete for you. Ruled with Spinnich: RomMBat guessing which
-games matter least is a bad policy even when a person starts it.
-
-What 7b-2c added is the other half, which is the user saying which games they no longer want.
-Deleting a sync set offers to take its games; a game's detail screen in browse offers to take
-that one. Both go through `EvictionService.PreviewRemoval` behind a preview that says what goes
-and what is kept before the press, and neither can reach a save: `local_file`'s seven kinds are
-`rom`, `image`, `thumbnail`, `marquee`, `video`, `manual` and `firmware`, enforced by a `CHECK`,
-so anything that removes content walks a table that holds no saves.
-
-A sync the budget cut short still **says so**, in the words `MediaSync` and `ContentSync`
-already use, and reports `SyncState.Blocked`, which `rommbat-agent sync` exits as `Partial`.
-What it does not do is offer to fix it. Two tests hold that line.
-
-#### Driving browse, install and removal with no RetroBat in front of you
-
-Every screen is walked with the gamepad map alone and no window, which is what
-`BrowseScreenTests` does end to end against `StubRomMServer`:
-
-```csharp
-// BrowseViewModel.Start(session) opens the platform list; this is the list itself.
-using var browse = new BrowseViewModel(session, connect);   // connect stands a stub in
-await Settled(browse);                                      // poll IsLoading
-
-var navigator = new Navigator(browse);
-navigator.Handle(NavAction.Accept);                         // open the game
-navigator.Handle(NavAction.Start);                          // install it
-```
-
-A confirm screen answers **Accept**, not Start: the removal previews and the file check all take
-the confirm button. A screen of facts has no cursor at all and scrolls by an offset, so assert on
-`Window.Start` rather than on `Cursor`, which is always `-1` there.
-
-With no `connect` factory and no pairing, browse lists what the tree holds rather than
-refusing, so the offline half needs no server at all: seed `local_file` rows, open the screen,
-and read `BrowseViewModel.Note` for which of the two it is showing.
-
-For the inventory check behind the disk screen, `rommbat-agent status --check-files` prints the
-same count, and `--repair-files` applies it. Both also show saves whose file or unit is gone,
-and the repair leaves those rows alone.
-
-**A throwaway tree is a separate device in your RomM, and that has a trap in it.** Device
-identity is a GUID in `emulators/rommbat/device.id`, so a test tree pairs as its own device.
-To re-test pairing without collecting a device per attempt, **delete the store and keep
-`device.id`**:
-
-```powershell
-Remove-Item D:\retrobat-test\emulators\rommbat\rommbat.db*
-```
-
-Pairing anchors on `client_device_identifier` and never on MAC or hostname, so the next pairing
-updates the same RomM device rather than creating another. Deleting `device.id` as well is what
-mints a new one.
-
-**A store from a completed pairing holds a live token in the clear** unless it was made with
-`--protect`. Do not copy one out of a tree, and do not paste the contents of the `device` table
-anywhere: `token_cipher` holds the token itself when protection is `none`.
-
-### Pulling content, without filling your disk
-
-```powershell
-dotnet run --project src/RomMBat.Agent -- sets add snes --scope platform --value snes --max-games 5 --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- budget --max 2GB --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- sync --dry-run --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- sync --root D:\retrobat-test
-```
-
-Start with a small `--max-games` and a `--max-bytes` against a real library, because the
-default is the whole platform. `sync --dry-run` prints the plan and writes nothing, and it
-works offline, so it is the cheap way to see what a set would cost before it costs it.
-
-`evict` is a dry run unless you pass `--apply`, and it is the only command in the agent that
-deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by
-hand is safe, and the next sync starts that ROM again. `evict` also reports what under that
-directory is dead, and reclaims it on `--apply`, which is the only thing that ever does:
-those bytes carry no database row, so the disk budget cannot count them and eviction proper
-cannot reach them. The reclaim needs the tree lock, because one of the things under there is a
-save being put back rather than litter, so `evict --apply` during a flush evicts and says the
-sweep will happen next time.
-
-### Metadata, media and gamelists
-
-```powershell
-dotnet run --project src/RomMBat.Agent -- gamelist --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:\retrobat-test
-```
-
-`sync` already does all of this. `gamelist` is the same pass on its own, and it needs no
-server: everything it writes comes from the local store, which is what lets it run on a
-handheld that has been off the network for a week.
-
-### Saves, playtime and the ES hooks
-
-```powershell
-dotnet run --project src/RomMBat.Agent -- hooks status --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- hooks install --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- menu status --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- menu install --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- saves --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
-
-# Picking a side once a slot has conflicted. There is no default side.
-dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-local
-dotnet run --project src/RomMBat.Agent -- saves resolve 42 "libretro:battery" --keep-server
-
-# Saying which game a directory save belongs to, when the routes cannot or disagree.
-dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 391
-dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 --forget
-```
-
-`sync` installs the hooks **and the ES menu entry** on its first run and flushes before
-anything else it does, so none of this is normally typed. `hooks uninstall` removes exactly
-RomMBat's own file from each event folder and nothing else in them, and `menu uninstall`
-removes its `.menu`, its artwork and its one `<game>` element, leaving the 93 entries
-RetroBat put in that gamelist alone. `uninstall` does both, reverts every per-game memory card
-conversion from its record, and with `--content` and `--bios` removes synced games and firmware;
-it refuses while any save, session or hook event is unsent.
-
-**The hook is its own executable and has to be published before it can be installed.** It is
-not the agent: four copies are installed, one per event folder, so it is built small and
-references nothing.
-
-`./tools/publish.ps1 -Deploy <root>` puts it at `<root>\emulators\rommbat\rommbat-hook.exe`,
-which is where `hooks install` looks for it, along with everything else an install needs.
-
-**The `start` and `quit` hooks trigger a pass; `game-start` and `game-end` do not.** Those
-two run inside the game-launch path, so they write a spool file and exit having started
-nothing, and the `start` or `quit` that brackets them picks the record up by spawning
-`rommbat-agent background <event>`. So the agent has to be published and installed at
-`<root>\emulators\rommbat\rommbat-agent.exe` for any of it to happen; a tree with hooks
-and no agent simply spools, and the next `sync` drains it.
-
-The pass writes what it did to `<root>\emulators\rommbat\logs\background.log`, which is
-the only place to look, since it runs with no console window.
-
-The same `-Deploy` run installs the agent, so the two are never out of step with each other.
-
-**Two tests skip until both executables have been published**, because they drive the real
-binaries: the interleaved-hook one, and the rule-4 boundary that proves `game-start` and
-`game-end` start nothing. They look in each project's **default** publish directory, so
-`tools/publish.ps1` does not satisfy them: it passes `-o`, which is exactly what moves the
-output somewhere else. Publish without it to un-skip them locally, which is what CI does in a
-separate step:
-
-```powershell
-dotnet publish src/RomMBat.Hook  -c Release -r win-x64 --self-contained
-dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained
-```
-
-`flush` is the only command that needs the lock. Draining the spool, correlating play sessions
-and rescanning saves all work with the server unreachable, so `--offline` is a real mode rather
-than a dry run. `saves` is the report of what is on disk, what has gone up, what cannot go up
-and why, and what is waiting on a decision.
-
-**Save states are pushed automatically and pulled only when asked.** `POST /api/states` has no
-slot, no device and no conflict detection, so there is nothing to negotiate: a state goes up when
-its content changes, and no sync brings one down. `saves restore` offers both halves in one
-preview, labelling each row `save` or `state`, and writes nothing without `--apply`. A state it
-brings down is unverified twice over, and it says so: RomM publishes no hash for a state, and a
-state carries no emulator version either, so one made on a different build of the same emulator
-cannot be told apart from one made here.
-
-The uploaded name is not the name on disk. It carries the emulator and core, because the server
-keys a state on `(rom_id, file_name)` alone and two libretro cores writing one filename for one
-game would otherwise become one row with the second silently winning. Coming back the other way
-the ROM on disk names the file, never the server row: RomM strips parenthesised groups as tags,
-so the server's `file_name_no_tags` would put the state where the emulator never looks.
-
-**A conflict now outlives the flush that found it, and `saves resolve` is how it ends.**
-`--keep-local` is the only place in this codebase that sends `overwrite=true`. Both sides prune
-the dated copy under `emulators/rommbat/replaced/` once the slot is back in step. It writes the
-same save files a flush does, so it takes the same lock: run it while a flush is in flight and
-it refuses with exit 3 rather than doing half of one.
-
-**A directory save goes up as one archive, and `saves` names the unit rather than the path.**
-Every PSP save on an install shares the container `saves/psp/SAVEDATA`, so the report prints
-`<container>/<key>`. The key is a Game ID, worked out from the launch window, the ROM header or
-the save-state sidecar, and `saves bind` is the way to correct one or to settle a binding two
-routes disagreed on. A binding is local: there is nowhere on the server to put one.
-
-**A shared container is split one game at a time, and `saves convert` is the only command that
-changes the user's RetroBat configuration.** It writes
-`<system>["<rom filename>"].<option>` into `es_settings.cfg`, which is the durable lever:
-`emulatorlauncher` regenerates every emulator INI from ES options at launch, so an INI edit is
-undone on the next boot.
-
-```powershell
-rommbat-agent.exe saves convert 191723            # preview: what it would set, and what it costs
-rommbat-agent.exe saves convert 191723 --apply    # write it
-rommbat-agent.exe saves convert 191723 --revert   # put the setting back to what it was
-```
-
-Four things about it are worth knowing before you drive it:
-
-- **It refuses while EmulationStation is running.** ES loads `es_settings.cfg` at startup and
-  serialises that model on every write, so a key written underneath it is discarded, merged and
-  atomic or not. Measured. It matches on the running process's **path**, so an ES belonging to a
-  different install on the same machine does not produce a refusal you cannot act on.
-- **It re-reads the file after writing** and refuses to record the conversion if the key is not
-  there, rather than trusting the rename.
-- **The prior state is two states.** "The key was absent" and "the key held the stock value" are
-  different files to restore, and `es_settings.cfg` cannot tell you which it was later: ES
-  prunes a setting equal to its own default, and it also adds keys on its own. So the record
-  stores which, and `--revert` restores absence by removing the key.
-- **Reverting does not compare bytes, and neither should you.** ES rewrites `LastSystem` to
-  record where the user was in the UI, so the file's hash moves for reasons that are nothing to
-  do with RomMBat. Compare the setting set.
-
-The card PCSX2 then writes is `saves/ps2/pcsx2/memcards/<rom stem>.ps2` -- the extension is
-replaced, not appended, which is the opposite of the `es_settings.cfg` key, where the extension
-is mandatory and omitting it fails silently.
-
-**Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
-opt-in.** At the sizes measured on a real library that is about 3.4 MB per game against
-5.7 MB with manuals, and it counts against the same disk budget the ROMs do. `--media` takes
-a comma-separated list, `all`, or `none`.
-
-After writing, the agent asks EmulationStation to reload over
-`http://127.0.0.1:1234/reloadgames`. That only answers while ES is running, and it is
-**ignored outright while a game is up**, so a message saying the reload did not happen is
-ordinary rather than a fault. `--no-reload` skips the call.
+The desk keyboard map is in [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md). What each
+command and screen does is drafted for the guide under [wiki/](wiki/README.md).
 
 ---
 
 ## 4. Stand up a throwaway RetroBat
 
-RetroBat is portable by design, which makes it trivially disposable. That is also the
-cleanest way to test the portable-move requirement and the first-run install path.
+RetroBat is portable, so a copy is disposable.
 
-1. Install one from a PowerShell 7 prompt. It needs `gh`, and about 6 GB: the 1.9 GB installer
-   plus the 4 GB tree it holds.
+1. Install one from a PowerShell 7 prompt. It needs `gh` and about 6 GB:
 
    ```powershell
    ./tools/retrobat-install.ps1 -Path D:\retrobat-pristine                         # newest stable
@@ -691,171 +165,80 @@ cleanest way to test the portable-move requirement and the first-run install pat
    ```
 
    The installer is cached under `%LOCALAPPDATA%\rommbat-dev\retrobat-installers` and checked
-   against the sha256 upstream publishes beside it. Nothing prunes that folder. The setup.exe
-   has no silent mode, so the script extracts the ZIP it carries, which is the whole of what
-   the wizard installs apart from its optional system-wide prerequisites (Visual C++, DirectX,
-   Dokany, WinFsp). The script warns about any it cannot find.
+   against the sha256 upstream publishes. Nothing prunes that folder. The script extracts the ZIP
+   the setup.exe carries and warns about any optional system-wide prerequisite (Visual C++,
+   DirectX, Dokany, WinFsp) it cannot find. By hand instead: run the setup.exe from
+   <https://www.retrobat.org/download/> into an empty folder.
 
-   To do it by hand instead, run the setup.exe from <https://www.retrobat.org/download/> and
-   pick an empty folder. RomMBat refuses anything below 8.2.1.
-
-2. EmulationStation needs no first launch. `es_settings.cfg`, `es_savestates.cfg` and
-   `es_systems.cfg` ship in `emulationstation\.emulationstation\`. Emulators do not: apart from
-   RetroArch and its cores, RetroBat downloads each one the first time a game needs it.
-3. **Never test against the pristine copy.** Copy the whole tree per test run:
+2. Nothing needs a first launch. The `es_*.cfg` files ship in
+   `emulationstation\.emulationstation\`. Emulators other than RetroArch download the first time
+   a game needs them.
+3. **Never test against the pristine copy.** Copy the tree per test run:
 
    ```powershell
    Remove-Item -Recurse -Force D:\retrobat-test -ErrorAction SilentlyContinue
    Copy-Item -Recurse D:\retrobat-pristine D:\retrobat-test
    ```
 
-Confirm the version you are testing against. RomMBat reads it from `system/version.info` at
-startup and refuses below the minimum:
+4. Confirm the version. RomMBat refuses anything below the floor in the root `CLAUDE.md`:
 
-```powershell
-Get-Content D:\retrobat-test\system\version.info
-# 8.2.1-stable-win64
-```
+   ```powershell
+   Get-Content D:\retrobat-test\system\version.info
+   # 8.2.1-stable-win64
+   ```
 
-There is no `build.ini` in RetroBat 8.2; M0 confirmed it does not exist anywhere in the
-tree. Note the channel and architecture suffix, which has to be split off before the
-version is compared.
+5. Put ROMs on it for the systems you are working on, and for later certification waves their
+   BIOS too. `reference/batocera-systems.json` lists the files, with md5s and destination paths.
+   Where RomMBat's own files land in the tree is in
+   [docs/architecture/writing-into-the-tree.md](docs/architecture/writing-into-the-tree.md#where-rommbats-files-live).
 
-**RomMBat tracks the newest RetroBat and RomM stable, or a prerelease ahead of it, rather than
-supporting a wide range**, so expect the floor to move. When it does, the work is: re-run `reference/refresh.sh` and
-resolve the drift, read the upstream changelog for anything touching a fact in
-`docs/upstream/`, move `RetroBatVersion.Minimum`, `RetroBatVersion.LastTested`,
-`RetroBatRoot.MinimumVersion` and the README compatibility row together, and re-check the
-open upstream issues. The reasoning is in `docs/design/version-compatibility.md`.
+For the portable-move test, install to a USB stick, pair, sync a couple of games, change the
+drive letter or move it to another PC, and confirm root discovery, the file index, the ES menu
+entry, the hooks and the device identity all still work. A FAT32 stick also exercises the 4 GB
+ceiling.
 
-### Content
-
-M0's probes all require launching real games; none of it can be desk-checked. Put ROMs on
-the test install for wave 1 before you start: `nes`, `snes`, `gb`, `gbc`, `gba`,
-`megadrive`, `mastersystem`.
-
-Later waves need their BIOS too. `batocera-systems.json` in `reference/` lists exactly
-which files, with md5s and destination paths.
-
-### A USB stick
-
-The portable-move test (M0 experiment 7) needs real removable media and a second machine.
-Install to the stick, pair, sync a couple of games, change the drive letter, plug it into
-another PC, and confirm nothing breaks: not root discovery, not the local file index, not
-the ES menu entry, not the hooks, not the device identity.
-
-Record the stick's filesystem and its mtime granularity while you are there. If you can
-get hold of a FAT32-formatted one, that exercises the 4 GB ceiling for free.
+When you are done with a test run, delete the copied tree.
 
 ---
 
 ## 5. Lint and verify
 
 ```bash
+pwsh -File tools/pre-pr.ps1     # every gate below, plus the Release build and the tests
 trunk fmt && trunk check
 python3 tools/docs/check.py
 cd reference && python3 verify.py
 ```
 
-`pwsh -File tools/pre-pr.ps1` runs these three, the Release build and the tests in one go, trunk
-through WSL (skipped in a git worktree, which trunk in WSL cannot read), and prints a pass or
-fail line per gate.
+What `check.py` enforces is in [docs/contributing/writing.md](docs/contributing/writing.md).
 
-`tools/docs/check.py` fails on a broken relative link or anchor, an em-dash, or a fact ID cited
-but defined nowhere, and prints reports for the rules the docs overhaul (#242) is bringing the
-tree into line with. Claude Code runs it on every file it writes, through the hook in
-`.claude/settings.json`; the em-dash check covers every file, the link checks Markdown only.
-Links resolve against what git would publish, in exact case, so a miscased link fails on
-Windows as it does on GitHub. Its own tests run with `python3 -m unittest discover -s tools/docs`.
-
-**Trunk has no Windows-native CLI, so run it from WSL**, which is what its own install
-instructions assume. From PowerShell:
+Trunk has no Windows-native CLI, so run it from WSL:
 
 ```powershell
 wsl -d Ubuntu -- bash -lc "cd '/mnt/d/path/to/rommbat' && trunk fmt && trunk check"
 ```
 
-`trunk check` with no arguments checks modified files only; add `--all` before a release.
-If WSL is not an option, the markdown half can be reproduced with the versions pinned in
-`.trunk/trunk.yaml`, which is enough for a docs-only change but is not a substitute:
+`trunk check` with no arguments checks modified files only; add `--all` before a release. If WSL
+is not an option, the markdown half can be reproduced with the versions pinned in
+`.trunk/trunk.yaml`, enough for a docs-only change but no substitute:
 
 ```powershell
 npx prettier@3.7.4 --write <files>
 npx markdownlint-cli@0.45.0 -c .trunk/configs/.markdownlint.yaml <files>
 ```
 
-`verify.py` re-derives every upstream number `reference/README.md` quotes. **A drift there
-means an upstream fact moved, so the fix is to revisit the design, not to update the
-expected number.** Never hand-edit a vendored file under `reference/`; use `./refresh.sh` and
-review the diff.
-
-To re-pull upstream data:
+To re-pull upstream data, from Git Bash or WSL:
 
 ```bash
 cd reference && ./refresh.sh
 ```
 
-`refresh.sh` is a shell script, so run it from Git Bash or WSL on Windows. It ends by
-checking the two bundled data files derived from this data, `data/retrobat/bios.json` and
-`data/retrobat/platforms.json`, and exits non-zero naming the generator to run if either has
-gone stale. Regenerating is left to you, because the diff is the point.
+It ends by checking `data/retrobat/bios.json` and `data/retrobat/platforms.json` against the new
+data and names the generator to run if either has gone stale.
 
 ---
 
-## 6. Where things live at runtime
+## 6. Before you open a PR
 
-Everything RomMBat owns lives inside the RetroBat tree. Nothing goes to `%APPDATA%`, the
-registry, a service or a scheduled task. **RB-384 settled the subdirectory and it is
-not a free choice**: a `.menu` entry resolves its executable under `emulators\` and
-`emulatorLauncher` refuses `..\` escapes, so anything launched from the ES menu must live
-there.
-
-```text
-<RetroBat root>/
-  emulators/rommbat/      forced by the .menu path rules, see RB-384
-    rommbat-agent.exe     the seven installed files start here
-    RomMBat.exe
-    rommbat-hook.exe      the source hooks install copies into each event folder
-    e_sqlite3.dll         needed by both the agent and the UI, one copy serves both
-    libSkiaSharp.dll      the UI's three Avalonia natives; losing one breaks it at launch
-    av_libglesv2.dll
-    libHarfBuzzSharp.dll
-    rommbat.db            SQLite: file index, sync sets, outbox, cursors
-    device.id             the client_device_identifier GUID
-    logs/
-    outbox/
-  roms/<system>/          ROMs, gamelist.xml, images/, videos/, manuals/
-  bios/                   firmware, at the paths batocera-systems.json specifies
-  saves/<system>/<emulator>/   emulator save output, two levels deep
-  emulationstation/
-    emulatorLauncher.exe  what %~dp0..\..\..\ from a hook resolves to
-    .emulationstation/
-      es_settings.cfg     RetroBat options, including the per-game override form
-      es_savestates.cfg   per-emulator save-state schema
-      es_features.cfg     the per-game option definitions (memory cards, VMUs)
-      scripts/<event>/    the .bat hooks; reach the root with %~dp0..\..\..\..\
-  system/es_menu/
-    rommbat.menu          line 1 the exe path, relative to emulators/
-    gamelist.xml          must also carry a <game> entry or the app shows as a filename
-    media/
-      rommbat-logo.png    the artwork that entry points at, written by menu install
-  system/version.info     the version string, e.g. 8.2.1-stable-win64
-```
-
-When you are done with a test run, delete the copied tree. That is the whole uninstall.
-
----
-
-## 7. Before you open a PR
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the `pre-pr-verification` skill.
-
-```bash
-dotnet build                    # no new warnings
-dotnet test                     # full suite green
-trunk fmt && trunk check
-python3 tools/docs/check.py
-cd reference && python3 verify.py
-```
-
-And disclose AI assistance. It is not optional here.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the `pre-pr-verification` skill, and disclose AI
+assistance.
