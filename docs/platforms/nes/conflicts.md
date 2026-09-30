@@ -49,7 +49,7 @@ invented one is refused with `404 Device with ID ... not found`, so the upload w
 | Copy aside before acting | yes                                   | yes                                 |
 | Outcome on disk          | local bytes kept                      | the server's `f78ab191` written     |
 | On the server            | sent as save 212, **210 still stood** | 213 untouched                       |
-| Copy aside afterwards    | pruned                                | kept (#326, not yet driven)         |
+| Copy aside afterwards    | pruned                                | kept (#326, driven on rom 158633)   |
 
 The conflict report names both hashes, the time it was first seen and the copy-aside path before
 asking for a decision, and neither branch is a default:
