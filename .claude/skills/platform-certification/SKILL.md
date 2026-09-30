@@ -56,7 +56,8 @@ is evidence.
 
 ## Checklist
 
-Record results in `docs/platforms/<system>.md`, one section per `(emulator, core)`. All nine,
+Record results in `docs/platforms/<system>/`: `index.md` holds the system's own steps and each
+row's standing at the floor, and a file per emulator or group of rows holds the rest. All nine,
 or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried
 across emulators with a note (step 2 not where emulators disagree about a playlist); **steps 4, 5 and 6 have to be redone per emulator.**
 
@@ -73,7 +74,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    throughout passes this step by recording so.
 
    **Unlocking a system is one entry in `data/retrobat/multi_file.json`, made from this step's
-   measurement.** `psx` was first (`docs/platforms/psx.md`): drive every row on a set held as one
+   measurement.** `psx` was first (`docs/platforms/psx/`): drive every row on a set held as one
    RomM rom, confirm what ES lists for the layout with `/systems/<system>/games` and a screenshot,
    and record which rows read the playlist. A row that cannot is recorded, not waited on: RetroBat's
    launcher hands both BizHawk `psx` cores disc 1 whatever the layout (RB-314). Test on a set
@@ -153,7 +154,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    not its name or its arrival**, because RomM can answer a libretro slot with another slot's
    image, which is not a link to this state. Make more than one state in the session and pick
    the one whose image is unique for the comparison, because two states on the same frame share an
-   image and cannot tell a real link from a wrong one. `docs/platforms/nes.md` has the worked
+   image and cannot tell a real link from a wrong one. `docs/platforms/nes/` has the worked
    pass.
 
    **Under `libretro` the state slot is RetroArch's, not EmulationStation's.** RetroArch runs with
@@ -215,8 +216,10 @@ across emulators with a note (step 2 not where emulators disagree about a playli
 ## When the floor moves
 
 **A record is a measurement of the RomM and RetroBat builds it names, and a floor move does not
-carry it forward by itself.** Nor does it void it. The PR that moves a floor owes every record in
-`docs/platforms/` a mapping of the move onto the nine steps, and the re-run of the steps it touches:
+carry it forward by itself.** Nor does it void it. The PR that moves a floor owes a mapping of the
+move onto the nine steps, in its description, and the re-run of the steps it touches. Each record's
+"Where each row stands", in its `index.md`, then says which steps were re-run at the new floor and
+when, which carry, and which are owed. The mapping itself stays in the PR:
 
 - **A step is touched** when the move changes code or bundled data that step exercises (the
   diff since the previous floor under `src/` and `data/`), or when a fact in `docs/upstream/`

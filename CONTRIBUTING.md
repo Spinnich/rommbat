@@ -99,7 +99,7 @@ RomMBat supports platforms one certified system at a time, not in bulk.
 
 **The unit is `(system, emulator, core)`, never the system alone and never an aggregate.** "RetroArch works" is not a claim anything can be verified against, and neither is "snes works": two emulators for one console differ on save shape, state directory and BIOS needs, and `libretro` and `bizhawk` are core-scoped on top of that. So a record names the emulator and the core it was taken against, and says nothing about the others.
 
-If you are adding or fixing a platform, run the full checklist in the `platform-certification` skill and record the result in `docs/platforms/<system>.md`, in a section for that emulator. A pass is not done at eight of nine. Never claim a platform works without having launched a game on it.
+If you are adding or fixing a platform, run the full checklist in the `platform-certification` skill and record the result in `docs/platforms/<system>/`, in a file for that emulator. A pass is not done at eight of nine. Never claim a platform works without having launched a game on it.
 
 A change to save logic owes a hands-on pass of the shape it touches rather than a full certification, on every emulator the system offers and every save option that writes it; see the `pre-pr-verification` skill.
 

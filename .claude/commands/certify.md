@@ -14,7 +14,7 @@ on that PR, and stop there. It is never recorded as a certification.
 The maintainer's one job here is to play. You plan, launch, send keys, watch the files, record
 and open the PR ([workflow](../../docs/contributing/workflow.md)). Load `platform-certification`
 before anything else: `SKILL.md` holds the checklist, `passes.md` the traps each system taught,
-and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes.md` is the worked example.
+and `waves.md` how the agent launches rows and sends keys. `docs/platforms/nes/` is the worked example.
 
 ## The install
 
@@ -72,8 +72,9 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
 ## 4. Record and ship
 
 - **Certification**: branch first, with `EnterWorktree` (`certify-<SYSTEM>`), so the record
-  lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>.md`, one section per
-  row, all nine steps, in `nes.md`'s shape. Then every doc `pre-pr-verification` names for a
+  lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>/`: `index.md` for the
+  system's steps and each row's standing at the floor, and a file per emulator or group of rows,
+  all nine steps, in `docs/platforms/nes/`'s shape. Then every doc `pre-pr-verification` names for a
   platform changing state. Run `pwsh -File tools/pre-pr.ps1`, open the PR on the template, and
   run `/drive-pr` on it.
 - **`--hands-on <PR>`**: post the result on that PR as one comment: each row and option driven,

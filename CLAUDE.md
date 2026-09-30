@@ -41,7 +41,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Saves, states, slots, conflicts, memory cards: `SaveSync`, `SaveFlushService`, `Save*` | `save-sync`: "Where the flush passes live", then "The four shapes" or "Protocol rules"                       |
 | Outbox, journal, spool, `TreeLock`, relative paths, the token, clock skew              | `offline-and-portable`                                                                                       |
 | Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                  |
-| Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes.md` as the worked example                    |
+| Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes/` as the worked example                      |
 | How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                    |
 | How RomMBat's code is laid out and why                                                 | [docs/architecture/](docs/architecture/README.md), the file for the area                                     |
 | Why a behaviour was chosen, when no skill says                                         | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |

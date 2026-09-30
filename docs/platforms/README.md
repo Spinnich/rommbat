@@ -1,7 +1,8 @@
 # Platform certification records
 
-One file per RetroBat system, named `<system>.md` after the folder name in `es_systems.cfg`,
-**with a section per emulator inside it**.
+One folder per RetroBat system, named `<system>/` after the folder name in `es_systems.cfg`.
+**`index.md` states each row's standing at the current floor** and holds the system's own steps,
+a file per emulator or group of rows holds the rest, and `facts.md` holds the measured facts.
 
 **The unit is `(system, emulator, core)`, never the system alone.** Two emulators for one
 console differ exactly where it costs a save: `psx` under libretro writes a plain `.srm` and is
@@ -280,17 +281,17 @@ start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat ca
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; each record's
 "The move to `5.3.1`" maps the steps.
 
-**Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and eleven declared shared cards, five of them observed (RB-328 to RB-335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (RB-330). [psx.md](psx.md) is the record.
+**Wave 2 has begun with `psx`: all seven of its rows certified at RomM `5.3.1`** on 2026-09-26, the three `libretro` cores, DuckStation, standalone mednafen and both BizHawk cores, with every memory card type the rows expose driven at step 6. Each non-`libretro` row needed code: a battery rule for DuckStation's per-port cards, mednafen's cards and BizHawk's `.SaveRAM`, a state declaration for mednafen, and attribution of a disc set's files to the set; the non-default card types added swanstation's and mednafen_psx_hw's other cards and eleven declared shared cards, five of them observed (RB-328 to RB-335). Six of the seven refuse to boot without `psxonpsp660.bin`, which RomMBat fetches; mednafen emulates no card at RetroBat's default (RB-330). [psx/](psx/index.md) is the record.
 
-**`n64` follows: all nine of its rows certified at RomM `5.3.1`**, on 2026-09-27 both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, and on 2026-09-29 `gopher64`, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64`'s battery saves are outside `saves/`, where a rule anchored at the RetroBat root reads them (#239). RB-336 to RB-341; [n64.md](n64.md) is the record.
+**`n64` follows: all nine of its rows certified at RomM `5.3.1`**, on 2026-09-27 both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, and on 2026-09-29 `gopher64`, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64`'s battery saves are outside `saves/`, where a rule anchored at the RetroBat root reads them (#239). RB-336 to RB-341; [n64/](n64/index.md) is the record.
 
 **Read all nine as narrowly as they are written.** They certify eighty-nine
 `(system, emulator, core)` rows on one install, wave 1's seventy-three, `psx`'s seven and `n64`'s nine, each at the
 floors its record names. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
-to the systems it was measured on. [nes.md](nes.md), [megadrive.md](megadrive.md),
-[gba.md](gba.md), [gb.md](gb.md), [gbc.md](gbc.md), [snes.md](snes.md), [mastersystem.md](mastersystem.md),
-[psx.md](psx.md) and [n64.md](n64.md) are the records, gaps included.
+to the systems it was measured on. [nes/](nes/index.md), [megadrive/](megadrive/index.md),
+[gba/](gba/index.md), [gb/](gb/index.md), [gbc/](gbc/index.md), [snes/](snes/index.md), [mastersystem/](mastersystem/index.md),
+[psx/](psx/index.md) and [n64/](n64/index.md) are the records, gaps included.
 
 **One thing does not wait.** Steps 4, 5 and 6 are the data-loss steps. A change to save logic
 owes a hands-on pass of the shape it touches, through EmulationStation and back on every emulator

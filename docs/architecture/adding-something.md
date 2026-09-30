@@ -13,7 +13,7 @@ read-when: Before writing a new class, table, mapping or platform.
 | A platform mapping fix                           | `data/retrobat/platforms.json` plus a test | `platform-mapping`       |
 | Save or state handling                           | `RomMBat.Core`                             | `save-sync`              |
 | Anything touching paths, the outbox or the clock | `RomMBat.Core`                             | `offline-and-portable`   |
-| A new supported platform                         | `docs/platforms/<system>.md`               | `platform-certification` |
+| A new supported platform                         | `docs/platforms/<system>/`                 | `platform-certification` |
 | Wrapping up any change                           |                                            | `pre-pr-verification`    |
 
 Ask three questions before writing the class:
