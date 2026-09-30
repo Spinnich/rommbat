@@ -12,7 +12,7 @@ namespace RomMBat.Tests;
 /// unreachable mid-operation.
 /// </summary>
 /// <remarks>
-/// `docs/ARCHITECTURE.md` calls this the highest-value suite, and the reason is that being
+/// `docs/architecture/projects.md` calls this the highest-value suite, and the reason is that being
 /// offline is the normal case for this app rather than an error path. Every test here
 /// asserts the same thing from a different angle: work either completes locally or queues,
 /// and nothing is lost.

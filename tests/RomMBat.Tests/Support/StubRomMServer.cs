@@ -141,7 +141,7 @@ internal sealed record StubFirmware(int Id, string FileName, byte[] Bytes)
 /// A stand-in RomM server that can be switched to unreachable mid-operation.
 /// </summary>
 /// <remarks>
-/// This is the harness `docs/ARCHITECTURE.md` calls the highest-value suite. Being offline
+/// This is the harness `docs/architecture/projects.md` calls the highest-value suite. Being offline
 /// is the normal case for this app, so the interesting behaviour is what happens when the
 /// server disappears partway through something, and that cannot be tested against a server
 /// that is always up.

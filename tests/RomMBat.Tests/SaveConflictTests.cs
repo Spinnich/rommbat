@@ -374,7 +374,7 @@ public class SaveConflictTests
     public async Task Keeping_the_server_side_is_deferred_while_the_game_is_being_played()
     {
         // The same ordering issue #155 measured, on the route a person reaches by hand:
-        // docs/ARCHITECTURE.md groups `saves resolve` with `saves restore --apply` because both
+        // docs/architecture/projects.md groups `saves resolve` with `saves restore --apply` because both
         // write the files a flush does, and the emulator's own copy on exit would take this one
         // back out again.
         using var fixture = ConflictFixture.Create();

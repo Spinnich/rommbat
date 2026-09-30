@@ -277,7 +277,7 @@ columns for that reason.
   `GET /api/roms/by-hash` is 0.2 to 0.8 s on a hit and 1.4 to 1.8 s on a miss (RB-84), and
   `GET /api/roms/{id}/simple` under half a second (RB-87): a request per ROM, so neither is a
   sweep.
-- **`is_verified` on firmware is unreliable here.** See `docs/ARCHITECTURE.md`, "Two
+- **`is_verified` on firmware is unreliable here.** See `docs/architecture/authorities.md`, "Two
   authorities that are easy to get backwards": it is false on files RetroBat requires,
   `psxonpsp660.bin` among them. Filtering on it discards 6 of the 49 required files one
   library holds, and joining on `file_name` instead of `md5_hash` discards 2 (RM-26). Join on

@@ -15,7 +15,7 @@ namespace RomMBat.Tests;
 /// <para>
 /// Every screen test asserts on a view model and none of them renders, so nothing in the suite
 /// could have caught it. Pulling the arithmetic out of the renderer is what makes it reachable
-/// at all, which is <c>ARCHITECTURE.md</c>'s rule: if something in the UI project cannot be
+/// at all, which is <c>docs/architecture/projects.md</c>'s rule: if something in the UI project cannot be
 /// tested without a window, it is in the wrong project.
 /// </para>
 /// </remarks>

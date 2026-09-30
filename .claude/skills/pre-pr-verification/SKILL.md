@@ -111,12 +111,12 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, `DEVELOPER_SETUP.md` examples                         |
 | A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                           |
-| A migration, table or column                                 | `docs/ARCHITECTURE.md` §4, both the table and the count of migrations in the paragraph                      |
-| Sync protocol, the save or state model, attribution, hashing | `docs/ARCHITECTURE.md` §9 and the `save-sync` skill                                                         |
+| A migration, table or column                                 | `docs/architecture/local-store.md`, both the table and the count of migrations in the paragraph             |
+| Sync protocol, the save or state model, attribution, hashing | `docs/architecture/saves.md` and the `save-sync` skill                                                      |
 | A rule that only exists because something was measured       | The skill for that area, plus its fact in `docs/upstream/`, and a `docs/design/decisions/` record it amends |
 | A milestone or stage changing state                          | The stage tables in `README.md`, and the GitHub milestone and issue that track it                           |
 | A minimum RomM or RetroBat version                           | The whole version-move checklist below                                                                      |
-| A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/ARCHITECTURE.md` §2 and §3                                             |
+| A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/architecture/projects.md` and `reference-data.md`                      |
 | A folder, type or trap a nested `CLAUDE.md` names            | That project's `CLAUDE.md`, and the routing table in the root `CLAUDE.md`                                   |
 
 Three rules that keep this from becoming its own scope creep:

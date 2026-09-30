@@ -26,4 +26,4 @@ and the outbox are Core's.
 - **A finished screen says so**: past-tense title, an outcome word, and a footer reading Done
   instead of offering a stop.
 - The publish is five files and must stay out of self-extraction, which unpacks natives outside
-  the tree (`docs/ARCHITECTURE.md`, "src/RomMBat.UI").
+  the tree (`docs/architecture/projects.md`, "src/RomMBat.UI").

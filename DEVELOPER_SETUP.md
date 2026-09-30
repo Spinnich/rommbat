@@ -89,7 +89,7 @@ its executable.
 Seven, because self-contained is not one file. The agent and the UI each carry
 `e_sqlite3.dll`, and the UI carries three more Avalonia natives, since bundling those
 unpacks them into the host's temp directory rather than the tree, which core principle 4
-forbids. `docs/ARCHITECTURE.md` has the sizes. **Losing one breaks the app at launch with
+forbids. `docs/architecture/projects.md` has the sizes. **Losing one breaks the app at launch with
 nothing a user can read**, which is why the file list is checked rather than assumed.
 
 The per-project output directories are cleaned on every run. Publishing over a warm one

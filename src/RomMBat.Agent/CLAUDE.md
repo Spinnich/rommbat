@@ -4,7 +4,7 @@
 because a portable install cannot register a service. Each subcommand is a class under
 `Commands/`, and `Program.DispatchAsync` routes to it and turns exceptions into an `ExitCode`.
 The subcommand table, with which ones reach the network, is in
-[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md#srcrommbatagent).
+[docs/architecture/projects.md](../../docs/architecture/projects.md#srcrommbatagent).
 
 ## Traps
 
