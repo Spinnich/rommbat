@@ -55,8 +55,8 @@ factory and no pairing, browse lists what the tree holds, so the offline half ne
 
 The live tests skip unless `ROMMBAT_TEST_SERVER` and `ROMMBAT_TEST_APPROVER_TOKEN` are set.
 Setting them up is
-[the developer setup](../../DEVELOPER_SETUP.md#the-live-tests). Once they are exported, **every `dotnet test`
-is a networked operation**: 21 tests pair against the real server, minting and revoking real
+[the developer setup](../../DEVELOPER_SETUP.md#the-live-tests). Once they are exported, every `dotnet test`
+is a networked operation: 21 tests pair against the real server, minting and revoking real
 credentials on the approver's account, with no warning first.
 
 **Pairing is limited to 10 per minute per IP.** One run of all four `Live*` classes pairs about
@@ -70,7 +70,7 @@ no gap.
 Before looping any live test, check that none of its requests does server work that outlives a
 client timeout. An abandoned `GET /api/roms/identifiers` keeps loading the whole library in a
 web worker, and sixty looped runs of one took the server's container from 2 GB to 20.9 GiB
-(rommapp/romm#4577). No test calls it now.
+(rommapp/romm#4577). No test calls it.
 
 A run that touches nothing unsets both:
 
@@ -88,10 +88,10 @@ It is not a RomMBat token, and the README scopes table does not apply to it. `/a
 `/deny` are `[Scope.ME_WRITE]` routes, while `allowed_scopes` is computed from the account's
 permissions, so the two need different scopes:
 
-|                               | Scopes                                     |
-| ----------------------------- | ------------------------------------------ |
-| The approver **token**        | `me.read` and `me.write`, and nothing else |
-| The **account** it belongs to | All eleven from the README table           |
+|                           | Scopes                                     |
+| ------------------------- | ------------------------------------------ |
+| The approver token        | `me.read` and `me.write`, and nothing else |
+| The account it belongs to | All eleven from the README table           |
 
 A token missing `me.write` fails with a bare 403 `Forbidden` before the code is looked up. A
 scope-subset rejection says `Approved scopes exceed what's allowed for this user` instead. An
@@ -108,7 +108,7 @@ revoke tokens. So token ids are captured first, devices deleted second, revocati
 
 ### The owner token
 
-`ROMMBAT_TEST_OWNER_TOKEN` is a token on **the account a real install is paired as**, for
+`ROMMBAT_TEST_OWNER_TOKEN` is a token on the account a real install is paired as, for
 hands-on passes. No test reads it. Reach for `rommbat-agent status` first, which reads
 `GET /api/play-sessions` back for this device and prints the newest ten (`--all-sessions` for
 up to 50); the owner token is for when the paired token cannot be used.
@@ -124,7 +124,7 @@ up to 50); the owner token is for when the paired token cannot be used.
 **Under any other account an install's data looks empty, not forbidden**, because saves, states
 and play sessions are per-user. `GET /api/states?rom_id=` and `GET /api/play-sessions?rom_id=`
 answer `200` with zero rows, `GET /api/roms/{id}` comes back with `rom_user.user_id: -1`, and
-`GET /api/devices/<id>` answers `404`. The `?device_id=` filter takes the **RomM-side** device
+`GET /api/devices/<id>` answers `404`. The `?device_id=` filter takes the RomM-side device
 id, the one `status` prints on its `romm device` line.
 
 So read what an install pushed as the install: `status`, `saves`, and a `saves restore` preview.
