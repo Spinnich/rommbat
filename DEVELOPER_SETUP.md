@@ -93,7 +93,7 @@ RomM does not need to run on Windows. Point the client at instances over the LAN
 1. **A real library, for reads.** Selective sync exists because libraries reach six figures, and
    a seeded one never reproduces that. Treat it as production: give RomMBat a dedicated
    non-admin account with its own token and device, and grant only the scopes in the
-   [README table](README.md#authentication-and-scopes).
+   [guide's table](wiki/getting-started/pairing.md#which-permissions-to-grant).
 2. A disposable instance, for writes, in Docker or a VM per
    [RomM's setup docs](https://docs.romm.app). Save conflicts, `POST /api/saves` answering 409,
    token expiry and revocation, and anything that creates devices belong here.

@@ -110,18 +110,18 @@ docs for the terms the diff touches (the command name, the class, the table, the
 
 | The diff contains                                            | Then re-read, and correct what it falsifies                                                                 |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, and the guide page in `wiki/` that names it           |
+| A new or changed subcommand, flag, or user-visible output    | The guide page in `wiki/` that names it                                                                     |
 | A gamepad screen's rows, labels, buttons or wording          | The guide page in `wiki/` that walks through that screen                                                    |
 | A change to `rommbat-agent --help`                           | Regenerate `wiki/reference/cli.md` (`wiki/README.md`); `CliReferencePageTests` fails until you do           |
-| A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                           |
+| A save shape, class or platform that now syncs, or stops     | `README.md`'s warning and feature list, and the guide's `wiki/saves/` page for it                           |
 | A row certified, driven, or owed after a floor move          | Its row in `data/certification.json`, then regenerate `wiki/platforms/index.md` (`wiki/README.md`)          |
 | A finding that changes which emulator to pick, BIOS or saves | The system's guide page, `wiki/platforms/<system>.md`, which a system's first certified row owes            |
 | A migration, table or column                                 | `docs/architecture/local-store.md`, both the table and the count of migrations in the paragraph             |
 | Sync protocol, the save or state model, attribution, hashing | `docs/architecture/saves.md` and the `save-sync` skill                                                      |
 | A rule that only exists because something was measured       | The skill for that area, plus its fact in `docs/upstream/`, and a `docs/design/decisions/` record it amends |
-| A milestone or stage changing state                          | The stage tables in `README.md`, and the GitHub milestone and issue that track it                           |
+| A milestone or stage changing state                          | The GitHub milestone and issue that track it                                                                |
 | A minimum RomM or RetroBat version                           | The whole version-move checklist below                                                                      |
-| A new project, folder, probe set or bundled data file        | `README.md` repository layout, `docs/architecture/projects.md` and `reference-data.md`                      |
+| A new project, folder, probe set or bundled data file        | `docs/architecture/projects.md` and `reference-data.md`                                                     |
 | A folder, type or trap a nested `CLAUDE.md` names            | That project's `CLAUDE.md`, and the routing table in the root `CLAUDE.md`                                   |
 
 Three rules that keep this from becoming its own scope creep:
@@ -143,8 +143,8 @@ measurement was taken on and must not.
    expected number. A drift is a signal to revisit the docs that cite it.
 2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
-   table and the compatibility row, and the guide's `wiki/getting-started/requirements.md`. A
-   test asserts the first three agree.
+   table, and the guide's `wiki/getting-started/requirements.md` and the compatibility row in
+   `wiki/reference/compatibility.md`. A test asserts the first three agree.
 3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the

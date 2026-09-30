@@ -26,8 +26,8 @@ public static class RetroBatVersion
     public static ProductVersion Minimum { get; } = ProductVersion.Parse("8.2.1");
 
     /// <summary>
-    /// Newest RetroBat this release has been exercised against. Keep in step with the README
-    /// compatibility table.
+    /// Newest RetroBat this release has been exercised against. Keep in step with the guide's
+    /// compatibility table, wiki/reference/compatibility.md.
     /// </summary>
     public static ProductVersion LastTested { get; } = ProductVersion.Parse("8.2.1");
 

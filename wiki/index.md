@@ -15,7 +15,6 @@ To set it up, start with [Requirements](getting-started/requirements.md), then
 
 !!! warning "RomMBat is not released yet"
 
-    This guide is being written alongside the first release. Until it is complete, the
-    [project README](https://github.com/Spinnich/rommbat#readme) says what works today and which
-    versions of RomM and RetroBat you need. [Platforms](platforms/index.md) lists which systems
-    and emulators have been tested.
+    This guide is being written alongside the first release.
+    [Requirements](getting-started/requirements.md) names the versions of RomM and RetroBat you
+    need, and [Platforms](platforms/index.md) lists which systems and emulators have been tested.

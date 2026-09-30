@@ -12,7 +12,8 @@ enough room on the drive for the games you want on it.
 
 RomMBat checks both versions every time it starts. An older RetroBat or RomM is refused, with a
 message naming the version it found and the one it needs. A newer one works, with a warning
-that RomMBat has not been tested against it yet.
+that RomMBat has not been tested against it yet. [Compatibility](../reference/compatibility.md)
+names the versions each release was tested against.
 
 RomMBat needs no administrator rights, installs nothing into Windows, and keeps everything inside
 your RetroBat folder. A RetroBat on a USB stick or an external drive keeps working when you plug

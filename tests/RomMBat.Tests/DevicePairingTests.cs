@@ -220,7 +220,7 @@ public class DevicePairingTests
     }
 
     [Fact]
-    public void The_requested_scopes_are_exactly_the_ones_the_README_lists_and_nothing_dangerous()
+    public void The_requested_scopes_are_exactly_the_ones_the_guide_lists_and_nothing_dangerous()
     {
         Assert.All(
             RomMScopes.Requested,
