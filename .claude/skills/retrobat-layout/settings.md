@@ -97,6 +97,12 @@ confirm the key is there rather than trusting the rename.
 **ES prunes any setting equal to its own default** on that rewrite, so an entry written at
 the stock value disappears. Never read a missing entry as the user having reverted something.
 
+So a change RomMBat can revert (`saves convert`) records which of two prior states the key
+was in, absent or holding the stock value, and `--revert` restores absence by removing the key.
+Check a revert by comparing the setting set, never the file's bytes: ES rewrites `LastSystem` to
+record where the user was in the menus. Match the running ES on its process path, so an ES
+belonging to another install on the same machine does not refuse a write this one can make.
+
 `GET http://127.0.0.1:1234/quit` closes ES cleanly **only when no game is running**. With an
 emulator up, `/quit` and `/emukill` both return 200 and do nothing. Poll for the process to
 exit rather than trusting the response. Changing a user's emulator config is opt-in and

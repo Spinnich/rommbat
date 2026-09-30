@@ -36,7 +36,7 @@ namespace RomMBat.Tests;
 /// These create devices and mint real tokens, and clean both up in
 /// <see cref="DisposeAsync"/>. Run them under a <b>dedicated non-admin account</b>: devices
 /// and client tokens are per-user rows, so that is what keeps them off anyone else's data.
-/// See DEVELOPER_SETUP.md section 3.
+/// See docs/contributing/testing.md, "The live suite".
 /// </para>
 /// </remarks>
 public sealed class LivePairingTests : IAsyncDisposable

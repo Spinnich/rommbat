@@ -33,7 +33,7 @@
   <!--
     win-x64 is the only shipping target, but the RID and self-contained flag are
     passed at publish time rather than pinned here, so plain `dotnet build` and
-    `dotnet test` stay RID-agnostic. See the publish commands in DEVELOPER_SETUP.md.
+    `dotnet test` stay RID-agnostic. See tools/publish.ps1 and docs/contributing/testing.md.
   -->
 
   <PropertyGroup>

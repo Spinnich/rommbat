@@ -54,7 +54,7 @@ flush, and afterwards it took 50 seconds. A test's cost on your machine says lit
 cost there.
 
 - **Profile before you cut anything.** Rank tests by duration from the CI log, where every
-  `passed` line carries one, or locally with the test exe's `-xml` (see `DEVELOPER_SETUP.md`).
+  `passed` line carries one, or locally with the test exe's `-xml` (`docs/contributing/testing.md`).
   An audit of 1,244 test methods found almost no duplication. The number of tests was never the
   cost; a few expensive patterns were.
 - **A store-backed test opens its store through `LocalStore.Open` or `OpenAt`.**
@@ -109,7 +109,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 
 | The diff contains                                            | Then re-read, and correct what it falsifies                                                                 |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, `DEVELOPER_SETUP.md` examples                         |
+| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, the `wiki/` drafts' command blocks                    |
 | A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                           |
 | A migration, table or column                                 | `docs/architecture/local-store.md`, both the table and the count of migrations in the paragraph             |
 | Sync protocol, the save or state model, attribution, hashing | `docs/architecture/saves.md` and the `save-sync` skill                                                      |

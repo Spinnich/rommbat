@@ -131,7 +131,7 @@ account.
 > `me.write`, because `POST /api/auth/device/approve` requires it. Approving in the web UI
 > uses your logged-in session, so there is nothing extra to grant and this never comes up.
 > It only matters if you drive approval with an API token, which is a developer concern:
-> see [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md) section 3.
+> see [the approver token](docs/contributing/testing.md#the-approver-token).
 
 Granting less than RomMBat asks for is supported: it reads the granted set back and
 degrades by feature, telling you what is off, rather than throwing errors at you later.

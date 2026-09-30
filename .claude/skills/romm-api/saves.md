@@ -59,8 +59,8 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
   not pair, whatever its scopes. And the row carries the **RomM-side** `device_id`, not the local
   `client_device_identifier`, which are different values `status` prints on adjacent lines, so a
   `?device_id=` filter given the local one matches nothing. Reading a session back needs a token
-  on the account the install is paired as; `DEVELOPER_SETUP.md` covers the one certification
-  passes use. **`RomMConnection.ListPlaySessionsAsync` is the client's read and `status` prints
+  on the account the install is paired as; `docs/contributing/testing.md` covers the one
+  certification passes use. **`RomMConnection.ListPlaySessionsAsync` is the client's read and `status` prints
   it** under a `Playtime` block, filtered by `RomMDeviceId` and only when the server is reachable
   and `roms.user.read` was granted, which is what makes step 8 answerable from the agent (#208);
   `docs/platforms/nes/libretro-nestopia.md` step 8 is the worked case from before it existed. The endpoint promises

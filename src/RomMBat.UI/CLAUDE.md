@@ -20,6 +20,9 @@ and the outbox are Core's.
 - **Input is read, never detected.** No vendor-id table; the map comes from `es_input.cfg`
   (`retrobat-layout`, "Controller input").
 - **No primary flow needs a mouse.**
+- A physical keyboard drives it at a desk, and is not a supported user flow: arrows move, Enter
+  is A, Escape is B, Backspace is L1, Tab is X, F5 is Start. A connected controller is read
+  through the same `es_input.cfg` a real install uses.
 - **Reference `Avalonia.Win32`, `Avalonia.Skia` and `Avalonia.HarfBuzz`, never
   `Avalonia.Desktop`.** The last pulls in a package that fails `-warnaserror`. Without
   `UseHarfBuzz` the app builds clean and throws at startup; `TextShapingTests` guards it.
