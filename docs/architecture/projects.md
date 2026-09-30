@@ -1,5 +1,5 @@
 ---
-summary: What each project under src/ and tests/ holds, its subcommands or screens, and the rules each one keeps.
+summary: What RomM.Client, Core, the agent, the UI and the two test projects hold, their subcommands or screens, and the rules each keeps.
 read-when: Before adding a class, a subcommand, a screen or a test project, to find where it belongs.
 ---
 

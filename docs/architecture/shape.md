@@ -1,5 +1,5 @@
 ---
-summary: The four projects, what each talks to, and the one-way dependency rule between them.
+summary: How RomM.Client, Core, the agent and the UI talk to each other, and the one-way dependency rule between them.
 read-when: Before adding a project reference or a type that crosses from one project into another.
 ---
 
