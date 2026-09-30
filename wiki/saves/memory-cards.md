@@ -24,6 +24,9 @@ A PlayStation 2 memory card holds saves for every game you have played on it, so
 game to sync it as. RomMBat does not sync a shared card. Instead, it can give one game a memory
 card of its own, which then syncs like any other save.
 
+RetroBat's FOLDER choice for the PlayStation 2 memory card is still a shared card: every game
+writes into the one folder, `Mcdf01.ps2`, so RomMBat does not sync that either.
+
 1. In [Find a game](../using/browse-and-install.md), open the game.
 2. Press the top face button for Give it its own memory card.
 3. Read what changes, then choose Queue it.

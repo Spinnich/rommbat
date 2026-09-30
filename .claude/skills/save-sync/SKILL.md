@@ -103,7 +103,9 @@ as needing the per-emulator answer rather than as an exception (RB-253).
 PS1 and GameCube are **already per-game in a stock RetroBat** (`duckstation_memcardtype`
 defaults to `PerGameTitle`; `dolphin_slotA` defaults to GCI folder), and both should be left
 that way. Only PCSX2 defaults to a shared card, and `pcsx2_slot1_memory=game` names the card
-after the ROM stem, which makes attribution trivial on a single-disc title.
+after the ROM stem, which makes attribution trivial on a single-disc title. Its **FOLDER** choice
+sounds per-game and is not: `Mcdf01.ps2` is one directory every game writes to, split per save by
+PS2 serial, so it is declared a shared container and `saves` names it (RB-406).
 
 **GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
 labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one

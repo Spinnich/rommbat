@@ -79,6 +79,19 @@ public class SaveConverterTests
     }
 
     [Fact]
+    public void The_warning_names_a_folder_card_the_save_is_stranded_in()
+    {
+        // RB-406. Under pcsx2_slot1_memory=folder the shared card is a directory, not a file.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
+
+        var result = fixture.Converter().Preview(42);
+
+        Assert.Contains("Mcdf01.ps2", result.Warning!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_multi_disc_set_is_refused_with_the_reason_and_the_other_discs_named()
     {
         using var fixture = ConvertTree.Create();

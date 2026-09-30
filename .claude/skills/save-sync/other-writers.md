@@ -291,4 +291,4 @@ Read in source, upstream's Dolphin card is a zip of `.gci` files, the class C sh
 already syncs per game, and its PCSX2 card is a folder card. Neither gives #82's raw card a home the server
 would validate, and interop with a streaming card means rebuilding a whole card, which is two
 writers on one container. The direction is the opposite one: steer emulators off shared cards.
-PCSX2's `folder` choice is unmeasured here (#80).
+PCSX2's `folder` choice is no way out either: it is one shared directory keyed by serial (RB-406).
