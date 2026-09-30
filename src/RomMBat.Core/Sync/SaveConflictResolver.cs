@@ -41,19 +41,18 @@ public sealed record ConflictResolutionOutcome(bool Resolved, string Message)
 /// resolving the conflict silently in favour of whoever synced last.
 /// </para>
 /// <para>
-/// <b>What it does not do is replace the server's row in place, and this remark used to say it
-/// did.</b> Measured on the live instance during M7 stage 7b-3's hands-on pass: a keep-local on
-/// a psp class C unit left save id 187 standing and created id 193 beside it, one second after
-/// the local record was written. So <c>overwrite</c> means "supersede", not "overwrite", and the
-/// server keeps the previous row as history. The paragraph below always said so, which made the
-/// two halves of this remark contradict each other until the pass settled which was true.
+/// <b>What it does not do is replace the server's row in place.</b> Measured on the live
+/// instance: a keep-local on a psp class C unit left save id 187 standing and created id 193
+/// beside it, one second after the local record was written. So <c>overwrite</c> means
+/// "supersede", not "overwrite", and the server keeps the previous row as history.
 /// </para>
 /// <para>
 /// <b>Nothing is discarded either way.</b> Keeping the server's copy runs the same verified
-/// restore an ordinary download does, and the local file it replaces was already copied aside
-/// when the conflict was first seen. Keeping the local copy leaves the server's previous
-/// row in the slot's history, which <c>autocleanup_limit=10</c> bounds. Confirmed against the
-/// live instance rather than assumed: two rows for the slot afterwards, the older untouched.
+/// restore an ordinary download does, and the local side it replaces stays under
+/// <c>replaced/</c>: the copy taken when the conflict was first seen, and a fresh one when the
+/// save moved since. Keeping the local copy leaves the server's previous row in the slot's
+/// history, which <c>autocleanup_limit=10</c> bounds. Confirmed against the live instance rather
+/// than assumed: two rows for the slot afterwards, the older untouched.
 /// </para>
 /// </remarks>
 public sealed class SaveConflictResolver
@@ -148,7 +147,7 @@ public sealed class SaveConflictResolver
             now);
 
         _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepServer, now);
-        var pruned = Prune(conflict);
+        var kept = Release(conflict, restored.CopiedAside);
 
         var warning = ack.IsSuccess
             ? string.Empty
@@ -157,7 +156,7 @@ public sealed class SaveConflictResolver
         return new ConflictResolutionOutcome(
             true,
             $"Took the server's copy into {unitRow.Path}/{unitRow.UnitKey}, "
-                + $"{restored.Entries.Count} files.{pruned}{warning}");
+                + $"{restored.Entries.Count} files.{kept}{warning}");
     }
 
     /// <summary>Resolves one slot the way the user asked.</summary>
@@ -469,6 +468,7 @@ public sealed class SaveConflictResolver
             }
 
             var absolute = _install.Resolve(destination);
+            var aside = CopyAsideIfMoved(conflict, destination);
             Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
             File.Move(part, absolute, overwrite: true);
 
@@ -515,7 +515,7 @@ public sealed class SaveConflictResolver
                 now);
 
             _store.SaveConflicts.Resolve(conflict.RomId, conflict.Slot, ConflictResolution.KeepServer, now);
-            var pruned = Prune(conflict);
+            var kept = Release(conflict, aside);
 
             var warning = ack.IsSuccess
                 ? string.Empty
@@ -523,7 +523,7 @@ public sealed class SaveConflictResolver
 
             return new ConflictResolutionOutcome(
                 true,
-                $"Took the server's copy into {destination}.{pruned}{warning}");
+                $"Took the server's copy into {destination}.{kept}{warning}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -540,11 +540,98 @@ public sealed class SaveConflictResolver
     }
 
     /// <summary>
-    /// Removes the copy taken aside, now that the slot is back in step.
+    /// Copies the local save aside before the server's copy replaces it, unless the conflict's
+    /// copy already holds the same bytes.
     /// </summary>
     /// <remarks>
-    /// The plan's rule is "keep the previous copy aside <b>until the next successful sync</b>",
-    /// and until this existed nothing was ever the next successful sync for a conflicted slot.
+    /// The conflict's copy is taken once, when the conflict is first seen, so anything played
+    /// since is on no copy. It may also never have been taken, or been deleted by hand. Either
+    /// way the overwrite needs a copy of what is there now, and fails rather than going ahead
+    /// without one, as a download does.
+    /// </remarks>
+    private RelativePath? CopyAsideIfMoved(SaveConflictRecord conflict, RelativePath destination)
+    {
+        var absolute = _install.Resolve(destination);
+
+        if (!File.Exists(absolute))
+        {
+            return null;
+        }
+
+        if (conflict.LocalCopyPath is { } copy
+            && File.Exists(_install.Resolve(copy))
+            && string.Equals(
+                LogicalContentHash.OfFile(_install.Resolve(copy)),
+                LogicalContentHash.OfFile(absolute),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        // Suffixed rather than overwritten when the name is taken: a decision in the same second
+        // as the flush that found the conflict would otherwise replace the conflict's own copy.
+        var stamp = $"{_time.GetUtcNow():yyyyMMddTHHmmss}";
+        var aside = SaveSync.AsideDirectory.Combine($"{stamp}-{destination.Name}");
+
+        for (var n = 2; File.Exists(_install.Resolve(aside)); n++)
+        {
+            aside = SaveSync.AsideDirectory.Combine($"{stamp}-{n}-{destination.Name}");
+        }
+
+        try
+        {
+            var asidePath = _install.Resolve(aside);
+            Directory.CreateDirectory(Path.GetDirectoryName(asidePath)!);
+            File.Copy(absolute, asidePath);
+            return aside;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"the existing save could not be copied aside, so it was not replaced: {ex.Message}",
+                ex);
+        }
+    }
+
+    /// <summary>
+    /// Lets go of the conflict's copy after a keep-server, leaving the file where it is, and
+    /// says where this device's side now lives.
+    /// </summary>
+    /// <remarks>
+    /// <b>Kept, because nowhere else holds it.</b> The slot was in conflict, so the local side
+    /// never reached RomM, and the server's copy has just replaced it here. Like a download's
+    /// copy aside it stays under <c>replaced/</c> and nothing prunes it. The pointer is cleared
+    /// all the same, so a slot that conflicts again takes a copy of its own rather than
+    /// inheriting this one (#326).
+    /// </remarks>
+    private string Release(SaveConflictRecord conflict, RelativePath? fresh)
+    {
+        _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);
+
+        var kept = new[] { fresh, conflict.LocalCopyPath }
+            .OfType<RelativePath>()
+            .Distinct()
+            .Where(path => File.Exists(_install.Resolve(path)) || Directory.Exists(_install.Resolve(path)))
+            .Select(path => path.Value)
+            .ToList();
+
+        return kept.Count switch
+        {
+            0 => string.Empty,
+            1 => $" This device's save is kept at {kept[0]}.",
+            _ => $" This device's save is kept at {kept[0]}, and as it was when the conflict was "
+                + $"found at {kept[1]}.",
+        };
+    }
+
+    /// <summary>
+    /// Removes the copy taken aside after a keep-local, now that the slot is back in step.
+    /// </summary>
+    /// <remarks>
+    /// The rule is "keep the previous copy aside <b>until the next successful sync</b>". After a
+    /// keep-local the copy holds the side that was kept and sent, and the server's side stays in
+    /// the slot's history, so nothing is lost by removing it. A keep-server keeps its copy
+    /// instead: see <see cref="Release"/>.
     /// <para>
     /// <b>The row itself stays, resolved.</b> Migration 007 keeps decided rows so <c>saves</c> can
     /// say what was chosen and so a slot that conflicts again is recognised as one already

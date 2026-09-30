@@ -154,8 +154,10 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   flush**, and `saves resolve <rom> <slot> --keep-local | --keep-server` ends it. There is no
   default side, because either default silently discards somebody's progress. `--keep-local` is
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
-  moved again between the report and the decision, so it is reported rather than forced. Both
-  outcomes prune the copy aside.
+  moved again between the report and the decision, so it is reported rather than forced.
+  `--keep-local` prunes the copy aside, since the server keeps its side one row down.
+  `--keep-server` keeps it, and first takes a fresh copy when the save moved since the conflict
+  was found, because the local side never reached RomM and nowhere else holds it (#326).
 
   **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance in
   M7 stage 7b-3: a keep-local on a psp class C unit created a new save row and left the previous
@@ -411,8 +413,8 @@ cosmetic: it is what recognises a superseded row returning to the head of its sl
 writers on the same slots](other-writers.md#other-writers-on-the-same-slots)".
 
 **Copy aside before overwriting is honoured on the download path too**, not just on conflicts,
-which is worth knowing before assuming a download is safe to make silent. A resolution prunes its
-copy; a download's copy is currently never pruned. Since #211 a download only ever replaces
+which is worth knowing before assuming a download is safe to make silent. A keep-local
+resolution prunes its copy; a keep-server's and a download's are never pruned. Since #211 a download only ever replaces
 bytes this device already sent, so that copy duplicates the server rather than being the last
 record of a save.
 

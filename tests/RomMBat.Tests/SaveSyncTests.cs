@@ -2167,6 +2167,15 @@ public class SaveSyncTests
         Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/extra")));
         Assert.False(File.Exists(fixture.Resolve("saves/mame/nvram/25pacman/flash")));
 
+        // The side not kept stays on this device (#326).
+        Assert.Equal(
+            "written here",
+            File.ReadAllText(Assert.Single(Directory.GetFiles(
+                fixture.Resolve(conflict.LocalCopyPath.Value.Value),
+                "extra",
+                SearchOption.AllDirectories))));
+        Assert.Contains(conflict.LocalCopyPath.Value.Value, outcome.Message, StringComparison.Ordinal);
+
         // In step on both counts: the fold over what landed, and the slot's server identity.
         fixture.Scan();
         Assert.False(fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C).HasChangedSinceUpload);

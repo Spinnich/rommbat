@@ -49,7 +49,7 @@ invented one is refused with `404 Device with ID ... not found`, so the upload w
 | Copy aside before acting | yes                                   | yes                                 |
 | Outcome on disk          | local bytes kept                      | the server's `f78ab191` written     |
 | On the server            | sent as save 212, **210 still stood** | 213 untouched                       |
-| Copy aside afterwards    | pruned                                | pruned                              |
+| Copy aside afterwards    | pruned                                | kept (#326, not yet driven)         |
 
 The conflict report names both hashes, the time it was first seen and the copy-aside path before
 asking for a decision, and neither branch is a default:
@@ -97,8 +97,9 @@ is the behaviour this pass measured before the fix. Driven after it on this row,
 download moved it to the newer save. Recorded in RM-4;
 it is not a re-run of any certification step.
 
-**A download's copy aside is never pruned.** Both resolutions removed theirs. The plain download's
-copy is still there with no decision to attach to it and no mechanism that will remove it. Since
+**A download's copy aside is never pruned**, and neither is a keep-server's, which holds the side
+the user did not keep. Only keep-local removes its copy. The plain download's copy has no
+decision to attach to it and no mechanism that will remove it. Since
 #211 a download that would replace a save this device never sent is a conflict instead, so such
 a copy now always holds bytes the server already has.
 

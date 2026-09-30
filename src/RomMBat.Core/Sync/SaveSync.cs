@@ -274,9 +274,9 @@ public sealed record SaveConflict(
 /// is a corrupt save.
 /// </para>
 /// <para>
-/// The copies under <c>emulators/rommbat/replaced/</c> are kept indefinitely and nothing prunes
-/// them, so a slot that conflicts on every flush accumulates one dated copy per run. Pruning
-/// belongs with the resolution command that ends the conflict, which is issue #31.
+/// A download's copy under <c>emulators/rommbat/replaced/</c> is kept indefinitely and nothing
+/// prunes it. A conflict takes one copy, and only a keep-local resolution removes it, since the
+/// server then holds the other side; see <see cref="SaveConflictResolver"/>.
 /// </para>
 /// <para>
 /// <b>The first save seen for a ROM with no local baseline does not win on recency.</b> A
@@ -2071,8 +2071,8 @@ public sealed class SaveSync
     /// the user settled whose server side has not moved is not open at all.
     /// <para>
     /// Keying on the copy rather than on the conflict being new is what makes a reopened conflict
-    /// work. Resolving one prunes the copy, so a slot that conflicts again has no copy aside and
-    /// needs a fresh one taken.
+    /// work. Resolving one clears the pointer to its copy, so a slot that conflicts again has no
+    /// copy aside and needs a fresh one taken.
     /// </para>
     /// <para>
     /// Recording comes first and the copy second, so a copy that fails still leaves the conflict
