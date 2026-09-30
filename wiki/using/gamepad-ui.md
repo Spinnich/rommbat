@@ -19,7 +19,6 @@ the bottom face button is A on an Xbox pad, Cross on a PlayStation pad and B on 
 | Start               | The screen's main action, such as Sync now or Save                        |
 | Left face button    | The screen's second action, such as Delete set                            |
 | Top face button     | A third action, where a screen has one                                    |
-| L1 and R1           | Page up and down through a long list                                      |
 
 **Accept never changes a value.** It opens a list to choose from. To step through choices in
 place, use Left and Right.
@@ -45,8 +44,9 @@ so when it cannot be reached.
 ## Typing
 
 Two things ask you to type: your server's address when you pair, and a name or search term. For
-those, RomMBat opens an on-screen keyboard in your EmulationStation language's layout. Everything
-else, such as a disk limit, is chosen with the d-pad.
+those, RomMBat opens an on-screen keyboard in your EmulationStation language's layout. On it, L1
+deletes a letter and R1 types a space. Everything else, such as a disk limit, is chosen with
+the d-pad.
 
 ## When the controller is not seen
 

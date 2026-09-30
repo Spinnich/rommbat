@@ -62,5 +62,7 @@ is why a pairing expires and why pairing again is quick.
 
 If you would rather protect it, pair from a terminal with `rommbat-agent pair --protect` (see
 [Command line](../reference/cli.md)). RomMBat then encrypts the sign-in with a passphrase you
-choose. The cost is that nothing can sync on its own any more: saves and playtime wait until you
-run a command and type the passphrase.
+choose. The cost is that only a terminal command you type the passphrase into can reach RomM.
+Saves and playtime no longer go up on their own, and nothing in the controller app that needs
+the server works: it has nowhere to type the passphrase, so it reports this device as not
+paired for those actions.

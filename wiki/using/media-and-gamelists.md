@@ -26,5 +26,6 @@ there. If EmulationStation was not running at all, they appear the next time you
 ## From a terminal
 
 `rommbat-agent gamelist` rewrites the game lists from what RomMBat already knows, with no server
-needed, and `--media` chooses the kinds of artwork yourself instead of following RetroBat's
-switches. See [Command line](../reference/cli.md).
+needed. `--media` chooses the kinds of artwork yourself, and RomMBat remembers the choice: every
+later sync uses it instead of RetroBat's video and manual switches. See
+[Command line](../reference/cli.md).

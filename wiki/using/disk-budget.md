@@ -36,6 +36,7 @@ against the drive, and offers to forget the ones that are not there. Forgetting 
 RomMBat's records: it deletes nothing, and it never forgets a save, because RomM may still have
 it and [restoring](../saves/restore.md) brings it back.
 
-A download that was cut off leaves a partial file in `emulators\rommbat\partial\`. The next sync
-of that game starts it again, and `rommbat-agent evict --apply` clears out any that are no
-longer needed. Deleting one by hand is also safe.
+A download that was cut off leaves a partial file in `emulators\rommbat\partial\`, and the next
+sync of that game carries on from it. `rommbat-agent evict --apply` clears out any that are no
+longer needed. Leave the folder alone while RomMBat is running: a save being restored is
+unpacked there too.

@@ -50,7 +50,8 @@ shows those limits under Limits.
 The set's screen lists each game it could not put here, with the reason:
 
 - its platform has no RetroBat folder (see [below](#when-games-land-in-the-wrong-folder));
-- RomM holds it as several files or a folder, which RomMBat syncs only for PlayStation so far;
+- RomM holds it as a folder, which RomMBat cannot sync yet, or as several files, which it syncs
+  only for PlayStation (PS1) disc sets so far;
 - it is too large for the drive's filesystem, which on FAT32 means over 4 GB;
 - RomM has no file for it.
 

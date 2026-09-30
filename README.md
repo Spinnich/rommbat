@@ -299,8 +299,8 @@ and it asks EmulationStation to reload only when something actually changed. `ga
 the same thing on its own and needs no server at all.
 
 **Media is not a rounding error.** At the sizes measured on a real library a game costs about
-3.4 MB of cover, thumbnail, marquee and video, so a hundred-game NES set is roughly 12.8 MB of
-ROMs and 340 MB of artwork. It counts against the same budget.
+5.7 MB of cover, thumbnail, marquee, video and manual, so a hundred-game NES set is roughly
+12.8 MB of ROMs and 570 MB of artwork. It counts against the same budget.
 
 **Which kinds are fetched is RetroBat's setting, not a second one.** Video and manuals follow
 the VIDEO and MANUAL switches in RetroBat's own scraper menu, which ship on, so a stock install
