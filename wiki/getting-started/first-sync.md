@@ -12,14 +12,15 @@ the drive until only the amount under Always leave free remains.
 [Disk space](../using/disk-budget.md) explains both numbers.
 
 **On a new install, the platform list starts empty.** Nothing on the controller fills it yet
-([#325](https://github.com/Spinnich/rommbat/issues/325)), so for a platform sync set, run this
-once from a terminal in your RetroBat folder while the server is reachable:
+([#325](https://github.com/Spinnich/rommbat/issues/325)). Before you make a platform sync set,
+or install a single game from Find a game, run this once from a terminal in your RetroBat folder
+while the server is reachable:
 
 ```powershell
 emulators\rommbat\rommbat-agent.exe platforms list
 ```
 
-A collection or a search does not need it, because RomMBat asks RomM for those directly.
+A collection or a filter sync set does not need it, because RomMBat asks RomM for those directly.
 
 ## Make a sync set
 
@@ -43,7 +44,7 @@ any problems as they happen. In order, a sync:
 
 1. sends any saves and playtime waiting to go up;
 2. asks RomM which games are in the set now;
-3. fetches the BIOS files those games need, when your RomM library has them;
+3. fetches the BIOS files RetroBat lists for those systems, when your RomM library has them;
 4. downloads the games;
 5. fetches their artwork and writes EmulationStation's game lists;
 6. tells EmulationStation to reload, so the games appear.

@@ -29,8 +29,9 @@ playtime this device should use. [Pairing](pairing.md) lists the permissions to 
 a file larger than 4 GB, and plenty of PlayStation 2, GameCube and Wii images are larger than
 that. On FAT32, RomMBat leaves those games out before downloading them and tells you which ones.
 
-Games take the space RomM reports for them, and their artwork adds to it: on a real library,
-a cover, thumbnail, marquee and video came to about 3.4 MB a game. [Disk space](../using/disk-budget.md)
+Games take the space RomM reports for them, and their artwork adds to it: on a real library, a
+cover, thumbnail, marquee, video and manual, which a new RetroBat fetches, came to about 5.7 MB a
+game. [Disk space](../using/disk-budget.md)
 explains how to set a limit.
 
 ## A controller

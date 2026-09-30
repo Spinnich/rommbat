@@ -16,14 +16,16 @@ so and shows the games already on this device instead, so you can still find tho
 ## Put one game on this device
 
 On a game's screen, press Start for Put this game on the device. RomMBat downloads it with its
-artwork and any BIOS it needs, and it appears in EmulationStation.
+artwork and the BIOS files RetroBat lists for its system, and it appears in EmulationStation.
 
 The game joins a set of its own, named Picked on followed by this device's name. That set
 behaves like any other: it is in your list of sync sets, and deleting it offers to take its
 games off.
 
 A game that cannot come down says why when you press Start, for example when its platform has
-no RetroBat folder or it is too large for this drive.
+no RetroBat folder or it is too large for this drive. On a new install every game is refused
+this way until the platform list has been filled once; see
+[Your first sync](../getting-started/first-sync.md#before-you-start).
 
 ## Take one game off
 

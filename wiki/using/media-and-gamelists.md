@@ -10,8 +10,8 @@ them. Video and manuals follow the switches in RetroBat's own scraper settings, 
 off in EmulationStation if you do not want them. Both are on in a new RetroBat.
 
 Turning one of those switches off also takes back what was already fetched for it, the next time
-that platform syncs. Artwork counts against your [disk limit](disk-budget.md): videos are most of
-it.
+that platform syncs. Artwork counts against your [disk limit](disk-budget.md): videos and manuals are
+most of it.
 
 ## EmulationStation's game lists
 

@@ -13,9 +13,9 @@ In your RetroBat folder, with the server reachable:
    screenshot. It writes nothing.
 2. Run it again with `--apply` to put them back.
 
-To restore one game, add its RomM game number: `saves restore 391`. To restore one save of that
-game, add the slot name the list shows; a slot picks among saves only, not states. Both still
-need `--apply` to write.
+To restore one game, add its RomM game number: `saves restore 391`. Adding the slot name the list
+shows narrows the saves to that one, but not the states: with `--apply`, every state RomM holds
+for that game comes back too. Both forms still need `--apply` to write.
 
 ## What restore will not do
 

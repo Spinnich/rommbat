@@ -73,11 +73,6 @@ Deleting a set asks what to do with its games:
   goes. A game another set still wants is kept, and so is every save and save state.
 - Delete it and leave the games where they are. Nothing on disk changes.
 
-## Your sets on another device
-
-RomMBat stores your sets with this device's record in RomM. If you reinstall RetroBat or pair
-this device again, your sets come back.
-
 ## When games land in the wrong folder
 
 Each RomM platform's games go into one RetroBat system folder, such as `roms\snes`. RomMBat works
