@@ -867,8 +867,8 @@ public sealed class SaveScanner
                 continue;
             }
 
-            // A container declared as a directory has not appeared yet, and treating one as
-            // absent would report its contents as an unread subdirectory instead. Names only.
+            // A container that is a directory, PCSX2's folder card Mcdf01.ps2 (RB-406). Treating
+            // it as absent would report its contents as an unread subdirectory instead. Names only.
             var members = SafeEnumerateFiles(path);
             if (members.Count > 0)
             {
