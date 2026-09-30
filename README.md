@@ -592,6 +592,9 @@ docs/upstream/        How RetroBat and RomM behave, measured, one RB- or RM- fac
 docs/architecture/    Project layout, sync state machine, local schema, one file per area
 docs/platforms/       One certification record per RetroBat system, and each system's
                       emulator facts in <system>/facts.md
+wiki/                 The end-user guide, which mkdocs.yml builds and the Guide workflow
+                      publishes to GitHub Pages. The drafted pages stay off the site
+                      until they are rewritten (wiki/README.md)
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes and
                       rules, and the save-state entries es_savestates.cfg leaves out)
@@ -621,6 +624,7 @@ dotnet test
 
 trunk fmt && trunk check        # lint, from WSL on Windows
 python3 tools/docs/check.py     # links, anchors and the docs rules
+mkdocs build --strict           # the guide; pip install -r tools/docs/requirements.txt
 cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
 ```
 

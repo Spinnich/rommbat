@@ -31,3 +31,24 @@ updates:
         update-types:
           - minor
           - patch
+
+  # The guide's build, tools/docs/requirements.txt.
+  - package-ecosystem: pip
+    directory: /tools/docs
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    groups:
+      guide:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    # MkDocs 2.0 drops the plugin and theme systems Material is built on, so a major
+    # MkDocs bump is a decision about the guide's toolchain, not a routine update.
+    ignore:
+      - dependency-name: mkdocs
+        update-types:
+          - version-update:semver-major

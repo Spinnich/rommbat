@@ -76,6 +76,8 @@ and the row says what that evidence was.
    - `trunk-check`, `docs-check`, `reference-verify`, `line-endings` run on Linux. The usual
      divergence is line endings against `.gitattributes`, or a new file never `git add`ed, which
      `check.py` accepts locally.
+   - `guide`: `mkdocs build --strict` on the pages in `wiki/`, usually a link or anchor that
+     leaves `wiki/` or names nothing. Reproduce with the `guide` gate of `tools/pre-pr.ps1`.
    - `reference-verify` drifting means an upstream fact moved. Never edit a vendored file or an
      expected number. That is a MAINTAINER question.
 5. **Review round.** The round is the count of `<!-- rommbat-review` markers on the PR plus

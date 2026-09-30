@@ -530,3 +530,6 @@ openapi-normalized.tmp.json
 
 # Claude Code worktrees made by /start-issue and /certify
 .claude/worktrees/
+
+# The guide's build output (mkdocs build)
+site/

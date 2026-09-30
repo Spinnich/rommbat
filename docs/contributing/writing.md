@@ -25,12 +25,12 @@ evidence". People read that shape well too. This page is the house style for eve
 
 ## By layer
 
-| Layer                                     | Voice                                                                                          |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Skills and `CLAUDE.md` files              | Imperative. A rule, one line of why, and the finding that justifies it                         |
-| Developer docs (`docs/`)                  | Present tense, the rule or the fact first. Open with `summary:` and `read-when:` frontmatter   |
-| The guide (end-user docs, once it exists) | Second person, task first, written for someone who is not a developer                          |
-| Code comments                             | Short, and about why rather than what. Describe how the code behaves now, never why it changed |
+| Layer                              | Voice                                                                                          |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Skills and `CLAUDE.md` files       | Imperative. A rule, one line of why, and the finding that justifies it                         |
+| Developer docs (`docs/`)           | Present tense, the rule or the fact first. Open with `summary:` and `read-when:` frontmatter   |
+| The guide (end-user docs, `wiki/`) | Second person, task first, written for someone who is not a developer                          |
+| Code comments                      | Short, and about why rather than what. Describe how the code behaves now, never why it changed |
 
 ## Words with one meaning
 
