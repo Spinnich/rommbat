@@ -110,7 +110,8 @@ docs for the terms the diff touches (the command name, the class, the table, the
 
 | The diff contains                                            | Then re-read, and correct what it falsifies                                                                 |
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, the `wiki/` drafts' command blocks                    |
+| A new or changed subcommand, flag, or user-visible output    | `README.md` command blocks and the prose around them, and the guide page in `wiki/` that names it           |
+| A gamepad screen's rows, labels, buttons or wording          | The guide page in `wiki/` that walks through that screen                                                    |
 | A change to `rommbat-agent --help`                           | Regenerate `wiki/reference/cli.md` (`wiki/README.md`); `CliReferencePageTests` fails until you do           |
 | A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                           |
 | A row certified, driven, or owed after a floor move          | Its row in `data/certification.json`, then regenerate `wiki/platforms/index.md` (`wiki/README.md`)          |
@@ -141,7 +142,8 @@ measurement was taken on and must not.
    expected number. A drift is a signal to revisit the docs that cite it.
 2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
-   table and the compatibility row. A test asserts the first three agree.
+   table and the compatibility row, and the guide's `wiki/getting-started/requirements.md`. A
+   test asserts the first three agree.
 3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
    the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the

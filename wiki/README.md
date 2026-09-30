@@ -11,14 +11,12 @@ python3 -m pip install -r tools/docs/requirements.txt
 mkdocs serve
 ```
 
-The pages under `getting-started/`, `using/` and `saves/` are drafts that read like developer
-notes: `dotnet run` commands, a throwaway tree at `D:\retrobat-test`. `mkdocs.yml` lists them as
-drafts, so `mkdocs serve` shows them with a banner and the published site leaves them out.
-Each one is rewritten in the guide's voice (second person, task first, for someone who is not a
-developer, per [the writing guide](../docs/contributing/writing.md#by-layer)), its command
-blocks give way to links to the generated `reference/cli.md`, and it then moves out of
-`draft_docs` into the nav. Until then, a change that falsifies a sentence in a draft corrects
-it, as for any other doc.
+Every page is in the guide's voice: second person, task first, for someone who is not a
+developer ([the writing guide](../docs/contributing/writing.md#by-layer)). It leads with the
+gamepad and names a terminal command only where the controller cannot do the job, linking to
+the generated `reference/cli.md` for the options. A new page goes into `nav` in `mkdocs.yml`,
+since `--strict` fails on a page the nav leaves out. A change to a screen or a command corrects
+the page that describes it, in the same PR.
 
 Two pages are generated, and a test fails when either is stale:
 

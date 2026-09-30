@@ -593,8 +593,7 @@ docs/architecture/    Project layout, sync state machine, local schema, one file
 docs/platforms/       One certification record per RetroBat system, and each system's
                       emulator facts in <system>/facts.md
 wiki/                 The end-user guide, which mkdocs.yml builds and the Guide workflow
-                      publishes to GitHub Pages. The drafted pages stay off the site
-                      until they are rewritten (wiki/README.md)
+                      publishes to GitHub Pages (wiki/README.md)
 reference/            Vendored upstream data plus a script that re-derives every number
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes and
                       rules, and the save-state entries es_savestates.cfg leaves out)

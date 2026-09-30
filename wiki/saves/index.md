@@ -1,35 +1,49 @@
 # How saves sync
 
-```powershell
-dotnet run --project src/RomMBat.Agent -- hooks status --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- hooks install --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- menu status --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- menu install --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- saves --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
-```
+RomMBat sends your saves, save states and playtime to RomM, so another device paired to the same
+account can carry on where you left off. You do not have to do anything for it to happen.
 
-`hooks install` copies `rommbat-hook.exe` from `emulators/rommbat/`, so the tree needs a
-deployed install first. `sync` installs the hooks and the ES menu entry on its first run and flushes before anything
-else it does, so none of this is normally typed.
+## What goes up
 
-The `start` and `quit` hooks trigger a pass; `game-start` and `game-end` do not. Those two run
-inside the game-launch path, so they write a spool file and exit, and the `start` or `quit` that
-brackets them picks the record up by spawning `rommbat-agent background <event>`. A tree with
-hooks and no agent simply spools, and the next `sync` drains it. The pass writes what it did to
-`emulators\rommbat\logs\background.log`, the only place to look, since it runs with no console
-window.
+- In-game saves, the ones a game makes itself, such as a battery save on a cartridge.
+- Save states, with their screenshot. See [Save states](states.md).
+- Saves an emulator keeps as a folder per game, such as a PSP game's save data.
+- A PlayStation 2 game's memory card, once you have given that game its own card. See
+  [Memory cards](memory-cards.md).
+- How long you played. See [Playtime](playtime.md).
 
-`flush` works with the server unreachable: draining the spool, correlating play sessions and
-rescanning saves are all local, so `--offline` is a real mode rather than a preview. `saves` is
-the report of what is on disk, what has gone up, what cannot go up and why, and what is waiting
-on a decision.
+## When it happens
 
-## Uninstalling
+RomMBat syncs saves each time you open EmulationStation and each time you quit it, and again at
+the start of every sync. It runs in the background, with no window, and never while a game is
+starting. Nothing is sent while you play: it goes up the next time you quit EmulationStation.
 
-`hooks uninstall` removes exactly RomMBat's own file from each event folder and nothing else in
-them, and `menu uninstall` removes its `.menu`, its artwork and its one `<game>` element, leaving
-the entries RetroBat put in that gamelist alone. `uninstall` does both, reverts every per-game
-memory card conversion from its record, and with `--content` and `--bios` removes synced games
-and firmware; it refuses while any save, session or hook event is unsent.
+A save another device made comes down when you open EmulationStation. If you have already
+started that game by then, RomMBat does not write under it: the save waits and lands the next
+time you quit EmulationStation. A save that reaches RomM while EmulationStation is sitting open
+comes down the next time you open it
+([#155](https://github.com/Spinnich/rommbat/issues/155)).
+
+## Away from the server
+
+**Playing offline loses nothing.** Saves and playtime wait on this device and go up the next time
+it can reach RomM. The main menu's This device row counts what is still waiting.
+
+## When both sides changed
+
+If a save changed here and on another device since they last agreed, RomMBat keeps both and asks
+you which one to use. Nothing is overwritten meanwhile. See [Conflicts](conflicts.md).
+
+## What does not sync
+
+Some saves cannot be tied to one game, such as a memory card every game shares. RomMBat never
+guesses: it leaves them where they are and reports them, with the reason. To see that report,
+run `rommbat-agent saves` in a terminal. It lists what is on this device, what has gone up, what
+cannot go up and why, and what is waiting on you.
+
+Which emulators have had their saves tested is on [Platforms](../platforms/index.md).
+
+## When something looks stuck
+
+The background sync writes what it did to `emulators\rommbat\logs\background.log`, since it has
+no window. `rommbat-agent flush` runs the same pass on the spot and shows what it does.
