@@ -20,8 +20,9 @@ for the Game Boy. Two emulators refuse to start without some of them:
 
 - RetroArch's bsnes core plays a Game Boy game as a Super Game Boy, so it will not start one
   without `SGB1.sfc`.
-- BizHawk's GBHawk core needs `gb_bios.bin` for every game, and `gbc_bios.bin` as well for a game
-  made for both the Game Boy and the Game Boy Color, which it plays in color.
+- BizHawk's GBHawk core needs the boot ROM for the console it plays a game as: `gb_bios.bin` for
+  a Game Boy-only game, and `gbc_bios.bin` for one made for both the Game Boy and the Game Boy
+  Color, which it plays in color.
 
 Every other emulator starts without any of them. If your library lacks one, see
 [BIOS and firmware](../using/bios.md).

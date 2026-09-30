@@ -23,5 +23,6 @@ A save follows you to another emulator only where the two read the same file
 
 - RetroArch's FCEUmm, Nestopia and Mesen cores share one save.
 - The standalone Mesen and Mednafen share another.
+- BizHawk's two cores share a third.
 
 The rest each keep their own.
