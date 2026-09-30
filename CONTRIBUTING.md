@@ -39,7 +39,21 @@ Read [CLAUDE.md](CLAUDE.md) first, then [docs/design/principles.md](docs/design/
 
 ## Contributing to the Docs
 
-Documentation for RomMBat lives in this repository, under [docs/](docs/). Documentation for the RomM server itself lives in [the docs repo](https://github.com/rommapp/docs); open a pull request there for anything about RomM's own behaviour, including the device sync protocol.
+RomMBat's documentation lives in this repository, in layers that each have one reader. Put a fact in the layer whose reader needs it, once, and link to it from the others.
+
+| Layer                                             | Reader                             | Takes                                                                                                                                             |
+| ------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [README.md](README.md)                            | Someone deciding whether to try it | What RomMBat is, the requirements, and links into the guide. No counts and no platform status                                                     |
+| [wiki/](wiki/README.md)                           | A player                           | The guide, published to GitHub Pages: installing, pairing, syncing, saves, and a page per platform. The platform table is generated, never edited |
+| [docs/design/](docs/design/)                      | Anyone changing behaviour          | The principles, and one record under `decisions/` per standing decision                                                                           |
+| [docs/architecture/](docs/architecture/README.md) | A developer                        | How the code is laid out and why                                                                                                                  |
+| [docs/upstream/](docs/upstream/README.md)         | A developer or agent               | How RetroBat and RomM behave, as `RB-` and `RM-` facts with the evidence and the version they were verified on                                    |
+| `docs/platforms/<system>/`                        | Whoever certifies a system         | The certification record for each `(system, emulator, core)` row                                                                                  |
+| `.claude/skills/` and the `CLAUDE.md` files       | An agent                           | The rules to act on and the traps behind them, citing the facts rather than restating them                                                        |
+
+[docs/contributing/writing.md](docs/contributing/writing.md) sets the voice for each layer and lists what `tools/docs/check.py` enforces. Docs describe the present and travel with the code that changes them: the `pre-pr-verification` skill's "Documentation parity" table says what a given change owes.
+
+Documentation for the RomM server itself lives in [the docs repo](https://github.com/rommapp/docs); open a pull request there for anything about RomM's own behaviour, including the device sync protocol.
 
 ## How to Contribute Code
 
@@ -61,16 +75,32 @@ Documentation for RomMBat lives in this repository, under [docs/](docs/). Docume
 - Use clear and descriptive titles and descriptions for your pull requests.
 - **Disclose AI assistance.** See above.
 
-Before opening a PR, run `pwsh -File tools/pre-pr.ps1`, which runs all of these the way CI does
-and says which failed:
+Before opening a PR, run `pwsh -File tools/pre-pr.ps1`, which runs every gate the way CI does
+and says which failed. The main ones, and the full list in the `pre-pr-verification` skill:
 
 ```bash
 dotnet build                    # no new warnings
 dotnet test                     # full suite green
 trunk fmt && trunk check        # never commit with --no-verify
-python3 tools/docs/check.py     # docs links and rules
+python3 tools/docs/check.py     # docs links, rules and size budgets
+mkdocs build --strict           # the guide
 cd reference && python3 verify.py
 ```
+
+## Labels and release notes
+
+Release notes are generated from the labels on merged PRs, grouped by [.github/release.yml](.github/release.yml). Each PR carries one type label, and the first match in this order decides its section:
+
+| Label                | For                                                                                                  | Section       |
+| -------------------- | ---------------------------------------------------------------------------------------------------- | ------------- |
+| `platform`           | A row certified, or a system's support changing                                                      | Platforms     |
+| `enhancement`        | A new feature or a change a player can see                                                           | New features  |
+| `bug`                | A fix                                                                                                | Fixes         |
+| `documentation`      | Docs only: the guide, `docs/`, the README or the agent layer                                         | Documentation |
+| `dependencies`       | A dependency bump. Dependabot applies it                                                             | Dependencies  |
+| `ignore-for-release` | Nothing a reader of the notes would look for, such as a CI tweak or a revert of an unreleased change | Left out      |
+
+A PR with none of these lands under "Other changes". The agent commands label their own PRs: `/start-issue` copies the issue's type label or picks one from the diff, and `/drive-pr` adds one when it is missing. A PR from a fork is labelled by the maintainer, since a fork cannot set labels. `ready-to-merge` and `needs-decision` track a PR's state in the [workflow](docs/contributing/workflow.md) and do not affect the notes.
 
 ## Rules that are specific to this project
 

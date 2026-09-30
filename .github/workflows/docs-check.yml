@@ -1,8 +1,8 @@
 name: Docs check
 
-# tools/docs/check.py fails on a broken relative link or anchor, an em-dash, or a fact ID
-# cited but defined nowhere, and prints reports for the rules the tree does not meet yet.
-# The reports tighten into errors as the docs overhaul lands (#242).
+# tools/docs/check.py fails on a broken relative link or anchor, an em-dash, a fact ID cited
+# but defined nowhere, or a Markdown file over its line budget, and prints reports for the
+# rules the tree does not meet yet.
 
 on:
   push:
