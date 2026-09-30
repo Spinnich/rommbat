@@ -18,7 +18,7 @@ public readonly record struct ListView(int Start, int Count, int Above, int Belo
 /// invisible. From the couch that is a list that has stopped responding.
 /// <para>
 /// <b>It is a separate testable type rather than arithmetic inside the renderer</b> for the
-/// reason <c>ARCHITECTURE.md</c> gives: if something in the UI project cannot be tested without
+/// reason <c>docs/architecture/projects.md</c> gives: if something in the UI project cannot be tested without
 /// a window, it is in the wrong project. The suite could not have caught the original bug,
 /// because every test asserts on a view model and none of them renders.
 /// </para>
@@ -79,7 +79,7 @@ public static class ListWindow
     /// <remarks>
     /// The detail sits beside a 220px label column inside a 980px block at 16px, which is about
     /// ninety characters a line. Estimated from the string rather than measured, because a view
-    /// model has no text engine and <c>ARCHITECTURE.md</c>'s rule is that anything in this
+    /// model has no text engine and <c>docs/architecture/projects.md</c>'s rule is that anything in this
     /// project that cannot be tested without a window is in the wrong project. Being a line out
     /// costs a few pixels of a bounded block; measuring would cost the testability of every
     /// screen.

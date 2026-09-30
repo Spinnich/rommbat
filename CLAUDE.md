@@ -25,7 +25,7 @@ naming what lives there and its traps. Dependencies run one way: Agent and UI de
 Core on `RomM.Client`, and the hook compiles three Core files rather than referencing it.
 
 An install is seven files, not one, and `tools/publish.ps1` refuses to package an incomplete set.
-Why is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#srcrommbatui).
+Why is in [docs/architecture/projects.md](docs/architecture/projects.md#srcrommbatui).
 
 ## Routing table
 
@@ -43,7 +43,7 @@ shape, slot, set and floor are defined in [docs/design/glossary.md](docs/design/
 | Controller input, `es_input.cfg`, the gamepad UI                                       | [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md), `retrobat-layout`: "Controller input"                  |
 | Certifying a `(system, emulator, core)` row                                            | `platform-certification`: "Checklist", with `docs/platforms/nes.md` as the worked example                    |
 | How RetroBat or RomM behaves, and the evidence, or an `RB-`/`RM-` ID                   | [docs/upstream/](docs/upstream/README.md): the topic file, or grep the ID                                    |
-| How RomMBat's code is laid out and why                                                 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the section for the area                                       |
+| How RomMBat's code is laid out and why                                                 | [docs/architecture/](docs/architecture/README.md), the file for the area                                     |
 | Why a behaviour was chosen, when no skill says                                         | [docs/design/decisions/](docs/design/decisions/README.md), the record it names                               |
 | Moving the supported RomM or RetroBat version                                          | "Version floor" below, then `pre-pr-verification`: "When the change moves..."                                |
 | Writing or editing any doc                                                             | [docs/contributing/writing.md](docs/contributing/writing.md)                                                 |

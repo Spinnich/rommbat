@@ -7,7 +7,7 @@ read-when: Before changing behaviour a decision may govern, or when asking why t
 
 Each record is one decision that still stands, and why. A decision that is reversed is rewritten
 or deleted, never marked superseded. The rules those decisions produce are in the skills; a
-record exists where no skill or [ARCHITECTURE.md](../../ARCHITECTURE.md) already states it.
+record exists where no skill or [architecture](../../architecture/README.md) file already states it.
 
 | Record                                                                    | Decides                                                           |
 | ------------------------------------------------------------------------- | ----------------------------------------------------------------- |

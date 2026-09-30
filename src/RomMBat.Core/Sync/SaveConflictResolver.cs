@@ -386,7 +386,7 @@ public sealed class SaveConflictResolver
                     + "slot and the slot has no recorded name.");
         }
 
-        // The same question a download asks, on the route ARCHITECTURE.md pairs with it: this
+        // The same question a download asks, on the route docs/architecture/projects.md pairs with it: this
         // writes the server's copy into the tree, and the class C half swaps unit members into a
         // container a running emulator holds open. Asked before the transfer, so a deferral
         // costs nothing on the wire either.

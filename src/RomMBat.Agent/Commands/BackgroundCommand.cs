@@ -14,7 +14,7 @@ namespace RomMBat.Agent.Commands;
 /// <b>This is what closes the loop.</b> Until now the hooks wrote a spool file and exited and
 /// nothing drained it except <c>sync</c> or a person typing <c>flush</c>, so a user who never
 /// opened a terminal accumulated saves and play sessions indefinitely. The
-/// <c>FlushCommand</c> doc said so and <c>docs/ARCHITECTURE.md</c> called it M7's call.
+/// <c>FlushCommand</c> doc said so and <c>docs/architecture/projects.md</c> called it M7's call.
 /// <para>
 /// <b>Named apart from <c>flush</c> for two reasons.</b> It does more than flush, and a pass
 /// nobody asked for should be greppable as one: <c>background</c> in a log or a process list

@@ -139,4 +139,4 @@ every request (RB-353).
 
 So `generateClientClasses` is off. The schema supplies the wire shapes; every call is
 hand-written over a client-owned handler. That is also what
-[`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) section 2 asks for.
+[`docs/architecture/projects.md`](../../../docs/architecture/projects.md#srcrommclient) asks for.

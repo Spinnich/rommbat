@@ -6,7 +6,7 @@ read-when: Before relying on, citing or adding a fact about RomM's or RetroBat's
 # Upstream reference
 
 How RomM and RetroBat behave, as RomMBat relies on it. Skills hold RomMBat's rules and cite the
-facts here that justify them. `docs/ARCHITECTURE.md` holds how RomMBat's own code works. None of
+facts here that justify them. `docs/architecture/` holds how RomMBat's own code works. None of
 the three restates another.
 
 ## Layout
