@@ -17,8 +17,9 @@ The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
 
 ## Features
 
-- Pair from the couch. Approve a code or scan a QR in RomM's web interface. The only thing
-  you type is the server's address, and no password is ever entered.
+- Pair from the couch. RomMBat shows a code and a QR; scan it with your phone, or type the
+  code into RomM's web interface, and approve. The only thing you type with the controller is
+  the server's address, and no password is ever entered.
 - Sync sets. Choose what this device holds by platform, collection, smart collection or
   saved search, capped by game count and size. The catalog is browsed page by page rather than
   mirrored, so a library of 100,000 games is no burden.
@@ -90,5 +91,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), and report security issues as
 
 [GPL-3.0](LICENSE), matching the RomM Playnite plugin and Argosy.
 
-RomMBat is not affiliated with either project's maintainers. It ships no ROMs, no BIOS files and
-no copyrighted content; it moves files between a server you run and a device you own.
+RomMBat is not affiliated with the RomM or RetroBat maintainers. It ships no ROMs, no BIOS files
+and no copyrighted content; it moves files between a server you run and a device you own.
