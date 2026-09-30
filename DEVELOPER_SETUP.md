@@ -53,7 +53,9 @@ move the pinned OpenAPI schema; the generated DTOs are committed.
 ```
 
 This is what CI runs. It writes `publish/rommbat-win-x64.zip`, which extracts at the RetroBat
-root. What the seven files are and how the script guards them is in
+root. `-Deploy` is also what puts `rommbat-hook.exe` and `rommbat-agent.exe` into
+`emulators/rommbat/`, where `hooks install` copies the hook from, so deploy into a fresh tree
+before installing hooks there. What the seven files are and how the script guards them is in
 [docs/architecture/projects.md](docs/architecture/projects.md#srcrommbatui).
 
 ---

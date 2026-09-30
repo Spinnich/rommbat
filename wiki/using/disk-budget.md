@@ -13,8 +13,8 @@ offer to fix it.
 
 ## From the console
 
-`evict` previews unless you pass `--apply`, and it is the only command in the agent that deletes
-anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by hand is safe,
+`evict` previews unless you pass `--apply`. Apart from `uninstall --content` and `--bios`, it is
+the only command in the agent that deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by hand is safe,
 and the next sync starts that ROM again. `evict` also reports what under that directory is dead,
 and reclaims it on `--apply`, which is the only thing that ever does. The reclaim needs the tree
 lock, so `evict --apply` during a flush evicts and says the sweep will happen next time.

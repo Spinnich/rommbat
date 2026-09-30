@@ -10,7 +10,8 @@ dotnet run --project src/RomMBat.Agent -- flush --root D:\retrobat-test
 dotnet run --project src/RomMBat.Agent -- flush --offline --root D:\retrobat-test
 ```
 
-`sync` installs the hooks and the ES menu entry on its first run and flushes before anything
+`hooks install` copies `rommbat-hook.exe` from `emulators/rommbat/`, so the tree needs a
+deployed install first. `sync` installs the hooks and the ES menu entry on its first run and flushes before anything
 else it does, so none of this is normally typed.
 
 The `start` and `quit` hooks trigger a pass; `game-start` and `game-end` do not. Those two run
