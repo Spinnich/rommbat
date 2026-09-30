@@ -35,6 +35,8 @@
              Link="Support\TempRetroBatTree.cs" />
     <Compile Include="..\RomMBat.Tests\Support\TempTreeLeakCheck.cs"
              Link="Support\TempTreeLeakCheck.cs" />
+    <Compile Include="..\RomMBat.Tests\Support\GeneratedPage.cs"
+             Link="Support\GeneratedPage.cs" />
   </ItemGroup>
 
   <!--

@@ -57,7 +57,10 @@ is evidence.
 ## Checklist
 
 Record results in `docs/platforms/<system>/`: `index.md` holds the system's own steps and each
-row's standing at the floor, and a file per emulator or group of rows holds the rest. All nine,
+row's standing at the floor, and a file per emulator or group of rows holds the rest. Each row's
+status also goes in `data/certification.json`, every row `es_systems.cfg` declares for the system
+(`untested`, with no floor, for one not driven; a note on one not certified), and the guide's platform table is
+regenerated from it (`wiki/README.md`). All nine,
 or it is not certified. Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried
 across emulators with a note (step 2 not where emulators disagree about a playlist); **steps 4, 5 and 6 have to be redone per emulator.**
 

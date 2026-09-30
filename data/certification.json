@@ -1,0 +1,789 @@
+{
+  "_comment": "One row per (system, emulator, core) that a record under docs/platforms/<system>/ covers. romm and retrobat name the floor the row holds at, and are null on an untested row. wiki/platforms/index.md is generated from this file; see data/README.md.",
+  "rows": [
+    {
+      "system": "nes",
+      "emulator": "libretro",
+      "core": "fceumm",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "libretro",
+      "core": "nestopia",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "libretro",
+      "core": "mesen",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "mednafen",
+      "core": "nes",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "ares",
+      "core": "Famicom",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "bizhawk",
+      "core": "NesHawk",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "bizhawk",
+      "core": "quickerNES",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "nes",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "libretro",
+      "core": "genesis_plus_gx",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "libretro",
+      "core": "genesis_plus_gx_wide",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "libretro",
+      "core": "picodrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "libretro",
+      "core": "fbneo",
+      "status": "not-certified",
+      "note": "Boots no game named the No-Intro way, because FBNeo picks its driver from the file name",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "mednafen",
+      "core": "megadrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "ares",
+      "core": "MegaDrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "kega-fusion",
+      "core": "auto",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "kega-fusion",
+      "core": "megadrive",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "kega-fusion",
+      "core": "genesis",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "bizhawk",
+      "core": "Genplus-gx",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "megadrive",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "libretro",
+      "core": "mgba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "libretro",
+      "core": "mednafen_gba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "libretro",
+      "core": "gpsp",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "mgba",
+      "core": "mgba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "nosgba",
+      "core": null,
+      "status": "not-certified",
+      "note": "Loads a zipped game only through a loose copy it deletes itself, and keeps its saves outside saves/",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "mednafen",
+      "core": "gba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "ares",
+      "core": "GameBoyAdvance",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "bizhawk",
+      "core": "mGBA",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gba",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "gambatte",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "mesen-s",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "bsnes",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "tgbdual",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "sameboy",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "libretro",
+      "core": "DoubleCherryGB",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "mgba",
+      "core": "mgba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "mednafen",
+      "core": "gb",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "ares",
+      "core": "GameBoy",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "bizhawk",
+      "core": "Gambatte",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "bizhawk",
+      "core": "GBHawk",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "bizhawk",
+      "core": "SameBoy",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gb",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "libretro",
+      "core": "gambatte",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "libretro",
+      "core": "tgbdual",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "libretro",
+      "core": "sameboy",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "libretro",
+      "core": "DoubleCherryGB",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "mgba",
+      "core": "mgba",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "mednafen",
+      "core": "gbc",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "ares",
+      "core": "GameBoyColor",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "bizhawk",
+      "core": "Gambatte",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "bizhawk",
+      "core": "GBHawk",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "bizhawk",
+      "core": "SameBoy",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "gbc",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "snes9x",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "bsnes-jg",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "bsnes",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "bsnes_hd_beta",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "mednafen_snes",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "mesen-s",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "libretro",
+      "core": "snes9x2005",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "mednafen",
+      "core": "snes",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "snes9x",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "ares",
+      "core": "SuperFamicom",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "bizhawk",
+      "core": "BSNES",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "bizhawk",
+      "core": "Faust",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "bizhawk",
+      "core": "Snes9x",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "snes",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "libretro",
+      "core": "genesis_plus_gx",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "libretro",
+      "core": "picodrive",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "libretro",
+      "core": "fbneo",
+      "status": "not-certified",
+      "note": "Boots no game named the No-Intro way, because FBNeo picks its driver from the file name",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "mednafen",
+      "core": "mastersystem",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "mesen",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "ares",
+      "core": "MasterSystem",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "kega-fusion",
+      "core": "auto",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "kega-fusion",
+      "core": "mastersystem",
+      "status": "not-certified",
+      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "bizhawk",
+      "core": "SMSHawk",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "mastersystem",
+      "emulator": "jgenesis",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "libretro",
+      "core": "mednafen_psx_hw",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "libretro",
+      "core": "swanstation",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "libretro",
+      "core": "pcsx_rearmed",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "duckstation",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "mednafen",
+      "core": "psx",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "bizhawk",
+      "core": "Nymashock",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "psx",
+      "emulator": "bizhawk",
+      "core": "Octoshock",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "libretro",
+      "core": "mupen64plus_next",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "libretro",
+      "core": "parallel_n64",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "mupen64",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "simple64",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "ares",
+      "core": "Nintendo64",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "bizhawk",
+      "core": "Ares64",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "bizhawk",
+      "core": "Mupen64Plus",
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "project64",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    },
+    {
+      "system": "n64",
+      "emulator": "gopher64",
+      "core": null,
+      "status": "certified",
+      "romm": "5.3.1",
+      "retrobat": "8.2.1"
+    }
+  ]
+}
