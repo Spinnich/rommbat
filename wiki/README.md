@@ -28,5 +28,11 @@ Two pages are generated, and a test fails when either is stale:
 Edit the source, never the page, then regenerate with `ROMMBAT_REGENERATE_DOCS=1 dotnet test`
 and commit what it writes.
 
+Each system with a certified row also has a hand-written page, `platforms/<system>.md`, copied
+from `platforms/_template.md` and written from the system's certification record: which emulator
+to pick, what BIOS to supply, and what will not work. It never restates a row's status, which
+stays in the generated table, and the generated table links to it. `PlatformSupportPageTests`
+fails when a system with a certified row has no page.
+
 A guide page links to a developer doc by its full GitHub URL: the build only sees `wiki/`, and
 `--strict` fails on a relative link that leaves it.
