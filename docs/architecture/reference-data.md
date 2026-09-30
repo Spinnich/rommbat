@@ -37,4 +37,5 @@ row per `(system, emulator, core)` that a record under `docs/platforms/` covers,
 status and the floor it holds at, and `PlatformSupportPageTests` builds the guide's
 `wiki/platforms/index.md` from it. The same test fails when a system in the file lacks a
 row the vendored `es_systems.cfg` declares for it, or lists them out of order, so a
-refresh that adds a core shows up as a row to add as `untested`.
+refresh that adds a core shows up as a row to add as `untested`. It also fails when a system
+with a certified row has no hand-written guide page, `wiki/platforms/<system>.md`.

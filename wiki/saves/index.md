@@ -34,6 +34,18 @@ it can reach RomM. The main menu's This device row counts what is still waiting.
 If a save changed here and on another device since they last agreed, RomMBat keeps both and asks
 you which one to use. Nothing is overwritten meanwhile. See [Conflicts](conflicts.md).
 
+## Changing emulator
+
+Each emulator keeps its saves in its own place and its own format, and RomMBat syncs each one as
+it is, without converting it. So when you switch a system to another emulator, your progress
+comes with you only if the new emulator reads the same save file as the old one. Otherwise the
+game starts from whatever save the new emulator has, and your old save stays safe for when you
+switch back. Each system's page under [Platforms](../platforms/index.md) says which of its
+emulators share a save.
+
+To change a system's emulator, open Game settings in EmulationStation's main menu, then Per
+system advanced configuration, and pick the system.
+
 ## What does not sync
 
 Some saves cannot be tied to one game, such as a memory card every game shares. RomMBat never

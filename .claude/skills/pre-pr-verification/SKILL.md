@@ -115,6 +115,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | A change to `rommbat-agent --help`                           | Regenerate `wiki/reference/cli.md` (`wiki/README.md`); `CliReferencePageTests` fails until you do           |
 | A save shape, class or platform that now syncs, or stops     | `README.md`: the pre-release warning, "What it does", the status and stage tables                           |
 | A row certified, driven, or owed after a floor move          | Its row in `data/certification.json`, then regenerate `wiki/platforms/index.md` (`wiki/README.md`)          |
+| A finding that changes which emulator to pick, BIOS or saves | The system's guide page, `wiki/platforms/<system>.md`, which a system's first certified row owes            |
 | A migration, table or column                                 | `docs/architecture/local-store.md`, both the table and the count of migrations in the paragraph             |
 | Sync protocol, the save or state model, attribution, hashing | `docs/architecture/saves.md` and the `save-sync` skill                                                      |
 | A rule that only exists because something was measured       | The skill for that area, plus its fact in `docs/upstream/`, and a `docs/design/decisions/` record it amends |

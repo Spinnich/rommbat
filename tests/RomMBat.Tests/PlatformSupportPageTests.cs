@@ -59,6 +59,17 @@ public sealed class PlatformSupportPageTests
     }
 
     [Fact]
+    public void A_system_with_a_certified_row_has_a_guide_page()
+    {
+        // A player picks an emulator and finds the BIOS on the system's page, so a system's first
+        // certified row owes one, copied from wiki/platforms/_template.md.
+        foreach (var system in LoadRows().Where(row => row.Status == "certified").Select(row => row.System).Distinct())
+        {
+            Assert.True(HasGuidePage(system), $"{system} has a certified row and no page at wiki/platforms/{system}.md");
+        }
+    }
+
+    [Fact]
     public void The_platform_page_is_built_from_the_certification_data()
     {
         GeneratedPage.AssertCurrent(PagePath, Render(LoadRows(), FullNames()));
@@ -102,7 +113,13 @@ public sealed class PlatformSupportPageTests
                 page.Append(" Tested on RomM " + floors[0].RomM + " and RetroBat " + floors[0].RetroBat + ".");
             }
 
-            page.Append(" The [certification record](" + RecordsUrl + system.Key + "/) has the detail.\n\n");
+            page.Append(" The [certification record](" + RecordsUrl + system.Key + "/) has the detail.");
+            if (HasGuidePage(system.Key))
+            {
+                page.Append(" [Its page](" + system.Key + ".md) says which emulator to pick, what BIOS to supply and what will not work.");
+            }
+
+            page.Append("\n\n");
 
             // A column every row leaves empty is left out: the floor when all rows share it, the
             // note when none needs one.
@@ -139,6 +156,9 @@ public sealed class PlatformSupportPageTests
 
         return page.ToString();
     }
+
+    private static bool HasGuidePage(string system) =>
+        File.Exists(Path.Combine(GeneratedPage.RepoRoot, "wiki", "platforms", system + ".md"));
 
     private static string Name(string system, IReadOnlyDictionary<string, string> fullNames) =>
         fullNames.TryGetValue(system, out var fullName) ? fullName : system;
