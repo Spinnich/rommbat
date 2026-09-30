@@ -17,7 +17,7 @@ dotnet build -c Release -warnaserror --no-incremental   # what CI builds
 dotnet test -c Release --no-build                       # full suite green, only after that build
 trunk fmt && trunk check        # never commit with --no-verify
 python3 -m unittest discover -s tools/docs   # the docs checker's own tests
-python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
+python3 tools/docs/check.py     # links, anchors, fact citations, size budgets
 mkdocs build --strict           # the guide in wiki/: its links, anchors and nav
 cd reference && python3 verify.py
 python3 tools/build-platform-map.py --check     # bundled data is what its generator emits
@@ -112,6 +112,7 @@ docs for the terms the diff touches (the command name, the class, the table, the
 | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | A new or changed subcommand, flag, or user-visible output    | The guide page in `wiki/` that names it                                                                     |
 | A gamepad screen's rows, labels, buttons or wording          | The guide page in `wiki/` that walks through that screen                                                    |
+| A new page in `wiki/`                                        | Its entry in `nav` in `mkdocs.yml`, which `mkdocs build --strict` fails without                             |
 | A change to `rommbat-agent --help`                           | Regenerate `wiki/reference/cli.md` (`wiki/README.md`); `CliReferencePageTests` fails until you do           |
 | A save shape, class or platform that now syncs, or stops     | `README.md`'s warning and feature list, and the guide's `wiki/saves/` page for it                           |
 | A row certified, driven, or owed after a floor move          | Its row in `data/certification.json`, then regenerate `wiki/platforms/index.md` (`wiki/README.md`)          |
@@ -188,6 +189,8 @@ having launched a game on it. If something was skipped, say so and why.
 ## PR description
 
 - Base it on the repo's PR template.
+- One type label, from CONTRIBUTING's "Labels and release notes" table. The release notes
+  are grouped by it.
 - **Disclose AI assistance and its extent.** RomM requires this and RomMBat inherits it.
   Non-negotiable.
 - Link the issue: `Fixes #NNNN` for bugs, `Closes #NNNN` for features.

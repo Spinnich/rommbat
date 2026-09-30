@@ -67,13 +67,14 @@ the tree.
 | No em-dashes, in docs, comments or commit messages. Use commas, parentheses or separate sentences      | Fails       |
 | Relative links and anchors resolve, in exact case, against files git tracks                            | Fails       |
 | Every cited `RB-` or `RM-` fact ID is defined exactly once                                             | Fails       |
-| Size budget: 500 lines a file, 300 for a `SKILL.md`, 200 for the root `CLAUDE.md`, 60 for a nested one | Reported    |
+| Size budget: 500 lines a file, 300 for a `SKILL.md`, 200 for the root `CLAUDE.md`, 60 for a nested one | Fails       |
 | Always-loaded context (every `CLAUDE.md`, `AGENTS.md`, the local `MEMORY.md`) under its ceiling        | Reported    |
 | `summary:` and `read-when:` frontmatter on every file under `docs/`                                    | Reported    |
 | History phrasing, such as `The move to` or `Superseded`                                                | Reported    |
 | Generic `dry-run`                                                                                      | Reported    |
 
-A reported rule becomes a failing one once the tree meets it (issue #242). `check.py --stale` is a
+A reported rule becomes a failing one once the tree meets it. The context ceiling stays reported,
+because it counts the maintainer's local `MEMORY.md`, which CI never sees. `check.py --stale` is a
 listing rather than a rule: the facts owed a re-check at the current floor, which a floor move
 works through (`docs/upstream/README.md`). Commit messages are
 outside the checker's reach, so the em-dash rule there is on the author.

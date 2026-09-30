@@ -26,7 +26,7 @@ the `<!-- rommbat-review` markers already on the PR and add one.
 ## Gather
 
 ```bash
-gh pr view <n> --json title,body,author,headRefName,headRefOid,baseRefName,files,commits,isCrossRepository
+gh pr view <n> --json title,body,author,labels,headRefName,headRefOid,baseRefName,files,commits,isCrossRepository
 gh pr diff <n>
 gh pr checks <n>
 gh run view <run-id> --log-failed        # for each failing check
@@ -71,6 +71,8 @@ general correctness pass (no `--comment`, no `--fix`), and keep only what surviv
 6. **Scope.** One coherent change, or two? Did it grow past the issue it names?
 7. **AI disclosure** in the body, stating the extent, on `.github/PULL_REQUEST_TEMPLATE.md`.
    Ticked boxes are claims: flag one the diff contradicts.
+8. **Release label.** One type label from `CONTRIBUTING.md`'s "Labels and release notes" table,
+   and the one the diff fits. A missing or wrong one is a nit, not blocking.
 
 ## Earlier rounds
 

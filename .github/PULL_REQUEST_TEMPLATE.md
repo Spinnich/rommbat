@@ -15,7 +15,7 @@
 - [ ] I've updated relevant comments
 - [ ] I've assigned reviewers for this PR
 - [ ] I've added unit tests that cover the changes
-- [ ] `dotnet build`, `dotnet test`, `trunk check` and `python3 tools/docs/check.py` all pass
+- [ ] `pwsh -File tools/pre-pr.ps1` passes: build, tests, `trunk check`, the docs check and the guide build
 - [ ] `cd reference && python3 verify.py` still passes, or the drift is explained below
 
 **Invariants**
@@ -26,6 +26,9 @@
 - [ ] Nothing is written outside the RetroBat tree
 - [ ] No token, secret or instance URL appears in the diff
 - [ ] Every new user-visible string is reachable without a mouse
+
+**Docs**
+<sup>Which docs moved, and which you read and found already correct. See "Documentation parity" in the <code>pre-pr-verification</code> skill. "Docs unchanged" with nothing read reads as not having looked.</sup>
 
 **Compatibility**
 <sup>Does this change the minimum supported RomM or RetroBat version? If so, say which and why, and update the requirements table in the README and the guide's compatibility and requirements pages.</sup>

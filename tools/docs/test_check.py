@@ -90,6 +90,25 @@ class LinkTest(unittest.TestCase):
         )
 
 
+class SizeBudgetTest(unittest.TestCase):
+    def errors(self, rel: str, lines: int) -> list[str]:
+        findings = check.Findings()
+        check.check_file(rel, "line\n" * lines, findings, None)
+        return findings.errors
+
+    def test_over_budget_fails(self) -> None:
+        self.assertEqual(self.errors("wiki/x.md", 501), ["wiki/x.md: 501 lines, budget 500"])
+        self.assertEqual(
+            self.errors(".claude/skills/x/SKILL.md", 301),
+            [".claude/skills/x/SKILL.md: 301 lines, budget 300"],
+        )
+        self.assertEqual(self.errors("src/X/CLAUDE.md", 61), ["src/X/CLAUDE.md: 61 lines, budget 60"])
+
+    def test_at_budget_passes(self) -> None:
+        self.assertEqual(self.errors("wiki/x.md", 500), [])
+        self.assertEqual(self.errors("CLAUDE.md", 200), [])
+
+
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
         self.assertEqual(check.FACT_ID.findall("RB-9b and RB-92b, not RB-9"), [

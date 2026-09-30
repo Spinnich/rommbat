@@ -2,11 +2,11 @@
 """Check the repository's documentation against the rules that keep it usable.
 
 Two classes of check. An error fails the run: a relative link or anchor that does not
-resolve, an em-dash, or a fact ID (`RB-<n>` for RetroBat, `RM-<n>` for RomM) cited but
-defined nowhere. A report is printed and does not fail: the size budget, the always-loaded
-context ceiling, missing frontmatter, history phrasing, legacy "finding N" citations, and
-generic use of `dry-run`. Reports exist for rules the tree does not meet yet; each moves to
-errors once the docs overhaul (issue #242) has brought the tree into line with it.
+resolve, an em-dash, a fact ID (`RB-<n>` for RetroBat, `RM-<n>` for RomM) cited but defined
+nowhere, or a Markdown file over its line budget. A report is printed and does not fail: the
+always-loaded context ceiling, missing frontmatter, history phrasing, legacy "finding N"
+citations, and generic use of `dry-run`. Reports exist for rules the tree does not meet yet, or,
+for the context ceiling, a rule that counts the maintainer's local MEMORY.md, which CI never sees.
 
 Usage:
   python tools/docs/check.py            check the tree, print errors and reports
@@ -254,7 +254,7 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
     for pattern, budget in LINE_BUDGETS:
         if pattern.search(rel):
             if lines > budget:
-                findings.report("size", f"{rel}: {lines} lines, budget {budget}")
+                findings.errors.append(f"{rel}: {lines} lines, budget {budget}")
             break
 
     if rel.startswith(FRONTMATTER_SCOPE):
