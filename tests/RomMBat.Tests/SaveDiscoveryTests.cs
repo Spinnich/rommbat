@@ -242,6 +242,80 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Dolphins_own_working_files_under_gamecube_are_not_counted_as_saves_nothing_carries()
+    {
+        // RB-405, measured on R:: one boot to a title screen raised gamecube's count from 1 to
+        // 20, every file Dolphin's cache, config, log or the 68 B IPL SRAM.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("gamecube", "dolphin-emu/User/Cache/Shaders/uid.bin", "a shader cache");
+        fixture.AddSave("gamecube", "dolphin-emu/User/Config/GCPadNew.ini", "pad config");
+        fixture.AddSave("gamecube", "dolphin-emu/User/Logs/dolphin.log", "a log");
+        fixture.AddSave("gamecube", "dolphin-emu/User/ResourcePacks/Packs.ini", string.Empty);
+        fixture.AddSave("gamecube", "dolphin-emu/User/Wii/shared2/sys/SYSCONF", "Wii system config");
+        fixture.AddSave("gamecube", "dolphin-emu/User/GC/SRAM.raw", "IPL settings");
+
+        // A declared directory is not a blanket over Dolphin's tree: User/GBA/ is not declared,
+        // and a file there is still counted.
+        fixture.AddSave("gamecube", "dolphin-emu/User/GBA/Saves/link.sav", "undeclared");
+
+        fixture.Scan();
+
+        var row = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "gamecube" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, row.FileCount);
+    }
+
+    [Fact]
+    public void Dolphins_wii_system_state_and_sd_card_are_not_counted_but_system_titles_are()
+    {
+        // RB-405 and RB-146. The virtual SD card is 134 MB on a real install; shared2/, sys/ and
+        // fst.bin are system state. title/00000001 is system titles, which nothing declares.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("wii", "dolphin-emu/User/Load/WiiSD.raw", "virtual SD card");
+        fixture.AddSave("wii", "dolphin-emu/User/Wii/shared2/sys/SYSCONF", "system config");
+        fixture.AddSave("wii", "dolphin-emu/User/Wii/sys/uid.sys", "system state");
+        fixture.AddSave("wii", "dolphin-emu/User/Wii/fst.bin", "system state");
+        fixture.AddSave("wii", "dolphin-emu/User/Wii/title/00000001/00000002/data/setting.txt", "a system title");
+
+        fixture.Scan();
+
+        var row = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "wii" && entry.Reason == UnsyncableReason.NotInThisVersion);
+        Assert.Equal(1, row.FileCount);
+    }
+
+    [Fact]
+    public void A_not_a_save_path_that_would_hide_a_shared_container_or_a_unit_container_is_refused()
+    {
+        const string Rules = """
+            {
+              "battery_saves": [{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }],
+              "shared_containers": { "ps2": { "pcsx2/memcards/Mcd001.ps2": "shared" } },
+              "not_a_save_paths": { "ps2": { "pcsx2/memcards": "wrong" } }
+            }
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse("""{ "shapes": {} }""", Rules));
+
+        const string Shapes = """
+            { "shapes": { "wii": { "class": "C", "unit_paths": [
+              { "container": "wii/dolphin-emu/User/Wii/title/00010000", "emulator": "dolphin-emu", "key": "hex_ascii", "slot": "nand" } ] } } }
+            """;
+        const string HidesUnits = """
+            {
+              "battery_saves": [{ "emulator": "libretro", "directory": "", "extensions": [".srm"], "named_after": "rom file" }],
+              "not_a_save_paths": { "wii": { "dolphin-emu/User/Wii": "wrong" } }
+            }
+            """;
+
+        Assert.Throws<InvalidOperationException>(() => SaveShapes.Parse(Shapes, HidesUnits));
+    }
+
+    [Fact]
     public void A_project64_state_in_its_game_directory_is_not_counted_as_uncovered()
     {
         // Project64 keeps each game's states one level below the declared directory.

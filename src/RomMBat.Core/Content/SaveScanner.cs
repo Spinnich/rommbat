@@ -1155,17 +1155,20 @@ public sealed class SaveScanner
     /// Counts files that no other pass is carrying.
     /// </summary>
     /// <remarks>
-    /// <b>Three exclusions, and the first two exist because of the same bug shipped once
-    /// already.</b> Stage 2a's report counted a save state as unsyncable in the very pass that
-    /// uploaded it, which is worse than saying nothing: a user checking why their states were
-    /// not going up was told they were not, while they were. Class C would reintroduce it
-    /// exactly, so its members are excluded too, and the state exclusion asks the schema rather
-    /// than matching directory names so the two passes cannot disagree about what a state
-    /// directory is.
+    /// <b>Four exclusions. The first two keep a file another pass carries out of the count.</b>
+    /// Counting a save state or a class C member as unsyncable in the pass that uploads it is
+    /// worse than saying nothing: a user checking why their states are not going up is told
+    /// they are not, while they are. The state exclusion asks the schema rather than matching
+    /// directory names, so the two passes cannot disagree about what a state directory is.
     /// <para>
-    /// The third is not that bug. A declared shared container below the loose level is already
-    /// reported by name with its own reason, so counting it again here would say the same file
-    /// is unsyncable twice under two different explanations.
+    /// The third is a declared shared container below the loose level, which is already
+    /// reported by name with its own reason, so counting it here would say the same file is
+    /// unsyncable twice under two different explanations.
+    /// </para>
+    /// <para>
+    /// The fourth is a path <c>save_rules.json</c> declares is not a save, such as Dolphin's
+    /// cache, config and logs under <c>dolphin-emu/User/</c>, which would otherwise read as saves
+    /// nothing carries on a system that syncs (RB-405).
     /// </para>
     /// </remarks>
     private int CountFiles(
@@ -1180,6 +1183,7 @@ public sealed class SaveScanner
                 .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
                 .Count(file =>
                     !IsStateDirectory(Path.GetDirectoryName(file), savesRoot)
+                    && !IsNotASavePath(file, savesRoot)
                     && shared?.Contains(file) != true
                     && !(_install.Contains(file) && carried.Contains(_install.Relativize(file))));
         }
@@ -1187,6 +1191,14 @@ public sealed class SaveScanner
         {
             return 0;
         }
+    }
+
+    private bool IsNotASavePath(string file, string savesRoot)
+    {
+        var relative = Path.GetRelativePath(savesRoot, file).Replace('\\', '/');
+        var slash = relative.IndexOf('/', StringComparison.Ordinal);
+
+        return slash > 0 && _shapes.IsNotASavePath(relative[..slash], relative[(slash + 1)..]);
     }
 
     private bool IsStateDirectory(string? directory, string savesRoot)
