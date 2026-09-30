@@ -169,14 +169,13 @@ public static class ConflictScreens
 
         // Said on the screen where the decision is made, rather than left to be inferred from
         // the absence of a warning. Neither side is discarded by either choice: keeping the
-        // server's runs the same verified restore an ordinary download does, over a local file
-        // that was copied aside when the conflict was first seen, and keeping this device's
-        // leaves the server's previous copy in the slot's own history.
+        // server's leaves this device's save under replaced/, which nothing prunes, and keeping
+        // this device's leaves the server's previous copy in the slot's own history (#326).
         rows.Add(new ListRow(
             "Either way",
             "nothing is deleted",
-            "The side you do not keep stays: here as the copy above, and on RomM as an earlier "
-                + "version of the save.",
+            "The side you do not keep stays: this device's in emulators/rommbat/replaced/, and "
+                + "the server's on RomM as an earlier version of the save.",
             false));
 
         return rows;
@@ -210,7 +209,7 @@ public static class ConflictScreens
                         ? "The save on this device is uploaded and becomes the one every other "
                             + "device takes. RomM keeps what was there as an earlier version."
                         : "The server's save is downloaded and verified, replacing the file here. "
-                            + "The copy taken when the conflict was first seen is kept.",
+                            + "This device's save is kept in emulators/rommbat/replaced/.",
                     false),
             ],
             _ => ScreenCommand.Stay,

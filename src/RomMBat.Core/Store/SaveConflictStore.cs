@@ -199,10 +199,11 @@ public sealed class SaveConflictStore
         return command.ExecuteNonQuery() > 0;
     }
 
-    /// <summary>Forgets where the copy aside was, once the copy itself has been removed.</summary>
+    /// <summary>Forgets where the copy aside was, once the conflict is settled.</summary>
     /// <remarks>
-    /// The row stays. Only the pointer goes, so a slot that conflicts again is not offered a copy
-    /// that was pruned when the previous conflict was settled.
+    /// The row stays. Only the pointer goes, so a slot that conflicts again takes a copy of its
+    /// own rather than inheriting the previous conflict's, which a keep-local removed and a
+    /// keep-server left under <c>replaced/</c> as the side it did not keep.
     /// </remarks>
     public void ForgetCopy(long romId, string slot)
     {

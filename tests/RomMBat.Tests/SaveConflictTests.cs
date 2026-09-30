@@ -269,6 +269,78 @@ public class SaveConflictTests
     }
 
     [Fact]
+    public async Task Keeping_the_server_side_keeps_this_devices_save_under_replaced()
+    {
+        // #326. The screen promises the side not kept stays on this device. Keep-local can prune,
+        // because RomM keeps the server's copy one row down; keep-server has nowhere else it lives.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        var copy = Assert.Single(fixture.Store.SaveConflicts.ListOpen()).LocalCopyPath!.Value;
+
+        var outcome = await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Equal("what this device did", File.ReadAllText(fixture.Resolve(copy.Value)));
+        Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+
+        // Unchanged since the conflict, so the copy already taken is the only one.
+        Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+
+        // The pointer goes, so a slot that conflicts again takes a copy of its own.
+        Assert.Null(Assert.Single(fixture.Store.SaveConflicts.List()).LocalCopyPath);
+    }
+
+    [Fact]
+    public async Task Keeping_the_server_side_copies_aside_what_was_played_since_the_conflict()
+    {
+        // The copy is taken once per conflict, so play after that is on no copy. Overwriting it
+        // with none would lose exactly the progress the user never chose to discard.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        var copy = Assert.Single(fixture.Store.SaveConflicts.ListOpen()).LocalCopyPath!.Value;
+        File.WriteAllText(fixture.Resolve("saves/gb/Tetris (World).srm"), "played on after the conflict");
+
+        var outcome = await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+        Assert.Equal("what the other device did", File.ReadAllText(fixture.Resolve("saves/gb/Tetris (World).srm")));
+
+        var kept = Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value))
+            .Select(File.ReadAllText)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+
+        Assert.Equal(["played on after the conflict", "what this device did"], kept);
+        Assert.True(File.Exists(fixture.Resolve(copy.Value)));
+    }
+
+    [Fact]
+    public async Task Keeping_the_server_side_takes_a_copy_when_the_conflict_has_none()
+    {
+        // A conflict's copy is a courtesy and may never have been taken, or may have been
+        // deleted by hand since. The overwrite still needs one.
+        using var fixture = ConflictFixture.Create();
+        await fixture.ConflictAsync(TestContext.Current.CancellationToken);
+
+        File.Delete(fixture.Resolve(Assert.Single(fixture.Store.SaveConflicts.ListOpen()).LocalCopyPath!.Value.Value));
+
+        var outcome = await fixture.ResolveAsync(
+            ConflictResolution.KeepServer,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(outcome.Resolved, outcome.Message);
+
+        var aside = Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Equal("what this device did", File.ReadAllText(aside));
+    }
+
+    [Fact]
     public async Task A_decided_conflict_keeps_its_row_and_stops_pointing_at_the_pruned_copy()
     {
         // Migration 007 keeps decided rows so `saves` can say what was chosen, and so a slot that
@@ -302,12 +374,13 @@ public class SaveConflictTests
             cancellationToken: TestContext.Current.CancellationToken)).Resolved);
 
         // The server side has not moved since the decision, so re-reporting it would make the
-        // resolve command useless and would take a second copy aside.
+        // resolve command useless and would take a second copy aside. The one there is the side
+        // keep-server did not keep.
         fixture.Advance(TimeSpan.FromHours(1));
         await fixture.ConflictAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(fixture.Store.SaveConflicts.ListOpen());
-        Assert.Empty(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
+        Assert.Single(Directory.GetFiles(fixture.Resolve(SaveSync.AsideDirectory.Value)));
     }
 
     [Fact]
@@ -334,8 +407,8 @@ public class SaveConflictTests
 
         Assert.True(reopened.IsOpen);
 
-        // The copy taken for the first conflict was pruned when it was decided, so this one needs
-        // its own rather than inheriting a path to a deleted file.
+        // The decision let go of the first conflict's copy, so this one needs its own rather
+        // than inheriting a path to the first conflict's local side.
         Assert.NotNull(reopened.LocalCopyPath);
         Assert.True(File.Exists(fixture.Resolve(reopened.LocalCopyPath.Value.Value)));
     }

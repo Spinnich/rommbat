@@ -130,9 +130,12 @@ in place and moves its `updated_at`, and deleting the row above leaves it the ne
 rejected copy can return to the head of the slot either way. The per-slot prune cannot do it,
 because it deletes the oldest rows first (RM-11). A
 download naming a save id lower than the one this device last recorded for the slot is therefore
-recorded as a conflict rather than taken, which is RM-4's case E. Resolving either way
-prunes the copy, which is what makes the design's "keep the previous copy
-until the next successful sync" true rather than aspirational.
+recorded as a conflict rather than taken, which is RM-4's case E. `--keep-local` prunes the
+copy, since the server keeps the other side. `--keep-server` keeps it, and takes a fresh one
+first when a file save moved since the conflict was found, or always for a class C unit, whose
+restore copies it aside: the local side never reached RomM, so
+the copy under `replaced/` is the only place it survives. Nothing prunes that copy, as with a
+download's (#326).
 
 Save states look like the easier half, because `es_savestates.cfg` is a machine-readable
 per-emulator schema of directory, filename, screenshot, autosave and slot bounds. Parse it; do

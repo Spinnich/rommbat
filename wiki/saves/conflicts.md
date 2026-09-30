@@ -18,11 +18,11 @@ until you decide. The main menu's Conflicts row counts how many are waiting.
 Keeping this device's save sends it to RomM, and every other device takes it from there. RomM
 keeps the save it had as an earlier version, so that side is not lost.
 
-**Keeping the server's save replaces this device's.** RomMBat downloads the server's save, checks
-it and puts it in place, and then deletes the copy of this device's save it set aside when it
-found the conflict. That save never reached RomM, so after this choice it is gone. The conflict
-screen currently says that copy is kept, which is wrong
-([#326](https://github.com/Spinnich/rommbat/issues/326)).
+Keeping the server's save downloads it, checks it and puts it in place. This device's save never
+reached RomM, so RomMBat keeps it in `emulators/rommbat/replaced/` under a dated name: the copy
+set aside when the conflict was found, and a second one taken just before the server's save goes
+in, if you played on since or if the save is a folder, such as a PSP game's. Nothing removes
+those copies, so to go back to that save, copy it over the game's save while the game is closed.
 
 Choosing needs the server. Keeping the server's save is refused while that game is open, so quit
 the game first; the conflict waits.
