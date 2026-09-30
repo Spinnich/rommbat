@@ -116,6 +116,13 @@ that tree, so `save_rules.json` declares the card under `dolphin` and the scanne
 reporting the rest of `saves/dolphin/` as an unknown shape. Finding 193, and the same shape of
 trap as PCSX2's four menu entries.
 
+**Dolphin's working files are declared not to be saves, never inferred.** Beside the saves,
+`dolphin-emu/User/` on `gamecube` and `wii` holds Dolphin's cache, config, logs, the IPL SRAM and
+the virtual SD card, and `save_rules.json`'s `not_a_save_paths` names each path so the
+unsyncable report does not count them (RB-405). An extension cannot say it, since `.ini` is
+config there and could be a save elsewhere. A path covers everything below it, and loading
+refuses one that covers a shared container or a class C container.
+
 Set these via `es_settings.cfg`, never an emulator INI. See `retrobat-layout`. The per-game
 key is `<system>["<rom filename>"].<key>` and the **filename must keep its extension**; a
 bare stem is ignored silently and the emulator keeps writing to the shared container.

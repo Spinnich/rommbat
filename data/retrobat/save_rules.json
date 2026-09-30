@@ -370,6 +370,45 @@
       "pcsx-card2.mcd": "a memory card every game writes to, from a libretro core: swanstation's Shared card type (duckstation_shared_card_1.mcd and _2.mcd) or pcsx_rearmed's second card (pcsx-card2.mcd)"
     }
   },
+  "not_a_save_paths": {
+    "gamecube": {
+      "dolphin-emu/User/Cache": "Dolphin's shader and game-list caches (RB-405)",
+      "dolphin-emu/User/Config": "Dolphin's own configuration, which emulatorlauncher regenerates (RB-405)",
+      "dolphin-emu/User/Dump": "Dolphin's DumpPath, created by emulatorlauncher on every launch (RB-405)",
+      "dolphin-emu/User/GameSettings": "Dolphin's per-game ini overrides (RB-405)",
+      "dolphin-emu/User/Load": "Dolphin's LoadPath, created by emulatorlauncher on every launch: custom textures and, on wii, the virtual SD card WiiSD.raw (RB-405)",
+      "dolphin-emu/User/Logs": "Dolphin's log (RB-405)",
+      "dolphin-emu/User/Maps": "Dolphin's symbol maps (RB-405)",
+      "dolphin-emu/User/ResourcePacks": "Dolphin's ResourcePackPath, created by emulatorlauncher on every launch; Dolphin writes an empty Packs.ini (RB-405)",
+      "dolphin-emu/User/SavedAssembly": "Dolphin's debugger output (RB-405)",
+      "dolphin-emu/User/ScreenShots": "Dolphin's screenshots (RB-405)",
+      "dolphin-emu/User/Shaders": "Dolphin's post-processing shaders (RB-405)",
+      "dolphin-emu/User/Styles": "Dolphin's Qt styles (RB-405)",
+      "dolphin-emu/User/Themes": "Dolphin's game-list icon themes (RB-405)",
+      "dolphin-emu/User/WFS": "Dolphin's WFSPath, created by emulatorlauncher on every launch (RB-405)",
+      "dolphin-emu/User/GC/SRAM.raw": "the GameCube IPL's settings SRAM, 68 B, which holds no game's save (RB-405)",
+      "dolphin-emu/User/Wii": "the Wii NAND Dolphin keeps beside a GameCube launch, which holds no GameCube save (RB-405)"
+    },
+    "wii": {
+      "dolphin-emu/User/Cache": "Dolphin's shader and game-list caches (RB-405)",
+      "dolphin-emu/User/Config": "Dolphin's own configuration, which emulatorlauncher regenerates (RB-405)",
+      "dolphin-emu/User/Dump": "Dolphin's DumpPath, created by emulatorlauncher on every launch (RB-405)",
+      "dolphin-emu/User/GameSettings": "Dolphin's per-game ini overrides (RB-405)",
+      "dolphin-emu/User/Load": "Dolphin's LoadPath, created by emulatorlauncher on every launch: custom textures and, on wii, the virtual SD card WiiSD.raw (RB-405)",
+      "dolphin-emu/User/Logs": "Dolphin's log (RB-405)",
+      "dolphin-emu/User/Maps": "Dolphin's symbol maps (RB-405)",
+      "dolphin-emu/User/ResourcePacks": "Dolphin's ResourcePackPath, created by emulatorlauncher on every launch; Dolphin writes an empty Packs.ini (RB-405)",
+      "dolphin-emu/User/SavedAssembly": "Dolphin's debugger output (RB-405)",
+      "dolphin-emu/User/ScreenShots": "Dolphin's screenshots (RB-405)",
+      "dolphin-emu/User/Shaders": "Dolphin's post-processing shaders (RB-405)",
+      "dolphin-emu/User/Styles": "Dolphin's Qt styles (RB-405)",
+      "dolphin-emu/User/Themes": "Dolphin's game-list icon themes (RB-405)",
+      "dolphin-emu/User/WFS": "Dolphin's WFSPath, created by emulatorlauncher on every launch (RB-405)",
+      "dolphin-emu/User/Wii/shared2": "NAND system state, not a title's save (RB-146)",
+      "dolphin-emu/User/Wii/sys": "NAND system state, not a title's save (RB-146)",
+      "dolphin-emu/User/Wii/fst.bin": "NAND system state, not a title's save (RB-146)"
+    }
+  },
   "observed": {
     "gb": {
       "class": "A",

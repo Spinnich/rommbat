@@ -650,6 +650,51 @@ EMPTY_NOT_A_SAVE = {
     },
 }
 
+# Written by an emulator for its own use inside the save tree, and never a save. Declared per
+# system rather than by extension, because .ini is Dolphin's config here and could be a save
+# elsewhere. A path covers everything below it, and must not cover a declared container.
+DOLPHIN_WORKING = {
+    "Cache": "Dolphin's shader and game-list caches (RB-405)",
+    "Config": "Dolphin's own configuration, which emulatorlauncher regenerates (RB-405)",
+    "Dump": "Dolphin's DumpPath, created by emulatorlauncher on every launch (RB-405)",
+    "GameSettings": "Dolphin's per-game ini overrides (RB-405)",
+    "Load": (
+        "Dolphin's LoadPath, created by emulatorlauncher on every launch: custom textures and, "
+        "on wii, the virtual SD card WiiSD.raw (RB-405)"
+    ),
+    "Logs": "Dolphin's log (RB-405)",
+    "Maps": "Dolphin's symbol maps (RB-405)",
+    "ResourcePacks": (
+        "Dolphin's ResourcePackPath, created by emulatorlauncher on every launch; Dolphin writes "
+        "an empty Packs.ini (RB-405)"
+    ),
+    "SavedAssembly": "Dolphin's debugger output (RB-405)",
+    "ScreenShots": "Dolphin's screenshots (RB-405)",
+    "Shaders": "Dolphin's post-processing shaders (RB-405)",
+    "Styles": "Dolphin's Qt styles (RB-405)",
+    "Themes": "Dolphin's game-list icon themes (RB-405)",
+    "WFS": "Dolphin's WFSPath, created by emulatorlauncher on every launch (RB-405)",
+}
+
+NOT_A_SAVE_PATHS = {
+    "gamecube": {
+        **{f"dolphin-emu/User/{name}": reason for name, reason in DOLPHIN_WORKING.items()},
+        "dolphin-emu/User/GC/SRAM.raw": (
+            "the GameCube IPL's settings SRAM, 68 B, which holds no game's save (RB-405)"
+        ),
+        "dolphin-emu/User/Wii": (
+            "the Wii NAND Dolphin keeps beside a GameCube launch, which holds no GameCube save "
+            "(RB-405)"
+        ),
+    },
+    "wii": {
+        **{f"dolphin-emu/User/{name}": reason for name, reason in DOLPHIN_WORKING.items()},
+        "dolphin-emu/User/Wii/shared2": "NAND system state, not a title's save (RB-146)",
+        "dolphin-emu/User/Wii/sys": "NAND system state, not a title's save (RB-146)",
+        "dolphin-emu/User/Wii/fst.bin": "NAND system state, not a title's save (RB-146)",
+    },
+}
+
 lines.append("=== loose files directly under saves/<system>/, which is where class A lives")
 
 by_extension: collections.Counter[str] = collections.Counter()
@@ -729,6 +774,7 @@ document = {
     "empty_not_a_save": EMPTY_NOT_A_SAVE,
     "not_a_save_extensions": NOT_A_SAVE,
     "shared_containers": SHARED_CONTAINERS,
+    "not_a_save_paths": NOT_A_SAVE_PATHS,
     "observed": per_system,
 }
 

@@ -182,3 +182,16 @@ boot and survives a crash. It held the cartridge formatting its own backup RAM, 
 and 35 distinct byte values, so no size floor and no all-`0x00` or all-`0xFF` test separates it
 from a player's save. Only a known earlier `content_hash` does, and a first save seen with no
 baseline is not evidence of play.
+
+## RB-405. Dolphin writes its own working files into the save tree, and none is a save
+
+Verified: RetroBat 8.2.1, 2026-09-29. How: booted Bust-A-Move 3000 (USA) under `libretro` `dolphin` on `R:` to its title screen, listed `saves/gamecube/dolphin-emu/User/`, and read `emulatorlauncher`'s `Dolphin.Generator.cs`.
+One boot left 19 files that are not saves: `Cache/` (the uidcache and shader caches),
+`Config/`, `Logs/dolphin.log`, `ResourcePacks/Packs.ini` at 0 B, `Wii/fst.bin`,
+`Wii/shared2/sys/SYSCONF` and `GC/SRAM.raw`, the IPL's 68 B settings SRAM. The generator creates
+`Load`, `ResourcePacks`, `Dump` and `WFS` under `saves/<system>/dolphin-emu/User/` on every launch
+and points Dolphin at them, and on `wii` the virtual SD card is `Load/WiiSD.raw`, 134 MB on
+another install. Dolphin also lays out `GameSettings`, `Maps`, `SavedAssembly`, `ScreenShots`,
+`Shaders`, `Styles` and `Themes` there. `save_rules.json`'s `not_a_save_paths` names each one
+for `gamecube` and `wii`, and the unsyncable report passes over them, since a count that includes
+them says a system just proven to sync has saves nothing carries.

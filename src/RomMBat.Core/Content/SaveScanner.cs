@@ -1155,7 +1155,7 @@ public sealed class SaveScanner
     /// Counts files that no other pass is carrying.
     /// </summary>
     /// <remarks>
-    /// <b>Three exclusions, and the first two exist because of the same bug shipped once
+    /// <b>Four exclusions, and the first two exist because of the same bug shipped once
     /// already.</b> Stage 2a's report counted a save state as unsyncable in the very pass that
     /// uploaded it, which is worse than saying nothing: a user checking why their states were
     /// not going up was told they were not, while they were. Class C would reintroduce it
@@ -1166,6 +1166,11 @@ public sealed class SaveScanner
     /// The third is not that bug. A declared shared container below the loose level is already
     /// reported by name with its own reason, so counting it again here would say the same file
     /// is unsyncable twice under two different explanations.
+    /// </para>
+    /// <para>
+    /// The fourth is a path <c>save_rules.json</c> declares is not a save, such as Dolphin's
+    /// cache, config and logs under <c>dolphin-emu/User/</c>. Counting those told a user that
+    /// GameCube had 19 saves nothing carries, on the system just proven to sync (RB-405).
     /// </para>
     /// </remarks>
     private int CountFiles(
@@ -1180,6 +1185,7 @@ public sealed class SaveScanner
                 .EnumerateFiles(directory, "*", SearchOption.AllDirectories)
                 .Count(file =>
                     !IsStateDirectory(Path.GetDirectoryName(file), savesRoot)
+                    && !IsNotASavePath(file, savesRoot)
                     && shared?.Contains(file) != true
                     && !(_install.Contains(file) && carried.Contains(_install.Relativize(file))));
         }
@@ -1187,6 +1193,14 @@ public sealed class SaveScanner
         {
             return 0;
         }
+    }
+
+    private bool IsNotASavePath(string file, string savesRoot)
+    {
+        var relative = Path.GetRelativePath(savesRoot, file).Replace('\\', '/');
+        var slash = relative.IndexOf('/', StringComparison.Ordinal);
+
+        return slash > 0 && _shapes.IsNotASavePath(relative[..slash], relative[(slash + 1)..]);
     }
 
     private bool IsStateDirectory(string? directory, string savesRoot)

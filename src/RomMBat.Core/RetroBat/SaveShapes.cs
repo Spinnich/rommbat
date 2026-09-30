@@ -499,6 +499,7 @@ public sealed class SaveShapes
     private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _sharedContainers;
     private readonly FrozenSet<string> _notASaveExtensions;
     private readonly FrozenDictionary<string, FrozenSet<string>> _emptyNotASave;
+    private readonly FrozenDictionary<string, FrozenDictionary<string, string>> _notASavePaths;
 
     private SaveShapes(
         FrozenDictionary<string, SaveShape> shapes,
@@ -506,6 +507,7 @@ public sealed class SaveShapes
         FrozenDictionary<string, FrozenDictionary<string, string>> sharedContainers,
         FrozenSet<string> notASaveExtensions,
         FrozenDictionary<string, FrozenSet<string>> emptyNotASave,
+        FrozenDictionary<string, FrozenDictionary<string, string>> notASavePaths,
         IReadOnlyList<string> unclassified)
     {
         _shapes = shapes;
@@ -513,6 +515,7 @@ public sealed class SaveShapes
         _sharedContainers = sharedContainers;
         _notASaveExtensions = notASaveExtensions;
         _emptyNotASave = emptyNotASave;
+        _notASavePaths = notASavePaths;
         Unclassified = unclassified;
 
         LooseEmulator = batteryRules.FirstOrDefault(rule => rule.IsLoose && rule.Systems is null)?.Emulator
@@ -665,6 +668,26 @@ public sealed class SaveShapes
         _emptyNotASave.TryGetValue(system, out var extensions) && extensions.Contains(extension.ToLowerInvariant());
 
     /// <summary>
+    /// True when a path under <c>saves/&lt;system&gt;/</c> is, or sits inside, one an emulator
+    /// writes for its own use rather than as a save.
+    /// </summary>
+    /// <param name="system">The RetroBat system folder.</param>
+    /// <param name="relativeToSystem">The path under it, forward-slashed.</param>
+    /// <remarks>
+    /// Declared per system and never inferred, because nothing about a file says it is not a
+    /// save: <c>.ini</c> is Dolphin's config under <c>gamecube/dolphin-emu/User/Config/</c> and
+    /// could be a save elsewhere. One GameCube boot raised the unsyncable count from 1 to 20
+    /// with Dolphin's cache, config and logs, all of which this now answers for (RB-405).
+    /// </remarks>
+    public bool IsNotASavePath(string system, string relativeToSystem) =>
+        _notASavePaths.TryGetValue(system, out var paths)
+        && paths.Keys.Any(path => Covers(path, relativeToSystem));
+
+    private static bool Covers(string declared, string path) =>
+        string.Equals(path, declared, StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith(declared + "/", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Why a path is a shared container, or null when it is not one.
     /// </summary>
     /// <param name="system">The RetroBat system folder.</param>
@@ -725,6 +748,16 @@ public sealed class SaveShapes
                 ParseConversion(entry.Value.Conversion)),
             StringComparer.OrdinalIgnoreCase);
 
+        var notASavePaths = rules.NotASavePaths.ToFrozenDictionary(
+            entry => entry.Key,
+            entry => entry.Value.ToFrozenDictionary(
+                inner => inner.Key.Replace('\\', '/').Trim('/'),
+                inner => inner.Value,
+                StringComparer.OrdinalIgnoreCase),
+            StringComparer.OrdinalIgnoreCase);
+
+        RefuseHiddenSaves(notASavePaths, rules.SharedContainers, parsed);
+
         return new SaveShapes(
             parsed,
             ParseBatteryRules(rules.BatterySaves),
@@ -740,7 +773,46 @@ public sealed class SaveShapes
                 entry => entry.Key,
                 entry => entry.Value.Keys.Select(extension => extension.ToLowerInvariant()).ToFrozenSet(StringComparer.Ordinal),
                 StringComparer.OrdinalIgnoreCase),
+            notASavePaths,
             shapes.Unclassified);
+    }
+
+    /// <summary>
+    /// Refuses a not-a-save path that covers a declared shared container or class C container.
+    /// </summary>
+    /// <remarks>
+    /// A path cannot be both a save and not one. Declaring <c>dolphin-emu/User/Wii</c> for
+    /// <c>wii</c> would take in the NAND title tree its saves live in, and the table saying so
+    /// fails at load rather than as a report that quietly stops counting a gap.
+    /// </remarks>
+    private static void RefuseHiddenSaves(
+        FrozenDictionary<string, FrozenDictionary<string, string>> notASavePaths,
+        Dictionary<string, Dictionary<string, string>> sharedContainers,
+        FrozenDictionary<string, SaveShape> shapes)
+    {
+        foreach (var (system, paths) in notASavePaths)
+        {
+            var saves = sharedContainers.GetValueOrDefault(system)?.Keys.ToList() ?? [];
+
+            if (shapes.TryGetValue(system, out var shape))
+            {
+                // Relative to saves/, and a wildcard segment stands for any one directory, so
+                // the fixed part before it is what a declaration must not cover.
+                saves.AddRange(shape.UnitPaths
+                    .Select(unit => unit.Container.Split('*')[0].TrimEnd('/'))
+                    .Where(container => container.StartsWith(system + "/", StringComparison.OrdinalIgnoreCase))
+                    .Select(container => container[(system.Length + 1)..]));
+            }
+
+            foreach (var path in paths.Keys)
+            {
+                if (saves.FirstOrDefault(save => Covers(path, save)) is { } hidden)
+                {
+                    throw new InvalidOperationException(
+                        $"save_rules.json declares saves/{system}/{path} not a save, and it holds saves/{system}/{hidden}.");
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -1012,6 +1084,9 @@ public sealed class SaveShapes
 
         [JsonPropertyName("shared_containers")]
         public Dictionary<string, Dictionary<string, string>> SharedContainers { get; init; } = [];
+
+        [JsonPropertyName("not_a_save_paths")]
+        public Dictionary<string, Dictionary<string, string>> NotASavePaths { get; init; } = [];
     }
 
     private sealed record BatteryRuleEntry
