@@ -82,6 +82,8 @@ IMAGE_LINK = re.compile(r"!\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*
 # `[^1]:` is a footnote, not a link.
 REFERENCE_DEF = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+# The guide's attr_list heading id, `## Game Boy {#gb}`, which replaces the slug in MkDocs.
+HEADING_ID = re.compile(r"\{\s*#([\w-]+)[^}]*\}\s*$")
 HTML_ANCHOR = re.compile(r"<a\s+(?:[^>]*\s)?(?:id|name)=\"([^\"]+)\"", re.IGNORECASE)
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
 FENCE = re.compile(r"^\s{0,3}(`{3,}|~{3,})")
@@ -197,6 +199,10 @@ def anchors_of(rel: str) -> set[str]:
         anchors.update(a.lower() for a in HTML_ANCHOR.findall(line))
         heading = HEADING.match(line)
         if heading:
+            explicit = HEADING_ID.search(heading.group(2))
+            if explicit:
+                anchors.add(explicit.group(1).lower())
+                continue
             slug = slugify(heading.group(2))
             count = seen.get(slug, 0)
             seen[slug] = count + 1

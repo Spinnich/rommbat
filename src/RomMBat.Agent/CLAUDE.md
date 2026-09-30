@@ -19,6 +19,8 @@ The subcommand table, with which ones reach the network, is in
   `saves resolve` here and from the UI's conflict screens. Nothing reached from a flush picks a
   side in a conflict.
 - **Help text is user documentation.** Changing a flag or an exit code owes the docs that
-  describe it (`pre-pr-verification`, "Documentation parity").
+  describe it (`pre-pr-verification`, "Documentation parity"), and the guide's
+  `wiki/reference/cli.md` is generated from `--help`, so a changed line fails a test until it is
+  regenerated (`wiki/README.md`).
 - Tests go in `tests/RomMBat.Agent.Tests` and drive `Program.DispatchAsync`, not the command
   class, so the exception handlers are in the path.

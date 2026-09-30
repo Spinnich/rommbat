@@ -13,5 +13,6 @@ move it to another PC.
 !!! warning "RomMBat is not released yet"
 
     This guide is being written alongside the first release. Until it is complete, the
-    [project README](https://github.com/Spinnich/rommbat#readme) says what works today, which
-    versions of RomM and RetroBat you need, and which systems have been tested.
+    [project README](https://github.com/Spinnich/rommbat#readme) says what works today and which
+    versions of RomM and RetroBat you need. [Platforms](platforms/index.md) lists which systems
+    and emulators have been tested.

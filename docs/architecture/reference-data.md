@@ -31,3 +31,10 @@ users add custom ones.
 ES menu entry's artwork, embedded into `RomMBat.Core` and written to
 `system/es_menu/media/` by `menu install`. Embedded rather than shipped beside the agent for
 the same reason as the tables: a single-file publish carries it with no second file to lose.
+
+**`data/certification.json`** ships nothing and nothing reads it at runtime. It holds one
+row per `(system, emulator, core)` that a record under `docs/platforms/` covers, with its
+status and the floor it holds at, and `PlatformSupportPageTests` builds the guide's
+`wiki/platforms/index.md` from it. The same test fails when a system in the file lacks a
+row the vendored `es_systems.cfg` declares for it, or lists them out of order, so a
+refresh that adds a core shows up as a row to add as `untested`.

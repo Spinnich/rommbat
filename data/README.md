@@ -11,6 +11,10 @@ Tables RomMBat ships and reads at runtime. Not to be confused with
 | `retrobat/save_shapes.json`      | RetroBat system to save class A/B/C/D                        | M0 probe 2, generated from a real install                                   | M6         |
 | `retrobat/bios.json`             | RetroBat system to the firmware it requires                  | `reference/batocera-systems.json`, thinned by a generator                   | M5         |
 
+`certification.json` is the exception: nothing reads it at runtime. It holds each certified
+or driven `(system, emulator, core)` row, and the guide's platform table is generated from
+it. See [reference-data.md](../docs/architecture/reference-data.md).
+
 ## `platforms.json` is generated, and is only layer 3 of five
 
 Regenerate with `python tools/build-platform-map.py`, or check it is current with

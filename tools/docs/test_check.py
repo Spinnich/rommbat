@@ -36,6 +36,20 @@ class LinkTest(unittest.TestCase):
             link_errors("README.md", "[c](CLAUDE.md#six-rules-that-override-intuition)\n"), []
         )
 
+    def test_attr_list_heading_id_is_the_anchor(self) -> None:
+        # wiki/platforms/index.md is generated with `## Nintendo Entertainment System - Famicom {#nes}`.
+        self.assertEqual(link_errors("wiki/index.md", "[n](platforms/index.md#nes)\n"), [])
+        self.assertEqual(
+            link_errors(
+                "wiki/index.md",
+                "[n](platforms/index.md#nintendo-entertainment-system---famicom-nes)\n",
+            ),
+            [
+                "wiki/index.md:1: missing anchor: "
+                "platforms/index.md#nintendo-entertainment-system---famicom-nes"
+            ],
+        )
+
     def test_directory_link_resolves(self) -> None:
         self.assertEqual(link_errors("README.md", "[d](docs/)\n"), [])
 

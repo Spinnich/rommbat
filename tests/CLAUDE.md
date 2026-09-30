@@ -6,6 +6,7 @@ subcommands, in its own project so the agent's Windows manifest stays out of the
 | Where                                     | What                                                            |
 | ----------------------------------------- | --------------------------------------------------------------- |
 | `RomMBat.Tests/Support/`                  | `TempRetroBatTree`, `StubRomMServer`, `ApprovingUser`, fixtures |
+| `RomMBat.Tests/Support/GeneratedPage.cs`  | Holds a generated guide page to its source; `wiki/README.md`    |
 | `RomMBat.Tests/fixtures/`                 | Captures from a real install, byte exact and excluded from lint |
 | `RomMBat.Agent.Tests/Support/AgentRun.cs` | Runs a subcommand through `Program.DispatchAsync`               |
 

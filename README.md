@@ -599,6 +599,9 @@ reference/            Vendored upstream data plus a script that re-derives every
 data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes and
                       rules, and the save-state entries es_savestates.cfg leaves out)
 data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
+data/certification.json
+                      Each certified or driven (system, emulator, core) row; the guide's
+                      platform table is generated from it
 tools/publish.ps1     Publishes the three projects, assembles the seven files an install
                       needs, and packages the portable zip. CI runs this
 tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
