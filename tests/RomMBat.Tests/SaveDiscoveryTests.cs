@@ -185,6 +185,63 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void Dolphins_slot_A_memory_card_is_named_as_shared_rather_than_counted_beside_the_gci_folders()
+    {
+        // RB-193. SAVE FORMAT set to MEMORY CARD writes one raw card beside the region folders
+        // the class C scan reads, and every GameCube game writes to it.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("gamecube", "dolphin-emu/User/GC/SRAM.USA.raw", "every game's memory card");
+
+        fixture.Scan();
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "gamecube" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(1, shared.FileCount);
+        Assert.Contains("slot A", shared.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "gamecube" && entry.Reason == UnsyncableReason.NotInThisVersion);
+    }
+
+    [Fact]
+    public void Dolphins_slot_B_card_outside_every_system_folder_is_named_and_the_rest_stays_unknown()
+    {
+        // RB-193. RetroBat never rewrites slot B, so on a stock install its card fills top-level
+        // saves/dolphin/, which is no system and has no shape. The card is named; what sits
+        // beside it is still an unknown tree.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("dolphin", "User/GC/SRAM.USA.raw", "every game's second memory card");
+        fixture.AddSave("dolphin", "User/Wii/shared2/sys/SYSCONF", "not a GameCube save");
+
+        fixture.Scan();
+
+        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "dolphin").ToList();
+
+        var shared = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(1, shared.FileCount);
+        Assert.Contains("slot B", shared.Detail, StringComparison.Ordinal);
+
+        var rest = Assert.Single(rows, entry => entry.Reason == UnsyncableReason.UnknownShape);
+        Assert.Equal(1, rest.FileCount);
+    }
+
+    [Fact]
+    public void An_unknown_tree_holding_only_a_declared_card_has_no_unknown_shape_row()
+    {
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("dolphin", "User/GC/SRAM.EUR.raw", "every game's second memory card");
+
+        fixture.Scan();
+
+        var row = Assert.Single(fixture.Store.Unsyncable.List(), entry => entry.System == "dolphin");
+        Assert.Equal(UnsyncableReason.SharedContainer, row.Reason);
+    }
+
+    [Fact]
     public void A_project64_state_in_its_game_directory_is_not_counted_as_uncovered()
     {
         // Project64 keeps each game's states one level below the declared directory.

@@ -175,7 +175,11 @@ public sealed class SaveScanner
                 // install: saves/ports/ holds a libretro state and its screenshot beside one
                 // battery save, and counting all three said three files were being ignored
                 // while two of them were going up.
-                var files = CountFiles(systemDirectory, savesRoot, []);
+                //
+                // A container declared for such a tree is still named: saves/dolphin/ is no
+                // system, and it holds Dolphin's slot B card on a stock install (RB-193).
+                var named = AddSharedContainers(report, system, systemDirectory);
+                var files = CountFiles(systemDirectory, savesRoot, [], named);
                 if (files > 0)
                 {
                     report.Add(
@@ -841,8 +845,9 @@ public sealed class SaveScanner
 
         foreach (var (relative, reason) in _shapes.SharedContainersFor(system))
         {
-            // Declared with forward slashes, and only ever below the loose level here: a
-            // container sitting loose is already named by the file loop above.
+            // Declared with forward slashes, and only ever below the loose level here. A shaped
+            // system's file loop names a loose container; a tree with no shape has no such loop,
+            // so a loose one declared there would be counted as unknown, and none is declared.
             if (!relative.Contains('/', StringComparison.Ordinal))
             {
                 continue;

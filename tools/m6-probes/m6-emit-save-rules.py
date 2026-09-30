@@ -58,7 +58,25 @@ SHARED_CONTAINERS = {
     "ps2": {
         "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
         "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
-    },    "psx": {
+    },
+    # Dolphin region-substitutes the card name, and dolphin_gcregion offers exactly these three.
+    "gamecube": {
+        f"dolphin-emu/User/GC/SRAM.{region}.raw": (
+            "Dolphin's slot A memory card, one raw card every GameCube game writes to when "
+            "SAVE FORMAT (dolphin_slotA) is MEMORY CARD (RB-193)"
+        )
+        for region in ("EUR", "USA", "JAP")
+    },
+    # Not a system folder: slot B keeps Dolphin's stock relative MemcardBPath, which RetroBat
+    # never rewrites, so this card fills beside the system folders on a stock install.
+    "dolphin": {
+        f"User/GC/SRAM.{region}.raw": (
+            "Dolphin's slot B memory card, one raw card every GameCube game writes to; RetroBat "
+            "never points slot B into saves/gamecube/, so it stays here (RB-193)"
+        )
+        for region in ("EUR", "USA", "JAP")
+    },
+    "psx": {
         "duckstation/memcards/shared_card_1.mcd": (
             "DuckStation's shared card, one file per port that every game writes to under the Shared card type; the names shared_card_1 to _8 are in DuckStation 0.1-11752's binary"
         ),
