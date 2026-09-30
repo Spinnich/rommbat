@@ -46,6 +46,11 @@ row from a ledger table keeps both of its columns, each under the table's own la
 topic file gives each of its facts the stamp and a one-line `How:`, and deletes the evidence
 narrative.
 
+**The stamp is what a floor move is checked against.** `python3 tools/docs/check.py --stale`
+lists every fact whose stamp names a RetroBat or RomM build below the floor in code, and every
+fact with no stamp. A stamp naming several builds of one project counts its newest, and text after
+`How:` is not read, so name the build a fact was re-measured on before it.
+
 ## IDs
 
 - `RB-` IDs came from the RetroBat ledger and `RM-` IDs from the RomM one. A fact lives with its

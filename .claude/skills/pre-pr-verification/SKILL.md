@@ -136,11 +136,15 @@ measurement was taken on and must not.
 
 1. `reference/refresh.sh`, then resolve every drift it reports rather than editing the
    expected number. A drift is a signal to revisit the docs that cite it.
-2. Read the upstream changelog end to end, not just the entry you came for. Anything touching
-   a fact in `docs/upstream/` is the reason this step exists.
-3. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
+2. Move together, or the startup check disagrees with the README: `RetroBatVersion.Minimum`,
    `RetroBatVersion.LastTested`, `RetroBatRoot.MinimumVersion`, the `README.md` requirements
    table and the compatibility row. A test asserts the first three agree.
+3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
+   `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
+   the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the
+   floor being moved is in code: step 2 for RetroBat, step 6 for RomM. Re-measure each fact
+   and restamp it, or delete it with its citations when it stopped being true. Read the upstream
+   changelog end to end as well, for behaviour no fact records yet.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what
    RomMBat should do; **no workaround comes out until a hands-on pass has seen the fixed
    behaviour.** A changelog line is upstream's belief, not a measurement.

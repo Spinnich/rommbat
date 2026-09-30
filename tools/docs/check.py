@@ -11,6 +11,9 @@ errors once the docs overhaul (issue #242) has brought the tree into line with i
 Usage:
   python tools/docs/check.py            check the tree, print errors and reports
   python tools/docs/check.py --quiet    errors only
+  python tools/docs/check.py --stale    list the facts owed a re-check at the current floor: each
+                                        fact whose `Verified:` stamp names a RetroBat or RomM
+                                        build below it, and each fact with no stamp
   python tools/docs/check.py --hook     PostToolUse hook: read the tool call from stdin and
                                         check the one file it wrote, exit 2 on an error
 """
@@ -30,7 +33,11 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Byte-exact or verbatim content that no house rule applies to.
 EXCLUDED_PREFIXES = (
-    "reference/",
+    # reference/README.md is hand-written and checked; everything beside it is vendored.
+    "reference/batocera-",
+    "reference/es_",
+    "reference/romm-",
+    "reference/systems_",
     "LICENSE",
     "src/RomM.Client/openapi/romm-",
     "src/RomM.Client/Generated/",
@@ -346,6 +353,99 @@ def run_tree(quiet: bool) -> int:
     return 1 if findings.errors else 0
 
 
+# The floor lives in code, so a move there moves what --stale reports without a doc edit.
+FLOOR_SOURCES = {
+    "RetroBat": "src/RomMBat.Core/Diagnostics/RetroBatVersion.cs",
+    "RomM": "src/RomM.Client/RomMServerVersion.cs",
+}
+FLOOR = re.compile(r"\bMinimum\s*\{\s*get;\s*\}\s*=\s*ProductVersion\.Parse\(\"([^\"]+)\"\)")
+STAMP = re.compile(r"^Verified:")
+# A bare version belongs to the project named before it: "RetroBat 8.2.0, 2026-08-16, and 8.2.1".
+STAMP_TOKEN = re.compile(r"\b(RetroBat|RomM)\b|\b(\d+(?:\.\d+)+)(-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?")
+
+
+PRERELEASE = re.compile(r"^(alpha|beta|rc)\b", re.IGNORECASE)
+
+
+def version_key(core: str, suffix: str | None) -> tuple:
+    """Numeric components, then a release above any prerelease of it.
+
+    Stricter than ProductVersion, which ranks 5.3.1-beta.1 equal to 5.3.1 because a gate should
+    be lenient. A fact measured on a prerelease of the floor is owed a re-check on the release.
+    RetroBat's own suffix (8.2.1-stable-win64) names a channel, not a prerelease.
+    """
+    numbers = [int(n) for n in core.split(".")]
+    while len(numbers) > 1 and numbers[-1] == 0:
+        numbers.pop()
+    return (tuple(numbers), not (suffix and PRERELEASE.match(suffix)))
+
+
+def floors() -> dict[str, tuple[str, tuple]]:
+    result = {}
+    for project, rel in FLOOR_SOURCES.items():
+        match = FLOOR.search(read_text(rel) or "")
+        if not match:
+            sys.exit(f"no ProductVersion Minimum in {rel}")
+        core, _, suffix = match.group(1).partition("-")
+        result[project] = (match.group(1), version_key(core, suffix))
+    return result
+
+
+def stamps_below(stamp: str, floor: dict[str, tuple[str, tuple]]) -> list[str]:
+    """The builds a stamp names that sit below the floor, the newest per project."""
+    newest: dict[str, tuple[tuple, str]] = {}
+    project = None
+    # How: describes the method, and may name an older build a step was also run on.
+    for name, core, suffix in STAMP_TOKEN.findall(stamp.partition("How:")[0]):
+        if name:
+            project = name
+        elif project:
+            key = version_key(core, suffix[1:] or None)
+            if project not in newest or key > newest[project][0]:
+                newest[project] = (key, f"{project} {core}{suffix}")
+    return [label for project, (key, label) in sorted(newest.items()) if key < floor[project][1]]
+
+
+def fact_stamps(text: str):
+    """Yield (line, fact ID, its Verified line or None) for each fact heading."""
+    current: list | None = None
+    for number, line in prose_lines(text):
+        heading = FACT_HEADING.match(line)
+        if heading or HEADING.match(line):
+            if current:
+                yield tuple(current)
+            current = [number, heading.group(1), None] if heading else None
+        elif current and current[2] is None and STAMP.match(line):
+            current[2] = line
+    if current:
+        yield tuple(current)
+
+
+def run_stale() -> int:
+    floor = floors()
+    stale: list[str] = []
+    unstamped: list[str] = []
+    for rel in tracked_files():
+        if not rel.endswith(".md"):
+            continue
+        for number, fact, stamp in fact_stamps(read_text(rel) or ""):
+            if stamp is None:
+                unstamped.append(f"{rel}:{number}: {fact}")
+            else:
+                below = stamps_below(stamp, floor)
+                if below:
+                    stale.append(f"{rel}:{number}: {fact}, {', '.join(below)}")
+
+    print("floor: " + ", ".join(f"{project} {raw}" for project, (raw, _) in floor.items()))
+    print(f"stale ({len(stale)}): stamped below the floor")
+    for line in stale:
+        print(f"  {line}")
+    print(f"unstamped ({len(unstamped)}): no Verified line")
+    for line in unstamped:
+        print(f"  {line}")
+    return 0
+
+
 def run_hook() -> int:
     try:
         call = json.load(sys.stdin)
@@ -377,6 +477,8 @@ def run_hook() -> int:
 def main(argv: list[str]) -> int:
     if "--hook" in argv:
         return run_hook()
+    if "--stale" in argv:
+        return run_stale()
     return run_tree(quiet="--quiet" in argv)
 
 

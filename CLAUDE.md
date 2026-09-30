@@ -108,9 +108,9 @@ layout, and the Playnite plugin as the structural analogue for a C# repo in the 
 **Version floor.** Every release names its minimum RomM and RetroBat. Currently RetroBat 8.2.1
 and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
 warns. The floor moves forward: adopt a new stable (or a prerelease ahead of it) within one
-release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, reading
-the upstream changelog for anything touching a measured rule, moving the floor and the tested
-row together, and re-checking every entry in `docs/upstream/issues.md`. Moving the RomM floor
+release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, moving
+the floor and the tested row together, reading the upstream changelog, then re-checking every
+fact `tools/docs/check.py --stale` lists and every entry in `docs/upstream/issues.md`. Moving the RomM floor
 also moves the pinned OpenAPI schema. Details are in
 [docs/design/version-compatibility.md](docs/design/version-compatibility.md).
 
@@ -154,6 +154,7 @@ and describe how the code behaves now. The rest of the house style, and the mech
 dotnet build
 dotnet test
 python3 tools/docs/check.py     # docs: links, anchors, fact citations, budgets
+python3 tools/docs/check.py --stale   # facts stamped below the version floor, or unstamped
 trunk fmt && trunk check        # lint
 cd reference && ./refresh.sh    # re-pull upstream, re-derive the numbers, check generated data
 

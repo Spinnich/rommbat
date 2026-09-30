@@ -224,7 +224,7 @@ def main():
 
     print()
     if FAIL:
-        print(f"{len(FAIL)} value(s) drifted. Revisit the docs citing them before relying on them.")
+        print(f"{len(FAIL)} value(s) drifted. Revisit reference/README.md and the docs citing them.")
         return 1
     print("All reference-derived values match the docs.")
     return 0
