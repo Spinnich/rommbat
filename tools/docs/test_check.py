@@ -99,6 +99,9 @@ class StaleTest(unittest.TestCase):
         self.assertEqual(self.below("Verified: RomM 5.3.1-beta.1, 2026-09-20."), ["RomM 5.3.1-beta.1"])
         self.assertEqual(self.below("Verified: RomM 5.3.1.0, 2026-09-20."), [])
 
+    def test_retrobat_channel_suffix_is_not_a_prerelease(self) -> None:
+        self.assertEqual(self.below("Verified: RetroBat 8.2.1-stable-win64, 2026-09-20."), [])
+
     def test_how_and_dates_and_other_software_are_ignored(self) -> None:
         self.assertEqual(
             self.below("Verified: Windows 11 26200, .NET 10, 2026-08-09. How: on RomM 5.2.0."), []

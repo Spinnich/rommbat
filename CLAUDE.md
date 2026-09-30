@@ -109,8 +109,8 @@ layout, and the Playnite plugin as the structural analogue for a C# repo in the 
 and RomM 5.3.1, both the newest stable; anything older is refused at startup, and anything newer
 warns. The floor moves forward: adopt a new stable (or a prerelease ahead of it) within one
 release. Adopting one means re-running `reference/refresh.sh` and resolving the drift, moving
-the floor and the tested row together, then re-checking every fact `tools/docs/check.py --stale`
-lists and every entry in `docs/upstream/issues.md`. Moving the RomM floor
+the floor and the tested row together, reading the upstream changelog, then re-checking every
+fact `tools/docs/check.py --stale` lists and every entry in `docs/upstream/issues.md`. Moving the RomM floor
 also moves the pinned OpenAPI schema. Details are in
 [docs/design/version-compatibility.md](docs/design/version-compatibility.md).
 

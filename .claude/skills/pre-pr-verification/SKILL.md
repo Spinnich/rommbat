@@ -141,7 +141,8 @@ measurement was taken on and must not.
    table and the compatibility row. A test asserts the first three agree.
 3. `python3 tools/docs/check.py --stale` then lists the re-check work: every fact whose
    `Verified:` stamp names a build below the new floor, and every fact with no stamp. It reads
-   the floor from `Minimum`, so it lists nothing new until step 2 is done. Re-measure each fact
+   the floor from `RetroBatVersion.Minimum` and `RomMServerVersion.Minimum`, so run it once the
+   floor being moved is in code: step 2 for RetroBat, step 6 for RomM. Re-measure each fact
    and restamp it, or delete it with its citations when it stopped being true. Read the upstream
    changelog end to end as well, for behaviour no fact records yet.
 4. Re-check every entry in `docs/upstream/issues.md`. A fix upstream changes what

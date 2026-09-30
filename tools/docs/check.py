@@ -364,16 +364,20 @@ STAMP = re.compile(r"^Verified:")
 STAMP_TOKEN = re.compile(r"\b(RetroBat|RomM)\b|\b(\d+(?:\.\d+)+)(-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?")
 
 
+PRERELEASE = re.compile(r"^(alpha|beta|rc)\b", re.IGNORECASE)
+
+
 def version_key(core: str, suffix: str | None) -> tuple:
     """Numeric components, then a release above any prerelease of it.
 
     Stricter than ProductVersion, which ranks 5.3.1-beta.1 equal to 5.3.1 because a gate should
     be lenient. A fact measured on a prerelease of the floor is owed a re-check on the release.
+    RetroBat's own suffix (8.2.1-stable-win64) names a channel, not a prerelease.
     """
     numbers = [int(n) for n in core.split(".")]
     while len(numbers) > 1 and numbers[-1] == 0:
         numbers.pop()
-    return (tuple(numbers), suffix is None)
+    return (tuple(numbers), not (suffix and PRERELEASE.match(suffix)))
 
 
 def floors() -> dict[str, tuple[str, tuple]]:
@@ -383,7 +387,7 @@ def floors() -> dict[str, tuple[str, tuple]]:
         if not match:
             sys.exit(f"no ProductVersion Minimum in {rel}")
         core, _, suffix = match.group(1).partition("-")
-        result[project] = (match.group(1), version_key(core, suffix or None))
+        result[project] = (match.group(1), version_key(core, suffix))
     return result
 
 

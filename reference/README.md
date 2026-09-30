@@ -101,7 +101,7 @@ ScreenScraper's marquee is an arcade cabinet marquee.
 The RetroBat files are RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`), pulled
 2026-08-25. The `romm-*` files are `rommapp/romm` master, pulled 2026-09-14.
 
-**The snapshot is level with the floor, not with master.** The RetroBat files stay at the newest
+**The RetroBat files are level with the floor, not with master.** They stay at the newest
 release, because a pull from master would put the vendored copy ahead of every shipped RetroBat.
 
 **RetroBat master carries three changes the snapshot does not**, none of which moves a number in
