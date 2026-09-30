@@ -230,5 +230,5 @@ from the `gbc` row, which syncs the same two files. RB-302.
 **jgenesis on `gb` needs no clock rule.** It names its directory from the file inside the zip, and
 the clock cartridges known here are Color titles, a `.gbc`, even where they run on a mono Game Boy,
 and a mono-only one may not exist; none of the catalog's `gb` Pokemon titles has a clock. So such a
-clock lands in `jgenesis/gbc/`, the gap `gb.md` records, and `jgenesis/gb/<rom>.rtc` was not seen.
+clock lands in `jgenesis/gbc/`, the gap `gb/` records, and `jgenesis/gb/<rom>.rtc` was not seen.
 Only the Pokemon titles' headers were read.

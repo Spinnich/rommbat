@@ -227,7 +227,7 @@ gap, and `jgenesis/gb/` has not been seen to hold one.
 
 **ares's clock on `gb` is its own slot, `ares:battery:rtc`**, added by the `gbc` pass after a copy of
 Silver under `ares`/`GameBoy` wrote `ares/Game Boy/<rom>.rtc` beside the `.ram`; the `.ram` keeps
-`ares:battery` (`gbc.md`, RB-302).
+`ares:battery` (`gbc/`, RB-302).
 
 ## What the pass turned up that is not a row
 

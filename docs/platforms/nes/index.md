@@ -35,7 +35,8 @@ cannot offer to requiring that nothing be excluded. See
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
 re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
-the drive at `5.3.0-beta.1`, since nothing they exercise changed between the two. Nothing is owed.
+the drive at `5.3.0-beta.1`, step 3 from 5.2.0, since nothing they exercise changed since. Nothing
+is owed.
 
 | File                                         | What it holds                                                                                     |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
