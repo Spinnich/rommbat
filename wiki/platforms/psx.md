@@ -26,9 +26,10 @@ ReARMed core refuses to start a game without it. If your library lacks it, see
 
 ## Games on several discs
 
-A game on several discs arrives in a folder of its own, with a playlist that lists the discs.
-EmulationStation shows it as one game, and you change discs from the emulator's menu when the
-game asks.
+When your RomM library holds a game's discs together as one game, it arrives in a folder of its
+own, with a playlist that lists the discs. EmulationStation shows it as one game, and you change
+discs from the emulator's menu when the game asks. When your library lists each disc as a game of
+its own, each disc arrives as a separate game, so group them in RomM first.
 
 ## Saves
 

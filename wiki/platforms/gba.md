@@ -25,12 +25,15 @@ A save follows you to another emulator only where the two read the same file
 ([Changing emulator](../saves/index.md#changing-emulator)). On the Game Boy Advance:
 
 - RetroArch's mGBA and gpSP cores share one save.
-- The standalone mGBA, Mesen and Mednafen share another.
+- The standalone mGBA and Mesen share another.
 
 The rest each keep their own.
 
 ## Known issues
 
+- **The standalone Mednafen will not load a game after the standalone mGBA has saved it.** Mednafen
+  opens the same save file, refuses mGBA's version of it for its size, and the game does not start.
+  Move that save out of `saves\gba` to play the game under Mednafen.
 - **Quit the standalone mGBA a few seconds after you save.** Its quit button closes it at once,
   and can beat the save to the disk.
 - For a game with a clock, such as the Pokemon games, Mesen, jgenesis and BizHawk rewrite the save

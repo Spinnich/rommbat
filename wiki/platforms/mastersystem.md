@@ -34,3 +34,9 @@ If you use SMSHawk, copy these into RetroBat's `bios` folder yourself:
 A save follows you to another emulator only where the two read the same file
 ([Changing emulator](../saves/index.md#changing-emulator)). On the Master System, RetroArch's
 Genesis Plus GX and PicoDrive cores share one save. The rest each keep their own.
+
+## Known issues
+
+**The standalone Mednafen will not start a game after the standalone Mesen has saved it.**
+Mednafen opens Mesen's save file, cannot read it, and stops. Move that save out of
+`saves\mastersystem` to play the game under Mednafen.

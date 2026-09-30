@@ -16,12 +16,12 @@ for the Game Boy passed RomMBat's tests, so any of them is safe to pick, with th
 
 A sync fetches six files from your RomM library: the Game Boy boot ROM `gb_bios.bin`, the Game Boy
 Color boot ROM `gbc_bios.bin`, and four Super Game Boy files. RetroBat itself lists only the first
-for the Game Boy, but two emulators read the others:
+for the Game Boy. Two emulators refuse to start without some of them:
 
 - RetroArch's bsnes core plays a Game Boy game as a Super Game Boy, so it will not start one
   without `SGB1.sfc`.
-- BizHawk's GBHawk core plays a game made for both the Game Boy and the Game Boy Color in color,
-  so it needs `gbc_bios.bin` for those.
+- BizHawk's GBHawk core needs `gb_bios.bin` for every game, and `gbc_bios.bin` as well for a game
+  made for both the Game Boy and the Game Boy Color, which it plays in color.
 
 Every other emulator starts without any of them. If your library lacks one, see
 [BIOS and firmware](../using/bios.md).
