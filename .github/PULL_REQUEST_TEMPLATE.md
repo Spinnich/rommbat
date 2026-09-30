@@ -31,6 +31,6 @@
 <sup>Does this change the minimum supported RomM or RetroBat version? If so, say which and why, and update the table in the README.</sup>
 
 **Platforms certified**
-<sup>If this touches a platform, name the systems you ran the certification checklist against, and link the <code>docs/platforms/<code>docs/platforms/&lt;system&gt;.md</code> entrieslt;system<code>docs/platforms/&lt;system&gt;.md</code> entriesgt;/</code> records. A platform is not done at eight of nine.</sup>
+<sup>If this touches a platform, name the systems you ran the certification checklist against, and link the <code>docs/platforms/&lt;system&gt;/</code> records. A platform is not done at eight of nine.</sup>
 
 #### Screenshots (if applicable)
