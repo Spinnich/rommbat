@@ -589,7 +589,7 @@ docs/design/          The design of record: principles, integration seams, versi
 docs/upstream/        How RetroBat and RomM behave, measured, one RB- or RM- fact per
                       heading, by topic, plus issues.md: every issue raised upstream and
                       its state, until RomMBat has adopted the release that fixes it
-docs/architecture/   Project layout, sync state machine, local schema, one file per area
+docs/architecture/    Project layout, sync state machine, local schema, one file per area
 docs/platforms/       One certification record per RetroBat system, and each system's
                       emulator facts in <system>/facts.md
 reference/            Vendored upstream data plus a script that re-derives every number
