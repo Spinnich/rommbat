@@ -1,19 +1,31 @@
-# Media and gamelists
+# Artwork and game lists
 
-```powershell
-dotnet run --project src/RomMBat.Agent -- gamelist --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist snes --no-reload --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- gamelist --media all --root D:\retrobat-test
-```
+Every game RomMBat syncs arrives with its name, description and other details from RomM, and
+with artwork, so EmulationStation shows it the way it shows a game you scraped yourself.
 
-`sync` already does all of this. `gamelist` is the same pass on its own, and it needs no
-server: everything it writes comes from the local store, so it runs on a handheld that has been
-off the network for a week.
+## What artwork comes down
 
-Artwork is fetched for covers, thumbnails, marquees and videos by default, and manuals are
-opt-in. It counts against the same disk budget the ROMs do. `--media` takes a comma-separated
-list, `all`, or `none`.
+RomMBat fetches a cover, a thumbnail, a marquee, a video and a manual for each game, when RomM has
+them. Video and manuals follow the switches in RetroBat's own scraper settings, so turn those
+off in EmulationStation if you do not want them. Both are on in a new RetroBat.
 
-After writing, the agent asks EmulationStation to reload its gamelists. That only answers while
-ES is running and has no effect while a game is up, so a message saying the reload did not
-happen is ordinary rather than a fault. `--no-reload` skips the call.
+Turning one of those switches off also takes back what was already fetched for it, the next time
+that platform syncs. Artwork counts against your [disk limit](disk-budget.md): videos and manuals are
+most of it.
+
+## EmulationStation's game lists
+
+EmulationStation reads each system's games from a `gamelist.xml` file in its folder, such as
+`roms\snes\gamelist.xml`. RomMBat adds its games to that file and leaves everything else in it
+alone, so entries you scraped yourself, your favourites and your play counts stay.
+
+After a sync, RomMBat asks EmulationStation to reload its lists, so new games appear without a
+restart. EmulationStation holds that reload until you leave RomMBat, and then the games are
+there. If EmulationStation was not running at all, they appear the next time you open it.
+
+## From a terminal
+
+`rommbat-agent gamelist` rewrites the game lists from what RomMBat already knows, with no server
+needed. `--media` chooses the kinds of artwork yourself, and RomMBat remembers the choice: every
+later sync uses it instead of RetroBat's video and manual switches. See
+[Command line](../reference/cli.md).

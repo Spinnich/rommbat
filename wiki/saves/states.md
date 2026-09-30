@@ -1,14 +1,32 @@
 # Save states
 
-Save states are pushed automatically and pulled only when asked. A state goes up when its
-content changes, and no sync brings one down. `saves restore` offers saves and states in one
-preview, labelling each row `save` or `state`, and writes nothing without `--apply`. It also says
-per state whether a screenshot is linked.
+A save state is a snapshot an emulator takes of the whole game at one moment, separate from the
+saves the game makes itself. RomMBat sends your save states to RomM, with their screenshot, but
+it only brings one back when you ask.
 
-A state it brings down is unverified twice over, and it says so: RomM publishes no hash for a
-state, and a state carries no emulator version either, so one made on a different build of the
-same emulator cannot be told apart from one made here.
+## Going up
 
-The name a state is uploaded under carries the emulator and core, so two cores writing one
-filename for one game stay two states on the server. Coming back, the ROM on disk names the
-file, so the state lands where the emulator looks.
+A save state goes up whenever you make a new one or overwrite an old one, at the same times as
+your saves (see [How saves sync](index.md#when-it-happens)). Each state is filed under the
+emulator and core that made it, so the same game played in two emulators keeps two separate sets
+of states.
+
+States go up for the emulators RetroBat keeps a save-state folder for. Some emulators keep their
+states somewhere of their own choosing; RomMBat lists those under `rommbat-agent saves` rather
+than sending them, except where it has been tested against that emulator.
+
+## Coming back
+
+**A sync never brings a save state down.** Deleting a state is something you meant to do, and a
+state that came back by itself would look like a fault. To bring states back, see
+[Restoring saves and states](restore.md).
+
+A state that comes back is put where the emulator that made it looks for it, named after the
+game file on this device.
+
+## What cannot be checked
+
+RomMBat cannot check a save state it brings back. RomM publishes no checksum for a state, so there
+is nothing to compare it with. A state also does not record which version of the emulator made
+it, and an emulator can refuse a state from a different version of itself. RomMBat says both of
+these whenever it restores a state.

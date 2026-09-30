@@ -1,57 +1,88 @@
 # Sync sets
 
-## On the gamepad
+A sync set is a saved choice of games to keep on this device. Your RomM library can be far larger
+than one drive, so rather than copying all of it, you say which part you want, and RomMBat keeps
+that part in step as the library changes.
 
-From the status screen, **Start** opens the sets list, and the screen's secondary action opens
-the disk budget. On the list, Start makes a new set and Accept opens the one under the cursor.
-On a set, Accept changes its folder if it has one, **Start syncs it**, the third face button
-resolves it without downloading anything, and the secondary action deletes it. On the list,
-the secondary action syncs every set and the third resolves every set.
+## What a set can hold
 
-Caps and ordering step on Left and Right rather than being typed. Only a set's name and a
-filter's search term open the on-screen keyboard, so nobody enters "8 GB" on a grid of letters.
+| Kind               | Holds                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------ |
+| Platform           | Every game on one RomM platform, such as all your SNES games                         |
+| Collection         | One of your RomM collections                                                         |
+| Smart collection   | One of your RomM smart collections, which RomM keeps up to date by its own rules     |
+| Virtual collection | One RomM builds for you, such as by genre. Made from a terminal only (`sets add`)    |
+| Filter             | A search: part of a name, and any of RomM's filters, such as genre, region or rating |
+| Picked             | Single games you installed from [Find a game](browse-and-install.md)                 |
 
-Everything except resolving works with no server at all. Resolve on an unpaired install says
-so immediately rather than waiting on a timeout.
+Collections need the `collections.read` permission from [pairing](../getting-started/pairing.md).
+A set asks RomM what it holds each time it syncs, so a game added to a collection in RomM comes
+down on the next sync.
 
-The platform picker offers the platforms this install has heard of, which a `sync`, a
-`platforms list` or a resolve fills in. On a fresh tree the picker says it is empty.
+## Making and changing sets
 
-A resolve against a real library takes minutes. The screen shows a count that moves, and backing
-out records where it stopped, so the next resolve continues from that offset. To test the
-resolve screen repeatedly, use a small scope or a filter with a search term.
+Choose Sync sets on the main menu. On the list:
 
-## The sync screen
+- Start makes a new set, as in [Your first sync](../getting-started/first-sync.md).
+- Accept opens the set under the cursor.
+- The left face button syncs every set.
+- The top face button queries every set.
 
-Start on a set syncs it, or the secondary action on the list syncs every set. The screen shows
-the pass it is in, the game it is on with a bar for that game's transfer, a running count, the
-disk budget as it is spent, and problems as they arrive.
+On a set, Start syncs it, the top face button queries it, and the left face button deletes it.
+The set's screen shows what it holds, how much RomM says that weighs, how much it takes up on this
+device with artwork, when it was last queried, and the games it skipped and why.
 
-**Back stops and stays; a second Back leaves.** The stop removes the game it was in, and a
-screen that closed on the press could never say what went. The resolve screen answers Back the
-same way.
+**Querying only asks RomM what is in a set, and downloads nothing.** Syncing queries first and
+then downloads. Both need the server. Querying a large set takes minutes; press Back to stop,
+and the next query continues from where it stopped.
 
-To exercise a stop, use a set with large files: 76 Atari 5200 games took 17 seconds end to end
-against a live instance, faster than anyone presses a button. After a stop, nothing is
-half-finished:
+## Limits on one set
 
-```powershell
-dir D:\retrobat-test\emulators\rommbat\partial      # empty
-dotnet run --project src/RomMBat.Agent -- status --root D:\retrobat-test
-```
+A set made on the controller has no limit of its own. The [disk limit](disk-budget.md) covers all
+your sets together, and a sync stops adding games when it is reached.
 
-The game that was in progress is wholly gone, ROM and rows together, and every game that
-finished before it is still there with its artwork and a gamelist entry.
+To cap one set, make it from a terminal with `rommbat-agent sets add` and its `--max-games`,
+`--max-bytes` and `--order` options (see [Command line](../reference/cli.md)). The set's screen
+shows those limits under Limits.
 
-## From the console
+## Games a set skips
 
-```powershell
-dotnet run --project src/RomMBat.Agent -- sets add snes --scope platform --value snes --max-games 5 --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- budget --max 2GB --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- sync --dry-run --root D:\retrobat-test
-dotnet run --project src/RomMBat.Agent -- sync --root D:\retrobat-test
-```
+The set's screen lists each game it could not put here, with the reason:
 
-Start with a small `--max-games` and a `--max-bytes` against a real library, because the
-default is the whole platform. `sync --dry-run` prints the plan and writes nothing, and it
-works offline, so it is the cheap way to see what a set would cost before it costs it.
+- its platform has no RetroBat folder (see [below](#when-games-land-in-the-wrong-folder));
+- RomM holds it as a folder, which RomMBat cannot sync yet, or as several files, which it syncs
+  only for PlayStation (PS1) disc sets so far;
+- it is too large for the drive's filesystem, which on FAT32 means over 4 GB;
+- RomM has no file for it.
+
+A game whose file type EmulationStation does not list for its system still comes down. RetroBat's
+list of file types covers every emulator a system offers, so it cannot say whether yours opens
+the file. The set's screen lists those games under Not listed, because EmulationStation will not
+show them.
+
+## When a game leaves a set
+
+A game that leaves a set, because it left the collection or no longer matches the filter, stays
+on this device. The set's screen lists it under Left the set. Nothing is removed until you
+choose to remove it; see [Disk space](disk-budget.md#making-room).
+
+## Deleting a set
+
+Deleting a set asks what to do with its games:
+
+- Delete it and take its games off this device. RomMBat shows what would go before anything
+  goes. A game another set still wants is kept, and so is every save and save state.
+- Delete it and leave the games where they are. Nothing on disk changes.
+
+## When games land in the wrong folder
+
+Each RomM platform's games go into one RetroBat system folder, such as `roms\snes`. RomMBat works
+out which folder from RomM's own name for the platform and a table of known names. When it
+cannot, or gets one wrong, choose Platforms on the main menu.
+
+Open a platform to see where its games go and why. Press Start to choose a folder yourself, or the
+left face button to go back to the automatic choice. A platform with no folder is listed as
+unmapped, and a sync skips its games until you choose one.
+
+Games already downloaded stay in the folder they went to. The next sync puts new games in the
+new folder.

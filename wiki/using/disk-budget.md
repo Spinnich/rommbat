@@ -1,24 +1,42 @@
-# Disk budget and freeing space
+# Disk space
 
-Freeing space is you naming what goes, never RomMBat choosing. There is no screen that picks
-games to delete for you: RomMBat guessing which games matter least is a bad policy even when a
-person starts it.
+RomMBat has two limits on how much of the drive it uses. Both are under Disk space on the main
+menu: step each one with Left and Right, and press Start to save.
 
-Deleting a sync set offers to take its games, and a game's detail screen in browse offers to
-take that one. Both show a preview of what goes and what is kept before the press, and neither
-can reach a save.
+| Setting           | What it means                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| Always leave free | RomMBat stops downloading before the drive gets this empty. Always on, 2 GB unless you change it |
+| Limit RomMBat to  | The most RomMBat's own downloads may take up together. No limit unless you set one               |
 
-A sync the budget cut short says so, and `rommbat-agent sync` exits as `Partial`. It does not
-offer to fix it.
+The limit counts games and their artwork together, across every sync set. Games you put in
+RetroBat yourself are never counted, and never removed.
 
-## From the console
+When a sync reaches either limit, it skips the games that do not fit, names them, and finishes
+with Stopped by the disk budget. The games that did fit are all there.
 
-`evict` previews unless you pass `--apply`. Apart from `uninstall --content` and `--bios`, it is
-the only command in the agent that deletes anything. Partial downloads live in `emulators/rommbat/partial/`; deleting one by hand is safe,
-and the next sync starts that ROM again. `evict` also reports what under that directory is dead,
-and reclaims it on `--apply`, which is the only thing that ever does. The reclaim needs the tree
-lock, so `evict --apply` during a flush evicts and says the sweep will happen next time.
+## Making room
 
-`rommbat-agent status --check-files` counts files the store lists that are gone from disk, as
-the disk screen does, and `--repair-files` applies it. Both also show saves whose file or unit
-is gone, and the repair leaves those rows alone.
+**RomMBat never picks games to delete on its own.** You choose what goes:
+
+- Delete a sync set and choose to take its games off (see [Sync sets](sync-sets.md#deleting-a-set)).
+- Take one game off from its screen in [Find a game](browse-and-install.md#take-one-game-off).
+
+Both show what would go before anything goes. A game another set still wants is kept, and saves
+and save states are never removed.
+
+From a terminal, `rommbat-agent evict` shows which games would go to get back inside your limit,
+and removes them when you add `--apply`. It never removes a game you put there yourself, or one
+whose save has not reached RomM yet.
+
+## When the numbers look wrong
+
+If you delete games by hand, RomMBat still counts them against the limit until it finds out they
+are gone. On the Disk space screen, the left face button checks every file RomMBat has recorded
+against the drive, and offers to forget the ones that are not there. Forgetting only changes
+RomMBat's records: it deletes nothing, and it never forgets a save, because RomM may still have
+it and [restoring](../saves/restore.md) brings it back.
+
+A download that was cut off leaves a partial file in `emulators\rommbat\partial\`, and the next
+sync of that game carries on from it. `rommbat-agent evict --apply` clears out any that are no
+longer needed. Leave the folder alone while RomMBat is running: a save being restored is
+unpacked there too.

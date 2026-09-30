@@ -1,31 +1,49 @@
-# Directory saves and memory cards
+# Memory cards and folder saves
 
-## Directory saves
+Most games keep their save in one file named after the game, which RomMBat syncs as it is. Two
+kinds of save need more: a folder of files per game, and a memory card shared by many games.
 
-A directory save goes up as one archive, and `saves` names the unit rather than the path. Every
-PSP save on an install shares the container `saves/psp/SAVEDATA`, so the report prints
-`<container>/<key>`. The key is a Game ID, worked out from the launch window, the ROM header or
-the save-state sidecar. `saves bind` corrects one, or settles a binding two routes disagreed on.
-A binding is local: there is nowhere on the server to put one.
+## Saves kept as a folder
 
-```powershell
-dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 391
-dotnet run --project src/RomMBat.Agent -- saves bind psp ULUS10057 --forget
-```
+Some emulators, such as PPSSPP for the PSP, keep each game's save as a folder named with the
+game's own ID, such as `ULUS10057`, rather than the game's name. RomMBat sends the whole folder to
+RomM as one save and brings it back the same way.
 
-## Splitting a shared memory card
+To know which game a folder belongs to, RomMBat reads the game's ID from the game file, from
+RetroBat's record of what you launched, or from a save state. If two of those disagree, it sends
+nothing rather than file one game's save under another, and `rommbat-agent saves` lists both
+candidates. `rommbat-agent saves bind` tells it which game is right, or makes it work the answer
+out again. See [Command line](../reference/cli.md).
 
-A shared card is split one game at a time, and `saves convert` is the only command that changes
-your RetroBat configuration. It writes a per-game option into `es_settings.cfg`, which survives
-where an emulator INI edit would not: RetroBat regenerates those on every launch.
+A device that has never held a folder save for a game cannot receive one yet: play the game once
+on this device first.
 
-```powershell
-rommbat-agent.exe saves convert 191723            # preview: what it would set, and what it costs
-rommbat-agent.exe saves convert 191723 --apply    # write it
-rommbat-agent.exe saves convert 191723 --revert   # put the setting back to what it was
-```
+## Giving a PlayStation 2 game its own memory card
 
-It refuses while EmulationStation is running, because ES discards a setting written underneath
-it. Quit ES first. An ES belonging to a different install on the same machine does not block it.
+A PlayStation 2 memory card holds saves for every game you have played on it, so there is no one
+game to sync it as. RomMBat does not sync a shared card. Instead, it can give one game a memory
+card of its own, which then syncs like any other save.
 
-The card PCSX2 then writes is `saves/ps2/pcsx2/memcards/<rom stem>.ps2`.
+1. In [Find a game](../using/browse-and-install.md), open the game.
+2. Press the top face button for Give it its own memory card.
+3. Read what changes, then choose Queue it.
+4. Quit EmulationStation. RomMBat makes the change as it closes.
+
+RomMBat waits for EmulationStation to close because it writes the change into RetroBat's own
+settings, and EmulationStation overwrites those with its own copy when it closes. Until then,
+the change is listed under Queued changes on the main menu, where you can cancel it.
+
+## Before you give a game its own card
+
+**The game starts from an empty card.** Its saves on the shared card stay there, where it no longer
+looks. RomMBat does not move them. Also:
+
+- A game on several discs is refused: each disc would get its own card, and the save would be
+  lost when you change disc.
+- A game that reads another game's save from the same card, such as a sequel importing a
+  prequel's, no longer finds it.
+- PlayStation (PS1) games are not offered. DuckStation's usual setting already keeps every disc
+  of a game on one card, and changing it is what would break that.
+
+To undo it, run `rommbat-agent saves convert <game number> --revert` with EmulationStation closed.
+It puts the setting back exactly as it was.
