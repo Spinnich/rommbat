@@ -37,7 +37,9 @@ public sealed class PlatformSupportPageTests
         {
             Assert.True(StatusText.ContainsKey(row.Status), $"{row}: unknown status '{row.Status}'");
             Assert.False(row.Status == "not-certified" && string.IsNullOrWhiteSpace(row.Note), $"{row}: not certified with no note");
-            Assert.False(string.IsNullOrWhiteSpace(row.RomM) || string.IsNullOrWhiteSpace(row.RetroBat), $"{row}: no floor");
+            // An untested row holds at no floor, so it names none.
+            var hasFloor = !string.IsNullOrWhiteSpace(row.RomM) && !string.IsNullOrWhiteSpace(row.RetroBat);
+            Assert.True(hasFloor == (row.Status != "untested"), $"{row}: a floor on an untested row, or none on a driven one");
         }
     }
 
@@ -91,7 +93,7 @@ public sealed class PlatformSupportPageTests
 
         foreach (var system in systems)
         {
-            var floors = system.Select(row => (row.RomM, row.RetroBat)).Distinct().ToList();
+            var floors = system.Where(row => row.Status != "untested").Select(row => (row.RomM, row.RetroBat)).Distinct().ToList();
 
             page.Append("\n## " + Name(system.Key, fullNames) + " {#" + system.Key + "}\n\n");
             page.Append("RetroBat's `" + system.Key + "` system.");
@@ -123,7 +125,7 @@ public sealed class PlatformSupportPageTests
                 var cells = new List<string> { row.Emulator, row.Core ?? "", StatusText[row.Status] + (index == 0 ? " (default)" : "") };
                 if (perRowFloor)
                 {
-                    cells.Add("RomM " + row.RomM + ", RetroBat " + row.RetroBat);
+                    cells.Add(row.Status == "untested" ? "" : "RomM " + row.RomM + ", RetroBat " + row.RetroBat);
                 }
 
                 if (notes)
@@ -210,7 +212,7 @@ public sealed class PlatformSupportPageTests
         [property: JsonPropertyName("emulator")] string Emulator,
         [property: JsonPropertyName("core")] string? Core,
         [property: JsonPropertyName("status")] string Status,
-        [property: JsonPropertyName("romm")] string RomM,
-        [property: JsonPropertyName("retrobat")] string RetroBat,
+        [property: JsonPropertyName("romm")] string? RomM,
+        [property: JsonPropertyName("retrobat")] string? RetroBat,
         [property: JsonPropertyName("note")] string? Note = null);
 }

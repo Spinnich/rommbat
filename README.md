@@ -20,10 +20,10 @@ is a wombat.
 > such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
 > game at a time; anything still genuinely shared is reported with the reason rather than
 > passed over. A device that has never held a **directory** save still cannot receive one.
-> Eighty-eight `(system, emulator, core)` rows are certified against a real emulator:
+> Eighty-nine `(system, emulator, core)` rows are certified against a real emulator:
 > seventy-three across wave 1's seven systems, every row `nes`, `snes`, `gb` and `gbc` declare,
 > seven of `megadrive`'s eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten, then all
-> seven of `psx`'s and eight of `n64`'s nine in wave 2. No other system has a certified row; see
+> seven of `psx`'s and all nine of `n64`'s in wave 2. No other system has a certified row; see
 > [Platform certification](#platform-certification) for what that means and where the rollout
 > stands.
 > The repository also holds the design of record

@@ -1,5 +1,5 @@
 {
-  "_comment": "One row per (system, emulator, core) that a record under docs/platforms/<system>/ covers. romm and retrobat name the floor the row holds at. wiki/platforms/index.md is generated from this file; see data/README.md.",
+  "_comment": "One row per (system, emulator, core) that a record under docs/platforms/<system>/ covers. romm and retrobat name the floor the row holds at, and are null on an untested row. wiki/platforms/index.md is generated from this file; see data/README.md.",
   "rows": [
     {
       "system": "nes",
