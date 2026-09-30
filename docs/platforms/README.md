@@ -331,8 +331,8 @@ system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
   server, and the bundled-slot refusal in `SaveSync.DownloadAsync` branches on class C, so what
   a class D download does is unexercised rather than decided.
 - **Only `(ps2, pcsx2)` was driven.** `dreamcast` and `psx` are refused by declaration with
-  their measured reasons and neither refusal was exercised against a real emulator, and
-  `folder`, PCSX2's third choice, is declared and unmeasured.
+  their measured reasons and neither refusal was exercised against a real emulator.
+  `folder`, PCSX2's third choice, is a shared card rather than a conversion (RB-406).
 - **The ROM was adopted, then re-downloaded, and neither is the ordinary case for a converted
   game.** The first attempt failed verification against a stale server hash (RB-180),
   which is fixed on the instance now but shaped how this pass ran.
