@@ -5,8 +5,7 @@ read-when: Before certifying a `megadrive` row, or when asked whether a `megadri
 
 # megadrive
 
-Sega Mega Drive / Genesis. RetroBat calls the folder `megadrive`, which is what this file is
-named after.
+Sega Mega Drive / Genesis. RetroBat calls the folder `megadrive`, which is what this folder is named after.
 
 **Seven of the eleven rows `megadrive` declares are certified**, at RomM `5.3.0` and RetroBat
 8.2.1, on 2026-09-21, all nine steps with step 6 N/A because `megadrive` has no class D:
@@ -33,8 +32,8 @@ were measured on.
 ## Where each row stands
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24. The other steps carry from the drive at `5.3.0`, since nothing
-they exercise changed between the two. Nothing is owed.
+re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
+the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
 
 | File                             | What it holds                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |

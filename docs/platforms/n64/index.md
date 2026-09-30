@@ -5,7 +5,7 @@ read-when: Before certifying a `n64` row, or when asked whether a `n64` row work
 
 # n64
 
-Nintendo 64. RetroBat calls the folder `n64`, which is what this file is named after.
+Nintendo 64. RetroBat calls the folder `n64`, which is what this folder is named after.
 
 **All nine rows `n64` declares are certified**, at RomM `5.3.1` and RetroBat 8.2.1, all nine
 steps, each row's Controller Pak option driven at step 6. Eight on 2026-09-27:

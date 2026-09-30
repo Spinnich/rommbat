@@ -5,8 +5,7 @@ read-when: Before certifying a `mastersystem` row, or when asked whether a `mast
 
 # mastersystem
 
-Sega Master System / Mark III. RetroBat calls the folder `mastersystem`, which is what this file is
-named after.
+Sega Master System / Mark III. RetroBat calls the folder `mastersystem`, which is what this folder is named after.
 
 **Seven of the ten rows `mastersystem` declares are certified**, at RomM `5.3.0` and RetroBat 8.2.1
 on 2026-09-24, all nine steps with step 6 N/A because `mastersystem` has no class D:
@@ -32,8 +31,8 @@ start without and which RomMBat cannot fetch (below).
 ## Where each row stands
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24. The other steps carry from the drive at `5.3.0`, since nothing
-they exercise changed between the two. Nothing is owed.
+re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
+the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
 
 | File                             | What it holds                                                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -5,7 +5,7 @@ read-when: Before certifying a `psx` row, or when asked whether a `psx` row work
 
 # psx
 
-Sony PlayStation. RetroBat calls the folder `psx`, which is what this file is named after.
+Sony PlayStation. RetroBat calls the folder `psx`, which is what this folder is named after.
 
 **Certified at `5.3.1` on 2026-09-26: all seven rows**, every step, with step 6 N/A on the two BizHawk rows, which expose no memory card option. Each non-`libretro` row, and each non-default card type, needed code first; RB-328 to RB-335 are the record of what it took.
 
@@ -19,7 +19,10 @@ RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 
 ## Where each row stands
 
-**Every certified row was driven at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Nothing is owed.
+**Every row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 3 to 9 were driven
+at `5.3.1` on 2026-09-25 and 2026-09-26. Step 2 was driven at `5.3.0`, and carries: `GET /api/roms`
+and the code that places a multi-disc set did not change, and the `Metal Gear Solid` set re-synced
+at `5.3.1` with nothing to do (#236). Nothing is owed.
 
 | File                             | What it holds                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------ |

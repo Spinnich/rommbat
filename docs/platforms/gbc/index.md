@@ -5,7 +5,7 @@ read-when: Before certifying a `gbc` row, or when asked whether a `gbc` row work
 
 # gbc
 
-Nintendo Game Boy Color. RetroBat calls the folder `gbc`, which is what this file is named after.
+Nintendo Game Boy Color. RetroBat calls the folder `gbc`, which is what this folder is named after.
 
 **All twelve rows `gbc` declares are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-23, all nine steps with step 6 N/A because `gbc` has no class D:
@@ -23,8 +23,8 @@ bundled supplement. One row reads firmware, and RetroBat's `gbc` list names it.
 ## Where each row stands
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24. The other steps carry from the drive at `5.3.0`, since nothing
-they exercise changed between the two. Nothing is owed.
+re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
+the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
 
 | File                           | What it holds                                                                                                                                                                                                     |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -5,7 +5,7 @@ read-when: Before certifying a `gb` row, or when asked whether a `gb` row works.
 
 # gb
 
-Nintendo Game Boy. RetroBat calls the folder `gb`, which is what this file is named after.
+Nintendo Game Boy. RetroBat calls the folder `gb`, which is what this folder is named after.
 
 **All fourteen rows `gb` declares are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
 2026-09-22, all nine steps with step 6 N/A because `gb` has no class D:
@@ -23,8 +23,8 @@ firmware RetroBat's list files under other systems, which `bios gb` now fetches.
 ## Where each row stands
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
-re-driven at `5.3.1` on 2026-09-24. The other steps carry from the drive at `5.3.0`, since nothing
-they exercise changed between the two. Nothing is owed.
+re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
+the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
 
 | File                           | What it holds                                                                                                                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
