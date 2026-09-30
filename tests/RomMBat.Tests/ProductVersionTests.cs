@@ -186,7 +186,7 @@ public class ProductVersionTests
     }
 
     [Fact]
-    public void The_declared_minimums_match_the_README_compatibility_table()
+    public void The_declared_minimums_match_the_compatibility_table()
     {
         Assert.Equal(ProductVersion.Parse("5.3.1"), RomMServerVersion.Minimum);
         Assert.Equal(ProductVersion.Parse("8.2.1"), RetroBatVersion.Minimum);

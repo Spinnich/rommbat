@@ -61,7 +61,7 @@ public sealed class GrantedScopes
 
     /// <summary>
     /// Granted scopes RomMBat never asked for. A token carrying one of these is over-scoped;
-    /// see the README scopes table.
+    /// see the scopes table in wiki/getting-started/pairing.md.
     /// </summary>
     public IReadOnlyList<string> OverGranted =>
         [.. _granted.Where(scope => !RomMScopes.Requested.Contains(scope)).Order(StringComparer.Ordinal)];

@@ -1,657 +1,83 @@
 # RomMBat
 
 Sync a self-hosted [RomM](https://github.com/rommapp/romm) library with a
-[RetroBat](https://github.com/RetroBat-Official) install on Windows.
+[RetroBat](https://github.com/RetroBat-Official/retrobat) install on Windows.
 
-RomMBat pulls a chosen subset of ROMs, metadata, media and BIOS down into RetroBat's
-native folder layout, and pushes saves, states and play sessions back up. **RomM is the
-authority, RetroBat is the player**, so the same collection stays coherent across a
-RetroBat machine, the RomM web UI, and RomM's other clients.
+RomMBat brings the games you choose down from RomM into RetroBat, with their artwork, metadata
+and BIOS, and sends your saves, save states and playtime back up. RomM stays in charge of the
+library and RetroBat is where you play it, so every device you play on sees the same progress.
 
-The name is a portmanteau of RomM and RetroBat that lands close to "wombat". The mascot
-is a wombat.
+The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
 
 > [!WARNING]
 >
-> **Pre-release.** Pairing, device identity, the local store, catalog browsing, platform
-> mapping, sync sets, content sync with a disk budget, metadata, media, `gamelist.xml` and
-> BIOS all work. **All four save shapes now cross, plus save states and playtime**, along with
-> conflict resolution and the Game-ID attribution that directory saves need. A shared container
-> such as a PS2 memory card crosses **only for a game you opt in** with `saves convert`, one
-> game at a time; anything still genuinely shared is reported with the reason rather than
-> passed over. A device that has never held a **directory** save still cannot receive one.
-> Eighty-nine `(system, emulator, core)` rows are certified against a real emulator:
-> seventy-three across wave 1's seven systems, every row `nes`, `snes`, `gb` and `gbc` declare,
-> seven of `megadrive`'s eleven, nine of `gba`'s ten and seven of `mastersystem`'s ten, then all
-> seven of `psx`'s and all nine of `n64`'s in wave 2. No other system has a certified row; see
-> [Platform certification](#platform-certification) for what that means and where the rollout
-> stands.
-> The repository also holds the design of record
-> ([docs/design/](docs/design/principles.md)) and the measurements that corrected it
-> ([docs/upstream/](docs/upstream/README.md)). See [Status](#status).
+> **RomMBat is pre-release.** There is no published build yet. A platform is supported only
+> for the `(system, emulator, core)` rows [the platform table](https://spinnich.github.io/rommbat/platforms/)
+> lists as certified.
 
-## Why
+## Features
 
-RetroBat has no concept of a remote library. Today the only way to get a RomM library
-onto a RetroBat box is to copy files by hand, and nothing carries saves, states or
-playtime back. RomMBat closes both directions without forking RetroBat and without any
-change to RomM: it integrates purely through RetroBat's existing folder and script seams,
-and through the companion-app protocol RomM already ships.
-
-## What it does
-
-|              |                                                                                                                                               |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Pull**     | ROMs, `gamelist.xml` metadata, box art / video / manuals, and BIOS, into `roms/<system>/` and `bios/`                                         |
-| **Push**     | Battery saves, save states, directory saves and play sessions, back into RomM                                                                 |
-| **Curate**   | Sync Sets: a named scope (collection, smart collection, platform, or a saved filter) plus a policy (max games, max bytes, ordering, eviction) |
-| **Offline**  | Everything works with the server unreachable and reconciles on reconnect                                                                      |
-| **Portable** | Lives entirely inside the RetroBat tree, survives a drive-letter change and a move to another PC                                              |
-
-### Four constraints that shape the whole design
-
-1. **Offline-first.** RomMBat runs on handheld Windows gaming PCs that are away from the
-   RomM instance for days. Local SQLite is the source of truth; the network is optional.
-   The `game-start` and `game-end` hooks sit in the game launch path, so they append to a
-   durable local journal, exit, and start nothing. Measured: they do not block the launch,
-   the emulator starts about 30 ms later regardless, but they do run **concurrently**, so
-   the journal has to survive interleaved writers. The `start` and `quit` hooks are outside
-   that path and each starts a short-lived agent pass, which is what flushes the outbox when
-   the server is reachable and is why an install nobody administers from a terminal works.
-2. **Libraries reach 100,000+ games**, so the catalog is never mirrored. Online browsing
-   is a thin paged client over the API; offline browsing shows the local subset. ROM
-   content is strictly opt-in and bounded by a disk budget with eviction.
-3. **Curation via Sync Sets.** A 100k library is unnavigable from a couch with a gamepad,
-   so the device holds a curated slice, and the set definitions roam with the RomM device
-   record.
-4. **Portable-first.** Nothing outside the RetroBat tree: no `%APPDATA%`, no registry, no
-   Windows service, no scheduled task, no admin rights, no machine-wide .NET requirement.
-   No absolute path is ever persisted.
+- Pair from the couch. Approve a code or scan a QR in RomM's web interface. The only thing
+  you type is the server's address, and no password is ever entered.
+- Sync sets. Choose what this device holds by platform, collection, smart collection or
+  saved search, capped by game count and size. The catalog is browsed page by page rather than
+  mirrored, so a library of 100,000 games is no burden.
+- Lands where RetroBat expects it. Games go into `roms\<system>\`, with `gamelist.xml`
+  entries, artwork, video and manuals, and BIOS goes into `bios\`, matched by checksum.
+- Saves, save states and playtime go back to RomM, including folder saves such as PPSSPP's,
+  and a PS2 game you give its own memory card. A conflict between two devices waits for you to
+  choose a side.
+- A disk budget. RomMBat stays inside the space you give it, and never removes a game whose
+  saves have not reached RomM.
+- Works offline. Everything runs with the server out of reach, and catches up when it is
+  back. Launching a game never waits on the network.
+- Portable. Everything lives inside the RetroBat folder: no registry, no service, no admin
+  rights and no .NET install. A drive letter change or a move to another PC is a non-event.
+- Gamepad first. A full-screen interface opened from EmulationStation's menu, driven with
+  the controller you already set up. A [command-line agent](https://spinnich.github.io/rommbat/reference/cli/)
+  covers scripts and headless installs.
 
 ## Requirements
 
-|          | Minimum     | Notes                                                            |
-| -------- | ----------- | ---------------------------------------------------------------- |
-| RetroBat | 8.2.1       | Checked from `system/version.info` at startup                    |
-| RomM     | 5.3.1       | Checked from `GET /api/heartbeat` at startup                     |
-| Windows  | 10 / 11 x64 | RetroBat's own requirement                                       |
-| .NET     | none        | Published self-contained; RetroBat already ships the VC++ redist |
-
-Below minimum, RomMBat refuses with a message naming both versions. Above but untested,
-it warns and continues.
-
-### Filesystem
-
-A portable RetroBat often lives on exFAT or FAT32, which reaches into the design:
-
-- **FAT32 cannot hold a file larger than 4 GB.** Plenty of PS2, GameCube and Wii images
-  exceed that, so RomMBat detects the filesystem up front and skips or refuses oversized
-  ROMs rather than failing mid-write. Windows reports the overrun as "There is not enough
-  space on the disk" even with plenty free, so RomMBat never passes that message on. **Use
-  exFAT or NTFS for any library containing disc images.**
-- **FAT32 and exFAT both store modification times to 2 seconds, rounded up.** Measured, and
-  exFAT is no finer than FAT32 despite its format allowing it. A freshly written save can
-  therefore read as up to 2 seconds in the future. RomMBat compares on content hash first
-  and uses mtime only as an ordering tiebreak, with tolerance for that skew.
-
-## Authentication and scopes
-
-**Device pairing is the only authentication path.** No password entry, no token pasting,
-no OAuth flow. A gamepad is a terrible keyboard, and the pairing flow exists precisely so
-the credential never has to be typed: RomMBat shows an 8-character code and a QR, you
-approve it in the RomM web UI, and the token is written into the RetroBat tree.
-
-The only thing you ever have to type is the server URL.
-
-When you approve the pairing request, RomM lets you choose which scopes to grant. Grant
-these, and nothing else:
-
-| Scope                                | Needed for                                        | Without it                        |
-| ------------------------------------ | ------------------------------------------------- | --------------------------------- |
-| `roms.read`                          | Browsing and downloading ROMs                     | Nothing works                     |
-| `platforms.read`                     | Platform list, folder mapping                     | Nothing works                     |
-| `collections.read`                   | Collection and smart-collection sync sets         | Only platform and filter scopes   |
-| `firmware.read`                      | BIOS sync                                         | BIOS must be copied manually      |
-| `assets.read`                        | Pulling saves and states down                     | Push-only                         |
-| `assets.write`                       | Pushing saves and states up                       | Pull-only, local saves stay local |
-| `devices.read` / `devices.write`     | Device identity, sync negotiation, roaming config | No save sync at all               |
-| `roms.user.read` / `roms.user.write` | Play sessions, last-played, favourites            | No playtime tracking              |
-| `me.read`                            | Reading own account details during pairing        | Pairing fails                     |
-
-**RomMBat never needs any of these, and should never be granted them:** `users.read`,
-`users.write`, `roms.write`, `platforms.write`, `tasks.run`, `logs.read`. A RomMBat token
-carrying one of those is over-scoped. A token can never exceed its owner's own scopes, so
-an over-granted token usually means an admin paired the device rather than a purpose-made
-account.
-
-> [!NOTE]
->
-> **`me.write` is on neither list, and that is deliberate.** This table is what a RomMBat
-> **device** asks for. Approving the request is the other half of the flow and needs
-> `me.write`, because `POST /api/auth/device/approve` requires it. Approving in the web UI
-> uses your logged-in session, so there is nothing extra to grant and this never comes up.
-> It only matters if you drive approval with an API token, which is a developer concern:
-> see [the approver token](docs/contributing/testing.md#the-approver-token).
-
-Granting less than RomMBat asks for is supported: it reads the granted set back and
-degrades by feature, telling you what is off, rather than throwing errors at you later.
-
-> [!NOTE]
->
-> On a portable install, **the token at rest is only as protected as the drive.** Windows
-> DPAPI is not usable here: it binds the ciphertext to one machine or one user profile,
-> which would make the drive undecryptable on the next PC. RomMBat defaults portable
-> installs to a scoped, expiring token and makes re-pairing cheap. `rommbat-agent pair
---protect` adds AES-GCM under a passphrase you type, at the cost of unattended syncing:
-> nothing can decrypt the token without you typing it again. See [SECURITY.md](SECURITY.md).
-
-### Pairing
-
-Open **RomMBat** from the EmulationStation menu and choose **Pair with RomM** from the footer.
-The address is typed on an on-screen keyboard, the QR is on screen to scan with a phone, and
-the code is there to read aloud if you would rather type it. Nothing in that flow needs a
-keyboard or a mouse.
-
-The footer draws each action's button as a **position** rather than a letter, the way
-EmulationStation does, because the bottom face button is A on an Xbox pad, Cross on a
-DualSense and B on a Switch Pro. RomMBat uses whatever your `es_input.cfg` says, so the
-button that works here is the one that works in EmulationStation.
-
-It is also still a console command, which is what a headless or scripted install uses:
-
-```powershell
-emulators\rommbat\rommbat-agent.exe pair --server https://your-romm-instance
-emulators\rommbat\rommbat-agent.exe status
-```
-
-The server URL is the only thing you type, and it is remembered afterwards. Scan the QR or
-enter the 8-character code in the RomM web UI. The code lasts 10 minutes; press **R** for a
-new one, **Q** to quit. `status --offline` skips the reachability probe and answers entirely
-from local state.
-
-When the server is reachable, `status` also reads back the play sessions RomM holds for this
-device and prints how many there are and when the last one ran. That is the only way to see the
-server's half of playtime: `flush` reports what it sent, not what landed. The rows belong to the
-account this install is paired as and no scope widens that, so an empty answer means nothing was
-found rather than nothing was sent.
-
-`status --check-files` compares what RomMBat has recorded against the tree and reports rows
-whose file is gone, which the disk budget would otherwise count forever; `--repair-files`
-removes those rows. It checks saves too and reports a missing one, but `--repair-files` never
-removes a save's row: `saves restore` is how you find out whether the server still has it. Off
-unless asked for, because it is one filesystem check per row where
-every other line is answered from the database. The disk screen offers the same check.
-
-### Syncing content
-
-```powershell
-rommbat-agent.exe sets add "snes favourites" --scope platform --value snes --max-games 40 --max-bytes 8GB
-rommbat-agent.exe budget --max 64GB          # how much of this drive RomMBat may use
-rommbat-agent.exe sync --dry-run             # what it would fetch, and what it would not
-rommbat-agent.exe sync                       # fetch it
-rommbat-agent.exe evict                      # what would go to get back inside the budget
-rommbat-agent.exe evict --apply              # actually remove it
-rommbat-agent.exe gamelist                   # rewrite gamelist.xml from local state
-rommbat-agent.exe gamelist --media all       # every kind, whatever RetroBat's scraper says
-```
-
-All of that is on the gamepad interface too, as of M7 stage 7b: define a set, resolve it, sync
-it with live progress, watch the budget as it is spent, find one game and install or remove it
-on its own, choose a side on a save conflict, and fix where a platform's games land when the
-automatic mapping gets one wrong. The terminal is no longer the only way in.
-
-### Saves and playtime
-
-```powershell
-rommbat-agent.exe saves                      # what is on disk, what went up, what cannot
-rommbat-agent.exe saves --offline            # the same, without asking RomM for saves no sync can fetch
-rommbat-agent.exe saves resolve 42 "ppsspp:savedata" --keep-local  # pick a side on a conflict
-rommbat-agent.exe saves restore                                    # saves and states RomM has and this device does not
-rommbat-agent.exe saves restore --apply                            # put them back
-rommbat-agent.exe saves bind psp ULUS10057 391                     # whose directory save is this
-rommbat-agent.exe saves bind psp ULUS10057 --forget                # work it out again from scratch
-rommbat-agent.exe saves convert 191723                             # what converting this game would do
-rommbat-agent.exe saves convert 191723 --apply                     # give it its own memory card
-rommbat-agent.exe saves convert 191723 --at-quit                   # make the change when ES next closes
-rommbat-agent.exe saves convert 191723 --revert                    # put the setting back, or call off a queued change
-rommbat-agent.exe flush                      # send queued saves and play sessions
-rommbat-agent.exe flush --offline            # do the local half only
-rommbat-agent.exe hooks status               # are the EmulationStation hooks installed
-rommbat-agent.exe hooks uninstall            # take them back out
-rommbat-agent.exe menu status                # is RomMBat in the EmulationStation menu
-rommbat-agent.exe menu uninstall             # take the entry back out
-rommbat-agent.exe uninstall                  # what removing RomMBat would take out
-rommbat-agent.exe uninstall --apply          # take out hooks, menu entry and memory card settings
-rommbat-agent.exe uninstall --content --bios --apply  # and the synced games and firmware too
-```
-
-`sync` installs the hooks **and the EmulationStation menu entry** on its first run, naming
-every file it adds, and flushes at the end, so none of it is normally typed. Without the
-hooks there is no playtime and no way to tell which game wrote a save.
-
-**Nothing above has to be typed at all on an ordinary install.** The `start` and `quit` hooks
-each start a background pass, so saves and play sessions go up when EmulationStation opens and
-when it closes. `game-start` and `game-end` start nothing: those two run inside the game-launch
-path, write one line to a local journal, and exit.
-
-**`uninstall` takes the tree back to how it was before RomMBat.** It removes the hooks and the
-menu entry and puts back every per-game memory card setting, and with `--content` and `--bios`
-the games and firmware RomMBat downloaded. Files it found already on disk stay, with the artwork
-and gamelist entries it added for them, and so does every save; the preview names the saves it
-cannot tie to any game, since it cannot say whether one belongs to a game going. It refuses
-outright while anything has not reached the server, and `--apply` refuses while
-EmulationStation is running. Delete `emulators/rommbat` afterwards to finish.
-
-**`saves convert` needs EmulationStation closed, or `--at-quit`.** EmulationStation loads its
-settings at startup and writes that copy back over anything changed underneath it, so a change
-made while it is running is discarded without saying so. `--at-quit` records the change and it
-is made the next time you close EmulationStation, which is also the only way RomMBat's own
-screen can change it, since that screen is opened from the EmulationStation menu.
-
-**This release syncs battery saves, save states, directory saves, shared containers you opt
-in, and play sessions.** A directory save such as PPSSPP's `SAVEDATA/` goes up as one archive
-and comes back down as one. `saves` lists everything it found that it is not syncing, and why,
-rather than leaving you to notice.
-
-**Save states sync for the emulators RetroBat declares a state directory for, which is 13 of
-them, plus `mednafen`, `mesen` and `ares` on `nes`.** An emulator outside RetroBat's list still
-writes save states, into a directory it names itself. Those three were driven on `nes`, where
-RomMBat carries a measured declaration for each; on any other system, and for any other
-undeclared emulator, `saves` names the directory and says so rather than counting it silently,
-but its states do not go up and cannot be restored.
-
-**A shared container has no game to belong to, so RomMBat offers to split it, one game at a
-time.** A stock PS2 memory card holds every game you have played on it: the one measured while
-building this held saves for **11 different games**, which is why none of them can be attributed
-or synced. `saves convert` writes a per-game override into `es_settings.cfg` so PCSX2 gives one
-game its own card, named after the ROM, which then syncs like any other save.
-
-It previews by default and writes on `--apply`, because it changes your RetroBat configuration:
-
-- **The game starts from an empty card.** What it saved before stays in the shared one, where
-  it will no longer look. RomMBat does not move it, and says so before you agree. `--revert`
-  puts the setting back exactly, including putting it back to _absent_ if that is what it was.
-- **Multi-disc games are refused.** PCSX2 cannot bind discs, so each disc would get its own
-  card and the save would vanish at the disc change that the shared card carries through.
-- **PS1 is deliberately left alone.** DuckStation's stock mode already binds a disc set through
-  its own database, and converting it is the change that would break one.
-- **It refuses while EmulationStation is running**, because ES rewrites `es_settings.cfg` from
-  the copy it loaded at startup and would discard the change without saying so.
-- Per-game cards also break games that deliberately read a prequel's save from the same card.
-
-**A directory save is attributed, not named.** It is keyed by a Game ID (`ULUS10057`, a PS3
-title id, a GameCube disc id) and RomM stores no serial, title id or product code anywhere, so
-RomMBat works the game out from the launch journal, from the ROM header, or from the sidecar
-RetroBat writes beside a save state. Two routes naming different games bind nothing and
-reports both candidates, because guessing uploads one game's save under another's name and the
-cache would then make that permanent. `saves bind` settles one by hand, or clears one that is
-wrong.
-
-`sync` re-resolves each set first, because smart-collection membership drifts server-side,
-then prints a plan before doing anything. A second run of an unchanged set downloads nothing
-and says so. `sync --dry-run` and `sync --offline` both work with the server unreachable,
-answering from what the store already holds.
-
-`sync` then fetches artwork and writes one `gamelist.xml` per RetroBat folder, keyed by the
-folder rather than by the platform because two RomM platforms can share one. It merges into
-what is already there, so anything EmulationStation or a user's own scraper wrote survives,
-and it asks EmulationStation to reload only when something actually changed. `gamelist` does
-the same thing on its own and needs no server at all.
-
-**Media is not a rounding error.** At the sizes measured on a real library a game costs about
-5.7 MB of cover, thumbnail, marquee, video and manual, so a hundred-game NES set is roughly
-12.8 MB of ROMs and 570 MB of artwork. It counts against the same budget.
-
-**Which kinds are fetched is RetroBat's setting, not a second one.** Video and manuals follow
-the VIDEO and MANUAL switches in RetroBat's own scraper menu, which ship on, so a stock install
-gets all five kinds. Turning a switch off stops the downloads **and takes back what was already
-fetched**, on the next sync of that platform. `--media` on the command line overrides all of it.
-
-**Nothing else is deleted without `evict --apply`.** Eviction never removes a file RomMBat did
-not download, and never one whose saves have not reached the server. It takes a game's artwork
-and its gamelist entry out with it, and leaves artwork a user scraped themselves alone. The two
-exceptions are both a user's own instruction carried out immediately: the media kind above, and
-a sync you stop part way, which takes back the one game it was downloading so the tree never
-holds half a game.
-
-`evict` also reports transfers that died part-way, under `emulators/rommbat/partial/`, and
-reclaims them on `--apply`. Those bytes are the only ones the disk budget cannot see, because a
-file is only counted once it has arrived whole. It does not run at all while a sync is writing
-saves back, and it skips anything a live transfer still holds open.
-
-Two things are skipped on purpose and reported rather than hidden. A ROM RomM holds as
-several files (a `.bin`/`.cue` set, most Xbox 360 titles), or as a folder, is
-not synced yet except on PlayStation: where each shape lands differs by platform, and it is
-settled platform by platform as each is certified. A PlayStation disc set lands in a folder
-named after the game, beside a playlist EmulationStation lists as one game. And on a FAT32 drive, anything over 4 GB is left out before the
-download starts, because the write would otherwise fail with an error message about disk space
-on a drive with plenty free.
-
-A file's format is never a reason to skip it. RetroBat's list of extensions for a system covers
-every emulator that system offers, so it cannot say whether yours opens a given file. A game
-whose extension is not on that list still syncs, and RomMBat tells you EmulationStation will
-not show it.
-
-## Status
-
-RomMBat is built in milestones, and platforms are certified one at a time after the
-framework works end to end.
-
-| Milestone | Scope                                                                                                  | State                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| --------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M0        | Probes against a real RetroBat install; findings recorded in [docs/upstream/](docs/upstream/README.md) | **Complete.** All seven answered, against an 83,131 rom library and two PCs                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| M1        | Device pairing, portable identity, SQLite schema and outbox                                            | **Complete.** `rommbat-agent pair` and `status` work; nothing syncs yet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| M2        | Paged catalog browsing, sync sets, platform mapping                                                    | **Complete.** `sets` and `platforms` resolve against a live 123-platform library; nothing downloads yet                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| M3        | Content sync, resumable downloads, disk budget and eviction                                            | **Complete.** `sync`, `budget` and `evict` work; resume and verification proven against a live instance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| M4        | `gamelist.xml` generation, metadata and media                                                          | **Complete.** `sync` writes merged gamelists and fetches artwork; conversions measured against a live instance                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| M5        | BIOS and firmware                                                                                      | **Complete.** `sync` fetches BIOS before ROMs and `bios` reports the gap, offline included                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| M6        | Offline-first save, state and playtime sync                                                            | **Complete.** All four save shapes proven, the last of them on hardware. See below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| M7        | Closing the EmulationStation loop, then the gamepad UI                                                 | **Stages 7a and 7b complete, all five sub-stages.** Hooks start the sync passes, RomMBat is in the ES menu, and the menu entry opens a real full-screen interface. From a controller you can define what this device should hold, by platform, collection or saved search, resolve it against RomM, download it with live progress, stop a sync part way and get a tree with no half-finished game in it, watch the disk budget as it is spent, **find one game and install it in one press, firmware included**, **take a game or a whole set back off without ever losing a save**, **choose a side on a save conflict**, **fix where a platform's games land**, and **see and cancel a setting waiting on EmulationStation closing**. The hands-on pass has been driven on a live install: sets synced, a game found, installed and launched, a save conflict resolved against the server, a platform remapped, and a per-game memory card queued and applied. **The platform rollout gate is open** |
-| M8        | Packaging, docs, release                                                                               | **The portable zip landed early**, ahead of the platform rollout that redeploys on every defect a pass finds. `tools/publish.ps1` publishes the three projects, assembles the seven files an install needs, refuses to package a set missing any of them, and extracts into a tree with `-Deploy`. CI calls it. `uninstall` takes the tree back to its prior state. The installer wrapper and the docs are still open                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-
-M6 is the one milestone where a missed detail loses a save rather than a download, so it
-ships in stages small enough to review. The first cut is at the save-class boundary; the
-second is at what each remaining piece needs from Game-ID attribution, which is the only hard
-dependency among them.
-
-| Stage | Scope                                                                                          | State                                                                                                                                             |
-| ----- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | ES hooks, the journal, play sessions, class A and B battery saves, the full negotiate protocol | **Complete.** Three games played offline, one flush, everything lands                                                                             |
-| 2a    | Save states across all 13 emulators, and conflict resolution                                   | **Complete.** A sync only pushes a state and `saves restore` is what brings one back; `saves resolve` picks a side and prunes the copy kept aside |
-| 2b    | Game-ID attribution, class C directory saves bundled to one archive                            | **Complete.** A PPSSPP `SAVEDATA/` directory went up, came back as a conflict, and the game loaded what the restore wrote                         |
-| 2c    | Class D conversion and the per-game `es_settings.cfg` writer                                   | **Complete.** A PS2 game opted into a per-game memory card, written by the game, synced, and loaded back                                          |
-
-**M6's four save shapes, and what proved each.** The milestone asks for one game from each
-shape rather than three of the easy one, so the evidence is listed per shape rather than
-summarised. **A shape proven by a test and not by an emulator is named as such.**
-
-| Shape                          | Proved by                                                                                            |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| A, one file per game           | A RetroArch `.srm`, played offline and flushed on reconnect (stage 1)                                |
-| B, several files per game      | Saturn's `.bcr` and `.bkr` in their own slots (stage 1). **Tests only; no Saturn game was launched** |
-| C, a directory per game        | A PPSSPP `SAVEDATA/` directory, up as one archive, back as a conflict, resolved and loaded (2b)      |
-| D, a container shared by games | A PS2 card converted per game, written by Armored Core 3, synced, and **loaded back by PCSX2** (2c)  |
-
-Alongside those: a save state with its screenshot across four emulators (2a), a conflict a
-person resolves (2a), and play sessions reaching RomM from the ES hooks (stage 1).
-
-**What is not claimed.** Nothing was certified at this milestone: certification is per
-`(system, emulator, core)` and needs all nine steps of the checklist, and the wave rollout starts
-after M7. The first certified row, `nes` under `libretro`/`nestopia`, came on 2026-09-20 and is
-not M6's claim. Class D was
-driven on `(ps2, pcsx2)` only; Dreamcast and PS1 are reported with their measured reasons and
-deliberately not converted. And a converted card has never been **downloaded** onto a second
-real device, only onto a test one. See
-[docs/platforms/README.md](docs/platforms/README.md) for the per-stage records, gaps included.
-
-**Save states are pushed automatically and pulled only when asked.** `POST /api/states` has no
-slot, no device and no conflict detection, so there is nothing to negotiate: a state goes up when
-its contents change, and a sync never brings one down. `saves restore` is the way back, for the
-reason it is the way back for a save: a file that reappears because a sync decided it should is
-indistinguishable from a bug to whoever deleted it.
-
-**Nothing verifies a state that comes down, and the command says so.** RomM publishes no hash for
-a state, where a save carries `content_hash`, so there is nothing to check the bytes against. Nor
-can the emulator build be checked: a state carries its emulator and core but no version, so one
-made on a different build looks identical here and may refuse to load. Both are limits of the
-API, and `saves restore` prints them on the preview as well as before applying.
-
-**A save is never written for a game you are playing.** A save another device made is pulled down
-when EmulationStation starts, and that check races the launch: on a measured install the pass takes
-5 to 11 seconds and ES is interactive before it begins. So rather than write into a file the
-emulator holds open, which loses the save and can tear the file, RomMBat holds the write back and
-says so. It lands on the next flush, which the `quit` hook runs when you leave EmulationStation, and
-`saves restore` names the game in the way. One game being played does not hold back any other
-game's save.
-
-Resolving a conflict is held back the same way, whether from `saves resolve` or from the couch:
-taking the server's copy writes the same file a download does, so it is refused while the game is
-open rather than applied under it, and the conflict is still there to decide once you have closed
-the game.
-
-What this does **not** do is make a launch see a save that arrived while EmulationStation was
-sitting idle. That is still picked up at the next start and no sooner
-([#155](https://github.com/Spinnich/rommbat/issues/155)).
-
-Anything RomMBat cannot sync is reported by `saves` with the reason rather than passed over in
-silence.
-
-### Known upstream issues
-
-Problems found in RomM, RetroBat and EmulationStation that are theirs to fix are tracked in
-[docs/upstream/issues.md](docs/upstream/issues.md): each issue's state, what RomMBat does
-meanwhile, and where the measurement behind it is recorded. That register is the one list, and
-nothing here repeats it. An entry stays there until RomMBat has adopted a release carrying the
-fix, because upstream closing an issue is not what reaches a user: a workaround comes out only once
-the fix is in a release the compatibility gate accepts **and** a hands-on pass has seen the fixed
-behaviour.
-
-### Platform certification
-
-A platform counts as supported only after a nine-point checklist passes against a real
-install, recorded in `docs/platforms/<system>/`.
-
-**The unit is `(system, emulator, core)`, not the system.** Two emulators for one console do
-not behave alike, and the difference lands exactly where it hurts: `psx` under libretro writes
-a plain `.srm` and is class A, while `psx` under DuckStation writes a memory card named from an
-internal database title and needs Game-ID attribution. Save-state directories and filenames are
-per emulator, and `libretro` and `bizhawk` are core-scoped on top of that, so one game under
-two cores has independent state sets. So "snes is certified" is not a claim; "`snes` under
-`libretro`/`snes9x` is certified" is, and it says nothing about `snes` under `bizhawk`. The
-table below names 51 systems and not 51 passes: the first pass through a wave certifies one
-recommended `(emulator, core)` per system, and alternates are a second pass.
-
-**The gate opened with M7 stage 7b.** Every pass needs a person at the machine launching real
-games, and doing that through a terminal rather than the gamepad UI makes a long job longer.
-The waves finish against an M8 package, which is what a user would actually install.
-
-Two things did not wait for that. Each M6 stage owed one hands-on check of the save shape it
-added, because that is where being wrong destroys data rather than costing a re-download; and
-the automated suite already drives the whole protocol, offline included, against a stub server.
-
-Every system named here is a folder in RetroBat's `es_systems.cfg`, which is the vocabulary the
-record files are named in. Nintendo's DSi is the one platform RomM carries that RetroBat has no
-folder for, so it is out of scope rather than unscheduled.
-
-| Wave | Systems                                                                                                  | Status           |
-| ---- | -------------------------------------------------------------------------------------------------------- | ---------------- |
-| 1    | `nes`, `snes`, `gb`, `gbc`, `gba`, `megadrive`, `mastersystem`                                           | Every row driven |
-| 2    | `psx`, `pcengine`, `pcenginecd`, `megacd`, `saturn`, `n64`                                               | `psx`, `n64`     |
-| 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | Not started      |
-| 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | Not started      |
-| 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | Not started      |
-| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | Not started      |
-| 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | Not started      |
-| 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | Not started      |
-
-**Every row `nes` declares is certified**: `libretro` under `fceumm`, `nestopia` and `mesen`,
-`bizhawk` under `NesHawk` and `quickerNES`, `jgenesis`, `mesen` standalone, `mednafen` and `ares`,
-at RomM `5.3.0-beta.1` and RetroBat 8.2.1, driven on 2026-09-20 and 2026-09-21, carried to
-`5.3.0` with step 9 re-run, and to the `5.3.1` floor with steps 1 and 9 re-run. All nine steps hold on each, with step 6 N/A since `nes` has no class D. `fceumm` is the row a stock install runs.
-
-**Seven of `megadrive`'s eleven rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-21: `libretro` under `genesis_plus_gx`, which a stock install runs, `genesis_plus_gx_wide`
-and `picodrive`, then `bizhawk`/`Genplus-gx`, `jgenesis`, `mednafen` and `ares`. `libretro`/`fbneo`
-boots nothing named by No-Intro, and the three `kega-fusion` rows fail step 4 because Kega Fusion
-writes battery saves outside `saves/`; both are recorded rather than certified.
-
-**Nine of `gba`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on 2026-09-22:
-`libretro` under `mgba`, which a stock install runs, `gpsp` and `mednafen_gba`, then `mgba`
-standalone, `mednafen`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and `ares`. `nosgba` loads a zipped
-ROM only through a bare `.gba` beside it, which NO$GBA itself deletes, and keeps its saves outside `saves/`, so
-it is recorded rather than certified. `gba_bios.bin` is fetched whenever RomM has it, though only
-`ares`, `jgenesis` and `mesen` refuse to boot without it.
-
-**Every row `gb` declares is certified**, fourteen, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-22: `libretro` under `gambatte`, which a stock install runs, `mesen-s`, `bsnes`, `tgbdual`,
-`DoubleCherryGB` and `sameboy`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under
-`Gambatte`, `GBHawk` and `SameBoy`, and `jgenesis`. `bios gb` fetches the four Super Game Boy files
-and the Color boot ROM as well as `gb_bios.bin`, because `bsnes` and `GBHawk` refuse to boot without
-them, though RetroBat's list files them under `sgb` and `gbc`.
-
-**Every row `gbc` declares is certified**, twelve, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-23: `libretro` under `gambatte`, which a stock install runs, `tgbdual`, `sameboy` and
-`DoubleCherryGB`, then `mesen`, `mgba`, `mednafen`, `ares`, `bizhawk` under `Gambatte`, `GBHawk` and
-`SameBoy`, and `jgenesis`. Only `GBHawk` needs firmware, `gbc_bios.bin`, which `bios gbc` fetches. A
-cartridge clock syncs with the save on every row, but it does not survive switching rows, with or
-without RomMBat, because each emulator keeps it in its own format.
-
-**Every row `snes` declares is certified**, fifteen, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-24: `libretro` under `snes9x`, which a stock install runs, `bsnes-jg`, `bsnes`,
-`bsnes_hd_beta`, `mednafen_snes`, `mesen-s` and `snes9x2005`, then `mesen`, `mednafen`, `snes9x`,
-`ares`, `bizhawk` under `BSNES`, `Faust` and `Snes9x`, and `jgenesis`. RetroBat lists no firmware
-for `snes`, so a DSP-1 game such as Super Mario Kart will not start under `mesen-s`, `mesen` or
-`jgenesis` unless you supply the chip's file yourself: `dsp1b.rom` in `bios\` for `mesen-s`, the
-same file in `emulators\mesen\Firmware\` for Mesen, and `dsp1_rom_path` in `jgenesis-config.toml`
-for jgenesis ([docs/platforms/snes/](docs/platforms/snes/index.md)).
-
-**Seven of `mastersystem`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-24: `libretro` under `genesis_plus_gx`, which a stock install runs, and `picodrive`, then
-`mesen`, `mednafen`, `ares`, `bizhawk`/`SMSHawk` and `jgenesis`. As on `megadrive`, `libretro`/`fbneo`
-boots nothing named by No-Intro and both `kega-fusion` rows fail step 4, so they are recorded rather
-than certified. `bizhawk`/`SMSHawk` will not start a game without the US/EU Master System BIOS in
-`bios\`, which RetroBat lists without a hash, so RomMBat cannot fetch it and you supply it yourself.
-mednafen will not start a game while Mesen's save for it is beside the ROM
-([docs/platforms/mastersystem/](docs/platforms/mastersystem/index.md)).
-
-**Every row `psx` declares is certified**, seven, at RomM `5.3.1` and RetroBat 8.2.1 on
-2026-09-26: `libretro` under `mednafen_psx_hw`, which a stock install runs, `swanstation` and
-`pcsx_rearmed`, then DuckStation, standalone mednafen, and `bizhawk` under `Nymashock` and
-`Octoshock`, with every memory card type the rows expose driven. A per-game card syncs whichever
-type makes it; a shared card, DuckStation's, swanstation's or pcsx_rearmed's second, is reported and
-never sent. Six rows refuse to start without `psxonpsp660.bin`, which RomMBat fetches. Standalone
-mednafen emulates no memory card at RetroBat's default, so set its card count to keep a save
-there, and both BizHawk rows are handed disc 1 of a set whatever the layout
-([docs/platforms/psx/](docs/platforms/psx/index.md)).
-
-**All nine of `n64`'s rows are certified**, at RomM `5.3.1` and RetroBat 8.2.1: on 2026-09-27
-`libretro` under `mupen64plus_next`, which a stock install runs, and `parallel_n64`, then RMG,
-simple64, Project64, ares, and `bizhawk` under `Ares64` and `Mupen64Plus`, with each row's Controller
-Pak option driven. Four rows have no pak at RetroBat's default, so a game that saves only to the pak
-needs the option set. BizHawk's two cores share one save file they cannot read from each other.
-gopher64 followed on 2026-09-29: RetroBat leaves its battery saves outside `saves/`, and RomMBat
-reads them there ([docs/platforms/n64/](docs/platforms/n64/index.md)).
-
-That is eighty-nine rows on one install. Every row wave 1's seven systems, `psx` and `n64` declare
-has now been driven, and the eight not certified say why in their records. The unit is still
-`(system, emulator, core)`. The rules the non-`libretro` rows needed are scoped to the systems they
-were measured on, so none of those emulators is certified anywhere else.
-[docs/platforms/nes/](docs/platforms/nes/index.md), [docs/platforms/megadrive/](docs/platforms/megadrive/index.md),
-[docs/platforms/gba/](docs/platforms/gba/index.md), [docs/platforms/gb/](docs/platforms/gb/index.md),
-[docs/platforms/gbc/](docs/platforms/gbc/index.md), [docs/platforms/snes/](docs/platforms/snes/index.md),
-[docs/platforms/mastersystem/](docs/platforms/mastersystem/index.md), [docs/platforms/psx/](docs/platforms/psx/index.md) and
-[docs/platforms/n64/](docs/platforms/n64/index.md) are the records, gaps included.
-
-Every one of those rows is carried to the RomM `5.3.1` floor. Steps 1 and 9 were re-run there on
-2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise.
-
-### Compatibility
-
-Every release names the RomM and RetroBat versions it was tested against. Adding a row
-here is part of shipping.
-
-| RomMBat    | RomM tested | RetroBat tested    | Notes                                                               |
-| ---------- | ----------- | ------------------ | ------------------------------------------------------------------- |
-| unreleased | 5.3.1       | 8.2.1-stable-win64 | API DTOs are generated from a pinned RomM **5.3.1** `/openapi.json` |
-
-The pinned schema is the minimum supported version on purpose, so the generated DTOs
-describe the oldest server the client claims to work with. Moving the pin is a compatibility
-decision and moves a row in this table with it; see
-[`src/RomM.Client/openapi/README.md`](src/RomM.Client/openapi/README.md).
-
-**Both minimums track the newest upstream stable, or a prerelease ahead of it, rather than the
-oldest version that works.**
-Every measured rule in this repository is a measurement of one build, so a supported range
-means owning that measurement across the range, on a `(system, emulator, core)` matrix that is
-already several passes per row. RomMBat adopts a new RomM or RetroBat stable within one release
-and raises the floor with it, and can adopt a prerelease ahead of the stable, which is why the
-RomM floor is an alpha and RomM 5.2.0 is refused. Earlier rows in this table stay accurate about what was tested;
-they are not a support commitment.
-
-## Repository layout
-
-```text
-src/RomM.Client       API client. DTOs generated from /openapi.json, plus hand-written
-                      pairing, resumable download and sync negotiation
-src/RomM.Client/openapi
-                      The pinned schema, the generator config, and why the pin is where
-                      it is. Generated output is committed under Generated/
-src/RomMBat.Core      Local state and everything that knows RetroBat's disk layout
-src/RomMBat.Agent     Console exe: pair, sync, game-start, game-end, flush, status
-src/RomMBat.UI        Gamepad-navigable front end (Avalonia, Win32 + Skia)
-tests/RomMBat.Tests   xUnit, over Core and Client
-tests/RomMBat.Agent.Tests
-                      xUnit, over the Agent's subcommands and their gates
-
-docs/design/          The design of record: principles, integration seams, version
-                      policy, rollout, verification, and one record per standing
-                      decision under decisions/. Read principles.md before anything else
-docs/upstream/        How RetroBat and RomM behave, measured, one RB- or RM- fact per
-                      heading, by topic, plus issues.md: every issue raised upstream and
-                      its state, until RomMBat has adopted the release that fixes it
-docs/architecture/    Project layout, sync state machine, local schema, one file per area
-docs/platforms/       One certification record per RetroBat system, and each system's
-                      emulator facts in <system>/facts.md
-wiki/                 The end-user guide, which mkdocs.yml builds and the Guide workflow
-                      publishes to GitHub Pages (wiki/README.md)
-reference/            Vendored upstream data plus a script that re-derives every number
-data/retrobat/        Bundled mapping tables (platforms, save directories, save shapes and
-                      rules, and the save-state entries es_savestates.cfg leaves out)
-data/media/           The ES menu entry's artwork, embedded into RomMBat.Core
-data/certification.json
-                      Each certified or driven (system, emulator, core) row; the guide's
-                      platform table is generated from it
-tools/publish.ps1     Publishes the three projects, assembles the seven files an install
-                      needs, and packages the portable zip. CI runs this
-tools/docs/check.py   Checks links, anchors, fact citations and the docs rules; CI runs it
-tools/pre-pr.ps1      Runs every CI gate locally and says which failed (trunk only
-                      outside a git worktree)
-tools/retrobat-install.ps1
-                      Installs a pristine RetroBat from an upstream release, for testing
-tools/m0-probes/      Generators for the bundled save data, and the scripts that drive
-tools/m6-probes/      emulators on a live install to re-check a save rule
-tools/romm-5.3-probes/
-                      Re-checks for the RomM behaviour the skills and code cite
-.claude/skills/       Task-scoped guides for agents working in this repository
-.claude/commands/     The agent's process commands: /next, /start-issue, /drive-pr,
-                      /review-pr, /certify (docs/contributing/workflow.md)
-.claude/agents/       The PR reviewer each review round runs
-```
-
-## Building
-
-```bash
-dotnet build
-dotnet test
-
-trunk fmt && trunk check        # lint, from WSL on Windows
-python3 tools/docs/check.py     # links, anchors and the docs rules
-mkdocs build --strict           # the guide; pip install -r tools/docs/requirements.txt
-cd reference && ./refresh.sh    # refresh upstream data, verify, check generated data
-```
-
-Trunk has no Windows-native CLI, so run it under WSL. [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md)
-gives the exact command and a fallback for docs-only changes.
-
-Packaging is PowerShell, so it needs a PowerShell 7 prompt rather than the shell above.
-
-```powershell
-./tools/publish.ps1                          # publish, assemble the seven files, zip
-./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
-```
-
-Full setup, including how to point at a RomM instance and stand up a throwaway RetroBat,
-is in [DEVELOPER_SETUP.md](DEVELOPER_SETUP.md).
+|          | Version                                   |
+| -------- | ----------------------------------------- |
+| Windows  | 10 or 11, 64-bit                          |
+| RetroBat | 8.2.1 or newer                            |
+| RomM     | 5.3.1 or newer, on a server you can reach |
+
+An older RomM or RetroBat is refused at startup, and a newer one works with a warning.
+[Compatibility](https://spinnich.github.io/rommbat/reference/compatibility/) names what each
+release was tested against. Use an exFAT or NTFS drive for disc-based games, since FAT32 cannot
+hold a file over 4 GB.
+
+## Getting started
+
+1. [Install](https://spinnich.github.io/rommbat/getting-started/install/): extract the zip into
+   your RetroBat folder.
+2. [Pair](https://spinnich.github.io/rommbat/getting-started/pairing/) it with your RomM server,
+   granting the permissions that page lists.
+3. [Make a sync set and sync it](https://spinnich.github.io/rommbat/getting-started/first-sync/).
+
+## Documentation
+
+- **[The guide](https://spinnich.github.io/rommbat/)**: installing and using RomMBat, how saves
+  sync, and a page for each supported system.
+- **[Developer docs](docs/design/principles.md)**: the design principles, then
+  [architecture](docs/architecture/README.md), the
+  [upstream reference](docs/upstream/README.md) of how RomM and RetroBat behave, and the
+  [certification records](docs/platforms/README.md).
+- **[Developer setup](DEVELOPER_SETUP.md)**: building, testing, and a throwaway RetroBat to test
+  against.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md), and report security issues as
+[SECURITY.md](SECURITY.md) describes.
 
 > [!IMPORTANT]
 >
-> **RomMBat is developed primarily with Claude Code, and AI assistance must be disclosed
-> in every pull request.** This norm comes from RomM and RomMBat inherits it. It matters
-> more here, not less.
+> **RomMBat is developed primarily with Claude Code, and AI assistance must be disclosed in
+> every pull request.** This norm comes from RomM and RomMBat inherits it.
 
 ## Related projects
 
@@ -664,6 +90,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 [GPL-3.0](LICENSE), matching the RomM Playnite plugin and Argosy.
 
-RomMBat is not affiliated with either project's maintainers. It ships no ROMs, no BIOS
-files and no copyrighted content; it moves files between a server you run and a device
-you own.
+RomMBat is not affiliated with either project's maintainers. It ships no ROMs, no BIOS files and
+no copyrighted content; it moves files between a server you run and a device you own.

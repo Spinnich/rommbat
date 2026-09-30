@@ -71,5 +71,6 @@ writer on its slots (RM-4). Server layout (RM-10) is administration and inert he
   three components of the client version track the required RomM version, and the fourth
   is the client's own patch number. It makes compatibility legible from the release tag
   alone.
-- Keep a compatibility table in the README and treat adding a row to it as part of
-  shipping.
+- Keep a compatibility table in the guide,
+  [`wiki/reference/compatibility.md`](../../wiki/reference/compatibility.md), and treat adding
+  a row to it as part of shipping.

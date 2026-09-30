@@ -20,7 +20,7 @@ namespace RomMBat.Tests;
 /// ROMMBAT_TEST_APPROVER_TOKEN=rmm_...
 /// </code>
 /// <para>
-/// <b>The approver token is not a RomMBat token</b>, and the README scopes table does not
+/// <b>The approver token is not a RomMBat token</b>, and the guide's scopes table does not
 /// apply to it. That table is what a device requests; RomMBat never asks for
 /// <c>me.write</c>. The token here needs <c>me.read</c> and <c>me.write</c> and nothing
 /// else, because <c>/approve</c> and <c>/deny</c> are <c>[Scope.ME_WRITE]</c> routes. Its

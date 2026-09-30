@@ -84,14 +84,15 @@ It is a `ClientToken` on a dedicated non-admin account, so it expires on its `ex
 can be revoked from the RomM UI. **When the live tests start failing, check it first**: a lapsed
 or revoked token fails `ReadPendingAsync` with a 401, where a missing scope is a 403.
 
-It is not a RomMBat token, and the README scopes table does not apply to it. `/approve` and
-`/deny` are `[Scope.ME_WRITE]` routes, while `allowed_scopes` is computed from the account's
-permissions, so the two need different scopes:
+It is not a RomMBat token, and
+[the guide's scopes table](../../wiki/getting-started/pairing.md#which-permissions-to-grant)
+does not apply to it. `/approve` and `/deny` are `[Scope.ME_WRITE]` routes, while
+`allowed_scopes` is computed from the account's permissions, so the two need different scopes:
 
 |                           | Scopes                                     |
 | ------------------------- | ------------------------------------------ |
 | The approver token        | `me.read` and `me.write`, and nothing else |
-| The account it belongs to | All eleven from the README table           |
+| The account it belongs to | All eleven from the guide's table          |
 
 A token missing `me.write` fails with a bare 403 `Forbidden` before the code is looked up. A
 scope-subset rejection says `Approved scopes exceed what's allowed for this user` instead. An

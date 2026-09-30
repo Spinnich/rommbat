@@ -28,7 +28,7 @@
 - [ ] Every new user-visible string is reachable without a mouse
 
 **Compatibility**
-<sup>Does this change the minimum supported RomM or RetroBat version? If so, say which and why, and update the table in the README.</sup>
+<sup>Does this change the minimum supported RomM or RetroBat version? If so, say which and why, and update the requirements table in the README and the guide's compatibility and requirements pages.</sup>
 
 **Platforms certified**
 <sup>If this touches a platform, name the systems you ran the certification checklist against, and link the <code>docs/platforms/&lt;system&gt;/</code> records. A platform is not done at eight of nine.</sup>

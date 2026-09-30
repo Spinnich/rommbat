@@ -23,8 +23,8 @@ public static class RomMServerVersion
     public static ProductVersion Minimum { get; } = ProductVersion.Parse("5.3.1");
 
     /// <summary>
-    /// Newest RomM this release has been exercised against. Keep in step with the README
-    /// compatibility table.
+    /// Newest RomM this release has been exercised against. Keep in step with the guide's
+    /// compatibility table, wiki/reference/compatibility.md.
     /// </summary>
     public static ProductVersion LastTested { get; } = ProductVersion.Parse("5.3.1");
 

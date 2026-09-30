@@ -52,6 +52,7 @@ nav:
       - PlayStation: platforms/psx.md
   - Reference:
       - Command line: reference/cli.md
+      - Compatibility: reference/compatibility.md
       - Glossary: reference/glossary.md
 
 theme:
