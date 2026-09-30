@@ -50,7 +50,8 @@ Requires `dotnet tool restore` once per clone (NSwag is a local tool, pinned in
 
 **Only re-run this when deliberately moving the pin**, and review the diff. Moving the pin
 is a compatibility decision: it changes which server version the DTOs describe, so the
-README compatibility table and `RomMServerVersion.Minimum` move with it.
+compatibility table in [the guide](../../../wiki/reference/compatibility.md) and
+`RomMServerVersion.Minimum` move with it.
 
 **Read the operation and schema diff, not just the generated C#.** The 5.1.0 to 5.2.0 move
 was additive except for one thing the DTO diff shows as a single character:
