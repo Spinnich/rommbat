@@ -20,7 +20,7 @@ mid-refresh would hide the change the script exists to surface.
 | `romm-platform_slugs.py`       | `rommapp/romm` `backend/utils/platform_slugs.py`                                        | `UniversalPlatformSlug`, RomM's whole platform vocabulary (459). `romm-slugs.txt` beside it is the values alone, derived by `refresh.sh`                                |
 | `romm-platform_aliases.py`     | `rommapp/romm` `backend/utils/platform_aliases.py`                                      | `PLATFORM_FS_ALIASES` and `resolve_platform_slug`: how RomM turns a folder name into a slug. Seed for the platform map. A seed, **not** an answer                       |
 | `romm-known_bios_files.json`   | `rommapp/romm` `backend/models/fixtures/known_bios_files.json`                          | What RomM's `is_verified` flag is computed from                                                                                                                        |
-| `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference M4 writes to, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
+| `romm-gamelist_exporter.py`    | `rommapp/romm` `backend/utils/gamelist_exporter.py`                                     | The gamelist field reference RomMBat's writer follows, and the source of two unit conversions RomMBat would otherwise have to guess at                                              |
 
 ## Derived facts
 
@@ -44,35 +44,20 @@ that cites it needs revisiting.
 | Distinct RomM slugs reached                   | 148               |
 | RomM slugs mapping to several folders         | 10 (`arcade` → 7) |
 
-**The source of these moved, and so did the shape of the question.** Until RomM 5.3.0 the
-seed was `examples/config.batocera-retrobat.yml`, 167 explicit `folder: slug` pairs. Upstream
-cut that file to four suggested overrides and moved the authority into
-`backend/utils/platform_aliases.py`, where `resolve_platform_slug` tries a config binding,
-then identity when the folder name is itself a slug, then `PLATFORM_FS_ALIASES`. Identity
-cases therefore left the YAML rather than being deleted: `nes: nes` is now implicit.
+**The seed is upstream's resolver, not a table of pairs.** `resolve_platform_slug` in
+`backend/utils/platform_aliases.py` tries a config binding, then identity when the folder name is
+itself a slug, then `PLATFORM_FS_ALIASES`. So `nes` maps to `nes` without appearing anywhere.
 
-`tools/build-platform-map.py` walks **RetroBat's** system list and asks upstream what each
-folder resolves to, rather than importing upstream's 138 keys and correcting them. Core
-principle 3 is why: the alias table is a Batocera / RetroBat / ES-DE union and 44 of its keys
-name folders no RetroBat install has, so walking from RetroBat's side never sees them. The
-old `STALE_KEYS` correction list is gone with it, because there is nothing left to correct.
+`tools/build-platform-map.py` walks **RetroBat's** system list and asks upstream what each folder
+resolves to, rather than importing upstream's 138 keys and correcting them. Core principle 3 is
+why: the alias table is a Batocera / RetroBat / ES-DE union and 44 of its keys name folders no
+RetroBat install has, so walking from RetroBat's side never sees them.
 
-Two facts fell out of the re-source that the YAML had hidden. The old seed carried two slugs
-RomM has never had, `daphne` and `rpgmaker`, so neither could ever match a platform row;
-`rpgmaker` is now `rpg-maker` and `daphne` has no RomM equivalent at all. And normalization's
-share collapsed from 16 to 1, because identity resolution catches almost everything it used to
-rescue. The one survivor is `actionmax` against `action-max`.
-
-Four slugs left the table in all, and the other two are real. `odyssey` was a seed error, since
-Magnavox Odyssey is not the Odyssey² and `odyssey-2` → `odyssey2` now carries the real case.
-`atari8bit` is upstream's suggested binding for `atari800`, recorded and not applied, so layer 2
-covers it whenever the RomM folder is itself named `atari800` and a folder RetroBat lacks that
-resolves to `atari8bit` needs a manual mapping. The `platform-mapping` skill has the detail.
-
-The 167/91/18/13 figures held at RomM 5.2.0 and are kept here as what the YAML said, not as
-something to reconcile. The pair and stale counts read 168 and 19 until M2, when `verify.py`
-stopped counting `scan.gamelist.export` as a platform; that was a parser fault here, not drift
-upstream.
+Identity catches almost everything, so normalization rescues one folder, `actionmax` against
+`action-max`. RetroBat's `daphne` has no RomM equivalent. RetroBat's `odyssey2` is the Odyssey², RomM's
+`odyssey-2`, and not Magnavox Odyssey's `odyssey`. `atari8bit` is upstream's
+suggested binding for `atari800`, recorded and not applied: layer 2 covers it whenever the RomM
+folder is itself named `atari800`. The `platform-mapping` skill has the detail.
 
 **Firmware knowledge barely overlaps**
 
@@ -88,7 +73,7 @@ projects, and RomM's `is_verified` misses 60% of what RetroBat requires.
 
 **The gamelist exporter settles two units and gets a third field wrong**
 
-`verify.py` asserts behaviours rather than counts here, because that is what M4 reads off it.
+`verify.py` asserts behaviours rather than counts here, because the writer depends on them.
 Confirmed in upstream's own code: `first_release_date` is divided by 1000, so it is
 **milliseconds**, and `average_rating` is divided by 100, so it is on a **0-100** scale, with
 a comment saying as much. Both match what RomMBat measured live.
@@ -113,40 +98,16 @@ ScreenScraper's marquee is an arcade cabinet marquee.
 
 ## Snapshot
 
-Captured 2026-08-25 against RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`) and
-`rommapp/romm` master, **except the four RomM files, re-pulled 2026-09-14**.
+The RetroBat files are RetroBat 8.2.1 (`system/version.info: 8.2.1-stable-win64`), pulled
+2026-08-25. The `romm-*` files are `rommapp/romm` master, pulled 2026-09-14.
 
-**This snapshot is deliberately not uniform, and the seam runs between the two projects.**
-Every `romm-*` file is the 2026-09-14 pull: the platform pair went first because the platform
-map had no working source until they did (#166), and `romm-gamelist_exporter.py` followed with
-the rest of the 5.3.0 adoption (#171). The RetroBat files are still the 2026-08-25 pull, on
-purpose. This adoption moves the RomM floor and not the RetroBat one, and RetroBat's newest
-release is still 8.2.1, so re-pulling them would put the vendored snapshot ahead of every
-shipped RetroBat rather than level with the declared one.
+**The snapshot is level with the floor, not with master.** The RetroBat files stay at the newest
+release, because a pull from master would put the vendored copy ahead of every shipped RetroBat.
 
-**What RetroBat master has moved since, held back deliberately.** `es_systems.cfg` adds
-`.decomp` to `cps3`, `naomi` and `naomi2`, which is the same extension 8.2.1 added to eleven
-other systems, and adds `gearsystem` as a libretro core for one system. `es_savestates.cfg`
-gains an `amiberry` emulator block, slots 1 to 9, `{{system}}/amiberry`, files named
-`{{romfilename}}-{{slot0}}.uss`. None of it moves a number in `verify.py`. It is recorded here
-so the next RetroBat adoption starts from a list rather than a diff.
+**RetroBat master carries three changes the snapshot does not**, none of which moves a number in
+`verify.py`. They are listed so the next RetroBat adoption starts from a list rather than a diff:
 
-**What 8.2.1 moved.** `es_systems.cfg` gained `.decomp` on eleven systems (`mame`, `model2`,
-`model3`, `snes`, `n64`, `gamecube`, `wii`, `psx`, `ps2`, `ps3`, `xbox`) and `.zar` on `ps4`,
-and promoted `pcsx2x6` ahead of `play` for `namco2x6`. `batocera-systems.json` gained a
-`namco2x6` entry of two files, which is where all four firmware counts below moved from;
-both entries carry an empty md5, so nothing new became joinable. `systems_names.lst` and
-`es_savestates.cfg` are unchanged.
-
-**What `rommapp/romm` master moved.** `romm-gamelist_exporter.py` was substantially rewritten
-and every behaviour this repo derives from it survived. It now parses and merges an existing
-gamelist through `defusedxml` rather than overwriting one, moved `ASSET_DIRS` into
-`config.PLATFORM_MEDIA_DIRS`, gained `HAS_FILE_ON_DISK_FILTERS`, `rel_platform_folder` and
-`join_rel_path`, and reads the company roles off `primary_developer` and `primary_publisher`.
-Both unit conversions hold: `first_release_date` is still divided by 1000, so milliseconds,
-and `average_rating` is still divided by 100, so a 0 to 100 scale. So do the `marquee` rule
-and all seventeen elements RomMBat writes. Only the company check changed, and it changed
-because upstream fixed what RomMBat asked them to. Earlier, and still true:
-`miximage_v2` has its own asset directory (`miximages_v2`, previously shared with `miximage`)
-and its own gamelist element name, and falls back to the gamelist provider's path as well as
-ScreenScraper's. Inert here, because nothing hand-written references `miximage`.
+- `es_systems.cfg` adds `.decomp` to `cps3`, `naomi` and `naomi2`.
+- `es_systems.cfg` adds `gearsystem` as a libretro core for one system.
+- `es_savestates.cfg` gains an `amiberry` emulator block: slots 1 to 9, `{{system}}/amiberry`,
+  files named `{{romfilename}}-{{slot0}}.uss`.

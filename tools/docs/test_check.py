@@ -74,5 +74,51 @@ class FactIdTest(unittest.TestCase):
         self.assertEqual(check.FACT_HEADING.match("## RB-9c. Title").group(1), "RB-9c")
 
 
+FLOOR = {"RetroBat": ("8.2.1", check.version_key("8.2.1", None)),
+         "RomM": ("5.3.1", check.version_key("5.3.1", None))}
+
+
+class StaleTest(unittest.TestCase):
+    def below(self, stamp: str) -> list[str]:
+        return check.stamps_below(stamp, FLOOR)
+
+    def test_stamp_below_the_floor(self) -> None:
+        self.assertEqual(self.below("Verified: RetroBat 8.2.0, 2026-08-16. How: x."), ["RetroBat 8.2.0"])
+
+    def test_bare_version_belongs_to_the_project_before_it(self) -> None:
+        self.assertEqual(self.below("Verified: RetroBat 8.2.0, 2026-08-16, and 8.2.1, 2026-09-28."), [])
+        self.assertEqual(self.below("Verified: RomM 5.1.1-beta.1, 2026-08-10, and 5.3.1 source, 2026-09-29."), [])
+
+    def test_each_project_is_held_to_its_own_floor(self) -> None:
+        self.assertEqual(
+            self.below("Verified: RomM 5.3.1, 2026-09-29, for the RomM half; RetroBat 8.2.0, 2026-08-11."),
+            ["RetroBat 8.2.0"],
+        )
+
+    def test_prerelease_of_the_floor_is_below_it(self) -> None:
+        self.assertEqual(self.below("Verified: RomM 5.3.1-beta.1, 2026-09-20."), ["RomM 5.3.1-beta.1"])
+        self.assertEqual(self.below("Verified: RomM 5.3.1.0, 2026-09-20."), [])
+
+    def test_how_and_dates_and_other_software_are_ignored(self) -> None:
+        self.assertEqual(
+            self.below("Verified: Windows 11 26200, .NET 10, 2026-08-09. How: on RomM 5.2.0."), []
+        )
+        self.assertEqual(self.below("Verified: RomM 5.3.1, 2026-09-29. How: also ran on 5.2.0."), [])
+
+    def test_fact_stamps_pairs_each_fact_with_its_own_stamp(self) -> None:
+        text = (
+            "# Title\n\n## RB-379. One\n\nVerified: RetroBat 8.2.1, 2026-09-28.\nBody.\n\n"
+            "## RB-380. Two\n\nMeasured: no stamp.\n\n## Not a fact\n\nVerified: RomM 5.2.0.\n"
+        )
+        self.assertEqual(
+            list(check.fact_stamps(text)),
+            [(3, "RB-379", "Verified: RetroBat 8.2.1, 2026-09-28."), (8, "RB-380", None)],
+        )
+
+    def test_floor_is_read_from_code(self) -> None:
+        floor = check.floors()
+        self.assertEqual(set(floor), {"RetroBat", "RomM"})
+
+
 if __name__ == "__main__":
     unittest.main()
