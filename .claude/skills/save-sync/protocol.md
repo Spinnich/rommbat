@@ -156,8 +156,9 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   the only caller of `overwrite=true` in the codebase; a 409 that survives it means the slot
   moved again between the report and the decision, so it is reported rather than forced.
   `--keep-local` prunes the copy aside, since the server keeps its side one row down.
-  `--keep-server` keeps it, and first takes a fresh copy when the save moved since the conflict
-  was found, because the local side never reached RomM and nowhere else holds it (#326).
+  `--keep-server` keeps it, and first takes a fresh copy when a file save moved since the
+  conflict was found, or always for a class C unit, whose restore copies it aside, because the
+  local side never reached RomM and nowhere else holds it (#326).
 
   **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance in
   M7 stage 7b-3: a keep-local on a psp class C unit created a new save row and left the previous

@@ -646,6 +646,10 @@ public sealed class SaveConflictResolver
             return string.Empty;
         }
 
+        // Forgotten before the delete, which can fail partway through a unit's members: a pointer
+        // left to what remains would be reused by the slot's next conflict in place of a copy.
+        _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);
+
         try
         {
             var path = _install.Resolve(copy);
@@ -661,8 +665,6 @@ public sealed class SaveConflictResolver
             {
                 Directory.Delete(path, recursive: true);
             }
-
-            _store.SaveConflicts.ForgetCopy(conflict.RomId, conflict.Slot);
 
             return existed ? $" The copy at {copy} was removed." : string.Empty;
         }

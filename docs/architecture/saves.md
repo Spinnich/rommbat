@@ -132,7 +132,8 @@ because it deletes the oldest rows first (RM-11). A
 download naming a save id lower than the one this device last recorded for the slot is therefore
 recorded as a conflict rather than taken, which is RM-4's case E. `--keep-local` prunes the
 copy, since the server keeps the other side. `--keep-server` keeps it, and takes a fresh one
-first when the save moved since the conflict was found: the local side never reached RomM, so
+first when a file save moved since the conflict was found, or always for a class C unit, whose
+restore copies it aside: the local side never reached RomM, so
 the copy under `replaced/` is the only place it survives. Nothing prunes that copy, as with a
 download's (#326).
 

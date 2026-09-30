@@ -249,7 +249,16 @@ public static class SaveUnitTransfer
             return null;
         }
 
-        var aside = asideDirectory.Combine($"{now:yyyyMMddTHHmmss}-{local.System}-{local.UnitKey}");
+        // Suffixed when the name is taken: a keep-server in the same second as the flush that
+        // found the conflict would otherwise write its members into the conflict's own copy.
+        var stamp = $"{now:yyyyMMddTHHmmss}";
+        var aside = asideDirectory.Combine($"{stamp}-{local.System}-{local.UnitKey}");
+
+        for (var n = 2; Directory.Exists(install.Resolve(aside)); n++)
+        {
+            aside = asideDirectory.Combine($"{stamp}-{n}-{local.System}-{local.UnitKey}");
+        }
+
         var asidePath = install.Resolve(aside);
 
         try

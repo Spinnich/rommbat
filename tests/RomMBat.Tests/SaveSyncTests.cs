@@ -2187,6 +2187,32 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public void A_second_unit_copy_in_the_same_second_does_not_write_into_the_first()
+    {
+        // A keep-server in the same second as the flush that found the conflict: the restore's
+        // copy took the conflict copy's name and overwrote its members (#333 R2.2).
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "as the conflict found it"));
+        fixture.Scan();
+
+        var local = fixture.Store.Saves.List().Single(save => save.ShapeClass == SaveShapeClass.C);
+        var units = new SaveUnitScanner(fixture.Install);
+        var now = new DateTimeOffset(2026, 9, 30, 12, 0, 0, TimeSpan.Zero);
+
+        var first = SaveUnitTransfer.CopyAside(fixture.Install, units, local, SaveSync.AsideDirectory, now)!.Value;
+        File.WriteAllText(fixture.Resolve("saves/mame/nvram/25pacman/eeprom"), "played on since");
+        var second = SaveUnitTransfer.CopyAside(fixture.Install, units, local, SaveSync.AsideDirectory, now)!.Value;
+
+        Assert.NotEqual(first, second);
+
+        string Member(RelativePath copy) => File.ReadAllText(Assert.Single(
+            Directory.GetFiles(fixture.Resolve(copy.Value), "eeprom", SearchOption.AllDirectories)));
+
+        Assert.Equal("as the conflict found it", Member(first));
+        Assert.Equal("played on since", Member(second));
+    }
+
+    [Fact]
     public async Task Keeping_the_local_side_of_a_directory_save_prunes_its_copy_aside()
     {
         // A unit's copy aside is a directory, and a prune that asked File.Exists left it behind
@@ -2211,6 +2237,41 @@ public class SaveSyncTests
         Assert.True(outcome.Resolved, outcome.Message);
         Assert.False(Directory.Exists(fixture.Resolve(copy.Value)));
         Assert.Contains(copy.Value, outcome.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_prune_that_fails_partway_still_lets_go_of_the_copy()
+    {
+        // A pointer kept to a half-deleted unit copy is reused by the next conflict on the slot,
+        // which then takes no copy of its own (#333 R2.3).
+        using var fixture = SyncFixture.Create();
+        fixture.AddUnit(8, "25pacman", ("eeprom", "one"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(8, "mame:nvram", "25pacman", "zip", "played there", emulator: "mame");
+        fixture.Stub.NegotiateActions[(8, "mame:nvram")] = "conflict";
+        Assert.Equal(1, (await fixture.SyncAsync(TestContext.Current.CancellationToken)).Conflicts);
+
+        var copy = fixture.Store.SaveConflicts.Read(8, "mame:nvram")!.LocalCopyPath!.Value;
+        var member = Assert.Single(Directory.GetFiles(fixture.Resolve(copy.Value), "*", SearchOption.AllDirectories));
+        File.SetAttributes(member, FileAttributes.ReadOnly);
+
+        try
+        {
+            var outcome = await fixture.ResolveAsync(
+                8,
+                "mame:nvram",
+                ConflictResolution.KeepLocal,
+                cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.True(outcome.Resolved, outcome.Message);
+            Assert.Contains("could not be removed", outcome.Message, StringComparison.Ordinal);
+            Assert.Null(fixture.Store.SaveConflicts.Read(8, "mame:nvram")!.LocalCopyPath);
+        }
+        finally
+        {
+            File.SetAttributes(member, FileAttributes.Normal);
+        }
     }
 
     [Fact]
