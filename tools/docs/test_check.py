@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 import check
 
@@ -49,6 +50,15 @@ class LinkTest(unittest.TestCase):
                 "platforms/index.md#nintendo-entertainment-system---famicom-nes"
             ],
         )
+
+    def test_attr_list_heading_id_counts_only_under_wiki(self) -> None:
+        # GitHub renders `{#gb}` as text, so outside the guide the slug is the anchor.
+        with mock.patch.object(check, "read_text", return_value="## Game Boy {#gb}\n"):
+            for rel, expected in (("wiki/x.md", {"gb"}), ("docs/x.md", {"game-boy-gb"})):
+                with self.subTest(rel=rel):
+                    check._anchor_cache.pop(rel, None)
+                    self.assertEqual(check.anchors_of(rel), expected)
+                    check._anchor_cache.pop(rel, None)
 
     def test_directory_link_resolves(self) -> None:
         self.assertEqual(link_errors("README.md", "[d](docs/)\n"), [])

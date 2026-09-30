@@ -9,8 +9,10 @@ different places. RetroBat runs the default row unless you pick another emulator
 the system in its settings.
 
 A certified row passed every check against a real RetroBat install: the game lands where the
-emulator reads it, its BIOS arrives, it launches with its artwork, and its saves, save states
-and playtime reach RomM and come back. A system that is not listed has not been tested yet.
+emulator reads it, it launches with its artwork, and its saves, save states and playtime reach
+RomM and come back. BIOS files come from your RomM library, so a game that needs one your
+library lacks may not start, even on a certified row. A system that is not listed has not
+been tested yet.
 
 | System                                          | Certified rows | Default row                            |
 | ----------------------------------------------- | -------------- | -------------------------------------- |

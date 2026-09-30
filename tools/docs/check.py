@@ -83,6 +83,7 @@ IMAGE_LINK = re.compile(r"!\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*
 REFERENCE_DEF = re.compile(r"^\s{0,3}\[(?!\^)[^\]]+\]:\s*<?(\S+?)>?(?:\s|$)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 # The guide's attr_list heading id, `## Game Boy {#gb}`, which replaces the slug in MkDocs.
+# Honoured under wiki/ only.
 HEADING_ID = re.compile(r"\{\s*#([\w-]+)[^}]*\}\s*$")
 HTML_ANCHOR = re.compile(r"<a\s+(?:[^>]*\s)?(?:id|name)=\"([^\"]+)\"", re.IGNORECASE)
 CODE_SPAN = re.compile(r"(`+)(.+?)\1")
@@ -199,7 +200,8 @@ def anchors_of(rel: str) -> set[str]:
         anchors.update(a.lower() for a in HTML_ANCHOR.findall(line))
         heading = HEADING.match(line)
         if heading:
-            explicit = HEADING_ID.search(heading.group(2))
+            # Only MkDocs honours the id; GitHub renders it as text and keeps the slug.
+            explicit = rel.startswith("wiki/") and HEADING_ID.search(heading.group(2))
             if explicit:
                 anchors.add(explicit.group(1).lower())
                 continue

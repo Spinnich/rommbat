@@ -75,8 +75,10 @@ public sealed class PlatformSupportPageTests
         page.Append("different places. RetroBat runs the default row unless you pick another emulator or core for\n");
         page.Append("the system in its settings.\n\n");
         page.Append("A certified row passed every check against a real RetroBat install: the game lands where the\n");
-        page.Append("emulator reads it, its BIOS arrives, it launches with its artwork, and its saves, save states\n");
-        page.Append("and playtime reach RomM and come back. A system that is not listed has not been tested yet.\n\n");
+        page.Append("emulator reads it, it launches with its artwork, and its saves, save states and playtime reach\n");
+        page.Append("RomM and come back. BIOS files come from your RomM library, so a game that needs one your\n");
+        page.Append("library lacks may not start, even on a certified row. A system that is not listed has not\n");
+        page.Append("been tested yet.\n\n");
 
         page.Append(Table(
             ["System", "Certified rows", "Default row"],
