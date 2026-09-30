@@ -18,6 +18,7 @@ dotnet test -c Release --no-build                       # full suite green, only
 trunk fmt && trunk check        # never commit with --no-verify
 python3 -m unittest discover -s tools/docs   # the docs checker's own tests
 python3 tools/docs/check.py     # links, anchors, fact citations; reports the budgets
+mkdocs build --strict           # the guide in wiki/: its links, anchors and nav
 cd reference && python3 verify.py
 python3 tools/build-platform-map.py --check     # bundled data is what its generator emits
 python3 tools/build-bios-manifest.py --check

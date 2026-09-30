@@ -1,0 +1,84 @@
+# The end-user guide. Its pages live in wiki/ and publish to GitHub Pages through
+# .github/workflows/guide.yml; docs/ is the developer layer and never builds here.
+site_name: RomMBat
+site_description: Sync a RomM library with a RetroBat install
+site_url: https://spinnich.github.io/rommbat/
+repo_url: https://github.com/Spinnich/rommbat
+repo_name: Spinnich/rommbat
+edit_uri: edit/main/wiki/
+copyright: RomMBat is licensed under GPL-3.0
+
+docs_dir: wiki
+strict: true
+
+# wiki/README.md is the note to contributors about the guide, not a page of it.
+exclude_docs: |
+  README.md
+
+# Drafted pages that still read as developer notes. `mkdocs serve` shows them with a
+# draft banner; `mkdocs build`, and so the published site, leaves them out until each
+# is rewritten in the guide's voice and moved into the nav.
+draft_docs: |
+  getting-started/pairing.md
+  saves/
+  using/
+
+nav:
+  - Home: index.md
+
+theme:
+  name: material
+  language: en
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.indexes
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+# Under strict, each of these warnings fails the build, so a broken link or anchor
+# inside the guide stops CI the way check.py stops one in docs/.
+validation:
+  nav:
+    omitted_files: warn
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn

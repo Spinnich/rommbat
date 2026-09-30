@@ -150,7 +150,8 @@ dotnet run --project src/RomMBat.UI -- --root D:\retrobat-test
 ```
 
 The desk keyboard map is in [src/RomMBat.UI/CLAUDE.md](src/RomMBat.UI/CLAUDE.md). What each
-command and screen does is drafted for the guide under [wiki/](wiki/README.md).
+command and screen does is drafted for the guide under [wiki/](wiki/README.md), which says how to
+preview it.
 
 ---
 
@@ -209,6 +210,7 @@ When you are done with a test run, delete the copied tree.
 pwsh -File tools/pre-pr.ps1     # every gate below, plus the Release build and the tests
 trunk fmt && trunk check
 python3 tools/docs/check.py
+mkdocs build --strict           # the guide, after pip install -r tools/docs/requirements.txt
 cd reference && python3 verify.py
 ```
 
