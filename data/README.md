@@ -21,12 +21,13 @@ Regenerate with `python tools/build-platform-map.py`, or check it is current wit
 `--check`. It is embedded into `RomMBat.Core` at build time, so a single-file publish
 carries it and nothing resolves a path to find it. **Edit the generator, not the JSON.**
 
-Three corrections are applied to the seed, all derived rather than typed: the seed is keyed
-folder to slug and this file is the inverse; 2 seed keys naming folders RetroBat renamed are
-renamed (`astrocde` to `astrocade`, `bbc` to `bbcmicro`) and 16 naming folders RetroBat has
-no equivalent for are dropped; and `arcade` is marked as needing an explicit per-sync-set
-choice rather than resolving. Every correction is listed in the file's own `_corrections`
-key, so the diff is reviewable.
+The generator walks RetroBat's system list and asks RomM's own resolver what each folder
+resolves to, so nothing in this file is a correction typed over an upstream table. Two
+things are added on top of the resolver: the result is inverted, since the resolver goes
+folder to slug and this file goes slug to folders, and `arcade` is marked in
+`_requires_explicit_choice` as needing a per-sync-set choice rather than resolving. The
+bindings upstream suggests for a RetroBat server are recorded in
+`_upstream_suggested_bindings` and not applied.
 
 Ordering inside a slug decides which folder wins when several are present, and it is derived
 so regenerating cannot silently reshuffle a user's targets: exact slug match first, then the
@@ -103,16 +104,19 @@ Platform resolution runs in layers, and the bundled table is only the third of f
 4. Normalized-match **suggestion**, offered for confirmation, never applied silently.
 5. Unmapped, which is a normal state and not an error.
 
-## Why the table is not just the upstream YAML inverted
+## Why the table is not just the upstream alias table inverted
 
-Measured against RetroBat's `systems_names.lst` and RomM's `UniversalPlatformSlug`:
-240 RetroBat systems, 457 RomM slugs, but only 167 explicit pairs in the YAML. 91
-RetroBat systems (37%) are unmapped, normalization rescues 16 of them, 18 YAML entries
-name folders RetroBat does not have (`astrocde` vs `astrocade`, `ps` vs `psx`, `segacd`
-vs `megacd`), and 13 RomM slugs fan out to several folders, `arcade` alone to ten.
+RomM's resolver tries identity, when the folder name is itself a slug, then the
+`PLATFORM_FS_ALIASES` table. Against RetroBat's 240 systems and RomM's 459 slugs, that
+leaves 74 RetroBat systems (31%) unmapped, and normalization rescues only one of them,
+`actionmax` against `action-max`. 44 of the alias table's 138 keys name folders RetroBat
+does not have (`atarijaguar`, `gc`, `megadrivejp` against `jaguar`, `gamecube`,
+`megadrive`), and 10 RomM slugs fan out to several folders, `arcade` to seven.
 
-`python3 ../reference/verify.py` re-derives all of those numbers. If one moves, revisit
-the docs that cite it rather than the expected value.
+The figures, and how each is counted, are in
+[reference/README.md](../reference/README.md#derived-facts), and
+`python3 ../reference/verify.py` re-derives them there. If one moves, revisit the docs that
+cite it rather than the expected value.
 
 ## Changing a mapping
 

@@ -27,12 +27,10 @@ Reproduce with `cd reference && ./refresh.sh`.
 
 ## Where the seed comes from, and why the walk goes RetroBat-first
 
-Until RomM 5.3.0 the seed was `examples/config.batocera-retrobat.yml`, 167 explicit
-`folder: slug` pairs. Upstream cut that file to four suggested overrides and moved the
-authority into `backend/utils/platform_aliases.py`. `resolve_platform_slug` there tries a
-config binding, then **identity** when the folder name is itself a `UniversalPlatformSlug`,
-then `PLATFORM_FS_ALIASES`. `nes: nes` left the YAML because it became implicit, not because
-it stopped being true, so reconstructing the map needs the alias table **and** the slug enum.
+The seed is upstream's resolver, `backend/utils/platform_aliases.py`, not a table of pairs.
+`resolve_platform_slug` there tries a config binding, then **identity** when the folder name
+is itself a `UniversalPlatformSlug`, then `PLATFORM_FS_ALIASES`. `nes` maps to `nes` without
+appearing in either table, so reconstructing the map needs the alias table **and** the slug enum.
 Both are vendored, as `reference/romm-platform_aliases.py` and
 `reference/romm-platform_slugs.py`.
 
@@ -40,8 +38,8 @@ Both are vendored, as `reference/romm-platform_aliases.py` and
 `PLATFORM_FS_ALIASES` is a Batocera / RetroBat / ES-DE union and 44 of its 138 keys name
 folders no RetroBat install has (`atarijaguar`, `atarilynx`, `gc`, `megadrivejp` against
 RetroBat's `jaguar`, `lynx`, `gamecube`, `megadrive`). Walking from RetroBat's side never sees
-them, which is core principle 3 applied rather than restated, and it is why the generator no
-longer carries a list of stale seed keys to correct.
+them, which is core principle 3 applied rather than restated, and it is why the generator
+carries no list of seed keys to correct.
 
 **The config-binding layer is recorded and not applied.** Upstream's example config suggests
 four bindings for a Batocera or RetroBat install (`atari800: atari8bit`, `model2: arcade`,
