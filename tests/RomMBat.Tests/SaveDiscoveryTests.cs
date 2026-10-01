@@ -557,9 +557,8 @@ public class SaveDiscoveryTests
     [Fact]
     public void A_pcsx2_folder_card_is_still_named_beside_the_slot_2_card()
     {
-        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and both cards share one row.
-        // Driven on R: for #335, that row carried only Mcd002.ps2's description and no file names,
-        // so the folder card was counted and never named.
+        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and both cards share one row,
+        // which has to name each card and carry each declaration.
         using var fixture = SaveTree.Create();
 
         fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");

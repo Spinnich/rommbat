@@ -818,13 +818,11 @@ public sealed class SaveScanner
     /// Reports the declared shared containers this install actually holds.
     /// </summary>
     /// <remarks>
-    /// <b>Seven of the ten declared containers were unreachable before this.</b>
-    /// <c>SharedContainerReason</c>'s only caller asked it with a bare loose filename, and seven
-    /// declarations name a path with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the four
-    /// Dreamcast VMUs, Kronos's backup RAM). A test asserted the lookup table answered for
-    /// <c>ps2/pcsx2/memcards/Mcd001.ps2</c> and passed, because it called the table rather than
-    /// the scanner: the shared PS2 memory cards were being counted as part of an unread
-    /// subdirectory instead of named as the shared cards they are.
+    /// <b>This is the only place a container declared below the loose level is found.</b>
+    /// The loose-file loop asks <c>SharedContainerReason</c> with a bare filename, so a
+    /// declaration with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the Dreamcast VMUs,
+    /// Kronos's backup RAM, PCSX2's folder card) would otherwise be counted as part of an unread
+    /// subdirectory instead of named as the shared card it is.
     /// <para>
     /// <b>Nothing here opens a file.</b> <c>xbox</c>'s <c>xbox_hdd.qcow2</c> is 39 MB of the
     /// 43 MB the whole loose-file workload reads, and it is a declared container, so the one
