@@ -22,7 +22,7 @@ been tested yet.
 | [Game Boy](#gb)                                 | 14 of 14       | libretro / gambatte, certified         |
 | [Game Boy Color](#gbc)                          | 12 of 12       | libretro / gambatte, certified         |
 | [Super Nintendo Entertainment System](#snes)    | 15 of 15       | libretro / snes9x, certified           |
-| [Master System - Mark III](#mastersystem)       | 7 of 10        | libretro / genesis_plus_gx, certified  |
+| [Master System - Mark III](#mastersystem)       | 9 of 10        | libretro / genesis_plus_gx, certified  |
 | [PlayStation](#psx)                             | 7 of 7         | libretro / mednafen_psx_hw, certified  |
 | [Nintendo 64](#n64)                             | 9 of 9         | libretro / mupen64plus_next, certified |
 
@@ -151,8 +151,8 @@ RetroBat's `mastersystem` system. Tested on RomM 5.3.1 and RetroBat 8.2.1. The [
 | mednafen    | mastersystem    | Certified           |                                                                                         |
 | mesen       |                 | Certified           |                                                                                         |
 | ares        | MasterSystem    | Certified           |                                                                                         |
-| kega-fusion | auto            | Not certified       | Writes its battery saves outside saves/, where RomMBat does not look                    |
-| kega-fusion | mastersystem    | Not certified       | Writes its battery saves outside saves/, where RomMBat does not look                    |
+| kega-fusion | auto            | Certified           |                                                                                         |
+| kega-fusion | mastersystem    | Certified           |                                                                                         |
 | bizhawk     | SMSHawk         | Certified           |                                                                                         |
 | jgenesis    |                 | Certified           |                                                                                         |
 
