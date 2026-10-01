@@ -628,6 +628,10 @@ public sealed class SaveShapes
     /// The system a save path belongs to: the folder after <c>saves/</c>, or the one system of a
     /// rule whose directory is outside <c>saves/</c> and holds the path. Null for anything else.
     /// </summary>
+    /// <remarks>
+    /// The rule must also claim the file, because Kega Fusion's folder holds the emulator and
+    /// every system's <c>.srm</c> beside the one <c>.ssm</c> its rule reads (#381).
+    /// </remarks>
     public string? SystemOf(Paths.RelativePath path)
     {
         var segments = path.Value.Split('/');
@@ -639,7 +643,8 @@ public sealed class SaveShapes
 
         return _batteryRules
             .FirstOrDefault(rule => rule.FromRoot
-                && path.Value.StartsWith(rule.Directory + "/", StringComparison.OrdinalIgnoreCase))
+                && path.Value.StartsWith(rule.Directory + "/", StringComparison.OrdinalIgnoreCase)
+                && rule.Claims(segments[^1]))
             ?.Systems!.Single();
     }
 

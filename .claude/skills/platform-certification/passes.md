@@ -123,8 +123,9 @@ emulator: `jgenesis` and `ares` name their save directory after their own name f
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
 report (RB-283, emulatorlauncher#1390). Whether RomMBat reads such a folder meanwhile is the
-maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239),
-Kega Fusion's is not. Every issue raised
+maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239), and
+Kega Fusion's only for `mastersystem`'s `.ssm`, the one file type upstream's fix leaves there (#381).
+Every issue raised
 upstream is tracked in `docs/upstream/issues.md` until RomMBat adopts the release that fixes it.
 And a core can refuse the library for its names: FBNeo takes a console game's driver from the file
 name, so it boots nothing named by No-Intro (RB-278). **An emulator absent from `emulators/`**

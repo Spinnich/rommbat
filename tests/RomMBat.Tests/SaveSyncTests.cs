@@ -1067,6 +1067,44 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_kega_fusion_ssm_downloads_into_its_own_folder_outside_saves()
+    {
+        // RetroBat 8.2.1's Fusion.ini sends SxMFiles to emulators/kega-fusion/, and Kega reads
+        // the .ssm only from there (#381).
+        const string Game = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+        const string Target = $"emulators/kega-fusion/{Game}.ssm";
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(239603, "mastersystem", Game, ".zip", ".srm", "not this one");
+        File.Delete(fixture.Resolve($"saves/mastersystem/{Game}.srm"));
+        fixture.Scan();
+
+        fixture.SeedServerSave(239603, "kega-fusion:battery", Game, "ssm", "from the other device", emulator: "kega-fusion");
+        fixture.Stub.UnsolicitedDownloads.Add((239603, "kega-fusion:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve(Target)));
+
+        // Recorded under mastersystem, though the path names no system folder.
+        var restored = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("mastersystem", restored.System);
+        Assert.Equal(Target, restored.Path.Value);
+
+        // The next scan reads it back as the same slot for the same ROM.
+        fixture.Scan();
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal("kega-fusion:battery", save.Slot);
+        Assert.Equal(239603, save.RomId);
+
+        fixture.Stub.UnsolicitedDownloads.Clear();
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, again.Uploaded);
+        Assert.Equal(0, again.Downloaded);
+    }
+
+    [Fact]
     public async Task A_project64_save_downloads_into_the_per_game_directory_this_device_learned()
     {
         // Project64 reads project64/<header>-<md5>/<header>.sra, so the title is a directory and

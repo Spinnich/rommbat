@@ -400,6 +400,61 @@ public class DisplayNameSaveTests
     }
 
     [Fact]
+    public void The_bundled_kega_fusion_rule_reads_only_the_ssm_in_its_own_folder()
+    {
+        // RetroBat 8.2.1's Fusion.ini sends SxMFiles to emulators/kega-fusion/, and nothing
+        // rewrites it per launch (#381). The folder also holds the emulator and every system's
+        // .srm, which this rule must never place.
+        const string Folder = "emulators/kega-fusion";
+        const string Game = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+        var shapes = SaveShapes.Bundled;
+
+        var kega = shapes.BatteryRuleForSlot("mastersystem", "kega-fusion:battery")!;
+        Assert.True(kega.FromRoot);
+        Assert.Equal(Folder, kega.DirectoryFor("mastersystem"));
+        Assert.Equal("kega-fusion:battery", kega.SlotOf($"{Game}.ssm", SaveShapeClass.A));
+        Assert.Same(kega, shapes.BatteryRuleAt("mastersystem", RelativePath.Create($"{Folder}/{Game}.ssm")));
+        Assert.Equal("mastersystem", shapes.SystemOf(RelativePath.Create($"{Folder}/{Game}.ssm")));
+        Assert.Contains("mastersystem", shapes.SystemsReadFromRoot());
+
+        Assert.Null(shapes.SystemOf(RelativePath.Create($"{Folder}/Fusion.ini")));
+        Assert.Null(shapes.SystemOf(RelativePath.Create($"{Folder}/Sonic The Hedgehog (USA, Europe).srm")));
+        Assert.Null(shapes.BatteryRuleForSlot("megadrive", "kega-fusion:battery"));
+    }
+
+    [Fact]
+    public void A_kega_fusion_ssm_is_recorded_and_nothing_else_in_its_folder_is()
+    {
+        // The folder as R: holds it on 8.2.1, the emulator beside one save of each system.
+        const string Dir = "emulators/kega-fusion";
+        const string Game = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+        const string Sonic = "Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination)";
+        using var fixture = new TitleFixture();
+        fixture.AddRom(239603, $"{Game}.zip", "mastersystem");
+        fixture.AddRom(240001, $"{Sonic}.zip", "megadrive");
+        fixture.Write($"{Dir}/{Game}.ssm", "sram");
+        fixture.Write($"{Dir}/{Sonic}.srm", "not read until RetroBat moves it");
+        fixture.Write($"{Dir}/Fusion.exe", "the emulator");
+        fixture.Write($"{Dir}/Fusion.ini", "its config");
+        fixture.Write($"{Dir}/History.txt", "changelog");
+        fixture.Write($"{Dir}/Readme.txt", "readme");
+        fixture.Write($"{Dir}/Plugins/{Game}.ssm", "not the folder RetroBat names");
+
+        fixture.Scan();
+
+        var save = Assert.Single(fixture.Store.Saves.List());
+        Assert.Equal($"{Dir}/{Game}.ssm", save.Path.Value);
+        Assert.Equal("mastersystem", save.System);
+        Assert.Equal("kega-fusion", save.Emulator);
+        Assert.Equal("kega-fusion:battery", save.Slot);
+        Assert.Equal(239603, save.RomId);
+
+        // Seen again, so a second pass keeps the row rather than forgetting it.
+        fixture.Scan();
+        Assert.Single(fixture.Store.Saves.List());
+    }
+
+    [Fact]
     public void The_bundled_psx_rule_gives_each_of_duckstations_cards_its_own_slot()
     {
         // Symphony of the Night under DuckStation on 8.2.1, PerGameTitle for both ports.

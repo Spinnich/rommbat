@@ -274,6 +274,16 @@
       "evidence": "n64 under gopher64, on 8.2.1: gopher64 keeps its battery saves only in its own portable folder, emulators/gopher64/portable_data/data/saves/, and RetroBat neither points them into saves/n64/ nor mirrors them there, so the directory is relative to the RetroBat root. Legend of Zelda, The - Ocarina of Time (USA).zip wrote THE LEGEND OF ZELDA-C916AB31....sra, 32,768 B of big-endian SRAM; Mario Kart 64 (USA).zip wrote MARIOKART64-D6B8538D....eep, 2,048 B, and .mpk, 131,072 B, all four Controller Paks, on by default. The stem is the ROM header's name, a dash and the upper-case sha256 of the .z64 inside the zip (#239)"
     },
     {
+      "emulator": "kega-fusion",
+      "systems": ["mastersystem"],
+      "directory": "emulators/kega-fusion",
+      "from_root": true,
+      "extensions": [".ssm"],
+      "named_after": "rom file",
+      "class": "A",
+      "evidence": "mastersystem under kega-fusion, -auto and -sms alike, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote emulators/kega-fusion/<rom>.ssm, 8,191 B, Genesis Plus GX's trimmed .srm, which Kega read when seeded with one and rewrote on exit. RetroBat's template Fusion.ini sets SxMFiles to that folder and emulatorLauncher never rewrites it, so the directory is relative to the RetroBat root. The folder also holds Fusion.exe, Fusion.ini and every system's .srm, so the rule reads the .ssm only (#381)"
+    },
+    {
       "emulator": "duckstation",
       "systems": ["psx"],
       "directory": "duckstation/memcards",

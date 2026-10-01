@@ -24,7 +24,7 @@ carry, step 6 being N/A.
 | 9   | **Pass**                                                                                                |
 
 **Kega's Master System save is `emulators/kega-fusion/<rom>.ssm`**, 8,191 B, beside the `megadrive`
-`.srm` from that pass: `Fusion.ini`'s one `SRMFiles` key serves every system. Seeded with the
+`.srm` from that pass: `Fusion.ini` sends both there, the `.ssm` under `SxMFiles`. Seeded with the
 `libretro` `.srm`, Kega rewrote it on exit on both rows. Its states go where `SMSStateFiles` sends
 them, `saves/mastersystem/kega-fusion/<rom>.ss<slot>`, `.ss` where `megadrive` is `.gs`, 32,958 B,
 `F5` saving and `F7` stepping the slot down from 0 to 9:
