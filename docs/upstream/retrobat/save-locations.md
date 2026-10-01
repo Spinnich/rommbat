@@ -69,7 +69,8 @@ Verified: RetroBat 8.2.0, 2026-08-16 and 2026-08-24. How: read `es_settings.cfg`
 None of `pcsx2_slot1_memory`, `duckstation_memcardtype`, `dolphin_slotA`, `flycast_vmupergame`
 or `dolphin_sync_saves` appears, and no per-game `[&quot;` key of any kind does. `ps2.emulator`
 is `pcsx2`. So the stock shape of each system is the one to build for, and a conversion is
-something RomMBat detects and offers (RB-364).
+something RomMBat detects and offers (RB-364). A user can still pick one from the ES menu,
+system-wide, and what PCSX2's FOLDER then writes is RB-406.
 
 ## RB-364. The class D conversion options and their choices
 

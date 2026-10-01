@@ -469,7 +469,7 @@ public sealed class SaveConverter
     {
         var shared = _shapes.SharedContainersFor(rom.Folder)
             .Select(entry => entry.Key)
-            .Where(container => File.Exists(Path.Combine(_install.Resolve($"saves/{rom.Folder}"), container.Replace('/', Path.DirectorySeparatorChar))))
+            .Where(container => Path.Exists(Path.Combine(_install.Resolve($"saves/{rom.Folder}"), container.Replace('/', Path.DirectorySeparatorChar))))
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

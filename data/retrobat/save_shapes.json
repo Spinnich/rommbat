@@ -145,7 +145,7 @@
         "extension": ".ps2",
         "emulator": "pcsx2",
         "slot": "battery",
-        "note": "driven end to end on a real install: the card is '<rom stem>.ps2', so the extension is replaced and not appended, and it lands three levels deep under saves/ps2/pcsx2/memcards/ rather than loose. The stem is exactly the (folder, stem) key class A attribution already uses, so it needs no new route. The shared Mcd001.ps2 stops being written entirely, and console slot 2 stays shared. The third declared choice, 'folder', is NOT measured: whether it is per-game or a different container format for a still-shared card is unknown."
+        "note": "driven end to end on a real install: the card is '<rom stem>.ps2', so the extension is replaced and not appended, and it lands three levels deep under saves/ps2/pcsx2/memcards/ rather than loose. The stem is exactly the (folder, stem) key class A attribution already uses, so it needs no new route. The shared Mcd001.ps2 stops being written entirely, and console slot 2 stays shared. The third declared choice, 'folder', is still shared: one directory, Mcdf01.ps2, with a directory per save keyed by the PS2 serial, declared as a shared container (RB-406)."
       }
     },
     "ps3": {

@@ -58,6 +58,11 @@ SHARED_CONTAINERS = {
     "ps2": {
         "pcsx2/memcards/Mcd001.ps2": "the default shared memory card (probe 2)",
         "pcsx2/memcards/Mcd002.ps2": "the default shared memory card (probe 2)",
+        "pcsx2/memcards/Mcdf01.ps2": (
+            "PCSX2's folder memory card, one directory every PS2 game writes to when SLOT 1 "
+            "MEMORY CARD (pcsx2_slot1_memory) is FOLDER, with a directory per save keyed by "
+            "the PS2 serial rather than the ROM (RB-406)"
+        ),
     },
     # Dolphin region-substitutes the card name, and dolphin_gcregion offers exactly these three.
     "gamecube": {

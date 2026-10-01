@@ -818,13 +818,11 @@ public sealed class SaveScanner
     /// Reports the declared shared containers this install actually holds.
     /// </summary>
     /// <remarks>
-    /// <b>Seven of the ten declared containers were unreachable before this.</b>
-    /// <c>SharedContainerReason</c>'s only caller asked it with a bare loose filename, and seven
-    /// declarations name a path with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the four
-    /// Dreamcast VMUs, Kronos's backup RAM). A test asserted the lookup table answered for
-    /// <c>ps2/pcsx2/memcards/Mcd001.ps2</c> and passed, because it called the table rather than
-    /// the scanner: the shared PS2 memory cards were being counted as part of an unread
-    /// subdirectory instead of named as the shared cards they are.
+    /// <b>This is the only place a container declared below the loose level is found.</b>
+    /// The loose-file loop asks <c>SharedContainerReason</c> with a bare filename, so a
+    /// declaration with a separator (<c>pcsx2/memcards/Mcd001.ps2</c>, the Dreamcast VMUs,
+    /// Kronos's backup RAM, PCSX2's folder card) would otherwise be counted as part of an unread
+    /// subdirectory instead of named as the shared card it is.
     /// <para>
     /// <b>Nothing here opens a file.</b> <c>xbox</c>'s <c>xbox_hdd.qcow2</c> is 39 MB of the
     /// 43 MB the whole loose-file workload reads, and it is a declared container, so the one
@@ -857,7 +855,7 @@ public sealed class SaveScanner
 
             if (File.Exists(path))
             {
-                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1);
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1, Named(path));
                 reported.Add(path);
                 continue;
             }
@@ -867,12 +865,12 @@ public sealed class SaveScanner
                 continue;
             }
 
-            // A container declared as a directory has not appeared yet, and treating one as
-            // absent would report its contents as an unread subdirectory instead. Names only.
+            // A container that is a directory, PCSX2's folder card Mcdf01.ps2 (RB-406). Treating
+            // it as absent would report its contents as an unread subdirectory instead. Names only.
             var members = SafeEnumerateFiles(path);
             if (members.Count > 0)
             {
-                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count);
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count, Named(path));
                 reported.UnionWith(members);
             }
         }
@@ -1249,11 +1247,16 @@ public sealed class SaveScanner
             var key = (system, emulator, reason);
 
             // The first detail is kept, because it names the case rather than the last file
-            // that happened to hit it.
+            // that happened to hit it. A shared container's detail is its declaration, and two
+            // declarations can share a row, as PCSX2's folder card and slot 2 card do (RB-406).
             if (!_entries.TryGetValue(key, out var finding))
             {
                 finding = new Finding(detail);
                 _entries[key] = finding;
+            }
+            else if (reason == UnsyncableReason.SharedContainer)
+            {
+                finding.AddDetail(detail);
             }
 
             finding.Count += count;
@@ -1276,21 +1279,33 @@ public sealed class SaveScanner
 
         private sealed class Finding(string detail)
         {
+            private readonly List<string> _details = [detail];
+
             public int Count { get; set; }
 
             public List<string> Files { get; } = [];
 
+            public void AddDetail(string another)
+            {
+                if (!_details.Contains(another, StringComparer.Ordinal))
+                {
+                    _details.Add(another);
+                }
+            }
+
             public string Describe()
             {
+                var described = string.Join("; ", _details);
+
                 if (Files.Count == 0)
                 {
-                    return detail;
+                    return described;
                 }
 
                 var named = string.Join(", ", Files.Take(NamedFiles));
                 var more = Files.Count > NamedFiles ? $", and {Files.Count - NamedFiles} more" : string.Empty;
 
-                return $"{detail}. Files: {named}{more}";
+                return $"{described}. Files: {named}{more}";
             }
         }
     }

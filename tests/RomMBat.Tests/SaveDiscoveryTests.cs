@@ -526,6 +526,58 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_pcsx2_folder_card_is_named_as_shared_rather_than_counted_as_an_unread_subdirectory()
+    {
+        // RB-406. pcsx2_slot1_memory=folder makes slot 1 one directory, Mcdf01.ps2, holding a
+        // directory per save keyed by the PS2 serial, so every game still writes into it.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddRom(191723, "ps2", "Armored Core 3 (USA).chd");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/_pcsx2_index", "its index");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20973/BASLUS-20973", "another game");
+
+        var outcome = fixture.Scan();
+
+        Assert.Equal(0, outcome.Found);
+        Assert.Empty(fixture.Store.Saves.List());
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(4, shared.FileCount);
+        Assert.Contains("folder", shared.Detail, StringComparison.Ordinal);
+
+        Assert.DoesNotContain(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.NotInThisVersion);
+    }
+
+    [Fact]
+    public void A_pcsx2_folder_card_is_still_named_beside_the_slot_2_card()
+    {
+        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and both cards share one row,
+        // which has to name each card and carry each declaration.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
+
+        fixture.Scan();
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(3, shared.FileCount);
+        Assert.Contains("the default shared memory card", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("RB-406", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/ps2/pcsx2/memcards/Mcd002.ps2", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/ps2/pcsx2/memcards/Mcdf01.ps2", shared.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_directory_no_shape_covers_is_reported_rather_than_read()
     {
         // Nine top-level directories on a real install are not declared systems. An unknown
