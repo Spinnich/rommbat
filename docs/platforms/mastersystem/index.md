@@ -7,32 +7,35 @@ read-when: Before certifying a `mastersystem` row, or when asked whether a `mast
 
 Sega Master System / Mark III. RetroBat calls the folder `mastersystem`, which is what this folder is named after.
 
-**Seven of the ten rows `mastersystem` declares are certified**, at RomM `5.3.0` and RetroBat 8.2.1
-on 2026-09-24, all nine steps with step 6 N/A because `mastersystem` has no class D:
+**Nine of the ten rows `mastersystem` declares are certified**, at RetroBat 8.2.1, all nine steps
+with step 6 N/A because `mastersystem` has no class D. Seven were driven at RomM `5.3.0` on
+2026-09-24:
 
 - `libretro`/`genesis_plus_gx`, **the row a stock install gives a user**, selected with no override
 - `libretro`/`picodrive`
 - `mesen`, `mednafen`/`mastersystem`, `ares`/`MasterSystem`, `bizhawk`/`SMSHawk` and `jgenesis`
 
-**Three are driven and not certified**, as on `megadrive` and for the same reasons:
+The two `kega-fusion` rows, `auto` and `mastersystem`, are certified at RomM `5.3.1` on
+2026-10-01, steps 4 and 9 driven then and the rest carried from 2026-09-24. Kega writes its
+battery save as `<rom>.ssm` into `emulators/kega-fusion/`, outside `saves/`, where RetroBat's
+template `Fusion.ini` sends it (RB-283), and **a battery rule anchored at the RetroBat root reads
+it there (#381).**
 
-- `libretro`/`fbneo` **never boots this library.** FBNeo takes a Master System game's set from the
-  file name, and every ROM here carries its No-Intro name (RB-325).
-- `kega-fusion`/`auto` and `kega-fusion`/`mastersystem` **fail step 4**: Kega Fusion writes its
-  battery save as `<rom>.ssm` into `emulators/kega-fusion/`, outside `saves/`, because RetroBat's
-  template `Fusion.ini` sends it there (RB-283). Their states sync.
+**One is driven and not certified**, as on `megadrive` and for the same reason: `libretro`/`fbneo`
+**never boots this library.** FBNeo takes a Master System game's set from the file name, and every
+ROM here carries its No-Intro name (RB-325).
 
-**It certifies those seven rows and nothing wider.** The two `libretro` rows needed nothing. The five
-standalone rows each needed a battery rule for `mastersystem`, and `mesen`, `mednafen` and `ares` a
-state declaration as well; `kega-fusion` got one too, so its states sync while its battery save
-cannot. **`bizhawk`/`SMSHawk` is certified with the US/EU BIOS in `bios\`**, which it refuses to
+**It certifies those nine rows and nothing wider.** The two `libretro` rows needed nothing. The six
+standalone rows each needed a battery rule for `mastersystem`, `kega-fusion`'s read from the
+RetroBat root, and `mesen`, `mednafen`, `ares` and `kega-fusion` a state declaration as well. **`bizhawk`/`SMSHawk` is certified with the US/EU BIOS in `bios\`**, which it refuses to
 start without and which RomMBat cannot fetch (below).
 
 ## Where each row stands
 
 **Every certified row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 9 were
 re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The other steps carry from
-the drive at `5.3.0`, since nothing they exercise changed between the two. Nothing is owed.
+the drive at `5.3.0`, since nothing they exercise changed between the two. The two `kega-fusion`
+rows re-drove steps 4 and 9 at `5.3.1` on 2026-10-01, in #382. Nothing is owed.
 
 | File                             | What it holds                                                                                                                                                                           |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

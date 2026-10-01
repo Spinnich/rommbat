@@ -627,8 +627,7 @@
       "system": "mastersystem",
       "emulator": "kega-fusion",
       "core": "auto",
-      "status": "not-certified",
-      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "status": "certified",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },
@@ -636,8 +635,7 @@
       "system": "mastersystem",
       "emulator": "kega-fusion",
       "core": "mastersystem",
-      "status": "not-certified",
-      "note": "Writes its battery saves outside saves/, where RomMBat does not look",
+      "status": "certified",
       "romm": "5.3.1",
       "retrobat": "8.2.1"
     },

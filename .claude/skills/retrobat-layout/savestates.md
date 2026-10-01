@@ -78,13 +78,15 @@ emulator, `SaveStateSchema.For(emulator, system)` picks between them, and an ins
 the emulator itself drops every supplement entry for it (RB-281).
 
 **Kega Fusion writes its battery saves outside `saves/`.** RetroBat's template `Fusion.ini` sets
-`SRMFiles` to `emulators\kega-fusion` and `StateFiles` to `saves\megadrive\kega-fusion`, and
-`emulatorLauncher` rewrites neither per launch, so its `.srm` never reaches a tree RomMBat reads.
-Treat it as RetroBat's to fix and never write the key (rule 2). RB-283. RomMBat does not read
-that folder: a battery rule can read one outside `saves/` with `from_root`, but each costs a
-migration admitting the folder to `local_save`, and the maintainer took that on for gopher64 only
-(#239). RetroBat ships no Kega Fusion either: the folder holds only that template until ES
-downloads the emulator on a first launch.
+`SRMFiles`, `SxMFiles` and `BRMFiles` to `emulators\kega-fusion` and `StateFiles` to
+`saves\megadrive\kega-fusion`, and `emulatorLauncher` rewrites none of them per launch. Treat it as
+RetroBat's to fix and never write the key (rule 2). RB-283. RomMBat reads one file type there:
+`mastersystem`'s `.ssm`, through a `from_root` rule that claims that extension only, because the
+same folder holds `Fusion.exe`, `Fusion.ini` and every system's `.srm` (#381). The `.srm` is not
+read: `emulatorLauncher` `8172cda4`, in `beta_8.3.0`, points `SRMFiles` into `saves/<system>/`, and
+until the floor reaches it a `megadrive` and a `sega32x` `.srm` of one stem would be one file.
+RetroBat ships no Kega Fusion either: the folder holds only that template until ES downloads the
+emulator on a first launch.
 
 A row still undeclared on another system is not silent, though, and the difference matters to
 whoever fixes it. `SaveScanner.CountFiles` excludes only the directories `StateScanner.LoadSchema`

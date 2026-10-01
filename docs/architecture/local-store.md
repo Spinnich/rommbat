@@ -17,7 +17,7 @@ path that did not: it closed the connection while a background reader was still 
 
 SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
 table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Eighteen migrations
+so each milestone has somewhere honest to write from the moment it starts. Nineteen migrations
 have been added since, whose headers state what shape could not carry the work. 013 is the
 first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
 nothing read either back and computing them was most of the cost of verifying a download. 014
@@ -36,7 +36,9 @@ of one file or several. 018 lets one ROM own several files, for `psx` disc sets:
 gains the kind `'rom_part'` for a set's discs, its playlist staying `'rom'`, and
 `content_download` is keyed on `(rom_id, file_id)` so each disc resumes on its own. 019 admits one
 folder outside `saves/` to `local_save.relative_path`, `emulators/gopher64/portable_data/data/saves/`,
-where gopher64 keeps its `n64` battery saves and RetroBat does not mirror them. The schema lives
+where gopher64 keeps its `n64` battery saves and RetroBat does not mirror them. 020 admits a
+`.ssm` directly in `emulators/kega-fusion/`, where RetroBat's `Fusion.ini` sends Kega Fusion's
+`mastersystem` save, and nothing else there, since the same folder holds the emulator. The schema lives
 in [`src/RomMBat.Core/Store/Migrations/`](../../src/RomMBat.Core/Store/Migrations/).
 
 | Table              | Holds                                                                                                                              |

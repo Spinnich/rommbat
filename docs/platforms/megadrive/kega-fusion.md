@@ -18,23 +18,24 @@ carry.
 which downloads it on the first launch of a game under it. **The three cores are Kega's command
 line flags** for the console's region handling, and all three write to the same places.
 
-| #   | All three rows                                                                                             |
-| --- | ---------------------------------------------------------------------------------------------------------- |
-| 1-3 | **Pass**, carried                                                                                          |
-| 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, which RomMBat does not scan |
-| 5   | **Pass**, two slots round-tripped at their own md5                                                         |
-| 6   | **N/A**                                                                                                    |
-| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, RB-284                    |
-| 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                         |
-| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                      |
+| #   | All three rows                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------ |
+| 1-3 | **Pass**, carried                                                                                            |
+| 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, where RomMBat reads no `.srm` |
+| 5   | **Pass**, two slots round-tripped at their own md5                                                           |
+| 6   | **N/A**                                                                                                      |
+| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, RB-284                      |
+| 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                           |
+| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                        |
 
 ## 4. Where Kega Fusion puts a battery save
 
 **`emulators/kega-fusion/<rom>.srm`.** The install launch wrote `Sonic & Knuckles + Sonic The
 Hedgehog 3 (USA) (Lock-on Combination).srm` there, 980 B. RetroBat's `Fusion.ini` template sets
 `SRMFiles=.\..\..\emulators\kega-fusion` while `StateFiles=.\..\..\saves\megadrive\kega-fusion`,
-and `emulatorLauncher` rewrote neither on any of five launches. RomMBat does not read that folder:
-outside `saves/` it reads only gopher64's (#239), and core principle 2 rules out writing the key itself. **Recorded as a RetroBat
+and `emulatorLauncher` rewrote neither on any of five launches. RomMBat does not read the `.srm`
+there: its one rule in that folder claims `mastersystem`'s `.ssm` only (#381), and core principle 2
+rules out writing the key itself. **Recorded as a RetroBat
 defect, reported upstream as
 [emulatorlauncher#1390](https://github.com/RetroBat-Official/emulatorlauncher/issues/1390), by the
 maintainer's ruling**, rather than widened around.

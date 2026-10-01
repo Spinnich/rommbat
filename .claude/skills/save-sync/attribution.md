@@ -96,8 +96,8 @@ trimming it to the last used byte and PicoDrive keeping 32 KB. Mesen writes its 
 `.sav` is beside the ROM**, since it opens the plain name and expects 32 KB (RB-324). A restore
 that brings Mesen's save back therefore stops mednafen for that game, which is the emulators and not
 something to route around. BizHawk names its `.SaveRAM` after its own title, `Golden Axe Warrior
-(UE)`, bound through the state sidecar. Kega Fusion's `.ssm` stays outside `saves/` (RB-283,
-323). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
+(UE)`, bound through the state sidecar. Kega Fusion's `.ssm` is read where `Fusion.ini` leaves
+it, in `emulators/kega-fusion/` (RB-283, 323, #381). A game can commit its save once and afterwards rewrite only a working copy, as Golden Axe
 Warrior does (RB-326), so on such a game a changed file is not new progress.
 
 **On `psx` a `libretro` core writes a formatted, empty memory card on exit whether or not the game
@@ -163,10 +163,13 @@ the slot stays one, and a device changing core loses the other's save locally. *
 named through a battery binding too**: simple64's `state/<title>.st<n>` and Project64's
 `project64/sstates/<directory>/<its database's name>.pj.zip` are declared with `titled_by` in the
 supplement, and a restore names them with the learned title, or for Project64 keeps the name the
-state was sent under. gopher64 keeps its battery saves outside `saves/`, so its rule sets `from_root`: the directory is
-relative to the RetroBat root, the rule must name exactly one system, and `SaveShapes.SystemOf`
-gives a path there that system. Migration 019 widens `local_save`'s CHECK to that one folder,
-so a new such rule needs its own migration (#239).
+state was sent under. gopher64 and Kega Fusion keep battery saves outside `saves/`, so their rules
+set `from_root`: the directory is relative to the RetroBat root, the rule must name exactly one
+system, and `SaveShapes.SystemOf` gives a path there that system when the rule also claims the
+file's name. That last condition is Kega's: its folder holds `Fusion.exe`, `Fusion.ini` and every
+system's `.srm` beside the `mastersystem` `.ssm` its rule reads. Migrations 019 and 020 widen
+`local_save`'s CHECK to gopher64's folder and to a `.ssm` directly in Kega's, so a new such rule
+needs its own migration (#239, #381).
 
 **The grain is per emulator, decided** by the maintainer on 2026-09-21: libretro's cores share one
 battery save, and no save migrates between emulators, even where the bytes happen to load. Do not

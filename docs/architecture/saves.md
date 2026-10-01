@@ -26,8 +26,10 @@ took 426 s where the scoped subtree took 0.06 s.
 
 **Whose a class A or B file is comes from a rule per `(system, emulator)`**, in
 `data/retrobat/save_rules.json`: a directory under `saves/<system>/`, its extensions, and what
-the stem joins on. gopher64's `n64` rule is the one whose directory is relative to the RetroBat
-root instead (`from_root`), since RetroBat leaves those saves in the emulator's own folder. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
+the stem joins on. gopher64's `n64` rule and Kega Fusion's `mastersystem` rule are the two whose
+directory is relative to the RetroBat root instead (`from_root`), since RetroBat leaves those saves
+in the emulator's own folder. A path there belongs to a system only when that rule also claims its
+name, because Kega's folder holds the emulator and every system's `.srm` beside the `.ssm`. The emulator becomes the slot, so `SaveShapes` refuses at load a table where
 two rules could claim one file, or one emulator has two rules on a system unless class B gives
 each extension its own slot and no extension is in both. That is what keeps
 mesen's loose `Crystalis (USA).sav` from landing in libretro's `libretro:battery` beside

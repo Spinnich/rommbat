@@ -69,9 +69,11 @@ agent drives ares's states from its own session and checks the files, rather tha
 pressed blind. **The server may already hold the test game's save**, from another client: the first
 flush then records a conflict rather than overwrite, and which side wins is the maintainer's call.
 
-**`mastersystem` is seventh, and closes wave 1: seven of its ten rows certified at `5.3.0` on
-2026-09-24**, in one day, on Golden Axe Warrior, with `docs/platforms/mastersystem/` the record.
-FBNeo and both Kega Fusion rows are recorded as not certifiable for `megadrive`'s reasons. **Pick a
+**`mastersystem` is seventh, and closes wave 1: nine of its ten rows certified**, seven at `5.3.0`
+on 2026-09-24, in one day, on Golden Axe Warrior, and both Kega Fusion rows at `5.3.1` on
+2026-10-01 once a rule read their `.ssm` from Kega's folder (#381), with
+`docs/platforms/mastersystem/` the record. FBNeo is recorded as not certifiable for `megadrive`'s
+reason. **Pick a
 test game whose save point you know.** Golden Axe Warrior commits its save once, at the first
 character, and after that rewrites only a working copy, so every later row's file changed without
 new progress (RB-326); diff the SRAM against the boot write before trusting "a save was made".
@@ -123,8 +125,10 @@ emulator: `jgenesis` and `ares` name their save directory after their own name f
 system's path. An emulator can write outside `saves/`: Kega Fusion's battery saves go where
 RetroBat's `Fusion.ini` sends them, `emulators/kega-fusion/`, and that is a RetroBat defect to
 report (RB-283, emulatorlauncher#1390). Whether RomMBat reads such a folder meanwhile is the
-maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239),
-Kega Fusion's is not. Every issue raised
+maintainer's call per emulator, because each one costs a migration: gopher64's is read (#239), and
+Kega Fusion's only for `mastersystem`'s `.ssm`, which upstream's fix leaves there, as it does
+`megacd`'s `.brm` (#381).
+Every issue raised
 upstream is tracked in `docs/upstream/issues.md` until RomMBat adopts the release that fixes it.
 And a core can refuse the library for its names: FBNeo takes a console game's driver from the file
 name, so it boots nothing named by No-Intro (RB-278). **An emulator absent from `emulators/`**

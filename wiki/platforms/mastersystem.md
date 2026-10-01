@@ -9,13 +9,13 @@
 
 ## Which emulator to use
 
-Leave RetroBat on its default, RetroArch with the Genesis Plus GX core. Avoid two of the
-emulators RetroBat offers:
+Leave RetroBat on its default, RetroArch with the Genesis Plus GX core. Avoid RetroArch's FBNeo
+core: it does not start games named the way RomM libraries usually name them, because FBNeo
+expects its own file names.
 
-- **Kega Fusion keeps its in-game saves inside its own program folder**, where RomMBat does not
-  look, so they never reach RomM. Its save states do sync.
-- RetroArch's FBNeo core does not start games named the way RomM libraries usually name them,
-  because FBNeo expects its own file names.
+Kega Fusion keeps its in-game saves inside its own program folder rather than in `saves`.
+RomMBat syncs them from there, along with its save states. Its controls need setting up in Kega's
+own menu before your pad works.
 
 ## BIOS
 

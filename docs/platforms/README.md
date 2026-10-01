@@ -205,7 +205,7 @@ work. All three counts are against the 51 systems above.
   emulator writes**: three of those were driven and all three wrote states anyway, so step 5 records the
   path as well as the absence.
 
-## Seventy-three rows are certified, and the gate is open
+## Ninety-one rows are certified, and the gate is open
 
 The framework had to work end to end on a single platform first, which is M1 through M6, and
 every pass then needs a person at the machine launching real games, which is what M7's gamepad
@@ -269,15 +269,17 @@ loose `.srm`; the other standalone rows needed a snes battery rule, and four row
 RetroBat lists no `snes` firmware, and three rows refuse a DSP-1 cartridge without the chip's, which
 nothing RomMBat fetches (RB-317).
 
-**Seven of `mastersystem`'s ten rows are certified**, at RomM `5.3.0` and RetroBat 8.2.1 on
-2026-09-24: `libretro` under `genesis_plus_gx`, the stock row, and `picodrive`, then `mesen`,
+**Nine of `mastersystem`'s ten rows are certified**, at RetroBat 8.2.1: at RomM `5.3.0` on
+2026-09-24, `libretro` under `genesis_plus_gx`, the stock row, and `picodrive`, then `mesen`,
 `mednafen`, `ares`, `bizhawk`/`SMSHawk` and `jgenesis`, each standalone row with a `mastersystem`
-battery rule and three with a state declaration. `libretro`/`fbneo` and both `kega-fusion` rows are
-driven and not certified, for `megadrive`'s reasons (RB-325 and RB-283). `SMSHawk` refuses to
+battery rule and three with a state declaration; and at RomM `5.3.1` on 2026-10-01 both
+`kega-fusion` rows, once a rule anchored at the RetroBat root read Kega's `.ssm` from its own
+folder (RB-283, #381). `libretro`/`fbneo` is driven and not certified, for `megadrive`'s reason
+(RB-325). `SMSHawk` refuses to
 start without the US/EU BIOS, which RetroBat lists without a hash, so RomMBat cannot fetch it
 (RB-322).
 
-**All seventy-three are carried to the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on
+**All seventy-five are at the RomM `5.3.1` floor.** Steps 1 and 9 were re-run there on
 2026-09-24, and the other seven carry because 5.3.1 changes no route they exercise; #236 maps the
 steps, and each record's "Where each row stands" states the result.
 
@@ -285,8 +287,8 @@ steps, and each record's "Where each row stands" states the result.
 
 **`n64` follows: all nine of its rows certified at RomM `5.3.1`**, on 2026-09-27 both `libretro` cores, RMG, simple64, Project64, ares and both BizHawk cores, and on 2026-09-29 `gopher64`, with each row's Controller Pak option driven at step 6. Every row but the `libretro` two needed code: a battery rule for ares, one for RMG and simple64 together, which name their shared file with mupen64plus's title, and one for Project64's directory per game; `n64` added to BizHawk's rule; and state declarations for ares, simple64 and Project64, the last two joined to their ROM through the battery binding. `gopher64`'s battery saves are outside `saves/`, where a rule anchored at the RetroBat root reads them (#239). RB-336 to RB-341; [n64/](n64/index.md) is the record.
 
-**Read all nine as narrowly as they are written.** They certify eighty-nine
-`(system, emulator, core)` rows on one install, wave 1's seventy-three, `psx`'s seven and `n64`'s nine, each at the
+**Read all nine as narrowly as they are written.** They certify ninety-one
+`(system, emulator, core)` rows on one install, wave 1's seventy-five, `psx`'s seven and `n64`'s nine, each at the
 floors its record names. They certify none of those
 emulators on any other system: every rule and declaration the non-`libretro` rows needed is scoped
 to the systems it was measured on. [nes/](nes/index.md), [megadrive/](megadrive/index.md),

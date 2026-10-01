@@ -269,12 +269,19 @@ public class LocalStoreTests
     [InlineData("emulators/gopher64/config.json")]
     [InlineData("emulators/gopher64/portable_data/data/states/MARIOKART64.state0")]
     [InlineData("emulators/gopher64/portableXdata/data/saves/MARIOKART64.eep")]
+    [InlineData("emulators/kega-fusion/Fusion.exe")]
+    [InlineData("emulators/kega-fusion/Fusion.ini")]
+    [InlineData("emulators/kega-fusion/History.txt")]
+    [InlineData("emulators/kega-fusion/Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).srm")]
+    [InlineData("emulators/kega-fusion/Plugins/Game.ssm")]
     public void A_save_row_is_refused_a_path_outside_the_saves_tree(string value)
     {
         // The same discipline 005 landed for firmware under bios/. A shape definition that
         // named the wrong directory would otherwise have RomMBat treating a ROM as a save and,
-        // worse, restoring over it. gopher64's own save folder is the one exception, and only
-        // that folder: the X stands where an unescaped LIKE would let any character through.
+        // worse, restoring over it. gopher64's own save folder is one exception, and only that
+        // folder: the X stands where an unescaped LIKE would let any character through. Kega
+        // Fusion's folder is the other, and only for a .ssm directly in it, because the same
+        // folder holds the emulator itself.
         using var tree = TempRetroBatTree.Create();
         using var store = LocalStore.Open(tree.Install());
 
@@ -290,6 +297,57 @@ public class LocalStoreTests
         using var store = LocalStore.Open(tree.Install());
 
         InsertPath(store, "local_save", "relative_path", "emulators/gopher64/portable_data/data/saves/MARIOKART64-D6B8.eep");
+    }
+
+    [Fact]
+    public void A_save_row_is_accepted_for_a_kega_fusion_ssm_in_its_own_folder()
+    {
+        // RetroBat 8.2.1's Fusion.ini sends SxMFiles there, and emulatorLauncher never moves it (#381).
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        InsertPath(store, "local_save", "relative_path", "emulators/kega-fusion/Golden Axe Warrior (USA, Europe, Brazil) (En).ssm");
+    }
+
+    [Fact]
+    public void The_020_rebuild_keeps_every_save_row()
+    {
+        // 020 widens local_save's path CHECK again, and gopher64's row, which only 019 admits,
+        // is the one a rebuild that dropped 019's clause would lose.
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        install.EnsureAppDirectories();
+        var path = install.DatabasePath;
+
+        using (var seed = new SqliteConnection($"Data Source={path};Pooling=False"))
+        {
+            seed.Open();
+
+            foreach (var migration in MigrationsUpTo(19))
+            {
+                Execute(seed, ReadMigration(migration));
+            }
+
+            Execute(
+                seed,
+                """
+                INSERT INTO local_save (relative_path, unit_key, system, emulator, shape_class, rom_id,
+                                        slot, content_hash, scanned_at_utc, uploaded_content_hash)
+                VALUES ('emulators/gopher64/portable_data/data/saves/MARIOKART64-D6B8.eep', '', 'n64', 'gopher64',
+                        'B', 7, 'gopher64:battery:eep', '0123456789abcdef0123456789abcdef',
+                        '2026-01-01T00:00:00Z', '0123456789abcdef0123456789abcdef');
+
+                PRAGMA user_version = 19;
+                """);
+        }
+
+        using var store = LocalStore.OpenAt(path);
+
+        Assert.Equal(LocalStore.ExpectedSchemaVersion, store.SchemaVersion);
+
+        var save = Assert.Single(store.Saves.List(7));
+        Assert.Equal("emulators/gopher64/portable_data/data/saves/MARIOKART64-D6B8.eep", save.Path.Value);
+        Assert.Equal("0123456789abcdef0123456789abcdef", save.UploadedContentHash);
     }
 
     [Fact]
