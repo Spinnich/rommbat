@@ -182,7 +182,7 @@ public sealed class PlatformResolver
         //    Batocera-style, fs_slug is the folder name and no translation is needed.
         //
         //    This runs ahead of the arcade check below, and the order is the whole point. An
-        //    arcade-shaped slug is ambiguous because ten folders could be right; an fs_slug
+        //    arcade-shaped slug is ambiguous because seven folders could be right; an fs_slug
         //    that already names one of them is not ambiguous at all, because the person filing
         //    the library has answered the question by naming the folder. Refusing anyway made
         //    a platform whose fs_slug is literally 'fbneo', on an install that has an 'fbneo'

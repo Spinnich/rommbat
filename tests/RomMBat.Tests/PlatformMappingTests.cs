@@ -384,7 +384,7 @@ public class PlatformMappingTests
         // folder was already named refused to resolve and demanded a per-set choice, halfway
         // through resolving a collection that merely happened to contain an arcade game.
         //
-        // An arcade slug is ambiguous because ten folders could be right. An fs_slug that
+        // An arcade slug is ambiguous because seven folders could be right. An fs_slug that
         // already names one of them is not ambiguous: the person filing the library answered
         // the question by naming the folder.
         var install = Fixtures.LoadEsSystems();

@@ -49,19 +49,15 @@ because they describe one server's scan, and a library scanned that way reports
 `platform.fs_slug` as the folder name, which layer 2 matches and which outranks the bundled
 table anyway.
 
-**Two things the old YAML had hidden.** It carried two slugs RomM has never had, `daphne` and
-`rpgmaker`, so neither could ever match a platform row; `rpgmaker` is now `rpg-maker` and
-`daphne` has no RomM equivalent. And normalization's share fell from 16 to 1, because identity
-resolution now catches what it used to rescue. `actionmax` against `action-max` is the only
-survivor, and it is the case the mapping regression asserts.
+**Identity catches almost everything, so normalization rescues one folder.** `actionmax`
+against `action-max` is the only case, and it is the one the mapping regression asserts.
 
-**Four slugs left the table, and two of them are real.** `daphne` and `rpgmaker` are the
-harmless pair above. `odyssey` and `atari8bit` are `UniversalPlatformSlug` values, so the
-accounting is not "two slugs RomM never had" and nothing else:
+**Four names a reader might expect in the table are absent on purpose.**
 
-- `odyssey` was a seed error. Magnavox Odyssey is not the Odyssey², and the seed pointed
-  `odyssey` at folder `odyssey2`. `odyssey-2` → `odyssey2` now carries the real case, so the
-  drop is a correction.
+- `daphne` has no RomM equivalent, so RetroBat's `daphne` folder is unmapped.
+- `rpg-maker` is RomM's slug, and it maps to `easyrpg`. No `rpgmaker` slug exists.
+- `odyssey` is Magnavox Odyssey, not the Odyssey². RetroBat's `odyssey2` maps to `odyssey-2`,
+  and nothing maps to `odyssey`.
 - `atari8bit` is upstream's suggested binding for folder `atari800`, recorded and not applied,
   so it has no layer-3 entry. Layer 2 covers it whenever the RomM library folder is itself
   named `atari800`, bound or unbound, which is the common case. **It does not cover a RomM
