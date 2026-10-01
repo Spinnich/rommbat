@@ -857,7 +857,7 @@ public sealed class SaveScanner
 
             if (File.Exists(path))
             {
-                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1);
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, 1, Named(path));
                 reported.Add(path);
                 continue;
             }
@@ -872,7 +872,7 @@ public sealed class SaveScanner
             var members = SafeEnumerateFiles(path);
             if (members.Count > 0)
             {
-                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count);
+                report.Add(system, string.Empty, UnsyncableReason.SharedContainer, reason, members.Count, Named(path));
                 reported.UnionWith(members);
             }
         }
@@ -1249,11 +1249,16 @@ public sealed class SaveScanner
             var key = (system, emulator, reason);
 
             // The first detail is kept, because it names the case rather than the last file
-            // that happened to hit it.
+            // that happened to hit it. A shared container's detail is its declaration, and two
+            // declarations can share a row, as PCSX2's folder card and slot 2 card do (RB-406).
             if (!_entries.TryGetValue(key, out var finding))
             {
                 finding = new Finding(detail);
                 _entries[key] = finding;
+            }
+            else if (reason == UnsyncableReason.SharedContainer)
+            {
+                finding.AddDetail(detail);
             }
 
             finding.Count += count;
@@ -1276,21 +1281,33 @@ public sealed class SaveScanner
 
         private sealed class Finding(string detail)
         {
+            private readonly List<string> _details = [detail];
+
             public int Count { get; set; }
 
             public List<string> Files { get; } = [];
 
+            public void AddDetail(string another)
+            {
+                if (!_details.Contains(another, StringComparer.Ordinal))
+                {
+                    _details.Add(another);
+                }
+            }
+
             public string Describe()
             {
+                var described = string.Join("; ", _details);
+
                 if (Files.Count == 0)
                 {
-                    return detail;
+                    return described;
                 }
 
                 var named = string.Join(", ", Files.Take(NamedFiles));
                 var more = Files.Count > NamedFiles ? $", and {Files.Count - NamedFiles} more" : string.Empty;
 
-                return $"{detail}. Files: {named}{more}";
+                return $"{described}. Files: {named}{more}";
             }
         }
     }

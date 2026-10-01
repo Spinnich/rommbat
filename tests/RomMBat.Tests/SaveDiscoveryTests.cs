@@ -555,6 +555,30 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_pcsx2_folder_card_is_still_named_beside_the_slot_2_card()
+    {
+        // Under FOLDER slot 2 stays the file Mcd002.ps2 (RB-406), and both cards share one row.
+        // Driven on R: for #335, that row carried only Mcd002.ps2's description and no file names,
+        // so the folder card was counted and never named.
+        using var fixture = SaveTree.Create();
+
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcd002.ps2", "a formatted empty card");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/_pcsx2_superblock", "superblock");
+        fixture.AddSave("ps2", "pcsx2/memcards/Mcdf01.ps2/BASLUS-20435S00/BASLUS-20435S00", "one game");
+
+        fixture.Scan();
+
+        var shared = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "ps2" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Equal(3, shared.FileCount);
+        Assert.Contains("the default shared memory card", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("RB-406", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/ps2/pcsx2/memcards/Mcd002.ps2", shared.Detail, StringComparison.Ordinal);
+        Assert.Contains("saves/ps2/pcsx2/memcards/Mcdf01.ps2", shared.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_directory_no_shape_covers_is_reported_rather_than_read()
     {
         // Nine top-level directories on a real install are not declared systems. An unknown

@@ -83,12 +83,15 @@ every session. Content hashing is required, not optional, for class D.
 
 ## RB-406. `pcsx2_slot1_memory=folder` makes slot 1 one shared directory, split per save by PS2 serial
 
-Verified: RetroBat 8.2.1, 2026-09-30. How: read `es_settings.cfg`, PCSX2's `inis/PCSX2.ini` and `saves/ps2/pcsx2/memcards/` on `E:`, where the maintainer had chosen FOLDER for `ps2` system-wide a month earlier.
-`emulatorlauncher` writes `Slot1_Filename = Mcdf01.ps2` and `McdFolderAutoManage = true`, and
-PCSX2 makes `memcards/Mcdf01.ps2/` a directory: a `_pcsx2_superblock` and one directory per save,
-each with its own `_pcsx2_index`. The directories take the save's own name, which starts with
-the serial (`BASLUS-20435S00` for Armored Core 3, `BASCUS-97399GodOfWar`): 38 files from 7 saves.
-So it is a shared container, one fixed name that every game writes to. Only the units inside it
-are per save, and they are keyed by serial, not by the ROM stem. `Mcd001.ps2` stopped changing,
-and slot 2 is still the file `Mcd002.ps2`. RomMBat declares `Mcdf01.ps2` a shared container and
-reports it by name. Syncing it would take a route from serial to ROM that RomMBat does not have.
+Verified: RetroBat 8.2.1, 2026-10-01. How: read `es_settings.cfg`, PCSX2's `inis/PCSX2.ini` and `saves/ps2/pcsx2/memcards/` on `E:`, where the maintainer had chosen FOLDER for `ps2` system-wide a month earlier, then drove Armored Core 3 on a fresh PCSX2 on `R:` with FOLDER set.
+`emulatorlauncher` writes `Slot1_Filename = Mcdf01.ps2`, and PCSX2 makes `memcards/Mcdf01.ps2/`
+a directory: a `_pcsx2_superblock` and one directory per save, each with its own `_pcsx2_index`.
+`McdFolderAutoManage = true` sits in `E:`'s INI, but neither program wrote it on `R:`, and the
+card worked without it. The directories take the save's own name, which starts with the serial
+(`BASLUS-20435S00` for Armored Core 3, `BASCUS-97399GodOfWar`): 38 files from 7 saves on `E:`,
+and on `R:` a 41,600 B save beside `icon.sys`, `AC3S.ICO` and `_pcsx2_index`. So it is a shared
+container, one fixed name that every game writes to. Only the units inside it are per save, and
+they are keyed by serial, not by the ROM stem. `Mcd001.ps2` stopped changing, and slot 2 is
+still the file `Mcd002.ps2`, so `saves` reports both cards on one row and names each file.
+RomMBat declares `Mcdf01.ps2` a shared container. Syncing it would take a route from serial to
+ROM that RomMBat does not have.
