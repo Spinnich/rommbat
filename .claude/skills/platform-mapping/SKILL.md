@@ -169,7 +169,7 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
   match against the live `es_systems.cfg` runs **ahead** of the arcade check, so a platform
   carrying `fs_slug: fbneo` on an install that has an `fbneo` system resolves there: naming
   the folder is how the person filing the library made the choice. An arcade slug whose
-  `fs_slug` names no folder this install has still stops and asks, because which of the ten
+  `fs_slug` names no folder this install has still stops and asks, because which of the seven
   folders is right depends on the romset and arcade names are romset-versioned. Measured in
   M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
   part way to demand a choice that had already been made.

@@ -40,12 +40,12 @@ public class PlatformMappingTests
     }
 
     [Fact]
-    public void The_stale_seed_entries_were_corrected_rather_than_carried_over()
+    public void Upstream_folder_names_RetroBat_lacks_land_in_the_folders_RetroBat_has()
     {
         var map = BundledPlatformMap.Bundled;
 
-        // The seed keys these as astrocde, bbc, ps and segacd; RetroBat's own list says
-        // astrocade, bbcmicro, psx and megacd.
+        // Upstream's alias table keys these as astrocde, bbc and ps, and segacd is the slug;
+        // RetroBat's own list says astrocade, bbcmicro, psx and megacd.
         Assert.Equal(["astrocade"], map.Candidates("astrocade"));
         Assert.Equal(["bbcmicro"], map.Candidates("bbcmicro"));
         Assert.Equal(["psx"], map.Candidates("psx"));
@@ -99,7 +99,7 @@ public class PlatformMappingTests
     /// </para>
     /// <para>
     /// The refusal is kept for the case it exists for: an arcade slug whose fs_slug names
-    /// nothing this install has. Arcade rom names are romset-versioned, so choosing among ten
+    /// nothing this install has. Arcade rom names are romset-versioned, so choosing among seven
     /// folders with no evidence puts files where the emulator cannot read them.
     /// </para>
     /// </remarks>
