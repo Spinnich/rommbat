@@ -570,6 +570,23 @@ OTHER_BATTERY_RULES = [
         ),
     },
     {
+        "emulator": "kega-fusion",
+        "systems": ["mastersystem"],
+        "directory": "emulators/kega-fusion",
+        "from_root": True,
+        "extensions": [".ssm"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "mastersystem under kega-fusion, -auto and -sms alike, on 8.2.1: Golden Axe Warrior (USA, "
+            "Europe, Brazil) (En).zip wrote emulators/kega-fusion/<rom>.ssm, 8,191 B, Genesis Plus GX's"
+            " trimmed .srm, which Kega read when seeded with one and rewrote on exit. RetroBat's "
+            "template Fusion.ini sets SxMFiles to that folder and emulatorLauncher never rewrites it, "
+            "so the directory is relative to the RetroBat root. The folder also holds Fusion.exe, "
+            "Fusion.ini and every system's .srm, so the rule reads the .ssm only (#381)"
+        ),
+    },
+    {
         "emulator": "duckstation",
         "systems": ["psx"],
         "directory": "duckstation/memcards",

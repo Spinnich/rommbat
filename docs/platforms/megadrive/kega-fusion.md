@@ -18,15 +18,15 @@ carry.
 which downloads it on the first launch of a game under it. **The three cores are Kega's command
 line flags** for the console's region handling, and all three write to the same places.
 
-| #   | All three rows                                                                                             |
-| --- | ---------------------------------------------------------------------------------------------------------- |
-| 1-3 | **Pass**, carried                                                                                          |
-| 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, which RomMBat does not scan |
-| 5   | **Pass**, two slots round-tripped at their own md5                                                         |
-| 6   | **N/A**                                                                                                    |
-| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, RB-284                    |
-| 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                         |
-| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                      |
+| #   | All three rows                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------ |
+| 1-3 | **Pass**, carried                                                                                            |
+| 4   | **Fail on 8.2.1.** A real save was made and lands in `emulators/kega-fusion/`, where RomMBat reads no `.srm` |
+| 5   | **Pass**, two slots round-tripped at their own md5                                                           |
+| 6   | **N/A**                                                                                                      |
+| 7   | **Pass** on launch and art. The pad works only after a remap in Kega's own menu, RB-284                      |
+| 8   | **Pass** for `auto`, 00:33:59Z (44s) and 01:06:41Z (48s). Carried to the other two                           |
+| 9   | **Pass.** 0 downloaded, 0 written, gamelist identical                                                        |
 
 ## 4. Where Kega Fusion puts a battery save
 
