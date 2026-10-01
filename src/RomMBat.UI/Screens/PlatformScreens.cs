@@ -26,7 +26,7 @@ namespace RomMBat.UI.Screens;
 /// <para>
 /// <b>Unmapped is a normal state, not an error.</b> A RomM platform with no RetroBat folder is
 /// one of M2's two first-class unmapped states, and arcade reaches it by design because which of
-/// the ten folders is right depends on the romset the files came from. So a row with no folder
+/// the seven folders is right depends on the romset the files came from. So a row with no folder
 /// is shown plainly with what to do about it, not as a fault.
 /// </para>
 /// </remarks>

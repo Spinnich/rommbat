@@ -79,9 +79,9 @@ public sealed record PlatformResolution(
 /// </summary>
 /// <remarks>
 /// The two vocabularies genuinely diverge, so this is a feature with a visible, editable
-/// surface rather than a lookup. 91 of RetroBat's 240 systems have no seed mapping at all,
+/// surface rather than a lookup. 74 of RetroBat's 240 systems have no seed mapping at all,
 /// and about 50 of the hard cases are ports and storefronts (<c>cavestory</c>,
-/// <c>devilutionx</c>, <c>steam</c>, <c>gog</c>) which have no RomM platform by design.
+/// <c>devilutionx</c>, <c>epic</c>, <c>gog</c>) which have no RomM platform by design.
 /// <para>
 /// <b>Only one kind of unmapped is the user's problem.</b> A RomM platform with no RetroBat
 /// folder is reported and skipped. A RetroBat folder with no RomM platform is ignored
@@ -131,8 +131,8 @@ public sealed class PlatformResolver
     /// <c>action-max</c> and <c>ti99</c> into <c>ti-99</c>.
     /// </summary>
     /// <remarks>
-    /// It resolves 16 of the 91 unmapped systems and no more, so it is offered rather than
-    /// applied: the remaining 75 would produce confident nonsense.
+    /// It resolves 1 of the 74 unmapped systems, <c>actionmax</c>, and is offered rather than
+    /// applied because a match on stripped names is a guess, not a fact either project states.
     /// </remarks>
     public static string Normalize(string value)
     {
@@ -182,7 +182,7 @@ public sealed class PlatformResolver
         //    Batocera-style, fs_slug is the folder name and no translation is needed.
         //
         //    This runs ahead of the arcade check below, and the order is the whole point. An
-        //    arcade-shaped slug is ambiguous because ten folders could be right; an fs_slug
+        //    arcade-shaped slug is ambiguous because seven folders could be right; an fs_slug
         //    that already names one of them is not ambiguous at all, because the person filing
         //    the library has answered the question by naming the folder. Refusing anyway made
         //    a platform whose fs_slug is literally 'fbneo', on an install that has an 'fbneo'

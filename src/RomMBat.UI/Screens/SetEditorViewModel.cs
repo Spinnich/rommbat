@@ -182,7 +182,7 @@ public sealed class SetEditorViewModel : IScreen
     /// </summary>
     /// <remarks>
     /// Which is rare, and is the only reason the row exists. A platform that already resolves
-    /// needs no answer; arcade is the case that does, because which of the ten arcade folders
+    /// needs no answer; arcade is the case that does, because which of the seven arcade folders
     /// is right depends on the romset the file came from. A set that already carries an
     /// override keeps showing it, so one made from the console stays visible and changeable.
     /// </remarks>
@@ -326,7 +326,7 @@ public sealed class SetEditorViewModel : IScreen
         // mapping override. The mapping belongs in platform_map, where platforms list
         // already reads it and where the platform mapping screen edits it.
         // It survives here only for the case that genuinely needs a per-set answer: an
-        // arcade platform resolving to none of the ten possible folders. Offering it on
+        // arcade platform resolving to none of the seven possible folders. Offering it on
         // every set made a global setting look like a per-set one, and it is meaningless
         // on a filter or a collection, which can span platforms.
         if (NeedsFolderChoice)

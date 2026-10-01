@@ -95,8 +95,8 @@ public sealed record GamelistSyncOutcome
 /// </summary>
 /// <remarks>
 /// <b>Keyed by resolved folder, never by platform.</b> The mapping is many-to-many:
-/// <c>snes</c> and <c>sfam</c> both resolve to <c>snes</c>, and <c>arcade</c> fans out to ten
-/// folders. One gamelist per platform would have the second write clobber the first, which is
+/// a platform and its <c>-unofficial</c> twin share a slug and so resolve to one folder, and
+/// <c>arcade</c> fans out to seven. One gamelist per platform would have the second write clobber the first, which is
 /// the single failure this grouping exists to prevent.
 /// <para>
 /// <b>Works with the server unreachable.</b> Everything written comes from the local store:

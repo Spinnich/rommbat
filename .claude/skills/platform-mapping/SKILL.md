@@ -27,12 +27,10 @@ Reproduce with `cd reference && ./refresh.sh`.
 
 ## Where the seed comes from, and why the walk goes RetroBat-first
 
-Until RomM 5.3.0 the seed was `examples/config.batocera-retrobat.yml`, 167 explicit
-`folder: slug` pairs. Upstream cut that file to four suggested overrides and moved the
-authority into `backend/utils/platform_aliases.py`. `resolve_platform_slug` there tries a
-config binding, then **identity** when the folder name is itself a `UniversalPlatformSlug`,
-then `PLATFORM_FS_ALIASES`. `nes: nes` left the YAML because it became implicit, not because
-it stopped being true, so reconstructing the map needs the alias table **and** the slug enum.
+The seed is upstream's resolver, `backend/utils/platform_aliases.py`, not a table of pairs.
+`resolve_platform_slug` there tries a config binding, then **identity** when the folder name
+is itself a `UniversalPlatformSlug`, then `PLATFORM_FS_ALIASES`. `nes` maps to `nes` without
+appearing in either table, so reconstructing the map needs the alias table **and** the slug enum.
 Both are vendored, as `reference/romm-platform_aliases.py` and
 `reference/romm-platform_slugs.py`.
 
@@ -40,8 +38,8 @@ Both are vendored, as `reference/romm-platform_aliases.py` and
 `PLATFORM_FS_ALIASES` is a Batocera / RetroBat / ES-DE union and 44 of its 138 keys name
 folders no RetroBat install has (`atarijaguar`, `atarilynx`, `gc`, `megadrivejp` against
 RetroBat's `jaguar`, `lynx`, `gamecube`, `megadrive`). Walking from RetroBat's side never sees
-them, which is core principle 3 applied rather than restated, and it is why the generator no
-longer carries a list of stale seed keys to correct.
+them, which is core principle 3 applied rather than restated, and it is why the generator
+carries no list of seed keys to correct.
 
 **The config-binding layer is recorded and not applied.** Upstream's example config suggests
 four bindings for a Batocera or RetroBat install (`atari800: atari8bit`, `model2: arcade`,
@@ -51,19 +49,15 @@ because they describe one server's scan, and a library scanned that way reports
 `platform.fs_slug` as the folder name, which layer 2 matches and which outranks the bundled
 table anyway.
 
-**Two things the old YAML had hidden.** It carried two slugs RomM has never had, `daphne` and
-`rpgmaker`, so neither could ever match a platform row; `rpgmaker` is now `rpg-maker` and
-`daphne` has no RomM equivalent. And normalization's share fell from 16 to 1, because identity
-resolution now catches what it used to rescue. `actionmax` against `action-max` is the only
-survivor, and it is the case the mapping regression asserts.
+**Identity catches almost everything, so normalization rescues one folder.** `actionmax`
+against `action-max` is the only case, and it is the one the mapping regression asserts.
 
-**Four slugs left the table, and two of them are real.** `daphne` and `rpgmaker` are the
-harmless pair above. `odyssey` and `atari8bit` are `UniversalPlatformSlug` values, so the
-accounting is not "two slugs RomM never had" and nothing else:
+**Four names a reader might expect in the table are absent on purpose.**
 
-- `odyssey` was a seed error. Magnavox Odyssey is not the Odyssey², and the seed pointed
-  `odyssey` at folder `odyssey2`. `odyssey-2` → `odyssey2` now carries the real case, so the
-  drop is a correction.
+- `daphne` has no RomM equivalent, so RetroBat's `daphne` folder is unmapped.
+- `rpg-maker` is RomM's slug, and it maps to `easyrpg`. No `rpgmaker` slug exists.
+- `odyssey` is Magnavox Odyssey, not the Odyssey². RetroBat's `odyssey2` maps to `odyssey-2`,
+  and nothing maps to `odyssey`.
 - `atari8bit` is upstream's suggested binding for folder `atari800`, recorded and not applied,
   so it has no layer-3 entry. Layer 2 covers it whenever the RomM library folder is itself
   named `atari800`, bound or unbound, which is the common case. **It does not cover a RomM
@@ -175,7 +169,7 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
   match against the live `es_systems.cfg` runs **ahead** of the arcade check, so a platform
   carrying `fs_slug: fbneo` on an install that has an `fbneo` system resolves there: naming
   the folder is how the person filing the library made the choice. An arcade slug whose
-  `fs_slug` names no folder this install has still stops and asks, because which of the ten
+  `fs_slug` names no folder this install has still stops and asks, because which of the seven
   folders is right depends on the romset and arcade names are romset-versioned. Measured in
   M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
   part way to demand a choice that had already been made.
