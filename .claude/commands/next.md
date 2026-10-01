@@ -15,4 +15,5 @@ description: Rank the open issues, ask which to take, then run /start-issue on i
    4. the rest, oldest first.
 3. Ask one multiple-choice question with the top four, your pick first and marked
    "(Recommended)", each with one line on why it ranks there.
-4. Run `/start-issue` on the answer, or `/certify` for a certification wave.
+4. Run `/start-issue` on the answer, or `/certify <system>` when it is a `platform` issue titled
+   `Certify <system>: ...`.

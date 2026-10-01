@@ -30,6 +30,14 @@ install still asks, and so does restoring from the snapshot.
 The maintainer plays over RDP, which eats keyboard combinations. Keep the RomM web player closed.
 Pick USA or English releases for anything they have to navigate.
 
+## The issue
+
+Every system still to certify has one open issue, labelled `platform`, titled
+`Certify <SYSTEM>: every (emulator, core) row at the current floor`, under its wave's milestone,
+with the rows as a task list. Find it with
+`gh issue list --label platform --state open --search "Certify <SYSTEM>: in:title"`. If there is
+none, file one in that shape before planning. A `--hands-on` pass has no issue.
+
 ## 1. Plan the rows
 
 Nothing here needs an emulator running or a person present.
@@ -71,12 +79,15 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
 
 ## 4. Record and ship
 
-- **Certification**: branch first, with `EnterWorktree` (`certify-<SYSTEM>`), so the record
+- **Certification**: branch first, with `EnterWorktree` (`issue-<n>-certify-<SYSTEM>`, which
+  `/next` reads as the issue being taken), so the record
   lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>/`: `index.md` for the
   system's steps and each row's standing at the floor, and a file per emulator or group of rows,
   all nine steps, in `docs/platforms/nes/`'s shape. Then every doc `pre-pr-verification` names for a
   platform changing state. Run `pwsh -File tools/pre-pr.ps1`, open the PR on the template, and
-  run `/drive-pr` on it.
+  run `/drive-pr` on it. The PR says `Fixes #<n>` when every row has a result, certified or
+  driven and not certified with its reason; a partial pass says `Refs #<n>` and ticks the rows
+  it covered in the issue's task list.
 - **`--hands-on <PR>`**: post the result on that PR as one comment: each row and option driven,
   what the emulator wrote, what RomMBat did with it, and anything not driven with the reason.
   Add a line to that PR's ledger, then return to its `/drive-pr`.
