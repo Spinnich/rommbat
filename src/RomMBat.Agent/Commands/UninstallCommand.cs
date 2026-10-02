@@ -70,6 +70,12 @@ internal static class UninstallCommand
             Console.WriteLine();
         }
 
+        foreach (var warning in report.Warnings ?? [])
+        {
+            Console.WriteLine($"Note: {warning}");
+            Console.WriteLine();
+        }
+
         Console.WriteLine("Removing RomMBat would take out:");
         Console.WriteLine();
 

@@ -83,7 +83,8 @@ hook cannot open the database, so this is how an event is recorded.
 `emulatorLauncher.log`, and what it produces, such as a play session, goes to the outbox.
 
 **Outbox.** Everything produced on the device that the server has not yet accepted: saves,
-states and play sessions, each with its real local time and content hash.
+states and play sessions, each with its real local time and content hash. An entry the server
+answers for and refuses is marked failed instead of retried.
 
 **Flush.** One pass that drains the spool and sends the outbox. Safe to replay, because the
 server deduplicates what it has already seen.

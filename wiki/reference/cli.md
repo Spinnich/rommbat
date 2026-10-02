@@ -30,6 +30,7 @@ Subcommands
   game-start  Record a launch. Journal only, no network
   game-end    Close a launch. Journal only, no network
   flush       One pass over everything waiting, then exit
+  outbox      list | drop the entries the server refused: drop <id> | --all-failed, with --apply
   background  start | quit: the pass an EmulationStation hook spawns. Not for typing
 
 Options

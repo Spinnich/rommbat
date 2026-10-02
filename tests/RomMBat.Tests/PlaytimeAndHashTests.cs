@@ -171,6 +171,24 @@ public class PlaytimeAndHashTests
     }
 
     [Fact]
+    public void An_entry_the_server_refused_no_longer_holds_its_game_but_a_pending_one_does()
+    {
+        using var fixture = Journal.Create();
+        var path = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        var now = DateTimeOffset.UtcNow;
+
+        fixture.Rom(42, "snes", "ActRaiser (USA).zip");
+        fixture.Store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 42);
+        var guard = new SaveGuard(fixture.Store);
+
+        Assert.False(guard.Check(42, path).CanRemove);
+
+        fixture.Store.Outbox.MarkFailed(fixture.Store.Outbox.Pending().Single().Id, "400: refused", now);
+
+        Assert.True(guard.Check(42, path).CanRemove);
+    }
+
+    [Fact]
     public void A_session_whose_clock_went_backwards_is_dropped_rather_than_sent_to_be_refused()
     {
         // end_time must be strictly after start_time, enforced server-side with a 422. A

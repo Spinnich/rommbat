@@ -116,7 +116,7 @@ public sealed class SaveGuard
     private int CountUnsentOutboxEntries(int romId)
     {
         using var command = _store.Connection
-            .Command("SELECT COUNT(*) FROM outbox WHERE rom_id = $romId AND state <> 'sent';")
+            .Command("SELECT COUNT(*) FROM outbox WHERE rom_id = $romId AND state = 'pending';")
             .With("$romId", romId);
 
         return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);

@@ -41,7 +41,8 @@ public sealed record RemovalReport(
     EvictionReport? Content,
     IReadOnlyList<LocalFile> Firmware,
     IReadOnlyList<string> Unvouchable,
-    string? EmulationStation)
+    string? EmulationStation,
+    IReadOnlyList<string>? Warnings = null)
 {
     public bool IsBlocked => Blockers.Count > 0;
 }
@@ -173,8 +174,15 @@ public sealed class RemovalService
                 ? [.. store.Files.List(kind: LocalFileKind.Firmware).Where(file => file.Origin == FileOrigin.Synced)]
                 : [],
             unvouchable,
-            _emulationStation() is { IsRunning: true } running ? running.Detail : null);
+            _emulationStation() is { IsRunning: true } running ? running.Detail : null,
+            FailedOutboxWarning());
     }
+
+    private List<string> FailedOutboxWarning() =>
+        _session.Store.Outbox.FailedCount() is > 0 and var failed
+            ? [$"{failed} save or play record was refused by the server and will not be retried, so it exists only on "
+                + "this device and uninstalling loses it. 'rommbat-agent outbox' lists them."]
+            : [];
 
     /// <summary>Carries out a report, after asking every question again.</summary>
     /// <remarks>
@@ -284,7 +292,7 @@ public sealed class RemovalService
 
         try
         {
-            Add(Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent' AND last_error IS NULL;"),
+            Add(Count("SELECT COUNT(*) FROM outbox WHERE state = 'pending' AND last_error IS NULL;"),
                 "save or play record is queued to send. Run 'rommbat-agent flush'.");
 
             if (FailedOutbox() is { Count: > 0 } failed)
@@ -351,17 +359,19 @@ public sealed class RemovalService
             : "SELECT COUNT(*) FROM journal WHERE state = 'open' AND event <> 'game-start';";
 
     /// <summary>
-    /// Outbox rows whose last attempt failed, and the distinct errors they carry.
+    /// Pending outbox rows whose last attempt failed, and the distinct errors they carry.
     /// </summary>
     /// <remarks>
     /// <b>Split out because "run flush" is not always the answer.</b> A failure leaves the row
-    /// pending (<see cref="OutboxStore.RecordFailure"/>), which is right for being offline and
-    /// wrong for an entry the server refuses: that one blocks here on every run, and without its
-    /// error the user is told to do the one thing that cannot clear it.
+    /// pending (<see cref="OutboxStore.RecordFailure"/>), which is right for being offline, and
+    /// without its error the user is told to do the one thing that cannot clear a server that
+    /// keeps answering the same way. An entry the server refused outright is
+    /// <see cref="OutboxState.Failed"/> instead and does not block: <see cref="RemovalReport.Warnings"/>
+    /// names it.
     /// </remarks>
     private (int Count, IReadOnlyList<string> Errors) FailedOutbox()
     {
-        var count = Count("SELECT COUNT(*) FROM outbox WHERE state <> 'sent' AND last_error IS NOT NULL;");
+        var count = Count("SELECT COUNT(*) FROM outbox WHERE state = 'pending' AND last_error IS NOT NULL;");
 
         if (count == 0)
         {
@@ -372,7 +382,7 @@ public sealed class RemovalService
             """
             SELECT DISTINCT last_error
             FROM outbox
-            WHERE state <> 'sent' AND last_error IS NOT NULL
+            WHERE state = 'pending' AND last_error IS NOT NULL
             ORDER BY last_error
             LIMIT 3;
             """);

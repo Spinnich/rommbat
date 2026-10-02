@@ -134,10 +134,8 @@ public sealed class OutboxStore
     public IReadOnlyList<OutboxEntry> Pending(int limit = 100, OutboxKind? kind = null)
     {
         using var command = _connection.Command(
-            """
-            SELECT id, local_sequence, kind, rom_id, slot, emulator, batch_key, relative_path,
-                   content_hash, size_bytes, file_mtime_utc, recorded_at_utc, payload, state,
-                   attempts, last_error
+            $"""
+            SELECT {Columns}
             FROM outbox
             WHERE state = 'pending' AND ($kind IS NULL OR kind = $kind)
             ORDER BY local_sequence
@@ -150,31 +148,43 @@ public sealed class OutboxStore
         var entries = new List<OutboxEntry>();
         while (reader.Read())
         {
-            var pathText = reader.GetStringOrNull(7);
-            RelativePath? path = pathText is not null && Paths.RelativePath.TryCreate(pathText, out var parsed)
-                ? parsed
-                : null;
-
-            entries.Add(new OutboxEntry(
-                reader.GetInt64(0),
-                reader.GetInt64(1),
-                ParseKind(reader.GetString(2)),
-                reader.GetInt64OrNull(3),
-                reader.GetStringOrNull(4),
-                reader.GetStringOrNull(5),
-                reader.GetStringOrNull(6),
-                path,
-                reader.GetStringOrNull(8),
-                reader.GetInt64OrNull(9),
-                reader.GetTimestampOrNull(10),
-                reader.GetTimestampOrNull(11) ?? DateTimeOffset.MinValue,
-                reader.GetStringOrNull(12),
-                ParseState(reader.GetString(13)),
-                (int)reader.GetInt64(14),
-                reader.GetStringOrNull(15)));
+            entries.Add(Read(reader));
         }
 
         return entries;
+    }
+
+    private const string Columns =
+        """
+        id, local_sequence, kind, rom_id, slot, emulator, batch_key, relative_path,
+        content_hash, size_bytes, file_mtime_utc, recorded_at_utc, payload, state,
+        attempts, last_error
+        """;
+
+    private static OutboxEntry Read(SqliteDataReader reader)
+    {
+        var pathText = reader.GetStringOrNull(7);
+        RelativePath? path = pathText is not null && Paths.RelativePath.TryCreate(pathText, out var parsed)
+            ? parsed
+            : null;
+
+        return new OutboxEntry(
+            reader.GetInt64(0),
+            reader.GetInt64(1),
+            ParseKind(reader.GetString(2)),
+            reader.GetInt64OrNull(3),
+            reader.GetStringOrNull(4),
+            reader.GetStringOrNull(5),
+            reader.GetStringOrNull(6),
+            path,
+            reader.GetStringOrNull(8),
+            reader.GetInt64OrNull(9),
+            reader.GetTimestampOrNull(10),
+            reader.GetTimestampOrNull(11) ?? DateTimeOffset.MinValue,
+            reader.GetStringOrNull(12),
+            ParseState(reader.GetString(13)),
+            (int)reader.GetInt64(14),
+            reader.GetStringOrNull(15));
     }
 
     /// <summary>Marks an entry as delivered.</summary>
@@ -196,7 +206,7 @@ public sealed class OutboxStore
     /// Records a failed attempt, leaving the entry pending.
     /// </summary>
     /// <remarks>
-    /// Failure does not consume the entry. Being offline is the normal case and a later
+    /// Failure does not consume the entry; <see cref="MarkFailed"/> is the one that does. Being offline is the normal case and a later
     /// replay is safe, so the only thing an attempt costs is a counter.
     /// </remarks>
     public void RecordFailure(long id, string error, DateTimeOffset now)
@@ -212,6 +222,69 @@ public sealed class OutboxStore
             .With("$now", SqliteValues.ToText(now));
 
         command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Ends an entry the server refused, so it is no longer retried.
+    /// </summary>
+    /// <remarks>
+    /// Only for a refusal that says something about the entry itself. Offline, a 5xx, a lost
+    /// token and a reply that skipped the entry all say nothing about it and stay pending through
+    /// <see cref="RecordFailure"/>. The error is kept so <c>status</c> and <c>outbox</c> can name it.
+    /// </remarks>
+    public void MarkFailed(long id, string error, DateTimeOffset now)
+    {
+        using var command = _connection.Command(
+            """
+            UPDATE outbox
+            SET state = 'failed', attempts = attempts + 1, last_attempt_at = $now, last_error = $error
+            WHERE id = $id;
+            """)
+            .With("$id", id)
+            .With("$error", error)
+            .With("$now", SqliteValues.ToText(now));
+
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Entries the server refused, oldest first.</summary>
+    public IReadOnlyList<OutboxEntry> Failed()
+    {
+        using var command = _connection.Command(
+            $"""
+            SELECT {Columns}
+            FROM outbox
+            WHERE state = 'failed'
+            ORDER BY local_sequence;
+            """);
+
+        using var reader = command.ExecuteReader();
+        var entries = new List<OutboxEntry>();
+
+        while (reader.Read())
+        {
+            entries.Add(Read(reader));
+        }
+
+        return entries;
+    }
+
+    /// <summary>How many entries the server refused and nothing will retry.</summary>
+    public int FailedCount()
+    {
+        using var command = _connection.Command("SELECT COUNT(*) FROM outbox WHERE state = 'failed';");
+        return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Deletes failed entries, one by id or all of them.</summary>
+    /// <returns>How many were deleted. A pending or sent entry is never touched.</returns>
+    public int DropFailed(long? id = null)
+    {
+        using var command = _connection
+            .Command("DELETE FROM outbox WHERE state = 'failed' AND ($id IS NULL OR id = $id);")
+            .With("$id", SqliteValues.OrNull(id));
+
+        return command.ExecuteNonQuery();
     }
 
     private static string ToText(OutboxKind kind) => kind switch

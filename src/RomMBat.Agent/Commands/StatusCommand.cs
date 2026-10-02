@@ -45,6 +45,11 @@ internal static class StatusCommand
         Console.WriteLine($"  local sequence:  {store.CurrentSequence()}");
         Console.WriteLine($"  outbox pending:  {store.Outbox.PendingCount()}");
 
+        if (store.Outbox.FailedCount() is > 0 and var refused)
+        {
+            Console.WriteLine($"  outbox refused:  {refused} (the server will not take them; see 'outbox')");
+        }
+
         // Off unless asked for, because it is one File.Exists per row where every other line
         // here is answered from the database alone. Worth having at all because the budget is
         // arithmetic over this table: a row whose file is gone inflates it forever, and nothing

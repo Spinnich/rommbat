@@ -22,13 +22,16 @@ public sealed record OutboxFlushOutcome(int Sent, int Duplicates, int Failed, IR
 /// Sends what the outbox holds, in batches the server will accept.
 /// </summary>
 /// <remarks>
-/// <b>A failed entry stays pending.</b> Being offline is the normal case and a later replay is
-/// safe, so the only thing an attempt costs is a counter. This is what makes a week away from
-/// the server a bigger payload rather than a lost week.
+/// <b>A failed attempt leaves the entry pending.</b> Being offline is the normal case and a later
+/// replay is safe, so the only thing an attempt costs is a counter. This is what makes a week away
+/// from the server a bigger payload rather than a lost week. The exception is an entry the server
+/// answers for and does not accept: a replay is refused identically, so it is marked failed and
+/// <c>outbox drop</c> clears it. A refused whole batch, a lost token and a short reply say nothing
+/// about one entry and stay pending.
 /// <para>
 /// <b>The result array is read per index rather than inferred from the counts.</b> A replayed
 /// session comes back <c>"duplicate"</c>, so a batch where half the entries were already known
-/// is reconciled exactly: each entry is marked sent or left pending on its own answer. Reading
+/// is reconciled exactly: each entry is marked sent, failed or left pending on its own answer. Reading
 /// only <c>created_count</c> would leave the client guessing which half was which.
 /// </para>
 /// <para>
@@ -255,7 +258,9 @@ public sealed class OutboxFlush
                 continue;
             }
 
-            _store.Outbox.RecordFailure(entry.Id, result.Detail ?? result.Status, now);
+            // The server answered about this entry and said no, so a replay is refused the same
+            // way. Ended rather than left pending, which would hold SaveGuard and uninstall.
+            _store.Outbox.MarkFailed(entry.Id, result.Detail ?? result.Status, now);
             problems.Add($"play session {entry.Id}: {result.Detail ?? result.Status}");
             failed++;
         }

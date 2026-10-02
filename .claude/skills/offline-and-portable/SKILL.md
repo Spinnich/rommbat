@@ -38,6 +38,10 @@ the source of truth; the network is optional, probed with a short-timeout
 - **Everything produced offline goes to an outbox** with its real local mtime and content
   hash, never its sync time. A week offline is just a bigger negotiate payload; the protocol
   is full-state reconciliation and handles it natively when timestamps are honest.
+  **An entry the server answers for and does not accept ends `failed`**, keeping its error: a
+  replay is refused the same way, and a pending one would hold `SaveGuard` and `uninstall`
+  forever. Offline, a 5xx, a 401 and a refused whole batch say nothing about one entry and stay
+  pending. `outbox drop` is the only way a queued record is deleted unsent.
 - **Retries are safe by design, and this is measured.** A byte-identical save re-uploaded into
   the same slot reuses the row; a repeated play session comes back `"status": "duplicate"` in
   a per-index result array carrying `created_count`/`skipped_count`, so a partial flush is
