@@ -34,7 +34,8 @@ archive extracts to a tree whose ES menu entry cannot resolve its executable.
   stranded-save warning. The library is the user's, so synced ROMs with their media and
   gamelist entries go only with `--content`, and synced firmware only with `--bios`. Adopted
   files and saves never go. **Any unsent work refuses the whole removal**, because the outbox
-  lives in the folder the user deletes next. `emulators/rommbat` and the device in RomM are left
+  lives in the folder the user deletes next. An entry the server refused is not waiting to be
+  sent, so it does not refuse; the preview names it, and deleting the folder loses it. `emulators/rommbat` and the device in RomM are left
   and named, since a running executable cannot delete itself.
 - Document the portable story explicitly, including the FAT32 4 GB ceiling and the
   recommendation to use exFAT or NTFS for any library containing disc images.

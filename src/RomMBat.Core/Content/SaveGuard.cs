@@ -25,7 +25,8 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// Four questions:
 /// </para>
 /// <list type="bullet">
-/// <item><c>outbox</c>: anything produced offline and not yet sent, keyed by ROM.</item>
+/// <item><c>outbox</c>: anything produced offline and still waiting to be sent, keyed by ROM. An entry
+/// the server refused is <c>failed</c>, not waiting, and does not count.</item>
 /// <item><c>journal</c>: what the ES hooks append, keyed by the ROM's path. An entry that is
 /// still <c>open</c> means a game was launched and nothing has yet worked out what it
 /// wrote. A <c>game-start</c> older than the last <c>start</c> or <c>quit</c> is an orphan and
@@ -116,7 +117,7 @@ public sealed class SaveGuard
     private int CountUnsentOutboxEntries(int romId)
     {
         using var command = _store.Connection
-            .Command("SELECT COUNT(*) FROM outbox WHERE rom_id = $romId AND state <> 'sent';")
+            .Command("SELECT COUNT(*) FROM outbox WHERE rom_id = $romId AND state = 'pending';")
             .With("$romId", romId);
 
         return Convert.ToInt32(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture);

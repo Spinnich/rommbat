@@ -2650,8 +2650,52 @@ public class SaveSyncTests
         Assert.Equal(1, outcome.Failed);
         Assert.Empty(fixture.Stub.NowPlayingCleared);
 
-        // Still queued, because a refusal is not a reason to drop a session.
-        Assert.Equal(1, fixture.Store.Outbox.PendingCount());
+        // Kept, with the server's reason, but out of the queue: the same entry is refused the
+        // same way on every replay, and a pending one would hold SaveGuard and uninstall forever.
+        Assert.Equal(0, fixture.Store.Outbox.PendingCount());
+        var refused = Assert.Single(fixture.Store.Outbox.Failed());
+        Assert.Equal(OutboxState.Failed, refused.State);
+        Assert.NotNull(refused.LastError);
+    }
+
+    [Fact]
+    public async Task A_refused_session_is_not_sent_again_and_no_longer_holds_the_game()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(10, "snes", "Game", ".zip", ".srm", "x");
+        fixture.PlaySession(10, "Game");
+        fixture.Correlate();
+
+        fixture.Stub.RefusePlaySessionsFor.Add(10);
+        await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        var batches = fixture.Stub.PlaySessionBatchSizes.Count;
+        var second = await fixture.FlushPlaytimeAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, second.Failed);
+        Assert.Equal(batches, fixture.Stub.PlaySessionBatchSizes.Count);
+        Assert.Equal(1, fixture.Store.Outbox.FailedCount());
+
+        // Dropping is the only way out, and it leaves nothing else alone.
+        Assert.Equal(1, fixture.Store.Outbox.DropFailed());
+        Assert.Equal(0, fixture.Store.Outbox.FailedCount());
+    }
+
+    [Fact]
+    public void Dropping_a_failed_entry_never_touches_a_pending_one()
+    {
+        using var fixture = SyncFixture.Create();
+        var outbox = fixture.Store.Outbox;
+        var now = DateTimeOffset.UtcNow;
+
+        outbox.Enqueue(OutboxKind.PlaySession, now, romId: 1);
+        outbox.Enqueue(OutboxKind.PlaySession, now, romId: 2);
+        var ids = outbox.Pending().Select(entry => entry.Id).ToList();
+        outbox.MarkFailed(ids[0], "400: refused", now);
+
+        Assert.Equal(0, outbox.DropFailed(ids[1]));
+        Assert.Equal(1, outbox.DropFailed(ids[0]));
+        Assert.Equal(1, outbox.PendingCount());
     }
 
     [Fact]

@@ -42,6 +42,7 @@ internal static class Program
         "game-end",   // journal only, no network
         "background", // the pass an ES start or quit hook spawns
         "flush",      // drain the outbox if the server is reachable
+        "outbox",     // list or drop the entries the server refused
         "status",     // report local state
     ];
 
@@ -111,6 +112,7 @@ internal static class Program
                 "game-start" or "game-end" => await GameEventCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "background" => await BackgroundCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 "flush" => await FlushCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
+                "outbox" => await OutboxCommand.RunAsync(command, cancellationToken).ConfigureAwait(false),
                 _ => NotImplemented(command.Subcommand),
             };
         }
@@ -165,6 +167,7 @@ internal static class Program
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
+        Console.Error.WriteLine("  outbox      list | drop the entries the server refused: drop <id> | --all-failed, with --apply");
         Console.Error.WriteLine("  background  start | quit: the pass an EmulationStation hook spawns. Not for typing");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");
@@ -177,7 +180,8 @@ internal static class Program
         Console.Error.WriteLine("  --offline         status, sync, bios, saves: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:");
-        Console.Error.WriteLine("                    actually write. Without it, none of the four writes");
+        Console.Error.WriteLine("                    actually write. outbox drop: actually delete. Without it, none of the five writes");
+        Console.Error.WriteLine("  --all-failed      outbox drop: every entry the server refused, instead of one id");
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");

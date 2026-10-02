@@ -47,6 +47,11 @@ internal static class UninstallCommand
             return ExitCode.Refused;
         }
 
+        foreach (var warning in report.Warnings ?? [])
+        {
+            Console.WriteLine($"Note: {warning}");
+        }
+
         Report(applied);
         Console.WriteLine();
         LeftBehind(report.Scope);
@@ -67,6 +72,12 @@ internal static class UninstallCommand
                 Console.WriteLine($"  {blocker}");
             }
 
+            Console.WriteLine();
+        }
+
+        foreach (var warning in report.Warnings ?? [])
+        {
+            Console.WriteLine($"Note: {warning}");
             Console.WriteLine();
         }
 

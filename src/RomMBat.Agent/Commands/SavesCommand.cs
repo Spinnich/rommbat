@@ -461,6 +461,13 @@ internal static class SavesCommand
         Console.WriteLine();
         Console.WriteLine($"{pending} items queued, {openEvents} hook events not yet reconciled.");
 
+        if (context.Store.Outbox.FailedCount() is > 0 and var refused)
+        {
+            Console.WriteLine(
+                $"{refused} items were refused by the server and are no longer retried. "
+                + "'rommbat-agent outbox' lists them and 'outbox drop' clears them.");
+        }
+
         // The heartbeat. Both scripted hook forms fail silently on some hosts, so play data
         // with no hook activity behind it is a state worth naming rather than a silent loss.
         if (context.Store.Journal.LastStart() is { } lastStart)

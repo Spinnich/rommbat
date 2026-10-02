@@ -50,4 +50,6 @@ Removing RomMBat is done from a terminal, with `rommbat-agent uninstall` (see
 
 It refuses while any save, play session or other change is still waiting to reach RomM,
 because deleting `emulators\rommbat` would lose it. Connect to your server and let it send
-first. Your saves are never removed, and neither is any game you put in RetroBat yourself.
+first. A record the server has refused outright is not waiting, so it does not stop the
+removal; the preview names it, and it exists only on this device until you delete the folder.
+Your saves are never removed, and neither is any game you put in RetroBat yourself.
