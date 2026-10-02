@@ -39,6 +39,17 @@ public class EsSystemsFileTests
     }
 
     [Fact]
+    public void Emulators_are_read_in_file_order_so_the_first_is_the_default()
+    {
+        var systems = Fixtures.LoadEsSystems();
+
+        Assert.True(systems.TryGetFolder("mastersystem", out var mastersystem));
+        Assert.Equal(
+            ["libretro", "mednafen", "mesen", "ares", "kega-fusion", "bizhawk", "jgenesis"],
+            mastersystem.Emulators);
+    }
+
+    [Fact]
     public void Folders_match_case_insensitively()
     {
         var systems = Fixtures.LoadEsSystems();

@@ -39,4 +39,5 @@ Genesis Plus GX and PicoDrive cores share one save. The rest each keep their own
 
 **The standalone Mednafen will not start a game after the standalone Mesen has saved it.**
 Mednafen opens Mesen's save file, cannot read it, and stops. Move that save out of
-`saves\mastersystem` to play the game under Mednafen.
+`saves\mastersystem` to play the game under Mednafen. A sync does not bring another computer's
+Mesen save down for a game that runs under Mednafen here, though restoring one by hand does.

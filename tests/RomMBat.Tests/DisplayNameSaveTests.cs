@@ -70,6 +70,12 @@ public class DisplayNameSaveTests
         Assert.Null(shapes.BatteryRuleForSlot("nes", "libretro:battery"));
         Assert.Null(shapes.BatteryRuleForSlot("nes", "mesen:battery"));
         Assert.Same(mednafen, shapes.BatteryRuleForSlot("nes", "mednafen:battery"));
+
+        // Only the two refusals measured (RB-324, RB-289); it reads mesen's file on nes (RB-273).
+        Assert.True(mednafen.RefusesPlainSave("mastersystem", "mesen:battery"));
+        Assert.True(mednafen.RefusesPlainSave("gba", "mgba:battery"));
+        Assert.False(mednafen.RefusesPlainSave("nes", "mesen:battery"));
+        Assert.False(mednafen.RefusesPlainSave("gb", "mgba:battery"));
     }
 
     [Fact]

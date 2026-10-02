@@ -40,6 +40,11 @@ public sealed record EsSystem(
         !string.IsNullOrWhiteSpace(extension)
         && Extensions.Contains(NormalizeExtension(extension), StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The <c>&lt;emulator name&gt;</c> entries, in file order, so the first is the system's default.
+    /// </summary>
+    public IReadOnlyList<string> Emulators { get; init; } = [];
+
     /// <summary>Lowercases an extension and drops any leading dot.</summary>
     public static string NormalizeExtension(string extension) =>
         extension.Trim().TrimStart('.').ToLowerInvariant();
@@ -174,7 +179,15 @@ public sealed class EsSystemsFile
                 Text(element, "manufacturer"),
                 Text(element, "hardware"),
                 ParseYear(Text(element, "release")),
-                ParseExtensions(Text(element, "extension"))));
+                ParseExtensions(Text(element, "extension")))
+            {
+                Emulators = [.. element
+                    .Elements("emulators")
+                    .Elements("emulator")
+                    .Select(emulator => emulator.Attribute("name")?.Value.Trim())
+                    .OfType<string>()
+                    .Where(name => name.Length > 0)],
+            });
         }
 
         return new EsSystemsFile(systems, nonRom);

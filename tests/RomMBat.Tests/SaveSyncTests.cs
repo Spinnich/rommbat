@@ -1223,6 +1223,123 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_mesen_save_is_left_on_the_server_where_this_device_runs_the_system_under_mednafen()
+    {
+        // RB-324, #235: mednafen opens the plain <rom>.sav before its hashed name (RB-273),
+        // and on mastersystem stops with "Unexpected EOF" on mesen's 8,192 B save.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+        fixture.AddGame(40, "mastersystem", Rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder("mastersystem", "mednafen");
+        fixture.Scan();
+
+        fixture.SeedServerSave(40, "mesen:battery", Rom, "sav", "from the other device", emulator: "mesen");
+        fixture.Stub.UnsolicitedDownloads.Add((40, "mesen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.ForAnotherEmulator);
+        Assert.Equal(0, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Empty(outcome.Unresolved);
+        Assert.False(File.Exists(fixture.Resolve($"saves/mastersystem/{Rom}.sav")));
+        Assert.Contains("1 left on the server", outcome.Summary, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_mgba_save_is_left_on_the_server_where_the_game_alone_runs_under_mednafen()
+    {
+        // RB-289, #235: mednafen refuses mGBA's 131,088 B save for its size. The game's own
+        // <emulator> in gamelist.xml is what ES launches it with, over the system's.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Pokemon - Emerald Version (USA, Europe)";
+        fixture.AddGame(41, "gba", Rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder("gba", "mgba");
+        fixture.Write(
+            "roms/gba/gamelist.xml",
+            $"""<?xml version="1.0"?><gameList><game><path>./{Rom}.zip</path><emulator>mednafen</emulator></game></gameList>""");
+        fixture.Scan();
+
+        fixture.SeedServerSave(41, "mgba:battery", Rom, "sav", "from the other device", emulator: "mgba");
+        fixture.Stub.UnsolicitedDownloads.Add((41, "mgba:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.ForAnotherEmulator);
+        Assert.False(File.Exists(fixture.Resolve($"saves/gba/{Rom}.sav")));
+    }
+
+    [Fact]
+    public async Task A_mesen_save_downloads_where_this_device_runs_the_system_under_another_emulator()
+    {
+        // Only mednafen's plain-name-first rule holds a save back. libretro reads the .srm, so a
+        // mesen .sav beside it shadows nothing.
+        using var fixture = SyncFixture.Create();
+        const string Rom = "Golden Axe Warrior (USA, Europe, Brazil) (En)";
+        fixture.AddGame(42, "mastersystem", Rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder("mastersystem", "libretro");
+        fixture.Scan();
+
+        fixture.SeedServerSave(42, "mesen:battery", Rom, "sav", "from the other device", emulator: "mesen");
+        fixture.Stub.UnsolicitedDownloads.Add((42, "mesen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.ForAnotherEmulator);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve($"saves/mastersystem/{Rom}.sav")));
+    }
+
+    [Theory]
+    [InlineData("nes", "Crystalis (USA)", "mesen:battery", "sav", "mesen")]
+    [InlineData("gb", "Pokemon - Yellow Version (USA, Europe)", "mgba:battery", "sav", "mgba")]
+    [InlineData("snes", "Legend of Zelda, The - A Link to the Past (USA)", "libretro:battery", "srm", "libretro")]
+    public async Task A_plain_save_mednafen_reads_still_downloads_where_this_device_runs_mednafen(
+        string system,
+        string rom,
+        string slot,
+        string extension,
+        string emulator)
+    {
+        // R1.1 on #394: mednafen reads and saves into these (RB-273, gb and snes standalone.md),
+        // and the file goes up under its first owner's slot, so holding it back would also stop
+        // two mednafen devices sharing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(44, system, rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder(system, "mednafen");
+        fixture.Scan();
+
+        fixture.SeedServerSave(44, slot, rom, extension, "from the other device", emulator: emulator);
+        fixture.Stub.UnsolicitedDownloads.Add((44, slot));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.ForAnotherEmulator);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve($"saves/{system}/{rom}.{extension}")));
+    }
+
+    [Fact]
+    public async Task A_mednafen_save_still_downloads_hashed_where_this_device_runs_mednafen()
+    {
+        // The save's own emulator is the one running, so its hashed name is the one it opens.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(43, "nes", "Final Fantasy (USA)", ".zip", ".srm", null);
+        var body = NesBody("prg and chr");
+        WriteNesZip(fixture.Resolve("roms/nes/Final Fantasy (USA).zip"), "Final Fantasy (USA).nes", body);
+        fixture.RunSystemUnder("nes", "mednafen");
+        fixture.Scan();
+
+        fixture.SeedServerSave(43, "mednafen:battery", "Final Fantasy (USA)", "sav", "from the other device", emulator: "mednafen");
+        fixture.Stub.UnsolicitedDownloads.Add((43, "mednafen:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.ForAnotherEmulator);
+    }
+
+    [Fact]
     public async Task A_megadrive_mednafen_save_downloads_under_the_hash_of_the_whole_md()
     {
         // No header to leave off on megadrive: the name carries the md5 of the .md itself.
@@ -3434,6 +3551,20 @@ public class SaveSyncTests
             Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
             File.WriteAllText(savePath, saveContents);
         }
+
+        /// <summary>Writes a file into the tree, creating its directory.</summary>
+        public void Write(string relative, string contents)
+        {
+            var absolute = Resolve(relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(absolute)!);
+            File.WriteAllText(absolute, contents);
+        }
+
+        /// <summary>Sets the system-level emulator ES launches a folder's games with.</summary>
+        public void RunSystemUnder(string system, string emulator) =>
+            Write(
+                "emulationstation/.emulationstation/es_settings.cfg",
+                $"""<?xml version="1.0"?><config><string name="{system}.emulator" value="{emulator}" /></config>""");
 
         /// <summary>Puts a save on the stub server, as another device would have.</summary>
         public void SeedServerSave(

@@ -33,7 +33,9 @@ The rest each keep their own.
 
 - **The standalone Mednafen will not load a game after the standalone mGBA has saved it.** Mednafen
   opens the same save file, refuses mGBA's version of it for its size, and the game does not start.
-  Move that save out of `saves\gba` to play the game under Mednafen.
+  Move that save out of `saves\gba` to play the game under Mednafen. A sync does not bring
+  another computer's mGBA save down for a game that runs under Mednafen here, though restoring one
+  by hand does.
 - **Quit the standalone mGBA a few seconds after you save.** Its quit button closes it at once,
   and can beat the save to the disk.
 - For a game with a clock, such as the Pokemon games, Mesen, jgenesis and BizHawk rewrite the save

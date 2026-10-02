@@ -65,6 +65,18 @@ public sealed record SaveSyncOutcome
     public int Superseded { get; init; }
 
     /// <summary>
+    /// Downloads left on the server because the emulator this device runs the game with would
+    /// open them in place of its own save.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, and said by the summary alone, like <see cref="Skipped"/>.</b> It is a
+    /// standing property of how this device is configured, so it recurs on every flush, and the
+    /// save is intact on the server: launching the game with the save's own emulator here lands it
+    /// on the next flush. See <see cref="SaveSync"/>'s <c>OpenedFirstByLaunchEmulator</c> (#235).
+    /// </remarks>
+    public int ForAnotherEmulator { get; init; }
+
+    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -84,7 +96,8 @@ public sealed record SaveSyncOutcome
     public IReadOnlyList<SaveConflict> Unresolved { get; init; } = [];
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
-        && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && !SessionLeftOpen;
+        && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
+        && !SessionLeftOpen;
 
     public string Summary
     {
@@ -138,6 +151,11 @@ public sealed record SaveSyncOutcome
                 // even on a quiet hook-driven flush and this is the case that does not need
                 // saying every time.
                 parts.Add($"{Skipped} skipped, for games not synced here");
+            }
+
+            if (ForAnotherEmulator > 0)
+            {
+                parts.Add($"{ForAnotherEmulator} left on the server, for an emulator other than the one this device runs");
             }
 
             if (SessionLeftOpen)
@@ -429,8 +447,10 @@ public sealed class SaveSync
         var noOps = 0;
         var deferred = 0;
         var rejected = 0;
+        var otherEmulator = 0;
         var bytes = 0L;
         var conflicts = new List<SaveConflict>();
+        var launchEmulator = new LaunchEmulator(_install);
 
         // What each upload did, so siblings of one save can be reported together below.
         var sent = new List<(long RomId, string Slot, bool Ok)>();
@@ -580,6 +600,15 @@ public sealed class SaveSync
                         break;
                     }
 
+                    // A slot this device has never held, landing on the name the emulator this
+                    // device runs the game with opens before its own (#235). Ahead of the holder
+                    // check, because a save this device would never read is not a conflict.
+                    if (local is null && OpenedFirstByLaunchEmulator(operation, destination, launchEmulator))
+                    {
+                        otherEmulator++;
+                        break;
+                    }
+
                     // A slot this device has never held, landing on a file another slot keeps.
                     // Recorded rather than written, because the write looks like an ordinary
                     // download and the next scan re-keys the file to the loose slot and uploads
@@ -707,6 +736,7 @@ public sealed class SaveSync
             Superseded = superseded,
             Deferred = deferred,
             Rejected = rejected,
+            ForAnotherEmulator = otherEmulator,
             SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
@@ -1894,6 +1924,45 @@ public sealed class SaveSync
         return stem != rule.TitleOf(name)
             && RelativePath.TryCreate($"{path.Value[..^name.Length]}{stem}{suffix}{Path.GetExtension(name)}", out var plain)
             && File.Exists(_install.Resolve(plain));
+    }
+
+    /// <summary>
+    /// True when a save would land on the plain name that the emulator this device launches the
+    /// game with opens before its own hashed one, and that emulator was measured to refuse it.
+    /// </summary>
+    /// <remarks>
+    /// <b>mednafen tries <c>&lt;rom&gt;.sav</c> before <c>&lt;rom&gt;.&lt;md5&gt;.sav</c></b> (RB-273). On a
+    /// device that runs the game under mednafen, mesen's <c>mastersystem</c> save there stops it
+    /// with "Unexpected EOF" (RB-324) and mGBA's 131,088 B <c>gba</c> save is refused for its size
+    /// (RB-289), so the game does not load.
+    /// <para>
+    /// <b>Only the measured refusals, from the rule's <see cref="BatteryRule.RefusesPlain"/>.</b>
+    /// Elsewhere mednafen reads and saves into the plain file, mesen's on <c>nes</c>, mGBA's on
+    /// <c>gb</c> and libretro's <c>.srm</c> on <c>snes</c>, and that file goes up under its first
+    /// owner's slot, so a guard on the naming alone would also stop two mednafen devices sharing.
+    /// An unknown emulator or no ROM here answers false and the save is placed.
+    /// </para>
+    /// </remarks>
+    private bool OpenedFirstByLaunchEmulator(SyncOperation operation, RelativePath destination, LaunchEmulator launchEmulator)
+    {
+        var roms = _store.Files.ForRom(operation.RomId, LocalFileKind.Rom);
+
+        if (roms.Count == 0
+            || roms[0].Folder is not { } folder
+            || launchEmulator.For(folder, roms) is not { } emulator
+            || _shapes.BatteryRuleForSlot(folder, $"{emulator}:battery") is not { } rule
+            || !rule.RefusesPlainSave(folder, operation.Slot))
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(destination.Name);
+
+        return rule.Carries(extension)
+            && string.Equals(
+                destination.Value,
+                $"{rule.DirectoryFor(folder)}/{Path.GetFileNameWithoutExtension(roms[0].FileName)}{extension}",
+                StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
