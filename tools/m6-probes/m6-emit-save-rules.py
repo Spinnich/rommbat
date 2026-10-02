@@ -351,6 +351,21 @@ OTHER_BATTERY_RULES = [
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
         "class": "A",
+        "refuses_plain": {
+            "mastersystem": {
+                "mesen:battery": (
+                    "RB-324: mastersystem under mednafen on 8.2.1 opened the plain <rom>.sav mesen "
+                    "standalone had written, 8,192 B, and stopped with Unexpected EOF"
+                ),
+            },
+            "gba": {
+                "mgba:battery": (
+                    "RB-289: gba under mednafen on 8.2.1 opened the plain <rom>.sav mGBA standalone "
+                    "had written and refused it, 131,088 B against the 65,536 or 131,072 B it takes, "
+                    "and the game did not load"
+                ),
+            },
+        },
         "evidence": (
             "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose "
             "Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of "

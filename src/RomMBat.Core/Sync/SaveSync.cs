@@ -1927,20 +1927,20 @@ public sealed class SaveSync
     }
 
     /// <summary>
-    /// True when another emulator's save would land on the plain name that the emulator this
-    /// device launches the game with opens before its own hashed one.
+    /// True when a save would land on the plain name that the emulator this device launches the
+    /// game with opens before its own hashed one, and that emulator was measured to refuse it.
     /// </summary>
     /// <remarks>
-    /// <b>mednafen tries <c>&lt;rom&gt;.sav</c> before <c>&lt;rom&gt;.&lt;md5&gt;.sav</c></b> (RB-273), and
-    /// mesen standalone and mGBA standalone write that plain name. Placed on a device that runs the
-    /// game under mednafen, their save is the file mednafen opens: it stops with "Unexpected EOF"
-    /// on a <c>mastersystem</c> mesen save (RB-324) and refuses mGBA's 131,088 B <c>gba</c> save
-    /// for its size (RB-289), so the game does not load, and any hashed save mednafen kept there is shadowed.
+    /// <b>mednafen tries <c>&lt;rom&gt;.sav</c> before <c>&lt;rom&gt;.&lt;md5&gt;.sav</c></b> (RB-273). On a
+    /// device that runs the game under mednafen, mesen's <c>mastersystem</c> save there stops it
+    /// with "Unexpected EOF" (RB-324) and mGBA's 131,088 B <c>gba</c> save is refused for its size
+    /// (RB-289), so the game does not load.
     /// <para>
-    /// Answered from the rule's naming rather than the emulator's name, so it covers any emulator
-    /// with a <see cref="BatteryNaming.RomFileAndContentMd5"/> rule, which today is mednafen alone.
-    /// Unknown emulator, no ROM here or no such rule all answer false and the save is placed, so
-    /// this only ever holds back a save on evidence of where it would be read.
+    /// <b>Only the measured refusals, from the rule's <see cref="BatteryRule.RefusesPlain"/>.</b>
+    /// Elsewhere mednafen reads and saves into the plain file, mesen's on <c>nes</c>, mGBA's on
+    /// <c>gb</c> and libretro's <c>.srm</c> on <c>snes</c>, and that file goes up under its first
+    /// owner's slot, so a guard on the naming alone would also stop two mednafen devices sharing.
+    /// An unknown emulator or no ROM here answers false and the save is placed.
     /// </para>
     /// </remarks>
     private bool OpenedFirstByLaunchEmulator(SyncOperation operation, RelativePath destination, LaunchEmulator launchEmulator)
@@ -1950,8 +1950,8 @@ public sealed class SaveSync
         if (roms.Count == 0
             || roms[0].Folder is not { } folder
             || launchEmulator.For(folder, roms) is not { } emulator
-            || _shapes.BatteryRuleForSlot(folder, $"{emulator}:battery") is not { NamedAfter: BatteryNaming.RomFileAndContentMd5 } rule
-            || rule.OwnsSlot(operation.Slot))
+            || _shapes.BatteryRuleForSlot(folder, $"{emulator}:battery") is not { } rule
+            || !rule.RefusesPlainSave(folder, operation.Slot))
         {
             return false;
         }

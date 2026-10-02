@@ -378,11 +378,14 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   rows and it is closed separately**: a negotiated download for a slot this device never held,
   landing on another slot's file, is a conflict and not a write (#205). One landing on the plain
   `<rom>.sav` that mednafen opens before its hashed name, for a game ES launches under mednafen, is
-  left on the server and counted, not written (#235). Its reading on `mastersystem` (RB-324) and
-  on `gba` (mGBA's 131,088 B, RB-289) is a game that will not load, and the guard asks
-  `RetroBat/LaunchEmulator` (the gamelist entry, then `<system>.emulator`, then the first
-  `es_systems.cfg` emulator) and the rule's hashed naming, never a size. So it also holds back a
-  plain save mednafen would have read, mesen's on `nes` and mGBA's on `gb`.
+  left on the server and counted, not written, **only where `refuses_plain` on mednafen's rule
+  records a measured refusal**: mesen's on `mastersystem` (RB-324) and mGBA's on `gba` (RB-289),
+  both a game that will not load (#235). `RetroBat/LaunchEmulator` names the emulator (the gamelist
+  entry, then `<system>.emulator`, then the first `es_systems.cfg` emulator). Never widen it to
+  the hashed naming alone: mednafen reads and saves into the plain file on `nes`, `gb` and `snes`,
+  that file goes up under its first owner's slot, and holding it back stops two mednafen devices
+  sharing. A mesen `gba` save also goes up as `mgba:battery`, at a size mednafen takes, and is
+  held back with mGBA's.
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something

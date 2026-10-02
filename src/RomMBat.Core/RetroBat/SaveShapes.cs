@@ -121,6 +121,22 @@ public sealed partial record BatteryRule(
     public FrozenSet<string> AlsoWrittenBy { get; init; } = FrozenSet<string>.Empty;
 
     /// <summary>
+    /// Per system, the slots whose save this emulator was measured to refuse when it sits under
+    /// the plain name it opens before its own hashed one.
+    /// </summary>
+    /// <remarks>
+    /// mednafen is the measured case: on <c>mastersystem</c> it stops on mesen's save (RB-324), and
+    /// on <c>gba</c> it refuses mGBA's for its size (RB-289). Elsewhere it reads and saves into the
+    /// plain file, which is why this is a list of measurements and not a property of the naming.
+    /// </remarks>
+    public FrozenDictionary<string, FrozenSet<string>> RefusesPlain { get; init; } =
+        FrozenDictionary<string, FrozenSet<string>>.Empty;
+
+    /// <summary>True when this emulator was measured to refuse that slot's save under the plain name.</summary>
+    public bool RefusesPlainSave(string system, string? slot) =>
+        slot is not null && RefusesPlain.TryGetValue(system, out var slots) && slots.Contains(slot);
+
+    /// <summary>
     /// What a title must look like, or null for any. Two display-name rules on one system that
     /// carry one extension keep their binding keys apart by it.
     /// </summary>
@@ -847,6 +863,10 @@ public sealed class SaveShapes
             {
                 StemSuffixes = entry.StemSuffixes.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
                 AlsoWrittenBy = entry.AlsoWrittenBy.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                RefusesPlain = entry.RefusesPlain.ToFrozenDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value.Keys.ToFrozenSet(StringComparer.OrdinalIgnoreCase),
+                    StringComparer.OrdinalIgnoreCase),
                 TitlePattern = Blank(entry.TitlePattern) is { } pattern
                     ? new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)
                     : null,
@@ -858,6 +878,16 @@ public sealed class SaveShapes
                 FromRoot = entry.FromRoot,
             })
             .ToList();
+
+        // Only a rule that hashes its name has a plain name it opens first, and only on its systems.
+        if (parsed.FirstOrDefault(rule => rule.RefusesPlain.Count > 0
+            && (rule.NamedAfter != BatteryNaming.RomFileAndContentMd5
+                || rule.RefusesPlain.Keys.Any(system => !rule.AppliesTo(system)))) is { } misplaced)
+        {
+            throw new InvalidOperationException(
+                $"save_rules.json gives {misplaced.Emulator} refuses_plain, which needs a rule named after "
+                    + "the rom file and content md5, on systems the rule covers.");
+        }
 
         // A path outside saves/ carries no system folder, so the rule has to supply the one system.
         if (parsed.FirstOrDefault(rule => rule.FromRoot
@@ -1127,6 +1157,9 @@ public sealed class SaveShapes
 
         [JsonPropertyName("also_written_by")]
         public List<string> AlsoWrittenBy { get; init; } = [];
+
+        [JsonPropertyName("refuses_plain")]
+        public Dictionary<string, Dictionary<string, string>> RefusesPlain { get; init; } = [];
 
         [JsonPropertyName("title_pattern")]
         public string? TitlePattern { get; init; }

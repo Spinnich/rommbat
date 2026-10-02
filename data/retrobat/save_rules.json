@@ -147,6 +147,14 @@
       "extensions": [".sav"],
       "named_after": "rom file and content md5",
       "class": "A",
+      "refuses_plain": {
+        "mastersystem": {
+          "mesen:battery": "RB-324: mastersystem under mednafen on 8.2.1 opened the plain <rom>.sav mesen standalone had written, 8,192 B, and stopped with Unexpected EOF"
+        },
+        "gba": {
+          "mgba:battery": "RB-289: gba under mednafen on 8.2.1 opened the plain <rom>.sav mGBA standalone had written and refused it, 131,088 B against the 65,536 or 131,072 B it takes, and the game did not load"
+        }
+      },
       "evidence": "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of the .nes inside less its 16-byte iNES header; megadrive under mednafen, core megadrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose <rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md inside; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of the whole .gba inside, once no plain <rom>.sav was present; gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb inside, when no plain <rom>.sav was present; gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was present; mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote a loose <rom>.d46e40bbb729ba233f171ad7bf6169f5.sav, 32,768 B, the md5 being of the whole .sms inside"
     },
     {

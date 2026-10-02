@@ -1290,6 +1290,35 @@ public class SaveSyncTests
         Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve($"saves/mastersystem/{Rom}.sav")));
     }
 
+    [Theory]
+    [InlineData("nes", "Crystalis (USA)", "mesen:battery", "sav", "mesen")]
+    [InlineData("gb", "Pokemon - Yellow Version (USA, Europe)", "mgba:battery", "sav", "mgba")]
+    [InlineData("snes", "Legend of Zelda, The - A Link to the Past (USA)", "libretro:battery", "srm", "libretro")]
+    public async Task A_plain_save_mednafen_reads_still_downloads_where_this_device_runs_mednafen(
+        string system,
+        string rom,
+        string slot,
+        string extension,
+        string emulator)
+    {
+        // R1.1 on #394: mednafen reads and saves into these (RB-273, gb and snes standalone.md),
+        // and the file goes up under its first owner's slot, so holding it back would also stop
+        // two mednafen devices sharing.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(44, system, rom, ".zip", ".srm", null);
+        fixture.RunSystemUnder(system, "mednafen");
+        fixture.Scan();
+
+        fixture.SeedServerSave(44, slot, rom, extension, "from the other device", emulator: emulator);
+        fixture.Stub.UnsolicitedDownloads.Add((44, slot));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.ForAnotherEmulator);
+        Assert.Equal("from the other device", File.ReadAllText(fixture.Resolve($"saves/{system}/{rom}.{extension}")));
+    }
+
     [Fact]
     public async Task A_mednafen_save_still_downloads_hashed_where_this_device_runs_mednafen()
     {
