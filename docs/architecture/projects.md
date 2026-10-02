@@ -337,20 +337,19 @@ fixture that fails either run when a tree is still in `%TEMP%\rommbat-tests` aft
 test, because the tree's own teardown swallows a failed delete so that one open handle cannot
 fail an unrelated test.
 
-**The commands are where milestones meet**, each wiring a planner to a sync to a store to
-an exit code, and that is the layer a defect survives a full green suite in. One did:
-`BiosCommand` and `SyncCommand` both returned before constructing `BiosSync` when nothing
-needed downloading, which made `BiosAction.Adopt` unreachable from either entry point, and
-a user who had copied their BIOS in by hand would have been told "N already on disk to
-adopt" forever with no row ever written. The planner was covered, the sync was covered, and
-the gate between them was neither.
+**The commands are where the pieces meet**, each wiring a planner to a sync to a store to
+an exit code, and that is the layer a defect survives a full green suite in. A command that
+returns early can make a planned action unreachable while the planner and the sync are each
+covered on their own: gating the BIOS apply on there being something to download would leave
+`BiosAction.Adopt` writing no row, for a user who copied their BIOS in by hand.
+`A_plan_that_only_adopts_is_still_a_pass_worth_running` holds that gate open.
 
 The suite drives `Program.DispatchAsync` rather than a command class, because the handlers
 that turn an exception into an exit code live there and a test that calls the command
-directly runs straight past them. That seam caught the second one: the `bios` argument gate
-reads `es_systems.cfg`, a root is accepted on `retrobat.ini` alone, and a RetroBat that has
-been unzipped and never launched has no file to read, so the command threw where it used to
-report. It is now a refusal carrying the exception's own message.
+directly runs straight past them. A RetroBat that has been unzipped and never launched is the
+case that seam covers: a root is accepted on `retrobat.ini` alone, it has no `es_systems.cfg`
+for the `bios` argument gate to read, and the command refuses with the exception's own message
+rather than throwing.
 
 Fixtures come from a real install and are checked in under `tests/**/fixtures/`, byte
 exact and excluded from linting. Save-shape and mapping logic without a fixture is not
