@@ -56,7 +56,23 @@ public sealed class MednafenRomHashTests : IDisposable
 
         Assert.Equal(HeaderlessNesHash.Of(nes), MednafenRomHash.Of(nes, "nes"));
         Assert.Equal(Md5(body), MednafenRomHash.Of(nes, "nes"));
-        Assert.Null(MednafenRomHash.Of(nes, "pcengine"));
+        Assert.Null(MednafenRomHash.Of(nes, "supergrafx"));
+    }
+
+    [Fact]
+    public void A_zipped_pcengine_rom_hashes_the_whole_pce_inside_unless_it_carries_a_copier_header()
+    {
+        // Measured on Populous (Japan) (En), a headerless 524,288 B dump: the .pce's own md5,
+        // 9d599a43..., is the one on mednafen's .sav and on its states (#396).
+        var body = new byte[4 * 8192];
+        "POPULOUS"u8.CopyTo(body.AsSpan(0x100));
+        var zip = Zip("Game (Japan).zip", ("Game (Japan).pce", body));
+
+        Assert.Equal(Md5(body), MednafenRomHash.Of(zip, "pcengine"));
+
+        // 512 bytes over whole banks is a copier header, which no pass has driven.
+        byte[] headered = [.. new byte[512], .. body];
+        Assert.Null(MednafenRomHash.Of(Zip("Headered (Japan).zip", ("Headered (Japan).pce", headered)), "pcengine"));
     }
 
     [Fact]

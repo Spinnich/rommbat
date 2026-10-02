@@ -379,8 +379,8 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   landing on another slot's file, is a conflict and not a write (#205). One landing on the plain
   `<rom>.sav` that mednafen opens before its hashed name, for a game ES launches under mednafen, is
   left on the server and counted, not written, **only where `refuses_plain` on mednafen's rule
-  records a measured refusal**: mesen's on `mastersystem` (RB-324) and mGBA's on `gba` (RB-289),
-  both a game that will not load (#235). `RetroBat/LaunchEmulator` names the emulator (the gamelist
+  records a measured refusal**: mesen's on `mastersystem` (RB-324) and on `pcengine` (RB-407), and mGBA's on `gba` (RB-289),
+  each a game that will not load (#235). `RetroBat/LaunchEmulator` names the emulator (the gamelist
   entry, then `<system>.emulator`, then the first `es_systems.cfg` emulator). Never widen it to
   the hashed naming alone: mednafen reads and saves into the plain file on `nes`, `gb` and `snes`,
   that file goes up under its first owner's slot, and holding it back stops two mednafen devices

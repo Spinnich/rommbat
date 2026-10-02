@@ -35,8 +35,17 @@ public class DisplayNameSaveTests
         Assert.Equal(SaveShapeClass.A, bizhawk.Class);
         Assert.Same(bizhawk, shapes.BatteryRuleForSlot("nes", "bizhawk:battery"));
 
-        // Not measured on pcengine, so pcengine under bizhawk stays reported rather than guessed at.
-        Assert.Null(shapes.BatteryRuleFor("pcengine", "bizhawk", "Bonk's Adventure.SaveRAM"));
+        // Not measured on supergrafx, so supergrafx under bizhawk stays reported rather than guessed at.
+        Assert.Null(shapes.BatteryRuleFor("supergrafx", "bizhawk", "Bonk's Adventure.SaveRAM"));
+
+        // pcengine was (#396): one owner each for the four standalone battery files Populous left.
+        Assert.Equal("bizhawk", shapes.BatteryRuleFor("pcengine", "bizhawk", "Populous (J).SaveRAM")?.Emulator);
+        Assert.Equal("mesen", shapes.BatteryRuleFor("pcengine", string.Empty, "Populous (Japan) (En).sav")?.Emulator);
+        Assert.Equal(
+            "mednafen",
+            shapes.BatteryRuleFor("pcengine", string.Empty, "Populous (Japan) (En).9d599a43d2c69738f3562f58aeff8828.sav")?.Emulator);
+        Assert.Equal("ares", shapes.BatteryRuleFor("pcengine", "ares/PC Engine", "Populous (Japan) (En).ram")?.Emulator);
+        Assert.Equal("libretro", shapes.BatteryRuleFor("pcengine", string.Empty, "Populous (Japan) (En).srm")?.Emulator);
 
         // #152, and the two names measured on nes: the hash on the stem is what makes a loose
         // .sav mednafen's, and without one it is mesen standalone's. Never libretro's.
@@ -71,8 +80,9 @@ public class DisplayNameSaveTests
         Assert.Null(shapes.BatteryRuleForSlot("nes", "mesen:battery"));
         Assert.Same(mednafen, shapes.BatteryRuleForSlot("nes", "mednafen:battery"));
 
-        // Only the two refusals measured (RB-324, RB-289); it reads mesen's file on nes (RB-273).
+        // Only the three refusals measured (RB-324, RB-289, RB-407); it reads mesen's file on nes (RB-273).
         Assert.True(mednafen.RefusesPlainSave("mastersystem", "mesen:battery"));
+        Assert.True(mednafen.RefusesPlainSave("pcengine", "mesen:battery"));
         Assert.True(mednafen.RefusesPlainSave("gba", "mgba:battery"));
         Assert.False(mednafen.RefusesPlainSave("nes", "mesen:battery"));
         Assert.False(mednafen.RefusesPlainSave("gb", "mgba:battery"));

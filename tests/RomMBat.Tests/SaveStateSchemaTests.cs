@@ -34,16 +34,16 @@ public class SaveStateSchemaTests
         {
             Assert.Null(shipped.For(name));
             Assert.True(loaded.For(name)!.AppliesTo("nes"));
-            Assert.False(loaded.For(name)!.AppliesTo("pcengine"));
+            Assert.False(loaded.For(name)!.AppliesTo("supergrafx"));
         }
 
-        // Sixteen entries for eight emulators, because ares and kega-fusion keep one per system.
-        Assert.Equal(shipped.Emulators.Count + 16, loaded.Emulators.Count);
+        // Seventeen entries for eight emulators, because ares and kega-fusion keep one per system.
+        Assert.Equal(shipped.Emulators.Count + 17, loaded.Emulators.Count);
 
-        // Measured on nes, so the same tree under pcengine is nobody's state directory.
+        // Measured on nes, so the same tree under supergrafx is nobody's state directory.
         Assert.Equal("mesen", loaded.MatchDirectory("nes/mesen/SaveStates")?.Emulator.Name);
-        Assert.Null(loaded.MatchDirectory("pcengine/mesen/SaveStates"));
-        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "pcengine", core: null));
+        Assert.Null(loaded.MatchDirectory("supergrafx/mesen/SaveStates"));
+        Assert.Null(SaveStateTemplate.Create(loaded.For("mesen")!, "supergrafx", core: null));
         Assert.Null(loaded.For("mesen", "megadrive"));
     }
 
@@ -77,7 +77,7 @@ public class SaveStateSchemaTests
 
         Assert.Equal("{{system}}/ares/Famicom", loaded.For("ares", "nes")!.Directory);
         Assert.Equal("{{system}}/ares/Mega Drive", loaded.For("ares", "megadrive")!.Directory);
-        Assert.Null(loaded.For("ares", "pcengine"));
+        Assert.Null(loaded.For("ares", "supergrafx"));
 
         Assert.Equal("megadrive", loaded.MatchDirectory("megadrive/ares/Mega Drive")?.System);
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Famicom"));
@@ -205,6 +205,30 @@ public class SaveStateSchemaTests
         Assert.Null(loaded.MatchDirectory("megadrive/ares/Master System"));
         var ares = SaveStateTemplate.Create(loaded.For("ares", "mastersystem")!, "mastersystem", core: null)!;
         Assert.Equal(2, ares.Match($"{Rom}.bs2")?.Slot);
+    }
+
+    [Fact]
+    public void Pcengine_states_are_read_where_each_standalone_emulator_was_measured_writing_them()
+    {
+        // Populous (Japan) (En), driven under each row on 8.2.1 (#396).
+        var loaded = Fixtures.LoadSaveStatesAsLoaded();
+        const string Rom = "Populous (Japan) (En)";
+
+        var mesen = SaveStateTemplate.Create(loaded.For("mesen", "pcengine")!, "pcengine", core: null)!;
+        Assert.Equal(2, mesen.Match($"{Rom}_2.mss")?.Slot);
+        Assert.Equal("mesen", loaded.MatchDirectory("pcengine/mesen/SaveStates")?.Emulator.Name);
+
+        var mednafen = SaveStateTemplate.Create(loaded.For("mednafen", "pcengine")!, "pcengine", core: null)!;
+        Assert.Equal(1, mednafen.Match($"{Rom}.9d599a43d2c69738f3562f58aeff8828.mc1")?.Slot);
+
+        // ares names the console "PC Engine", and the shared .bram beside the states is no state.
+        Assert.Equal("pcengine", loaded.MatchDirectory("pcengine/ares/PC Engine")?.System);
+        var ares = SaveStateTemplate.Create(loaded.For("ares", "pcengine")!, "pcengine", core: null)!;
+        Assert.Equal(1, ares.Match($"{Rom}.bs1")?.Slot);
+        Assert.Null(ares.Match("PC Engine.bram"));
+
+        // supergrafx shares the hardware family and was not driven.
+        Assert.Null(loaded.MatchDirectory("supergrafx/ares/PC Engine"));
     }
 
     [Fact]

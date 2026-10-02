@@ -60,5 +60,5 @@ fact with no stamp. A stamp naming several builds of one project counts its newe
   fails on a citation that resolves to no heading.
 - A fact is edited in place when the behaviour changes on a version move, keeping its ID. A fact
   that stops being true is deleted with every citation of it.
-- An ID is never reused. The next free numbers are **407** for `RB-` and **29** for `RM-`.
+- An ID is never reused. The next free numbers are **408** for `RB-` and **29** for `RM-`.
   Take one and raise the number here in the same change.
