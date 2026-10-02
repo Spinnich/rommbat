@@ -177,28 +177,6 @@ public sealed class UninstallTests : IDisposable
     }
 
     [Fact]
-    public async Task A_game_the_save_guard_holds_back_is_named_and_fails_the_run()
-    {
-        // The stale game-start no longer blocks the whole removal, but SaveGuard has no such
-        // bound (#294) and still refuses this one game. Its files stay, and once the user deletes
-        // emulators/rommbat nothing records that they were RomMBat's, so it cannot pass quietly.
-        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
-        _session.Store.Journal.Append(JournalEvent.GameStart, Now, RelativePath.Create("roms/snes/Chrono Trigger (USA).sfc"));
-        CloseAfterFlush(_session.Store.Journal.Append(JournalEvent.Start, Now));
-
-        var report = Service().Preview(new RemovalScope(Content: true));
-        Assert.False(report.IsBlocked);
-        Assert.Single(report.Content!.Plan.Refused);
-
-        var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
-
-        Assert.Null(applied.Refusal);
-        Assert.Single(applied.Held!);
-        Assert.False(applied.Ok, "a game left behind was reported as done");
-        Assert.True(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
-    }
-
-    [Fact]
     public void An_outbox_entry_that_failed_is_named_with_its_error_rather_than_only_told_to_flush()
     {
         // A failure leaves the row pending, so one the server refuses blocks on every run. Without

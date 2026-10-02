@@ -511,6 +511,26 @@ public class SaveDiscoveryTests
     }
 
     [Fact]
+    public void A_game_start_orphaned_before_the_last_front_end_start_stops_blocking_eviction()
+    {
+        // A power loss mid-game leaves a game-start with no game-end, and a flush never closes
+        // it. ES starting ends every game that was running, so only a start after the last
+        // start or quit is a game that can still be running.
+        using var fixture = SaveTree.Create();
+        var rom = RelativePath.Create("roms/snes/ActRaiser (USA).zip");
+        var now = DateTimeOffset.Parse("2026-08-16T10:00:00Z", System.Globalization.CultureInfo.InvariantCulture);
+
+        fixture.AddRom(42, "snes", "ActRaiser (USA).zip");
+        fixture.Store.Journal.Append(JournalEvent.GameStart, now, rom, rom.Name, rom.Name);
+
+        Assert.False(new SaveGuard(fixture.Store).Check(42, rom).CanRemove);
+
+        fixture.Store.Journal.Append(JournalEvent.Start, now.AddHours(1));
+
+        Assert.True(new SaveGuard(fixture.Store).Check(42, rom).CanRemove);
+    }
+
+    [Fact]
     public void A_deleted_converted_card_stops_blocking_eviction()
     {
         // Class D was "never forget" until this stage, because no class D row had ever existed.

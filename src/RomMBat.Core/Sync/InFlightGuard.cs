@@ -208,15 +208,12 @@ public sealed class InFlightGuard
         var launches = new List<RelativePath?>();
 
         using (var command = _store.Connection.Command(
-            """
+            $"""
             SELECT rom_relative_path
             FROM journal
             WHERE event = 'game-start'
               AND state = 'open'
-              AND local_sequence > (
-                    SELECT COALESCE(MAX(local_sequence), -1)
-                    FROM journal
-                    WHERE event IN ('start', 'quit'))
+              AND {RunningGames.AfterLastFrontEndEvent}
             ORDER BY local_sequence;
             """))
         {

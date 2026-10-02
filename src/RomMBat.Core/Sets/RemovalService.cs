@@ -341,15 +341,12 @@ public sealed class RemovalService
     /// </remarks>
     private static string OpenJournal(bool runningOnly) =>
         runningOnly
-            ? """
+            ? $"""
               SELECT COUNT(*)
               FROM journal
               WHERE state = 'open'
                 AND event = 'game-start'
-                AND local_sequence > (
-                      SELECT COALESCE(MAX(local_sequence), -1)
-                      FROM journal
-                      WHERE event IN ('start', 'quit'));
+                AND {RunningGames.AfterLastFrontEndEvent};
               """
             : "SELECT COUNT(*) FROM journal WHERE state = 'open' AND event <> 'game-start';";
 

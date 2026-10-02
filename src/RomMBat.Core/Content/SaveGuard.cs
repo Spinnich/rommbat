@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Content;
 
@@ -28,7 +29,8 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// <item><c>outbox</c>: anything produced offline and not yet sent, keyed by ROM.</item>
 /// <item><c>journal</c>: what the ES hooks append, keyed by the ROM's path. An entry that is
 /// still <c>open</c> means a game was launched and nothing has yet worked out what it
-/// wrote.</item>
+/// wrote. A <c>game-start</c> older than the last <c>start</c> or <c>quit</c> is an orphan and
+/// does not count, per <see cref="RunningGames"/>.</item>
 /// <item><c>local_save</c>: <b>the third question, and the reason M3 shipped eviction with a
 /// mitigation instead of an answer.</b> A save file on disk whose <c>uploaded_content_hash</c>
 /// is null has never reached the server, and one whose hash no longer matches the file has
@@ -181,8 +183,18 @@ public sealed class SaveGuard
 
     private bool HasOpenJournalEntry(RelativePath path)
     {
+        // Only a game-start after the last start or quit can still be running. An older one is
+        // an orphan from a power loss, which no flush closes, and would refuse this game forever.
         using var command = _store.Connection
-            .Command("SELECT 1 FROM journal WHERE rom_relative_path = $path AND state = 'open' LIMIT 1;")
+            .Command(
+                $"""
+                SELECT 1
+                FROM journal
+                WHERE rom_relative_path = $path
+                  AND state = 'open'
+                  AND (event <> 'game-start' OR {RunningGames.AfterLastFrontEndEvent})
+                LIMIT 1;
+                """)
             .With("$path", path.Value);
 
         return command.ExecuteScalar() is not null;
