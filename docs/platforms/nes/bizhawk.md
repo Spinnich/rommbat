@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`
 
 **Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
-and server as [the re-drive](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
+and server as [the install `nestopia` was certified on](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
 `tools/publish.ps1 -Deploy R:\RetroBat`, so it carries #151's BizHawk battery saves. The
 maintainer played over RDP. The second state on each row was made from the agent's session on the
 RetroBat machine, which is described under step 5.
@@ -28,7 +28,7 @@ to is contested rather than synced (RB-262). Zelda's is unique too.
 
 ## Checklist for both `bizhawk` rows
 
-Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive. Step 6 is N/A for the
+Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist). Step 6 is N/A for the
 same reason.
 
 | #   | `bizhawk`/`NesHawk`                                                        | `bizhawk`/`quickerNES`                                                 |

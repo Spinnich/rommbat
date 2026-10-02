@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `jgenesis`, `mesen`, `mednafen` and `ares`
 
 **All four certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same
-install and server as [the re-drive](index.md#the-install-this-was-measured-on). Each row is
+install and server as [the install `nestopia` was certified on](index.md#the-install-this-was-measured-on). Each row is
 carried by a battery rule of its own, and the states of all but `jgenesis` by the bundled
 `es_savestates.supplement.xml` (#150). The client was a deploy of the branch that added both, by
 `tools/publish.ps1 -Deploy`. The maintainer played over RDP, and the second state on each row was
@@ -30,7 +30,7 @@ row for `nes` at all.
 
 ## Checklist for the four
 
-Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive, and step 6 is N/A for the
+Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist), and step 6 is N/A for the
 same reason. `.zip` was observed to launch on all four.
 
 | #   | `jgenesis`                          | `mesen` standalone                  | `mednafen`                                 | `ares`                              |

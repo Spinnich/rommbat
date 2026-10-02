@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `libretro`/`fceumm` and `libretro`/`mesen`
 
 **Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
-and server as [the re-drive](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at a901af3, the merge of #210,
+and server as [the install `nestopia` was certified on](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at a901af3, the merge of #210,
 made by `tools/publish.ps1 -Deploy R:\RetroBat`. So `status`'s `Playtime` block settled step 8,
 not a second token. The maintainer played; everything after the quit was checked from the agent,
 the store and the server.
@@ -33,7 +33,7 @@ moment a name is registered, where Final Fantasy III needed play to the world ma
 
 ## Checklist for both
 
-Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive the same day. Step 6 is N/A
+Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist) the same day. Step 6 is N/A
 for the same reason.
 
 | #   | `libretro`/`fceumm`                                                                    | `libretro`/`mesen`                                               |

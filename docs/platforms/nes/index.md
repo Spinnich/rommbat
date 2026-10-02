@@ -26,8 +26,8 @@ widened the `bizhawk` and `mednafen` rules to name it, with its own `jgenesis` a
 beside these; [megadrive's record](../megadrive/index.md) is that record, and nothing here speaks for it.
 
 **Step 5 rests on a state made after RB-258's fix**, and the restored screenshot was checked by
-its bytes rather than by its arrival. Step 2 asks that nothing be excluded for its extension. See
-[`nestopia`'s step 5](libretro-nestopia.md#5-save-state-and-screenshot).
+its bytes rather than by its arrival ([`nestopia`'s step 5](libretro-nestopia.md#5-save-state-and-screenshot)).
+Step 2 asks that nothing be excluded for its extension ([step 2](#2-extensions)).
 
 ## Where each row stands
 
@@ -48,15 +48,15 @@ is owed.
 
 ## The install this was measured on
 
-|             |                                                                                                           |
-| ----------- | --------------------------------------------------------------------------------------------------------- |
-| RetroBat    | `8.2.1-stable-win64`, the supported floor                                                                 |
-| RomM        | `5.3.0-beta.1`, with step 3 at 5.2.0 and steps 1 and 9 again at `5.3.1`                                   |
-| Client      | For `nestopia`, a deploy of `main` at 9ed1fd1 by `tools/publish.ps1 -Deploy`; each row file names its own |
-| Root        | `R:\RetroBat`, found by walking up from the executable                                                    |
-| Store       | schema 16 of 16, WAL                                                                                      |
-| Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free                                        |
-| Media kinds | `ScrapeVideos` and `ScrapeManual` both `true`, as a fresh 8.2.1 ships them                                |
+|             |                                                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
+| RetroBat    | `8.2.1-stable-win64`, the supported floor                                                                                  |
+| RomM        | `5.3.0-beta.1` for the steps, with step 3 at 5.2.0 and steps 1 and 9 again at `5.3.1`; 5.2.0 for "What the pass turned up" |
+| Client      | For `nestopia`, a deploy of `main` at 9ed1fd1 by `tools/publish.ps1 -Deploy`; each row file names its own                  |
+| Root        | `R:\RetroBat`, found by walking up from the executable                                                                     |
+| Store       | schema 16 of 16, WAL; 14 of 14 at 5.2.0                                                                                    |
+| Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free                                                         |
+| Media kinds | `ScrapeVideos` and `ScrapeManual` both `true`, as a fresh 8.2.1 ships them                                                 |
 
 The budget being off is deliberate and narrows what this pass proves: **nothing here certifies
 `budget`, `evict` or the eviction guards.** None of those is among the nine steps. It also means
@@ -291,5 +291,5 @@ Probe case M4 answers `no_op (Content is identical)`, so the hash settles it ser
 - The conflict results are about RomMBat's handling of a divergence. Both sides were synthesized,
   so nothing here is evidence that a real two-device race produces one, or how often.
 - The class D download path is untested anywhere in the project and `nes` contains no class D.
-- Media coverage, once step 7 records it, is a dated observation about this RomM library and
+- Media coverage, as step 7 records it, is a dated observation about this RomM library and
   moves when an administrator rescrapes. It is never a platform result.
