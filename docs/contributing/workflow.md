@@ -21,6 +21,25 @@ runs its work to a merge-ready PR and stops only when it needs one of those thre
 `/start-issue` and `/certify` end by running `/drive-pr`, so you rarely run it by hand. Run it
 again on a PR that stopped for you, once you have answered.
 
+## Which model each command runs on
+
+Each command and the reviewer agent set `model` and `effort` in their frontmatter, so a session
+switches model when the command starts and returns to your own default on your next message.
+
+| Command or agent | Model  | Effort | Why                                                           |
+| ---------------- | ------ | ------ | ------------------------------------------------------------- |
+| `/next`          | Sonnet | low    | Ranks a list and hands off                                    |
+| `/start-issue`   | Opus   | medium | The design judgement: ruling on the issue and writing the fix |
+| `/drive-pr`      | Sonnet | high   | CI logs and scoped fixes; high effort for ruling on findings  |
+| `pr-reviewer`    | Opus   | medium | A different, stronger model from the one driving the PR       |
+| `/review-pr`     | Sonnet | low    | Spawns the reviewer and relays its comment                    |
+| `/certify`       | Sonnet | medium | Mostly launching rows, sending keys and recording             |
+
+Other general-purpose subagents run on Sonnet, from `CLAUDE_CODE_SUBAGENT_MODEL` in
+`.claude/settings.json`. The values are family aliases, so each takes the newest model in its
+family without a change here. To map an alias to something else on your own machine, set
+`ANTHROPIC_DEFAULT_SONNET_MODEL` or `ANTHROPIC_DEFAULT_OPUS_MODEL`.
+
 ## Where to look
 
 Nothing needs a terminal watched. When a command stops, you get a push notification and the PR
@@ -72,6 +91,8 @@ are unproven without one.
 
 `tools/pre-pr.ps1` runs every CI gate locally: `pwsh -File tools/pre-pr.ps1`. In a git
 worktree it skips trunk, which cannot read one from WSL, and CI's trunk check covers it.
+`-Quiet` prints only each gate's name and the tail of a gate that fails, which is how the
+commands run it.
 
 ## One-time setup
 

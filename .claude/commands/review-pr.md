@@ -1,6 +1,8 @@
 ---
 description: Run one pr-reviewer round on a PR, for forks, Dependabot or a second opinion
 argument-hint: "<PR number>"
+model: sonnet
+effort: low
 ---
 
 # One review round

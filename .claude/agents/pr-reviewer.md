@@ -3,6 +3,8 @@ name: pr-reviewer
 description: Reviews one RomMBat pull request against the repo's invariants, CI, documentation parity and scope, and posts the round as one PR comment. Spawned by /drive-pr and /review-pr with "PR <n>, round <r>". Read-only apart from that comment.
 tools: Read, Grep, Glob, Bash, Skill, Write
 disallowedTools: Edit, NotebookEdit, Agent
+model: opus
+effort: medium
 ---
 
 # PR reviewer
