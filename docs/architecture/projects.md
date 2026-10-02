@@ -62,7 +62,7 @@ task.
 
 | Subcommand   | Network       | Notes                                                                                                  |
 | ------------ | ------------- | ------------------------------------------------------------------------------------------------------ |
-| `pair`       | yes           | Device pairing. The M1 pairing surface until the UI lands in M7                                        |
+| `pair`       | yes           | Device pairing from a terminal. The UI pairs through the same Core service                             |
 | `sync`       | yes           | Flush first, then resolve sets, BIOS, then each game's ROMs and its artwork, gamelists, and scan saves |
 | `bios`       | only if asked | Report what RetroBat requires under `bios/`, and fetch it with `--apply`                               |
 | `hooks`      | **never**     | `status`, `install`, `uninstall` the four EmulationStation event hooks                                 |
@@ -83,16 +83,13 @@ from a flush. `saves bind <system> <game id> <rom id>`, and
 `--forget`, are the local-only pair that settle or clear a Game-ID binding; nothing else writes
 one by hand.
 
-**The `start` and `quit` hooks invoke a pass; `sync` and a person typing `flush` still do
-too.** Through M6 nothing did but those last two, so an install that was never synced spooled
-events forever, and the reason recorded here was that a spawn would put an 11 MB process start
-inside the game-launch path. **The measurement refuted that** (RB-195 and RB-197): ES spawns
-hooks fire-and-forget and starts emulatorlauncher without waiting, and the 75.9 MB agent reaches
-`Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without `PublishReadyToRun`
-throws the framework's precompiled code away.
+**The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
+install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
+contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
+75.9 MB agent reaches `Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without
+`PublishReadyToRun` throws the framework's precompiled code away (RB-195, RB-197).
 
-What that left standing was CLAUDE.md rule 4, and M7 stage 7a narrowed it to what its own second
-sentence says. The rule forbids a hook touching the network **because** hooks run in the
+CLAUDE.md rule 4 forbids a hook touching the network **because** hooks run in the
 game-launch path, and only `game-start` and `game-end` do. `start` fires when EmulationStation
 starts and `quit` when it exits, so each of those two spawns
 `emulators/rommbat/rommbat-agent.exe background <event>` detached, with `UseShellExecute=false`
@@ -113,22 +110,21 @@ The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs 
 so nothing it prints reaches a person otherwise.
 
 `game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
-socket and must not wait on a lock. M0 measured that ES spawns them **fire-and-forget**, so they do not
-delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **do run
+socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
+delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
 concurrently**, with each other and across events.
 
-**`game-start` does fire, and the hooks ship as an executable.** An earlier reading here
-said ES never fires `game-start` for a name containing a space. RB-396 overturned it:
-ES fires the event and logs `executing:` for every script in the folder, and the failure was
-**per interpreter**, not per event. A `.bat` never starts once any argument is quoted,
+**The hooks ship as an executable, because only an `.exe` survives a real game name.**
+ES fires every event and logs `executing:` for every script in the folder, whatever the name
+holds, and a hook that does not run fails **per interpreter**, not per event (RB-396). A `.bat` never starts once any argument is quoted,
 because the `batfile` association is `cmd /c "%1" %*`; a `.ps1` never starts once the name
 contains a parenthesis, because ES builds `powershell <script> <args>` with no `-File`. An
 `.exe` received all three arguments intact on a real No-Intro name, and on the second host
 in RB-398 an `.exe` was the **only** form that ran at all.
 
-So the hooks are the agent executable, and `game-start` is usable. Two things still hold.
-`game-end` also fires with **no** preceding `game-start`, including for ES-menu launches and
-for launches that failed, so an orphan `game-end` is normal rather than a fault. And the
+So the hooks are the agent executable, and `game-start` is usable. Two things follow.
+An ES-menu launch fires both events (RB-221), but a launch that fails fires `game-end` with
+**no** preceding `game-start` (RB-349), so an orphan `game-end` is normal rather than a fault. And the
 hook is never told the system, emulator or core, so
 **`emulationstation/emulatorLauncher.log` remains the source for the launch facts**. See
 RB-346 to RB-352 and RB-394 to RB-400.
@@ -153,20 +149,15 @@ deferral and neither counts it as a failure, since nothing was written and nothi
 Full-screen, gamepad-navigable, published as `RomMBat.exe`, registered with
 EmulationStation through `system/es_menu/*.menu`.
 
-**The entry that launches it exists as of M7 stage 7a**, and as of stage 7b-1 it opens a real
-interface: pairing behind an on-screen keyboard, and status. **Stage 7b-2a added the sets
-surface**: listing, defining, editing and deleting a set, the scope, platform and folder
-pickers, resolving one with progress, and the disk budget. **Stage 7b-2b added the sync run**:
-syncing every set or one set with live progress, a stop that leaves the tree correct, and the
-budget as it is spent. **Stage 7b-2c added browse, per-game install and removal**: finding one
-game a page at a time, installing it in one press, and taking a game or a whole set back off.
-**Stage 7b-3 added conflicts, the platform mapping and the queue's write half**, and turned the
-root into a list of verbs.
+What it covers: pairing behind an on-screen keyboard, and status; the sets surface (listing,
+defining, editing and deleting a set, the scope, platform and folder pickers, resolving one with
+progress, and the disk budget); the sync run (every set or one, with live progress, a stop that
+leaves the tree correct, and the budget as it is spent); browse, per-game install and removal;
+conflicts; the platform mapping; and the configuration queue.
 
-**The root is a list because the buttons ran out.** It put one action on each of Accept, Start,
-Extra and Alternate, which is every button a screen has, and 7b-3 needed three more entry points
-than that. `RootScreens.Menu` is that list; `StatusViewModel` kept the facts and lost the verbs,
-one press behind the row naming it. The counts that motivate a verb (conflicts, unmapped
+**The root is a list of verbs because a screen has only four action buttons**, Accept, Start,
+Extra and Alternate, and the root needs more entry points than that. `RootScreens.Menu` is that
+list; `StatusViewModel` holds the facts, and each verb is one press behind the row naming it. The counts that motivate a verb (conflicts, unmapped
 platforms, queued changes) are on the rows themselves, because burying a number a person has to
 act on would mean the interface knew about a stalled sync and did not say so.
 
@@ -192,12 +183,12 @@ the second as the first is what a hands-on pass reported twice, as information s
 that do nothing. `IWindowedScreen` makes the row count follow from the same answer, so a screen
 says "am I reading" once and `ListWindow.CapacityFor` follows: told separately, a screen computed
 a window of eight and was drawn at the 122 px reading height, which overflows the display by
-exactly the margin the reading capacity exists to avoid. **There is no reading row height any
-more.** A pane of facts is drawn by the body that draws a status row and its block is bounded by
-`ListWindow.ContentBudget`, so there is no second number left to disagree with the first.
+exactly the margin the reading capacity exists to avoid. **There is no separate reading row
+height.** A pane of facts is drawn by the body that draws a status row and its block is bounded by
+`ListWindow.ContentBudget`, so there is no second number to disagree with the first.
 
-**Freeing space is on the interface now, and the ruling that took eviction off it stands.**
-RomMBat still never chooses which games matter least. What a person can do is name one: delete a
+**A person can free space on the interface, but RomMBat never chooses which games matter
+least.** What a person can do is name one: delete a
 set and take its games, or take one game off from its detail screen. Both go through
 `EvictionService.PreviewRemoval`, behind a preview, and neither can reach a save: `local_file`
 has no save kind, enforced by a `CHECK`, so anything that removes content walks a table that
@@ -213,11 +204,9 @@ are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'")
 word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
 finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is
-the only thing a person has to learn to know whether to keep waiting. The pairing screen
-already worked this way; a hands-on pass found the other two did not, sitting on a finished
-resolve that still read "Checking what is in 'X'" over 107 of 107. That screen now says
-**Query** rather than Check: "Check every set" gave no clue which of the two footer actions
-reaches the network, where "Query" names the act of asking the server.
+the only thing a person has to learn to know whether to keep waiting. The sets screen's
+footer offers **Query** rather than Check, beside Sync, because "Query" names the act of asking
+the server and so says which of the two reaches the network.
 
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
@@ -228,19 +217,18 @@ name `EsSettingsFile`. RomMBat's interface itself stays English: see
 [interface-language](../design/decisions/interface-language.md) for why that is a milestone rather
 than a follow-up.
 
-**The framework is Avalonia, settled in stage 7a so 7b does not reopen it**, and the
-deciding argument is size on a portable drive rather than either start time or
+**The framework is Avalonia**, and the deciding argument is size on a portable drive rather than either start time or
 cross-platform reach. WPF cannot be trimmed at all, so it has a floor nothing moves, and it
 needs the Windows Desktop runtime inside a self-contained publish on top of the agent's
 76 MB. Avalonia trims, and renders through Skia, so what a handheld shows does not depend on
 that machine's Windows Desktop stack.
 
-**What that decision actually cost, now it has been paid.** Referenced as `Avalonia`,
+**What that decision costs.** Referenced as `Avalonia`,
 `Avalonia.Win32`, `Avalonia.Skia`, `Avalonia.Themes.Fluent` and `Avalonia.HarfBuzz`, never
 `Avalonia.Desktop`, which drags in `Tmds.DBus.Protocol` for the X11 backend and raises
 `NU1903` for a known high-severity advisory that `-warnaserror` turns into a failed build,
 for a backend this win-x64 build cannot use. Published untrimmed at **99.7 MB across five
-files**, against the console stub it replaces.
+files**.
 
 **`Avalonia.HarfBuzz` is in that list because Avalonia 12 split text shaping out of
 `Avalonia.Skia`.** It is the one dependency here whose absence the compiler cannot see:
@@ -249,27 +237,16 @@ configured` at `AppBuilder.Setup`, before a window is shown. `TextShapingTests` 
 `UseHarfBuzz` call structurally for that reason.
 
 **These numbers move with the toolchain, so compare them only against a build taken the same
-day on the same machine.** Stage 7b-1 recorded 101.1 MB and 1041 ms; stage 7b-2a measured
-96.5 MB for that same commit re-published months later, which is the SDK moving underneath
-both. The like-for-like figure that means something is the **delta**: moving the sets, sync
-and eviction orchestration into Core cost **+0.1 MB and 2 ms**, 96.5 MB and 936 ms before
-against 96.6 MB and 934 ms after, five runs each, warm cache.
+day on the same machine.** The same commit re-published months apart has measured 4.6 MB
+smaller, which is the SDK moving underneath it, and that dwarfs what a change to the UI costs.
+So a change is measured as a **delta**: its base commit and its head, both published and timed
+the same day, median of five with the cold run discarded. Start time varies by about 60 ms
+between runs, so a difference inside that spread is no measurable change rather than a gain or a
+loss. A figure recorded on another day is never the baseline.
 
-Stage 7b-2b, which adds three screens and lifts the flush into Core, cost **+0.1 MB and nothing
-measurable in start time**: 96.6 MB and 884 ms for its base commit against 96.7 MB and 872 ms
-after, both re-published and re-timed the same day, median of five with a warm-up discarded. The
-12 ms sits inside a spread of 858 to 919 ms, so the claim is no measurable change rather than an
-improvement. Reading the branch against 7b-2a's recorded 934 ms instead would have shown a 62 ms
-gain that does not exist, which is the mistake 7b-2a's own ledger records making.
-
-Stage 7b-2c, which adds browse, per-game install, removal and four Core services, cost
-**+132 KB and nothing measurable in start time**: **96.7 MB and 884 ms** for its base commit
-against **96.9 MB and 883 ms** after, both published and timed the same day, median of five with
-the cold run discarded. Five shipped files either way. One millisecond apart, inside spreads of
-868 to 931 ms and 868 to 899 ms.
-
-**Trimming is not switched on, and that is measured rather than lazy.** It takes the same
-build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
+**Trimming is not switched on, and that is measured rather than lazy.** A trimmed,
+ReadyToRun, single-file publish measured 61.1 MB and 517 ms, an indication rather than a delta
+since it was not timed beside its untrimmed base, and trimming raises 16 `IL2026` warnings across twelve reflection-based
 `System.Text.Json` call sites in Core and `RomM.Client`, whose failure mode is a runtime
 deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save, so
 that is not a risk to carry for a size win. Tracked as #98.
@@ -311,7 +288,7 @@ not a RetroBat root.
 which records which physical input is `a` on that pad rather than what kind of pad it is, and
 it is read through `emulationstation/SDL2.dll` because those ids are SDL joystick indices and
 only the same library can interpret them. There is no vendor-id table anywhere in RomMBat.
-See `EsInputMap` and `GamepadReader`, and RB-218 to RB-225.
+See `EsInputMap` and `GamepadReader`, and RB-218, RB-225, RB-226 and RB-227.
 
 **The UI can never write `es_settings.cfg`.** It is launched from the ES menu, so it runs
 under a live EmulationStation every time, and ES discards a key written underneath it.
@@ -329,12 +306,12 @@ report whether a pass was running would make a concurrent `background quit` flus
 upload and call it success. Reading needs no lock: the store is WAL. See the
 `offline-and-portable` skill.
 
-**It survived the UI starting to write, which is what stage 7b-2a made it do.** Defining,
+**It holds for the screens that write, too.** Defining,
 editing and deleting a set, and setting the budget, are all rows in SQLite, and the tree lock
 serialises writers of _files in the tree_; taking it for a set definition would be the
 speculative acquire above wearing a different hat. Where a lock genuinely is needed the Core
-service takes it and returns the refusal as a value: `PartialSweep.Apply` already did exactly
-that before the seam existed, and `EvictionService` surfaces it rather than reimplementing it.
+service takes it and returns the refusal as a value, as `PartialSweep.Apply` does, and
+`EvictionService` surfaces that refusal rather than reimplementing it.
 Both halves are asserted: a set is definable while a background pass holds the lock, and an
 eviction under a held lock leaves `partial/` alone and says so.
 
@@ -361,20 +338,19 @@ fixture that fails either run when a tree is still in `%TEMP%\rommbat-tests` aft
 test, because the tree's own teardown swallows a failed delete so that one open handle cannot
 fail an unrelated test.
 
-**The commands are where milestones meet**, each wiring a planner to a sync to a store to
-an exit code, and that is the layer a defect survives a full green suite in. One did:
-`BiosCommand` and `SyncCommand` both returned before constructing `BiosSync` when nothing
-needed downloading, which made `BiosAction.Adopt` unreachable from either entry point, and
-a user who had copied their BIOS in by hand would have been told "N already on disk to
-adopt" forever with no row ever written. The planner was covered, the sync was covered, and
-the gate between them was neither.
+**The commands are where the pieces meet**, each wiring a planner to a sync to a store to
+an exit code, and that is the layer a defect survives a full green suite in. A command that
+returns early can make a planned action unreachable while the planner and the sync are each
+covered on their own: gating the BIOS apply on there being something to download would leave
+`BiosAction.Adopt` writing no row, for a user who copied their BIOS in by hand.
+`A_plan_that_only_adopts_is_still_a_pass_worth_running` holds that gate open.
 
 The suite drives `Program.DispatchAsync` rather than a command class, because the handlers
 that turn an exception into an exit code live there and a test that calls the command
-directly runs straight past them. That seam caught the second one: the `bios` argument gate
-reads `es_systems.cfg`, a root is accepted on `retrobat.ini` alone, and a RetroBat that has
-been unzipped and never launched has no file to read, so the command threw where it used to
-report. It is now a refusal carrying the exception's own message.
+directly runs straight past them. A RetroBat that has been unzipped and never launched is the
+case that seam covers: a root is accepted on `retrobat.ini` alone, it has no `es_systems.cfg`
+for the `bios` argument gate to read, and the command refuses with the exception's own message
+rather than throwing.
 
 Fixtures come from a real install and are checked in under `tests/**/fixtures/`, byte
 exact and excluded from linting. Save-shape and mapping logic without a fixture is not
