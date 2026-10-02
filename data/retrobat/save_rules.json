@@ -143,7 +143,15 @@
     },
     {
       "emulator": "mednafen",
-      "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem", "pcengine"],
+      "systems": [
+        "nes",
+        "megadrive",
+        "gba",
+        "gb",
+        "gbc",
+        "mastersystem",
+        "pcengine"
+      ],
       "directory": "",
       "extensions": [".sav"],
       "named_after": "rom file and content md5",
