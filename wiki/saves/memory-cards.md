@@ -39,7 +39,9 @@ the change is listed under Queued changes on the main menu, where you can cancel
 ## Before you give a game its own card
 
 **The game starts from an empty card.** Its saves on the shared card stay there, where it no longer
-looks. RomMBat does not move them. Also:
+looks. RomMBat does not move them. The one exception is a card another computer already gave this
+game: sync pulls it down even before you convert the game, and the game then starts from that card.
+Also:
 
 - A game on several discs is refused: each disc would get its own card, and the save would be
   lost when you change disc.
@@ -50,3 +52,11 @@ looks. RomMBat does not move them. Also:
 
 To undo it, run `rommbat-agent saves convert <game number> --revert` with EmulationStation closed.
 It puts the setting back exactly as it was.
+
+## A card is here but the game does not use it
+
+If another computer gave a game its own card, sync downloads that card to this one. PCSX2 only reads
+it once this computer has done the same for the game, and until then the game reads the shared card
+and shows no save. The flush summary counts these as `per-game memory card(s) waiting on a game that
+is not converted`, and `rommbat-agent flush` names each game and the `saves convert <game number>
+--apply` that fixes it. Nothing is lost: the card is on disk and the conversion is the whole fix.

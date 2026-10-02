@@ -77,6 +77,23 @@ public sealed record SaveSyncOutcome
     public int ForAnotherEmulator { get; init; }
 
     /// <summary>
+    /// Per-game memory cards this device holds for games it has not converted, so the emulator
+    /// reads the shared card instead and the player sees no save (#336).
+    /// </summary>
+    /// <remarks>
+    /// <b>Not a failure, and a standing property rather than an event.</b> The card is on disk
+    /// and in step, and converting the game is the whole remedy, so this recurs on every flush
+    /// until it is done. Each one has a line in <see cref="Advisories"/> naming the command. Said on every flush that
+    /// reaches the end of negotiation; a flush that fails earlier has nothing to say.
+    /// Nothing is converted for the player: that is a setting in their own
+    /// <c>es_settings.cfg</c>, and it moves the game off the shared card.
+    /// </remarks>
+    public int NeedsConverting { get; init; }
+
+    /// <summary>One line per game counted in <see cref="NeedsConverting"/>, with the remedy.</summary>
+    public IReadOnlyList<string> Advisories { get; init; } = [];
+
+    /// <summary>
     /// The sync session could not be closed, and <see cref="Problems"/> says why.
     /// </summary>
     /// <remarks>
@@ -97,6 +114,7 @@ public sealed record SaveSyncOutcome
 
     public bool IsNoOp => Uploaded == 0 && Downloaded == 0 && Conflicts == 0 && Failed == 0
         && Skipped == 0 && Deferred == 0 && Rejected == 0 && Superseded == 0 && ForAnotherEmulator == 0
+        && NeedsConverting == 0
         && !SessionLeftOpen;
 
     public string Summary
@@ -156,6 +174,11 @@ public sealed record SaveSyncOutcome
             if (ForAnotherEmulator > 0)
             {
                 parts.Add($"{ForAnotherEmulator} left on the server, for an emulator other than the one this device runs");
+            }
+
+            if (NeedsConverting > 0)
+            {
+                parts.Add($"{NeedsConverting} per-game memory card(s) waiting on a game that is not converted");
             }
 
             if (SessionLeftOpen)
@@ -689,6 +712,7 @@ public sealed class SaveSync
 
         problems.AddRange(DescribePartialBatches(sent));
 
+        var advisories = UnconvertedCards();
         var leftOpen = false;
 
         try
@@ -737,6 +761,8 @@ public sealed class SaveSync
             Deferred = deferred,
             Rejected = rejected,
             ForAnotherEmulator = otherEmulator,
+            NeedsConverting = advisories.Count,
+            Advisories = advisories,
             SessionLeftOpen = leftOpen,
             BytesTransferred = bytes,
             Problems = problems,
@@ -1993,6 +2019,76 @@ public sealed class SaveSync
             StringComparison.OrdinalIgnoreCase)
             ? conversion.Container
             : null;
+    }
+
+    /// <summary>
+    /// One line for each per-game card this device holds whose game is not set to read it.
+    /// </summary>
+    /// <remarks>
+    /// Read from the live <c>es_settings.cfg</c> rather than from <c>save_conversion</c>, because
+    /// the file is what the emulator obeys: a conversion recorded and since undone by hand, or one
+    /// made on another install of the same tree, would otherwise read as converted. A system-wide
+    /// value does not count, since it is the per-game key that PCSX2 reads this card under (#336).
+    /// </remarks>
+    private List<string> UnconvertedCards()
+    {
+        var lines = new List<string>();
+
+        var cards = _store.Saves.List().Where(save => save.RomId is not null).ToList();
+
+        if (cards.Count == 0)
+        {
+            return lines;
+        }
+
+        EsSettingsFile? settings = null;
+
+        foreach (var card in cards)
+        {
+            if (_shapes.For(card.System)?.Conversion is not { IsDiscoverable: true, SetTo: { } setTo } conversion
+                || !string.Equals(card.Slot, $"{conversion.Emulator}:{conversion.Slot}", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // Read only once a card of the converted kind is here, and a file that cannot be read
+            // is an advisory not given: this runs inside the flush, where a throw would leave the
+            // sync session open and skip the state pass.
+            if (settings is null)
+            {
+                try
+                {
+                    settings = EsSettingsFile.Load(_install.Resolve(EsSettingsFile.Location));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+                {
+                    return lines;
+                }
+            }
+
+            var romId = (int)card.RomId!.Value;
+
+            if (_store.Files.ForRom(romId, LocalFileKind.Rom) is not [{ } rom, ..]
+                || string.IsNullOrEmpty(Path.GetExtension(rom.FileName))
+                || rom.FileName.Contains('"', StringComparison.Ordinal)
+                || DiscSet.Parse(rom.FileName) is not null)
+            {
+                // A disc of a set is refused by the converter, so there is no command to offer.
+                continue;
+            }
+
+            if (settings.Value(EsSettingsFile.PerGameKey(card.System, rom.FileName, conversion.Option)) == setTo)
+            {
+                continue;
+            }
+
+            lines.Add(
+                $"rom {romId} ({rom.FileName}): a per-game memory card is on this device, but "
+                    + "the game is not set to read it and will start from the shared card. "
+                    + $"Run 'saves convert {romId} --apply' to use it.");
+        }
+
+        return lines;
     }
 
     /// <summary>What to tell a person whose save cannot be placed for a reason with a remedy.</summary>

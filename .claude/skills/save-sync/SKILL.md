@@ -107,6 +107,13 @@ after the ROM stem, which makes attribution trivial on a single-disc title. Its 
 sounds per-game and is not: `Mcdf01.ps2` is one directory every game writes to, split per save by
 PS2 serial, so it is declared a shared container and `saves` names it (RB-406).
 
+**A per-game card is restored whether or not the game is converted here**, because it is a
+declared container and needs nothing local to place (#336). PCSX2 reads it only under
+`ps2["<rom>"].pcsx2_slot1_memory = game`, so `SaveSync.UnconvertedCards` reports each restored card
+whose per-game key is not set, on every flush that reaches the end of negotiation, as `SaveSyncOutcome.NeedsConverting` and
+`Advisories`. It reads the live `es_settings.cfg`, not `save_conversion`, and converts nothing
+itself: that is a setting in the player's own file, and the player's call.
+
 **GameCube can be moved the wrong way, and the menu makes it easy.** `dolphin_slotA` is
 labelled **SAVE FORMAT** with two choices: `8`, the GCI folder that is class C, and `1`, one
 shared raw `SRAM.<REGION>.raw` that is class D. So GameCube is class C only at the default, and

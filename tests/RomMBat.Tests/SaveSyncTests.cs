@@ -873,6 +873,92 @@ public class SaveSyncTests
     }
 
     [Fact]
+    public async Task A_restored_per_game_card_for_an_unconverted_game_is_said_to_need_converting()
+    {
+        // #336. The card lands where PCSX2 reads a per-game card, but PCSX2 only looks there for
+        // a game whose per-game setting is on. With it off the game reads the shared card and the
+        // player sees no save, while the flush reports everything in step.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
+        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
+        fixture.Scan();
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.Failed);
+        Assert.Equal(1, outcome.NeedsConverting);
+        Assert.Contains("saves convert", Assert.Single(outcome.Advisories), StringComparison.Ordinal);
+        Assert.Contains("191723", outcome.Advisories[0], StringComparison.Ordinal);
+        Assert.False(outcome.IsNoOp);
+
+        // And it stays said: the card is in step now, and the game still reads the other one.
+        var again = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, again.NeedsConverting);
+    }
+
+    [Fact]
+    public async Task A_damaged_settings_file_does_not_stop_the_flush_from_finishing()
+    {
+        // R1.1: a half-written es_settings.cfg is read inside the flush, where a throw would
+        // leave the sync session open.
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
+        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
+        fixture.Scan();
+        fixture.Write("emulationstation/.emulationstation/es_settings.cfg", "<config><string name=");
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.False(outcome.SessionLeftOpen);
+        Assert.Equal(0, outcome.NeedsConverting);
+    }
+
+    [Fact]
+    public async Task One_disc_of_a_set_is_not_told_to_convert_because_the_converter_refuses_it()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Final Fantasy X (USA) (Disc 1)", ".chd", ".unused", "not kept");
+        File.Delete(fixture.Resolve("saves/ps2/Final Fantasy X (USA) (Disc 1).unused"));
+        fixture.Scan();
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Final Fantasy X (USA) (Disc 1)", "ps2", "a card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.NeedsConverting);
+    }
+
+    [Fact]
+    public async Task A_restored_per_game_card_for_a_converted_game_needs_nothing_said()
+    {
+        using var fixture = SyncFixture.Create();
+        fixture.AddGame(191723, "ps2", "Armored Core 3 (USA)", ".chd", ".unused", "not kept");
+        File.Delete(fixture.Resolve("saves/ps2/Armored Core 3 (USA).unused"));
+        fixture.Scan();
+
+        fixture.Write(
+            "emulationstation/.emulationstation/es_settings.cfg",
+            """<?xml version="1.0"?><config><string name="ps2[&quot;Armored Core 3 (USA).chd&quot;].pcsx2_slot1_memory" value="game" /></config>""");
+
+        fixture.SeedServerSave(191723, "pcsx2:battery", "Armored Core 3 (USA)", "ps2", "a card");
+        fixture.Stub.UnsolicitedDownloads.Add((191723, "pcsx2:battery"));
+
+        var outcome = await fixture.SyncAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, outcome.Downloaded);
+        Assert.Equal(0, outcome.NeedsConverting);
+        Assert.Empty(outcome.Advisories);
+    }
+
+    [Fact]
     public async Task A_converted_card_is_not_refused_the_way_a_bundled_unit_is()
     {
         // The two class D and class C answers differ for opposite reasons and the code has to

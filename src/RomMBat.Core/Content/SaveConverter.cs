@@ -480,7 +480,17 @@ public sealed class SaveConverter
             _ => $"the shared memory cards ({string.Join(", ", shared)})",
         };
 
-        return $"'{rom.FsName}' will start from an empty memory card. Whatever it has already saved stays "
+        // A card pulled from the server before the game was converted is already where the
+        // converted game will look, and "an empty card" would be false (#336).
+        var start = conversion.IsDiscoverable
+            && File.Exists(Path.Combine(
+                _install.Resolve($"saves/{rom.Folder}"),
+                conversion.Container!.Replace('/', Path.DirectorySeparatorChar),
+                Path.ChangeExtension(rom.FsName, conversion.Extension!.TrimStart('.'))))
+            ? $"'{rom.FsName}' will start from the per-game memory card already on this device"
+            : $"'{rom.FsName}' will start from an empty memory card";
+
+        return $"{start}. Whatever it has already saved stays "
             + $"in {where}, where this game will no longer look for it, and RomMBat does not move it: "
             + "reading a memory card's format is work this release does not do. Undo with --revert. "
             + "Per-game cards also break games that deliberately read a prequel's save from the same card.";
