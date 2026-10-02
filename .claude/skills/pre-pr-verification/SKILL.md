@@ -10,7 +10,9 @@ description: The checks that must pass before committing, opening a PR, or telli
 `pwsh -File tools/pre-pr.ps1` runs every gate below, plus the hook and agent publish CI does
 so the process-level tests run and CI's `tools/publish.ps1` package, and prints which failed.
 In a git worktree it skips trunk, which cannot read one from WSL; CI's trunk check covers it.
-`-Fix` runs `trunk fmt` first. By hand:
+`-Fix` runs `trunk fmt` first. `-Quiet` prints only each gate's name and the last 80 lines of
+a gate that fails; an agent session runs it that way, so the full output stays out of its
+context. By hand:
 
 ```bash
 dotnet build -c Release -warnaserror --no-incremental   # what CI builds

@@ -27,18 +27,24 @@
 .PARAMETER Fix
     Run trunk fmt before trunk check.
 
+.PARAMETER Quiet
+    Hold each gate's output and print only its name, plus the last 80 lines of a gate that
+    fails. For agent sessions, where the full build and test output would fill the context.
+
 .PARAMETER WslDistro
     The WSL distribution that has trunk installed.
 
 .EXAMPLE
     pwsh -File tools/pre-pr.ps1
     pwsh -File tools/pre-pr.ps1 -Skip trunk,reference
+    pwsh -File tools/pre-pr.ps1 -Quiet
 #>
 
 [CmdletBinding()]
 param(
     [string[]] $Skip = @(),
     [switch] $Fix,
+    [switch] $Quiet,
     [string] $WslDistro = 'Ubuntu'
 )
 
@@ -64,8 +70,9 @@ function Invoke-Gate {
     }
     Write-Host "`n==> $Name" -ForegroundColor Cyan
     Push-Location $root
+    $output = [System.Collections.Generic.List[object]]::new()
     try {
-        & $Body
+        if ($Quiet) { & $Body *>&1 | ForEach-Object { $output.Add($_) } } else { & $Body }
         $results[$Name] = if ($LASTEXITCODE -eq 0) { 'passed' } else { "failed (exit $LASTEXITCODE)" }
     }
     catch {
@@ -73,6 +80,9 @@ function Invoke-Gate {
     }
     finally {
         Pop-Location
+    }
+    if ($Quiet -and $results[$Name] -ne 'passed') {
+        $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
     }
 }
 
@@ -118,7 +128,9 @@ else {
     Invoke-Gate trunk {
         # Trunk has no Windows CLI. D:\a b becomes /mnt/d/a b inside WSL.
         $wslRoot = '/mnt/' + $root.Substring(0, 1).ToLowerInvariant() + ($root.Substring(2) -replace '\\', '/')
-        $steps = if ($Fix) { 'trunk fmt && trunk check' } else { 'trunk check' }
+        # Quiet holds the output, so trunk's "Apply formatting?" prompt would wait unseen.
+        $check = if ($Quiet) { 'trunk check --no-fix' } else { 'trunk check' }
+        $steps = if ($Fix) { "trunk fmt && $check" } else { $check }
         wsl -d $WslDistro -- bash -lc "cd '$wslRoot' && $steps"
     }
 }

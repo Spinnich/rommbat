@@ -1,6 +1,8 @@
 ---
 description: Move an open PR forward until it is merge-ready, fixing CI and running review rounds
 argument-hint: "<PR number>"
+model: sonnet
+effort: high
 ---
 
 # Drive a PR to merge-ready
@@ -22,7 +24,8 @@ including pushes to this PR's branch and comments on it, you do without asking
 - **The reviewer is a peer, not a verdict.** It ran fresh so it would not grade its own homework,
   which also means it never saw why the code is the way it is. Rule on every finding and obey
   none on authority. Changing correct code to satisfy it is the failure this loop is most exposed
-  to, because both sides are the same model.
+  to: the reviewer runs on a different model from this command, but neither side knows the
+  other's blind spots.
 - **The maintainer's comments on the PR are decisions.** Do them. If you think one is wrong, say
   so once, with evidence, in the ledger.
 
@@ -93,7 +96,7 @@ and the row says what that evidence was.
    rides along. A fix that falsifies a doc corrects it in the same commit (`pre-pr-verification`,
    "Documentation parity"). A fix to save logic owes the hands-on pass for that shape: run
    `/certify <system> --hands-on $PR`, or record in the ledger which claims are unproven. Then
-   `tools/pre-pr.ps1`, commit naming the finding IDs, push, update the ledger.
+   `pwsh -File tools/pre-pr.ps1 -Quiet`, commit naming the finding IDs, push, update the ledger.
 8. **Decide the next step.**
    - Anything FIXED this round changed the code, so go to 3 for the next round.
    - An open MAINTAINER row: **needs the maintainer**, whatever else holds.

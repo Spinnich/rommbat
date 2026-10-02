@@ -1,5 +1,7 @@
 ---
 description: Rank the open issues, ask which to take, then run /start-issue on it
+model: sonnet
+effort: low
 ---
 
 # Pick the next issue

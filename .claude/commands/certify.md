@@ -1,6 +1,8 @@
 ---
 description: Certify every (emulator, core) row of one RetroBat system, or run a save-logic hands-on pass, to a merge-ready PR
 argument-hint: "<system> [--hands-on <PR>]"
+model: sonnet
+effort: medium
 ---
 
 # Certify a system
