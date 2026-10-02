@@ -61,6 +61,13 @@ internal static class OutboxCommand
     {
         long? id = null;
 
+        // A bare flag takes the next word as its value, so `--all-failed 5` would read the id as
+        // the flag's value and delete every entry. Refuse the mix rather than guess.
+        if (command.Has("all-failed") && (command.Value("all-failed") is not null || command.Positional.Count > 1))
+        {
+            return Usage("give --all-failed or one entry id, not both");
+        }
+
         if (command.Positional.Count > 1)
         {
             if (!long.TryParse(command.Positional[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parsed))

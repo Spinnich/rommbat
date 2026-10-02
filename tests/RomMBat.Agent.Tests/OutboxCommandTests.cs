@@ -41,6 +41,31 @@ public sealed class OutboxCommandTests
     }
 
     [Fact]
+    public async Task Drop_refuses_an_id_beside_all_failed_instead_of_deleting_everything()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 1);
+            store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 2);
+
+            foreach (var entry in store.Outbox.Pending())
+            {
+                store.Outbox.MarkFailed(entry.Id, "400: refused", now);
+            }
+        }
+
+        var run = await AgentRunner.RunAsync(tree, "outbox", "drop", "--all-failed", "1", "--apply");
+
+        Assert.Equal(ExitCode.Usage, run.ExitCode);
+
+        using var after = LocalStore.Open(tree.Install());
+        Assert.Equal(2, after.Outbox.FailedCount());
+    }
+
+    [Fact]
     public async Task Drop_with_nothing_failed_refuses_rather_than_reporting_success()
     {
         using var tree = TempRetroBatTree.Create();
