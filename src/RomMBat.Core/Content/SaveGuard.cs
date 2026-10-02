@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
+using RomMBat.Core.Sync;
 
 namespace RomMBat.Core.Content;
 
@@ -18,48 +19,43 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// Refuses to evict a game whose local saves have not reached the server.
 /// </summary>
 /// <remarks>
-/// <b>Written by M3 against the seams that existed then, and completed by M6.</b> Deleting a
-/// ROM takes its save's only attribution with it, and that is not recoverable, so every branch
-/// here fails closed.
+/// Deleting a ROM takes its save's only attribution with it, and that is not recoverable, so
+/// every branch here fails closed.
 /// <para>
-/// Three questions, in the order they became answerable:
+/// Four questions:
 /// </para>
 /// <list type="bullet">
 /// <item><c>outbox</c>: anything produced offline and not yet sent, keyed by ROM.</item>
 /// <item><c>journal</c>: what the ES hooks append, keyed by the ROM's path. An entry that is
 /// still <c>open</c> means a game was launched and nothing has yet worked out what it
-/// wrote.</item>
-/// <item><c>local_save</c>: <b>the third question, and the reason M3 shipped eviction with a
-/// mitigation instead of an answer.</b> A save file on disk whose <c>uploaded_content_hash</c>
-/// is null has never reached the server, and one whose hash no longer matches the file has
-/// changed since it did. Either way the bytes on disk are what would be lost.</item>
+/// wrote. A <c>game-start</c> older than the last <c>start</c> or <c>quit</c> is an orphan and
+/// does not count, per <see cref="RunningGames"/>.</item>
+/// <item><c>local_save</c>: a save file on disk whose <c>uploaded_content_hash</c> is null has
+/// never reached the server, and one whose hash no longer matches the file has changed since it
+/// did. Either way the bytes on disk are what would be lost.</item>
 /// <item><c>local_state</c>: the same question about save states, which are save data by any
 /// reading a user would recognise. A state is worthless once its ROM is gone, and a state that
 /// has never gone up is not recoverable from anywhere.</item>
 /// </list>
 /// <para>
-/// <b>The mitigation stays and is no longer load-bearing.</b> Eviction still never touches a
-/// file RomMBat did not download, but the gap that rule was covering, a save produced while
-/// nothing was watching, is now visible to this guard directly.
+/// <b>Eviction also never touches a file RomMBat did not download.</b> That rule is a second
+/// line, not the guard: a save produced while nothing was watching is visible here directly.
 /// </para>
 /// <para>
-/// <b>The answer is only as wide as discovery, and M6 stage 2b widened discovery rather than
-/// this class.</b> Class C units are recorded into <c>local_save</c> like any other save, so
-/// the <c>local_save</c> question above already counts them and no fourth query was needed. A
-/// unit that could not be attributed has a null <c>rom_id</c> and cannot match any ROM here;
-/// that is not a hole this query can close, since the ROM being asked about is exactly what
-/// attribution failed to name, and it is the case reported as unsyncable instead.
+/// <b>The answer is only as wide as discovery.</b> Class C units are recorded into
+/// <c>local_save</c> like any other save, so the <c>local_save</c> question counts them. A unit
+/// that could not be attributed has a null <c>rom_id</c> and cannot match any ROM here; that is
+/// not a hole this query can close, since the ROM being asked about is exactly what attribution
+/// failed to name, and it is the case reported as unsyncable instead.
 /// </para>
 /// <para>
-/// <b>Class D is still invisible</b>, and stays so until stage 2c. A shared container has no
-/// <c>rom_id</c> to belong to by definition, so it is reported rather than guarded.
+/// <b>A class D shared container is not guarded.</b> It has no <c>rom_id</c> to belong to by
+/// definition, so it is reported rather than guarded.
 /// </para>
 /// <para>
-/// <b>The pairing stage 2a's ledger warned about is satisfied by construction here.</b> Its
-/// lesson was that anything adding a question to this guard has to extend
-/// <c>EvictCommand</c>'s scan in the same commit. Class C added no question: it added rows to a
-/// table the existing question already reads, and the scan that refreshes them is the same
-/// <c>SaveScanner</c> pass eviction already runs.
+/// <b>A new question here extends <c>EvictCommand</c>'s scan in the same commit.</b> Rows that
+/// land in a table an existing question reads need nothing more, since the scan that refreshes
+/// them is the same <c>SaveScanner</c> pass eviction already runs.
 /// </para>
 /// </remarks>
 public sealed class SaveGuard
@@ -181,8 +177,18 @@ public sealed class SaveGuard
 
     private bool HasOpenJournalEntry(RelativePath path)
     {
+        // Only a game-start after the last start or quit can still be running. An older one is
+        // an orphan from a power loss, which no flush closes, and would refuse this game forever.
         using var command = _store.Connection
-            .Command("SELECT 1 FROM journal WHERE rom_relative_path = $path AND state = 'open' LIMIT 1;")
+            .Command(
+                $"""
+                SELECT 1
+                FROM journal
+                WHERE rom_relative_path = $path
+                  AND state = 'open'
+                  AND (event <> 'game-start' OR {RunningGames.AfterLastFrontEndEvent})
+                LIMIT 1;
+                """)
             .With("$path", path.Value);
 
         return command.ExecuteScalar() is not null;
