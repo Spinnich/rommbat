@@ -1,3 +1,8 @@
+---
+summary: What a certified `(system, emulator, core)` row means, the nine-step checklist, the wave order, and which rows stand certified.
+read-when: Before certifying any row, planning a wave, or answering whether a platform is certified.
+---
+
 # Platform certification records
 
 One folder per RetroBat system, named `<system>/` after the folder name in `es_systems.cfg`.
@@ -37,15 +42,12 @@ Steps 1, 2, 3, 7, 8 and 9 are largely per system and can be carried across emula
 note saying so. **Steps 4, 5 and 6 have to be redone per emulator**, and they are also the
 three where being wrong destroys data rather than costing a re-download.
 
-**Step 2 was an extension check until the extension stopped gating a sync.** Until 2026-09-20
-it required a known-unsupported file to be excluded, which held `nes` open at eight of nine for
-a property of the library rather than of the software; it then became "every ROM survives the
-extension check". Now nothing is excluded on its extension at all: `<extension>` is a per-system
-union across every emulator, so it cannot say what a given `(emulator, core)` opens, and members
-it omits sync and are reported as unlisted in ES. What the step checks instead is the concern
-the extension check was a poor proxy for, **multi-disc and multi-file placement**. Records
-written before the change passed the old step 2 and carry that reading; the placement half is
-owed on them when a record is next touched, and a single-file library passes it by saying so.
+**Step 2 checks placement, not extensions.** Nothing is excluded on its extension:
+`<extension>` is a per-system union across every emulator, so it cannot say what a given
+`(emulator, core)` opens, and members it omits sync and are reported as unlisted in ES. What
+the step checks is **multi-disc and multi-file placement**. A record whose step 2 names no
+multi-file shapes owes that placement check when it is next touched, and a single-file library
+passes it by saying so.
 
 Load the `platform-certification` skill before starting. Record what failed as well as
 what passed; a record that only lists successes is not evidence.
@@ -70,14 +72,14 @@ than merely unscheduled.
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
 | 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
-| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: they share a parent system's tree, which nothing has tested |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | Five `hardware=extension` systems share a parent's tree, which nothing has tested |
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the seven-folder mapping question, 12 BIOS files |
 
-**The order is not derivable from `hardware=console`, and an earlier revision of this file said
-it was.** That filter drops eleven systems the table already carried, because `gb`, `gbc`, `gba`,
-`lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and `psp` are `hardware=portable` and
-`fds`, `satellaview`, `sufami`, `sega32x`, `megacd` and `n64dd` are `hardware=extension`. A
+**The order is not derivable from `hardware=console`.** That filter drops twenty systems the
+table carries, because `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`,
+`pokemini`, `nds` and `psp` are `hardware=portable`, `fds`, `satellaview`, `sufami`, `sega32x`,
+`megacd` and `n64dd` are `hardware=extension`, and `fbneo` and `mame` are `hardware=arcade`. A
 manufacturer allowlist of Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony drops the whole of
 generation 2 on top of that, since RetroBat attributes those to Coleco, Emerson, Fairchild,
 Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth
@@ -126,8 +128,7 @@ and 6 are redone per row, and they collapse into four families rather than 81 se
   a recorded declaration rather than a test: the emulator can still be certified on the other
   eight steps, and the record says state sync is outside what RomMBat offers for that row.
 
-  **Declaring no directory does not mean writing no state**, and an earlier revision of this
-  section assumed it did. Driven on `nes`: `mednafen`, `mesen` and `ares` each wrote a real save
+  **Declaring no directory does not mean writing no state.** Driven on `nes`: `mednafen`, `mesen` and `ares` each wrote a real save
   state into a directory they name themselves, which `StateScanner` never reads because it works
   from `es_savestates.cfg` alone. So step 5 for these rows is not "there is nothing to sync", it is
   **"there is something to sync and RomMBat cannot see it"**, and the record has to say which.

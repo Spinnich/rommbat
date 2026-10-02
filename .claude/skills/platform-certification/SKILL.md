@@ -86,7 +86,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    each disc as its own rom has nothing multi-file to unlock, and regrouping one set in RomM is the
    fix, as it was for `psx`.
 
-   **The step used to be an extension check, and the extension no longer gates anything.**
+   **The extension gates nothing, so this step is not an extension check.**
    `<extension>` is a per-system union across every emulator the system declares (`nes` lists
    `.wad`, which is not a NES container at all; one `psx` emulator reads `.chd` and another does
    not), so it cannot say what a given `(emulator, core)` opens. RomMBat syncs every member and
@@ -141,10 +141,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    populated and is the one to read, so confirm it rather than expecting it to be empty.
 
    **Drive a state made after RB-258's fix, never one uploaded before it.** RomM links a
-   screenshot by filename, and RomMBat named it so that no libretro-shaped state ever linked,
-   while its restore could not place a state for any emulator that keeps the slot in the stem.
-   Between them no row could pass step 5 until 2026-09-20, and both were RomMBat's
-   (RB-258). An unchanged state is never re-sent,
+   screenshot by filename, and a state uploaded before the fix carries a screenshot name RomM's
+   lookup misses (RB-258). An unchanged state is never re-sent,
    so an older one stays unlinked. A null link on a fresh state is a new finding, not a
    recurrence of an old one.
 
@@ -206,8 +204,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    window of up to 50, which a system of more rows than ten needs. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
-   **Both of the ways this step used to be answered by hand have a trap, and they are why the
-   block says what it says.** `GET /api/play-sessions` is scoped to the authenticated user, so
+   **Both of the ways to answer this step by hand have a trap, and they are why the block says
+   what it says.** `GET /api/play-sessions` is scoped to the authenticated user, so
    another account's token answers `200` with zero rows, and `?device_id=` given the local
    `client_device_identifier` rather than the id `status` prints on the `romm device` line does
    the same. Both read exactly like a session that was never written, which is why an empty
