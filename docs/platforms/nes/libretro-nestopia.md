@@ -46,8 +46,9 @@ any server below `beta.1`, so it carries the floor it was measured against.
 | 8   | The append-only background log   | **Pass.** See below                                               |
 | 9   | Always owed on a move            | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical  |
 
-**Step 3 carries from 5.2.0 and was not re-run.** `nes` requires no BIOS and no firmware code or
-bundled data has changed since, so `bios nes` would re-read the same empty requirement.
+**Step 3 carries from 5.2.0 and was not re-run.** RetroBat lists no firmware for `nes`, and the
+bundled manifest carries no entry for it, so `bios nes` reads an empty requirement whichever build
+asks.
 
 **Step 5 rests on this session.** RB-258's fix shows only on a state made after it, because an
 unchanged state is never re-sent, so one was made and driven here.
