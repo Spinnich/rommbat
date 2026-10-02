@@ -6,8 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: Conflict resolution, driven both ways
 
 Driven on the two `libretro` rows, which are the only ones whose battery saves sync at all. Both
-branches of `saves resolve` were exercised, plus the negotiate-driven download that had never been
-driven before.
+branches of `saves resolve` were exercised, plus the negotiate-driven download.
 
 **Both sides of every conflict here were synthesized, and that bounds the claim.** The server side
 was uploaded by hand and the local side was byte-edited, so what this proves is RomMBat's handling
@@ -21,22 +20,20 @@ query parameter on `POST /api/saves` and the web UI does not set it, so the uplo
 `slot: null`, negotiate keys on the slot, and this device's record for `libretro:battery` never
 goes stale. Measured: a web upload at 12:39 left the next flush uploading cleanly with no 409.
 
-It is visible from the restore side, with the local file moved aside so every server row became a
-candidate:
+It is visible from the server's side. Kirby's Adventure (USA) (Rev 1), rom 158593, held four saves
+for the one `.srm`, and the web upload is the one with no slot:
 
-```console
-$ rommbat-agent saves restore 158593
-  save   rom 158593  libretro:battery          8 KB  2026-09-13 11:32  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
-  save   rom 158593  libretro:battery          8 KB  2026-09-13 11:38  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
-  save   rom 158593  (no slot)                 8 KB  2026-09-13 12:39  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
-  save   rom 158593  libretro:battery          8 KB  2026-09-13 12:46  saves/nes/Kirby's Adventure (USA) (Rev 1).srm
-```
+| Uploaded         | Slot               |
+| ---------------- | ------------------ |
+| 2026-09-13 11:32 | `libretro:battery` |
+| 2026-09-13 11:38 | `libretro:battery` |
+| 2026-09-13 12:39 | none               |
+| 2026-09-13 12:46 | `libretro:battery` |
 
 That is #138 from a second direction: a null-slot save is not only never fetched by negotiate, it
 also **cannot conflict**, so a client that does not speak RomMBat's slot convention can never
-collide with one. It is also #156, since all four rows resolve to one destination and the offer
-says nothing about that. **Since fixed by #156** in stage 2 of #195: the offer is one row per
-destination, the newest, and it names the rows it folded.
+collide with one. All four resolve to one destination, so `saves restore` offers one row for
+them, the newest, and names the three it folded (#156).
 
 Staging one needs `POST /api/saves?slot=libretro:battery`. Note `device_id` is validated: an
 invented one is refused with `404 Device with ID ... not found`, so the upload was made without it.
@@ -64,44 +61,28 @@ asking for a decision, and neither branch is a default:
 **So `overwrite` means supersede, and the resolver's remark is confirmed on a second shape.** It
 was measured on a `psp` class C unit during 7b-3; this is class A on `nes` and behaves the same.
 
-## The download path works, and it had never been driven
+## The download path works
 
 Leaving one local file untouched while the server moved produced `1 down (8 KB)`: a save from
 elsewhere came down through negotiate rather than through `saves restore`. **It also copied the
 local file aside before overwriting**, so the copy-aside rule holds on the download path and not
 only on conflicts.
 
-That is the mechanism #155 is about, now known to work when it is not racing a launch.
+That is the mechanism #155 is about, and it works when it is not racing a launch.
 
-## Two defects, #157
+## What a download records
 
-**A class A download leaves `save_slot` naming the superseded save.** After pulling save 211 down,
-the row still read `save_id 209` with the pre-download hash, while 211's content sat on disk. It
-does not self-correct: the local file is then in step, so the slot is never negotiated again.
-`--keep-local` writes the row correctly. Nothing visibly breaks, because the server-side sync
-record **is** updated, so the damage is confined to the device's picture of the server and is
-silent.
-
-**It is class A's, not every restore's, and keep-server is a second instance rather than an
-inheritance.** `SaveSync.RestoreUnitAsync` and `SaveConflictResolver.FinishUnitAsync`, the class C
-halves, both call `SaveSlots.RecordRestored`. `SaveSync.RecordRestored` and
-`SaveConflictResolver.KeepServerAsync`, the class A halves, both write `local_save` and stop.
-`KeepServerAsync` does not call the download path, so it is broken separately and a fix to the
-download alone would leave it broken. Only class A was driven here, which is what this pass can
-speak to; the class C recording is read from the code and from the 7b-3 measurement it cites.
-
-**Both class A writers record the slot now**, fixed with the RomM 5.3.0 stage 4 work, which needed
-the recorded save id to recognise a superseded row returning to the head of a slot. What is above
-is the behaviour this pass measured before the fix. Driven after it on this row, with
-`Destiny of an Emperor (USA)`: keep-server left `save_slot` naming the save it took, and a plain
-download moved it to the newer save. Recorded in RM-4;
-it is not a re-run of any certification step.
+**Both class A writers record the save they took in `save_slot`**, the plain download and
+keep-server alike, which is how a superseded row returning to the head of a slot is recognised
+(#157). Driven on this row with `Destiny of an Emperor (USA)`: keep-server left `save_slot` naming
+the save it took, and a plain download moved it to the newer save. Recorded in RM-4; it is not a
+re-run of any certification step.
 
 **A download's copy aside is never pruned**, and neither is a keep-server's, which holds the side
 the user did not keep. Only keep-local removes its copy. The plain download's copy has no
-decision to attach to it and no mechanism that will remove it. Since
-#211 a download that would replace a save this device never sent is a conflict instead, so such
-a copy now always holds bytes the server already has.
+decision to attach to it and no mechanism that will remove it. A download that would replace a
+save this device never sent is a conflict instead (#211), so such a copy always holds bytes the
+server already has.
 
 ## A save this device never sent, driven (#211)
 
@@ -128,9 +109,6 @@ game's BizHawk override was removed from `gamelist.xml` so it ran on `nes`' defa
 | `hooks install`, `flush`                             | Nothing up or down; `in step`                                                       |
 | Launched through ES                                  | Both `PEER` and `LOCAL` on the file select                                          |
 
-Before #211 the first flush took the download: `1 down`, the LOCAL file replaced by the PEER-only
-save, and the only record of LOCAL a copy nothing pointed to.
-
 **A download over a save that was sent still works.** With the slot in step, BizHawk's real
 StarTropics save bytes (md5 `970db3b8`) were uploaded as the other device, save 358. The flush
 answered `1 down` with no conflict, the file became those bytes, the next flush was a no-op, and
@@ -153,6 +131,3 @@ byte copy of the hashed one, standing in for what mesen standalone writes (RB-27
 | `Final Fantasy (USA).sav` added beside it, `flush`    | **`1 up, 1 failed`**: the plain file went up as `mesen:battery`, save 379; the download refused as shadowed |
 | After                                                 | The hashed file unchanged in bytes and mtime; `save_slot` still save 369, md5 `597b2790`                    |
 | Plain file removed, 378 and 379 deleted, `flush`      | Nothing up or down; both files `in step`                                                                    |
-
-Before #215 the refusal ran only when the path was derived, and a slot with a local save took the
-recorded path straight through: the unit test for this case received the download.

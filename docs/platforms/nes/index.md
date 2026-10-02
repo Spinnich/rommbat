@@ -27,7 +27,7 @@ beside these; [megadrive's record](../megadrive/index.md) is that record, and no
 
 **Step 5 rests on a state made after RB-258's fix**, and the restored screenshot was checked by
 its bytes rather than by its arrival. Step 2 asks that nothing be excluded for its extension. See
-[Re-driven at `5.3.0-beta.1`](libretro-nestopia.md#re-driven-at-530-beta1-2026-09-20).
+[`nestopia`'s step 5](libretro-nestopia.md#5-save-state-and-screenshot).
 
 ## Where each row stands
 
@@ -36,42 +36,40 @@ re-driven at `5.3.1` on 2026-09-24, in #236, which maps the nine steps. The othe
 the drive at `5.3.0-beta.1`, step 3 from 5.2.0, since nothing they exercise changed since. Nothing
 is owed.
 
-| File                                         | What it holds                                                                                     |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| This file                                    | Steps 1, 2 and 3, which are the system's; the set; what the pass turned up; RomM's browser player |
-| [libretro-nestopia.md](libretro-nestopia.md) | `libretro`/`nestopia` in full, the row the nine steps were first driven against                   |
-| [libretro.md](libretro.md)                   | The two other `libretro` rows                                                                     |
-| [bizhawk.md](bizhawk.md)                     | The two `bizhawk` rows                                                                            |
-| [standalone.md](standalone.md)               | `jgenesis`, `mesen`, `mednafen` and `ares`                                                        |
-| [first-pass.md](first-pass.md)               | The eight rows after `nestopia` as first driven, on steps 4 and 5 only                            |
-| [conflicts.md](conflicts.md)                 | Conflict resolution, driven both ways                                                             |
-| [facts.md](facts.md)                         | The measured facts about `nes`'s emulators, with RB- IDs                                          |
+| File                                         | What it holds                                                                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| This file                                    | Steps 1, 2 and 3, which are the system's; the set; where each row stores a save; what the pass turned up; RomM's browser player |
+| [libretro-nestopia.md](libretro-nestopia.md) | `libretro`/`nestopia` in full, the row the nine steps were first driven against                                                 |
+| [libretro.md](libretro.md)                   | The two other `libretro` rows                                                                                                   |
+| [bizhawk.md](bizhawk.md)                     | The two `bizhawk` rows, and BizHawk's battery save across ROMs                                                                  |
+| [standalone.md](standalone.md)               | `jgenesis`, `mesen`, `mednafen` and `ares`                                                                                      |
+| [conflicts.md](conflicts.md)                 | Conflict resolution, driven both ways                                                                                           |
+| [facts.md](facts.md)                         | The measured facts about `nes`'s emulators, with RB- IDs                                                                        |
 
 ## The install this was measured on
 
-|             |                                                                            |
-| ----------- | -------------------------------------------------------------------------- |
-| RetroBat    | `8.2.1-stable-win64`, the supported floor                                  |
-| RomM        | 5.2.0                                                                      |
-| Root        | `R:\RetroBat`, found by walking up from the executable                     |
-| Store       | schema 14 of 14, WAL                                                       |
-| Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free         |
-| Media kinds | `ScrapeVideos` and `ScrapeManual` both `true`, as a fresh 8.2.1 ships them |
-
-**This record spans two sessions and two builds**, and the difference matters to step 4. The
-first ran before `saves restore` existed and measured the download half as broken. The second ran
-on a deploy of `main` carrying #136 and #140, made by `tools/publish.ps1 -Deploy R:\RetroBat`,
-and measured it working. Where the two disagree the second one is the result, and the file says
-which is which rather than quietly replacing the earlier text.
+|             |                                                                                                           |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| RetroBat    | `8.2.1-stable-win64`, the supported floor                                                                 |
+| RomM        | `5.3.0-beta.1`, with step 3 at 5.2.0 and steps 1 and 9 again at `5.3.1`                                   |
+| Client      | For `nestopia`, a deploy of `main` at 9ed1fd1 by `tools/publish.ps1 -Deploy`; each row file names its own |
+| Root        | `R:\RetroBat`, found by walking up from the executable                                                    |
+| Store       | schema 16 of 16, WAL                                                                                      |
+| Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free                                        |
+| Media kinds | `ScrapeVideos` and `ScrapeManual` both `true`, as a fresh 8.2.1 ships them                                |
 
 The budget being off is deliberate and narrows what this pass proves: **nothing here certifies
 `budget`, `evict` or the eviction guards.** None of those is among the nine steps. It also means
 a missing cover at step 7 cannot be a headroom problem, which is why it was switched off.
 
-**The 2026-09-20 re-drive ran on the same install moved forward**, and the two rows that changed
-are the ones a result can turn on: the server reports `5.3.0-beta.1` and the store is at schema
-16 of 16. RetroBat, root, budget and media kinds are as above. The client is a deploy of `main`
-at 9ed1fd1, which declares `beta.1` as its floor.
+**Which row runs is set in two places, and a game's own pin wins.** `nes.emulator` and `nes.core`
+in `es_settings.cfg` pick the row for the system, and `<emulator>` and `<core>` children of a
+`<game>` in `gamelist.xml` pick it for one game without a trace in `es_settings.cfg`
+(the `retrobat-layout` skill's `settings.md`). Eight games on this install carry such a pin,
+among them StarTropics and Ultima on `bizhawk`, so every row file reads the launch line in
+`emulatorLauncher.log` rather than the configuration. `mesen` standalone and
+`jgenesis` declare no core and are launched with the system's `-core nestopia`, which both
+ignore.
 
 ## Steps 1, 2 and 3, for every row
 
@@ -167,6 +165,44 @@ Not a hand-picked set. A smart collection, which is an ordinary scope:
 | Policy   | no game cap, no size cap, ordered by recent        |
 | Resolves | 228 games, 30.2 MB, into `nes`                     |
 
+## Where each row stores a save
+
+Measured on this install, not read from a declaration. Every battery save was checked for content
+rather than existence: the smallest is 499 non-zero bytes over 52 distinct values, where a file a
+core writes at boot is uniform.
+
+| Row                    | Battery save                               | Save state                                                    | Screenshot                     |
+| ---------------------- | ------------------------------------------ | ------------------------------------------------------------- | ------------------------------ |
+| `libretro`/`fceumm`    | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.fceumm/<rom>.state1`                      | `.png` beside the state        |
+| `libretro`/`mesen`     | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.mesen/<rom>.state1`                       | `.png` beside the state        |
+| `libretro`/`nestopia`  | `saves/nes/<rom>.srm`                      | `saves/nes/libretro.nestopia/<rom>.state1`                    | `.png` beside the state        |
+| `mednafen`/`nes`       | `saves/nes/<rom>.<md5>.sav`                | `saves/nes/mednafen/sstates/<rom>.<md5>.mc0`                  | none (RB-275)                  |
+| `mesen` standalone     | `saves/nes/<rom>.sav`                      | `saves/nes/mesen/SaveStates/<rom>_1.mss`                      | none (RB-275)                  |
+| `ares`/`Famicom`       | `saves/nes/ares/Famicom/<rom>.ram`         | `saves/nes/ares/Famicom/<rom>.bs1`                            | none (RB-275)                  |
+| `bizhawk`/`NesHawk`    | `saves/nes/bizhawk/<display name>.SaveRAM` | `saves/nes/bizhawk/sstates/NesHawk/<rom>.QuickSave0.State`    | inside the state (RB-268)      |
+| `bizhawk`/`quickerNES` | `saves/nes/bizhawk/<display name>.SaveRAM` | `saves/nes/bizhawk/sstates/quickerNES/<rom>.QuickSave0.State` | inside the state (RB-268)      |
+| `jgenesis`             | `saves/nes/jgenesis/nes/<rom>.sav`         | `saves/nes/jgenesis/states/<rom>_0.jst`                       | none, though declared (RB-275) |
+
+`<md5>` is of the ROM: Final Fantasy came out as `24ae5edf8375162f91a6846d3202e3d6`, which is the
+`.nes` less its 16-byte iNES header, and mednafen adds it only when `<rom>.sav` does not already
+exist (RB-273 and RB-274). BizHawk's `<display name>` is its own title for the game, region tag
+dropped (RB-263). **`mesen` standalone is not the `mesen` libretro core**: the two rows share a name
+and write different files.
+
+**Three groups of rows share one battery file, and no other two rows do.** The three `libretro`
+cores all write `saves/nes/<rom>.srm`, so switching core continues the same save: Kirby's
+Adventure was played under `nestopia`, then under `fceumm`, and the second session carried on from
+the first and rewrote the same 8,192 bytes. The two `bizhawk` cores read each other's `.SaveRAM`
+(RB-271). `mednafen` reads a plain `<rom>.sav` whenever one exists, so it shares `mesen`
+standalone's file, which goes up as `mesen:battery` (RB-273). Across any other pair of rows the
+same game holds two unrelated saves in incompatible formats, and neither sees the other.
+
+**So `nes` is class A on `libretro` and on nothing else.** `save_shapes.json` gives the system one
+entry, `class A`, evidence `loose .srm per rom, libretro`. Every other row is carried by a battery
+rule of its own in `save_rules.json`'s `battery_saves` table, and the states of `mednafen`, `mesen`
+and `ares`, which `es_savestates.cfg` does not declare, by the bundled
+`es_savestates.supplement.xml`.
+
 ## What the pass turned up
 
 **Two server save records that cannot verify, and refusing them is correct.** A flush reported
@@ -207,8 +243,7 @@ RomMBat's.** Their slots name a core where `es_savestates.cfg` names an emulator
 `genesis_plus_gx`, `snes9x`, `mgba`, `mupen64plus_next`, `pcsx_rearmed`, `beetle_psx_hw` and
 `dc`. They were written by another client against the same library, the same one that left the
 two stale `River City Ransom` saves. RomMBat names each one and the reason rather than dropping
-it, which is right, but it also folds them into the exit code, which is #148 (since fixed in
-stage 2 of #195, where they no longer move it). Four of the
+it, and they do not move the exit code (#148). Four of the
 eighteen are `nes` rows under `fceumm`, so **this is what a second `(emulator, core)` row's
 states would look like to a restore** if RomMBat ever scoped one by core alone. It does not:
 `ScopeOf` writes `{emulator}.{core}`, which is what makes these rows unplaceable and RomMBat's
@@ -234,10 +269,9 @@ server's side; it re-runs no checklist step.
 B is #205, and the fix records it as a conflict instead of writing, confirmed by driving B again on it. The played save was put back
 from the copy aside and is the current `libretro:battery` version again.
 
-**Row 2's re-upload does not reproduce at `5.3.0-beta.1` or `5.3.0`**, and the table is left as it
-was measured on `5.3.0-alpha.3`. Probe case M4 answers `no_op (Content is identical)` there, so
-the hash settles it server-side; RB-259 carries the re-check. #210 guards the client side
-anyway, because the loop it would prevent is silent.
+**Row 2's re-upload is an `alpha.3` reading and does not reproduce from `5.3.0-beta.1` on.**
+Probe case M4 answers `no_op (Content is identical)`, so the hash settles it server-side
+(RB-259). #210 guards the client side anyway, because the loop it would prevent is silent.
 
 ## What this file will not claim
 

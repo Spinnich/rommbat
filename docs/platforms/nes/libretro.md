@@ -23,10 +23,9 @@ the first emulator and core `es_systems.cfg` lists for `nes`, `libretro` then `f
 row most users will actually have. The three unrelated `nes.*` keys recorded for `nestopia` were
 still set and do not reach this core.
 
-**Neither game carries a per-game `<emulator>` in `gamelist.xml`**, which is checked because eight
-games on this install do, left by
-[How each row was selected](first-pass.md#how-each-row-was-selected): StarTropics and Ultima, the
-first two picks, were still pinned to `bizhawk` and would have run the wrong row. A pinned game
+**Neither game carries a per-game `<emulator>` in `gamelist.xml`**, which is checked because
+[eight games on this install do](index.md#the-install-this-was-measured-on): StarTropics and
+Ultima, the first two picks, are pinned to `bizhawk` and would have run the wrong row. A pinned game
 overrides the system setting without a trace in `es_settings.cfg`, so read the launch line.
 
 **For a faster pass, pick a game whose battery save is quick to make.** Zelda writes one the
