@@ -206,8 +206,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    window of up to 50, which a system of more rows than ten needs. A token stored with `--protect` needs
    `--passphrase` on that run, or the block says it could not read.
 
-   **Both of the ways this step used to be answered by hand have a trap, and they are why the
-   block says what it says.** `GET /api/play-sessions` is scoped to the authenticated user, so
+   **Both of the ways to answer this step by hand have a trap, and they are why the block says
+   what it says.** `GET /api/play-sessions` is scoped to the authenticated user, so
    another account's token answers `200` with zero rows, and `?device_id=` given the local
    `client_device_identifier` rather than the id `status` prints on the `romm device` line does
    the same. Both read exactly like a session that was never written, which is why an empty

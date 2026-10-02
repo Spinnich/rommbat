@@ -72,14 +72,14 @@ than merely unscheduled.
 | 3    | `ps2`, `gamecube`, `dreamcast`, `xbox`, `psp`, `wii`                                                     | 6   | The hard save shapes: memory cards, GCI folders, VMU, and the class C directories |
 | 4    | `lynx`, `gamegear`, `wswan`, `wswanc`, `ngp`, `ngpc`, `atari2600`, `atari7800`, `virtualboy`, `pokemini` | 10  | Ten cheap rows that answer one question: is the class A fallback safe             |
 | 5    | `atari5200`, `colecovision`, `intellivision`, `vectrex`, `channelf`, `arcadia`, `odyssey2`, `sg1000`     | 8   | Generation 2, small BIOS sets, every recommended core under libretro              |
-| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | `hardware=extension`: they share a parent system's tree, which nothing has tested |
+| 6    | `fds`, `satellaview`, `sufami`, `sega32x`, `n64dd`, `supergrafx`                                         | 6   | Five `hardware=extension` systems share a parent's tree, which nothing has tested |
 | 7    | `3do`, `jaguar`, `jaguarcd`, `nds`                                                                       | 4   | Shape unclassified in all four, and `jaguar` carries the one non-libretro pick    |
 | 8    | `neogeo`, `neogeocd`, `fbneo`, `mame`                                                                    | 4   | Arcade: romset-versioned naming, the seven-folder mapping question, 12 BIOS files |
 
-**The order is not derivable from `hardware=console`.** That filter drops seventeen systems the
-table carries, because `gb`, `gbc`, `gba`,
-`lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and `psp` are `hardware=portable` and
-`fds`, `satellaview`, `sufami`, `sega32x`, `megacd` and `n64dd` are `hardware=extension`. A
+**The order is not derivable from `hardware=console`.** That filter drops twenty systems the
+table carries, because `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`,
+`pokemini`, `nds` and `psp` are `hardware=portable`, `fds`, `satellaview`, `sufami`, `sega32x`,
+`megacd` and `n64dd` are `hardware=extension`, and `fbneo` and `mame` are `hardware=arcade`. A
 manufacturer allowlist of Atari, Bandai, NEC, Nintendo, Sega, SNK and Sony drops the whole of
 generation 2 on top of that, since RetroBat attributes those to Coleco, Emerson, Fairchild,
 Mattel, MB and "Magnavox - Philips". `<manufacturer>`, `<hardware>` and `<release>` are worth

@@ -33,9 +33,9 @@ into four families rather than 81 shapes: **libretro** (30 of wave 1's 81, one e
 **jgenesis** (7, not core-scoped), and **30 rows that declare no state directory at all**
 (`mednafen`, `mesen`, `ares`, `snes9x`, `mgba`, `nosgba`, `kega-fusion`).
 
-**That fourth family is the expensive one, not the cheap one, and an earlier revision of this
-section had it backwards.** It said step 5 there was a recorded declaration and the row still
-certified on the other eight steps. Driving all nine `nes` rows showed otherwise: `mednafen`,
+**That fourth family is the expensive one, not the cheap one.** Step 5 there is not a recorded
+declaration that lets the row certify on the other eight steps. Driving all nine `nes` rows
+showed why: `mednafen`,
 `mesen` and `ares` each wrote a real save state into a directory they name themselves, invisible
 to `StateScanner` because it works from `es_savestates.cfg` alone. **Declaring no directory is not
 writing no state.** Look in the emulator's own tree under `saves/<system>/` before recording step 5
@@ -78,9 +78,10 @@ controller is picked up, and it leaves six of nine steps open per record. Steps 
 cannot be staged.
 
 **The order is hand-maintained, and a `hardware=console` filter does not reproduce it.** That
-filter drops `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`, `nds` and
-`psp`, which are `hardware=portable`, and `fds`, `satellaview`, `sufami`, `sega32x`, `megacd`
-and `n64dd`, which are `hardware=extension`. A manufacturer allowlist of Atari, Bandai, NEC,
+filter drops `gb`, `gbc`, `gba`, `lynx`, `gamegear`, `ngp`, `ngpc`, `wswan`, `wswanc`,
+`pokemini`, `nds` and `psp`, which are `hardware=portable`, `fds`, `satellaview`, `sufami`,
+`sega32x`, `megacd` and `n64dd`, which are `hardware=extension`, and `fbneo` and `mame`, which are
+`hardware=arcade`. A manufacturer allowlist of Atari, Bandai, NEC,
 Nintendo, Sega, SNK and Sony drops all of generation 2 on top of that. Read `<manufacturer>`,
 `<hardware>` and `<release>` when RetroBat adds a system, then decide the wave from what the
 system introduces.
