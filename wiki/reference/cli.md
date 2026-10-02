@@ -43,7 +43,8 @@ Options
   --offline         status, sync, bios, saves: work from local state without the server
   --dry-run         sync: say what would happen and write nothing
   --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:
-                    actually write. Without it, none of the four writes
+                    actually write. outbox drop: actually delete. Without it, none of the five writes
+  --all-failed      outbox drop: every entry the server refused, instead of one id
   --at-quit         saves convert: make the change when EmulationStation next closes
   --all             bios: every system RetroBat knows, not just the ones with games
   --max <size>      budget: the cap, as 64GB, 500MB or none

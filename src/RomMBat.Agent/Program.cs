@@ -180,7 +180,8 @@ internal static class Program
         Console.Error.WriteLine("  --offline         status, sync, bios, saves: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:");
-        Console.Error.WriteLine("                    actually write. Without it, none of the four writes");
+        Console.Error.WriteLine("                    actually write. outbox drop: actually delete. Without it, none of the five writes");
+        Console.Error.WriteLine("  --all-failed      outbox drop: every entry the server refused, instead of one id");
         Console.Error.WriteLine("  --at-quit         saves convert: make the change when EmulationStation next closes");
         Console.Error.WriteLine("  --all             bios: every system RetroBat knows, not just the ones with games");
         Console.Error.WriteLine("  --max <size>      budget: the cap, as 64GB, 500MB or none");

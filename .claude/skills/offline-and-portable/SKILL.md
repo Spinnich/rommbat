@@ -40,7 +40,8 @@ the source of truth; the network is optional, probed with a short-timeout
   is full-state reconciliation and handles it natively when timestamps are honest.
   **An entry the server answers for and does not accept ends `failed`**, keeping its error: a
   replay is refused the same way, and a pending one would hold `SaveGuard` and `uninstall`
-  forever. Offline, a 5xx, a 401 and a refused whole batch say nothing about one entry and stay
+  forever. That a replay is refused the same way is inferred from the status, not measured
+  against a live RomM. Offline, a 5xx, a 401 and a refused whole batch say nothing about one entry and stay
   pending. `outbox drop` is the only way a queued record is deleted unsent.
 - **Retries are safe by design, and this is measured.** A byte-identical save re-uploaded into
   the same slot reuses the row; a repeated play session comes back `"status": "duplicate"` in
