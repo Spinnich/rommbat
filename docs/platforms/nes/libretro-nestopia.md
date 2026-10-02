@@ -32,10 +32,11 @@ describes.
 
 ## Checklist
 
-Eight steps were driven on 2026-09-20 in one session, against a deploy of `main` at 9ed1fd1 made
+Seven steps were driven on 2026-09-20 in one session, against a deploy of `main` at 9ed1fd1 made
 by `tools/publish.ps1 -Deploy R:\RetroBat`, on a server reporting `5.3.0-beta.1`. **Step 3 carries
 from 5.2.0**: RetroBat lists no firmware for `nes` and the bundled manifest carries no entry for
-it, so `bios nes` reads an empty requirement whichever build asks. All nine hold at the floor, as
+it, so `bios nes` reads an empty requirement whichever build asks. Step 6 is N/A from
+`save_shapes.json`. All nine hold at the floor, as
 [Where each row stands](index.md#where-each-row-stands) says.
 
 | #   | Step                                                          | Result                                                                             |

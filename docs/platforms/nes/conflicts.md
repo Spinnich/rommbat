@@ -5,8 +5,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 
 # nes: Conflict resolution, driven both ways
 
-Driven on `libretro` rows on 2026-09-13, except where a section below names its own date and build.
-Both branches of `saves resolve` were exercised, plus the negotiate-driven download.
+Driven on `libretro` rows. Both branches of `saves resolve` were exercised, plus the negotiate-driven download.
 
 **Both sides of every conflict here were synthesized, and that bounds the claim.** The server side
 was uploaded by hand and the local side was byte-edited, so what this proves is RomMBat's handling

@@ -33,7 +33,7 @@ moment a name is registered, where Final Fantasy III needed play to the world ma
 
 ## Checklist for both
 
-Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist) the same day. Step 6 is N/A
+Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist). Step 6 is N/A
 for the same reason.
 
 | #   | `libretro`/`fceumm`                                                                    | `libretro`/`mesen`                                               |
