@@ -225,7 +225,15 @@ public sealed class PairingViewModel : IScreen, ILiveScreen, IDisposable
             }
 
             var service = new PairingService(_session.Install, _session.Store);
-            service.RememberServer(_origin);
+            try
+            {
+                service.RememberServer(_origin);
+            }
+            catch (ServerChangeRefusedException ex)
+            {
+                Update(PairingStage.Refused, ex.Message);
+                return;
+            }
 
             var pairing = await service.BeginAsync(connection, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);

@@ -72,7 +72,15 @@ internal static class PairCommand
         }
 
         var pairing = new PairingService(context.Install, context.Store);
-        pairing.RememberServer(origin);
+        try
+        {
+            pairing.RememberServer(origin);
+        }
+        catch (ServerChangeRefusedException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return ExitCode.Refused;
+        }
 
         while (true)
         {

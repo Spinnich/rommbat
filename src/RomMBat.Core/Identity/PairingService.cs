@@ -47,13 +47,49 @@ public sealed class PairingService
     /// Records the identity and the server to call, before any pairing is attempted.
     /// </summary>
     /// <returns>The <c>client_device_identifier</c> this install pairs under.</returns>
+    /// <remarks>
+    /// An origin that differs from a paired one means a different or rebuilt RomM, where rom and
+    /// save ids restart or name other games. <c>save_slot</c> and <c>save_conflict</c> hold the
+    /// old server's ids, so they are cleared here; left alone, every slot would read as a
+    /// superseded download. Unsent outbox rows name the old server's rom ids too and cannot be
+    /// dropped silently, so they refuse the change instead.
+    /// </remarks>
+    /// <exception cref="ServerChangeRefusedException">
+    /// The origin changed while the outbox still holds unsent work.
+    /// </exception>
     public string RememberServer(Uri origin)
     {
+        ArgumentNullException.ThrowIfNull(origin);
+
         var identifier = DeviceIdentity.ReadOrCreate(_install);
         _store.Device.EnsureIdentity(identifier);
+
+        var previous = _store.Device.Read();
+        if (previous is { RomMDeviceId: not null, ServerOrigin: { } paired } && !SameServer(paired, origin))
+        {
+            var pending = _store.Outbox.PendingCount();
+            if (pending > 0)
+            {
+                throw new ServerChangeRefusedException(
+                    $"This install is paired with {paired} and holds {pending} unsent item(s) "
+                        + $"that name that server's games. Let them send, or drop them, before pointing at {origin}.");
+            }
+
+            _store.InTransaction(() =>
+            {
+                _store.SaveSlots.Clear();
+                _store.SaveConflicts.Clear();
+                _store.Device.SaveServerOrigin(origin);
+            });
+            return identifier;
+        }
+
         _store.Device.SaveServerOrigin(origin);
         return identifier;
     }
+
+    private static bool SameServer(Uri a, Uri b) =>
+        string.Equals(a.ToString().TrimEnd('/'), b.ToString().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Starts a pairing request and returns the code and QR target to display.
@@ -179,3 +215,6 @@ public sealed class PairingService
         return $"Paired, but {degradations.Count} feature(s) are off because the grant was narrowed: {lost}. {expiry}";
     }
 }
+
+/// <summary>The server changed while unsent work still names the old one.</summary>
+public sealed class ServerChangeRefusedException(string message) : Exception(message);

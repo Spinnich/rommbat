@@ -199,6 +199,14 @@ public sealed class SaveConflictStore
         return command.ExecuteNonQuery() > 0;
     }
 
+    /// <summary>Forgets every conflict, for an install pointed at another server.</summary>
+    /// <returns>How many rows went.</returns>
+    public int Clear()
+    {
+        using var command = _connection.Command("DELETE FROM save_conflict;");
+        return command.ExecuteNonQuery();
+    }
+
     /// <summary>Forgets where the copy aside was, once the conflict is settled.</summary>
     /// <remarks>
     /// The row stays. Only the pointer goes, so a slot that conflicts again takes a copy of its
