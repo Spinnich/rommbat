@@ -46,8 +46,8 @@ three where being wrong destroys data rather than costing a re-download.
 `<extension>` is a per-system union across every emulator, so it cannot say what a given
 `(emulator, core)` opens, and members it omits sync and are reported as unlisted in ES. What
 the step checks is **multi-disc and multi-file placement**. A record whose step 2 names no
-multi-file shapes owes that half when it is next touched, and a single-file library passes it by
-saying so.
+multi-file shapes owes that placement check when it is next touched, and a single-file library
+passes it by saying so.
 
 Load the `platform-certification` skill before starting. Record what failed as well as
 what passed; a record that only lists successes is not evidence.

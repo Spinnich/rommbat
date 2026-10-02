@@ -141,10 +141,8 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    populated and is the one to read, so confirm it rather than expecting it to be empty.
 
    **Drive a state made after RB-258's fix, never one uploaded before it.** RomM links a
-   screenshot by filename, and RomMBat named it so that no libretro-shaped state ever linked,
-   while its restore could not place a state for any emulator that keeps the slot in the stem.
-   Between them no row could pass step 5 until 2026-09-20, and both were RomMBat's
-   (RB-258). An unchanged state is never re-sent,
+   screenshot by filename, and a state uploaded before the fix carries a screenshot name RomM's
+   lookup misses (RB-258). An unchanged state is never re-sent,
    so an older one stays unlinked. A null link on a fresh state is a new finding, not a
    recurrence of an old one.
 
