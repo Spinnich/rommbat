@@ -37,15 +37,15 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 
 ## The install this was measured on
 
-|           |                                                             |
-| --------- | ----------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, read back by `status` as Supported                 |
-| Root      | `R:\RetroBat`, found by walking up from the executable      |
-| Store     | schema 18 of 18, WAL                                        |
-| Client    | this branch, deployed twice, named below                    |
-| Budget    | `none`, as for every system before it                       |
-| Test game | Legend of Zelda, The - A Link to the Past (USA)             |
+|           |                                                        |
+| --------- | ------------------------------------------------------ |
+| RetroBat  | `8.2.1-stable-win64`, the supported floor              |
+| RomM      | `5.3.0`, read back by `status` as Supported            |
+| Root      | `R:\RetroBat`, found by walking up from the executable |
+| Store     | schema 18 of 18, WAL                                   |
+| Client    | this branch, deployed twice, named below               |
+| Budget    | `none`, as for every system before it                  |
+| Test game | Legend of Zelda, The - A Link to the Past (USA)        |
 
 **The test game is a 1 MB LoROM cartridge with 8 KB of battery SRAM**, as jgenesis reports it,
 and RomM rom 200280. It writes its save when a name is registered and on Save and Continue, and

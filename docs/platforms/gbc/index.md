@@ -35,15 +35,15 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 
 ## The install this was measured on
 
-|           |                                                             |
-| --------- | ----------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, read back by `status` as Supported                 |
-| Root      | `R:\RetroBat`, found by walking up from the executable      |
-| Store     | schema 17 of 17, WAL                                        |
-| Client    | this branch, deployed twice, named below                    |
-| Budget    | `none`, as for every system before it                       |
-| Test game | Pokemon - Crystal Version (USA, Europe) (Rev 1)             |
+|           |                                                        |
+| --------- | ------------------------------------------------------ |
+| RetroBat  | `8.2.1-stable-win64`, the supported floor              |
+| RomM      | `5.3.0`, read back by `status` as Supported            |
+| Root      | `R:\RetroBat`, found by walking up from the executable |
+| Store     | schema 17 of 17, WAL                                   |
+| Client    | this branch, deployed twice, named below               |
+| Budget    | `none`, as for every system before it                  |
+| Test game | Pokemon - Crystal Version (USA, Europe) (Rev 1)        |
 
 **The test game is a 2 MB MBC3 cartridge with a clock and 32 KB of battery RAM**, header cartridge
 type `0x10` (MBC3 with timer, RAM and battery) and Color flag `0xC0`, so it runs on a Color only.

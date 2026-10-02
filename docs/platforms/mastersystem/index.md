@@ -47,15 +47,15 @@ rows re-drove steps 4 and 9 at `5.3.1` on 2026-10-01, in #382. Nothing is owed.
 
 ## The install this was measured on
 
-|           |                                                             |
-| --------- | ----------------------------------------------------------- |
-| RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, read back by `status` as Supported                 |
-| Root      | `R:\RetroBat`, found by walking up from the executable      |
-| Store     | schema 18 of 18, WAL                                        |
-| Client    | this branch, deployed once, before the first ES session     |
-| Budget    | `none`, as for every system before it                       |
-| Test game | Golden Axe Warrior (USA, Europe, Brazil) (En)               |
+|           |                                                         |
+| --------- | ------------------------------------------------------- |
+| RetroBat  | `8.2.1-stable-win64`, the supported floor               |
+| RomM      | `5.3.0`, read back by `status` as Supported             |
+| Root      | `R:\RetroBat`, found by walking up from the executable  |
+| Store     | schema 18 of 18, WAL                                    |
+| Client    | this branch, deployed once, before the first ES session |
+| Budget    | `none`, as for every system before it                   |
+| Test game | Golden Axe Warrior (USA, Europe, Brazil) (En)           |
 
 **The test game is a 256 KB cartridge with battery SRAM**, RomM rom 239603, CRC32 `c7ded988`, the
 `.sms` inside the zip hashing to `d46e40bb...`. It carries no `<emulator>` pin in `gamelist.xml`, and
