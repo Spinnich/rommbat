@@ -382,6 +382,13 @@ OTHER_BATTERY_RULES = [
                     "standalone had written, 8,192 B, and stopped with Unexpected EOF"
                 ),
             },
+            "pcengine": {
+                "mesen:battery": (
+                    "RB-407: pcengine under mednafen on 8.2.1 opened the plain <rom>.sav mesen "
+                    "standalone had written, 2,048 B, and refused it as an incorrect size against "
+                    "the 32,768 B it takes, and the game did not load"
+                ),
+            },
             "gba": {
                 "mgba:battery": (
                     "RB-289: gba under mednafen on 8.2.1 opened the plain <rom>.sav mGBA standalone "
