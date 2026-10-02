@@ -167,11 +167,13 @@ does not always ignore `WM_CLOSE`, as `gb`'s record has it; it can take longer t
 
 ## No change of row that was checked kept the clock
 
-**Every row but `bizhawk`/`GBHawk` keeps Crystal's clock, and no two keep it the same way.** Each
-other row's step 4 round trip, in [libretro.md](libretro.md) and
-[standalone.md](standalone.md#4-battery-saves-on-the-eight), carried the clock file at its own md5,
-so a device that stays on one of those rows keeps its clock through RomMBat. `GBHawk` writes no
-clock at all (the table below).
+**Every row but `bizhawk`/`GBHawk` keeps Crystal's clock, and no two keep it the same way.** The
+four `libretro` cores' `.rtc` went round after each core's own session ([libretro.md](libretro.md)).
+The standalone rows went round in one restore after all eight had run
+([standalone.md](standalone.md#4-battery-saves-on-the-eight)), every file at its own md5, so it
+proves the clock, file or footer, for the rows that own their file: Mesen, ares and jgenesis. mGBA
+and mednafen share one `.sav`, and BizHawk's three cores one `.SaveRAM`, so for those the restore
+carried the last writer's clock only. `GBHawk` writes no clock at all (the table below).
 Moving the save between rows lost it on every move that was checked, and two were not:
 
 | Row                                    | Where the clock is                                                 | Seeded from the row before, the game showed |
