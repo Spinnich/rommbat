@@ -169,9 +169,10 @@ does not always ignore `WM_CLOSE`, as `gb`'s record has it; it can take longer t
 
 **Every row but `bizhawk`/`GBHawk` keeps Crystal's clock, and no two keep it the same way.** The
 four `libretro` cores' `.rtc` went round after each core's own session ([libretro.md](libretro.md)).
-The standalone rows went round in one restore after all eight had run
-([standalone.md](standalone.md#4-battery-saves-on-the-eight)), every file at its own md5, so it
-proves the clock, file or footer, for the rows that own their file: Mesen, ares and jgenesis. mGBA
+Mesen's `.srm` and the loose `.rtc` it shares with them went round in a restore of their own, and
+the other standalone rows in one restore after all eight had run
+([standalone.md](standalone.md#4-battery-saves-on-the-eight)), every file at its own md5. That
+proves the clock, file or footer, for the rows that own their file: ares and jgenesis. mGBA
 and mednafen share one `.sav`, and BizHawk's three cores one `.SaveRAM`, so for those the restore
 carried the last writer's clock only. `GBHawk` writes no clock at all (the table below).
 Moving the save between rows lost it on every move that was checked, and two were not:
