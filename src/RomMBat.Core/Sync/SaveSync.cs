@@ -83,7 +83,8 @@ public sealed record SaveSyncOutcome
     /// <remarks>
     /// <b>Not a failure, and a standing property rather than an event.</b> The card is on disk
     /// and in step, and converting the game is the whole remedy, so this recurs on every flush
-    /// until it is done. Each one has a line in <see cref="Advisories"/> naming the command.
+    /// until it is done. Each one has a line in <see cref="Advisories"/> naming the command. Said on every flush that
+    /// reaches the end of negotiation; a flush that fails earlier has nothing to say.
     /// Nothing is converted for the player: that is a setting in their own
     /// <c>es_settings.cfg</c>, and it moves the game off the shared card.
     /// </remarks>
@@ -2040,7 +2041,7 @@ public sealed class SaveSync
             return lines;
         }
 
-        var settings = EsSettingsFile.Load(_install.Resolve(EsSettingsFile.Location));
+        EsSettingsFile? settings = null;
 
         foreach (var card in cards)
         {
@@ -2050,12 +2051,29 @@ public sealed class SaveSync
                 continue;
             }
 
+            // Read only once a card of the converted kind is here, and a file that cannot be read
+            // is an advisory not given: this runs inside the flush, where a throw would leave the
+            // sync session open and skip the state pass.
+            if (settings is null)
+            {
+                try
+                {
+                    settings = EsSettingsFile.Load(_install.Resolve(EsSettingsFile.Location));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Xml.XmlException)
+                {
+                    return lines;
+                }
+            }
+
             var romId = (int)card.RomId!.Value;
 
             if (_store.Files.ForRom(romId, LocalFileKind.Rom) is not [{ } rom, ..]
                 || string.IsNullOrEmpty(Path.GetExtension(rom.FileName))
-                || rom.FileName.Contains('"', StringComparison.Ordinal))
+                || rom.FileName.Contains('"', StringComparison.Ordinal)
+                || DiscSet.Parse(rom.FileName) is not null)
             {
+                // A disc of a set is refused by the converter, so there is no command to offer.
                 continue;
             }
 
@@ -2065,7 +2083,7 @@ public sealed class SaveSync
             }
 
             lines.Add(
-                $"rom {romId} ({rom.FileName}): the memory card from the server is on this device, but "
+                $"rom {romId} ({rom.FileName}): a per-game memory card is on this device, but "
                     + "the game is not set to read it and will start from the shared card. "
                     + $"Run 'saves convert {romId} --apply' to use it.");
         }

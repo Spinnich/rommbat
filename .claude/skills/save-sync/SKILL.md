@@ -110,7 +110,7 @@ PS2 serial, so it is declared a shared container and `saves` names it (RB-406).
 **A per-game card is restored whether or not the game is converted here**, because it is a
 declared container and needs nothing local to place (#336). PCSX2 reads it only under
 `ps2["<rom>"].pcsx2_slot1_memory = game`, so `SaveSync.UnconvertedCards` reports each restored card
-whose per-game key is not set, on every flush, as `SaveSyncOutcome.NeedsConverting` and
+whose per-game key is not set, on every flush that reaches the end of negotiation, as `SaveSyncOutcome.NeedsConverting` and
 `Advisories`. It reads the live `es_settings.cfg`, not `save_conversion`, and converts nothing
 itself: that is a setting in the player's own file, and the player's call.
 

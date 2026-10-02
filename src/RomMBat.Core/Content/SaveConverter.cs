@@ -487,8 +487,7 @@ public sealed class SaveConverter
                 _install.Resolve($"saves/{rom.Folder}"),
                 conversion.Container!.Replace('/', Path.DirectorySeparatorChar),
                 Path.ChangeExtension(rom.FsName, conversion.Extension!.TrimStart('.'))))
-            ? $"'{rom.FsName}' will start from the per-game memory card already on this device, the one "
-                + "pulled from the server"
+            ? $"'{rom.FsName}' will start from the per-game memory card already on this device"
             : $"'{rom.FsName}' will start from an empty memory card";
 
         return $"{start}. Whatever it has already saved stays "
