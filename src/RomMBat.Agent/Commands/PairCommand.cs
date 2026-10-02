@@ -10,7 +10,7 @@ namespace RomMBat.Agent.Commands;
 /// </summary>
 /// <remarks>
 /// The console half of pairing, for a terminal or a script. The gamepad UI pairs through the
-/// same <see cref="PairingService"/>, so every decision lives there and this only prints.
+/// same <see cref="PairingService"/>.
 /// </remarks>
 internal static class PairCommand
 {

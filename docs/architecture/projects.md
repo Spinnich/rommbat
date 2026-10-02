@@ -85,7 +85,7 @@ one by hand.
 
 **The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
 install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
-nothing: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
+contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
 75.9 MB agent reaches `Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without
 `PublishReadyToRun` throws the framework's precompiled code away (RB-195, RB-197).
 
@@ -110,8 +110,8 @@ The pass writes what it did to `emulators/rommbat/logs/background.log`. It runs 
 so nothing it prints reaches a person otherwise.
 
 `game-start` and `game-end` run inside the game launch path. They spawn nothing, must not open a
-socket and must not wait on a lock. ES spawns them **fire-and-forget** (RB-197), so they do not
-delay the launch (30 ms from hook to launcher, against an 8 s hook), but they **do run
+socket and must not wait on a lock. ES spawns them **fire-and-forget**, so they do not
+delay the launch (30 ms from hook to launcher, against an 8 s hook, RB-346), but they **do run
 concurrently**, with each other and across events.
 
 **The hooks ship as an executable, because only an `.exe` survives a real game name.**
@@ -204,9 +204,9 @@ are the same picture.** The title turns past tense ("Queried 'X'", "Synced 'X'")
 word sits above the sentence ("Finished", "Stopped", "Finished with problems", "Did not
 finish"), and the footer reads **Done** instead of offering a stop. That last one is the rule:
 **if the footer offers a stop the work is running, and if it says Done it is over**, which is
-the only thing a person has to learn to know whether to keep waiting. The resolve screen says
-**Query** rather than Check, because "Query" names the act of asking the server and so says
-which of the two footer actions reaches the network.
+the only thing a person has to learn to know whether to keep waiting. The sets screen's
+footer offers **Query** rather than Check, beside Sync, because "Query" names the act of asking
+the server and so says which of the two reaches the network.
 
 **The on-screen keyboard is EmulationStation's own, key for key.** `KeyboardLayouts` holds a
 transcription of the three grids compiled into `emulationstation.exe`, in upstream's shape, and
@@ -244,8 +244,9 @@ the same day, median of five with the cold run discarded. Start time varies by a
 between runs, so a difference inside that spread is no measurable change rather than a gain or a
 loss. A figure recorded on another day is never the baseline.
 
-**Trimming is not switched on, and that is measured rather than lazy.** It takes the same
-build to 61.1 MB and 517 ms, and raises 16 `IL2026` warnings across twelve reflection-based
+**Trimming is not switched on, and that is measured rather than lazy.** A trimmed,
+ReadyToRun, single-file publish measured 61.1 MB and 517 ms, an indication rather than a delta
+since it was not timed beside its untrimmed base, and trimming raises 16 `IL2026` warnings across twelve reflection-based
 `System.Text.Json` call sites in Core and `RomM.Client`, whose failure mode is a runtime
 deserialisation fault in a build that linked cleanly. `SaveShapes` classifies every save, so
 that is not a risk to carry for a size win. Tracked as #98.
