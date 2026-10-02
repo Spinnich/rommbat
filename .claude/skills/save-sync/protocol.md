@@ -376,7 +376,13 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   narrows by `<rom> <slot>` before folding, so asking for a slot by name gets that slot's newest
   row even where a newer null-slot row shares the file. **The flush had the same gap for slotted
   rows and it is closed separately**: a negotiated download for a slot this device never held,
-  landing on another slot's file, is a conflict and not a write (#205).
+  landing on another slot's file, is a conflict and not a write (#205). One landing on the plain
+  `<rom>.sav` that mednafen opens before its hashed name, for a game ES launches under mednafen, is
+  left on the server and counted, not written (#235). Its reading on `mastersystem` (RB-324) and
+  on `gba` (mGBA's 131,088 B, RB-289) is a game that will not load, and the guard asks
+  `RetroBat/LaunchEmulator` (the gamelist entry, then `<system>.emulator`, then the first
+  `es_systems.cfg` emulator) and the rule's hashed naming, never a size. So it also holds back a
+  plain save mednafen would have read, mesen's on `nes` and mGBA's on `gb`.
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something
