@@ -49,6 +49,13 @@ SHARED_CONTAINERS = {
     "saturn": {
         "kronos/bkram.bin": "Kronos backup RAM, one file for every Saturn game (M6 probe 2)",
     },
+    "pcengine": {
+        "ares/PC Engine/PC Engine.bram": (
+            "ares's PC Engine backup RAM, 2,048 B, named after the console rather than the game, "
+            "so one file for every pcengine game; written on exit beside Populous (Japan) (En).ram "
+            "on 8.2.1 (#396)"
+        ),
+    },
     "dreamcast": {
         "flycast/vmu/vmu_save_A1.bin": "port-keyed VMU, shared by every game (probe 2)",
         "flycast/vmu/vmu_save_B1.bin": "port-keyed VMU, shared by every game (probe 2)",
@@ -124,7 +131,18 @@ SHARED_CONTAINERS = {
 OTHER_BATTERY_RULES = [
     {
         "emulator": "bizhawk",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "snes", "mastersystem", "psx", "n64"],
+        "systems": [
+            "nes",
+            "megadrive",
+            "gba",
+            "gb",
+            "gbc",
+            "snes",
+            "mastersystem",
+            "psx",
+            "n64",
+            "pcengine",
+        ],
         "directory": "bizhawk",
         "extensions": [".saveram"],
         "named_after": "display name",
@@ -162,6 +180,10 @@ OTHER_BATTERY_RULES = [
             "cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, "
             "which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro "
             "cores do"
+            "; pcengine under bizhawk on 8.2.1: Populous (Japan) (En).zip wrote bizhawk/Populous "
+            "(J).SaveRAM, 2,048 B, in PCEHawk's session, named after BizHawk's own title as the "
+            "sidecars Populous (J).PCEHawk and Populous (J).HyperNyma say; HyperNyma and TurboNyma "
+            "wrote none on close (#396)"
         ),
         "not_a_save_extensions": {
             ".bak": (
@@ -331,7 +353,7 @@ OTHER_BATTERY_RULES = [
     },
     {
         "emulator": "mesen",
-        "systems": ["nes", "mastersystem"],
+        "systems": ["nes", "mastersystem", "pcengine"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file",
@@ -342,11 +364,13 @@ OTHER_BATTERY_RULES = [
             "; mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, "
             "Brazil) (En).zip wrote a loose <rom>.sav, 8,192 B, beside the .srm the libretro cores "
             "share, which it neither reads nor writes"
+            "; pcengine under mesen standalone on 8.2.1: Populous (Japan) (En).zip wrote a loose "
+            "<rom>.sav, 2,048 B, on close (#396)"
         ),
     },
     {
         "emulator": "mednafen",
-        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem"],
+        "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem", "pcengine"],
         "directory": "",
         "extensions": [".sav"],
         "named_after": "rom file and content md5",
@@ -388,6 +412,9 @@ OTHER_BATTERY_RULES = [
             "; mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, "
             "Europe, Brazil) (En).zip wrote a loose <rom>.d46e40bbb729ba233f171ad7bf6169f5.sav, "
             "32,768 B, the md5 being of the whole .sms inside"
+            "; pcengine under mednafen, core pce, 1.32.1, on 8.2.1: Populous (Japan) (En).zip wrote "
+            "a loose <rom>.9d599a43d2c69738f3562f58aeff8828.sav, 32,768 B, on exit, the md5 being "
+            "of the whole headerless .pce inside (#396)"
         ),
     },
     {
@@ -510,6 +537,19 @@ OTHER_BATTERY_RULES = [
             "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, "
             "Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its "
             "states .bs1 and .bs2"
+        ),
+    },
+    {
+        "emulator": "ares",
+        "systems": ["pcengine"],
+        "directory": "ares/PC Engine",
+        "extensions": [".ram"],
+        "named_after": "rom file",
+        "class": "A",
+        "evidence": (
+            "pcengine under ares, core PCEngine, on 8.2.1: Populous (Japan) (En).zip wrote "
+            "ares/PC Engine/<rom>.ram, 32,768 B, on exit, beside its states .bs1 and .bs2 and the "
+            "shared PC Engine.bram (#396)"
         ),
     },
     {

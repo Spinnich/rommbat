@@ -21,13 +21,14 @@
         "snes",
         "mastersystem",
         "psx",
-        "n64"
+        "n64",
+        "pcengine"
       ],
       "directory": "bizhawk",
       "extensions": [".saveram"],
       "named_after": "display name",
       "class": "A",
-      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the rom file, one file for all three cores; mastersystem under bizhawk, SMSHawk, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with the SMS+Export firmware in bios; n64 under bizhawk, Ares64 and Mupen64Plus, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote bizhawk/<rom>.SaveRAM, named after the rom file, one file for both cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro cores do",
+      "evidence": "nes under bizhawk, NesHawk and quickerNES both, on 8.2.1: StarTropics (USA).zip wrote bizhawk/StarTropics.SaveRAM, and the state sidecar beside it reads StarTropics.NesHawk (#151); megadrive under bizhawk, Genplus-gx, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote bizhawk/Sonic and Knuckles & Sonic 3 (W) [!].SaveRAM, 16,384 B; gba under bizhawk, mGBA, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote bizhawk/Pokemon - Emerald Version (USA, Europe).SaveRAM, 131,088 B, named after the rom file as the sidecar Pokemon - Emerald Version (USA, Europe).mGBA says; gb under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote bizhawk/Pokemon - Yellow Version (USA, Europe).SaveRAM, 32,768 B, one file for all three cores, named after BizHawk's own title as the sidecar Pokemon - Yellow Version (USA, Europe).Gambatte says; gbc under bizhawk, Gambatte, GBHawk and SameBoy alike, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote bizhawk/Pokemon - Crystal Version (USA, Europe) (Rev A).SaveRAM, named after BizHawk's own title as the sidecar Pokemon - Crystal Version (USA, Europe) (Rev A).Gambatte says. One file for all three cores, each with its own clock: 32,790 B under Gambatte, 32,816 B under SameBoy, and 32,768 B with no clock under GBHawk; snes under bizhawk, BSNES, Faust and Snes9x alike, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote bizhawk/<rom>.SaveRAM, 8,192 B, named after the rom file, one file for all three cores; mastersystem under bizhawk, SMSHawk, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote bizhawk/Golden Axe Warrior (UE).SaveRAM, 8,192 B, named after BizHawk's own title as the sidecar Golden Axe Warrior (UE).SMSHawk says, and only with the SMS+Export firmware in bios; n64 under bizhawk, Ares64 and Mupen64Plus, on 8.2.1: Legend of Zelda, The - Ocarina of Time (USA).zip wrote bizhawk/<rom>.SaveRAM, named after the rom file, one file for both cores in two formats: 32,768 B of SRAM under Ares64, and 296,960 B under Mupen64Plus, which keeps EEPROM, four Controller Paks, SRAM and FlashRAM in one image as the libretro cores do; pcengine under bizhawk on 8.2.1: Populous (Japan) (En).zip wrote bizhawk/Populous (J).SaveRAM, 2,048 B, in PCEHawk's session, named after BizHawk's own title as the sidecars Populous (J).PCEHawk and Populous (J).HyperNyma say; HyperNyma and TurboNyma wrote none on close (#396)",
       "not_a_save_extensions": {
         ".bak": "BizHawk's copy of the save a new one replaced, StarTropics.SaveRAM.bak, written on exit (#151)"
       }
@@ -133,16 +134,16 @@
     },
     {
       "emulator": "mesen",
-      "systems": ["nes", "mastersystem"],
+      "systems": ["nes", "mastersystem", "pcengine"],
       "directory": "",
       "extensions": [".sav"],
       "named_after": "rom file",
       "class": "A",
-      "evidence": "nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote a loose Crystalis (USA).sav, 8,192 B, beside libretro's .srm files; mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote a loose <rom>.sav, 8,192 B, beside the .srm the libretro cores share, which it neither reads nor writes"
+      "evidence": "nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote a loose Crystalis (USA).sav, 8,192 B, beside libretro's .srm files; mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote a loose <rom>.sav, 8,192 B, beside the .srm the libretro cores share, which it neither reads nor writes; pcengine under mesen standalone on 8.2.1: Populous (Japan) (En).zip wrote a loose <rom>.sav, 2,048 B, on close (#396)"
     },
     {
       "emulator": "mednafen",
-      "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem"],
+      "systems": ["nes", "megadrive", "gba", "gb", "gbc", "mastersystem", "pcengine"],
       "directory": "",
       "extensions": [".sav"],
       "named_after": "rom file and content md5",
@@ -155,7 +156,7 @@
           "mgba:battery": "RB-289: gba under mednafen on 8.2.1 opened the plain <rom>.sav mGBA standalone had written and refused it, 131,088 B against the 65,536 or 131,072 B it takes, and the game did not load"
         }
       },
-      "evidence": "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of the .nes inside less its 16-byte iNES header; megadrive under mednafen, core megadrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose <rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md inside; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of the whole .gba inside, once no plain <rom>.sav was present; gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb inside, when no plain <rom>.sav was present; gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was present; mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote a loose <rom>.d46e40bbb729ba233f171ad7bf6169f5.sav, 32,768 B, the md5 being of the whole .sms inside"
+      "evidence": "nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote a loose Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.sav, 8,192 B, the md5 being of the .nes inside less its 16-byte iNES header; megadrive under mednafen, core megadrive, on 8.2.1: Sonic & Knuckles + Sonic The Hedgehog 3 (USA) (Lock-on Combination).zip wrote a loose <rom>.c5b1c655c19f462ade0ac4e17a844d10.sav, 1,024 B, the md5 being of the whole .md inside; gba under mednafen, core gba, on 8.2.1: Pokemon - Emerald Version (USA, Europe).zip wrote a loose <rom>.605b89b67018abcea91e693a4dd25be3.sav, 131,072 B, the md5 being of the whole .gba inside, once no plain <rom>.sav was present; gb under mednafen, core gb, on 8.2.1: Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).zip wrote a loose <rom>.d9290db87b1f0a23b89f99ee4469e34b.sav, 32,768 B, the md5 being of the whole .gb inside, when no plain <rom>.sav was present; gbc under mednafen, core gbc, on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote a loose <rom>.301899b8087289a6436b0a241fbbb474.sav, 32,816 B with the clock inside, the md5 being of the whole .gbc inside, when no plain <rom>.sav was present; mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote a loose <rom>.d46e40bbb729ba233f171ad7bf6169f5.sav, 32,768 B, the md5 being of the whole .sms inside; pcengine under mednafen, core pce, 1.32.1, on 8.2.1: Populous (Japan) (En).zip wrote a loose <rom>.9d599a43d2c69738f3562f58aeff8828.sav, 32,768 B, on exit, the md5 being of the whole headerless .pce inside (#396)"
     },
     {
       "emulator": "mednafen",
@@ -237,6 +238,15 @@
       "named_after": "rom file",
       "class": "A",
       "evidence": "mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/<rom>.ram, 32,768 B, on exit, beside its states .bs1 and .bs2"
+    },
+    {
+      "emulator": "ares",
+      "systems": ["pcengine"],
+      "directory": "ares/PC Engine",
+      "extensions": [".ram"],
+      "named_after": "rom file",
+      "class": "A",
+      "evidence": "pcengine under ares, core PCEngine, on 8.2.1: Populous (Japan) (En).zip wrote ares/PC Engine/<rom>.ram, 32,768 B, on exit, beside its states .bs1 and .bs2 and the shared PC Engine.bram (#396)"
     },
     {
       "emulator": "ares",
@@ -353,6 +363,9 @@
     },
     "saturn": {
       "kronos/bkram.bin": "Kronos backup RAM, one file for every Saturn game (M6 probe 2)"
+    },
+    "pcengine": {
+      "ares/PC Engine/PC Engine.bram": "ares's PC Engine backup RAM, 2,048 B, named after the console rather than the game, so one file for every pcengine game; written on exit beside Populous (Japan) (En).ram on 8.2.1 (#396)"
     },
     "dreamcast": {
       "flycast/vmu/vmu_save_A1.bin": "port-keyed VMU, shared by every game (probe 2)",

@@ -51,6 +51,7 @@ public class SaveDiscoveryTests
     [InlineData("xbox", "eeprom.bin")]
     [InlineData("xbox", "xbox_hdd.qcow2")]
     [InlineData("saturn", "kronos/bkram.bin")]
+    [InlineData("pcengine", "ares/PC Engine/PC Engine.bram")]
     [InlineData("ps2", "pcsx2/memcards/Mcd001.ps2")]
     public void A_shared_container_is_recognised_by_name_because_nothing_else_distinguishes_it(
         string system,
@@ -131,6 +132,36 @@ public class SaveDiscoveryTests
         Assert.Equal("megacd", reported.System);
         Assert.Contains("RAM cart", reported.Detail, StringComparison.Ordinal);
         Assert.True(outcome.Unsyncable > 0);
+    }
+
+    [Fact]
+    public void On_pcengine_each_emulator_keeps_its_own_battery_slot_and_ares_backup_ram_is_shared()
+    {
+        // Populous (Japan) (En) under every row on 8.2.1 (#396): five battery files for one game,
+        // and ares's PC Engine.bram, named after the console, beside the game's own .ram.
+        using var fixture = SaveTree.Create();
+        const string Rom = "Populous (Japan) (En)";
+
+        fixture.AddRom(264332, "pcengine", $"{Rom}.zip");
+        fixture.AddSave("pcengine", $"{Rom}.srm", "libretro");
+        fixture.AddSave("pcengine", $"{Rom}.9d599a43d2c69738f3562f58aeff8828.sav", "mednafen");
+        fixture.AddSave("pcengine", $"{Rom}.sav", "mesen");
+        fixture.AddSave("pcengine", $"ares/PC Engine/{Rom}.ram", "ares");
+        fixture.AddSave("pcengine", "ares/PC Engine/PC Engine.bram", "every game's backup RAM");
+
+        fixture.Scan();
+
+        var slots = fixture.Store.Saves.List().ToDictionary(save => save.Path.Value, save => save.Slot);
+        Assert.Equal("libretro:battery", slots[$"saves/pcengine/{Rom}.srm"]);
+        Assert.Equal("mednafen:battery", slots[$"saves/pcengine/{Rom}.9d599a43d2c69738f3562f58aeff8828.sav"]);
+        Assert.Equal("mesen:battery", slots[$"saves/pcengine/{Rom}.sav"]);
+        Assert.Equal("ares:battery", slots[$"saves/pcengine/ares/PC Engine/{Rom}.ram"]);
+        Assert.Equal(4, slots.Count);
+
+        var reported = Assert.Single(
+            fixture.Store.Unsyncable.List(),
+            entry => entry.System == "pcengine" && entry.Reason == UnsyncableReason.SharedContainer);
+        Assert.Contains("PC Engine.bram", reported.Detail, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -850,13 +881,13 @@ public class SaveDiscoveryTests
         // they were measured, so the split is exercised on a system it does not reach.
         using var fixture = SaveTree.Create();
 
-        fixture.AddSave("pcengine", "jgenesis/pce/Bonk's Adventure (USA).sav", "a battery save no rule covers here");
-        fixture.AddSave("pcengine", "mednafen/sstates/Bonk's Adventure (USA).0123456789abcdef0123456789abcdef.mc0", "a state nothing reads");
-        fixture.AddSave("pcengine", "mesen/SaveStates/Bonk's Adventure (USA)_1.mss", "another");
+        fixture.AddSave("pcenginecd", "jgenesis/pce/Bonk's Adventure (USA).sav", "a battery save no rule covers here");
+        fixture.AddSave("pcenginecd", "mednafen/sstates/Bonk's Adventure (USA).0123456789abcdef0123456789abcdef.mc0", "a state nothing reads");
+        fixture.AddSave("pcenginecd", "mesen/SaveStates/Bonk's Adventure (USA)_1.mss", "another");
 
         fixture.ScanWithStateSchema();
 
-        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "pcengine").ToList();
+        var rows = fixture.Store.Unsyncable.List().Where(entry => entry.System == "pcenginecd").ToList();
         Assert.Equal(2, rows.Count);
 
         // jgenesis is declared, so the clause about the save states beside them holds for it.

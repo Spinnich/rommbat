@@ -16,7 +16,7 @@
   measured would report real states as outside it.
 -->
 <savestates>
-  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem,psx">
+  <emulator name="mednafen" systems="nes,megadrive,gba,gb,gbc,snes,mastersystem,psx,pcengine">
     <directory>{{system}}/mednafen/sstates</directory>
     <file>{{romfilename}}.{{romhash}}.mc{{slot0}}</file>
     <evidence>nes under mednafen on 8.2.1: Final Fantasy (USA).zip wrote mednafen/sstates/Final Fantasy (USA).24ae5edf8375162f91a6846d3202e3d6.mc0, 11,981 B, the md5 being of the .nes inside less its 16-byte iNES header (#150)</evidence>
@@ -27,8 +27,9 @@
     <evidence>snes under mednafen, core snes, on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mednafen/sstates/&lt;rom&gt;.608c22b8ff930c62dc2de54bcd6eba72.mc0 and .mc1, 110,345 B and 110,365 B, the md5 being of the whole .sfc inside. F2 saves and F7 steps the slot</evidence>
     <evidence>mastersystem under mednafen, core mastersystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mednafen/sstates/&lt;rom&gt;.d46e40bbb729ba233f171ad7bf6169f5.mc0 and .mc1, 9,875 B and 9,749 B, the md5 being of the whole .sms inside. F2 saves and F7 steps the slot</evidence>
     <evidence>psx under mednafen, core psx, on 8.2.1: Metal Gear Solid (USA).m3u, two .cue discs, wrote mednafen/sstates/&lt;rom&gt;.2f876f4966ab9a14472349c43b3d64a4.mc0 and .mc1, 1,328,938 B and 1,899,888 B, the md5 being the layout hash over both discs, not any file's content</evidence>
+    <evidence>pcengine under mednafen, core pce, 1.32.1, on 8.2.1: Populous (Japan) (En).zip wrote mednafen/sstates/&lt;rom&gt;.9d599a43d2c69738f3562f58aeff8828.mc0 and .mc1, 30,942 B and 100,633 B, the md5 being of the whole headerless .pce inside. F2 saves and F7 steps the slot (#396)</evidence>
   </emulator>
-  <emulator name="mesen" systems="nes,gba,gb,gbc,snes,mastersystem">
+  <emulator name="mesen" systems="nes,gba,gb,gbc,snes,mastersystem,pcengine">
     <directory>{{system}}/mesen/SaveStates</directory>
     <file>{{romfilename}}_{{slot}}.mss</file>
     <evidence>nes under mesen standalone on 8.2.1: Crystalis (USA).zip wrote mesen/SaveStates/Crystalis (USA)_1.mss, 9,257 B (#150)</evidence>
@@ -37,6 +38,7 @@
     <evidence>gbc under mesen standalone on 8.2.1: Pokemon - Crystal Version (USA, Europe) (Rev 1).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 23,484 B and 23,253 B, from Shift+F1 and Shift+F2</evidence>
     <evidence>snes under mesen standalone on 8.2.1: Legend of Zelda, The - A Link to the Past (USA).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 111,256 B and 111,077 B, from Shift+F1 and Shift+F2, into the SaveStateFolder RetroBat's settings.json names</evidence>
     <evidence>mastersystem under mesen standalone on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 41,396 B and 41,272 B, from Shift+F1 and Shift+F2</evidence>
+    <evidence>pcengine under mesen standalone on 8.2.1: Populous (Japan) (En).zip wrote mesen/SaveStates/&lt;rom&gt;_1.mss and _2.mss, 212,139 B and 208,817 B, from F2, F7, F2 (#396)</evidence>
   </emulator>
   <emulator name="mgba" systems="gba,gb,gbc">
     <directory>{{system}}/mgba/sstates</directory>
@@ -79,6 +81,11 @@
     <directory>{{system}}/ares/Master System</directory>
     <file>{{romfilename}}.bs{{slot}}</file>
     <evidence>mastersystem under ares, core MasterSystem, on 8.2.1: Golden Axe Warrior (USA, Europe, Brazil) (En).zip wrote ares/Master System/&lt;rom&gt;.bs1 and .bs2, 58,231 B each, beside its battery save .ram. F2 saves and F7 steps the slot</evidence>
+  </emulator>
+  <emulator name="ares" systems="pcengine">
+    <directory>{{system}}/ares/PC Engine</directory>
+    <file>{{romfilename}}.bs{{slot}}</file>
+    <evidence>pcengine under ares, core PCEngine, on 8.2.1: Populous (Japan) (En).zip wrote ares/PC Engine/&lt;rom&gt;.bs1 and .bs2, 253,324 B each, beside its battery save .ram and the shared PC Engine.bram. F2 saves and F7 steps the slot (#396)</evidence>
   </emulator>
   <emulator name="ares" systems="n64">
     <directory>{{system}}/ares/Nintendo 64</directory>

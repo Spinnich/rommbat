@@ -20,7 +20,8 @@ namespace RomMBat.Core.Content;
 /// On <c>snes</c> it is the whole <c>.sfc</c>, measured on Legend of Zelda, The - A Link to the
 /// Past (USA): <c>608c22b8...</c>, on a loose <c>.srm</c> rather than a <c>.sav</c>. On
 /// <c>mastersystem</c> it is the whole <c>.sms</c>, measured on Golden Axe Warrior (USA, Europe,
-/// Brazil) (En): <c>d46e40bb...</c>. On <c>psx</c> it is no file's content at all but the disc
+/// Brazil) (En): <c>d46e40bb...</c>. On <c>pcengine</c> it is the whole <c>.pce</c>, measured on
+/// Populous (Japan) (En), a headerless 524,288 B dump: <c>9d599a43...</c>. On <c>psx</c> it is no file's content at all but the disc
 /// layout, over every disc the playlist names (<see cref="CdLayout"/>).
 /// <para>
 /// <b>Null for anything unmeasured</b>, so a restore reports the save as unnameable rather than
@@ -28,7 +29,8 @@ namespace RomMBat.Core.Content;
 /// format but a plain <c>.md</c>, since an interleaved <c>.smd</c> is decoded before it is hashed
 /// and a <c>.bin</c> or <c>.gen</c> has not been driven. On <c>snes</c> only a <c>.sfc</c>, since a
 /// <c>.smc</c> can carry a 512-byte copier header and none has been driven. On <c>mastersystem</c>
-/// only a <c>.sms</c>, the one format the measured library holds.
+/// only a <c>.sms</c>, the one format the measured library holds. On <c>pcengine</c> only a
+/// <c>.pce</c> without a 512-byte copier header, since a headered dump has not been driven.
 /// </para>
 /// </remarks>
 public static partial class MednafenRomHash
@@ -46,6 +48,7 @@ public static partial class MednafenRomHash
             "gba" => WholeRom(absolutePath, ".gba")?.Hash,
             "snes" => WholeRom(absolutePath, ".sfc")?.Hash,
             "mastersystem" => WholeRom(absolutePath, ".sms")?.Hash,
+            "pcengine" => WholeRom(absolutePath, ".pce", HasNoCopierHeader)?.Hash,
             "psx" => CdLayout(absolutePath),
             _ => null,
         };
@@ -73,7 +76,7 @@ public static partial class MednafenRomHash
     }
 
     /// <summary>Hashes a ROM of one plain format, bare or as the only file in a zip.</summary>
-    private static (string? Member, string Hash)? WholeRom(string absolutePath, string extension)
+    private static (string? Member, string Hash)? WholeRom(string absolutePath, string extension, Func<long, bool>? accepts = null)
     {
         try
         {
@@ -82,7 +85,7 @@ public static partial class MednafenRomHash
                 using var archive = ZipFile.OpenRead(absolutePath);
                 var entries = archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).ToList();
 
-                if (entries.Count != 1 || !Is(entries[0].Name, extension))
+                if (entries.Count != 1 || !Is(entries[0].Name, extension) || accepts?.Invoke(entries[0].Length) == false)
                 {
                     return null;
                 }
@@ -91,7 +94,9 @@ public static partial class MednafenRomHash
                 return (entries[0].Name, Hash(content));
             }
 
-            if (ContentHasher.LooksLikeOpaqueArchive(absolutePath) || !Is(absolutePath, extension))
+            if (ContentHasher.LooksLikeOpaqueArchive(absolutePath)
+                || !Is(absolutePath, extension)
+                || accepts?.Invoke(new FileInfo(absolutePath).Length) == false)
             {
                 return null;
             }
@@ -196,6 +201,9 @@ public static partial class MednafenRomHash
 
     [GeneratedRegex(@"^\s*INDEX\s+01\s+(?<msf>\d\d:\d\d:\d\d)", RegexOptions.CultureInvariant | RegexOptions.Multiline | RegexOptions.IgnoreCase)]
     private static partial Regex CueIndex01();
+
+    // A HuCard dump is whole 8 KB banks; 512 bytes over is a copier header, and none was driven.
+    private static bool HasNoCopierHeader(long length) => length % 8192 != 512;
 
     private static bool Is(string name, string extension) =>
         string.Equals(Path.GetExtension(name), extension, StringComparison.OrdinalIgnoreCase);
