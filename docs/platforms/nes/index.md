@@ -10,8 +10,8 @@ Nintendo Entertainment System / Famicom. RetroBat calls the folder `nes`, which 
 **All nine rows `nes` declares are certified.** All nine steps hold on each at RomM
 `5.3.0-beta.1` and RetroBat 8.2.1, with step 6 N/A because `nes` has no class D, and hold at the
 floor ("Where each row stands").
-`libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project,
-re-driven on 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
+`libretro`/`nestopia` was the first certified `(system, emulator, core)` row in the project, and
+its record is the drive of 2026-09-20. `libretro`/`fceumm` and `libretro`/`mesen` followed on 2026-09-21, and
 `fceumm` is **the row a stock install gives a user**, selected with no override. The two `bizhawk`
 cores, `jgenesis`, `mesen` standalone, `mednafen` and `ares` followed later the same day, the last
 four on a build that first gave them battery rules and, for three of them, the state declarations
@@ -214,7 +214,7 @@ and the server said 387fab0e16d9b314e6fa4c95addf8f38. Nothing was written and th
 not told it arrived.
 ```
 
-Investigated rather than assumed. The server holds three saves for this ROM:
+Investigated rather than assumed. The server held three saves for this ROM:
 
 | id  | declared | served   | md5 of bytes  | `content_hash` |
 | --- | -------- | -------- | ------------- | -------------- |
@@ -229,7 +229,7 @@ checked. Record 82, older, has a `content_hash` that matches its bytes exactly.
 
 **So these are two stale records left by another client**, their stored paths naming `freegosy`
 and `fceumm`, and RomMBat did the right thing: refused, named both hashes, wrote nothing, and did
-not acknowledge. Incidentally this shows #81 is fixed, since the message names both sides.
+not acknowledge (#81). Both have been deleted server-side, so no later flush reports them.
 
 **One latent defect it exposed, which is RomMBat's.** Record 101 declares `ext=srm` and the
 server serves ZIP bytes for it. `SaveSync.DownloadAsync` byte-hashes the download for class A and
