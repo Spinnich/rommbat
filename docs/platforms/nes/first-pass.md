@@ -5,16 +5,17 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 
 # nes: The other eight rows
 
-`nes` declares **nine** `(emulator, core)` rows, and the one above is one of them. All nine have
+`nes` declares **nine** `(emulator, core)` rows, and `libretro`/`nestopia`,
+in [libretro-nestopia.md](libretro-nestopia.md), is one of them. All nine have
 now been driven by hand on this install: a real player battery save and a save state in each,
 launched from EmulationStation, with the emulator confirmed from `emulatorLauncher.log` rather
 than from configuration.
 
 **This did not certify them.** Steps 4 and 5 are driven for all nine and steps 1, 3, 7, 8 and 9
-carry across from the row above. Six of the nine could not sync what they wrote. All eight have
-since been certified on passes of their own, in the sections above, so what follows is the earlier
-pass, kept as it was measured; where a sentence below says a row cannot sync something, the
-sections above are what replaced it.
+carry across from that row. Six of the nine could not sync what they wrote. All eight are
+certified on passes of their own, in [libretro.md](libretro.md), [bizhawk.md](bizhawk.md) and
+[standalone.md](standalone.md); where a sentence below says a row cannot sync something, those
+files hold the current result.
 
 ## How each row was selected
 

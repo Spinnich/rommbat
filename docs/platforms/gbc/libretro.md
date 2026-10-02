@@ -43,4 +43,4 @@ the preview also listed the earlier cores' versions on the server and left them 
 **The declared `<directory>` is where every core wrote**, `saves/gbc/libretro.<core>/`. ES passed
 `-state_slot 3` from the second row on, and RetroArch wrote slots 1 and 2 regardless, as RB-261
 says. **Every core writes the `.rtc` on exit as RAM type #1**, beside the `.srm` as type #0, and
-the clock it holds is not the same thing on any two of them (below).
+the clock it holds is not the same thing on any two of them ([index.md](index.md#no-change-of-row-that-was-checked-kept-the-clock)).

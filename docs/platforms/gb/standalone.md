@@ -95,4 +95,4 @@ screenshot `.png`; the rest have nothing to carry, and the preview says so.
 | `jgenesis` | 19:10:23 to 19:11:24 | 1m 1s  |
 
 Every pair is correlated in the journal, every `quit` pass exited 0, and every one is on the server,
-rom 153392, as are the six `libretro` sessions above.
+rom 153392, as are the six `libretro` sessions in [libretro.md](libretro.md).

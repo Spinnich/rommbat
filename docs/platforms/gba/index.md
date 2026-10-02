@@ -43,7 +43,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 |           |                                                                       |
 | --------- | --------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                             |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported           |
+| RomM      | `5.3.0`, read back by `status` as Supported                           |
 | Root      | `R:\RetroBat`, found by walking up from the executable                |
 | Store     | schema 16 of 16, WAL                                                  |
 | Client    | two deploys, named below: the `megadrive` build, then this branch     |
@@ -65,7 +65,7 @@ Emerald carries no `<emulator>` pin in `gamelist.xml`.
 
 **Every row after the first was seeded from the save the one before made**, by the maintainer's
 ruling, rather than played through Emerald's intro again. The seed is the file each emulator
-finds when it boots; the maintainer then saved in the game, so every save measured below is one
+finds when it boots; the maintainer then saved in the game, so every save the row files measure is one
 that emulator wrote. Two seeds were refused or changed by the emulator, and those are findings.
 
 **The maintainer played over RDP, and the agent drove the states on the standalone rows** from

@@ -52,4 +52,4 @@ load it on its own` and `Skipping SRAM load`, and no SRAM write on exit, yet the
 and wrote the `.srm` back with the maintainer's save in it.
 
 **Three cores write a `.rtc` beside the `.srm` even for Yellow**, which has no clock; on a clock
-cartridge `gambatte` writes one too, and it syncs as `libretro:battery:rtc` (below).
+cartridge `gambatte` writes one too, and it syncs as `libretro:battery:rtc` ([index.md](index.md#a-cartridge-with-a-clock-pokemon-silver-on-gb)).

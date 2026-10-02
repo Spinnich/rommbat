@@ -25,10 +25,8 @@ because that is the only system they were measured on. `megadrive` has since bee
 widened the `bizhawk` and `mednafen` rules to name it, with its own `jgenesis` and `ares` rules
 beside these; [megadrive's record](../megadrive/index.md) is that record, and nothing here speaks for it.
 
-**Step 5 closed on 2026-09-20 and is the first time any row has passed it.** RB-258's fix
-was driven on a state made after it, and the restored screenshot was checked by its bytes rather
-than by its arrival. Step 2 changed on the same day, from requiring an exclusion this library
-cannot offer to requiring that nothing be excluded. See
+**Step 5 rests on a state made after RB-258's fix**, and the restored screenshot was checked by
+its bytes rather than by its arrival. Step 2 asks that nothing be excluded for its extension. See
 [Re-driven at `5.3.0-beta.1`](libretro-nestopia.md#re-driven-at-530-beta1-2026-09-20).
 
 ## Where each row stands
@@ -54,7 +52,7 @@ is owed.
 |             |                                                                            |
 | ----------- | -------------------------------------------------------------------------- |
 | RetroBat    | `8.2.1-stable-win64`, the supported floor                                  |
-| RomM        | 5.2.0, the floor at the time                                               |
+| RomM        | 5.2.0                                                                      |
 | Root        | `R:\RetroBat`, found by walking up from the executable                     |
 | Store       | schema 14 of 14, WAL                                                       |
 | Budget      | `none`. A 2 GB free-space floor still applies; NTFS, 927.4 GB free         |
@@ -73,8 +71,7 @@ a missing cover at step 7 cannot be a headroom problem, which is why it was swit
 **The 2026-09-20 re-drive ran on the same install moved forward**, and the two rows that changed
 are the ones a result can turn on: the server reports `5.3.0-beta.1` and the store is at schema
 16 of 16. RetroBat, root, budget and media kinds are as above. The client is a deploy of `main`
-at 9ed1fd1, which is the first build here to declare `beta.1` as its floor rather than to
-tolerate it.
+at 9ed1fd1, which declares `beta.1` as its floor.
 
 ## Steps 1, 2 and 3, for every row
 
@@ -120,20 +117,17 @@ system and unproven for this row.
 resolved 228 of 228 twice on 2026-09-20, once as a preview and once for real, with no game
 dropped for its extension and none reported as refused.
 
-**The step used to ask for the reverse, and held this row open for a year of calendar time over a
-property of the library.** It required a known-unsupported file to be excluded and reported, and
-every NES ROM here is `.zip`, so there was nothing to refuse. Changed on 2026-09-20 after the
-question was put to the maintainer: the risk runs the other way. A file wrongly downloaded costs
+**The step asks that nothing be excluded, not that a known-unsupported file be refused**, because
+the risk runs that way. A file wrongly downloaded costs
 bytes and a game that does not appear, because EmulationStation filters by `<extension>` itself. A
 file wrongly **excluded** is a game the user asked for silently missing, with no error and no line
 in the report worth questioning. The union list above is the reason: it cannot be precise per
 `(emulator, core)`, so over-rejection is the likelier of the two errors, and `.wad` sitting in a
 NES list is the proof that the list is not a statement about what any core will take.
 
-**The exclusion half is not abandoned, it moved to where it is real.** Wave 2's disc systems carry
-`.chd`, `.cue`, `.bin` and `.m3u` in one set with no manufacturing required, and over-filtering
-there drops real games. That is also where multi-disc and multi-file placement has to be settled,
-which is the thing this step was a poor proxy for.
+**Where a step 2 has something real to check, it is placement.** Wave 2's disc systems carry
+`.chd`, `.cue`, `.bin` and `.m3u` in one set, and over-filtering there drops real games. That is
+where multi-disc and multi-file placement is settled, as [psx's step 2](../psx/index.md#2-multi-file-games-and-extensions) does.
 
 ### 3. BIOS
 

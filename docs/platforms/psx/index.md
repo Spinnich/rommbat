@@ -20,9 +20,11 @@ RetroBat 8.2.1 declares seven rows, each driven here at its default settings:
 ## Where each row stands
 
 **Every row holds at the floor, RomM `5.3.1` and RetroBat 8.2.1.** Steps 1 and 3 to 9 were driven
-at `5.3.1` on 2026-09-25 and 2026-09-26. Step 2 was driven at `5.3.0`, and carries: `GET /api/roms`
-and the code that places a multi-disc set did not change, and the `Metal Gear Solid` set re-synced
-at `5.3.1` with nothing to do (#236). Nothing is owed.
+at `5.3.1` on 2026-09-25 and 2026-09-26, apart from step 7 on `mednafen` and both `bizhawk` rows,
+which was checked on the multi-disc pass. That pass, step 2, was driven at `5.3.0`, and carries:
+`GET /api/roms` and the code that places a multi-disc set did not change, and the `Metal Gear
+Solid` set re-synced at `5.3.1` with nothing to do (#236). Step 7 on those three rows carries on
+the same re-sync, which wrote no media and left `gamelist.xml` byte-identical. Nothing is owed.
 
 | File                             | What it holds                                                                  |
 | -------------------------------- | ------------------------------------------------------------------------------ |
@@ -38,7 +40,7 @@ at `5.3.1` with nothing to do (#236). Nothing is owed.
 |           |                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                                                                                                         |
-| RomM      | `5.3.0`, the floor then                                                                                                                           |
+| RomM      | `5.3.0` for step 2, and step 7 on `mednafen` and both `bizhawk` rows; the certification pass below ran at `5.3.1`                                 |
 | Root      | `R:\RetroBat`                                                                                                                                     |
 | Test game | Metal Gear Solid, as two RomM roms: (USA) (Rev 1), rom 320306, two `.chd` and an `.m3u`; (USA), rom 320307, two `.bin`/`.cue` pairs and an `.m3u` |
 
@@ -83,7 +85,7 @@ record: the media pass deleted every disc after it landed (RB-316).
 
 ## The certification pass, at `5.3.1`
 
-**In progress, started 2026-09-25**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
+**Driven on 2026-09-25 and 2026-09-26**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
 `psx-certification` branch. The test game is **Castlevania: Symphony of the Night (USA)**, rom
 280632, one `.chd`, pulled through a filter set named `psx certification` (search "Symphony of
 the Night", region USA) rather than the whole library. Its gamelist entry pins no emulator, and
