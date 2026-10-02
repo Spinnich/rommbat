@@ -11,27 +11,25 @@ namespace RomMBat.Agent.Commands;
 /// <c>background &lt;event&gt;</c>: the pass an EmulationStation hook spawns.
 /// </summary>
 /// <remarks>
-/// <b>This is what closes the loop.</b> Until now the hooks wrote a spool file and exited and
-/// nothing drained it except <c>sync</c> or a person typing <c>flush</c>, so a user who never
-/// opened a terminal accumulated saves and play sessions indefinitely. The
-/// <c>FlushCommand</c> doc said so and <c>docs/architecture/projects.md</c> called it M7's call.
+/// <b>This is what closes the loop.</b> The hooks write a spool file and exit, and without this
+/// pass only <c>sync</c> or a person typing <c>flush</c> would drain it, so a user who never
+/// opens a terminal would accumulate saves and play sessions indefinitely.
 /// <para>
 /// <b>Named apart from <c>flush</c> for two reasons.</b> It does more than flush, and a pass
 /// nobody asked for should be greppable as one: <c>background</c> in a log or a process list
 /// means a hook started it, and <c>flush</c> means a person did.
 /// </para>
 /// <para>
-/// <b>Only <c>start</c> and <c>quit</c> reach here, and that is CLAUDE.md rule 4 narrowed
-/// rather than bent.</b> The rule forbids the ES hooks touching the network, and gives its
-/// reason in the next sentence: they run inside the game-launch path. <c>game-start</c> and
-/// <c>game-end</c> do; <c>start</c> fires when EmulationStation starts and <c>quit</c> when it
+/// <b>Only <c>start</c> and <c>quit</c> reach here, which is CLAUDE.md rule 4.</b> The rule
+/// keeps <c>game-start</c> and <c>game-end</c> off the network because they run inside the
+/// game-launch path; <c>start</c> fires when EmulationStation starts and <c>quit</c> when it
 /// exits, and neither is in that path. The hook still writes its spool file and exits either
 /// way, and it is this separate process that opens a socket.
 /// </para>
 /// <para>
 /// <b>Output goes to a file, because there is nobody to print to.</b> The hook spawns this
-/// with no window, so anything written to the console is discarded. The first user question
-/// after this ships is "why did my save not go up", and answering it needs a record.
+/// with no window, so anything written to the console is discarded. The question a user
+/// asks of it is "why did my save not go up", and answering that needs a record.
 /// </para>
 /// </remarks>
 internal static class BackgroundCommand

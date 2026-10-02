@@ -8,38 +8,16 @@ read-when: Before adding a migration, a table or a column, or touching the store
 **One connection, gated.** Every store class shares a single `SqliteConnection`, which is not
 thread-safe, and access is serialised inside the process by a re-entrant gate taken when a
 command is created and released when it is disposed. **Closing the connection takes that same
-gate, and is the second place that takes it.** Nothing serialised it before M7 stage
-7b-2b, which is the stage that made the race reachable: a sync writes from a background thread
-for minutes while the drawing thread reads the same connection on every redraw. A command must
-therefore be created and disposed on one thread, which every store method satisfies by being
-synchronous. `LocalStore.Dispose` closes under the gate for the same reason, having been the one
-path that did not: it closed the connection while a background reader was still inside it.
+gate, and is the second place that takes it.** The race is real because a sync writes from a
+background thread for minutes while the drawing thread reads the same connection on every
+redraw. A command must therefore be created and disposed on one thread, which every store method
+satisfies by being synchronous. `LocalStore.Dispose` closes under the gate for the same reason:
+closing outside it would pull the connection from under a background reader still inside it.
 
-SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. Settled in M1: every
-table below exists from schema version 1, including the ones only later milestones write to,
-so each milestone has somewhere honest to write from the moment it starts. Nineteen migrations
-have been added since, whose headers state what shape could not carry the work. 013 is the
-first that removes rather than adds: `local_file` lost `sha1_hash` and `crc_hash` because
-nothing read either back and computing them was most of the cost of verifying a download. 014
-widens `sync_set.scope_kind` to admit `'picked'`, so a hand-picked set is a set rather than an
-id list smuggled into another scope's column, and adds no column: for that scope the id list is
-the definition and lives in `scope_value` as a filter's JSON already does. 015 widens
-`unsyncable.reason_kind` to admit `'no_state_declaration'`, the first reason there that is
-about the state half rather than a save shape: an emulator with no `es_savestates.cfg` entry
-writes save states anyway, into a directory nothing reads. 016 widens
-`sync_set_member.state` to admit `'excluded_no_file_on_disk'`, for a ROM RomM has a row for and
-no file behind: RomM 5.3.0's physical games are one cause and a ROM deleted from the server's
-disk is the other, and the second has been reachable since the 5.2.0 floor. 017 retires
-`'excluded_extension'` for `'excluded_folder'`, because the extension stopped gating a sync
-and the one case that gate caught which still needs a state is a ROM RomM holds as a folder,
-of one file or several. 018 lets one ROM own several files, for `psx` disc sets: `local_file`
-gains the kind `'rom_part'` for a set's discs, its playlist staying `'rom'`, and
-`content_download` is keyed on `(rom_id, file_id)` so each disc resumes on its own. 019 admits one
-folder outside `saves/` to `local_save.relative_path`, `emulators/gopher64/portable_data/data/saves/`,
-where gopher64 keeps its `n64` battery saves and RetroBat does not mirror them. 020 admits a
-`.ssm` directly in `emulators/kega-fusion/`, where RetroBat's `Fusion.ini` sends Kega Fusion's
-`mastersystem` save, and nothing else there, since the same folder holds the emulator. The schema lives
-in [`src/RomMBat.Core/Store/Migrations/`](../../src/RomMBat.Core/Store/Migrations/).
+SQLite, inside the RetroBat tree at `emulators/rommbat/rommbat.db`. The schema lives in
+[`src/RomMBat.Core/Store/Migrations/`](../../src/RomMBat.Core/Store/Migrations/), one script per
+version, and each script's header states what shape the schema before it could not carry. The
+tables, as the latest migration leaves them:
 
 | Table              | Holds                                                                                                                              |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
@@ -66,14 +44,19 @@ in [`src/RomMBat.Core/Store/Migrations/`](../../src/RomMBat.Core/Store/Migration
 | `save_conversion`  | Which `(system, rom)` RomMBat opted into a per-game save container, what it set, and **what was there before**                     |
 | `pending_config`   | Configuration changes waiting for EmulationStation to close, and how each one turned out once applied                              |
 
+`local_save.relative_path` is under `saves/` apart from two folders where an emulator keeps a
+save RetroBat does not mirror: gopher64's `n64` battery saves in
+`emulators/gopher64/portable_data/data/saves/`, and Kega Fusion's `mastersystem` `.ssm` directly
+in `emulators/kega-fusion/`, admitting nothing else there because the same folder holds the
+emulator.
+
 ## No column ever holds an absolute path
 
 Everything is relative to the RetroBat root and resolved at the point of use, because a
 drive letter changing from `E:` to `F:` must be a non-event. RB-391 moved a stick
 G: to D: to K: across two machines, so this is measured rather than theoretical.
 
-An earlier draft of this document promised a **static check that fails the build**. That is
-not what was built, and this is what replaced it, because a Roslyn analyser can only see
+Three layers hold that, and **none is a static check**, because a Roslyn analyser can only see
 literals while the real risk is a runtime value:
 
 1. **A type, not a convention.** `RomMBat.Core.Paths.RelativePath` is the only path shape any

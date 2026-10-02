@@ -107,16 +107,17 @@ Three rules that are not obvious:
   server lacks: otherwise a save put back from a backup never goes up and the flush says nothing.
   The exception, for every shape, is a head that already holds the local bytes: that save is
   recorded as sent, and the head is acknowledged first when it is not the row this device last
-  exchanged, since the server refuses the next upload against a stale device record (M6).
-  RB-259 has the server's answers, from `s4-older-mtime.py`. A second guard answers an `upload`
-  of bytes the server already holds as a no-op; negotiate settles that case on the hash itself
-  (M4), so the guard is cheap defence against a silent upload on every flush. #206.
+  exchanged, since the server refuses the next upload against a stale device record (probe
+  case M6). RB-259 has the server's answers, from `s4-older-mtime.py`. A second guard answers an
+  `upload` of bytes the server already holds as a no-op; negotiate settles that case on the hash
+  itself (probe case M4), so the guard is cheap defence against a silent upload on every
+  flush. #206.
 
   **A `download` over a local save the server has never seen is recorded as a conflict**, the
-  same evidence read the other way. M3 answers `download` for a slot this device has no sync
-  record for whatever it holds, so a second device's offline progress was replaced on its first
-  flush. An unsent save, or one changed since its upload, is kept unless its bytes equal what is
-  offered. #211.
+  same evidence read the other way. RB-259's probe case M3 answers `download` for a slot this
+  device has no sync record for whatever it holds, so taken at its word it would replace a
+  second device's offline progress on its first flush. An unsent save, or one changed since its
+  upload, is kept unless its bytes equal what is offered. #211.
 
 **A conflict is never resolved automatically.** Both sides are kept, the local file is copied
 once into `emulators/rommbat/replaced/`, and the slot waits in `save_conflict` until
@@ -178,11 +179,9 @@ sidecar RetroBat writes beside a save state, and the ROM header. The header rout
 GameCube and Wii and nothing else, measured across five systems on a real library, so it
 supplements the other two rather than backing them up.
 
-The design assumed no fourth route existed, because RomM stored no serial, title id or product
-code anywhere. **That was true at the 5.2.0 floor and is not true at 5.3.0**, which carries
-`title_id`, `save_target` and `save_target_layout` per ROM, measured answering for the systems
-the header route reaches none of. It joins the three as a fourth rather than replacing any of
-them; `save-sync` holds the rules, including that `save_target` is computed from `title_id`,
+**RomM is a fourth route**: it carries `title_id`, `save_target` and `save_target_layout` per
+ROM, measured answering for the systems the header route reaches none of. It joins the three
+rather than replacing any of them; `save-sync` holds the rules, including that `save_target` is computed from `title_id`,
 that neither is unique per ROM, and that GameCube's has two shapes from 5.3.1.
 
 **Disagreement fails closed, and an absence is not a disagreement.** Two routes naming different
