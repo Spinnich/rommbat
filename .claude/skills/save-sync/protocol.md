@@ -384,8 +384,10 @@ produces a row that RomMBat can neither reconcile nor collide with. Measured end
   entry, then `<system>.emulator`, then the first `es_systems.cfg` emulator). Never widen it to
   the hashed naming alone: mednafen reads and saves into the plain file on `nes`, `gb` and `snes`,
   that file goes up under its first owner's slot, and holding it back stops two mednafen devices
-  sharing. A mesen `gba` save also goes up as `mgba:battery`, at a size mednafen takes, and is
-  held back with mGBA's.
+  sharing. On `gba` the plain file goes up as `mgba:battery` whoever wrote it, so mesen's save
+  and mednafen's own progress saved into it, both at a size mednafen takes, are held back with
+  mGBA's, the latter from a second mednafen device under a summary that names another emulator.
+  `saves restore` has no such guard: it is an explicit choice and its preview names the file.
 
 So a null slot is not a save in a different slot, it is a save outside the protocol. Never treat
 the absence of a conflict as evidence that the server holds nothing newer: it may hold something
