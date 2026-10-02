@@ -64,6 +64,22 @@ public class SaveConverterTests
     }
 
     [Fact]
+    public void The_warning_does_not_call_the_card_empty_when_one_was_already_pulled_for_the_game()
+    {
+        // #336: a card restored before the game was converted is where the converted game reads.
+        using var fixture = ConvertTree.Create();
+        fixture.AddRom(42, "ps2", "Armored Core 3 (USA).chd");
+        var card = fixture.Install.Resolve("saves/ps2/pcsx2/memcards/Armored Core 3 (USA).ps2");
+        Directory.CreateDirectory(Path.GetDirectoryName(card)!);
+        File.WriteAllText(card, "pulled");
+
+        var result = fixture.Converter().Preview(42);
+
+        Assert.DoesNotContain("empty memory card", result.Warning!, StringComparison.Ordinal);
+        Assert.Contains("already on this device", result.Warning!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void The_warning_names_the_shared_card_the_save_is_stranded_in_when_one_is_there()
     {
         using var fixture = ConvertTree.Create();

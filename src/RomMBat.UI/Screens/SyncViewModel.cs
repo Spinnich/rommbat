@@ -615,6 +615,11 @@ public sealed class SyncViewModel : IScreen, ILiveScreen, IDisposable
             yield return problem;
         }
 
+        foreach (var advisory in report.SavesSent?.Advisories ?? [])
+        {
+            yield return advisory;
+        }
+
         foreach (var problem in report.StatesSent?.Problems ?? [])
         {
             yield return problem;
