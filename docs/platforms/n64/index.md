@@ -63,9 +63,9 @@ conflicting with it.
 format differs (RB-338): the `libretro` image's SRAM region as it is for RMG, simple64 and
 Project64, word-swapped for ares, BizHawk `Ares64` and gopher64, and placed at `0x40800` of BizHawk
 `Mupen64Plus`'s own image. The maintainer then saved in the game on every row, so every save
-measured below is one that emulator wrote. States the maintainer could not see land were made from
+the row files measure is one that emulator wrote. States the maintainer could not see land were made from
 the agent's session through `emulatorLauncher` and `keybd_event`; those launches run no hook and
-record no session, and each is named below.
+record no session, and each is named in its row's file.
 
 ## The set
 

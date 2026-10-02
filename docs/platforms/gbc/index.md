@@ -38,7 +38,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 |           |                                                             |
 | --------- | ----------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported |
+| RomM      | `5.3.0`, read back by `status` as Supported                 |
 | Root      | `R:\RetroBat`, found by walking up from the executable      |
 | Store     | schema 17 of 17, WAL                                        |
 | Client    | this branch, deployed twice, named below                    |
@@ -59,7 +59,7 @@ this branch's `gbc` rules, whose first flush sent **6 saves and 10 states**.
 **Every row after the first was seeded from the save the one before made**, as on `gba` and `gb`.
 The four `libretro` cores and Mesen share one file and needed no copying. For the others the seed
 was put where each emulator looks before its launch, and the maintainer then saved in the game, so
-every save measured below is one that emulator wrote. Every row offered Continue on its seed.
+every save the row files measure is one that emulator wrote. Every row offered Continue on its seed.
 
 **The maintainer played over RDP, and the agent drove every state on the standalone rows** from its
 session on the RetroBat machine, through `emulatorLauncher` with the row's arguments and keys sent
@@ -167,8 +167,8 @@ does not always ignore `WM_CLOSE`, as `gb`'s record has it; it can take longer t
 
 ## No change of row that was checked kept the clock
 
-**Every row keeps Crystal's clock, and no two keep it the same way.** Each round trip above carried
-the clock file at its own md5, so a device that stays on one row keeps its clock through RomMBat.
+**Every row keeps Crystal's clock, and no two keep it the same way.** Each row's step 4 round trip, in
+[libretro.md](libretro.md) and [standalone.md](standalone.md#4-battery-saves-on-the-eight), carried the clock file at its own md5, so a device that stays on one row keeps its clock through RomMBat.
 Moving the save between rows lost it on every move that was checked, and two were not:
 
 | Row                                    | Where the clock is                                                 | Seeded from the row before, the game showed |

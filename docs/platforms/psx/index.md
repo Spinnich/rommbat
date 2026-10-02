@@ -38,7 +38,7 @@ at `5.3.1` with nothing to do (#236). Nothing is owed.
 |           |                                                                                                                                                   |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                                                                                                         |
-| RomM      | `5.3.0`, the floor then                                                                                                                           |
+| RomM      | `5.3.0` for step 2; the certification pass below ran at `5.3.1`                                                                                   |
 | Root      | `R:\RetroBat`                                                                                                                                     |
 | Test game | Metal Gear Solid, as two RomM roms: (USA) (Rev 1), rom 320306, two `.chd` and an `.m3u`; (USA), rom 320307, two `.bin`/`.cue` pairs and an `.m3u` |
 
@@ -83,7 +83,7 @@ record: the media pass deleted every disc after it landed (RB-316).
 
 ## The certification pass, at `5.3.1`
 
-**In progress, started 2026-09-25**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
+**Driven on 2026-09-25 and 2026-09-26**, at RomM `5.3.1` and RetroBat 8.2.1, on a deploy of the
 `psx-certification` branch. The test game is **Castlevania: Symphony of the Night (USA)**, rom
 280632, one `.chd`, pulled through a filter set named `psx certification` (search "Symphony of
 the Night", region USA) rather than the whole library. Its gamelist entry pins no emulator, and

@@ -48,7 +48,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 |           |                                                                       |
 | --------- | --------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                             |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported           |
+| RomM      | `5.3.0`, read back by `status` as Supported                           |
 | Root      | `R:\RetroBat`, found by walking up from the executable                |
 | Store     | schema 16 of 16, WAL                                                  |
 | Client    | a deploy of the `certify-megadrive` branch by `tools/publish.ps1`     |
@@ -165,8 +165,8 @@ same line.
 
 - **Nothing about `megadrive` under any build but this one.** Every row was measured on RetroBat
   8.2.1 and RomM `5.3.0`.
-- **Nothing about another game.** Sonic 3 & Knuckles is one lock-on cartridge; the sizes above are
-  its SRAM window's, and another game's differ.
+- **Nothing about another game.** Sonic 3 & Knuckles is one lock-on cartridge; the sizes in the row
+  files are its SRAM window's, and another game's differ.
 - **Nothing about `mednafen` on a `.bin`, `.gen` or `.smd`.** `MednafenRomHash` answers only for a
   plain `.md`, the one format this library holds, and answers null for the rest.
 - **Nothing about FBNeo on a library named for its dat.** The rename test booted one game and

@@ -32,30 +32,25 @@ describes.
 
 ## Re-driven at `5.3.0-beta.1`, 2026-09-20
 
-**The seven owed steps were re-run in one session against a deploy of `main` at 9ed1fd1**, made
-by `tools/publish.ps1 -Deploy R:\RetroBat`, on a server reporting `5.3.0-beta.1`. That build is
-the first on this install to carry the floor it was measured against: the previous deploy
-predated the retarget, so the record now names a client that refuses anything below `beta.1`
-rather than one that merely tolerated it.
+**Seven steps were re-run in one session against a deploy of `main` at 9ed1fd1**, made by
+`tools/publish.ps1 -Deploy R:\RetroBat`, on a server reporting `5.3.0-beta.1`. That build refuses
+any server below `beta.1`, so it carries the floor it was measured against.
 
 | #   | Owed for                         | Re-run result                                                     |
 | --- | -------------------------------- | ----------------------------------------------------------------- |
 | 1   | The re-sourced alias table       | **Pass.** Both rows resolve as before, `fs_slug` and `bundled`    |
 | 2   | The no-file-on-disk exclusion    | **Pass.** 228 of 228 resolve and nothing is excluded              |
 | 4   | The superseded-row guard         | **Pass, both directions.** A new save round-tripped byte for byte |
-| 5   | The screenshot fetch and RB-258  | **Pass, and for the first time on any row.** See below            |
+| 5   | The screenshot fetch and RB-258  | **Pass, the screenshot linked.** See below                        |
 | 7   | The retired identifiers endpoint | **Pass.** Art on screen, and the game list is unchanged           |
 | 8   | The append-only background log   | **Pass.** See below                                               |
 | 9   | Always owed on a move            | **Pass.** 0 downloaded, 0 written, `gamelist.xml` byte-identical  |
 
-**Step 3 was not re-run and does not need to be.** All three moves carried it for the same
-reason, that `nes` requires no BIOS and no firmware code or bundled data changed, and re-running
-`bios nes` would re-read the same empty requirement.
+**Step 3 carries from 5.2.0 and was not re-run.** `nes` requires no BIOS and no firmware code or
+bundled data has changed since, so `bios nes` would re-read the same empty requirement.
 
-**Step 5 is the one that changed, and it is the reason the session happened.** Every earlier
-revision of this file recorded the screenshot as not linking, first as RomM's fault and then, at
-RB-258, as RomMBat's own naming. The fix could not be believed until a state made after it
-was driven, because an unchanged state is never re-sent.
+**Step 5 rests on this session.** RB-258's fix shows only on a state made after it, because an
+unchanged state is never re-sent, so one was made and driven here.
 
 ## Checklist
 
@@ -357,8 +352,7 @@ block is the earlier capture, taken before the Zelda launch, which is why it sto
 `start` and `quit` each spawned a detached pass; `game-start` and `game-end` journalled and
 started nothing. **The step passes**, confirmed on the server rather than from the hook log:
 `last_played` moved at 18:27:15 from a quit hook that fired at 18:27:07, and `now_playing`
-cleared. An earlier revision of this section said the step was not passed, which was true of the
-first accidental ten-second launch and was left standing after the Zelda session closed it.
+cleared.
 
 #### The session re-driven at `5.3.0-beta.1`, 2026-09-20
 

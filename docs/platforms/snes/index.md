@@ -40,7 +40,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 |           |                                                             |
 | --------- | ----------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported |
+| RomM      | `5.3.0`, read back by `status` as Supported                 |
 | Root      | `R:\RetroBat`, found by walking up from the executable      |
 | Store     | schema 18 of 18, WAL                                        |
 | Client    | this branch, deployed twice, named below                    |
@@ -54,7 +54,8 @@ uploads a new version. It carries no `<emulator>` pin in `gamelist.xml`. Super M
 a DSP-1 cartridge, was booted on every row for step 3 and not played.
 
 **The client was deployed twice.** The first deploy carried this branch's `snes` battery rules and
-state declarations, from the boot writes and state probes below, and every row was driven on it.
+state declarations, from the boot writes below and the state probes in
+[standalone.md](standalone.md#5-states-on-the-eight), and every row was driven on it.
 The second, during the `mednafen` row, added only the empty `.rtc` below, which no row's result
 depends on.
 
@@ -68,11 +69,11 @@ September one standing, as the `save-sync` skill says it does.
 `.srm` and needed no copying; ares's `.ram`, BizHawk's `.SaveRAM` and jgenesis's `.sav` were each
 given the latest save before the row's launch. All are the same raw 8 KB, which every row's boot
 write showed. The maintainer then continued the file and saved in the game on every row, so every
-save measured below is one that emulator wrote.
+save the row files measure is one that emulator wrote.
 
 **The maintainer played every row from ES over RDP.** Where a state key did not arrive, the agent
 made the missing slot from its own session through `emulatorLauncher` and `keybd_event`; those
-launches run no hooks and record no session, and each is named below.
+launches run no hooks and record no session, and each is named in its row's file.
 
 ## The set
 

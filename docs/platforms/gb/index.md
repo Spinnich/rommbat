@@ -38,7 +38,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 |           |                                                                                     |
 | --------- | ----------------------------------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                                           |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported                         |
+| RomM      | `5.3.0`, read back by `status` as Supported                                         |
 | Root      | `R:\RetroBat`, found by walking up from the executable                              |
 | Store     | schema 16 of 16, WAL                                                                |
 | Client    | two deploys, named below: `main` at `b150ff2`, then this branch                     |
@@ -58,7 +58,7 @@ certified on a deploy of this branch, whose first flush sent **4 saves and 9 sta
 **Every row after the first was seeded from the save the one before made**, as on `gba`. The six
 `libretro` cores and Mesen share one file and needed no copying. For the others the seed was put
 where each emulator looks before its launch, and the maintainer then saved in the game, so every
-save measured below is one that emulator wrote. Every row offered Continue on the seed.
+save the row files measure is one that emulator wrote. Every row offered Continue on the seed.
 
 **The maintainer played over RDP, and the agent drove the second state on the standalone rows**
 from its session on the RetroBat machine, through `emulatorLauncher` with the row's arguments and

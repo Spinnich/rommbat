@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `libretro`/`fceumm` and `libretro`/`mesen`
 
 **Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
-and server as the re-drive above. The client was a deploy of `main` at a901af3, the merge of #210,
+and server as [the re-drive](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at a901af3, the merge of #210,
 made by `tools/publish.ps1 -Deploy R:\RetroBat`. So `status`'s `Playtime` block settled step 8,
 not a second token. The maintainer played; everything after the quit was checked from the agent,
 the store and the server.
@@ -24,7 +24,8 @@ row most users will actually have. The three unrelated `nes.*` keys recorded for
 still set and do not reach this core.
 
 **Neither game carries a per-game `<emulator>` in `gamelist.xml`**, which is checked because eight
-games on this install do, left by "How each row was selected" below: StarTropics and Ultima, the
+games on this install do, left by
+[How each row was selected](first-pass.md#how-each-row-was-selected): StarTropics and Ultima, the
 first two picks, were still pinned to `bizhawk` and would have run the wrong row. A pinned game
 overrides the system setting without a trace in `es_settings.cfg`, so read the launch line.
 

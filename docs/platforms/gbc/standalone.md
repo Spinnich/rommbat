@@ -95,4 +95,4 @@ every time, so the three BizHawk rows took slots 4 and 2. `config.ini` binds `Sa
 | `SameBoy`  | 13:47:47 to 13:48:45 | 57s    |
 | `jgenesis` | 13:50:49 to 13:51:47 | 57s    |
 
-Every one is on the server, rom 274994, as are the four `libretro` sessions above.
+Every one is on the server, rom 274994, as are the four `libretro` sessions in [libretro.md](libretro.md).

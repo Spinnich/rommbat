@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`
 
 **Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
-and server as above. The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
+and server as [the re-drive](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
 `tools/publish.ps1 -Deploy R:\RetroBat`, so it carries #151's BizHawk battery saves. The
 maintainer played over RDP. The second state on each row was made from the agent's session on the
 RetroBat machine, which is described under step 5.
@@ -18,8 +18,8 @@ RetroBat machine, which is described under step 5.
 | Game         | Destiny of an Emperor (USA), rom 158207, no pin                     | The Legend of Zelda (USA) (Rev 1), rom 158633, **its pin removed**     |
 | Save made by | The in-game "Record" command                                        | Registering a second name on the file-select screen                    |
 
-**Zelda carries a `bizhawk`/`NesHawk` pin in `gamelist.xml`**, left by "How each row was selected"
-below, and a pin overrides the system setting. It was removed for the `quickerNES` session with ES
+**Zelda carries a `bizhawk`/`NesHawk` pin in `gamelist.xml`**, left by
+[How each row was selected](first-pass.md#how-each-row-was-selected), and a pin overrides the system setting. It was removed for the `quickerNES` session with ES
 closed and put back afterwards. The install was left on `libretro`/`nestopia`, where it was found.
 
 **Destiny of an Emperor was picked because its BizHawk title is unique on this install.** BizHawk

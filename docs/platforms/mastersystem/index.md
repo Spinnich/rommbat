@@ -50,7 +50,7 @@ rows re-drove steps 4 and 9 at `5.3.1` on 2026-10-01, in #382. Nothing is owed.
 |           |                                                             |
 | --------- | ----------------------------------------------------------- |
 | RetroBat  | `8.2.1-stable-win64`, the supported floor                   |
-| RomM      | `5.3.0`, the floor then, read back by `status` as Supported |
+| RomM      | `5.3.0`, read back by `status` as Supported                 |
 | Root      | `R:\RetroBat`, found by walking up from the executable      |
 | Store     | schema 18 of 18, WAL                                        |
 | Client    | this branch, deployed once, before the first ES session     |
@@ -62,7 +62,8 @@ rows re-drove steps 4 and 9 at `5.3.1` on 2026-10-01, in #382. Nothing is owed.
 no game in the set does. The server held no save or state for it before the pass.
 
 **The client was deployed once**, carrying this branch's `mastersystem` battery rules and state
-declarations, measured from the boot launches and state probes below before anyone sat down, and
+declarations, measured from the boot launches below and the state probes in
+[standalone.md](standalone.md#5-states-on-the-five) before anyone sat down, and
 every row was driven on it.
 
 **Every row after the first was seeded from the save the one before made**, as on `gba` and later:
@@ -73,7 +74,7 @@ given the latest save before the row's launch, cut or zero-padded to that emulat
 **The maintainer played every row but one from ES over RDP**, and the agent made the states on
 `ares` from its own session, since ares shows nothing when a state is saved, plus a second slot on
 `bizhawk` and the whole `kega-fusion`/`mastersystem` row. Those launches run no hooks and record no
-session, and each is named below.
+session, and each is named in its row's file.
 
 ## The set
 
@@ -195,7 +196,7 @@ it back to the stock row's bytes, as a game repairing its copy from the committe
 the game commits a save after the first character was not found. RB-326.
 
 **So after the stock row, step 4 rests on each emulator's own write, not on new progress.** Every
-row below wrote its own file, which went up and came back at its own md5, which is what step 4 asks.
+row wrote its own file, which went up and came back at its own md5, which is what step 4 asks.
 It does not show one emulator reading another's progress, since there was no new progress to read.
 The maintainer chose to record it so rather than redrive three rows.
 
@@ -218,7 +219,7 @@ The maintainer chose to record it so rather than redrive three rows.
 - **Nothing about `mastersystem` under any build but these.** Every row was measured on RetroBat 8.2.1
   and RomM `5.3.0`.
 - **Nothing about another game.** Golden Axe Warrior is one cartridge with an 8 KB save; the sizes
-  above are its SRAM window's, and another game's differ.
+  in the row files are its SRAM window's, and another game's differ.
 - **Nothing about one row reading another's progress after the first character.** The game committed
   no new save after that, so the seeds carried the same committed save throughout.
 - **Nothing about a Japanese cartridge under SMSHawk**, which reads `SMS+Japan` and was not driven.
