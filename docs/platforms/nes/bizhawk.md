@@ -6,7 +6,7 @@ read-when: When a result for one of these `nes` rows is needed, or before re-dri
 # nes: `bizhawk`/`NesHawk` and `bizhawk`/`quickerNES`
 
 **Both certified on 2026-09-21**, at RomM `5.3.0-beta.1` and RetroBat 8.2.1, on the same install
-and server as [the re-drive](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
+and server as [the install `nestopia` was certified on](index.md#the-install-this-was-measured-on). The client was a deploy of `main` at ca2cc4f, the merge of #214, made by
 `tools/publish.ps1 -Deploy R:\RetroBat`, so it carries #151's BizHawk battery saves. The
 maintainer played over RDP. The second state on each row was made from the agent's session on the
 RetroBat machine, which is described under step 5.
@@ -18,8 +18,8 @@ RetroBat machine, which is described under step 5.
 | Game         | Destiny of an Emperor (USA), rom 158207, no pin                     | The Legend of Zelda (USA) (Rev 1), rom 158633, **its pin removed**     |
 | Save made by | The in-game "Record" command                                        | Registering a second name on the file-select screen                    |
 
-**Zelda carries a `bizhawk`/`NesHawk` pin in `gamelist.xml`**, left by
-[How each row was selected](first-pass.md#how-each-row-was-selected), and a pin overrides the system setting. It was removed for the `quickerNES` session with ES
+**Zelda carries a `bizhawk`/`NesHawk` pin in `gamelist.xml`**, and
+[a pin overrides the system setting](index.md#the-install-this-was-measured-on). It was removed for the `quickerNES` session with ES
 closed and put back afterwards. The install was left on `libretro`/`nestopia`, where it was found.
 
 **Destiny of an Emperor was picked because its BizHawk title is unique on this install.** BizHawk
@@ -28,7 +28,7 @@ to is contested rather than synced (RB-262). Zelda's is unique too.
 
 ## Checklist for both `bizhawk` rows
 
-Steps 1, 2 and 3 are the system's and carry from `nestopia`'s re-drive. Step 6 is N/A for the
+Steps 1, 2 and 3 are the system's and carry from [`nestopia`'s record](libretro-nestopia.md#checklist). Step 6 is N/A for the
 same reason.
 
 | #   | `bizhawk`/`NesHawk`                                                        | `bizhawk`/`quickerNES`                                                 |
@@ -57,8 +57,7 @@ same reason.
 | At the restore        | `0b7af58a...`                                              | `2bce4ff7...`, holding `LINK` and `TEST`                  |
 | Moved aside, restored | `0b7af58a...`, **equal**                                   | `2bce4ff7...`, **equal**, both names intact               |
 
-**The two cores read each other's file**, which the "BizHawk battery saves, driven" pass left
-unmeasured. `quickerNES` showed `NesHawk`'s `LINK` on Zelda's file-select screen, and the name
+**The two cores read each other's file.** `quickerNES` showed `NesHawk`'s `LINK` on Zelda's file-select screen, and the name
 registered there went into the next file slot of the same `.SaveRAM`. RB-271.
 
 **The hash at the restore is not the hash the session left**, and the difference is the game's.
@@ -154,3 +153,24 @@ favouriting it. How it came to be a favourite, and why it stopped, is unexplaine
 written`, `all 1 unchanged`, `gamelist.xml` identical either side. The departed game kept its
 file, its media and its `gamelist.xml` entry, since `RemoveDeparted` drops only entries whose file
 has gone, and it is now an eviction candidate rather than a deletion.
+
+## BizHawk's battery save across ROMs, driven (#151)
+
+Driven from EmulationStation on 2026-09-21 against the build carrying #151, with the maintainer
+at the controller. It is the hands-on pass that change owed and re-runs no checklist step.
+RB-262 to RB-266.
+
+| Pass                                               | What happened                                                                                                                                                                                                      |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| The two saves already on disk, one per core        | Both attributed through their sidecars (`StarTropics.NesHawk`, and Ultima's under `quickerNES`), uploaded, and a second flush a no-op                                                                              |
+| Restore, then play                                 | `StarTropics.SaveRAM` restored under its title with the original hash, and **Continue in BizHawk showed the saved progress**. BizHawk's rewrite on exit went up under the USA ROM                                  |
+| Restore while another `nes` game runs              | Ultima's restore deferred with the display-name reason while StarTropics ran, and landed with its original hash once it quit                                                                                       |
+| No learned title                                   | With the binding forgotten, the restore refused with "Run the game once under bizhawk" and wrote nothing                                                                                                           |
+| No save state, `NesHawk`                           | Zelda wrote `Legend of Zelda, The.SaveRAM`; the launch route alone bound it and it went up                                                                                                                         |
+| In-game save, `quickerNES`                         | Ultima's changed bytes went up under the same slot and ROM, then a no-op                                                                                                                                           |
+| Europe copy of a game already saved in the USA one | **One file for both**: the Europe copy read the USA progress and wrote a new character into `StarTropics.SaveRAM`. Contested, nothing uploaded; `saves bind` settled it to USA and a restore put the USA save back |
+
+The pass turned up three defects, and each has a test: a slot this device had already sent
+restored to the ROM's stem rather than the title (RB-266), a restored file was credited to
+whichever BizHawk session came last and contested (RB-265), and BizHawk's `.SaveRAM.bak` was
+reported as an unknown shape (RB-264).

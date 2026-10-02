@@ -178,7 +178,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
 
    **Check the game's `<emulator>` in `gamelist.xml` before driving a row on it.** A per-game pin
    overrides `<system>.emulator` and leaves no trace in `es_settings.cfg`, and on the `nes` install
-   eight games are pinned to other rows from the first pass. Pick an unpinned game whose battery
+   eight games are pinned to other rows. Pick an unpinned game whose battery
    save is quick to make: Zelda writes one the moment a name is registered.
 
 6. Where class D applies, the per-game memory card option is verified via `es_settings.cfg`.

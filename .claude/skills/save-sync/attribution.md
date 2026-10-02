@@ -213,7 +213,7 @@ mtime. The binding is cached in `game_id_binding` keyed on the **file name**
 - **BizHawk leaves `<title>.SaveRAM.bak` on exit**, the save the new one replaced. A rule
   declares its own `not_a_save_extensions` for that. RB-264.
 
-**Driven on both cores on 2026-09-21** (RB-262 to RB-266, `docs/platforms/nes/first-pass.md`): upload,
+**Driven on both cores on 2026-09-21** (RB-262 to RB-266, `docs/platforms/nes/bizhawk.md`): upload,
 restore into the file BizHawk loads, the in-flight deferral, the launch route alone, and the
 Europe copy of StarTropics sharing the USA copy's file, contested and then settled by
 `saves bind`. **`NesHawk` and `quickerNES` read each other's `.SaveRAM`** (RB-271), so the
