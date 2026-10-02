@@ -86,7 +86,7 @@ across emulators with a note (step 2 not where emulators disagree about a playli
    each disc as its own rom has nothing multi-file to unlock, and regrouping one set in RomM is the
    fix, as it was for `psx`.
 
-   **The step used to be an extension check, and the extension no longer gates anything.**
+   **The extension gates nothing, so this step is not an extension check.**
    `<extension>` is a per-system union across every emulator the system declares (`nes` lists
    `.wad`, which is not a NES container at all; one `psx` emulator reads `.chd` and another does
    not), so it cannot say what a given `(emulator, core)` opens. RomMBat syncs every member and
