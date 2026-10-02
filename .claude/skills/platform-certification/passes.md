@@ -13,8 +13,8 @@ battery rule each and, for three, a state declaration in RomMBat's bundled suppl
 what a row outside `es_savestates.cfg` will need on every other system too. Read
 `docs/platforms/nes/` before starting a pass: it is the only worked example of the whole
 checklist, and it carries the two traps that cost the most time, the screenshot byte check at
-step 5 and the RomM-side device id at step 8. That pass is what opened #208, and `status` now
-reads the sessions back, so step 8 no longer needs the token that record describes.
+step 5 and the RomM-side device id at step 8. That pass opened #208. `status` reads the sessions
+back, so step 8 needs no token of its own; the record's token is the route by hand.
 
 **`megadrive` is second: seven of its eleven rows certified at `5.3.0` on 2026-09-21**, and
 `docs/platforms/megadrive/` is the model for a system whose matrix does not all pass. The three

@@ -245,7 +245,7 @@ write agrees, at `<playcount>4</playcount>` and `<lastplayed>20260920T102345</la
 that `status` prints on adjacent lines. A `?device_id=` filter given the local id returns `200`
 with zero rows, which reads exactly like a session that was never written.
 
-**Reading a session back needs a token for the account the install is paired as.**
+**Reading a session back by hand needs a token for the account the install is paired as.**
 `GET /api/play-sessions` is scoped to the authenticated user: with the correct device id above, a
 second account's token answers `200` with **0** rows where the owning account's answers `200`
 with **5**. That is identity rather than permission, and no scope changes it. This step was
