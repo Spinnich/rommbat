@@ -258,6 +258,40 @@ public sealed class LocalStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// The tables whose rows name a rom id, which is the old server's numbering once the install
+    /// is pointed at another one. <c>outbox</c> is absent on purpose: a server change is refused
+    /// while it holds unsent work, and what remains is delivery history.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> ServerKeyedTables =
+    [
+        "save_slot", "save_conflict", "local_save", "local_state", "local_file", "game_id_binding",
+        "content_download", "rom_metadata", "sync_set_member", "save_conversion", "pending_config",
+    ];
+
+    /// <summary>
+    /// Forgets every row keyed on the old server's rom ids, for an install pointed at another one.
+    /// </summary>
+    /// <remarks>
+    /// Runs inside the caller's transaction, so a pairing that fails after it keeps every row.
+    /// Files on disk stay; the next sync re-derives what it knew about them from the new server.
+    /// Sync set definitions stay too, since a filter is the user's choice, and so do firmware rows,
+    /// which carry no rom id and are keyed on md5.
+    /// </remarks>
+    public void ForgetServerKeyedRows()
+    {
+        foreach (var table in ServerKeyedTables)
+        {
+            // A binding with a null rom_id records that nothing resolved the key against the
+            // old library, which is as stale as one that did.
+            var sql = table == "game_id_binding"
+                ? "DELETE FROM game_id_binding;"
+                : $"DELETE FROM {table} WHERE rom_id IS NOT NULL;";
+            using var command = _connection.Command(sql);
+            command.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>Closes the connection, blocking until no other thread is inside it.</summary>
     /// <remarks>
     /// <b>Disposal is ordered by <see cref="StoreGate"/> like every other use of the connection,

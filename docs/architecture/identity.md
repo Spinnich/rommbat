@@ -30,13 +30,15 @@ The GUID lives in **`emulators/rommbat/device.id`**, a plain text file, and is m
 the `device` table. The file is the authority on purpose: identity has to outlive the
 database, or a rebuilt store would turn into a second device in the RomM UI.
 
-Pairing a paired install with a different origin clears `save_slot` and `save_conflict` in the
-same transaction that stores the new pairing (`PairingService.CompleteAsync`), because their rom
-and save ids belong to the old server and a rebuilt one restarts them. Typing the address
+Pairing a paired install with a different origin clears every table keyed on a rom id in the
+same transaction that stores the new pairing (`PairingService.CompleteAsync`,
+`LocalStore.ServerKeyedTables`), because those rom and save ids belong to the old server and a
+rebuilt one restarts them. Files on disk, sync set definitions and firmware rows stay; the next
+sync re-derives the rest from the new server. Typing the address
 (`RememberServer`) changes nothing for a paired install, so a typo costs no slots, but it is
 refused while the outbox holds unsent entries, which name the old server's rom ids and are never
 dropped silently; `outbox drop --all-pending --apply` is the way out. A re-pair against the same
-origin changes nothing. Other tables keyed on rom id are not cleared.
+origin changes nothing. `outbox` is not cleared: the change is refused while it holds unsent work.
 
 Sync-set definitions persist to the free-form `Device.sync_config` dict via
 `PUT /api/devices/{id}`, so a reimaged or re-paired device gets its configuration back and

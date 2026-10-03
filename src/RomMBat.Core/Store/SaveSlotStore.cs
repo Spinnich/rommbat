@@ -51,14 +51,6 @@ public sealed class SaveSlotStore
 
     internal SaveSlotStore(SqliteConnection connection) => _connection = connection;
 
-    /// <summary>Forgets every slot's server identity, for an install pointed at another server.</summary>
-    /// <returns>How many rows went.</returns>
-    public int Clear()
-    {
-        using var command = _connection.Command("DELETE FROM save_slot;");
-        return command.ExecuteNonQuery();
-    }
-
     /// <summary>Records what an upload or a listing said about a slot.</summary>
     public void Record(SaveRow row, DateTimeOffset now)
     {

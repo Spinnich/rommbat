@@ -1,6 +1,7 @@
 using RomM.Client;
 using RomM.Client.Saves;
 using RomMBat.Core.Identity;
+using RomMBat.Core.Paths;
 using RomMBat.Core.Server;
 using RomMBat.Core.Store;
 using RomMBat.Tests.Support;
@@ -366,6 +367,65 @@ public class OfflineSimulationTests
         await PairAgainst(pairing, new Uri("https://romm.invalid/"));
 
         Assert.Single(store.SaveSlots.List());
+    }
+
+    [Fact]
+    public async Task Pairing_with_another_server_forgets_every_row_keyed_on_the_old_rom_ids()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var store = PairedStore(install, "https://old.invalid");
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("roms/snes/Game.sfc"),
+            Folder = "snes",
+            RomId = 12,
+            FileName = "Game.sfc",
+            SizeBytes = 9,
+        });
+        store.Files.Record(new LocalFile
+        {
+            Path = RelativePath.Create("bios/scph5501.bin"),
+            Kind = LocalFileKind.Firmware,
+            FileName = "scph5501.bin",
+            SizeBytes = 9,
+        });
+        store.GameIdBindings.Record(
+            new GameIdBinding("psx", "SLUS-00001", null, null, BindingSource.Journal, "no route resolved it", Start));
+        var pairing = new PairingService(install, store, new TestTimeProvider(Start));
+
+        pairing.RememberServer(new Uri("https://new.invalid"));
+        await PairAgainst(pairing, new Uri("https://new.invalid"));
+
+        Assert.Empty(store.GameIdBindings.List());
+        var left = Assert.Single(store.Files.List());
+        Assert.Equal(LocalFileKind.Firmware, left.Kind);
+    }
+
+    [Fact]
+    public void Every_table_that_names_a_rom_id_is_cleared_by_a_server_change_or_has_a_stated_reason()
+    {
+        using var tree = TempRetroBatTree.Create();
+        using var store = LocalStore.Open(tree.Install());
+
+        var keyed = new List<string>();
+        using (var command = store.Connection.CreateCommand())
+        {
+            command.CommandText =
+                """
+                SELECT m.name FROM sqlite_master m, pragma_table_info(m.name) c
+                WHERE m.type = 'table' AND c.name = 'rom_id';
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                keyed.Add(reader.GetString(0));
+            }
+        }
+
+        // outbox is refused while it holds unsent work, so only delivery history is left there.
+        var unnamed = keyed.Except(LocalStore.ServerKeyedTables).Except(["outbox"]).ToList();
+        Assert.Empty(unnamed);
     }
 
     [Fact]

@@ -53,7 +53,7 @@ public sealed class PairingService
     /// save ids restart or name other games. Unsent outbox rows name the old server's rom ids
     /// and cannot be dropped silently, so they refuse the change here, before any code is shown.
     /// The stored origin stays the old one until <see cref="CompleteAsync"/> succeeds, so a
-    /// mistyped URL costs nothing; that is also where the old server's slots are cleared.
+    /// mistyped URL costs nothing; that is also where every row keyed on the old server's rom ids is cleared.
     /// </remarks>
     /// <exception cref="ServerChangeRefusedException">
     /// The origin changed while the outbox still holds unsent work.
@@ -171,8 +171,7 @@ public sealed class PairingService
         {
             if (changedServer)
             {
-                _store.SaveSlots.Clear();
-                _store.SaveConflicts.Clear();
+                _store.ForgetServerKeyedRows();
             }
 
             _store.Device.SavePairing(
