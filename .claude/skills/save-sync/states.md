@@ -90,14 +90,14 @@ it (RB-270). **openMSX's declared directory stayed empty**, so do
 not assume every emulator is mirrored. Do not assume everything beside a state travels either:
 BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 
-Four traps, all confirmed across the eleven emulators driven (RB-360):
+Four traps, all confirmed on the emulators driven (RB-368, RB-370):
 
 - A **`.txt` sidecar** often sits beside the state holding the native basename
   (`UCES00995_1.00`, `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes,
   and where it holds a serial it is the Game ID that directory-save attribution would otherwise
   read out of a ROM.
 
-  **It is not emitted unconditionally, and an earlier reading here said it was.** Driven on a
+  **It is not emitted unconditionally.** Driven on a
   real install: `libretro` writes none at all, under either of two cores. `jgenesis` wrote one
   holding the plain rom filename, and `bizhawk` wrote `Phantasy Star (B).SMSHawk`, which is
   BizHawk's own truncated name plus the core. So its absence means nothing and its presence
@@ -107,14 +107,12 @@ Four traps, all confirmed across the eleven emulators driven (RB-360):
   and correct, zero-byte and missing across three runs of the same PPSSPP game. `screenshotFile`
   is best-effort everywhere; absent and empty are both normal and say nothing about the state.
   **BizHawk declares an `<image>` and never writes one**: its frame is `Framebuffer.bmp` inside
-  the `.State` zip, so the state carries its own screenshot and RomM holds none for it (finding
-  268).
+  the `.State` zip, so the state carries its own screenshot and RomM holds none for it (RB-268).
 - **The declared `<directory>` is wrong for one of the twelve emulators launched.**
   **`openmsx` writes to `bios/openmsx/savestates/`, a different top-level tree** from the
-  declared `saves/msx1/openmsx`, and that is unfixed. `flycast` was the second until
-  **RetroBat 8.2.1 fixed it** (`emulatorlauncher#1336`): it still writes
-  `dreamcast/reicast/states` first, but the state is now mirrored into the declared
-  `dreamcast/flycast/sstates` in the same millisecond, confirmed by hand over three runs, so
+  declared `saves/msx1/openmsx`. `flycast` writes `dreamcast/reicast/states` first, but
+  RetroBat 8.2.1 mirrors the state into the declared `dreamcast/flycast/sstates` in the same
+  millisecond (`emulatorlauncher#1336`), confirmed by hand over three runs, so
   Dreamcast states sync from the declaration like any other emulator's. An empty declared
   directory is never evidence that a game has no states; cross-check against the emulator's
   generated config.

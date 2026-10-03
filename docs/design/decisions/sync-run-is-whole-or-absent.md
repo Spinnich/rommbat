@@ -43,9 +43,8 @@ budget was measured finishing 703 KB over it. `GameSync` now passes the ROM byte
 That reservation is possible precisely where a media one is not: a ROM's size is on the member
 row and the plan already holds it, and RomM publishes no media size at all.
 
-**Turning a media kind off takes back what was already fetched.** It used to stop future
-downloads and nothing else, so the artwork stayed for ever with nothing able to reclaim it:
-eviction removes whole games under budget pressure and has no notion of a kind. Measured on the
+**Turning a media kind off takes back what was already fetched.** Stopping future downloads
+alone would leave the artwork for ever with nothing able to reclaim it: eviction removes whole games under budget pressure and has no notion of a kind. Measured on the
 live install, 1.09 GB of video on one platform and 566 MB on another. Only `FileOrigin.Synced`
 goes, so a user's own scrape at the same name is untouched, which is the fence the sync rollback
 already uses.

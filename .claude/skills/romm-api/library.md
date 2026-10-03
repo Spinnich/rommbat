@@ -60,10 +60,9 @@ Two consequences for anything verifying a transfer:
   a plausible story.
 
 **Verify with md5 and nothing else.** Every successful download is hashed; the size test is a
-fast rejection in front of it. RomMBat used to compute md5, sha1 and crc32 in one pass and
-compare only md5, or sha1 where the server published no md5. Measured across **1,616 rom rows**
+fast rejection in front of it. Measured across **1,616 rom rows**
 from three platforms of a live library, **not one carries a sha1 without also carrying an md5**:
-RomM hashes a file once and sets every hash column or none, so the sha1 comparison served
+RomM hashes a file once and sets every hash column or none, so a sha1 comparison would serve
 nothing. Confirmed over every platform with `tools/romm-5.3-probes/r7-hash-coverage.py`
 (RB-257): 94,472 single-file rows, all three set on 99.4% and all three `''` on 0.6%.
 Test for blank, never for null, because the server never sends null here. crc32 was never compared anywhere at all.

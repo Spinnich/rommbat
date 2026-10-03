@@ -102,7 +102,7 @@ Part of the [offline-and-portable](SKILL.md) skill. How threads share the SQLite
     than reimplementing it. **This is the pattern to copy**: never a throw, never a silent
     no-op, and never a lock taken speculatively to answer a question.
 
-  `UiTreeLockTests` carries the anti-vacuity companion as of #100: Core must still _define_
+  `UiTreeLockTests` carries the anti-vacuity companion: Core must still _define_
   `TreeLock`, or renaming it would disarm the boundary with nothing saying so.
 
   **The flush settles this for good: it takes the lock itself and returns

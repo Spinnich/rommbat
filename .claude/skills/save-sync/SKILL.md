@@ -121,7 +121,7 @@ in, which `saves` names as a shared container. **Slot B is already there**: Retr
 `dolphin_microphone` is on, so it stays at Dolphin's stock relative default and a 16 MB
 `saves/dolphin/User/GC/SRAM.<REGION>.raw` accumulates beside the system folders. No shape covers
 that tree, so `save_rules.json` declares the card under `dolphin` and the scanner names it there,
-reporting the rest of `saves/dolphin/` as an unknown shape. Finding 193, and the same shape of
+reporting the rest of `saves/dolphin/` as an unknown shape. RB-193, and the same shape of
 trap as PCSX2's four menu entries.
 
 **Dolphin's working files are declared not to be saves, never inferred.** Beside the saves,
