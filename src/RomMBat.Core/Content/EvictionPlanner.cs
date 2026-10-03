@@ -249,13 +249,17 @@ public sealed class EvictionPlanner
     /// </remarks>
     /// <param name="romIds">The games the user named.</param>
     /// <param name="releasing">Sets whose claim is being given up, because they are what the games are being removed from.</param>
-    public EvictionPlan PlanRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null)
+    /// <param name="includeStale">
+    /// Also every download a server change left stale, chosen by its row rather than by an id
+    /// that may now name another game. Only for a removal of everything, which is uninstall.
+    /// </param>
+    public EvictionPlan PlanRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null, bool includeStale = false)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
         var wanted = romIds.ToHashSet();
 
-        if (wanted.Count == 0)
+        if (wanted.Count == 0 && !includeStale)
         {
             return new EvictionPlan { IsRemoval = true };
         }
@@ -264,7 +268,7 @@ public sealed class EvictionPlanner
         var refused = new List<EvictionCandidate>();
 
         foreach (var candidate in Candidates(releasing)
-            .Where(candidate => !candidate.File.Stale && wanted.Contains(candidate.File.RomId ?? 0)))
+            .Where(candidate => candidate.File.Stale ? includeStale : wanted.Contains(candidate.File.RomId ?? 0)))
         {
             // Named before the guard is asked, because "another set still wants this" is a
             // better answer than an unsent save when both are true: the second is temporary

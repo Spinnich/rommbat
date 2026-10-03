@@ -105,6 +105,26 @@ public sealed class RemovalTests : IDisposable
         Assert.Single(report.Plan.Selected);
     }
 
+    /// <summary>
+    /// Naming a game never reaches a row a server change left stale under the same id, which
+    /// was another server's game. Only uninstall takes those.
+    /// </summary>
+    [Fact]
+    public void Removing_a_game_leaves_a_stale_row_under_its_reused_id()
+    {
+        var drop = Set("Dropping", 1);
+
+        Rom(1, "snes", "old-server.sfc", 1_000);
+        _session.Store.Files.MarkAllStale();
+        Rom(1, "snes", "game.sfc", 1_000);
+        Members(drop, 1);
+
+        var report = new EvictionService(_session).PreviewRemoval(Members(drop), releasing: [drop.Id]);
+
+        var selected = Assert.Single(report.Plan.Selected);
+        Assert.Equal("roms/snes/game.sfc", selected.File.Path.Value);
+    }
+
     // ------------------------------------------------------------------ saves
 
     /// <summary>

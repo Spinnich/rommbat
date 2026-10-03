@@ -39,9 +39,9 @@ rebuild. Its rows are marked `stale` instead, so no reader that resolves a game 
 them: `LocalFileStore.List`, `ForRom` and the browse and size queries skip them, which keeps a
 save from being attributed through an id the new server may have given to another game. The
 ownership readers (the budget, the budget path of eviction, the inventory sweep) pass
-`includeStale`; eviction gives a stale row no set's claim, so it is orphaned, and set removal
-never selects one, so `uninstall --content` leaves a stale download in place until the new
-server's sync writes it afresh. The slot and conversion lookups that read `local_file` directly skip them too.
+`includeStale`; eviction gives a stale row no set's claim, so it is orphaned. Removing a game
+or a set never selects one, since its id may now be another game's, and `uninstall --content`
+selects every one by its row. The slot and conversion lookups that read `local_file` directly skip them too.
 A sync that finds the file again writes the row afresh with the new id and clears the flag, and
 `ContentSync.Adopt` and `MediaSync.RecordAdopted` keep a `synced` origin. A multi-file game is
 downloaded again, because its rows are matched by rom id; a game the new server lacks stays

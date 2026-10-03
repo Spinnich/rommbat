@@ -262,6 +262,35 @@ public sealed class UninstallTests : IDisposable
         Assert.True(File.Exists(RomOnDisk("snes", "Mine (USA).sfc")));
     }
 
+    /// <summary>
+    /// A download a server change left stale is still RomMBat's, and content takes it.
+    /// </summary>
+    /// <remarks>
+    /// Selected by its row rather than by rom id, which may now name another game. Its own id
+    /// is reused here by the new server's copy, and both go.
+    /// </remarks>
+    [Fact]
+    public async Task Content_takes_a_download_a_server_change_left_stale()
+    {
+        Rom(7, "snes", "Old Server (USA).sfc", FileOrigin.Synced);
+        Rom(8, "snes", "Mine (USA).sfc", FileOrigin.Adopted);
+        _session.Store.Files.MarkAllStale();
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+        Assert.Equal(
+            ["roms/snes/Chrono Trigger (USA).sfc", "roms/snes/Old Server (USA).sfc"],
+            report.Content!.Plan.Selected.Select(candidate => candidate.File.Path.Value).Order(StringComparer.Ordinal));
+
+        var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.True(applied.Ok, applied.Refusal);
+        Assert.False(File.Exists(RomOnDisk("snes", "Old Server (USA).sfc")));
+        Assert.False(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
+        Assert.True(File.Exists(RomOnDisk("snes", "Mine (USA).sfc")));
+        Assert.Null(_session.Store.Files.Find(RelativePath.Create("roms/snes/Old Server (USA).sfc")));
+    }
+
     [Fact]
     public async Task Bios_takes_synced_firmware_that_is_still_what_RomMBat_wrote()
     {

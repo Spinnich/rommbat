@@ -120,7 +120,8 @@ public sealed class EvictionService
     /// Sets whose claim on those games is being given up, because they are what the games are
     /// being removed from. Every other enabled set's claim still holds a game back.
     /// </param>
-    public EvictionReport PreviewRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null)
+    /// <param name="includeStale">Also every stale download, for uninstall. See <see cref="EvictionPlanner.PlanRemoval"/>.</param>
+    public EvictionReport PreviewRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null, bool includeStale = false)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
@@ -135,7 +136,7 @@ public sealed class EvictionService
 
         return new EvictionReport(
             new PartialSweepPlan(),
-            new EvictionPlanner(_session.Store).PlanRemoval(romIds, releasing),
+            new EvictionPlanner(_session.Store).PlanRemoval(romIds, releasing, includeStale),
             _session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes) is not null);
     }
 
