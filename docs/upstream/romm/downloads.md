@@ -65,12 +65,14 @@ verified by hashing inside it, and adoption hashes inside a local zip too.
 
 ## RM-28. A firmware file's md5 is over its own bytes, so a zip's is the container's
 
-Verified: RomM 5.2.0, 2026-08-25, and 5.3.1 source, 2026-09-29. How: downloaded the library's 34-member `neogeo.zip` and hashed the bytes; on 5.3.1 read `FirmwareHandler.calculate_file_hashes`.
+Verified: RomM 5.2.0, 2026-08-25, and 5.3.1 source, 2026-09-29, and 5.3.1, 2026-10-03. How: downloaded the library's 34-member `neogeo.zip` and hashed the bytes; on 5.3.1 read `FirmwareHandler.calculate_file_hashes`; on 2026-10-03 matched the 18 distinct zip md5s in RetroBat's manifest against `GET /api/firmware`'s 313 records by name and md5.
 The record's `md5_hash`, `c74b8945...`, is the md5 of the 1,861,788 bytes served, not of any
 member, unlike a ROM zip (RB-80). Two zips of the same members hash differently when compression,
-order or stored times differ, so an md5 join finds none of the 20 zip requirements that carry
-an md5 in RetroBat's manifest, `neogeo.zip` at `dffb72f1...` among them. A zip is compared by
-its members, as `LogicalContentHash` does for a save.
+order or stored times differ, so an md5 join finds a zip only when both sides hold the same
+build. Of the 18 distinct zip md5s RetroBat's manifest names, the library held 4 by name:
+`awbios.zip` and `gamate.zip` matched, while `neogeo.zip` (wanted at `dffb72f1...`) and
+`neocdz.zip` did not. The manifest names no members and RomM serves no member hashes, so
+members cannot be compared instead.
 
 ## RB-180. RomM's hashes are its last scan's, and can describe some other file
 

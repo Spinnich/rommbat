@@ -25,8 +25,10 @@ Some files have to come from you:
 - RetroBat lists about half of its BIOS files without a checksum, so RomMBat cannot tell which
   file in your library is the right one.
 - A file your RomM library does not have.
-- Some zipped firmware, such as `neogeo.zip`: RomM's checksum for a zip covers the zip itself,
-  which never matches RetroBat's.
+- Some zipped firmware, such as `neogeo.zip`. A zip's checksum covers the zip itself, so it
+  matches only when your copy was built exactly like RetroBat's, even if the files inside are the
+  same. When your library has a zip under the same name that does not match, the report names it
+  and RomMBat leaves it alone.
 
 Copy these into RetroBat's `bios` folder yourself, where RetroBat's own documentation says they
 go. This is why a game on a [certified row](../platforms/index.md) can still refuse to start: the
@@ -35,6 +37,8 @@ row was tested with its BIOS in place.
 ## Checking from a terminal
 
 `rommbat-agent bios` reports, for each system you have games on, which files are present, which
-it would fetch, which your library lacks, and which it cannot check. It writes nothing until you
+it would fetch, which your library lacks, and which it cannot check. Under a file your library
+lacks, it prints the checksum to search for, and why, when RomM has a record that is not usable or
+a zip by the same name. It writes nothing until you
 add `--apply`. `--all` covers every system RetroBat knows. See
 [Command line](../reference/cli.md).

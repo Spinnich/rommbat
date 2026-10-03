@@ -256,7 +256,8 @@ internal static class BiosCommand
                     Console.WriteLine($"      {md5}");
                 }
 
-                if (step.Reason is { } reason && step.Action is BiosAction.Mismatch or BiosAction.Blocked)
+                if (step.Reason is { } reason
+                    && step.Action is BiosAction.Mismatch or BiosAction.Blocked or BiosAction.MissingFromLibrary)
                 {
                     Console.WriteLine($"      {reason}");
                 }

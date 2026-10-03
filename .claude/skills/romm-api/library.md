@@ -257,12 +257,14 @@ columns for that reason.
 
   **That rule is about a single-entry ROM archive. A multi-member firmware archive is
   hashed as a container** (RM-28): the library's 34-member `neogeo.zip` carries an
-  `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` can
-  never be joined on md5** against a manifest that hashed a differently-built archive of the
-  same members. 84 of RetroBat's 355 BIOS requirements are zips, and **20 of those carry an
-  md5**, which is the whole defect surface: the other 64 name no hash, so `BiosPlanner.Inspect`
-  answers `Unverifiable` before the join. Compare members, the way `LogicalContentHash` does
-  for saves.
+  `md5_hash` equal to the md5 of the downloaded bytes exactly. So **a firmware `.zip` joins on
+  md5 only when both sides hold a byte-identical build.** 84 of RetroBat's 355 BIOS
+  requirements are zips, and 20 of those carry an md5; the other 64 name no hash and answer
+  `Unverifiable` before the join. **Members cannot be compared instead**: the manifest names
+  only the container md5 and RomM serves no member hashes, so there is no reference side. A
+  zip the md5 misses, where the library holds one under the exact name, stays
+  `MissingFromLibrary` with `BiosStep.SameName` set and a reason saying so, and is never
+  fetched.
 
 - **Do not reconcile deletions with `GET /api/roms/identifiers`.** It answers 95,989 ids in
   under a second on 5.3.1, but it takes no parameters, so it cannot be scoped to a set, and a

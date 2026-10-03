@@ -36,7 +36,7 @@ public enum BiosAction
     /// RetroBat names no md5 for this file, so nothing can be said about it in either direction.
     /// </summary>
     /// <remarks>
-    /// 174 of the 348 requirements, and 29 systems have nothing else. This is a fact about
+    /// 181 of the 355 requirements, and 29 systems have nothing else. This is a fact about
     /// RetroBat's manifest and not a gap in the user's library, which is why it is its own
     /// state rather than a kind of missing.
     /// </remarks>
@@ -55,6 +55,16 @@ public sealed record BiosStep
 
     /// <summary>The RomM record the md5 matched, when one did.</summary>
     public FirmwareRow? Match { get; init; }
+
+    /// <summary>
+    /// A library zip under this zip's exact name, when the md5 found nothing.
+    /// </summary>
+    /// <remarks>
+    /// Pointed at, never fetched. RomM and RetroBat both hash a firmware zip as its container
+    /// (RM-28), so two builds of the same members disagree, and neither side says what the
+    /// members are. It may well be what the emulator wants; RomMBat cannot tell.
+    /// </remarks>
+    public FirmwareRow? SameName { get; init; }
 
     public long BytesToTransfer { get; init; }
 
@@ -414,6 +424,17 @@ public sealed class BiosPlanner
             };
         }
 
+        if (match is null && SameNamedZip(requirement, candidates) is { } alike)
+        {
+            return step with
+            {
+                Action = BiosAction.MissingFromLibrary,
+                SameName = alike,
+                Reason = $"RomM has a {alike.FileName} built differently ({alike.NormalizedMd5}). RomMBat "
+                    + "cannot see inside either archive to tell whether it is the same set, so it is not fetched.",
+            };
+        }
+
         return step with
         {
             Action = BiosAction.MissingFromLibrary,
@@ -425,5 +446,26 @@ public sealed class BiosPlanner
                 ? null
                 : "RomM has a record for it but no longer has the file itself.",
         };
+    }
+
+    /// <summary>A fetchable library zip under the requirement's exact name, if it is a zip.</summary>
+    /// <remarks>
+    /// Only a zip, because only a zip's md5 is over a container (RM-28). A plain file under the
+    /// same name with another md5 is other bytes, and the name says nothing about it.
+    /// </remarks>
+    private static FirmwareRow? SameNamedZip(
+        BiosRequirement requirement,
+        IReadOnlyDictionary<string, FirmwareRow> candidates)
+    {
+        if (!requirement.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return candidates.Values
+            .Where(row => row.IsFetchable
+                && string.Equals(row.FileName, requirement.FileName, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(row => row.Id)
+            .FirstOrDefault();
     }
 }
