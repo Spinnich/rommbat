@@ -49,10 +49,10 @@ public sealed class PairingService
     /// <returns>The <c>client_device_identifier</c> this install pairs under.</returns>
     /// <remarks>
     /// An origin that differs from a paired one means a different or rebuilt RomM, where rom and
-    /// save ids restart or name other games. <c>save_slot</c> and <c>save_conflict</c> hold the
-    /// old server's ids, so they are cleared here; left alone, every slot would read as a
-    /// superseded download. Unsent outbox rows name the old server's rom ids too and cannot be
-    /// dropped silently, so they refuse the change instead.
+    /// save ids restart or name other games. Unsent outbox rows name the old server's rom ids
+    /// and cannot be dropped silently, so they refuse the change here, before any code is shown.
+    /// The stored origin stays the old one until <see cref="CompleteAsync"/> succeeds, so a
+    /// mistyped URL costs nothing; that is also where the old server's slots are cleared.
     /// </remarks>
     /// <exception cref="ServerChangeRefusedException">
     /// The origin changed while the outbox still holds unsent work.
@@ -64,28 +64,29 @@ public sealed class PairingService
         var identifier = DeviceIdentity.ReadOrCreate(_install);
         _store.Device.EnsureIdentity(identifier);
 
-        var previous = _store.Device.Read();
-        if (previous is { RomMDeviceId: not null, ServerOrigin: { } paired } && !SameServer(paired, origin))
+        if (ChangesServer(origin, out var paired))
         {
             var pending = _store.Outbox.PendingCount();
             if (pending > 0)
             {
                 throw new ServerChangeRefusedException(
                     $"This install is paired with {paired} and holds {pending} unsent item(s) "
-                        + $"that name that server's games. Let them send, or drop them, before pointing at {origin}.");
+                        + $"that name that server's games. Let them send, or run 'outbox drop --all-pending --apply', "
+                        + $"before pointing at {origin}.");
             }
 
-            _store.InTransaction(() =>
-            {
-                _store.SaveSlots.Clear();
-                _store.SaveConflicts.Clear();
-                _store.Device.SaveServerOrigin(origin);
-            });
             return identifier;
         }
 
         _store.Device.SaveServerOrigin(origin);
         return identifier;
+    }
+
+    private bool ChangesServer(Uri origin, out Uri? paired)
+    {
+        var previous = _store.Device.Read();
+        paired = previous?.ServerOrigin;
+        return previous is { RomMDeviceId: not null } && paired is not null && !SameServer(paired, origin);
     }
 
     private static bool SameServer(Uri a, Uri b) =>
@@ -150,14 +151,24 @@ public sealed class PairingService
         var expiresAt = ParseExpiry(result.Token.Expires_at);
         var protectedToken = TokenProtector.Protect(result.Token.Access_token, passphrase, expiresAt);
 
-        _store.Device.SavePairing(
-            new PairingResult(
-                connection.Options.Origin,
-                result.Token.Device_id,
-                session.DeviceName,
-                scopes,
-                protectedToken),
-            _time.GetUtcNow());
+        var changedServer = ChangesServer(connection.Options.Origin, out _);
+        _store.InTransaction(() =>
+        {
+            if (changedServer)
+            {
+                _store.SaveSlots.Clear();
+                _store.SaveConflicts.Clear();
+            }
+
+            _store.Device.SavePairing(
+                new PairingResult(
+                    connection.Options.Origin,
+                    result.Token.Device_id,
+                    session.DeviceName,
+                    scopes,
+                    protectedToken),
+                _time.GetUtcNow());
+        });
 
         return new PairingCompletion(
             PairingOutcome.Approved,

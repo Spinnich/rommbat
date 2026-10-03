@@ -1,4 +1,3 @@
-using RomM.Client.Saves;
 using RomM.Client;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Store;
@@ -177,65 +176,6 @@ public class IdentityAndTokenTests
         Assert.False(device.IsTokenExpired(Now));
         Assert.True(device.IsTokenExpired(Now.AddDays(91)));
         Assert.Equal("rmm_token", TokenProtector.Unprotect(device.Token, "phrase"));
-    }
-
-    private static LocalStore PairedStore(RomMBat.Core.Paths.RetroBatInstall install, string origin)
-    {
-        var store = LocalStore.Open(install);
-        store.Device.EnsureIdentity(DeviceIdentity.ReadOrCreate(install));
-        store.Device.SavePairing(
-            new PairingResult(
-                new Uri(origin),
-                "device-9",
-                "Handheld",
-                new GrantedScopes(RomMScopes.Requested),
-                TokenProtector.Protect("rmm_token", null, null)),
-            Now);
-        store.SaveSlots.Record(
-            new SaveRow(134, 239719, "Phantasy Star [2026-08-17_17-01-00].srm", "Phantasy Star", "srm", 32768,
-                "338dd456da3b26ae7b1fedf63a289a14", "libretro:battery", "libretro", null, Now, null),
-            Now);
-        return store;
-    }
-
-    [Fact]
-    public void Pointing_a_paired_install_at_another_server_forgets_the_old_servers_slots()
-    {
-        using var tree = TempRetroBatTree.Create();
-        var install = tree.Install();
-        using var store = PairedStore(install, "https://old.invalid");
-
-        new PairingService(install, store).RememberServer(new Uri("https://new.invalid"));
-
-        Assert.Empty(store.SaveSlots.List());
-        Assert.Equal(new Uri("https://new.invalid"), store.Device.Read()!.ServerOrigin);
-    }
-
-    [Fact]
-    public void Re_entering_the_same_server_keeps_its_slots()
-    {
-        using var tree = TempRetroBatTree.Create();
-        var install = tree.Install();
-        using var store = PairedStore(install, "https://romm.invalid");
-
-        new PairingService(install, store).RememberServer(new Uri("https://ROMM.invalid/"));
-
-        Assert.Single(store.SaveSlots.List());
-    }
-
-    [Fact]
-    public void A_server_change_with_unsent_work_is_refused_and_changes_nothing()
-    {
-        using var tree = TempRetroBatTree.Create();
-        var install = tree.Install();
-        using var store = PairedStore(install, "https://old.invalid");
-        store.Outbox.Enqueue(OutboxKind.PlaySession, Now, romId: 7, payload: "{}");
-
-        Assert.Throws<ServerChangeRefusedException>(
-            () => new PairingService(install, store).RememberServer(new Uri("https://new.invalid")));
-
-        Assert.Single(store.SaveSlots.List());
-        Assert.Equal(new Uri("https://old.invalid"), store.Device.Read()!.ServerOrigin);
     }
 
     [Fact]

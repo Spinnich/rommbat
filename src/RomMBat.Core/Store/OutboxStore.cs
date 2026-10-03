@@ -287,6 +287,14 @@ public sealed class OutboxStore
         return command.ExecuteNonQuery();
     }
 
+    /// <summary>Deletes every pending entry, for an install whose server is gone.</summary>
+    /// <returns>How many were deleted. Failed and sent entries are never touched.</returns>
+    public int DropPending()
+    {
+        using var command = _connection.Command("DELETE FROM outbox WHERE state = 'pending';");
+        return command.ExecuteNonQuery();
+    }
+
     private static string ToText(OutboxKind kind) => kind switch
     {
         OutboxKind.Save => "save",
