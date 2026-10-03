@@ -512,7 +512,7 @@ public sealed class SaveConverter
     private LocatedRom? Locate(int romId)
     {
         using var command = _store.Connection
-            .Command("SELECT folder, file_name FROM local_file WHERE rom_id = $romId AND kind = 'rom' LIMIT 1;")
+            .Command("SELECT folder, file_name FROM local_file WHERE rom_id = $romId AND kind = 'rom' AND stale = 0 LIMIT 1;")
             .With("$romId", romId);
 
         using var reader = command.ExecuteReader();

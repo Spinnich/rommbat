@@ -147,9 +147,9 @@ public sealed class SaveSlotStore
                    (SELECT l.relative_path FROM local_save l
                     WHERE l.rom_id = s.rom_id AND l.slot = s.slot LIMIT 1),
                    (SELECT f.folder FROM local_file f
-                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1),
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' AND f.stale = 0 LIMIT 1),
                    (SELECT f.file_name FROM local_file f
-                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1)
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' AND f.stale = 0 LIMIT 1)
             FROM save_slot s
             WHERE s.rom_id = $romId AND s.slot = $slot;
             """)
@@ -170,9 +170,9 @@ public sealed class SaveSlotStore
                    (SELECT l.relative_path FROM local_save l
                     WHERE l.rom_id = s.rom_id AND l.slot = s.slot LIMIT 1),
                    (SELECT f.folder FROM local_file f
-                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1),
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' AND f.stale = 0 LIMIT 1),
                    (SELECT f.file_name FROM local_file f
-                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' LIMIT 1)
+                    WHERE f.rom_id = s.rom_id AND f.kind = 'rom' AND f.stale = 0 LIMIT 1)
             FROM save_slot s
             ORDER BY s.rom_id, s.slot;
             """);

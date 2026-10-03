@@ -133,7 +133,7 @@ public sealed class RemovalService
         {
             // Every set's claim is being given up, so none holds a game back.
             var sets = store.SyncSets.List().Select(set => set.Id).ToList();
-            var roms = store.Files.List(kind: LocalFileKind.Rom, includeStale: true)
+            var roms = store.Files.List(kind: LocalFileKind.Rom)
                 .Where(file => file.Origin == FileOrigin.Synced && file.RomId is not null)
                 .Select(file => file.RomId!.Value)
                 .Distinct()

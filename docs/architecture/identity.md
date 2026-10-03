@@ -38,7 +38,9 @@ records which files RomMBat downloaded, which eviction and the byte budget need 
 rebuild. Its rows are marked `stale` instead, so no reader that resolves a game by rom id sees
 them: `LocalFileStore.List`, `ForRom` and the browse and size queries skip them, which keeps a
 save from being attributed through an id the new server may have given to another game. The
-ownership readers (the budget, eviction, the inventory sweep, set removal) pass `includeStale`.
+ownership readers (the budget, the budget path of eviction, the inventory sweep) pass
+`includeStale`; eviction gives a stale row no set's claim, so it is orphaned, and set removal
+never selects one. The slot and conversion lookups that read `local_file` directly skip them too.
 A sync that finds the file again writes the row afresh with the new id and clears the flag, and
 `ContentSync.Adopt` and `MediaSync.RecordAdopted` keep a `synced` origin. A multi-file game is
 downloaded again, because its rows are matched by rom id; a game the new server lacks stays
