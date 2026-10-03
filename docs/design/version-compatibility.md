@@ -67,10 +67,9 @@ writer on its slots (RM-4). Server layout (RM-10) is administration and inert he
   warn and continue.
 - Gate features on version rather than assuming, so a newer RomM adding a field does not
   break an older client and vice versa.
-- Consider Grout's versioning convention, which solves exactly this problem: the first
-  three components of the client version track the required RomM version, and the fourth
-  is the client's own patch number. It makes compatibility legible from the release tag
-  alone.
+- RomMBat's own version is SemVer, not tied to the RomM floor, and a floor move is a MINOR
+  ([versioning](decisions/versioning.md)). Compatibility is read from the table below and each
+  release's notes.
 - Keep a compatibility table in the guide,
   [`wiki/reference/compatibility.md`](../../wiki/reference/compatibility.md), and treat adding
   a row to it as part of shipping.

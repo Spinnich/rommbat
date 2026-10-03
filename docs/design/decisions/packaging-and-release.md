@@ -7,7 +7,8 @@ read-when: Changing tools/publish.ps1, the release artefact, an installer, or an
 
 **The portable zip landed early, before wave 1.** `tools/publish.ps1` publishes the three
 projects, assembles the seven files an install needs, refuses to package a set missing any of
-them, writes `publish/rommbat-win-x64.zip`, and extracts into a tree with `-Deploy`. CI calls
+them, writes `publish/rommbat-<version>-win-x64.zip` (the version is
+[SemVer](versioning.md)), and extracts into a tree with `-Deploy`. CI calls
 it rather than carrying its own publish steps. It came forward because the platform rollout
 redeploys on every defect a pass turns up, and repeating a seven-file hand copy across seven
 systems is a defect generator.

@@ -49,14 +49,30 @@ move the pinned OpenAPI schema; the generated DTOs are committed.
 
 ```powershell
 ./tools/publish.ps1                          # publish, assemble the seven files, zip
+./tools/publish.ps1 -Version 0.1.0-alpha.1   # stamp a version into the exes and the zip name
 ./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
 
-This is what CI runs. It writes `publish/rommbat-win-x64.zip`, which extracts at the RetroBat
-root. `-Deploy` is also what puts `rommbat-hook.exe` and `rommbat-agent.exe` into
+This is what CI runs. It writes `publish/rommbat-<version>-win-x64.zip` (`0.1.0-dev` without
+`-Version`), which extracts at the RetroBat root. `-Deploy` is also what puts `rommbat-hook.exe` and `rommbat-agent.exe` into
 `emulators/rommbat/`, where `hooks install` copies the hook from, so deploy into a fresh tree
 before installing hooks there. What the seven files are and how the script guards them is in
 [docs/architecture/projects.md](docs/architecture/projects.md#srcrommbatui).
+
+### Cutting a release
+
+The scheme is SemVer 2.0.0 ([versioning](docs/design/decisions/versioning.md)).
+
+1. Pick the bump from the PRs merged since the last tag: any MAJOR-impact PR makes a MAJOR, any
+   MINOR one a MINOR, otherwise a PATCH. Under 0.x the prerelease counter moves instead
+   (`0.2.0-alpha.1`, `-alpha.2`, `-beta.1`).
+2. Add the release's row to `wiki/reference/compatibility.md`, replacing `unreleased` for the
+   first one, and move `VersionPrefix` in `Directory.Build.props` to the next planned version.
+3. Tag the merge commit and push the tag: `git tag v0.2.0-alpha.1 && git push origin v0.2.0-alpha.1`.
+4. `release.yml` refuses a tag that is not `vMAJOR.MINOR.PATCH[-pre.N]`, builds, tests, packages,
+   and creates a **draft** release with the zip, its `.sha256` and generated notes, a prerelease
+   when the tag has a suffix. The notes open with the RomM and RetroBat floors.
+5. Read the draft, then publish it. Nothing is announced upstream automatically.
 
 ---
 

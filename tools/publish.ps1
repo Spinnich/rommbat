@@ -21,14 +21,20 @@
     refusal is exercised: delete a file from publish\ui and re-run with this, since a normal
     run republishes the file before the manifest check can see it is gone.
 
+.PARAMETER Version
+    A SemVer 2.0.0 version to stamp into the executables and the zip's name, without the leading
+    v. Left out, the build keeps Directory.Build.props' own 0.1.0-dev.
+
 .EXAMPLE
     ./tools/publish.ps1
+    ./tools/publish.ps1 -Version 0.1.0-alpha.1
     ./tools/publish.ps1 -Deploy D:\retrobat-test
 #>
 
 [CmdletBinding()]
 param(
     [string] $Configuration = 'Release',
+    [string] $Version,
     [string] $OutputPath,
     [string] $Deploy,
     [switch] $NoZip,
@@ -42,6 +48,24 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 if (-not $OutputPath) {
     $OutputPath = Join-Path $repoRoot 'publish'
+}
+
+# The semver.org grammar, so a tag the release workflow accepts is one this accepts too.
+$semVer = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$'
+
+if ($Version -and $Version -notmatch $semVer) {
+    throw "-Version '$Version' is not SemVer 2.0.0 (MAJOR.MINOR.PATCH[-pre.N], no leading v)."
+}
+
+# Without -Version the build keeps Directory.Build.props' own number, so the zip is named for
+# what the executables report rather than for a second copy of it typed here.
+$zipVersion = $Version
+if (-not $zipVersion) {
+    $props = Get-Content (Join-Path $repoRoot 'Directory.Build.props') -Raw
+    if ($props -notmatch '<VersionPrefix>([^<]+)</VersionPrefix>') {
+        throw 'Directory.Build.props has no VersionPrefix.'
+    }
+    $zipVersion = "$($Matches[1])-dev"
 }
 
 # Checked before the publish rather than after it, so a wrong path costs no build. The same
@@ -92,9 +116,12 @@ if (-not $NoPublish) {
             Remove-Item $target -Recurse -Force
         }
 
+        $versionArgs = if ($Version) { @("-p:Version=$Version") } else { @() }
+
         dotnet publish (Join-Path $repoRoot $project.Path) `
             -c $Configuration -r win-x64 --self-contained `
             -p:PublishSingleFile=true `
+            @versionArgs `
             -o $target
 
         if ($LASTEXITCODE -ne 0) {
@@ -109,7 +136,7 @@ if (-not $NoPublish) {
 # entry cannot resolve its executable.
 $staging = Join-Path $OutputPath 'staging'
 $layout = Join-Path $staging 'emulators\rommbat'
-$zip = Join-Path $OutputPath 'rommbat-win-x64.zip'
+$zip = Join-Path $OutputPath "rommbat-$zipVersion-win-x64.zip"
 
 if (Test-Path $staging) {
     Remove-Item $staging -Recurse -Force
@@ -117,9 +144,9 @@ if (Test-Path $staging) {
 
 # A stale zip goes with the stale layout, before anything can fail. Left in place, a run that
 # refuses an incomplete set still leaves an archive under the name a release is cut from.
-if (Test-Path $zip) {
-    Remove-Item $zip -Force
-}
+# Every version's zip goes, since a name that moves would otherwise leave the last one behind.
+Get-ChildItem $OutputPath -Filter 'rommbat-*-win-x64.zip' -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 
 New-Item -ItemType Directory -Path $layout -Force | Out-Null
 

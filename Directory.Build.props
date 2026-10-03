@@ -43,7 +43,11 @@
     <PackageLicenseExpression>GPL-3.0-or-later</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/rommapp/rommbat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <!-- Pre-release. M8 wires this to the release tag. -->
+    <!--
+      The next planned version, built locally as <prefix>-dev. A release build overrides it
+      with -p:Version=<tag without the v> (tools/publish.ps1 -Version), which wins over both
+      properties. See docs/design/decisions/versioning.md.
+    -->
     <VersionPrefix>0.1.0</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)' == ''">dev</VersionSuffix>
   </PropertyGroup>

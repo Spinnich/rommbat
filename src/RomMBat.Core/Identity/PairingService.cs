@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using RomM.Client;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Store;
@@ -216,7 +217,24 @@ public sealed class PairingService
 
     /// <summary>The client version reported to the server and shown in the device list.</summary>
     public static string ClientVersion() =>
-        typeof(PairingService).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        StripBuildMetadata(typeof(PairingService).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion);
+
+    /// <summary>
+    /// The informational version minus SourceLink's <c>+sha</c>, which SemVer ignores for
+    /// precedence and which would make every commit a different device version in RomM. The
+    /// assembly version drops the prerelease suffix, so it cannot stand in.
+    /// </summary>
+    internal static string StripBuildMetadata(string? informational)
+    {
+        if (string.IsNullOrWhiteSpace(informational))
+        {
+            return "0.0.0";
+        }
+
+        var plus = informational.IndexOf('+', StringComparison.Ordinal);
+        return plus < 0 ? informational : informational[..plus];
+    }
 
     private static DateTimeOffset? ParseExpiry(string? value) =>
         DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed)
