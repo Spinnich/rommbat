@@ -86,7 +86,8 @@ jobs:
         run: |
           $zip = Get-Item "publish/rommbat-$env:VERSION-win-x64.zip"
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $($zip.Name)" | Set-Content -Path "$($zip.FullName).sha256" -Encoding ascii
+          # LF, not Set-Content's CRLF on Windows: sha256sum -c reads the CR as part of the name.
+          [IO.File]::WriteAllText("$($zip.FullName).sha256", "$hash  $($zip.Name)`n", [Text.Encoding]::ASCII)
 
       # The floors come from the constants the app enforces at startup, so the notes cannot
       # name a version the build does not require.
