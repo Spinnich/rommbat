@@ -260,12 +260,15 @@ public sealed class LocalStore : IDisposable
 
     /// <summary>
     /// The tables whose rows name a rom id, which is the old server's numbering once the install
-    /// is pointed at another one. <c>outbox</c> is absent on purpose: a server change is refused
-    /// while it holds unsent work, and what remains is delivery history.
+    /// is pointed at another one. Two are absent on purpose. <c>outbox</c> is refused a server
+    /// change while it holds unsent work, so what remains is delivery history. <c>local_file</c>
+    /// also records which files RomMBat downloaded, which eviction and the byte budget depend on
+    /// and a re-sync cannot rebuild, so its rows are re-keyed by path as the next sync finds each
+    /// file (<c>ContentSync.Adopt</c>).
     /// </summary>
     internal static readonly IReadOnlyList<string> ServerKeyedTables =
     [
-        "save_slot", "save_conflict", "local_save", "local_state", "local_file", "game_id_binding",
+        "save_slot", "save_conflict", "local_save", "local_state", "game_id_binding",
         "content_download", "rom_metadata", "sync_set_member", "save_conversion", "pending_config",
     ];
 
@@ -274,9 +277,9 @@ public sealed class LocalStore : IDisposable
     /// </summary>
     /// <remarks>
     /// Runs inside the caller's transaction, so a pairing that fails after it keeps every row.
-    /// Files on disk stay; the next sync re-derives what it knew about them from the new server.
-    /// Sync set definitions stay too, since a filter is the user's choice, and so do firmware rows,
-    /// which carry no rom id and are keyed on md5.
+    /// Files on disk stay, and so do their <c>local_file</c> rows, which keep naming the old rom id
+    /// until a sync finds the file again. Sync set definitions stay too, since a filter is the
+    /// user's choice.
     /// </remarks>
     public void ForgetServerKeyedRows()
     {

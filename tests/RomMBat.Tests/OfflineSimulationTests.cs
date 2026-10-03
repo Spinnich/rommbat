@@ -398,8 +398,9 @@ public class OfflineSimulationTests
         await PairAgainst(pairing, new Uri("https://new.invalid"));
 
         Assert.Empty(store.GameIdBindings.List());
-        var left = Assert.Single(store.Files.List());
-        Assert.Equal(LocalFileKind.Firmware, left.Kind);
+
+        // Which files RomMBat downloaded is not rebuilt by a sync, so these rows stay.
+        Assert.Equal(2, store.Files.List().Count);
     }
 
     [Fact]
@@ -424,7 +425,8 @@ public class OfflineSimulationTests
         }
 
         // outbox is refused while it holds unsent work, so only delivery history is left there.
-        var unnamed = keyed.Except(LocalStore.ServerKeyedTables).Except(["outbox"]).ToList();
+        // local_file keeps its rows: they record what RomMBat downloaded, and ContentSync.Adopt re-keys them.
+        var unnamed = keyed.Except(LocalStore.ServerKeyedTables).Except(["outbox", "local_file"]).ToList();
         Assert.Empty(unnamed);
     }
 

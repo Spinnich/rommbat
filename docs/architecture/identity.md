@@ -33,8 +33,11 @@ database, or a rebuilt store would turn into a second device in the RomM UI.
 Pairing a paired install with a different origin clears every table keyed on a rom id in the
 same transaction that stores the new pairing (`PairingService.CompleteAsync`,
 `LocalStore.ServerKeyedTables`), because those rom and save ids belong to the old server and a
-rebuilt one restarts them. Files on disk, sync set definitions and firmware rows stay; the next
-sync re-derives the rest from the new server. Typing the address
+rebuilt one restarts them. Files on disk, sync set definitions and `local_file` stay: that table
+records which files RomMBat downloaded, which eviction and the byte budget need and nothing can
+rebuild, so each row is re-keyed by path when a sync next finds the file (`ContentSync.Adopt`
+keeps a `synced` origin). Rows for games the new server lacks keep naming the old rom id.
+The next sync re-derives the rest from the new server. Typing the address
 (`RememberServer`) changes nothing for a paired install, so a typo costs no slots, but it is
 refused while the outbox holds unsent entries, which name the old server's rom ids and are never
 dropped silently; `outbox drop --all-pending --apply` is the way out. A re-pair against the same

@@ -275,6 +275,13 @@ public sealed class ContentSync
         var info = new FileInfo(absolute);
         var fingerprint = ContentHasher.Compute(absolute);
 
+        // The hash just matched, so a row that already called this path RomMBat's own describes
+        // the bytes it downloaded. A server change leaves exactly that row behind under the old
+        // rom id, and losing its origin would put the file beyond eviction and the budget for good.
+        var origin = _store.Files.Find(step.TargetPath)?.Origin == FileOrigin.Synced
+            ? FileOrigin.Synced
+            : FileOrigin.Adopted;
+
         _store.Files.Record(new LocalFile
         {
             Path = step.TargetPath,
@@ -288,9 +295,9 @@ public sealed class ContentSync
             VerifiedAt = _time.GetUtcNow(),
             VerifiedBy = VerificationOf(step.Member, fingerprint),
 
-            // Never 'synced'. An adopted file is the user's, it does not count against the
-            // budget, and eviction must never delete it.
-            Origin = FileOrigin.Adopted,
+            // Adopted unless RomMBat already owned the path. An adopted file is the user's, it
+            // does not count against the budget, and eviction must never delete it.
+            Origin = origin,
         });
     }
 
