@@ -275,10 +275,12 @@ public sealed class ContentSync
         var info = new FileInfo(absolute);
         var fingerprint = ContentHasher.Compute(absolute);
 
-        // The hash just matched, so a row that already called this path RomMBat's own describes
-        // the bytes it downloaded. A server change leaves exactly that row behind under the old
-        // rom id, and losing its origin would put the file beyond eviction and the budget for good.
-        var origin = _store.Files.Find(step.TargetPath)?.Origin == FileOrigin.Synced
+        // Only a stale row of the same size, which a server change leaves behind under the old
+        // rom id, is trusted to say these are the bytes RomMBat downloaded. Losing its origin
+        // would put the file beyond eviction and the budget for good. A live row never is: a
+        // file replaced at the same name is the user's.
+        var known = _store.Files.Find(step.TargetPath);
+        var origin = known is { Stale: true, Origin: FileOrigin.Synced } && known.SizeBytes == info.Length
             ? FileOrigin.Synced
             : FileOrigin.Adopted;
 

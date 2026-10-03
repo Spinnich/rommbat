@@ -576,10 +576,15 @@ public sealed class MediaSync
     {
         var info = new FileInfo(_install.Resolve(target));
 
-        // Inspect already takes the same kind and size as proof a file is ours, so a row that
-        // called this path RomMBat's own, which a server change leaves behind stale, keeps its
-        // origin rather than putting the artwork beyond eviction and the budget.
-        var origin = _store.Files.Find(target)?.Origin == FileOrigin.Synced ? FileOrigin.Synced : FileOrigin.Adopted;
+        // Only a stale row of this kind and this size, which a server change leaves behind, is
+        // trusted to say the file is ours. A live row with another size is a file the user
+        // replaced at the same name, and that stays adopted.
+        var known = _store.Files.Find(target);
+        var origin = known is { Stale: true, Origin: FileOrigin.Synced }
+            && known.Kind == ToFileKind(kind)
+            && known.SizeBytes == info.Length
+                ? FileOrigin.Synced
+                : FileOrigin.Adopted;
 
         _store.Files.Record(new LocalFile
         {

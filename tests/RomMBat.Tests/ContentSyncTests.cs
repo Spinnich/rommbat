@@ -473,8 +473,12 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(0, new ContentPlanner(install, store).ManagedBytes());
     }
 
-    [Fact]
-    public async Task A_file_recorded_as_downloaded_under_another_servers_rom_id_stays_synced_when_re_keyed()
+    [Theory]
+    [InlineData(true, FileOrigin.Synced)]
+    [InlineData(false, FileOrigin.Adopted)]
+    public async Task A_stale_row_keeps_a_matching_file_synced_but_a_live_one_leaves_it_adopted(
+        bool stale,
+        FileOrigin expected)
     {
         using var stub = Library(1);
         using var store = LocalStore.Open(_tree.Install());
@@ -496,10 +500,14 @@ public sealed class ContentSyncTests : IDisposable
             Folder = member.Folder!,
             RomId = member.RomId + 1000,
             FileName = member.FsName,
-            SizeBytes = 1,
+            SizeBytes = stub.Content[member.RomId].Length,
             Origin = FileOrigin.Synced,
         });
-        store.Files.MarkAllStale();
+
+        if (stale)
+        {
+            store.Files.MarkAllStale();
+        }
 
         var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
         Assert.Equal(ContentAction.Adopt, Assert.Single(plan.Steps).Action);
@@ -511,7 +519,7 @@ public sealed class ContentSyncTests : IDisposable
 
         var recorded = Assert.Single(store.Files.List());
         Assert.Equal(member.RomId, recorded.RomId);
-        Assert.Equal(FileOrigin.Synced, recorded.Origin);
+        Assert.Equal(expected, recorded.Origin);
         Assert.False(recorded.Stale);
         Assert.Empty(stub.ContentRequests);
     }
