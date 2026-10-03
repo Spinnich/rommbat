@@ -207,6 +207,6 @@ public class IdentityAndTokenTests
         var reported = PairingService.ClientVersion();
 
         Assert.DoesNotContain('+', reported);
-        Assert.StartsWith("0.1.0", reported, StringComparison.Ordinal);
+        Assert.Matches(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", reported);
     }
 }

@@ -19,6 +19,11 @@ jobs:
   release:
     runs-on: windows-latest
 
+    # The tag reaches the scripts as an environment variable, never pasted into their source:
+    # a git ref name may hold quotes and semicolons, and this runs before the SemVer check.
+    env:
+      TAG: ${{ github.ref_name }}
+
     steps:
       # Before the checkout and the build, so a mistyped tag costs seconds. The grammar is
       # semver.org's own, not a looser "starts with v", because a tag this accepts becomes the
@@ -26,7 +31,7 @@ jobs:
       - name: Refuse a tag that is not SemVer 2.0.0
         shell: pwsh
         run: |
-          $tag = '${{ github.ref_name }}'
+          $tag = $env:TAG
           $semVer = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
           if ($tag -notmatch $semVer) {
             throw "Tag '$tag' is not vMAJOR.MINOR.PATCH[-pre.N]. Delete it and push a SemVer 2.0.0 tag."
@@ -83,11 +88,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ghArgs = @(
-            'release', 'create', '${{ github.ref_name }}',
+            'release', 'create', $env:TAG,
             "publish/rommbat-$env:VERSION-win-x64.zip",
             "publish/rommbat-$env:VERSION-win-x64.zip.sha256",
             '--draft', '--verify-tag',
-            '--title', '${{ github.ref_name }}',
+            '--title', $env:TAG,
             '--notes-file', 'release-header.md',
             '--generate-notes'
           )
