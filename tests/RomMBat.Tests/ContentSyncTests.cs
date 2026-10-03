@@ -499,6 +499,7 @@ public sealed class ContentSyncTests : IDisposable
             SizeBytes = 1,
             Origin = FileOrigin.Synced,
         });
+        store.Files.MarkAllStale();
 
         var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
         Assert.Equal(ContentAction.Adopt, Assert.Single(plan.Steps).Action);
@@ -511,6 +512,7 @@ public sealed class ContentSyncTests : IDisposable
         var recorded = Assert.Single(store.Files.List());
         Assert.Equal(member.RomId, recorded.RomId);
         Assert.Equal(FileOrigin.Synced, recorded.Origin);
+        Assert.False(recorded.Stale);
         Assert.Empty(stub.ContentRequests);
     }
 

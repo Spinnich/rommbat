@@ -35,9 +35,14 @@ same transaction that stores the new pairing (`PairingService.CompleteAsync`,
 `LocalStore.ServerKeyedTables`), because those rom and save ids belong to the old server and a
 rebuilt one restarts them. Files on disk, sync set definitions and `local_file` stay: that table
 records which files RomMBat downloaded, which eviction and the byte budget need and nothing can
-rebuild, so each row is re-keyed by path when a sync next finds the file (`ContentSync.Adopt`
-keeps a `synced` origin). Rows for games the new server lacks keep naming the old rom id.
-The next sync re-derives the rest from the new server. Typing the address
+rebuild. Its rows are marked `stale` instead, so no reader that resolves a game by rom id sees
+them: `LocalFileStore.List`, `ForRom` and the browse and size queries skip them, which keeps a
+save from being attributed through an id the new server may have given to another game. The
+ownership readers (the budget, eviction, the inventory sweep, set removal) pass `includeStale`.
+A sync that finds the file again writes the row afresh with the new id and clears the flag, and
+`ContentSync.Adopt` and `MediaSync.RecordAdopted` keep a `synced` origin. A multi-file game is
+downloaded again, because its rows are matched by rom id; a game the new server lacks stays
+stale. The next sync re-derives the rest from the new server. Typing the address
 (`RememberServer`) changes nothing for a paired install, so a typo costs no slots, but it is
 refused while the outbox holds unsent entries, which name the old server's rom ids and are never
 dropped silently; `outbox drop --all-pending --apply` is the way out. A re-pair against the same

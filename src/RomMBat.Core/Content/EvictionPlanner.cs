@@ -172,7 +172,7 @@ public sealed class EvictionPlanner
             return 0;
         }
 
-        var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
+        var managed = _store.Files.List(includeStale: true).Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
         return Math.Max(0, managed - cap);
     }
 
@@ -456,7 +456,7 @@ public sealed class EvictionPlanner
     {
         // Only what RomMBat downloaded. An adopted file is the user's own and is never a
         // candidate, which is also why it never counted towards the budget.
-        var synced = _store.Files.List()
+        var synced = _store.Files.List(includeStale: true)
             .Where(file => file.Origin == FileOrigin.Synced && file.RomId is not null)
             .ToList();
 

@@ -263,8 +263,8 @@ public sealed class LocalStore : IDisposable
     /// is pointed at another one. Two are absent on purpose. <c>outbox</c> is refused a server
     /// change while it holds unsent work, so what remains is delivery history. <c>local_file</c>
     /// also records which files RomMBat downloaded, which eviction and the byte budget depend on
-    /// and a re-sync cannot rebuild, so its rows are re-keyed by path as the next sync finds each
-    /// file (<c>ContentSync.Adopt</c>).
+    /// and a re-sync cannot rebuild, so its rows are marked stale instead
+    /// (<see cref="LocalFileStore.MarkAllStale"/>) and written afresh as a sync finds each file.
     /// </summary>
     internal static readonly IReadOnlyList<string> ServerKeyedTables =
     [
@@ -277,12 +277,14 @@ public sealed class LocalStore : IDisposable
     /// </summary>
     /// <remarks>
     /// Runs inside the caller's transaction, so a pairing that fails after it keeps every row.
-    /// Files on disk stay, and so do their <c>local_file</c> rows, which keep naming the old rom id
-    /// until a sync finds the file again. Sync set definitions stay too, since a filter is the
-    /// user's choice.
+    /// Files on disk stay, and so do their <c>local_file</c> rows, marked stale so nothing resolves
+    /// a game through the old rom id until a sync finds the file again. Sync set definitions stay
+    /// too, since a filter is the user's choice.
     /// </remarks>
     public void ForgetServerKeyedRows()
     {
+        Files.MarkAllStale();
+
         foreach (var table in ServerKeyedTables)
         {
             // A binding with a null rom_id records that nothing resolved the key against the

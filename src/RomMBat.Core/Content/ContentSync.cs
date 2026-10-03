@@ -719,6 +719,7 @@ public sealed class ContentSync
         if (info.Exists
             && known is not null
             && known.RomId == step.Member.RomId
+            && !known.Stale
             && known.SizeBytes == info.Length
             && info.Length == file.SizeBytes
             && known.VerifiedBy != VerifiedBy.None

@@ -1,5 +1,6 @@
 using RomM.Client;
 using RomM.Client.Saves;
+using RomMBat.Core.Content;
 using RomMBat.Core.Identity;
 using RomMBat.Core.Paths;
 using RomMBat.Core.Server;
@@ -399,8 +400,13 @@ public class OfflineSimulationTests
 
         Assert.Empty(store.GameIdBindings.List());
 
-        // Which files RomMBat downloaded is not rebuilt by a sync, so these rows stay.
-        Assert.Equal(2, store.Files.List().Count);
+        // Which files RomMBat downloaded is not rebuilt by a sync, so the rows stay, but a row
+        // naming the old server's rom id must not resolve a game: RomIndex reads the default list.
+        Assert.Equal(2, store.Files.List(includeStale: true).Count);
+        Assert.Equal(LocalFileKind.Firmware, Assert.Single(store.Files.List()).Kind);
+        Assert.Empty(store.Files.ForRom(12));
+        Assert.True(Assert.Single(store.Files.ForRom(12, includeStale: true)).Stale);
+        Assert.Null(RomIndex.Build(store).Find("snes", "Game"));
     }
 
     [Fact]
