@@ -66,6 +66,12 @@ public sealed class BiosManifestTests
         // added namco2x6's two entries and both are hashless, so the distinct-md5 count held.
         Assert.Equal(156, manifest.Requirements.Where(r => r.Md5 is not null).Select(r => r.Md5).Distinct().Count());
         Assert.Equal(174, manifest.Requirements.Count(requirement => requirement.IsUnverifiable));
+
+        // 28, where the 355 entries give 29: triforce's one entry is under emulators/ and is
+        // refused, so it has no requirement left to be unverifiable.
+        Assert.Equal(28, manifest.Requirements
+            .GroupBy(requirement => requirement.System)
+            .Count(system => system.All(requirement => requirement.IsUnverifiable)));
     }
 
     [Fact]
