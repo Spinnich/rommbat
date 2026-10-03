@@ -466,6 +466,7 @@ public sealed class MediaSync
 
         if (known is not null
             && known.RomId == romId
+            && !known.Stale
             && known.Kind == ToFileKind(kind)
             && known.SizeBytes == info.Length)
         {
@@ -575,6 +576,16 @@ public sealed class MediaSync
     {
         var info = new FileInfo(_install.Resolve(target));
 
+        // Only a stale row of this kind and this size, which a server change leaves behind, is
+        // trusted to say the file is ours. A live row with another size is a file the user
+        // replaced at the same name, and that stays adopted.
+        var known = _store.Files.Find(target);
+        var origin = known is { Stale: true, Origin: FileOrigin.Synced }
+            && known.Kind == ToFileKind(kind)
+            && known.SizeBytes == info.Length
+                ? FileOrigin.Synced
+                : FileOrigin.Adopted;
+
         _store.Files.Record(new LocalFile
         {
             Path = target,
@@ -587,9 +598,9 @@ public sealed class MediaSync
             VerifiedAt = _time.GetUtcNow(),
             VerifiedBy = VerifiedBy.Size,
 
-            // Never 'synced'. This is the user's artwork, it does not count against the budget,
-            // and eviction must never remove it.
-            Origin = FileOrigin.Adopted,
+            // Adopted unless RomMBat already owned the path. Adopted artwork is the user's, it
+            // does not count against the budget, and eviction must never remove it.
+            Origin = origin,
         });
     }
 

@@ -258,6 +258,45 @@ public sealed class LocalStore : IDisposable
         }
     }
 
+    /// <summary>
+    /// The tables whose rows name a rom id, which is the old server's numbering once the install
+    /// is pointed at another one. Two are absent on purpose. <c>outbox</c> is refused a server
+    /// change while it holds unsent work, so what remains is delivery history. <c>local_file</c>
+    /// also records which files RomMBat downloaded, which eviction and the byte budget depend on
+    /// and a re-sync cannot rebuild, so its rows are marked stale instead
+    /// (<see cref="LocalFileStore.MarkAllStale"/>) and written afresh as a sync finds each file.
+    /// </summary>
+    internal static readonly IReadOnlyList<string> ServerKeyedTables =
+    [
+        "save_slot", "save_conflict", "local_save", "local_state", "game_id_binding",
+        "content_download", "rom_metadata", "sync_set_member", "save_conversion", "pending_config",
+    ];
+
+    /// <summary>
+    /// Forgets every row keyed on the old server's rom ids, for an install pointed at another one.
+    /// </summary>
+    /// <remarks>
+    /// Runs inside the caller's transaction, so a pairing that fails after it keeps every row.
+    /// Files on disk stay, and so do their <c>local_file</c> rows, marked stale so nothing resolves
+    /// a game through the old rom id until a sync finds the file again. Sync set definitions stay
+    /// too, since a filter is the user's choice.
+    /// </remarks>
+    public void ForgetServerKeyedRows()
+    {
+        Files.MarkAllStale();
+
+        foreach (var table in ServerKeyedTables)
+        {
+            // A binding with a null rom_id records that nothing resolved the key against the
+            // old library, which is as stale as one that did.
+            var sql = table == "game_id_binding"
+                ? "DELETE FROM game_id_binding;"
+                : $"DELETE FROM {table} WHERE rom_id IS NOT NULL;";
+            using var command = _connection.Command(sql);
+            command.ExecuteNonQuery();
+        }
+    }
+
     /// <summary>Closes the connection, blocking until no other thread is inside it.</summary>
     /// <remarks>
     /// <b>Disposal is ordered by <see cref="StoreGate"/> like every other use of the connection,

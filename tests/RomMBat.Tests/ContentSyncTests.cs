@@ -473,6 +473,57 @@ public sealed class ContentSyncTests : IDisposable
         Assert.Equal(0, new ContentPlanner(install, store).ManagedBytes());
     }
 
+    [Theory]
+    [InlineData(true, FileOrigin.Synced)]
+    [InlineData(false, FileOrigin.Adopted)]
+    public async Task A_stale_row_keeps_a_matching_file_synced_but_a_live_one_leaves_it_adopted(
+        bool stale,
+        FileOrigin expected)
+    {
+        using var stub = Library(1);
+        using var store = LocalStore.Open(_tree.Install());
+        var install = _tree.Install();
+
+        await ResolveAsync(stub, store, cancellationToken: TestContext.Current.CancellationToken);
+
+        var member = Members(store).Single();
+        var path = ContentPlanner.TargetFor(member);
+        var target = install.Resolve(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+        File.WriteAllBytes(target, stub.Content[member.RomId]);
+
+        // What a server change leaves behind: RomMBat's own row, naming a rom id that is now
+        // someone else's.
+        store.Files.Record(new LocalFile
+        {
+            Path = path,
+            Folder = member.Folder!,
+            RomId = member.RomId + 1000,
+            FileName = member.FsName,
+            SizeBytes = stub.Content[member.RomId].Length,
+            Origin = FileOrigin.Synced,
+        });
+
+        if (stale)
+        {
+            store.Files.MarkAllStale();
+        }
+
+        var plan = new ContentPlanner(install, store).Plan(Set(store), Members(store));
+        Assert.Equal(ContentAction.Adopt, Assert.Single(plan.Steps).Action);
+
+        using var connection = Connect(stub);
+        await new ContentSync(install, store, connection).ApplyAsync(
+            plan,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var recorded = Assert.Single(store.Files.List());
+        Assert.Equal(member.RomId, recorded.RomId);
+        Assert.Equal(expected, recorded.Origin);
+        Assert.False(recorded.Stale);
+        Assert.Empty(stub.ContentRequests);
+    }
+
     [Fact]
     public async Task A_rom_the_server_publishes_no_hash_for_is_adopted_on_size_and_stays_adopted()
     {

@@ -138,7 +138,7 @@ public sealed class InventorySweep
     /// </param>
     public InventoryReport Plan(IProgress<(int Done, int Total)>? progress = null)
     {
-        var rows = _store.Files.List();
+        var rows = _store.Files.List(includeStale: true);
         var saves = _store.Saves.List();
         var total = rows.Count + saves.Count;
         var missing = new List<LocalFile>();

@@ -258,7 +258,7 @@ public sealed class BiosPlanner
         var floor = _store.Settings.GetInt64(SettingStore.FreeSpaceFloorBytes)
             ?? SettingStore.DefaultFreeSpaceFloorBytes;
 
-        var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
+        var managed = _store.Files.List(includeStale: true).Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
         var free = _limits.AvailableFreeBytes;
         var steps = new List<BiosStep>();
 

@@ -280,7 +280,7 @@ public sealed class ContentPlanner
     public long ManagedBytes()
     {
         var total = 0L;
-        foreach (var file in _store.Files.List())
+        foreach (var file in _store.Files.List(includeStale: true))
         {
             if (file.Origin == FileOrigin.Synced)
             {
@@ -414,6 +414,7 @@ public sealed class ContentPlanner
         // this ROM, and the disk still agrees about its size and modification time.
         if (known is not null
             && known.RomId == member.RomId
+            && !known.Stale
             && known.SizeBytes == info.Length
             && known.VerifiedBy != VerifiedBy.None
             && (known.ModifiedUtc is not { } recordedTime

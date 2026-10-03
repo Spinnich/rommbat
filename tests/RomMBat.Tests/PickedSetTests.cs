@@ -288,6 +288,25 @@ public sealed class PickedSetTests : IDisposable
     }
 
     [Fact]
+    public void A_stale_row_under_a_reused_rom_id_takes_no_claim_from_the_game_that_now_holds_it()
+    {
+        var picked = new PickedSetService(_session);
+        picked.Pick(Row(11, "Chrono Trigger"), Now);
+
+        // The old server's game 11, left stale by a server change, then the new server's.
+        SeedFile(11, "snes", "old-game.sfc", 1_024);
+        _session.Store.Files.MarkAllStale();
+        SeedFile(11, "snes", "chrono.sfc", 2_048);
+
+        var plan = new EvictionPlanner(_session.Store).Plan(bytesToFree: long.MaxValue);
+
+        var stale = Assert.Single(plan.Selected, candidate => candidate.File.Stale);
+        var live = Assert.Single(plan.Selected, candidate => !candidate.File.Stale);
+        Assert.Equal(EvictionReason.Orphaned, stale.Reason);
+        Assert.NotEqual(EvictionReason.Orphaned, live.Reason);
+    }
+
+    [Fact]
     public void The_picked_scope_is_offered_and_not_pickable_with_the_reason_on_the_row()
     {
         var option = Assert.Single(

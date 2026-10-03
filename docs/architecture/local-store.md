@@ -23,7 +23,7 @@ tables, as the latest migration leaves them:
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `device`           | Singleton: the `client_device_identifier` GUID, server origin, RomM `device_id`, granted scopes, the token                         |
 | `local_sequence`   | Singleton: the monotonic counter the outbox and journal share                                                                      |
-| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced or adopted          |
+| `local_file`       | Relative path, resolved folder, `rom_id`, **what kind of file it is**, size, md5, mtime, last verified, synced/adopted, stale flag |
 | `sync_set`         | Name, scope kind and parameters, policy (max games, max bytes, ordering, eviction)                                                 |
 | `sync_set_member`  | Resolved membership per set, with departed members kept so drift between runs is visible, and whether RomM serves each as one file |
 | `platform_map`     | Resolved folder per RomM platform, and **which layer resolved it**                                                                 |

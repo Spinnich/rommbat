@@ -172,7 +172,7 @@ public sealed class EvictionPlanner
             return 0;
         }
 
-        var managed = _store.Files.List().Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
+        var managed = _store.Files.List(includeStale: true).Where(file => file.Origin == FileOrigin.Synced).Sum(file => file.SizeBytes);
         return Math.Max(0, managed - cap);
     }
 
@@ -263,7 +263,8 @@ public sealed class EvictionPlanner
         var selected = new List<EvictionCandidate>();
         var refused = new List<EvictionCandidate>();
 
-        foreach (var candidate in Candidates(releasing).Where(candidate => wanted.Contains(candidate.File.RomId ?? 0)))
+        foreach (var candidate in Candidates(releasing)
+            .Where(candidate => !candidate.File.Stale && wanted.Contains(candidate.File.RomId ?? 0)))
         {
             // Named before the guard is asked, because "another set still wants this" is a
             // better answer than an unsent save when both are true: the second is temporary
@@ -456,35 +457,42 @@ public sealed class EvictionPlanner
     {
         // Only what RomMBat downloaded. An adopted file is the user's own and is never a
         // candidate, which is also why it never counted towards the budget.
-        var synced = _store.Files.List()
+        var synced = _store.Files.List(includeStale: true)
             .Where(file => file.Origin == FileOrigin.Synced && file.RomId is not null)
             .ToList();
 
+        // Stale rows are grouped apart from live ones. Their rom id belongs to a server this
+        // install left and may now be another game's, so they take no set's claim and their
+        // artwork is matched only against each other.
         var files = synced
             .Where(file => file.Kind == LocalFileKind.Rom)
-            .GroupBy(file => file.RomId!.Value)
+            .GroupBy(file => (RomId: file.RomId!.Value, file.Stale))
             .ToDictionary(
                 group => group.Key,
                 group => (IReadOnlyList<LocalFile>)[.. group.OrderBy(file => file.Path.Value, StringComparer.Ordinal)]);
 
         var media = synced
             .Where(file => file.Kind != LocalFileKind.Rom)
-            .GroupBy(file => file.RomId!.Value)
+            .GroupBy(file => (RomId: file.RomId!.Value, file.Stale))
             .ToDictionary(group => group.Key, group => (IReadOnlyList<LocalFile>)[.. group]);
 
-        var claims = Claims(files.Keys, releasing);
+        var claims = Claims([.. files.Keys.Where(key => !key.Stale).Select(key => key.RomId)], releasing);
         var candidates = new List<EvictionCandidate>();
 
-        foreach (var (romId, copies) in files)
+        foreach (var (key, copies) in files)
         {
-            claims.TryGetValue(romId, out var claim);
+            var claim = default((string? SetName, MemberState State, int? Position));
+            if (!key.Stale)
+            {
+                claims.TryGetValue(key.RomId, out claim);
+            }
 
             for (var index = 0; index < copies.Count; index++)
             {
                 candidates.Add(new EvictionCandidate
                 {
                     File = copies[index],
-                    Media = MediaFor(media.GetValueOrDefault(romId, []), copies, index),
+                    Media = MediaFor(media.GetValueOrDefault(key, []), copies, index),
                     Reason = claim.SetName is null
                         ? EvictionReason.Orphaned
                         : claim.State == MemberState.Member

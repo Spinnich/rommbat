@@ -175,6 +175,16 @@ public sealed record LocalFile
     public VerifiedBy VerifiedBy { get; init; } = VerifiedBy.None;
 
     public FileOrigin Origin { get; init; } = FileOrigin.Synced;
+
+    /// <summary>
+    /// True when <see cref="RomId"/> names a game on a server this install has left.
+    /// </summary>
+    /// <remarks>
+    /// The row still says what RomMBat downloaded, which eviction and the byte budget need, but
+    /// nothing may resolve a game through the id: a rebuilt server reuses them. A sync that
+    /// finds the file again records it afresh, which clears this.
+    /// </remarks>
+    public bool Stale { get; init; }
 }
 
 /// <summary>
@@ -190,7 +200,7 @@ public sealed class LocalFileStore
 {
     private const string SelectColumns = """
         SELECT id, relative_path, folder, rom_id, file_name, size_bytes, md5_hash,
-               hash_scope, mtime_utc, verified_at, verified_by, origin, kind
+               hash_scope, mtime_utc, verified_at, verified_by, origin, kind, stale
         FROM local_file
         """;
 
@@ -224,7 +234,8 @@ public sealed class LocalFileStore
               mtime_utc   = excluded.mtime_utc,
               verified_at = excluded.verified_at,
               verified_by = excluded.verified_by,
-              origin      = excluded.origin
+              origin      = excluded.origin,
+              stale       = 0
             RETURNING id;
             """)
             .With("$path", file.Path.Value)
@@ -241,6 +252,16 @@ public sealed class LocalFileStore
             .With("$kind", KindText(file.Kind));
 
         return file with { Id = Convert.ToInt64(command.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture) };
+    }
+
+    /// <summary>Marks every row that names a rom id as belonging to a server this install left.</summary>
+    /// <returns>How many rows were marked.</returns>
+    public int MarkAllStale()
+    {
+        using var command = _connection.Command(
+            "UPDATE local_file SET stale = 1 WHERE rom_id IS NOT NULL AND stale = 0;");
+
+        return command.ExecuteNonQuery();
     }
 
     /// <summary>The file at a path, or null.</summary>
@@ -260,11 +281,12 @@ public sealed class LocalFileStore
     /// <remarks>
     /// Since M4 this is normally several rows, so a caller that means the game itself has to
     /// say so with <paramref name="kind"/>. More than one row of the same kind means the same
-    /// ROM in two folders.
+    /// ROM in two folders. Stale rows name another server's game under this id and are left out
+    /// unless <paramref name="includeStale"/> says the caller is after ownership, not identity.
     /// </remarks>
-    public IReadOnlyList<LocalFile> ForRom(int romId, LocalFileKind? kind = null)
+    public IReadOnlyList<LocalFile> ForRom(int romId, LocalFileKind? kind = null, bool includeStale = false)
     {
-        var filter = kind is null ? string.Empty : " AND kind = $kind";
+        var filter = (kind is null ? string.Empty : " AND kind = $kind") + (includeStale ? string.Empty : " AND stale = 0");
         using var command = _connection
             .Command($"{SelectColumns} WHERE rom_id = $romId{filter} ORDER BY relative_path;")
             .With("$romId", romId);
@@ -299,9 +321,18 @@ public sealed class LocalFileStore
     }
 
     /// <summary>Everything in one folder, or everything when no folder is named.</summary>
-    public IReadOnlyList<LocalFile> List(string? folder = null, LocalFileKind? kind = null)
+    /// <param name="includeStale">
+    /// For a caller that wants what RomMBat owns on disk rather than which game a row is. Stale
+    /// rows are left out otherwise, because their rom id belongs to a server this install left.
+    /// </param>
+    public IReadOnlyList<LocalFile> List(string? folder = null, LocalFileKind? kind = null, bool includeStale = false)
     {
         var clauses = new List<string>();
+        if (!includeStale)
+        {
+            clauses.Add("stale = 0");
+        }
+
         if (folder is not null)
         {
             clauses.Add("folder = $folder COLLATE NOCASE");
@@ -376,7 +407,7 @@ public sealed class LocalFileStore
                 """
                 SELECT COALESCE(SUM(size_bytes), 0)
                 FROM local_file
-                WHERE rom_id IN (
+                WHERE stale = 0 AND rom_id IN (
                   SELECT rom_id FROM sync_set_member WHERE sync_set_id = $setId AND state = 'member'
                 );
                 """)
@@ -414,7 +445,7 @@ public sealed class LocalFileStore
         var names = romIds.Select((_, index) => "$r" + index.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToList();
 
         using var command = _connection.Command(
-            $"SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE rom_id IN ({string.Join(", ", names)});");
+            $"SELECT COALESCE(SUM(size_bytes), 0) FROM local_file WHERE stale = 0 AND rom_id IN ({string.Join(", ", names)});");
 
         var index = 0;
         foreach (var romId in romIds)
@@ -456,7 +487,7 @@ public sealed class LocalFileStore
             $"""
             SELECT rom_id, folder, size_bytes, kind
             FROM local_file
-            WHERE rom_id IN ({string.Join(", ", names)})
+            WHERE stale = 0 AND rom_id IN ({string.Join(", ", names)})
             ORDER BY folder, relative_path;
             """);
 
@@ -519,7 +550,7 @@ public sealed class LocalFileStore
         int limit,
         int offset)
     {
-        var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL" };
+        var clauses = new List<string> { "f.kind = 'rom'", "f.rom_id IS NOT NULL", "f.stale = 0" };
 
         if (!string.IsNullOrWhiteSpace(folder))
         {
@@ -725,5 +756,6 @@ public sealed class LocalFileStore
         VerifiedBy = ParseVerified(reader.GetStringOrNull(10)),
         Origin = ParseOrigin(reader.GetStringOrNull(11)),
         Kind = ParseKind(reader.GetStringOrNull(12)),
+        Stale = reader.GetInt64(13) != 0,
     };
 }

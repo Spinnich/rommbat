@@ -275,6 +275,15 @@ public sealed class ContentSync
         var info = new FileInfo(absolute);
         var fingerprint = ContentHasher.Compute(absolute);
 
+        // Only a stale row of the same size, which a server change leaves behind under the old
+        // rom id, is trusted to say these are the bytes RomMBat downloaded. Losing its origin
+        // would put the file beyond eviction and the budget for good. A live row never is: a
+        // file replaced at the same name is the user's.
+        var known = _store.Files.Find(step.TargetPath);
+        var origin = known is { Stale: true, Origin: FileOrigin.Synced } && known.SizeBytes == info.Length
+            ? FileOrigin.Synced
+            : FileOrigin.Adopted;
+
         _store.Files.Record(new LocalFile
         {
             Path = step.TargetPath,
@@ -288,9 +297,9 @@ public sealed class ContentSync
             VerifiedAt = _time.GetUtcNow(),
             VerifiedBy = VerificationOf(step.Member, fingerprint),
 
-            // Never 'synced'. An adopted file is the user's, it does not count against the
-            // budget, and eviction must never delete it.
-            Origin = FileOrigin.Adopted,
+            // Adopted unless RomMBat already owned the path. An adopted file is the user's, it
+            // does not count against the budget, and eviction must never delete it.
+            Origin = origin,
         });
     }
 
@@ -712,6 +721,7 @@ public sealed class ContentSync
         if (info.Exists
             && known is not null
             && known.RomId == step.Member.RomId
+            && !known.Stale
             && known.SizeBytes == info.Length
             && info.Length == file.SizeBytes
             && known.VerifiedBy != VerifiedBy.None
