@@ -197,6 +197,8 @@ having launched a game on it. If something was skipped, say so and why.
   Non-negotiable.
 - Link the issue: `Fixes #NNNN` for bugs, `Closes #NNNN` for features.
 - Note any change to the minimum supported RomM or RetroBat version.
-- State the version impact, major, minor or patch, as `docs/design/decisions/versioning.md`
-  defines them, so the release that collects the PR can pick its bump. A floor move or a store
-  migration is a minor; a change that makes the user re-pair or redefine sets is a major.
+- One `semver:major`, `semver:minor` or `semver:patch` label, as
+  `docs/design/decisions/versioning.md` defines them, so the release that collects the PR can
+  pick its bump. A floor move or a store migration is a minor; a change that makes the user
+  re-pair or redefine sets is a major; docs and CI are a patch. A major also says in the body
+  what breaks and what the user does about it, for the release notes.

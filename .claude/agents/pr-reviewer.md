@@ -73,8 +73,11 @@ general correctness pass (no `--comment`, no `--fix`), and keep only what surviv
 6. **Scope.** One coherent change, or two? Did it grow past the issue it names?
 7. **AI disclosure** in the body, stating the extent, on `.github/PULL_REQUEST_TEMPLATE.md`.
    Ticked boxes are claims: flag one the diff contradicts.
-8. **Release label.** One type label from `CONTRIBUTING.md`'s "Labels and release notes" table,
-   and the one the diff fits. A missing or wrong one is a nit, not blocking.
+8. **Release labels.** One type label from `CONTRIBUTING.md`'s "Labels and release notes" table
+   and one `semver:*` label, each the one the diff fits by that table and
+   `docs/design/decisions/versioning.md`. A missing or wrong one is a nit, not blocking, apart
+   from a `semver:major` the diff warrants and the PR lacks, which is blocking: a stable release
+   would ship a break as a minor.
 
 ## Earlier rounds
 

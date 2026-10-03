@@ -67,8 +67,8 @@ design is in question, not the code.
 
 - Creates branches and worktrees, opens PRs, comments on them, and pushes to the PR's own branch.
 - Makes a reversible choice inside a PR, and lists it on the PR for your veto.
-- Gives each PR its type label for the release notes (`CONTRIBUTING.md`, "Labels and release
-  notes"), and lists a label it picked for your veto.
+- Gives each PR its type label for the release notes and its `semver:*` label for the bump
+  (`CONTRIBUTING.md`, "Labels and release notes"), and lists a label it picked for your veto.
 - Closes an issue a later commit already fixed, citing that commit.
 - During `/certify`, writes inside the test install's folders for the system being certified,
   after copying them to `probe-output/` first.

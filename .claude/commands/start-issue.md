@@ -64,9 +64,10 @@ new branch off `origin/main`. Never work on main; the pre-push hook refuses it a
 ## PR
 
 Commit in the repo's style: an imperative subject that says what changed and why, the attribution
-trailer, no em-dashes. `git push -u origin HEAD`, then `gh pr create --body-file <file> --label <type>` on
+trailer, no em-dashes. `git push -u origin HEAD`, then `gh pr create --body-file <file> --label <type> --label semver:<impact>` on
 `.github/PULL_REQUEST_TEMPLATE.md`. The type label is the issue's, or one picked from the diff by
-CONTRIBUTING's "Labels and release notes" table; a pick goes under "Decisions for veto". The body has:
+CONTRIBUTING's "Labels and release notes" table; the impact is picked by
+`docs/design/decisions/versioning.md`. Each pick goes under "Decisions for veto". The body has:
 
 - the AI disclosure, stating the extent;
 - `Fixes #$ISSUE` for a bug, `Closes #$ISSUE` for a feature;
