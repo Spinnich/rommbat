@@ -53,7 +53,8 @@ move the pinned OpenAPI schema; the generated DTOs are committed.
 ./tools/publish.ps1 -Deploy D:\retrobat-test # and copy into an install
 ```
 
-This is what CI runs. It writes `publish/rommbat-<version>-win-x64.zip` (`0.1.0-dev` without
+This is what CI runs, with `-Version <VersionPrefix>-ci.<run number>` so every PR takes the
+release's path. It writes `publish/rommbat-<version>-win-x64.zip` (`0.1.0-dev` without
 `-Version`), which extracts at the RetroBat root. `-Deploy` is also what puts `rommbat-hook.exe` and `rommbat-agent.exe` into
 `emulators/rommbat/`, where `hooks install` copies the hook from, so deploy into a fresh tree
 before installing hooks there. What the seven files are and how the script guards them is in
