@@ -23,8 +23,11 @@ an upgrade:
 **Downgrade across a MINOR is unsupported.** A database from a newer build is already refused
 (`offline-and-portable`), and the release notes say so whenever a migration ships.
 
-A PR states its impact (major, minor or patch) in its body, so the release that collects it can
-pick the bump.
+Each PR carries one `semver:major`, `semver:minor` or `semver:patch` label, so the release that
+collects it can pick the bump. A PR that changes nothing a user runs, such as docs or CI, is a
+patch. The release job lists the MAJOR-impact PRs in the draft notes, and refuses a tag at 1.0.0
+or later that is a smaller bump over the previous stable tag than the highest label asks for.
+Under 0.x and for a prerelease it only reports.
 
 ## Path to 1.0
 
@@ -50,5 +53,7 @@ and each release's notes, which open with both floors.
 `Directory.Build.props` holds the next planned version as `VersionPrefix` with suffix `dev` for
 local builds. A release build overrides it with `-p:Version=<tag without the v>`, and
 `PairingService.ClientVersion()` reports the informational version without its `+sha`, so RomM's
-device list shows `0.3.0-beta.1`. Cutting a release is in
+device list shows `0.3.0-beta.1`. The label tally is `tools/release-impact.ps1`. The repository's
+tag ruleset lets only an admin create, move or delete a `v*` tag.
+Cutting a release is in
 [DEVELOPER_SETUP.md](../../../DEVELOPER_SETUP.md#cutting-a-release).

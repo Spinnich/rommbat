@@ -3,10 +3,16 @@ name: Release
 # A pushed v* tag builds the portable zip and opens a DRAFT GitHub release for the maintainer
 # to read and publish. Nothing here publishes or announces anything. The scheme is
 # docs/design/decisions/versioning.md, and the steps to cut one are in DEVELOPER_SETUP.md.
+#
+# A manual run is the dry run: the same steps against the branch it is started on, versioned
+# <VersionPrefix>-dryrun.<run number>, with the zip, its checksum and the notes header uploaded
+# as a workflow artefact instead of a release. It takes no inputs, because an input that reaches
+# the build is what checkov's CKV_GHA_7 forbids.
 
 on:
   push:
     tags: [v*]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,8 +36,17 @@ jobs:
       # version RomM's device list shows.
       - name: Refuse a tag that is not SemVer 2.0.0
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $tag = $env:TAG
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            # No checkout yet, so the prefix comes from the API rather than the working tree.
+            $props = gh api "repos/$env:GITHUB_REPOSITORY/contents/Directory.Build.props?ref=$env:GITHUB_SHA" -H 'Accept: application/vnd.github.raw'
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read Directory.Build.props.' }
+            $prefix = [regex]::Match(($props -join "`n"), '<VersionPrefix>([^<]+)</VersionPrefix>').Groups[1].Value
+            $tag = "v$prefix-dryrun.$env:GITHUB_RUN_NUMBER"
+          }
           $semVer = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
           if ($tag -notmatch $semVer) {
             throw "Tag '$tag' is not vMAJOR.MINOR.PATCH[-pre.N]. Delete it and push a SemVer 2.0.0 tag."
@@ -39,7 +54,10 @@ jobs:
           "VERSION=$($tag.Substring(1))" >> $env:GITHUB_ENV
           "PRERELEASE=$($tag.Contains('-'))" >> $env:GITHUB_ENV
 
+      # The full history and the tags, so the version-impact step can find the previous release.
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
@@ -87,9 +105,29 @@ jobs:
             ''
           ) | Set-Content -Path release-header.md -Encoding utf8
 
+      # Lists the MAJOR-impact PRs for the notes, and refuses a stable tag that undershoots the
+      # highest semver label merged since the previous release.
+      - name: Tally version impact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/release-impact.ps1 -Version $env:VERSION -OutFile release-header.md
+
+      - name: Upload the dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rommbat-${{ env.VERSION }}-dry-run
+          path: |
+            publish/rommbat-*-win-x64.zip
+            publish/rommbat-*-win-x64.zip.sha256
+            release-header.md
+          retention-days: 7
+
       # --generate-notes appends the categorised PR list from .github/release.yml after the
       # header. Created as a draft; the maintainer publishes it.
       - name: Create the draft release
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

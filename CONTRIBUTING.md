@@ -100,7 +100,9 @@ Release notes are generated from the labels on merged PRs, grouped by [.github/r
 | `dependencies`       | A dependency bump. Dependabot applies it                                                             | Dependencies  |
 | `ignore-for-release` | Nothing a reader of the notes would look for, such as a CI tweak or a revert of an unreleased change | Left out      |
 
-A PR with none of these lands under "Other changes". The agent commands label their own PRs: `/start-issue` copies the issue's type label or picks one from the diff, and `/drive-pr` adds one when it is missing. A PR from a fork is labelled by the maintainer, since a fork cannot set labels. `ready-to-merge` and `needs-decision` track a PR's state in the [workflow](docs/contributing/workflow.md) and do not affect the notes.
+Each PR also carries one version-impact label, `semver:major`, `semver:minor` or `semver:patch`, as [versioning](docs/design/decisions/versioning.md) defines them. It picks the release's bump rather than a section, and a docs or CI change is a patch.
+
+A PR with no type label lands under "Other changes". The agent commands label their own PRs: `/start-issue` copies the issue's type label or picks one from the diff and picks the `semver:*` label, and `/drive-pr` adds either when it is missing. A PR from a fork is labelled by the maintainer, since a fork cannot set labels. `ready-to-merge` and `needs-decision` track a PR's state in the [workflow](docs/contributing/workflow.md) and do not affect the notes.
 
 ## Rules that are specific to this project
 

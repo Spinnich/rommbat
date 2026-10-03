@@ -67,8 +67,8 @@ and the row says what that evidence was.
    `gh pr checks $PR`, the ledger, every review comment (`<!-- rommbat-review`), and every
    comment and inline review thread from the maintainer (`issues/<PR>/comments` and
    `pulls/<PR>/comments`) that the ledger or a reply does not already answer. A closed or merged PR: say so and stop.
-   No type label from CONTRIBUTING's "Labels and release notes" table: add the one the diff fits,
-   and list it in the ledger for veto.
+   No type label or no `semver:*` label from CONTRIBUTING's "Labels and release notes": add the
+   one the diff fits, and list it in the ledger for veto.
 2. **Check out.** Work in the PR's branch, in its worktree if one exists (`git worktree list`).
 3. **Behind main?** If the PR conflicts, or main moved under a file it touches, rebase onto
    `origin/main` and `git push --force-with-lease`. Put the old head sha in the ledger so the next
