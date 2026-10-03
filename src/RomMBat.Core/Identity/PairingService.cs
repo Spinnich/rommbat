@@ -151,7 +151,21 @@ public sealed class PairingService
         var expiresAt = ParseExpiry(result.Token.Expires_at);
         var protectedToken = TokenProtector.Protect(result.Token.Access_token, passphrase, expiresAt);
 
-        var changedServer = ChangesServer(connection.Options.Origin, out _);
+        var changedServer = ChangesServer(connection.Options.Origin, out var oldOrigin);
+
+        // RememberServer checked this before the code was shown, but a quit pass can queue an
+        // entry while pairing waits for approval, and it would then be sent to the new server.
+        if (changedServer && _store.Outbox.PendingCount() is > 0 and var pending)
+        {
+            return new PairingCompletion(
+                PairingOutcome.Denied,
+                GrantedScopes.None,
+                null,
+                null,
+                $"{pending} item(s) were queued for {oldOrigin} while pairing waited. "
+                    + "Let them send, or run 'outbox drop --all-pending --apply', then pair again.");
+        }
+
         _store.InTransaction(() =>
         {
             if (changedServer)

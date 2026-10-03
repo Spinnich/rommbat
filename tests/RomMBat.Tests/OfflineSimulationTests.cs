@@ -334,6 +334,27 @@ public class OfflineSimulationTests
     }
 
     [Fact]
+    public async Task An_entry_queued_while_pairing_waited_stops_the_server_change()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var install = tree.Install();
+        using var store = PairedStore(install, "https://old.invalid");
+        var pairing = new PairingService(install, store, new TestTimeProvider(Start));
+        pairing.RememberServer(new Uri("https://new.invalid"));
+        store.Outbox.Enqueue(OutboxKind.PlaySession, Start, romId: 7, payload: "{}");
+
+        using var stub = new StubRomMServer();
+        stub.ThenApproved(RomMScopes.Requested, "device-10");
+        using var connection = new RomMConnection(new RomMClientOptions { Origin = new Uri("https://new.invalid") }, stub);
+        var session = await pairing.BeginAsync(connection, cancellationToken: TestContext.Current.CancellationToken);
+        var completion = await pairing.CompleteAsync(connection, session, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.False(completion.IsPaired);
+        Assert.Single(store.SaveSlots.List());
+        Assert.Equal(new Uri("https://old.invalid"), store.Device.Read()!.ServerOrigin);
+    }
+
+    [Fact]
     public async Task Pairing_again_with_the_same_server_keeps_its_slots()
     {
         using var tree = TempRetroBatTree.Create();

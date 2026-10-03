@@ -71,6 +71,23 @@ public sealed class OutboxCommandTests
     }
 
     [Fact]
+    public async Task Drop_refuses_an_id_beside_all_pending_instead_of_deleting_everything()
+    {
+        using var tree = TempRetroBatTree.Create();
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            store.Outbox.Enqueue(OutboxKind.PlaySession, DateTimeOffset.UtcNow, romId: 1);
+        }
+
+        var run = await AgentRunner.RunAsync(tree, "outbox", "drop", "--all-pending", "5", "--apply");
+        Assert.NotEqual(0, run.ExitCode);
+
+        using var after = LocalStore.Open(tree.Install());
+        Assert.Equal(1, after.Outbox.PendingCount());
+    }
+
+    [Fact]
     public async Task Drop_refuses_an_id_beside_all_failed_instead_of_deleting_everything()
     {
         using var tree = TempRetroBatTree.Create();

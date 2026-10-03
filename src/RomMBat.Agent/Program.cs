@@ -167,7 +167,7 @@ internal static class Program
         Console.Error.WriteLine("  game-start  Record a launch. Journal only, no network");
         Console.Error.WriteLine("  game-end    Close a launch. Journal only, no network");
         Console.Error.WriteLine("  flush       One pass over everything waiting, then exit");
-        Console.Error.WriteLine("  outbox      list | drop the entries the server refused: drop <id> | --all-failed | --all-pending, with --apply");
+        Console.Error.WriteLine("  outbox      list | drop the entries the server refused or never received: drop <id> | --all-failed | --all-pending, with --apply");
         Console.Error.WriteLine("  background  start | quit: the pass an EmulationStation hook spawns. Not for typing");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Options");

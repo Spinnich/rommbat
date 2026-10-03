@@ -65,7 +65,9 @@ internal static class OutboxCommand
 
         if (command.Has("all-pending"))
         {
-            if (command.Has("all-failed") || command.Positional.Count > 1)
+            // A bare flag takes the next word as its value, so `--all-pending 5` must not read as
+            // `--all-pending` alone and delete every unsent entry.
+            if (command.Has("all-failed") || command.Value("all-pending") is not null || command.Positional.Count > 1)
             {
                 return Usage("give --all-pending alone, not with --all-failed or an id");
             }
