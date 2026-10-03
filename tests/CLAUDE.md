@@ -22,7 +22,8 @@ subcommands, in its own project so the agent's Windows manifest stays out of the
   fails the run if one is left in `%TEMP%\rommbat-tests`, naming the test that made it and
   whether it was never disposed, still open, or written to again after its delete. A press that
   pushes a `ListScreen` starts its loader, so a test waits for `IsLoading` to clear before it
-  returns.
+  returns. That only covers a screen begun with `Started()`: one begun with `Enriching()` never
+  sets `IsLoading` and gives a test nothing to wait on, so its loader must not write to disk.
 - **Fixtures are layout, config and logs from a real install, never game content.** A test that
   needs a ROM, BIOS or save records its name, size, md5 and magic bytes and builds a stand-in.
 - **Save-shape and mapping logic is not finished without a fixture.**

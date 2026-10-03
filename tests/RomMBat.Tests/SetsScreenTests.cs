@@ -1221,12 +1221,19 @@ public sealed class SetsScreenTests : IDisposable
     /// </remarks>
     private static async Task Finished(IScreen? pushed)
     {
-        if (pushed is ListScreen loading)
+        try
         {
-            await Wait(() => !loading.IsLoading, attempts: 1_000);
+            if (pushed is ListScreen loading)
+            {
+                await Wait(() => !loading.IsLoading, attempts: 1_000);
+            }
         }
-
-        (pushed as IDisposable)?.Dispose();
+        finally
+        {
+            // Disposed even when the wait gives up, so the timeout is the failure reported and
+            // not a leaked tree at assembly cleanup.
+            (pushed as IDisposable)?.Dispose();
+        }
     }
 
     /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>

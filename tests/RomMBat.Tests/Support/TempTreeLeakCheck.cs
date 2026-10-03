@@ -59,8 +59,8 @@ public sealed class TempTreeLeakCheck : IDisposable
         }
 
         throw new InvalidOperationException(
-            $"{leaked.Count} temporary RetroBat tree(s) outlived the run. A tree was not disposed, or a "
-                + "file inside it was still open when it was:"
+            $"{leaked.Count} temporary RetroBat tree(s) outlived the run. A tree was not disposed, a file "
+                + "inside it was still open when it was, or something wrote to it afterwards:"
                 + Environment.NewLine
                 + string.Join(Environment.NewLine, report));
     }
