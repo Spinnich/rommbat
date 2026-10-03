@@ -115,8 +115,10 @@ else {
 }
 
 Invoke-Gate package {
-    # CI's publish-check job: all three projects, the seven-file set, and the zip.
-    pwsh -NoProfile -File tools/publish.ps1
+    # CI's publish-check job: all three projects, the seven-file set, and the zip, with -Version
+    # as CI and a release pass it.
+    $prefix = [regex]::Match((Get-Content Directory.Build.props -Raw), '<VersionPrefix>([^<]+)</VersionPrefix>').Groups[1].Value
+    pwsh -NoProfile -File tools/publish.ps1 -Version "$prefix-local"
 }
 
 # A linked worktree's .git file and its back-pointer both hold Windows paths, which trunk's

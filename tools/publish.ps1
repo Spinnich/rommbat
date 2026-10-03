@@ -116,7 +116,9 @@ if (-not $NoPublish) {
             Remove-Item $target -Recurse -Force
         }
 
-        $versionArgs = if ($Version) { @("-p:Version=$Version") } else { @() }
+        # Typed, because an if that yields a one-element array yields its element, and splatting a
+        # string passes it one character at a time.
+        [string[]] $versionArgs = if ($Version) { @("-p:Version=$Version") } else { @() }
 
         dotnet publish (Join-Path $repoRoot $project.Path) `
             -c $Configuration -r win-x64 --self-contained `

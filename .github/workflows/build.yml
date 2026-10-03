@@ -69,9 +69,16 @@ jobs:
       # seven files, which is what a trimming or native-asset regression looks like: the hook
       # is the only trimmed project in the tree, and a UI short one native library installs
       # cleanly and fails at launch.
+      #
+      # With -Version, as release.yml calls it, so the path a release takes runs on every PR. The
+      # version is the next planned one with a ci suffix, never one a release would use.
       - name: Publish and package
         shell: pwsh
-        run: ./tools/publish.ps1
+        run: |
+          $props = Get-Content Directory.Build.props -Raw
+          $prefix = [regex]::Match($props, '<VersionPrefix>([^<]+)</VersionPrefix>').Groups[1].Value
+          if (-not $prefix) { throw 'Directory.Build.props has no VersionPrefix.' }
+          ./tools/publish.ps1 -Version "$prefix-ci.$env:GITHUB_RUN_NUMBER"
 
       - name: Upload artefacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
