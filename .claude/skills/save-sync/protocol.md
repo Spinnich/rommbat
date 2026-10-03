@@ -160,8 +160,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   conflict was found, or always for a class C unit, whose restore copies it aside, because the
   local side never reached RomM and nowhere else holds it (#326).
 
-  **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance in
-  M7 stage 7b-3: a keep-local on a psp class C unit created a new save row and left the previous
+  **`overwrite=true` supersedes, it does not replace in place.** Measured on the live instance: a
+  keep-local on a psp class C unit created a new save row and left the previous
   one standing, one second apart. Confirmed on a second shape, class A on `nes`: a keep-local sent
   save 212 and left 210 standing. The flag is what gets past the 409 an ordinary upload earns
   when this device's sync record is stale; it is not an instruction to the server to reuse the
@@ -176,8 +176,8 @@ Part of the [save-sync](SKILL.md) skill. How a slot moves between this device an
   for this one and silently returning `Ok` would read as having resolved it: it exits `Refused`
   and says why.
 
-  **The rule is Core's, not `saves resolve`'s, and that is a boundary rather than tidiness.** M7
-  stage 7b-3 gave the interface a conflict screen, and the UI never referencing `TreeLock` is
+  **The rule is Core's, not `saves resolve`'s, and that is a boundary rather than tidiness.** The
+  interface has a conflict screen too, and the UI never referencing `TreeLock` is
   asserted structurally against the built assembly: a flush treats a failed acquire as success,
   so a second caller taking the lock would make a concurrent `background quit` flush skip its
   upload and call it success. `saves resolve` is a shell over the service and keeps only its
@@ -300,7 +300,7 @@ identical)`. M5 and M6, added at `5.3.0` and answering the same at `5.3.1`, are 
   the device as current on the request rather than on receipt, so a transfer that dies
   mid-body leaves the server sure the device has a save it does not, and the next negotiate
   answers `no_op`. Send `POST /api/saves/{id}/downloaded` only after the bytes are written
-  and verified. Same discipline as M3's `.part`: verify, then commit.
+  and verified. Same discipline as a ROM download's `.part`: verify, then commit.
 - **Decide retention.** Every save upload sends `autocleanup=true&autocleanup_limit=10`.
   **The server prunes every slotted upload whatever the client asks**, keeping the newest by
   `updated_at` then `id` past the **tighter** of `MAX_SAVES_PER_SLOT` (env, 50 by default, `0`

@@ -34,8 +34,7 @@ This file holds the flush and the shapes. The rest is in topic files beside it, 
 
 **One Core service, and both front ends are printers over it.** `Sync/SaveFlushService` composes
 `SpoolDrain`, `PlaytimeCorrelator`, `StateScanner`, `SaveScanner`, `OutboxFlush`, `SaveSync` and
-`StateSync` and returns a `FlushReport`. `flush` was 289 lines welded to `Console` until M7 stage
-7b-2b; what is left in the agent is `--quiet`, the conflict block and the exit-code mapping.
+`StateSync` and returns a `FlushReport`. What the agent's `flush` keeps is `--quiet`, the conflict block and the exit-code mapping.
 **Add a pass to the service, never to a subcommand**, or the gamepad UI silently stops doing it.
 
 Four properties of that pass are rules rather than implementation, and each has a test:

@@ -46,8 +46,8 @@ a per-game setting somebody else wrote.
 `game-selected` and `system-selected` on every navigation move, with no folder for either.
 
 **Write the hook as an `.exe`, never a `.bat`.** RetroBat's own `updatestores.bat` works only
-because it takes no arguments. M0 measured both scripted forms failing to start on ordinary
-rom names, silently and with no error anywhere:
+because it takes no arguments. Both scripted forms fail to start on ordinary
+rom names (RB-396, RB-397), silently and with no error anywhere:
 
 | Form   | Fails when                           | Why                                                                                      |
 | ------ | ------------------------------------ | ---------------------------------------------------------------------------------------- |
@@ -61,7 +61,7 @@ depth**: a hook sits at `.emulationstation/scripts/<event>/`, so three levels up
 four. The agent is four levels up plus `emulators\rommbat\`. Do not rely on the working
 directory; it differs by hook form.
 
-**M0 measured the hook behaviour; do not assume the Batocera convention.** See
+**The hook behaviour is measured; do not assume the Batocera convention.** See
 RB-346 to RB-352. The load-bearing results:
 
 - **Hooks do not block game launch.** The launcher starts ~30 ms after the hook fires,
@@ -82,8 +82,8 @@ RB-346 to RB-352. The load-bearing results:
 - **ES logs its scripting decisions only at `LogLevel=debug`** in `es_settings.cfg`, and
   logs `executing:` even for a process that never starts. Useful for diagnosis, not proof
   of execution.
-- **A host can be unable to run a script at all.** In the M0 portable-move test the tree
-  worked on a second PC while no hook produced anything. Two causes there, both silent:
+- **A host can be unable to run a script at all.** A tree moved to a second PC
+  worked there while no hook produced anything (RB-398, RB-399). Two causes there, both silent:
   **Notepad++'s installer had taken the `.bat` association** (`HKCR\.bat` = `Notepad++_file`),
   and the PowerShell execution policy was the default **`Restricted`**. An `.exe` hook fires
   all four events there. This is the strongest reason the hook is an exe. Detect and report
@@ -91,7 +91,7 @@ RB-346 to RB-352. The load-bearing results:
 - **`game-end` gets none.** It fires without a matching `game-start` for launches that
   **fail**, but a successful ES-menu launch fires **both**: driven live on 8.2.1, RomMBat's own
   menu entry produced a `game-start` carrying `system/es_menu/rommbat.menu` and a `game-end`
-  carrying nothing. M0's "no preceding `game-start`" came from three launches driven by calling
+  carrying nothing. RB-349's lone `game-end` came from three launches driven by calling
   `emulatorLauncher.exe` directly, two of which failed. **So never key the discard on a missing
   `game-start`**: key it on the launcher log's `-system retrobat` with a rom under
   `system\es_menu\`, and discard the paired `game-start` with it. RB-221 and RB-222.

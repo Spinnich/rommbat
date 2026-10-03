@@ -25,7 +25,7 @@ libretro `corename` that front ends reading `retroarch.cfg` produce. `es_savesta
 source, and it is the stronger one because `retroarch.cfg` is regenerated per launch and
 describes only the last game run. RB-216 and RB-217.
 
-**Trust `<file>`, verify `<directory>`.** Across the twelve emulators M0 drove, every `<file>`
+**Trust `<file>`, verify `<directory>`.** Across the twelve emulators driven (RB-368), every `<file>`
 template was correct and one `<directory>` declaration still is not: **`openmsx` writes
 `bios/openmsx/savestates/`**, outside the saves tree entirely, against a declared
 `saves/msx1/openmsx`. So never read an empty declared directory as "this game has no states",

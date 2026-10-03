@@ -12,7 +12,7 @@ option instead. Precedence (`emulatorlauncher/Program.cs`):
 es_settings.cfg -> global.<key> -> <system>.<key> -> <system>["<rom filename>"].<key>
 ```
 
-That last form is a real per-game override, measured in M0: `emulatorlauncher` honours it, it
+That last form is a real per-game override, measured (RB-358): `emulatorlauncher` honours it, it
 outranks the system key, and it affects only its own rom. **Write the rom filename with its
 extension** (`ps2["Game (USA).iso"].pcsx2_slot1_memory`). A bare stem is ignored **silently**,
 so build the key from `fs_name` and never from a stripped name.
@@ -85,8 +85,7 @@ rather than as unread files. RB-193.
 survives (ones ES cannot understand included) and **a key that appears afterwards does not**.
 Driven with ES up: two custom keys merged in atomically and confirmed on disk were gone after
 ES's next write. `Language` proves it is not a merge, because ES added that key itself at
-startup and dropped it again on the same write. M0's nonsense key survived only because it was
-written **before** ES started.
+startup and dropped it again on the same write.
 
 Merging and atomicity do not save you here; both were done and the write still vanished. **ES
 writes twice a session**, at launch as well as on exit, timed against ES's own hook events: the

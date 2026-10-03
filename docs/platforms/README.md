@@ -56,7 +56,7 @@ what passed; a record that only lists successes is not evidence.
 
 Ordered by what each wave introduces, not by generation. Novelty first while the machinery is
 still unproven, then the long tails that repeat a shape already established. Arcade is
-deliberately last: it is the only wave needing the explicit folder-choice decision from M2, and
+deliberately last: it is the only wave needing a person to choose the folder, and
 it carries romset-version coupling nothing else does.
 
 **The systems are named in `es_systems.cfg`'s vocabulary**, which is the one record files are
@@ -172,7 +172,7 @@ Steps 1, 2 and 3 need no emulator running, so they can be batched for a whole wa
 time: the mapping layer, the `<extension>` list and the library's multi-file shapes, and
 `rommbat-agent bios <system>` for all four BIOS states. That stages the record files with six
 of nine steps open, and it means the wave's BIOS gaps are known before a controller is picked
-up. Steps 4 through 9 cannot be staged and are the reason the rollout waited for M7.
+up. Steps 4 through 9 cannot be staged, because each needs a game running.
 
 ### What the bundled data already answers, and what it does not
 
@@ -208,10 +208,9 @@ work. All three counts are against the 51 systems above.
 
 ## Ninety-one rows are certified, and the gate is open
 
-The framework had to work end to end on a single platform first, which is M1 through M6, and
-every pass then needs a person at the machine launching real games, which is what M7's gamepad
-UI is for. Both conditions are met: 7b landed, and a game was launched from EmulationStation
-and came back out through the hooks. The waves finish against an M8 package.
+A pass needs the framework working end to end on a single platform, and a person at the
+machine launching real games through the gamepad UI. Both hold: a game has been launched from
+EmulationStation and came back out through the hooks. The waves finish against an M8 package.
 
 **That one launch is not a certified row**, and `ps2` is not certified by it. The unit is
 `(system, emulator, core)` and the checklist is nine points; a launch is one of them.
@@ -303,13 +302,13 @@ procedure. That is not a certification and must
 not be filed as one, but "the tests pass" and "an emulator wrote this and RomMBat handled it"
 are different claims, and only the second is evidence.
 
-| M6 stage | The one shape to exercise by hand                                     | Done               |
-| -------- | --------------------------------------------------------------------- | ------------------ |
-| 2a       | A save state, across more than one emulator for one game              | **Yes**, see below |
-| 2b       | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **Yes**, see below |
-| 2c       | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
+| Pass           | The one shape to exercise by hand                                     | Done               |
+| -------------- | --------------------------------------------------------------------- | ------------------ |
+| Save state     | A save state, across more than one emulator for one game              | **Yes**, see below |
+| Directory unit | A PPSSPP `SAVEDATA/` directory, and MAME `nvram/` if convenient       | **Yes**, see below |
+| Memory card    | A PS2 battery save after opting that game into a per-game memory card | **Yes**, see below |
 
-**2c, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
+**The memory card, done on `ps2` / Armored Core 3 (USA), PCSX2.** Not a certification: one game, one
 system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
 
 | Step                                       | Result                                                                                  |
@@ -340,7 +339,7 @@ system, steps 4, 6 and 9 only. Results are RB-182 to RB-188.
   game.** The first attempt failed verification against a stale server hash (RB-180),
   which is fixed on the instance now but shaped how this pass ran.
 
-**2b, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
+**The directory unit, done on `psp` / Bust-A-Move - Deluxe (USA), PPSSPP.** Not a certification: one game, one
 system, steps 4 and 9 only. Results are RB-154 to RB-156, RB-158 and RB-159.
 
 | Step                                  | Result                                                                      |
@@ -359,13 +358,13 @@ only an absence, a 409 reported as a failure rather than a conflict, a conflict 
 copy aside, and a resolver whose verification could never pass for an archive. All four are
 fixed and covered.
 
-**Still not done for 2b.** MAME's short-name join is structurally sound and undemonstrated: the
+**Still not done for the directory unit.** MAME's short-name join is structurally sound and undemonstrated: the
 measured install holds 1,231 nvram directories against 3 mame ROMs, so nothing joins. Wii ships
 its grammar on tree structure alone with no game ever launched. And the conflict's server side
 was synthetic, so the emulator-loads-it result rests on that plus the fold rather than on one
 untouched round trip.
 
-**2a, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
+**The save state, done on `mastersystem` / Phantasy Star (Brazil), four emulators.** Not a certification:
 one game, one system, steps 4 and 5 only. Results are RB-134 to RB-137 and RB-139.
 
 | Emulator                     | On disk                                      | Slot                         | Landed |

@@ -32,8 +32,8 @@ artwork leaves it present for the next run to finish. Three fences keep it to th
 writes, each with a test that fails when the fence is removed: only `FileOrigin.Synced` rows,
 never a game that entered as `AlreadyPresent`, and the `local_file` row goes with the bytes.
 
-**A stop is returned, not thrown**, which is 7b-2a's lesson about a cancelled resolve throwing
-away what it found. The run carries on to write gamelists and report the budget, so a stopped
+**A stop is returned, not thrown**, because a cancelled resolve that throws loses what it
+found. The run carries on to write gamelists and report the budget, so a stopped
 sync ends with a correct tree rather than with work postponed.
 
 **A reservation was added, for the ROMs and not for the media.** Interleaving broke the cap:

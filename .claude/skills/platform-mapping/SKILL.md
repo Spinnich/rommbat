@@ -134,7 +134,7 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
 1. **User override** from the mapping screen, keyed by `fs_slug` and persisted in
    `Device.sync_config`. Always wins.
 
-   **The screen exists as of M7 stage 7b-3**, reached from a row on the root menu carrying the
+   **The screen is reached from a row on the root menu** carrying the
    unmapped count, so an unmapped platform is found before a sync is attempted rather than by a
    resolve stopping partway through a collection that happened to hold one of its games. It
    takes no connection: `platform_map` is written by every resolve and every browse, so every
@@ -170,8 +170,8 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
   carrying `fs_slug: fbneo` on an install that has an `fbneo` system resolves there: naming
   the folder is how the person filing the library made the choice. An arcade slug whose
   `fs_slug` names no folder this install has still stops and asks, because which of the seven
-  folders is right depends on the romset and arcade names are romset-versioned. Measured in
-  M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
+  folders is right depends on the romset and arcade names are romset-versioned. Measured on a
+  live install, where refusing regardless stopped a collection resolve
   part way to demand a choice that had already been made.
 - **The bundled table is a seed, not an authority.** It is derived from
   `reference/systems_names.lst` rather than checked against it, so expect drift as both

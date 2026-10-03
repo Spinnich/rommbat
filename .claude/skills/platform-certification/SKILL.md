@@ -41,10 +41,9 @@ in topic files beside it:
 
 ## When to run this
 
-**The gate opened with M7 stage 7b, and it is open now.** Every pass needs a person launching
-real games, and doing that through a terminal instead of the gamepad UI makes a long job longer.
-7b landed and a game was driven from EmulationStation and back through the hooks, which is what
-the gate was waiting on. The waves finish against an M8 package, which is what a user installs.
+**The gate is open.** Every pass needs a person launching real games, through the gamepad UI
+rather than a terminal, which would make a long job longer. A game has been driven from
+EmulationStation and back through the hooks. The waves finish against an M8 package, which is what a user installs.
 That launch certified nothing: it is one of nine points on one row.
 
 **Steps 4, 5 and 6 do not wait**, because they are the ones where being wrong destroys data

@@ -21,7 +21,7 @@ Measurement says: Confirmed live, but the per-game VMU is named for the **disc s
 
 ## RB-362. Flycast VMU: the plan's one unverified class-D case, answered
 
-[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/4fa916583/docs/PLAN.md) line 870 records Dreamcast VMU handling as unverified and assigns it to M0. The
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/4fa916583/docs/PLAN.md) line 870 records Dreamcast VMU handling as unverified. The
 tree answers it:
 
 ```text

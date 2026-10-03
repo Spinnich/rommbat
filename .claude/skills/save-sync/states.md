@@ -90,7 +90,7 @@ it (RB-270). **openMSX's declared directory stayed empty**, so do
 not assume every emulator is mirrored. Do not assume everything beside a state travels either:
 BizHawk's `.State.rap` sibling is native-only and is not recreated on sync-in.
 
-Four traps, all confirmed across the eleven emulators M0 drove:
+Four traps, all confirmed across the eleven emulators driven (RB-360):
 
 - A **`.txt` sidecar** often sits beside the state holding the native basename
   (`UCES00995_1.00`, `SLUS-00404`, `GW7E69`). It is the mapping between the two naming schemes,

@@ -58,7 +58,7 @@ asking for a decision, and neither branch is a default:
 ```
 
 **So `overwrite` means supersede, and the resolver's remark is confirmed on a second shape.** It
-was measured on a `psp` class C unit during 7b-3; this is class A on `nes` and behaves the same.
+was measured on a `psp` class C unit; this is class A on `nes` and behaves the same.
 
 ## The download path works
 

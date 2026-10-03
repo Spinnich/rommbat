@@ -5,8 +5,7 @@ read-when: Changing the sets screens, the filter scope, or how a set made from t
 
 # Sets on the interface
 
-**Per-set caps are not on the interface, which is a change to M2's shape and came from a
-hands-on pass.** A set made from a collection or a platform is usually a mirror of something the
+**Per-set caps are not on the interface, a choice that came from a hands-on pass.** A set made from a collection or a platform is usually a mirror of something the
 user already chose, and capping it to N leaves RomMBat guessing which N; no ordering makes that
 guess good. The bound a person sets is the install-wide disk budget, which already existed and
 which `ContentPlanner` and `EvictionPlanner` already enforce. `sets add` keeps `--max-games`,
@@ -20,8 +19,8 @@ off the common path entirely.
 **A filter scope is a saved search rather than a name match, and it is RomM's whole search.**
 Eleven multi-selects, each with the `any` / `all` / `none` operator RomM's own `*_logic`
 parameters take, and ten yes-or-no properties. The values come from the live library through
-`with_filter_values`, which is the single job that sidecar exists for and which M2 wrote
-`GetFilterValuesAsync` to serve.
+`with_filter_values`, which is the single job that sidecar exists for and the one
+`GetFilterValuesAsync` serves.
 
 **Two of the eleven are not in the sidecar and are not derived from the library.** Statuses are
 a vocabulary the user assigns, taken from the pinned schema's `RomUserStatus`. Metadata
@@ -62,5 +61,5 @@ the same server found none of the sets made from the couch. The push hangs off t
 screen rather than off the save, because creating and editing both land there and it is the one
 place with somewhere to say the push failed. Best effort as everywhere else: its own connection,
 never on the screen's cancellation token, and a failure is a note appended to the result rather
-than an error. Roaming is the mechanism M2 gave set definitions, and the front end with no
+than an error. Roaming is how set definitions reach other devices, and the front end with no
 prompt is the one that needs it most.
