@@ -41,6 +41,53 @@ public sealed class OutboxCommandTests
     }
 
     [Fact]
+    public async Task Drop_all_pending_previews_then_deletes_unsent_entries_and_spares_failed_ones()
+    {
+        using var tree = TempRetroBatTree.Create();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 1);
+            store.Outbox.Enqueue(OutboxKind.PlaySession, now, romId: 2);
+            store.Outbox.MarkFailed(store.Outbox.Pending()[0].Id, "400: refused", now);
+        }
+
+        var preview = await AgentRunner.RunAsync(tree, "outbox", "drop", "--all-pending");
+        Assert.Equal(0, preview.ExitCode);
+        Assert.True(preview.Wrote("--apply"), preview.Out);
+
+        using (var unchanged = LocalStore.Open(tree.Install()))
+        {
+            Assert.Equal(1, unchanged.Outbox.PendingCount());
+        }
+
+        var applied = await AgentRunner.RunAsync(tree, "outbox", "drop", "--all-pending", "--apply");
+        Assert.Equal(0, applied.ExitCode);
+
+        using var after = LocalStore.Open(tree.Install());
+        Assert.Equal(0, after.Outbox.PendingCount());
+        Assert.Equal(1, after.Outbox.FailedCount());
+    }
+
+    [Fact]
+    public async Task Drop_refuses_an_id_beside_all_pending_instead_of_deleting_everything()
+    {
+        using var tree = TempRetroBatTree.Create();
+
+        using (var store = LocalStore.Open(tree.Install()))
+        {
+            store.Outbox.Enqueue(OutboxKind.PlaySession, DateTimeOffset.UtcNow, romId: 1);
+        }
+
+        var run = await AgentRunner.RunAsync(tree, "outbox", "drop", "--all-pending", "5", "--apply");
+        Assert.NotEqual(0, run.ExitCode);
+
+        using var after = LocalStore.Open(tree.Install());
+        Assert.Equal(1, after.Outbox.PendingCount());
+    }
+
+    [Fact]
     public async Task Drop_refuses_an_id_beside_all_failed_instead_of_deleting_everything()
     {
         using var tree = TempRetroBatTree.Create();

@@ -47,13 +47,50 @@ public sealed class PairingService
     /// Records the identity and the server to call, before any pairing is attempted.
     /// </summary>
     /// <returns>The <c>client_device_identifier</c> this install pairs under.</returns>
+    /// <remarks>
+    /// An origin that differs from a paired one means a different or rebuilt RomM, where rom and
+    /// save ids restart or name other games. Unsent outbox rows name the old server's rom ids
+    /// and cannot be dropped silently, so they refuse the change here, before any code is shown.
+    /// The stored origin stays the old one until <see cref="CompleteAsync"/> succeeds, so a
+    /// mistyped URL costs nothing; that is also where the old server's slots are cleared.
+    /// </remarks>
+    /// <exception cref="ServerChangeRefusedException">
+    /// The origin changed while the outbox still holds unsent work.
+    /// </exception>
     public string RememberServer(Uri origin)
     {
+        ArgumentNullException.ThrowIfNull(origin);
+
         var identifier = DeviceIdentity.ReadOrCreate(_install);
         _store.Device.EnsureIdentity(identifier);
+
+        if (ChangesServer(origin, out var paired))
+        {
+            var pending = _store.Outbox.PendingCount();
+            if (pending > 0)
+            {
+                throw new ServerChangeRefusedException(
+                    $"This install is paired with {paired} and holds {pending} unsent item(s) "
+                        + $"that name that server's games. Let them send, or run 'outbox drop --all-pending --apply', "
+                        + $"before pointing at {origin}.");
+            }
+
+            return identifier;
+        }
+
         _store.Device.SaveServerOrigin(origin);
         return identifier;
     }
+
+    private bool ChangesServer(Uri origin, out Uri? paired)
+    {
+        var previous = _store.Device.Read();
+        paired = previous?.ServerOrigin;
+        return previous is { RomMDeviceId: not null } && paired is not null && !SameServer(paired, origin);
+    }
+
+    private static bool SameServer(Uri a, Uri b) =>
+        string.Equals(a.ToString().TrimEnd('/'), b.ToString().TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Starts a pairing request and returns the code and QR target to display.
@@ -114,14 +151,38 @@ public sealed class PairingService
         var expiresAt = ParseExpiry(result.Token.Expires_at);
         var protectedToken = TokenProtector.Protect(result.Token.Access_token, passphrase, expiresAt);
 
-        _store.Device.SavePairing(
-            new PairingResult(
-                connection.Options.Origin,
-                result.Token.Device_id,
-                session.DeviceName,
-                scopes,
-                protectedToken),
-            _time.GetUtcNow());
+        var changedServer = ChangesServer(connection.Options.Origin, out var oldOrigin);
+
+        // RememberServer checked this before the code was shown, but a quit pass can queue an
+        // entry while pairing waits for approval, and it would then be sent to the new server.
+        if (changedServer && _store.Outbox.PendingCount() is > 0 and var pending)
+        {
+            return new PairingCompletion(
+                PairingOutcome.Denied,
+                GrantedScopes.None,
+                null,
+                null,
+                $"{pending} item(s) were queued for {oldOrigin} while pairing waited. "
+                    + "Let them send, or run 'outbox drop --all-pending --apply', then pair again.");
+        }
+
+        _store.InTransaction(() =>
+        {
+            if (changedServer)
+            {
+                _store.SaveSlots.Clear();
+                _store.SaveConflicts.Clear();
+            }
+
+            _store.Device.SavePairing(
+                new PairingResult(
+                    connection.Options.Origin,
+                    result.Token.Device_id,
+                    session.DeviceName,
+                    scopes,
+                    protectedToken),
+                _time.GetUtcNow());
+        });
 
         return new PairingCompletion(
             PairingOutcome.Approved,
@@ -179,3 +240,6 @@ public sealed class PairingService
         return $"Paired, but {degradations.Count} feature(s) are off because the grant was narrowed: {lost}. {expiry}";
     }
 }
+
+/// <summary>The server changed while unsent work still names the old one.</summary>
+public sealed class ServerChangeRefusedException(string message) : Exception(message);

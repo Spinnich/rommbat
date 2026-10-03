@@ -30,7 +30,7 @@ Subcommands
   game-start  Record a launch. Journal only, no network
   game-end    Close a launch. Journal only, no network
   flush       One pass over everything waiting, then exit
-  outbox      list | drop the entries the server refused: drop <id> | --all-failed, with --apply
+  outbox      list | drop the entries the server refused or never received: drop <id> | --all-failed | --all-pending, with --apply
   background  start | quit: the pass an EmulationStation hook spawns. Not for typing
 
 Options
@@ -45,6 +45,7 @@ Options
   --apply           evict, uninstall: actually remove. bios: actually fetch. saves restore:
                     actually write. outbox drop: actually delete. Without it, none of the five writes
   --all-failed      outbox drop: every entry the server refused, instead of one id
+  --all-pending     outbox drop: every unsent entry, when the server it names is gone
   --at-quit         saves convert: make the change when EmulationStation next closes
   --all             bios: every system RetroBat knows, not just the ones with games
   --max <size>      budget: the cap, as 64GB, 500MB or none

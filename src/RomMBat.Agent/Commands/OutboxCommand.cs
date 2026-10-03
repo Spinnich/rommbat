@@ -8,7 +8,9 @@ namespace RomMBat.Agent.Commands;
 /// </summary>
 /// <remarks>
 /// <b>Only a failed entry can be dropped, and only with <c>--apply</c>.</b> A pending one is waiting for the network and a
-/// sent one is already history, so <c>drop</c> names neither. Dropping is the only place a
+/// sent one is already history, so <c>drop</c> names neither. The one exception is
+/// <c>--all-pending</c>, for an install whose server is gone and which cannot be pointed at a new
+/// one while unsent entries name the old one. Dropping is the only place a
 /// queued record is deleted without having reached the server, which is why it says so.
 /// </remarks>
 internal static class OutboxCommand
@@ -61,6 +63,28 @@ internal static class OutboxCommand
     {
         long? id = null;
 
+        if (command.Has("all-pending"))
+        {
+            // A bare flag takes the next word as its value, so `--all-pending 5` must not read as
+            // `--all-pending` alone and delete every unsent entry.
+            if (command.Has("all-failed") || command.Value("all-pending") is not null || command.Positional.Count > 1)
+            {
+                return Usage("give --all-pending alone, not with --all-failed or an id");
+            }
+
+            var pending = outbox.PendingCount();
+            if (!command.Has("apply"))
+            {
+                Console.WriteLine(
+                    $"Would drop {pending} unsent {(pending == 1 ? "entry" : "entries")}, which the server has never seen "
+                    + "and which would then exist only on this device. Run again with --apply to delete.");
+                return pending == 0 ? ExitCode.Refused : ExitCode.Ok;
+            }
+
+            Console.WriteLine($"Dropped {outbox.DropPending()} unsent entries.");
+            return ExitCode.Ok;
+        }
+
         // A bare flag takes the next word as its value, so `--all-failed 5` would read the id as
         // the flag's value and delete every entry. Refuse the mix rather than guess.
         if (command.Has("all-failed") && (command.Value("all-failed") is not null || command.Positional.Count > 1))
@@ -112,6 +136,7 @@ internal static class OutboxCommand
         Console.Error.WriteLine($"rommbat-agent outbox: {message}.");
         Console.Error.WriteLine("  outbox [list]                     entries the server refused");
         Console.Error.WriteLine("  outbox drop <id> | --all-failed --apply   delete refused entries");
+        Console.Error.WriteLine("  outbox drop --all-pending --apply         delete unsent entries, when the server is gone");
         return ExitCode.Usage;
     }
 }

@@ -52,7 +52,10 @@ main menu, lists each feature that is off and the permission it needs.
 A pairing does not last forever. When it runs out, the main menu's pairing row reads
 token expired, and choosing Pair again signs this device back in. You also pair again to
 move this device to a different RomM server. Your games, saves, save states and settings stay
-where they are.
+where they are, but RomMBat forgets what it knew of the old server's saves and any save
+conflicts still open, and asks again on the next sync. It will not switch servers while saves,
+states or play sessions are still waiting to be sent to the old one: let them send, or discard
+them with `rommbat-agent outbox drop --all-pending --apply` when the old server is gone.
 
 ## The pairing on a portable drive
 

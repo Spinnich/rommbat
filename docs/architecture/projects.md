@@ -72,7 +72,7 @@ task.
 | `game-start` | **never**     | Append a start record and exit                                                                         |
 | `game-end`   | **never**     | Close the record. Read the launch facts from `emulatorLauncher.log`, exit                              |
 | `flush`      | yes           | One pass over everything waiting, then exit. The local half works with no server                       |
-| `outbox`     | **never**     | `list` or `drop` the entries the server refused: `drop <id>` or `drop --all-failed`, with `--apply`    |
+| `outbox`     | **never**     | `list` or `drop` the entries not sent: `drop <id>`, `--all-failed` or `--all-pending`, with `--apply`  |
 | `background` | yes           | `start` or `quit`: the pass those two hooks spawn. Not a command anyone types                          |
 | `status`     | only if asked | Report local state; probes the server unless `--offline`. For support and for scripts                  |
 
