@@ -120,7 +120,8 @@ public sealed class EvictionService
     /// Sets whose claim on those games is being given up, because they are what the games are
     /// being removed from. Every other enabled set's claim still holds a game back.
     /// </param>
-    public EvictionReport PreviewRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null)
+    /// <param name="includeStale">Also every stale download, for uninstall. See <see cref="EvictionPlanner.PlanRemoval"/>.</param>
+    public EvictionReport PreviewRemoval(IReadOnlyList<int> romIds, IReadOnlyList<long>? releasing = null, bool includeStale = false)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
@@ -135,7 +136,7 @@ public sealed class EvictionService
 
         return new EvictionReport(
             new PartialSweepPlan(),
-            new EvictionPlanner(_session.Store).PlanRemoval(romIds, releasing),
+            new EvictionPlanner(_session.Store).PlanRemoval(romIds, releasing, includeStale),
             _session.Store.Settings.GetInt64(SettingStore.ContentMaxBytes) is not null);
     }
 
@@ -154,11 +155,17 @@ public sealed class EvictionService
     /// it the only thing that could ever say which game those bytes belong to. The user decides.
     /// </para>
     /// </remarks>
-    public IReadOnlyList<string> Unvouchable(IReadOnlyList<int> romIds)
+    /// <param name="romIds">The games going, whose set membership names their systems.</param>
+    /// <param name="folders">
+    /// Systems to add by folder, for stale downloads, which a server change took out of every set.
+    /// </param>
+    public IReadOnlyList<string> Unvouchable(IReadOnlyList<int> romIds, IEnumerable<string>? folders = null)
     {
         ArgumentNullException.ThrowIfNull(romIds);
 
-        if (romIds.Count == 0)
+        var extra = (folders ?? []).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (romIds.Count == 0 && extra.Count == 0)
         {
             return [];
         }
@@ -176,6 +183,7 @@ public sealed class EvictionService
             .Where(member => wanted.Contains(member.RomId))
             .Select(member => member.Folder)
             .OfType<string>()
+            .Concat(extra)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         return

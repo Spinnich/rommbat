@@ -139,8 +139,12 @@ public sealed class RemovalService
                 .Distinct()
                 .ToList();
 
-            content = eviction.PreviewRemoval(roms, sets);
-            unvouchable = eviction.Unvouchable(roms);
+            // Stale downloads too: their ids belong to a server this install left, so they are
+            // chosen by row rather than by the ids above.
+            content = eviction.PreviewRemoval(roms, sets, includeStale: true);
+            unvouchable = eviction.Unvouchable(
+                roms,
+                content.Plan.Selected.Where(candidate => candidate.File.Stale).Select(candidate => candidate.File.Folder).OfType<string>());
         }
         else
         {

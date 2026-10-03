@@ -214,6 +214,27 @@ public sealed class UninstallTests : IDisposable
         Assert.Empty(Service().Preview(new RemovalScope()).Unvouchable);
     }
 
+    /// <summary>
+    /// The same save is named when the games going are stale downloads, which no set member
+    /// places in a system any more.
+    /// </summary>
+    [Fact]
+    public void Content_names_a_save_in_a_system_whose_only_games_are_stale()
+    {
+        WriteTree("emulationstation/.emulationstation/es_savestates.cfg", File.ReadAllText(Fixtures.EsSaveStatesTemplate));
+        Rom(12, "nes", "StarTropics (USA).zip", FileOrigin.Synced);
+        Member(12, "StarTropics (USA).zip");
+        WriteTree("saves/nes/bizhawk/StarTropics.SaveRAM", "whichever region wrote last");
+
+        // A server change: members go, and the download stays as a stale row.
+        _session.Store.ForgetServerKeyedRows();
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+
+        Assert.Equal("roms/nes/StarTropics (USA).zip", Assert.Single(report.Content!.Plan.Selected).File.Path.Value);
+        Assert.Contains("saves/nes/bizhawk/StarTropics.SaveRAM", report.Unvouchable);
+    }
+
     [Fact]
     public async Task A_gamelist_that_could_not_be_rewritten_is_not_reported_as_success()
     {
@@ -260,6 +281,35 @@ public sealed class UninstallTests : IDisposable
         Assert.True(applied.Ok, applied.Refusal);
         Assert.False(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
         Assert.True(File.Exists(RomOnDisk("snes", "Mine (USA).sfc")));
+    }
+
+    /// <summary>
+    /// A download a server change left stale is still RomMBat's, and content takes it.
+    /// </summary>
+    /// <remarks>
+    /// Selected by its row rather than by rom id, which may now name another game. Its own id
+    /// is reused here by the new server's copy, and both go.
+    /// </remarks>
+    [Fact]
+    public async Task Content_takes_a_download_a_server_change_left_stale()
+    {
+        Rom(7, "snes", "Old Server (USA).sfc", FileOrigin.Synced);
+        Rom(8, "snes", "Mine (USA).sfc", FileOrigin.Adopted);
+        _session.Store.Files.MarkAllStale();
+        Rom(7, "snes", "Chrono Trigger (USA).sfc", FileOrigin.Synced);
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+        Assert.Equal(
+            ["roms/snes/Chrono Trigger (USA).sfc", "roms/snes/Old Server (USA).sfc"],
+            report.Content!.Plan.Selected.Select(candidate => candidate.File.Path.Value).Order(StringComparer.Ordinal));
+
+        var applied = await Service().ApplyAsync(report, TestContext.Current.CancellationToken);
+
+        Assert.True(applied.Ok, applied.Refusal);
+        Assert.False(File.Exists(RomOnDisk("snes", "Old Server (USA).sfc")));
+        Assert.False(File.Exists(RomOnDisk("snes", "Chrono Trigger (USA).sfc")));
+        Assert.True(File.Exists(RomOnDisk("snes", "Mine (USA).sfc")));
+        Assert.Null(_session.Store.Files.Find(RelativePath.Create("roms/snes/Old Server (USA).sfc")));
     }
 
     [Fact]
