@@ -50,11 +50,13 @@ $isStable = -not $Version.Contains('-')
 $new = ConvertTo-Core $Version
 
 # A stable release is measured against the previous stable one, so 1.1.0 after 1.1.0-rc.1 still
-# collects everything since 1.0.0. Anything else is measured against the previous tag of any kind.
-# The tagged commit itself is excluded by starting from its first parent.
+# collects everything since 1.0.0. Anything else, and the first stable release (1.0.0 follows only
+# prereleases), is measured against the previous tag of any kind. The tagged commit itself is
+# excluded by starting from its first parent.
 $describe = @('describe', '--tags', '--abbrev=0', '--match', 'v*')
-if ($isStable) { $describe += @('--exclude', 'v*-*') }
-$previous = git @describe "$Ref^" 2>$null
+$previous = $null
+if ($isStable) { $previous = git @describe --exclude 'v*-*' "$Ref^" 2>$null }
+if (-not $previous) { $previous = git @describe "$Ref^" 2>$null }
 if ($LASTEXITCODE -ne 0 -or -not $previous) {
     Write-Host 'No earlier release tag: this is the first release, so there is nothing to tally.'
     exit 0
@@ -75,8 +77,10 @@ $unlabelled = @()
 foreach ($n in $numbers) {
     $pr = gh pr view $n --json number,title,labels | ConvertFrom-Json
     if ($LASTEXITCODE -ne 0) { throw "gh pr view $n failed." }
-    # Measure-Object returns a double, and a hashtable keyed on 3 does not find 3.0.
-    $impact = [int] ($pr.labels.name | ForEach-Object { $rank[$_] } | Measure-Object -Maximum).Maximum
+    # Per label object, because a PR with no labels makes .labels.name $null, and ForEach-Object
+    # would index the hashtable with it. Measure-Object returns a double, which [int] makes a key
+    # the $names lookup finds.
+    $impact = [int] ($pr.labels | ForEach-Object { $rank[$_.name] } | Measure-Object -Maximum).Maximum
     if (-not $impact) { $unlabelled += $pr; continue }
     if ($impact -gt $highest) { $highest = $impact }
     if ($impact -eq 3) { $majors += $pr }
