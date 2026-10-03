@@ -28,17 +28,12 @@ evict` works with the server off. What it lacks is an interface: RomMBat guessin
   which games matter least is a bad policy even when a person starts it, so freeing space is the
   user's, by dropping a sync set or a single game. Do not go looking for eviction screens.
 
-  **A resolve is long work, measured rather than assumed:** a platform scope of 9,196 roms
-  took **8 minutes 15 seconds** against a live 5.2.0 instance at 250 rows a page. So
-  cancelling it is the ordinary case, not a failure path, and a cancel records its offset
-  exactly as an unreachable server does so the next run continues. Discarding the walk on
-  cancel would make the feature worse than not offering it.
-
-  **The same walk is 22.5 s on 5.3.0-alpha.2**, re-measured at a library grown to 95,993 roms,
-  so on a current server it is no longer a screen anybody sits and watches. **The behaviour
-  does not change on the strength of that.** A resolve is still unbounded work over somebody
-  else's network, a resume still costs nothing, and the reading above is one platform on one
-  server: a slower host, a larger scope or a worse link puts the minutes back.
+  **A resolve is unbounded work over somebody else's network, so a cancel is the ordinary
+  case, not a failure path.** A cancel records its offset exactly as an unreachable server does
+  so the next run continues; discarding the walk on cancel would make the feature worse than not
+  offering it. One platform walk over a library of 95,993 roms measured 22.5 s on
+  5.3.0-alpha.2, but that is one platform on one server: a slower host, a larger scope or a
+  worse link puts minutes back, and a resume costs nothing.
 
 ## Browsing and removing, offline
 
