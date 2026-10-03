@@ -1,11 +1,11 @@
 # Install
 
-RomMBat comes as one zip, `rommbat-win-x64.zip`, which you extract into your RetroBat folder.
+RomMBat comes as one zip, `rommbat-<version>-win-x64.zip`, which you extract into your RetroBat folder.
 There is no installer to run and nothing to install into Windows.
 
 ## Put the files in place
 
-1. Download `rommbat-win-x64.zip` from the
+1. Download the newest `rommbat-<version>-win-x64.zip` from the
    [Releases page](https://github.com/Spinnich/rommbat/releases).
 2. Quit EmulationStation if it is running.
 3. Extract the zip into your RetroBat folder, the one that holds `retrobat.ini` and the `roms`

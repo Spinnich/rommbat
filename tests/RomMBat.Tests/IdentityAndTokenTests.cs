@@ -189,4 +189,24 @@ public class IdentityAndTokenTests
 
         Assert.Throws<TokenUnlockException>(() => pairing.UnlockToken(null));
     }
+
+    [Theory]
+    [InlineData("0.3.0-beta.1+abc1234", "0.3.0-beta.1")]
+    [InlineData("0.1.0-alpha.1", "0.1.0-alpha.1")]
+    [InlineData("1.2.3+sha.5114f85", "1.2.3")]
+    [InlineData("", "0.0.0")]
+    [InlineData(null, "0.0.0")]
+    public void The_reported_client_version_keeps_the_prerelease_and_drops_the_sha(string? informational, string expected)
+    {
+        Assert.Equal(expected, PairingService.StripBuildMetadata(informational));
+    }
+
+    [Fact]
+    public void The_running_build_reports_its_informational_version_without_a_sha()
+    {
+        var reported = PairingService.ClientVersion();
+
+        Assert.DoesNotContain('+', reported);
+        Assert.Matches(@"^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$", reported);
+    }
 }

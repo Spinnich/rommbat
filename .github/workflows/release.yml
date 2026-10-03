@@ -1,0 +1,108 @@
+name: Release
+
+# A pushed v* tag builds the portable zip and opens a DRAFT GitHub release for the maintainer
+# to read and publish. Nothing here publishes or announces anything. The scheme is
+# docs/design/decisions/versioning.md, and the steps to cut one are in DEVELOPER_SETUP.md.
+
+on:
+  push:
+    tags: [v*]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    # The tag reaches the scripts as an environment variable, never pasted into their source:
+    # a git ref name may hold quotes and semicolons, and this runs before the SemVer check.
+    env:
+      TAG: ${{ github.ref_name }}
+
+    steps:
+      # Before the checkout and the build, so a mistyped tag costs seconds. The grammar is
+      # semver.org's own, not a looser "starts with v", because a tag this accepts becomes the
+      # version RomM's device list shows.
+      - name: Refuse a tag that is not SemVer 2.0.0
+        shell: pwsh
+        run: |
+          $tag = $env:TAG
+          $semVer = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
+          if ($tag -notmatch $semVer) {
+            throw "Tag '$tag' is not vMAJOR.MINOR.PATCH[-pre.N]. Delete it and push a SemVer 2.0.0 tag."
+          }
+          "VERSION=$($tag.Substring(1))" >> $env:GITHUB_ENV
+          "PRERELEASE=$($tag.Contains('-'))" >> $env:GITHUB_ENV
+
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build --configuration Release -warnaserror -p:Version=$env:VERSION
+
+      # Same step as build.yml: without it the process-level tests, the rule-4 boundary among
+      # them, skip themselves, and a release would ship on a suite that did not run them.
+      - name: Publish the hook and the agent, so the process-level tests run
+        run: |
+          dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+          dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+
+      - name: Test
+        run: dotnet test --configuration Release --no-build --output Detailed
+
+      - name: Publish and package
+        shell: pwsh
+        run: ./tools/publish.ps1 -Version $env:VERSION
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $zip = Get-Item "publish/rommbat-$env:VERSION-win-x64.zip"
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($zip.Name)" | Set-Content -Path "$($zip.FullName).sha256" -Encoding ascii
+
+      # The floors come from the constants the app enforces at startup, so the notes cannot
+      # name a version the build does not require.
+      - name: Write the release notes header
+        shell: pwsh
+        run: |
+          $romm = [regex]::Match((Get-Content src/RomM.Client/RomMServerVersion.cs -Raw), 'Minimum \{ get; \} = ProductVersion\.Parse\("([^"]+)"\)').Groups[1].Value
+          $retrobat = [regex]::Match((Get-Content src/RomMBat.Core/Diagnostics/RetroBatVersion.cs -Raw), 'Minimum \{ get; \} = ProductVersion\.Parse\("([^"]+)"\)').Groups[1].Value
+          if (-not $romm -or -not $retrobat) {
+            throw 'Could not read the RomM or RetroBat floor from source.'
+          }
+          @(
+            "Requires **RomM $romm** or newer and **RetroBat $retrobat** or newer."
+            ''
+            'Extract the zip into your RetroBat folder.'
+            ''
+          ) | Set-Content -Path release-header.md -Encoding utf8
+
+      # --generate-notes appends the categorised PR list from .github/release.yml after the
+      # header. Created as a draft; the maintainer publishes it.
+      - name: Create the draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ghArgs = @(
+            'release', 'create', $env:TAG,
+            "publish/rommbat-$env:VERSION-win-x64.zip",
+            "publish/rommbat-$env:VERSION-win-x64.zip.sha256",
+            '--draft', '--verify-tag',
+            '--title', $env:TAG,
+            '--notes-file', 'release-header.md',
+            '--generate-notes'
+          )
+          if ($env:PRERELEASE -eq 'True') { $ghArgs += '--prerelease' }
+          gh @ghArgs
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit code $LASTEXITCODE." }
