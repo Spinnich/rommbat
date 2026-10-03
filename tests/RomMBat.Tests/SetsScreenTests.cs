@@ -526,13 +526,16 @@ public sealed class SetsScreenTests : IDisposable
                 var offered = screen.Hints.Any(hint => hint.Action == action);
 
                 var before = Render(screen);
-                var navigated = screen.Handle(action).Kind != ScreenCommandKind.Stay;
+                var command = screen.Handle(action);
+                var navigated = command.Kind != ScreenCommandKind.Stay;
 
                 // "Did something" is navigating **or** changing what the screen shows. The set
                 // editor answers Start on an invalid draft by staying put and saying why, which
                 // is a press that plainly did something, and a test reading only the command
                 // kind would call that a broken promise.
                 var answered = navigated || !Render(screen).SequenceEqual(before, StringComparer.Ordinal);
+
+                await Finished(command.Screen);
 
                 Assert.False(
                     answered && !offered,
@@ -1192,9 +1195,9 @@ public sealed class SetsScreenTests : IDisposable
     }
 
     /// <summary>Waits for a background load to settle, bounded so a hang fails rather than hangs.</summary>
-    private static async Task Wait(Func<bool> until)
+    private static async Task Wait(Func<bool> until, int attempts = 200)
     {
-        for (var attempt = 0; attempt < 200; attempt++)
+        for (var attempt = 0; attempt < attempts; attempt++)
         {
             if (until())
             {
@@ -1205,6 +1208,32 @@ public sealed class SetsScreenTests : IDisposable
         }
 
         Assert.Fail("The load never settled.");
+    }
+
+    /// <summary>Waits out the work a press started, then disposes the screen it pushed.</summary>
+    /// <remarks>
+    /// A press on a removal preview pushes the screen that applies it, and that screen's loader
+    /// evicts the game and rewrites <c>roms/snes/gamelist.xml</c>. Left running, it outlived the
+    /// test and recreated the folder after the tree was deleted, which failed the whole run at
+    /// assembly cleanup on CI. #288. Disposing alone is not enough: the eviction does not stop
+    /// for a cancellation once it has begun. Ten seconds rather than two, because the removal
+    /// writes to disk and then asks EmulationStation to reload, and CI's disk is the slow part.
+    /// </remarks>
+    private static async Task Finished(IScreen? pushed)
+    {
+        try
+        {
+            if (pushed is ListScreen loading)
+            {
+                await Wait(() => !loading.IsLoading, attempts: 1_000);
+            }
+        }
+        finally
+        {
+            // Disposed even when the wait gives up, so the timeout is the failure reported and
+            // not a leaked tree at assembly cleanup.
+            (pushed as IDisposable)?.Dispose();
+        }
     }
 
     /// <summary>A new-set editor with the filter scope chosen, driven the way a person does it.</summary>

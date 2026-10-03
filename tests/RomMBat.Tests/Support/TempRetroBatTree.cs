@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using RomMBat.Core.Paths;
+using Xunit;
 
 namespace RomMBat.Tests.Support;
 
@@ -12,12 +13,18 @@ namespace RomMBat.Tests.Support;
 /// </remarks>
 internal sealed class TempRetroBatTree : IDisposable
 {
-    private static readonly ConcurrentDictionary<string, byte> Created = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, TreeRecord> Created = new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly TreeRecord _record;
 
     private TempRetroBatTree(string root)
     {
         Root = root;
-        Created.TryAdd(root, 0);
+
+        // Taken here because the leak check runs after every test has finished, when xunit
+        // reports a failure against whichever tests were last rather than the one that leaked.
+        _record = new TreeRecord(TestContext.Current.Test?.TestDisplayName ?? "no test");
+        Created.TryAdd(root, _record);
     }
 
     /// <summary>Every tree created in this run, for <see cref="TempTreeLeakCheck"/>.</summary>
@@ -71,15 +78,46 @@ internal sealed class TempRetroBatTree : IDisposable
             {
                 Directory.Delete(Root, recursive: true);
             }
+
+            _record.Disposal = TreeDisposal.Deleted;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            _record.Disposal = TreeDisposal.Failed;
+            _record.Problem = ex.Message;
+
             // A test leaving a file handle open must not turn into a failure in teardown.
             // Windows reports a still-mapped native library as ERROR_ACCESS_DENIED, which
             // surfaces from RemoveDirectoryRecursive as UnauthorizedAccessException and not
             // as IOException, so catching only the latter misses the case this exists for.
             // TempTreeLeakCheck reports the leftover once the run ends.
         }
+    }
+
+    /// <summary>
+    /// Who made the tree at <paramref name="root"/>, and what its disposal found, as one line.
+    /// </summary>
+    /// <remarks>
+    /// The three outcomes need three different fixes. A tree deleted cleanly and back on disk
+    /// afterwards was written to by work its test started and never waited for, since
+    /// <c>GamelistDocument</c> and most writers create the folders they
+    /// write into.
+    /// </remarks>
+    internal static string Explain(string root)
+    {
+        if (!Created.TryGetValue(root, out var record))
+        {
+            return "not made by TempRetroBatTree";
+        }
+
+        var outcome = record.Disposal switch
+        {
+            TreeDisposal.Deleted => "deleted at disposal, then written to again by work the test did not wait for",
+            TreeDisposal.Failed => $"still open at disposal: {record.Problem}",
+            _ => "never disposed",
+        };
+
+        return $"made by {record.Owner}; {outcome}";
     }
 
     private static void CopyDirectory(string source, string destination)
@@ -96,4 +134,21 @@ internal sealed class TempRetroBatTree : IDisposable
             CopyDirectory(directory, Path.Combine(destination, Path.GetFileName(directory)));
         }
     }
+}
+
+internal enum TreeDisposal
+{
+    NotYet,
+    Deleted,
+    Failed,
+}
+
+internal sealed class TreeRecord(string owner)
+{
+    public string Owner { get; } = owner;
+
+    // Written by the disposing test and read by the leak check after the run, never together.
+    public TreeDisposal Disposal { get; set; }
+
+    public string? Problem { get; set; }
 }
