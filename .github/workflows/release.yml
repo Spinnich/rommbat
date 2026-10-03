@@ -3,10 +3,19 @@ name: Release
 # A pushed v* tag builds the portable zip and opens a DRAFT GitHub release for the maintainer
 # to read and publish. Nothing here publishes or announces anything. The scheme is
 # docs/design/decisions/versioning.md, and the steps to cut one are in DEVELOPER_SETUP.md.
+#
+# A manual run is the dry run: the same steps against the branch it is started on, with the
+# zip, its checksum and the notes header uploaded as a workflow artefact instead of a release.
 
 on:
   push:
     tags: [v*]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag the dry run pretends to be, such as v0.1.0-alpha.1
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -22,7 +31,7 @@ jobs:
     # The tag reaches the scripts as an environment variable, never pasted into their source:
     # a git ref name may hold quotes and semicolons, and this runs before the SemVer check.
     env:
-      TAG: ${{ github.ref_name }}
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
     steps:
       # Before the checkout and the build, so a mistyped tag costs seconds. The grammar is
@@ -39,7 +48,10 @@ jobs:
           "VERSION=$($tag.Substring(1))" >> $env:GITHUB_ENV
           "PRERELEASE=$($tag.Contains('-'))" >> $env:GITHUB_ENV
 
+      # The full history and the tags, so the version-impact step can find the previous release.
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
@@ -87,9 +99,29 @@ jobs:
             ''
           ) | Set-Content -Path release-header.md -Encoding utf8
 
+      # Lists the MAJOR-impact PRs for the notes, and refuses a stable tag that undershoots the
+      # highest semver label merged since the previous release.
+      - name: Tally version impact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./tools/release-impact.ps1 -Version $env:VERSION -OutFile release-header.md
+
+      - name: Upload the dry run
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rommbat-${{ env.VERSION }}-dry-run
+          path: |
+            publish/rommbat-*-win-x64.zip
+            publish/rommbat-*-win-x64.zip.sha256
+            release-header.md
+          retention-days: 7
+
       # --generate-notes appends the categorised PR list from .github/release.yml after the
       # header. Created as a draft; the maintainer publishes it.
       - name: Create the draft release
+        if: github.event_name == 'push'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

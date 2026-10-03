@@ -63,17 +63,26 @@ before installing hooks there. What the seven files are and how the script guard
 
 The scheme is SemVer 2.0.0 ([versioning](docs/design/decisions/versioning.md)).
 
-1. Pick the bump from the PRs merged since the last tag: any MAJOR-impact PR makes a MAJOR, any
-   MINOR one a MINOR, otherwise a PATCH. Under 0.x the prerelease counter moves instead
-   (`0.2.0-alpha.1`, `-alpha.2`, `-beta.1`).
-2. Add the release's row to `wiki/reference/compatibility.md`, replacing `unreleased` for the
-   first one, and move `VersionPrefix` in `Directory.Build.props` to the next planned version.
-3. Tag the merge commit and push the tag: `git tag v0.2.0-alpha.1 && git push origin v0.2.0-alpha.1`.
-4. `release.yml` refuses a tag that is not `vMAJOR.MINOR.PATCH[-pre.N]`, builds, tests, packages,
+1. Pick the bump from the `semver:*` labels on the PRs merged since the last tag: any
+   `semver:major` makes a MAJOR, any `semver:minor` a MINOR, otherwise a PATCH. Under 0.x the
+   prerelease counter moves instead (`0.2.0-alpha.1`, `-alpha.2`, `-beta.1`).
+   `./tools/release-impact.ps1 -Version <version>` prints the tally.
+2. In a PR, add the release's row to `wiki/reference/compatibility.md`, replacing `unreleased` for
+   the first one, and move `VersionPrefix` in `Directory.Build.props` to the next planned version.
+3. Optionally, dry-run it once that PR merges: `gh workflow run release.yml -f tag=v0.2.0-alpha.1`
+   runs every step below against `main` and uploads the zip, its `.sha256` and the notes header as
+   a workflow artefact, creating no tag or release.
+4. Tag the merge commit and push the tag: `git tag v0.2.0-alpha.1 && git push origin v0.2.0-alpha.1`.
+   The repository's tag ruleset lets only an admin create, move or delete a `v*` tag. Delete a
+   tag the workflow refuses; once a release is published, fix a mistake with a new version.
+5. `release.yml` refuses a tag that is not `vMAJOR.MINOR.PATCH[-pre.N]`, builds, tests, packages,
    and creates a **draft** release with the zip, its `.sha256` and generated notes, a prerelease
-   when the tag has a suffix. The notes open with the RomM and RetroBat floors.
-5. Read the draft. If the release ships a store migration, add a line saying an older build
-   cannot open the upgraded database. Then publish it. Nothing is announced upstream automatically.
+   when the tag has a suffix. The notes open with the RomM and RetroBat floors, then the
+   version-impact tally. From 1.0.0 it refuses a stable tag whose bump undershoots the highest
+   `semver:*` label, before creating anything.
+6. Read the draft. Replace the tally with a line per MAJOR-impact PR saying what it breaks and what
+   to do, and if the release ships a store migration, add a line saying an older build cannot
+   open the upgraded database. Then publish it. Nothing is announced upstream automatically.
 
 ---
 
