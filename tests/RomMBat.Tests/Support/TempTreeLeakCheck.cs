@@ -11,9 +11,12 @@ namespace RomMBat.Tests.Support;
 /// </summary>
 /// <remarks>
 /// Teardown stays lenient so one open handle does not fail an unrelated test, and this is what
-/// stops that leniency hiding a leak. The two causes found so far: a tree nobody disposed, and a
-/// raw <see cref="SqliteConnection"/> left pooled, which keeps <c>rommbat.db</c> open after its
-/// <c>using</c> ends. Open raw connections with <c>Pooling=False</c>, as the store does.
+/// stops that leniency hiding a leak. Each tree is reported with the test that made it and what
+/// its disposal found, because xunit pins the failure on whichever tests ran last. The causes
+/// found so far: a tree nobody disposed; a raw <see cref="SqliteConnection"/> left pooled, which
+/// keeps <c>rommbat.db</c> open after its <c>using</c> ends (open raw connections with
+/// <c>Pooling=False</c>, as the store does); and a screen's loader still writing after its test
+/// returned.
 /// <para>
 /// The leftovers are deleted before the failure is raised, so a leaking run still leaves the
 /// temp directory clean.
@@ -33,7 +36,10 @@ public sealed class TempTreeLeakCheck : IDisposable
 
         // The MTP adapter repeats a cleanup failure against every test in the run, so the message
         // names a few trees rather than all of them.
-        var report = leaked.Take(ReportedTrees).Select(root => $"  {root}: {Describe(root)}").ToList();
+        var report = leaked
+            .Take(ReportedTrees)
+            .Select(root => $"  {root}: {Describe(root)}{Environment.NewLine}    {TempRetroBatTree.Explain(root)}")
+            .ToList();
         if (leaked.Count > ReportedTrees)
         {
             report.Add($"  and {leaked.Count - ReportedTrees} more");
@@ -59,7 +65,7 @@ public sealed class TempTreeLeakCheck : IDisposable
                 + string.Join(Environment.NewLine, report));
     }
 
-    private static string Describe(string root)
+    internal static string Describe(string root)
     {
         var files = Directory
             .EnumerateFiles(root, "*", SearchOption.AllDirectories)

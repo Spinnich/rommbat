@@ -18,8 +18,11 @@ subcommands, in its own project so the agent's Windows manifest stays out of the
   a clone with no server runs green.
 - **Offline behaviour is tested through `StubRomMServer`'s unreachable mode**, which throws
   what `SocketsHttpHandler` throws on a connect timeout. Do not fake it with a cancellation.
-- **A temp tree must be disposed.** `TempTreeLeakCheck` fails the run if one is left in
-  `%TEMP%\rommbat-tests`.
+- **A temp tree must be disposed, and nothing may still be writing to it.** `TempTreeLeakCheck`
+  fails the run if one is left in `%TEMP%\rommbat-tests`, naming the test that made it and
+  whether it was never disposed, still open, or written to again after its delete. A press that
+  pushes a `ListScreen` starts its loader, so a test waits for `IsLoading` to clear before it
+  returns.
 - **Fixtures are layout, config and logs from a real install, never game content.** A test that
   needs a ROM, BIOS or save records its name, size, md5 and magic bytes and builds a stand-in.
 - **Save-shape and mapping logic is not finished without a fixture.**
