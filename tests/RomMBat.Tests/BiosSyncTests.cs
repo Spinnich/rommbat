@@ -128,6 +128,53 @@ public sealed class BiosSyncTests : IDisposable
         Assert.Empty(stub.FirmwareRequests);
     }
 
+    [Fact]
+    public async Task A_zip_hashed_as_a_different_archive_is_named_but_never_fetched()
+    {
+        // RomM hashes a firmware zip as its container (RM-28), and the library's neogeo.zip is
+        // c74b8945... where RetroBat wants dffb72f1... Neither side says what is inside, so the
+        // same-named archive is pointed at and the md5 join still decides what is fetched.
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "neogeo", "neogeo", "Neo Geo")
+        {
+            Firmware = [new StubFirmware(7, "neogeo.zip", Content("neogeo.zip"))],
+        });
+
+        var manifest = Manifest(("neogeo", "dffb72f116d36d025068b23970a4f6df", "bios/neogeo.zip"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.MissingFromLibrary, step.Action);
+        Assert.Null(step.Match);
+        Assert.Equal(7, step.SameName?.Id);
+        Assert.Contains("neogeo.zip", step.Reason, StringComparison.Ordinal);
+        Assert.Equal(0, plan.DownloadCount);
+        Assert.Empty(stub.FirmwareRequests);
+    }
+
+    [Fact]
+    public async Task A_plain_file_under_the_same_name_with_another_md5_is_not_pointed_at()
+    {
+        // Outside an archive a different md5 is different bytes, so the name says nothing.
+        using var stub = new StubRomMServer();
+        stub.Platforms.Add(new StubPlatform(1, "saturn", "saturn", "Saturn")
+        {
+            Firmware = [new StubFirmware(1, "saturn_bios.bin", Content("saturn_bios.bin"))],
+        });
+
+        var manifest = Manifest(("saturn", "af5828fdff51384f99b3c4926be27762", "bios/saturn_bios.bin"));
+
+        using var store = LocalStore.Open(_tree.Install());
+        var plan = await PlanAsync(stub, store, manifest, cancellationToken: TestContext.Current.CancellationToken);
+
+        var step = Assert.Single(plan.Steps);
+        Assert.Equal(BiosAction.MissingFromLibrary, step.Action);
+        Assert.Null(step.SameName);
+        Assert.Null(step.Reason);
+    }
+
     // ------------------------------------------------------------------ one hash, several paths
 
     [Fact]
