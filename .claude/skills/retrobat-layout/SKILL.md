@@ -67,7 +67,7 @@ So the rules here are stricter than under `roms/`:
 - **Destination paths go six segments deep** and one md5 can owe three of them
   (`coleco.rom`, `colecovision.rom`, `openMSX/share/systemroms/coleco.rom`). The path is the
   key; the md5 is not.
-- **174 of the 348 requirements carry no md5 at all**, and 29 systems have nothing else. Those
+- **174 of the 348 requirements carry no md5 at all**, and 28 systems have nothing else. Those
   are unverifiable, which is a third state beside matched and missing, and reporting them as
   missing tells a user to hunt for a file RomMBat could not recognise if they already had it.
 

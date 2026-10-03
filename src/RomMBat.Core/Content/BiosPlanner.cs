@@ -36,7 +36,7 @@ public enum BiosAction
     /// RetroBat names no md5 for this file, so nothing can be said about it in either direction.
     /// </summary>
     /// <remarks>
-    /// 181 of the 355 requirements, and 29 systems have nothing else. This is a fact about
+    /// 174 of the 348 requirements, and 28 systems have nothing else. This is a fact about
     /// RetroBat's manifest and not a gap in the user's library, which is why it is its own
     /// state rather than a kind of missing.
     /// </remarks>
