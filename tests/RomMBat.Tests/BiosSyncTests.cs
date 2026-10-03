@@ -256,7 +256,7 @@ public sealed class BiosSyncTests : IDisposable
     [Fact]
     public async Task A_requirement_RetroBat_names_no_hash_for_is_its_own_state_and_never_missing()
     {
-        // 174 of the 348 requirements, and 29 systems have nothing else. Reporting these as
+        // 181 of the 355 requirements, and 29 systems have nothing else. Reporting these as
         // "not in your library" would send a user looking for a file RomMBat could not
         // recognise if they already had it.
         using var stub = new StubRomMServer();

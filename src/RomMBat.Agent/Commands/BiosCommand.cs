@@ -257,7 +257,7 @@ internal static class BiosCommand
                 }
 
                 if (step.Reason is { } reason
-                    && (step.Action is BiosAction.Mismatch or BiosAction.Blocked || step.SameName is not null))
+                    && step.Action is BiosAction.Mismatch or BiosAction.Blocked or BiosAction.MissingFromLibrary)
                 {
                     Console.WriteLine($"      {reason}");
                 }
