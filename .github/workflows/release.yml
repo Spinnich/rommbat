@@ -49,8 +49,15 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release -warnaserror -p:Version=$env:VERSION
 
+      # Same step as build.yml: without it the process-level tests, the rule-4 boundary among
+      # them, skip themselves, and a release would ship on a suite that did not run them.
+      - name: Publish the hook and the agent, so the process-level tests run
+        run: |
+          dotnet publish src/RomMBat.Hook -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+          dotnet publish src/RomMBat.Agent -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+
       - name: Test
-        run: dotnet test --configuration Release --no-build
+        run: dotnet test --configuration Release --no-build --output Detailed
 
       - name: Publish and package
         shell: pwsh
@@ -76,7 +83,7 @@ jobs:
           @(
             "Requires **RomM $romm** or newer and **RetroBat $retrobat** or newer."
             ''
-            'Extract the zip into your RetroBat folder. A database written by a newer MINOR release cannot be opened by an older build.'
+            'Extract the zip into your RetroBat folder.'
             ''
           ) | Set-Content -Path release-header.md -Encoding utf8
 

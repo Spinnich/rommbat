@@ -72,7 +72,8 @@ The scheme is SemVer 2.0.0 ([versioning](docs/design/decisions/versioning.md)).
 4. `release.yml` refuses a tag that is not `vMAJOR.MINOR.PATCH[-pre.N]`, builds, tests, packages,
    and creates a **draft** release with the zip, its `.sha256` and generated notes, a prerelease
    when the tag has a suffix. The notes open with the RomM and RetroBat floors.
-5. Read the draft, then publish it. Nothing is announced upstream automatically.
+5. Read the draft. If the release ships a store migration, add a line saying an older build
+   cannot open the upgraded database. Then publish it. Nothing is announced upstream automatically.
 
 ---
 
