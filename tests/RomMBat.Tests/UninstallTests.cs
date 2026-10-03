@@ -214,6 +214,27 @@ public sealed class UninstallTests : IDisposable
         Assert.Empty(Service().Preview(new RemovalScope()).Unvouchable);
     }
 
+    /// <summary>
+    /// The same save is named when the games going are stale downloads, which no set member
+    /// places in a system any more.
+    /// </summary>
+    [Fact]
+    public void Content_names_a_save_in_a_system_whose_only_games_are_stale()
+    {
+        WriteTree("emulationstation/.emulationstation/es_savestates.cfg", File.ReadAllText(Fixtures.EsSaveStatesTemplate));
+        Rom(12, "nes", "StarTropics (USA).zip", FileOrigin.Synced);
+        Member(12, "StarTropics (USA).zip");
+        WriteTree("saves/nes/bizhawk/StarTropics.SaveRAM", "whichever region wrote last");
+
+        // A server change: members go, and the download stays as a stale row.
+        _session.Store.ForgetServerKeyedRows();
+
+        var report = Service().Preview(new RemovalScope(Content: true));
+
+        Assert.Equal("roms/nes/StarTropics (USA).zip", Assert.Single(report.Content!.Plan.Selected).File.Path.Value);
+        Assert.Contains("saves/nes/bizhawk/StarTropics.SaveRAM", report.Unvouchable);
+    }
+
     [Fact]
     public async Task A_gamelist_that_could_not_be_rewritten_is_not_reported_as_success()
     {
