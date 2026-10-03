@@ -4,18 +4,15 @@ name: Release
 # to read and publish. Nothing here publishes or announces anything. The scheme is
 # docs/design/decisions/versioning.md, and the steps to cut one are in DEVELOPER_SETUP.md.
 #
-# A manual run is the dry run: the same steps against the branch it is started on, with the
-# zip, its checksum and the notes header uploaded as a workflow artefact instead of a release.
+# A manual run is the dry run: the same steps against the branch it is started on, versioned
+# <VersionPrefix>-dryrun.<run number>, with the zip, its checksum and the notes header uploaded
+# as a workflow artefact instead of a release. It takes no inputs, because an input that reaches
+# the build is what checkov's CKV_GHA_7 forbids.
 
 on:
   push:
     tags: [v*]
   workflow_dispatch:
-    inputs:
-      tag:
-        description: The tag the dry run pretends to be, such as v0.1.0-alpha.1
-        required: true
-        type: string
 
 permissions:
   contents: write
@@ -31,7 +28,7 @@ jobs:
     # The tag reaches the scripts as an environment variable, never pasted into their source:
     # a git ref name may hold quotes and semicolons, and this runs before the SemVer check.
     env:
-      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      TAG: ${{ github.ref_name }}
 
     steps:
       # Before the checkout and the build, so a mistyped tag costs seconds. The grammar is
@@ -39,8 +36,17 @@ jobs:
       # version RomM's device list shows.
       - name: Refuse a tag that is not SemVer 2.0.0
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $tag = $env:TAG
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            # No checkout yet, so the prefix comes from the API rather than the working tree.
+            $props = gh api "repos/$env:GITHUB_REPOSITORY/contents/Directory.Build.props?ref=$env:GITHUB_SHA" -H 'Accept: application/vnd.github.raw'
+            if ($LASTEXITCODE -ne 0) { throw 'Could not read Directory.Build.props.' }
+            $prefix = [regex]::Match(($props -join "`n"), '<VersionPrefix>([^<]+)</VersionPrefix>').Groups[1].Value
+            $tag = "v$prefix-dryrun.$env:GITHUB_RUN_NUMBER"
+          }
           $semVer = '^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-((0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?$'
           if ($tag -notmatch $semVer) {
             throw "Tag '$tag' is not vMAJOR.MINOR.PATCH[-pre.N]. Delete it and push a SemVer 2.0.0 tag."
