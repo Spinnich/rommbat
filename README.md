@@ -11,7 +11,8 @@ The name is a portmanteau of RomM and RetroBat that lands close to "wombat".
 
 > [!WARNING]
 >
-> **RomMBat is pre-release.** There is no published build yet. A platform is supported only
+> **RomMBat is pre-release.** Builds on the [Releases page](https://github.com/Spinnich/rommbat/releases)
+> are alpha prereleases, and any one may break what the last set up. A platform is supported only
 > for the `(system, emulator, core)` rows [the platform table](https://spinnich.github.io/rommbat/platforms/)
 > lists as certified.
 

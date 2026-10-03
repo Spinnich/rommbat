@@ -13,8 +13,8 @@ move it to another PC.
 To set it up, start with [Requirements](getting-started/requirements.md), then
 [Install](getting-started/install.md) and [Pairing](getting-started/pairing.md).
 
-!!! warning "RomMBat is not released yet"
+!!! warning "RomMBat is in alpha"
 
-    This guide is being written alongside the first release.
+    Releases are alpha prereleases, and any one may break what the last set up.
     [Requirements](getting-started/requirements.md) names the versions of RomM and RetroBat you
     need, and [Platforms](platforms/index.md) lists which systems and emulators have been tested.
