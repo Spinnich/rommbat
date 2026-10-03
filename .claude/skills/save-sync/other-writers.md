@@ -119,7 +119,7 @@ PS2 has the same failure with no escape, because PCSX2 cannot bind discs at all.
 is **per game**, which is what the `<system>["<rom>"]` form is for: convert single-disc titles,
 leave sets alone, and say why.
 
-**Driven end to end in M6 stage 2c, and the details are what make it work.** The card PCSX2
+**Driven end to end (RB-182 to RB-188), and the details are what make it work.** The card PCSX2
 writes is `<rom stem>.ps2`: **the extension is replaced, not appended**, so the name is exactly
 the `(folder, stem)` key class A attribution already uses and no new route is needed. Note the
 asymmetry with the setting that causes it, because it is the trap: the `es_settings.cfg` key

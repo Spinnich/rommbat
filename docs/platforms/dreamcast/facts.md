@@ -21,7 +21,7 @@ Measurement says: Confirmed live, but the per-game VMU is named for the **disc s
 
 ## RB-362. Flycast VMU: the plan's one unverified class-D case, answered
 
-[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/4fa916583/docs/PLAN.md) line 870 records Dreamcast VMU handling as unverified and assigns it to M0. The
+[`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/4fa916583/docs/PLAN.md) line 870 records Dreamcast VMU handling as unverified. The
 tree answers it:
 
 ```text
@@ -70,9 +70,8 @@ Four results, and the second one is the awkward one:
    collapse into class A that DuckStation's `PerGameFileTitle` gives**, where the card is
    named after the rom file. RomMBat cannot build this path from `fs_name`; attributing a
    Dreamcast VMU means either reading the serial out of the disc image or attributing by
-   launch window from `emulatorLauncher.log`. (That contrast no longer holds: PS1 was later
-   left at its stock database-keyed mode, so serial attribution is the common case for disc
-   systems rather than Dreamcast's peculiarity.)
+   launch window from `emulatorLauncher.log`. PS1 stays on its stock database-keyed
+   mode, so serial attribution is the common case for disc systems, not Dreamcast's alone.
 3. **With the option on, the shared file is left alone entirely.** `vmu_save_A1.bin` was not
    touched during the per-game run, so the two shapes do not both receive writes. They do
    share a directory, though: `Dreamcast.VMUPath` is unchanged, so per-game and shared files

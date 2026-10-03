@@ -74,14 +74,12 @@ the source of truth; the network is optional, probed with a short-timeout
   the flush is a short-lived process, guarded by a lock file in the tree. One pass, then exit.
 
   **What invokes it: the `start` and `quit` hooks, `sync`, and a person typing `flush`.**
-  The hook spawn landed in M7 stage 7a and is what makes an install nobody administers from a
-  terminal work; before it, `sync` and a typed `flush` were the whole trigger set and an
-  install that was never synced spooled events forever. The reason recorded for the delay was
-  an 11 MB process start inside the game-launch path, and **that measurement went the other
-  way** (RB-195 and RB-197): ES does not wait for a hook, and the 75.9 MB agent starts
+  The hook spawn is what makes an install nobody administers from a terminal work: without
+  it, an install that is never synced spools events forever. The spawn costs the launch
+  nothing (RB-195 and RB-197): ES does not wait for a hook, and the 75.9 MB agent starts
   faster than the 11 MB hook because trimming without `PublishReadyToRun` discards the
-  framework's precompiled code. Cost was never the reason to refuse a spawn. **Rule 4 was**,
-  and 7a narrowed it to the two events that are not in the launch path rather than bending it.
+  framework's precompiled code. **What limits the spawn is rule 4**, which allows it only from
+  the two events outside the launch path.
 
   **`background quit` waits for the ES process to be gone before it writes any config**, and
   gives up rather than hanging. Measured: ES exits 48 to 68 ms after the quit hook stamps
@@ -128,7 +126,7 @@ RetroBat runs from a USB drive and moves between machines.
   marker (`retrobat.ini`, `emulationstation/`, `roms/`). There is no `build.ini`; the version
   lives in `system/version.info`. From a hook, `%~dp0..\..\..\` reaches `emulationstation/`
   and the **root needs a fourth level**, `%~dp0..\..\..\..\`.
-- **The app installs at `emulators/rommbat/`, not `plugins/`.** M0 measured this: a
+- **The app installs at `emulators/rommbat/`, not `plugins/`.** RB-384: a
   `system/es_menu/*.menu` entry resolves its executable under `emulators\` and
   `emulatorLauncher` refuses `..\` escapes outright. Anywhere else cannot be menu-launched.
 - **Identity follows the drive.** A GUID in the tree sent as `client_device_identifier`.

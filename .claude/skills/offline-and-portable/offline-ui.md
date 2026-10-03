@@ -14,7 +14,7 @@ Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping, brow
   **The platform mapping is offline too, and its repair is install-wide.** `platform_map` is
   written by every resolve and every browse, so every row the mapping screen shows, and the
   override that fixes one, are local. A screen that waited on an unreachable LAN host to show
-  them would trade the working state for nothing, which is why 7b-3's screen takes no connection
+  them would trade the working state for nothing, which is why the screen takes no connection
   at all. The agent's `platforms list` refreshes first because it can; the interface does not,
   and that is a decision rather than a gap.
 
@@ -22,30 +22,24 @@ Part of the [offline-and-portable](SKILL.md) skill. What the sets, mapping, brow
   is the mistake this screen exists to stop. The mapping is install-wide and an override mends
   one set while leaving every other set and every future set with the same hole.
 
-  **Eviction is offline too and has no screen**, which are two separate facts and 7b-2b settled
-  both. `EvictionService` in Core is a preview from two local scans and a walk of `local_file`,
+  **Eviction is offline too and has no screen**, which are two separate facts. `EvictionService` in Core is a preview from two local scans and a walk of `local_file`,
   and carrying it out deletes files and rewrites gamelists from local state, so `rommbat-agent
-evict` works with the server off. What 7b-2b removed is the interface to it: RomMBat guessing
+evict` works with the server off. What it lacks is an interface: RomMBat guessing
   which games matter least is a bad policy even when a person starts it, so freeing space is the
   user's, by dropping a sync set or a single game. Do not go looking for eviction screens.
 
-  **A resolve is long work, measured rather than assumed:** a platform scope of 9,196 roms
-  took **8 minutes 15 seconds** against a live 5.2.0 instance at 250 rows a page. So
-  cancelling it is the ordinary case, not a failure path, and a cancel records its offset
-  exactly as an unreachable server does so the next run continues. Discarding the walk on
-  cancel would make the feature worse than not offering it.
-
-  **The same walk is 22.5 s on 5.3.0-alpha.2**, re-measured at a library grown to 95,993 roms,
-  so on a current server it is no longer a screen anybody sits and watches. **The behaviour
-  does not change on the strength of that.** A resolve is still unbounded work over somebody
-  else's network, a resume still costs nothing, and the reading above is one platform on one
-  server: a slower host, a larger scope or a worse link puts the minutes back.
+  **A resolve is unbounded work over somebody else's network, so a cancel is the ordinary
+  case, not a failure path.** A cancel records its offset exactly as an unreachable server does
+  so the next run continues; discarding the walk on cancel would make the feature worse than not
+  offering it. One platform walk over a library of 95,993 roms measured 22.5 s on
+  5.3.0-alpha.2, but that is one platform on one server: a slower host, a larger scope or a
+  worse link puts minutes back, and a resume costs nothing.
 
 ## Browsing and removing, offline
 
 - **Browse degrades, it does not refuse.** With a server it pages `GET /api/roms`; without one
-  it lists what the device holds, out of `local_file` joined to `sync_set_member`. That is M2's
-  own rule about the offline browsable set being the locally present subset, which is what
+  it lists what the device holds, out of `local_file` joined to `sync_set_member`. That follows the
+  rule that the offline browsable set is the locally present subset, which is what
   EmulationStation shows anyway. **It says which of the two it is showing, always**, not only
   when it degraded: a person who never sees the online form cannot otherwise tell the offline
   one apart from a library that has shrunk. `BrowseService` decides which; the screen words it.

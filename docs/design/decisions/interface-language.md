@@ -8,7 +8,7 @@ read-when: Proposing localisation, or changing how the keyboard layout is chosen
 **Deferred, and worth stating so it is not re-derived: RomMBat does not speak that language,
 only types in it.** Reading `Language` to pick a keyboard is one setting and a three-way switch.
 Localising the interface is a different thing entirely, and the cost is not the resource files:
-Core returns records carrying **pre-written English sentences**, which is the decision 7b-1 made
+Core returns records carrying **pre-written English sentences**, a decision made
 deliberately so that a refusal reads identically on both front ends. Every one of those would
 have to become a key plus arguments, across Core, the agent and the UI, and the agent's output
 is what `sets`, `sync` and `evict` are tested on byte for byte. It also contradicts CLAUDE.md's

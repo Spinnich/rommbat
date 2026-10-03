@@ -304,8 +304,8 @@ never cached.
 ROMs answer to takes the first, because either is as good an answer as the other: for the header
 that is a revision pair sharing a game code, and for the sidecar it is two states naming one
 identifier. Both scans are ordered, by ROM path and by state path, so first is a stable answer
-rather than whichever row the database returned last. The sidecar index was last-wins until the
-sweep after stage 2b, which meant the two routes settled the same question by opposite rules.
+rather than whichever row the database returned last. Were either index last-wins, the two routes
+would settle the same question by opposite rules.
 
 **Disagreement fails closed.** Two routes naming different games binds nothing, records the
 refusal so it is not recomputed every scan, and reports both candidates. Picking a side uploads

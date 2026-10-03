@@ -9,7 +9,7 @@ A class C unit is one (container, key) pair, so it bundles to **one archive, one
 upload**, GameCube's several `.gci` per game code included. There is no second row.
 
 So `batch_key`'s only genuine caller is class B's siblings, and class B is not in the outbox.
-Rather than retrofit stage 1's proven upload path onto a queue it does not use, stage 2b delivers
+Rather than retrofit the proven upload path onto a queue it does not use, RomMBat delivers
 the behaviour the column was a proxy for: `SaveSync` already holds every sibling of a slot in one
 map, so a partial result is grouped by `(rom_id, base slot)` and reported as one batch. The column
 stays unwritten and is kept, because a future queued-upload design would want it back and the

@@ -9,7 +9,7 @@ Facts RomMBat relies on, one per heading. [The upstream reference](../../upstrea
 
 ## RB-166. Refuted. The two describe opposite sides of a mirror
 
-Previously: `bigpemu` declares `001`/`999` against a two-digit `{{slot2d}}`, so its own file is internally inconsistent (**#34**, the plan's stage 2a paragraph, the `save-sync` skill)
+Previously: `bigpemu` declares `001`/`999` against a two-digit `{{slot2d}}`, so its own file is internally inconsistent (**#34**, the `save-sync` skill)
 
 The probe says: **Refuted. The two describe opposite sides of a mirror.** Driven on the real install: BigPEmu writes **three-digit** names in its own tree, `emulators/bigpemu/userdata/game4F7E323A69447A71_state001.bigpstate`, keyed by an internal game id; RetroBat mirrors each to `saves/jaguar/bigpemu/Rayman (World)_state01.bigpstate`, **two-digit and rom-named**, byte-identical in length. So `firstslot`/`lastslot` describe the emulator's native slot range and `<file>` describes the mirror, and neither contradicts the other. Six states driven through the gamepad overlay, slots 1 to 6; `SaveAutoIncr: 1` in `BigPEmuConfig.bigpcfg` is why they came out consecutively. RomMBat read all six correctly off the declared path. **Whether the mirror writes `_state100` past slot 99 is still unmeasured**, and reaching it needs ~94 more saves of one game
 

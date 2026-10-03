@@ -112,7 +112,7 @@ lives under `images/`, not its own folder), `videos/<stem>-video.mp4`,
 `manuals/<stem>-manual.pdf`. Those are the exact names a user's own scrape writes, so never
 delete one RomMBat did not create.
 
-**After writing, call `GET http://127.0.0.1:1234/reloadgames`.** M0 measured that ES keeps a
+**After writing, call `GET http://127.0.0.1:1234/reloadgames`.** ES keeps a
 stale in-memory model until asked to reload, and rewrites `gamelist.xml` from that model when
 it exits. Write-then-reload makes the edit stick and takes effect immediately; write without
 reloading and ES can serialise its stale copy over you. ES writes no `<game>` entry for a rom

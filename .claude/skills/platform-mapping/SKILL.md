@@ -134,7 +134,7 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
 1. **User override** from the mapping screen, keyed by `fs_slug` and persisted in
    `Device.sync_config`. Always wins.
 
-   **The screen exists as of M7 stage 7b-3**, reached from a row on the root menu carrying the
+   **The screen is reached from a row on the root menu** carrying the
    unmapped count, so an unmapped platform is found before a sync is attempted rather than by a
    resolve stopping partway through a collection that happened to hold one of its games. It
    takes no connection: `platform_map` is written by every resolve and every browse, so every
@@ -170,8 +170,8 @@ places at once. Note also that RetroBat calls the Mega CD `megacd` while upstrea
   carrying `fs_slug: fbneo` on an install that has an `fbneo` system resolves there: naming
   the folder is how the person filing the library made the choice. An arcade slug whose
   `fs_slug` names no folder this install has still stops and asks, because which of the seven
-  folders is right depends on the romset and arcade names are romset-versioned. Measured in
-  M7 stage 7b-2a on a live install, where refusing regardless stopped a collection resolve
+  folders is right depends on the romset and arcade names are romset-versioned. Measured on a
+  live install, where refusing regardless stopped a collection resolve
   part way to demand a choice that had already been made.
 - **The bundled table is a seed, not an authority.** It is derived from
   `reference/systems_names.lst` rather than checked against it, so expect drift as both
@@ -190,7 +190,7 @@ resolve deterministically against a fixture `es_systems.cfg`, and that an `arcad
 whose `fs_slug` names no folder does not resolve on its own while one whose `fs_slug` does
 name a folder resolves there.
 
-## One ROM in two folders is legitimate, and it used to be fatal
+## One ROM in two folders is legitimate
 
 `folder_override` is per sync set and migration 002's header calls it "the only way an arcade
 set resolves". So a `mame`-overridden platform set and an `fbneo`-overridden collection set drawn
@@ -199,11 +199,10 @@ correct in EmulationStation**: each folder's `gamelist.xml` names the file besid
 platform between two syncs reaches the same state with no override at all.
 
 - **Two Rom-kind `local_file` rows for one `rom_id` is a representable, reachable state.**
-  `LocalFileStore.ForRom`'s remarks already said so and `ix_local_file_rom_kind` is not `UNIQUE`.
-  `EvictionPlanner.Candidates` keyed its lookup with `ToDictionary(file => file.RomId)`, which
-  throws on the second row and takes out every caller of `EvictionPlanner`: `evict`, the budget
-  screen and both removal previews. No sync pass evicts, so a sync is not among them. The comment
-  directly above it named that hazard and then fixed only the media half.
+  `LocalFileStore.ForRom`'s remarks say so and `ix_local_file_rom_kind` is not `UNIQUE`. Never key
+  an eviction lookup on `RomId` alone: `ToDictionary(file => file.RomId)` throws on the second row
+  and takes out every caller of `EvictionPlanner`, which is `evict`, the budget screen and both
+  removal previews.
 - **Each copy is its own eviction candidate**, with the artwork in its own folder attached to it.
   Attaching every copy's media to one candidate has the first removal delete the other folder's
   cover.

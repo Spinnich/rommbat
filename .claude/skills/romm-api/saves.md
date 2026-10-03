@@ -71,7 +71,7 @@ last sync"}`, with no save id and no timestamps. Fetch the save row separately t
 - **Ingesting a play session sets `rom_user.now_playing`, and nothing clears it.** Every
   session RomMBat sends is finished by construction, so a client that only posts sessions
   leaves the user's library claiming they are playing every game they have ever launched.
-  Measured on the live instance during M7 stage 7b-3: ten roms RomMBat had reported a session
+  Measured on the live instance: ten roms RomMBat had reported a session
   for were all `now_playing=true`, one of them played two days earlier, against a rom it had
   never reported reading false. **Clear it with `PUT /api/roms/{id}/props`**, per rom rather
   than per session, and only for the entries the batch's result array says were accepted.
