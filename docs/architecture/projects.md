@@ -91,8 +91,8 @@ one by hand.
 **The `start` and `quit` hooks invoke a pass, as do `sync` and a person typing `flush`**, so an
 install nobody opens a terminal on still drains its journal. Spawning the agent costs the launch
 contention, not latency: ES spawns hooks fire-and-forget and starts emulatorlauncher without waiting, and the
-75.9 MB agent reaches `Main` in 34 ms against the 11 MB hook's 60 ms, since trimming without
-`PublishReadyToRun` throws the framework's precompiled code away (RB-195, RB-197).
+75.9 MB agent reaches `Main` in 34 ms, against 49 ms for a whole invocation of the trimmed,
+ReadyToRun hook (RB-195, RB-197).
 Which hooks may spawn it is the hook's to decide; see [`src/RomMBat.Hook`](#srcrommbathook).
 
 `background quit` waits for the ES process to exit before applying queued configuration, and
