@@ -7,7 +7,7 @@ read-when: Before certifying a `pcengine` row or changing how RomMBat handles a 
 
 Facts RomMBat relies on, one per heading. [The upstream reference](../../upstream/README.md) says what an entry holds and how IDs are kept.
 
-## RB-407. mednafen opens no PC Engine save of Mesen's, and will not start the game while one is there
+## RB-407. mednafen cannot load a PC Engine save of Mesen's, and will not start the game while one is there
 
 Verified: RetroBat 8.2.1, 2026-10-02. How: on `R:`, removed mednafen's hashed `.sav` for Populous (Japan) (En) and left the 2,048 B `<rom>.sav` Mesen had written, launched `-emulator mednafen -core pce` through `emulatorLauncher`, and read the error dialog from a screenshot and `emulators/mednafen/stdout.txt`.
 
