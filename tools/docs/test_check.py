@@ -149,6 +149,28 @@ class HistoryPhrasingTest(unittest.TestCase):
         self.assertEqual(self.errors("The open Question: is not a label here.\n"), [])
 
 
+class BareDollarTest(unittest.TestCase):
+    def errors(self, text: str, rel: str = "docs/x.md") -> list[str]:
+        findings = check.Findings()
+        check.check_file(rel, text, findings, None)
+        return [e for e in findings.errors if "$" in e]
+
+    def test_bare_dollar_pairing_with_one_in_a_code_span_fails(self) -> None:
+        self.assertEqual(
+            self.errors("NO$GBA answers, and `NO$GBA.INI` numbers them\n"),
+            ["docs/x.md:1: bare $, which prettier reads as inline math; write \\$, or &#36; under wiki/"],
+        )
+
+    def test_escaped_dollar_passes(self) -> None:
+        self.assertEqual(self.errors("NO\\$GBA answers, and `NO$GBA.INI` numbers them\n"), [])
+
+    def test_dollar_in_a_fence_passes(self) -> None:
+        self.assertEqual(self.errors("```bash\n$ echo $?\n```\n"), [])
+
+    def test_command_template_arguments_pass(self) -> None:
+        self.assertEqual(self.errors("ISSUE = $1.\n", ".claude/commands/x.md"), [])
+
+
 class FactIdTest(unittest.TestCase):
     def test_letter_suffix_is_one_id(self) -> None:
         self.assertEqual(check.FACT_ID.findall("RB-9b and RB-92b, not RB-9"), [

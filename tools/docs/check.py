@@ -81,6 +81,11 @@ FACT_HEADING = re.compile(r"^#{2,6}\s+((?:RB|RM)-\d+[a-z]?)\.\s")
 LEGACY_CITATION = re.compile(r"\bfindings? \d+", re.IGNORECASE)
 # `dry-run` names sync's flag and nothing else; a generic preview is a "preview".
 GENERIC_DRY_RUN = re.compile(r"(?<![-`\w])dry-run(?!`)")
+# Prettier pairs a prose $ with the next one, even one inside a later code span, as inline math
+# and strips the spaces around the code spans between them. NO$GBA is the usual source.
+BARE_DOLLAR = re.compile(r"(?<!\\)\$")
+# Claude Code substitutes $1 and $ARGUMENTS in a slash command's text.
+DOLLAR_EXEMPT = ".claude/commands/"
 
 INLINE_LINK = re.compile(r"(?<!!)\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 IMAGE_LINK = re.compile(r"!\[(?:[^\]\\]|\\.)*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
@@ -276,6 +281,10 @@ def check_file(rel: str, text: str, findings: Findings, defined_facts: set[str] 
     for number, line in prose_lines(text):
         if any(p.search(line) for p in HISTORY_PATTERNS):
             findings.errors.append(f"{rel}:{number}: history phrasing; state what is true now")
+        if not rel.startswith(DOLLAR_EXEMPT) and BARE_DOLLAR.search(line):
+            findings.errors.append(
+                f"{rel}:{number}: bare $, which prettier reads as inline math; write \\$, or &#36; under wiki/"
+            )
         legacy += len(LEGACY_CITATION.findall(line))
         # A quoted "dry-run" is a mention of the word, as in the rule's own statement.
         if GENERIC_DRY_RUN.search(re.sub(r"\"[^\"]*\"", "", line)):

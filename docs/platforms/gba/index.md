@@ -15,7 +15,7 @@ Nintendo Game Boy Advance. RetroBat calls the folder `gba`, which is what this f
 - `mgba`/`mgba`, `mednafen`/`gba`, `mesen`, `bizhawk`/`mGBA`, `jgenesis` and
   `ares`/`GameBoyAdvance`
 
-**One is driven and not certified.** `nosgba` cannot open a zip, because NO$GBA unzips through an
+**One is driven and not certified.** `nosgba` cannot open a zip, because NO\$GBA unzips through an
 external `PKUNZIP.EXE` it does not ship. It loads a `.gba` placed beside the zip instead, then
 deletes it as its own temp file. It also keeps its saves compressed in `emulators/nosgba/BATTERY/`,
 outside `saves/` (RB-286).
@@ -52,7 +52,7 @@ the drive at `5.3.0`, since nothing they exercise changed between the two. Nothi
 
 **`mgba` and `nosgba` were not on the install at the start.** Their folders held only RetroBat's
 template configs. Each was installed by launching Emerald under it and answering ES's install
-prompt, with `tools/m0-probes/probe2-install-emulator.ps1`: mGBA 51.9 MB, NO$GBA 0.4 MB. The
+prompt, with `tools/m0-probes/probe2-install-emulator.ps1`: mGBA 51.9 MB, NO\$GBA 0.4 MB. The
 other eight rows' emulators were present.
 
 **The client was deployed twice, and which build a result was taken on is named.** The two
