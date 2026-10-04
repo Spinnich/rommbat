@@ -13,7 +13,7 @@ Plan says: GameCube GCI folder gives "individual `.gci` files" per game (L832)
 
 Measurement says: True, but with a region subdirectory, several files per game, and `.gci.deleted` litter to exclude
 
-## RB-189. Wrong in all three parts, and the code was going to be built against it
+## RB-189. `dolphin_sync_saves` is GameCube only, runs once per launch, and reconciles a region folder with its own `Card A/`
 
 The claim being checked: `dolphin_sync_saves` is RetroBat copying save files between the dolphin and libretro-dolphin folders **on its own schedule**, and must be detected before either location is trusted (**RB-123, [`docs/PLAN.md`](https://github.com/Spinnich/rommbat/blob/366b5f6bf/docs/PLAN.md), the `retrobat-layout` skill**)
 

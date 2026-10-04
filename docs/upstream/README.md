@@ -42,7 +42,9 @@ Verified: RetroBat 8.2.1, 2026-09-26. How: synced MGS (2 discs), read ES's list.
 ```
 
 Facts moved from the findings ledgers keep their full text and carry no `Verified:` line yet. A
-row from a ledger table keeps both of its columns, each under the table's own label. Condensing a
+row from a ledger table keeps both of its columns, each under the table's own label, unless the
+first holds only a question since settled or a measurement since replaced: that line is dropped
+and the heading states what is true now. Condensing a
 topic file gives each of its facts the stamp and a one-line `How:`, and deletes the evidence
 narrative.
 
