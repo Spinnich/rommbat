@@ -454,6 +454,15 @@ def run_stale() -> int:
     return 0
 
 
+WORKTREES = ".claude/worktrees/"
+
+
+def delegate_hook(checker: Path, call: dict) -> int:
+    return subprocess.run(
+        [sys.executable, str(checker), "--hook"], input=json.dumps(call), text=True
+    ).returncode
+
+
 def run_hook() -> int:
     try:
         call = json.load(sys.stdin)
@@ -466,6 +475,11 @@ def run_hook() -> int:
         rel = Path(path).resolve().relative_to(ROOT).as_posix()
     except ValueError:
         return 0
+    # The hook runs from the main checkout, so a file in one of its worktrees would resolve its
+    # links against the wrong tree. That worktree's own copy of this script checks it instead.
+    if rel.startswith(WORKTREES):
+        checker = ROOT / WORKTREES / rel[len(WORKTREES) :].split("/")[0] / "tools/docs/check.py"
+        return delegate_hook(checker, call) if checker.is_file() else 0
     if not is_checked(rel):
         return 0
     text = read_text(rel)

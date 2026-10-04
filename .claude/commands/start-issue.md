@@ -41,8 +41,12 @@ they answer.
 
 ## Branch
 
-`EnterWorktree` with the name `issue-$ISSUE-<slug>`: a worktree under `.claude/worktrees/`, on a
-new branch off `origin/main`. Never work on main; the pre-push hook refuses it anyway.
+After `git fetch origin`, run
+`git worktree add -b issue-$ISSUE-<slug> .claude/worktrees/issue-$ISSUE-<slug> origin/main` and
+work there by path: absolute file paths, and `git -C <worktree>`. Do not use `EnterWorktree`. Its
+isolation guard refuses `pwsh -File tools/pre-pr.ps1`, because it cannot prove that the script's
+git stays inside the worktree, and step 7 would then run without that script. Never work on main;
+the pre-push hook refuses it anyway.
 
 ## Change
 

@@ -81,7 +81,7 @@ A row that cannot pass is recorded with its reason. That is a result, not a gap.
 
 ## 4. Record and ship
 
-- **Certification**: branch first, with `EnterWorktree` (`issue-<n>-certify-<SYSTEM>`, which
+- **Certification**: branch first, with `git worktree add` as `/start-issue` does (`issue-<n>-certify-<SYSTEM>`, which
   `/next` reads as the issue being taken), so the record
   lands on the PR's branch. The record goes in `docs/platforms/<SYSTEM>/`: `index.md` for the
   system's steps and each row's standing at the floor, and a file per emulator or group of rows,
