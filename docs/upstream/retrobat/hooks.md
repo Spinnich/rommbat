@@ -1,6 +1,6 @@
 ---
 summary: How EmulationStation fires its event scripts on RetroBat: arguments, timing, concurrency and which script forms run.
-read-when: Before changing an ES hook, the journal the hooks write, or what a hook may do in the game-launch path.
+read-when: Before changing an ES hook, the spool the hooks write, or what a hook may do in the game-launch path.
 ---
 
 # RetroBat: hooks

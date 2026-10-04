@@ -226,7 +226,7 @@ The journal holds the session the hooks captured, and the correlation closed it:
 | `quit`       | 14:23:47.690 | 14:23:47.876 | `correlated` |
 
 `game-start` carries `roms/nes/Legend of Zelda, The (USA) (Rev 1).zip` and nothing else does,
-which is rule 4 holding: the two hooks inside the launch path journalled and started nothing,
+which is rule 4 holding: the two hooks inside the launch path spooled and started nothing,
 and the two outside it each spawned the pass that drained what they left. EmulationStation's own
 write agrees, at `<playcount>4</playcount>` and `<lastplayed>20260920T102345</lastplayed>`, the
 `game-end` second.

@@ -73,9 +73,9 @@ unwind later. Code cites them by number, so the numbers do not change.
    manifest copies that entry across with its evidence (`gb` takes `sgb`'s four and `gbc`'s
    boot ROM); it never names a hash of its own.
 4. **The `game-start` and `game-end` hooks never touch the network.** Those two run inside
-   the game-launch path: they append to a local journal, exit, and start nothing. **`start`
+   the game-launch path: they write one spool file, exit, and start nothing. **`start`
    and `quit` are outside that path** and each spawns a detached `background <event>` pass,
-   which is what drains the journal on a machine where nobody opens a terminal. The set is
+   which is what drains the spool on a machine where nobody opens a terminal. The set is
    `SpoolRecord.BackgroundEvents` and a test asserts it, because the hook itself cannot say
    which of the four it is serving until it reads the folder it was installed into.
 5. **Set `SocketsHttpHandler.ConnectTimeout` on every handler.** Nothing sets it by default

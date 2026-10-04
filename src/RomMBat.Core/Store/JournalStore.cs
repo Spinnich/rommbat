@@ -57,19 +57,20 @@ public sealed record JournalEntry(
     JournalState State);
 
 /// <summary>
-/// What the ES hooks append, and the only thing they do.
+/// What the ES hooks saw, one row per event.
 /// </summary>
 /// <remarks>
-/// <b>Append-only and dumb, because it is written on the game-launch path.</b> No HTTP, no
-/// hashing and no correlation happens here; all of that is too slow to do inside a launch and
-/// belongs to the flush. CLAUDE.md rule 4 makes this a rule rather than a preference.
+/// <b>The hooks never write here.</b> <c>rommbat-hook.exe</c> writes a spool file and
+/// <see cref="Sync.SpoolDrain"/> turns it into a row; the agent's <c>game-start</c> and
+/// <c>game-end</c> subcommands append directly. Either way an append is dumb: no HTTP, no
+/// hashing and no correlation, which belong to the flush, because the hand-driven subcommands
+/// still sit in the launch path CLAUDE.md rule 4 covers.
 /// <para>
-/// <b>Concurrency is the normal case.</b> ES spawns event scripts fire-and-forget, and
-/// RB-347 caught three <c>game-end</c> hooks in flight at once, interleaving writes to one
-/// file. That is why the journal is a SQLite table and not a text log: a line-oriented file
-/// gives no cross-process atomicity, and a record split by another process's write is
-/// unrecoverable. <see cref="LocalStore"/> opens with WAL and a five-second busy timeout, so
-/// an append waits for the writer ahead of it and commits whole.
+/// <b>Concurrency is the normal case.</b> RB-347 caught three <c>game-end</c> hooks in flight
+/// at once, which is why each one spools to its own file rather than sharing anything. On this
+/// side a drain and a hand-driven subcommand can still run in separate processes. <see cref="LocalStore"/> opens with WAL
+/// and a five-second busy timeout, so an append waits for the writer ahead of it and commits
+/// whole.
 /// </para>
 /// </remarks>
 public sealed class JournalStore
