@@ -1,5 +1,6 @@
 using RomM.Client.Catalog;
 using RomMBat.Core.Content;
+using RomMBat.Core.Metadata;
 using RomMBat.Core.RetroBat;
 using RomMBat.Core.Store;
 using RomMBat.Core.Sync;
@@ -106,10 +107,11 @@ public sealed class PickedSetService
     /// Puts one game into the picked set, creating the set on the first pick.
     /// </summary>
     /// <remarks>
-    /// <b>The pick and the member row are written together</b>, because they are one fact said
-    /// twice: <c>scope_value</c> is the definition and <c>sync_set_member</c> is what a sync
-    /// reads. A pick that wrote one without the other would be a set whose membership disagreed
-    /// with its own scope, which no resolve on this device would ever correct.
+    /// <b>The pick, the member row and the game's metadata are written together.</b> The first
+    /// two are one fact said twice: <c>scope_value</c> is the definition and
+    /// <c>sync_set_member</c> is what a sync reads. A pick that wrote one without the other would
+    /// be a set whose membership disagreed with its own scope, which no resolve on this device
+    /// would ever correct. The metadata is what a resolve would have written from the same row.
     /// </remarks>
     public PickOutcome Pick(RomRow row, DateTimeOffset now)
     {
@@ -160,6 +162,12 @@ public sealed class PickedSetService
         }
 
         _session.Store.SyncSets.UpsertMember(set.Id, member.Member, now);
+
+        // The row in hand is also what a resolve would have written the gamelist metadata from,
+        // so it is written here too. Without it MediaSync finds no metadata and skips the game,
+        // and every one-game install landed with no artwork and a bare gamelist entry while RomM
+        // held a cover for it.
+        _session.Store.Metadata.Record(GameMetadata.From(row, member.Member.Folder!, now));
 
         return new PickOutcome(
             _session.Store.SyncSets.Find(set.Name) ?? set,
@@ -230,17 +238,22 @@ public sealed class PickedSetService
                     + "physical copy never had one, and a missing one has to be restored on the server.");
         }
 
-        if (row.HasMultipleFiles)
+        // The resolver's rule, not a stricter one: a system whose certification settled the
+        // layout takes a multi-file game, which is how a multi-disc game held as one RomM game
+        // lands as a folder and an .m3u. Refusing every multi-file game here left exactly that
+        // shape installable through a set and never with one press.
+        if (row.HasMultipleFiles && MultiFileLayouts.Bundled.For(folder) is null)
         {
             return new PickOutcome(
                 set,
                 null,
-                "RomM holds this game as several files, which this version cannot sync yet.");
+                "RomM holds this game as several files, which this version cannot sync yet "
+                    + "for this system.");
         }
 
         // A ROM held as a folder, of one file or several, arrives with no extension and has_multiple_files false,
         // so it is refused here rather than above, and named for what it is rather than as a bare dot.
-        if (string.IsNullOrWhiteSpace(row.FsExtension))
+        if (!row.HasMultipleFiles && string.IsNullOrWhiteSpace(row.FsExtension))
         {
             return new PickOutcome(
                 set,
@@ -250,7 +263,8 @@ public sealed class PickedSetService
 
         var limits = FilesystemLimits.Inspect(_session.Install.RootPath);
 
-        if (!limits.CanHold(row.SizeBytes))
+        // One file's limit. A multi-file game's size is the total of files that land separately.
+        if (!row.HasMultipleFiles && !limits.CanHold(row.SizeBytes))
         {
             return new PickOutcome(
                 set,

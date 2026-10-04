@@ -19,6 +19,8 @@ namespace RomMBat.Agent;
 /// </remarks>
 internal sealed class AgentContext : IDisposable
 {
+    private static readonly AsyncLocal<Func<Uri, RomMConnection>?> Override = new();
+
     private readonly InstallSession _session;
 
     private AgentContext(InstallSession session) => _session = session;
@@ -79,6 +81,20 @@ internal sealed class AgentContext : IDisposable
     public static RomMConnection ConnectAuthenticated(Uri origin, string accessToken) =>
         InstallSession.ConnectAuthenticated(origin, accessToken);
 
+    /// <summary>
+    /// Replaces the connection <see cref="Authenticate"/> hands out, for the agent's tests.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as the UI's <c>connect</c> parameter: the stored pairing is still read and
+    /// still refused when absent, and only the connection it would have opened is swapped for
+    /// one in front of a stub. Async-local, so it never outlives the run that set it.
+    /// </remarks>
+    internal static Func<Uri, RomMConnection>? ConnectOverride
+    {
+        get => Override.Value;
+        set => Override.Value = value;
+    }
+
     /// <summary>A connection carrying the stored token, or null having said why.</summary>
     public RomMConnection? Authenticate(CommandLine command, TextWriter error, out int exitCode)
     {
@@ -95,6 +111,13 @@ internal sealed class AgentContext : IDisposable
         }
 
         exitCode = ExitCode.Ok;
+
+        if (ConnectOverride is { } connect && _session.Store.Device.Read()?.ServerOrigin is { } origin)
+        {
+            attempt.Connection.Dispose();
+            return connect(origin);
+        }
+
         return attempt.Connection;
     }
 

@@ -14,7 +14,7 @@ The subcommand table, with which ones reach the network, is in
 - **`game-start` and `game-end` never open a socket, start a process or wait on a lock**
   (`CLAUDE.md` rule 4). `background` serves only `start` and `quit`.
 - **Anything destructive previews by default and writes on `--apply`** (`bios`, `evict`,
-  `saves restore`, `uninstall`, `outbox drop`). `sync --dry-run` is the one exception to the naming.
+  `game remove`, `saves restore`, `uninstall`, `outbox drop`). `sync --dry-run` is the one exception to the naming.
 - **Core's `SaveConflictResolver` is the only caller of `overwrite=true`**, reached from
   `saves resolve` here and from the UI's conflict screens. Nothing reached from a flush picks a
   side in a conflict.

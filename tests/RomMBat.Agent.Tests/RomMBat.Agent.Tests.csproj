@@ -40,6 +40,20 @@
   </ItemGroup>
 
   <!--
+    The stub server, for the commands that reach the network. Linked for the reason the tree
+    is: one stub means one answer to what RomM sends back. AgentRunner.RunAgainstAsync puts it
+    behind AgentContext.ConnectOverride.
+  -->
+  <ItemGroup>
+    <Compile Include="..\RomMBat.Tests\Support\StubRomMServer.cs"
+             Link="Support\StubRomMServer.cs" />
+    <Compile Include="..\RomMBat.Tests\Support\StubRomMServer.Saves.cs"
+             Link="Support\StubRomMServer.Saves.cs" />
+    <Compile Include="..\RomMBat.Tests\Support\StubRomMServer.States.cs"
+             Link="Support\StubRomMServer.States.cs" />
+  </ItemGroup>
+
+  <!--
     The same upstream template the Core tests read, so both suites agree on which systems an
     install declares. Every path here must be a tracked file.
   -->

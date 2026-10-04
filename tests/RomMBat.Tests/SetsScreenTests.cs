@@ -1619,7 +1619,6 @@ public sealed class SetsScreenTests : IDisposable
             BrowseScreens.ConfirmRemoval(_session, browsed, null, null),
             BrowseScreens.ApplyRemoval(
                 _session,
-                new PickedSetService(_session),
                 browsed,
                 new EvictionReport(new PartialSweepPlan(), new EvictionPlan(), HasBudget: false),
                 null),

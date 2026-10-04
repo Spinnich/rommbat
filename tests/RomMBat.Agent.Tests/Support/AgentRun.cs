@@ -59,6 +59,30 @@ internal static class AgentRunner
         }
     }
 
+    /// <summary>Runs a subcommand with every connection it opens going to a stub server.</summary>
+    /// <remarks>
+    /// The install still has to be paired: <see cref="AgentContext.ConnectOverride"/> swaps the
+    /// connection, never the refusal an unpaired install gets.
+    /// </remarks>
+    public static async Task<AgentRun> RunAgainstAsync(
+        TempRetroBatTree tree,
+        StubRomMServer stub,
+        params string[] args)
+    {
+        AgentContext.ConnectOverride = origin => new RomM.Client.RomMConnection(
+            new RomM.Client.RomMClientOptions { Origin = origin, AccessToken = "rmm_test" },
+            stub);
+
+        try
+        {
+            return await RunAsync(tree, args);
+        }
+        finally
+        {
+            AgentContext.ConnectOverride = null;
+        }
+    }
+
     /// <summary>
     /// Puts RetroBat's shipped <c>es_systems.cfg</c> into a throwaway tree.
     /// </summary>

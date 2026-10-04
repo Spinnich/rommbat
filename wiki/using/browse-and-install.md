@@ -43,3 +43,18 @@ still wants the game, and the game's screen says which sets those are under Want
 - Which sync sets want it. A game nothing wants may be removed the next time you make room.
 - For a PlayStation 2 game on a shared memory card, the top face button offers to give it its
   own card; see [Memory cards](../saves/memory-cards.md).
+
+## From a terminal
+
+`rommbat-agent game` does the same three things by a game's RomM id, which is the number in the
+first column of `rommbat-agent browse`:
+
+```text
+rommbat-agent game show 1234            what the game's screen shows; add --offline to skip RomM
+rommbat-agent game install 1234         put it on this device, into the same Picked on set
+rommbat-agent game remove 1234          show what would go
+rommbat-agent game remove 1234 --apply  take it off
+```
+
+The per-game memory card is `rommbat-agent saves convert 1234`. Every option is in the
+[command line](../reference/cli.md) reference.

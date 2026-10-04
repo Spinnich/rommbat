@@ -16,9 +16,9 @@ namespace RomMBat.UI.Screens;
 /// choice and the verbs are the footer's. That mode exists for exactly this: an ordinary list
 /// skips unavailable rows, so a screen of nothing but facts would not scroll at all.
 /// <para>
-/// <b>Every decision belongs to Core.</b> Whether this game can join a set is
-/// <see cref="PickedSetService"/>'s answer, whether it can come off is
-/// <see cref="EvictionService"/>'s, and what a removal costs is theirs too. What this file owns
+/// <b>Every decision belongs to Core.</b> Whether this game can join a set, whether it can come
+/// off and what a removal costs are <see cref="GameService"/>'s answers, which
+/// <c>rommbat-agent game</c> prints too. What this file owns
 /// is which words go on which row.
 /// </para>
 /// </remarks>
@@ -37,8 +37,6 @@ public static class BrowseScreens
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(game);
-
-        var picked = new PickedSetService(session);
 
         // Re-read on return, because installing and removing both happen on screens above this
         // one and used to leave the rows saying what they said before the press.
@@ -83,7 +81,7 @@ public static class BrowseScreens
                 // which is the shape SetEditorViewModel already uses for create-then-resolve
                 // and the reason ReplaceThenOpen exists.
                 NavAction.Start when game.Row is not null =>
-                    Install(session, picked, game, connect, changed),
+                    Install(session, game, connect, changed),
 
                 NavAction.Alternate when game.IsHere =>
                     ScreenCommand.Push(ConfirmRemoval(session, game, connect, changed)),
@@ -111,12 +109,15 @@ public static class BrowseScreens
     /// </remarks>
     private static ScreenCommand Install(
         InstallSession session,
-        PickedSetService picked,
         BrowseGame game,
         Func<Uri, RomMConnection>? connect,
         Action? changed)
     {
-        var outcome = picked.Pick(game.Row!, DateTimeOffset.UtcNow);
+        // GameService answers both questions: whether it can join, and whether a pass would
+        // have anything to do. The second is #116: already picked and already on disk fetches
+        // nothing, and a pass would still have reported "Installed".
+        var pick = new GameService(session).Pick(game.Row!, DateTimeOffset.UtcNow);
+        var outcome = pick.Outcome;
 
         if (outcome.Member is null)
         {
@@ -125,20 +126,7 @@ public static class BrowseScreens
                 outcome.Problem ?? "This game cannot be put on this device."));
         }
 
-        // A game the picked set already held and that is already on disk needs no pass. Running
-        // one fetched nothing and still reported "Installed", which is a screen claiming to have
-        // done something it did not. AlreadyPicked was computed for exactly this and nothing had
-        // ever read it. #116.
-        //
-        // Already picked but not on disk is a different case and still syncs: that is the state
-        // a stopped or budget-blocked run leaves behind, and it is the one a second press is
-        // meant to finish.
-        // Asked of the store rather than of the row in hand. BrowseGame.IsHere is a fact about
-        // the page this screen was opened from, and the install that has just run is exactly
-        // what makes it stale.
-        var here = session.Store.Files.ForRom(game.RomId, LocalFileKind.Rom).Count > 0;
-
-        if (outcome.AlreadyPicked && here)
+        if (pick.NothingToFetch)
         {
             return ScreenCommand.Push(new MessageScreen(
                 game.DisplayName,
@@ -169,8 +157,7 @@ public static class BrowseScreens
         Func<Uri, RomMConnection>? connect,
         Action? changed)
     {
-        var picked = new PickedSetService(session);
-        var eviction = new EvictionService(session);
+        var games = new GameService(session);
 
         EvictionReport? report = null;
         IReadOnlyList<string> unvouchable = [];
@@ -192,10 +179,10 @@ public static class BrowseScreens
             OfferAcceptWhen = () => report is { } ready && ready.Plan.Selected.Count > 0,
             Load = token =>
             {
-                var releasing = picked.Find() is { } set ? new[] { set.Id } : [];
+                var preview = games.PreviewRemoval(game.RomId);
 
-                report = eviction.PreviewRemoval([game.RomId], releasing);
-                unvouchable = eviction.Unvouchable([game.RomId]);
+                report = preview.Report;
+                unvouchable = preview.Unvouchable;
 
                 token.ThrowIfCancellationRequested();
                 return Task.FromResult<string?>(null);
@@ -203,7 +190,7 @@ public static class BrowseScreens
             Verbs = (action, _) => action switch
             {
                 NavAction.Accept when report is { } ready && ready.Plan.Selected.Count > 0 =>
-                    ScreenCommand.Push(ApplyRemoval(session, picked, game, ready, changed)),
+                    ScreenCommand.Push(ApplyRemoval(session, game, ready, changed)),
                 _ => null,
             },
         }.Started();
@@ -211,7 +198,6 @@ public static class BrowseScreens
 
     internal static ListScreen ApplyRemoval(
         InstallSession session,
-        PickedSetService picked,
         BrowseGame game,
         EvictionReport report,
         Action? changed)
@@ -243,15 +229,10 @@ public static class BrowseScreens
             LoadingMessage = "Removing the game and rewriting the list EmulationStation reads...",
             Load = async token =>
             {
-                applied = await new EvictionService(session)
-                    .ApplyAsync(report, token)
+                // Unpicks as well, whatever the files did. See GameService.ApplyRemovalAsync.
+                applied = await new GameService(session)
+                    .ApplyRemovalAsync(game.RomId, report, token)
                     .ConfigureAwait(false);
-
-                // The pick goes whatever the files did. The user said take it off, and a pick
-                // left behind would have the next sync fetch it again; a game another set still
-                // wants stays on disk and that set goes on claiming it, which is what the
-                // refusal above already told them.
-                picked.Unpick(game.RomId, DateTimeOffset.UtcNow);
 
                 changed?.Invoke();
                 return null;
