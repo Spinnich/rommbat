@@ -12,6 +12,11 @@ which `ContentPlanner` and `EvictionPlanner` already enforce. `sets add` keeps `
 `--max-bytes` and `--order`, and a set given caps from the console keeps them: the editor sends
 no cap values at all rather than the cleared ones a hidden row would have produced.
 
+**Eviction is not on the interface either.** Freeing space belongs to the user, who does it by
+raising the budget or by dropping a set, which is them saying which games they no longer want.
+A sync the budget cut short says so and offers nothing. `evict --apply`, and its sweep of dead
+transfers under `partial/`, stay on the console.
+
 **A set is named after what it mirrors.** A platform and a collection both already have a name
 in RomM, so a platform or collection set is pick, pick, create, and the on-screen keyboard is
 off the common path entirely.

@@ -11,9 +11,9 @@ namespace RomMBat.UI.Screens;
 /// </summary>
 /// <remarks>
 /// <b>Every verb is a row, because there are more verbs than buttons.</b> Accept, Start, Extra
-/// and Alternate hold four, and conflicts, platforms and queued changes are three more. A list
-/// grows by a row where a footer cannot grow by a button, and a row can say what it is for in
-/// words rather than in a glyph a person has to have learned.
+/// and Alternate hold four, and conflicts, platforms, queued changes and the outbox are four
+/// more. A list grows by a row where a footer cannot grow by a button, and a row can say what it
+/// is for in words rather than in a glyph a person has to have learned.
 /// <para>
 /// <b>The count that motivates a verb belongs on its own row.</b> A number a user has to know
 /// before they would think to press anything, buried one screen deep behind "this device",
@@ -50,6 +50,8 @@ public static class RootScreens
         public Func<IScreen>? OpenPlatforms { get; init; }
 
         public Func<IScreen>? OpenQueued { get; init; }
+
+        public Func<IScreen>? OpenOutbox { get; init; }
     }
 
     /// <summary>The root menu.</summary>
@@ -86,6 +88,7 @@ public static class RootScreens
             var unmapped = store.PlatformMap.List().Count(row => row.Folder is null);
             var queued = store.PendingConfig.ListOutstanding().Count;
             var outbox = store.Outbox.PendingCount();
+            var refused = store.Outbox.FailedCount();
 
             Add(
                 new ListRow("Sync sets", null, "What this device keeps: a platform, a collection or a search."),
@@ -126,6 +129,21 @@ public static class RootScreens
                 routes.OpenQueued);
 
             Add(
+                new ListRow(
+                    "Outbox",
+                    (outbox, refused) switch
+                    {
+                        (0, 0) => "empty",
+                        (_, 0) => Counted(outbox, "waiting"),
+                        (0, _) => Counted(refused, "refused"),
+                        _ => $"{Counted(outbox, "waiting")}, {Counted(refused, "refused")}",
+                    },
+                    refused > 0
+                        ? "The server refused some, so they exist only on this device until you drop them."
+                        : "Saves, states and play sessions waiting to reach the server."),
+                routes.OpenOutbox);
+
+            Add(
                 new ListRow("Disk space", Cap(session), "How much room the sync sets may use together."),
                 routes.OpenBudget);
 
@@ -142,9 +160,7 @@ public static class RootScreens
                 new ListRow(
                     "This device",
                     session.Install.ReadVersionString() ?? "not readable",
-                    outbox == 0
-                        ? "RetroBat, the store, the controller and what is waiting to be sent."
-                        : $"{Plural(outbox, "item")} waiting to reach the server."),
+                    "RetroBat, the store, the controller and what is waiting to be sent."),
                 () => new StatusViewModel(session, gamepad));
 
             return rows;
