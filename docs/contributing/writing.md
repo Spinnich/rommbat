@@ -51,10 +51,11 @@ uncertified platform becomes a verification task, not a line in the document.
 
 ## Markdown traps
 
-**Two bare `$` on one line pair up as inline math**, in markdownlint and in GitHub's renderer,
-and every code span between them breaks. Trunk then reports MD038 and MD033 at column 0, which
-points nowhere useful. A `$` inside backticks is safe. Reword, or put the name in a code span,
-rather than escaping it.
+**A bare `$` in prose opens inline math**, in markdownlint, prettier and GitHub's renderer, and
+pairs with the next `$` in the paragraph, even one inside a later code span. Every code span
+between them breaks: prettier strips the spaces around them, and trunk reports MD038 and MD033
+at column 0, which points nowhere useful. Write `\$`, or `&#36;` under `wiki/`, since MkDocs
+prints `\$` with its backslash. A `$` inside backticks needs no escape.
 
 ## What `tools/docs/check.py` enforces
 
