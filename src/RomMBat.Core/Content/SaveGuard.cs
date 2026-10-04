@@ -27,7 +27,7 @@ public sealed record SaveGuardVerdict(bool CanRemove, string? Reason)
 /// <list type="bullet">
 /// <item><c>outbox</c>: anything produced offline and still waiting to be sent, keyed by ROM. An entry
 /// the server refused is <c>failed</c>, not waiting, and does not count.</item>
-/// <item><c>journal</c>: what the ES hooks append, keyed by the ROM's path. An entry that is
+/// <item><c>journal</c>: what the ES hooks saw, once drained from the spool, keyed by the ROM's path. An entry that is
 /// still <c>open</c> means a game was launched and nothing has yet worked out what it
 /// wrote. A <c>game-start</c> older than the last <c>start</c> or <c>quit</c> is an orphan and
 /// does not count, per <see cref="RunningGames"/>.</item>

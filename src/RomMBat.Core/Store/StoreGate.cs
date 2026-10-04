@@ -30,8 +30,9 @@ namespace RomMBat.Core.Store;
 /// that release returns rather than throwing, and for the one place it legitimately happens.
 /// </para>
 /// <para>
-/// <b>This says nothing about other processes.</b> The database is WAL and the hooks write to it
-/// from their own processes; the tree lock and the busy timeout are what order those.
+/// <b>This says nothing about other processes.</b> The database is WAL and the agent's passes and
+/// the UI write to it from their own processes; the tree lock and the busy timeout are what order
+/// those.
 /// </para>
 /// </remarks>
 internal static class StoreGate

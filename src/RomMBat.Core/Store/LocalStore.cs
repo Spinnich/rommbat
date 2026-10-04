@@ -97,7 +97,7 @@ public sealed class LocalStore : IDisposable
 
     public OutboxStore Outbox { get; }
 
-    /// <summary>What the ES hooks append, which is the only thing they do.</summary>
+    /// <summary>What the ES hooks saw, drained from their spool files.</summary>
     public JournalStore Journal { get; }
 
     /// <summary>Where emulatorLauncher.log was last read to, across its rotation.</summary>
@@ -370,7 +370,7 @@ public sealed class LocalStore : IDisposable
         Execute($"PRAGMA busy_timeout = {(int)BusyTimeout.TotalMilliseconds};");
         Execute("PRAGMA foreign_keys = ON;");
 
-        // WAL keeps a reader from blocking the concurrent hook writers. It is requested
+        // WAL keeps a reader from blocking a writer in another process. It is requested
         // rather than required: SQLite refuses it on some filesystems and answers with the
         // mode it kept, which is fine as long as nothing assumes it got WAL.
         using var command = _connection.CreateCommand();
