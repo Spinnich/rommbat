@@ -181,7 +181,7 @@ internal static class Program
         Console.Error.WriteLine("  --name <label>    How this device appears in the RomM device list");
         Console.Error.WriteLine("  --protect         Encrypt the stored token with a passphrase you type");
         Console.Error.WriteLine("  --passphrase <s>  Unlock a token stored with --protect, for any command that calls out");
-        Console.Error.WriteLine("  --offline         status, sync, bios, saves, game show: work from local state without the server");
+        Console.Error.WriteLine("  --offline         status, sync, bios, saves, platforms list, game show: work from local state without the server");
         Console.Error.WriteLine("  --dry-run         sync: say what would happen and write nothing");
         Console.Error.WriteLine("  --apply           evict, uninstall, game remove: actually remove. bios: actually fetch. saves");
         Console.Error.WriteLine("                    restore, saves convert: actually write. outbox drop: actually delete. Without it,");

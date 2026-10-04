@@ -42,7 +42,7 @@ Options
   --name <label>    How this device appears in the RomM device list
   --protect         Encrypt the stored token with a passphrase you type
   --passphrase <s>  Unlock a token stored with --protect, for any command that calls out
-  --offline         status, sync, bios, saves, game show: work from local state without the server
+  --offline         status, sync, bios, saves, platforms list, game show: work from local state without the server
   --dry-run         sync: say what would happen and write nothing
   --apply           evict, uninstall, game remove: actually remove. bios: actually fetch. saves
                     restore, saves convert: actually write. outbox drop: actually delete. Without it,
