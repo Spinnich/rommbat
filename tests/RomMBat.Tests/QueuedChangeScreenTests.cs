@@ -86,6 +86,9 @@ public class QueuedChangeScreenTests : IDisposable
         var back = Assert.Single(confirm.Hints, hint => hint.Action == NavAction.Back);
         Assert.Equal("Done", back.Label);
 
+        // And the pane follows it, rather than still describing the change it just cancelled.
+        Assert.Equal("Cancelled", Assert.Single(confirm.Rows).Label);
+
         navigator.Handle(NavAction.Back);
         Assert.Empty(Assert.IsType<ListScreen>(navigator.Current).Rows);
     }
